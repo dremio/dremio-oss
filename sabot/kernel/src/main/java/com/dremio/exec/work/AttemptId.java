@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.work;
 
+import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 

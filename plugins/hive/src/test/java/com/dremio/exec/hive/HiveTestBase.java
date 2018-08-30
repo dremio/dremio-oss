@@ -19,8 +19,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 import com.dremio.PlanTestBase;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
 
 /**
@@ -41,12 +41,12 @@ public class HiveTestBase extends PlanTestBase {
       throw new RuntimeException("context null!!!");
     }
     hiveTest.addHiveTestPlugin(getSabotContext().getCatalogService());
-    test(String.format("alter session set `%s` = false", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+    test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
   }
 
   @AfterClass
   public static void cleanupHiveTestData() throws Exception{
-    test(String.format("alter session set `%s` = true", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+    test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
     if (hiveTest != null) {
       hiveTest.deleteHiveTestPlugin(getSabotContext().getCatalogService());
     }

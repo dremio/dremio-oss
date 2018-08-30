@@ -23,7 +23,7 @@ import static java.lang.String.format;
 import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.NullableDecimalVector;
+import org.apache.arrow.vector.DecimalVector;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,7 +75,7 @@ class Dremio09BackwardCompatibilityHandler extends BaseBackwardsCompatibilityHan
          * to ensure backwards compatibility
          */
         if (minor == DECIMAL) {
-          /* NullableDecimalVector: {validityBuffer, dataBuffer} */
+          /* DecimalVector: {validityBuffer, dataBuffer} */
           final int decimalBufferIndex = 1;
           SerializedField.Builder decimalField = children.get(decimalBufferIndex);
           final ArrowBuf decimalBuffer = (ArrowBuf)buffers[bufferStart + decimalBufferIndex];
@@ -111,7 +111,7 @@ class Dremio09BackwardCompatibilityHandler extends BaseBackwardsCompatibilityHan
    * @param dataBuffer data buffer of decimal vector
    */
   static void patchDecimal(final ArrowBuf dataBuffer) {
-    final int decimalLength = NullableDecimalVector.TYPE_WIDTH;
+    final int decimalLength = DecimalVector.TYPE_WIDTH;
     int startPoint = dataBuffer.readerIndex();
     final int valueCount = dataBuffer.readableBytes()/decimalLength;
     for (int i = 0; i < valueCount; i++) {

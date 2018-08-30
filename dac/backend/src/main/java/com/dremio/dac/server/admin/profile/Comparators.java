@@ -22,6 +22,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.NodePhaseProfile;
+import com.dremio.exec.proto.UserBitShared.NodeQueryProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 
 /**
@@ -75,6 +76,13 @@ interface Comparators {
   Comparator<MinorFragmentProfile> runTime = new Comparator<MinorFragmentProfile>() {
     public int compare(final MinorFragmentProfile o1, final MinorFragmentProfile o2) {
       return Long.compare(o1.getEndTime() - o1.getStartTime(), o2.getEndTime() - o2.getStartTime());
+    }
+  };
+
+  Comparator<NodeQueryProfile> endpoint = new Comparator<NodeQueryProfile>() {
+    @Override
+    public int compare(NodeQueryProfile o1, NodeQueryProfile o2) {
+      return o1.getEndpoint().getAddress().compareToIgnoreCase(o2.getEndpoint().getAddress());
     }
   };
 

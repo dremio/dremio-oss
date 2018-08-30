@@ -19,15 +19,18 @@ import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.server.NodeDebugContextProvider;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.testing.ExecutionControls;
+import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.dremio.service.namespace.NamespaceService;
 
 import io.netty.buffer.ArrowBuf;
@@ -43,6 +46,31 @@ public abstract class OperatorContext {
   public abstract ArrowBuf getManagedBuffer(int size);
 
   public abstract BufferAllocator getAllocator();
+
+  /**
+   * Create a vector container to be used for the output of this operator
+   * Allocations for this vector container come from a special fragment output allocator
+   */
+  public abstract VectorContainer createOutputVectorContainer();
+
+  /**
+   * Create a vector container to be used for the output of this operator
+   * Allocations for this vector container come from a special fragment output allocator
+   */
+  public abstract VectorContainer createOutputVectorContainer(Schema schema);
+
+  /**
+   * Create a vector container with selection vector, to be used for the output of this operator
+   * Allocations for this vector container come from a special fragment output allocator
+   */
+  public abstract VectorContainerWithSV createOutputVectorContainerWithSV();
+
+  /**
+   * Create a vector container with selection vector cloned from the incoming selection vector, to be used for the
+   * output of this operator
+   * Allocations for this vector container come from a special fragment output allocator
+   */
+  public abstract VectorContainerWithSV createOutputVectorContainerWithSV(SelectionVector2 incomingSv);
 
   public abstract OperatorStats getStats();
 

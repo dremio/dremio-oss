@@ -16,8 +16,6 @@
 package com.dremio.sabot.op.common.ht2;
 
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableVarCharVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 
@@ -35,9 +33,9 @@ public class Reallocators {
   }
 
   private static class VarBinaryReallocator implements Reallocator {
-    private final NullableVarBinaryVector varbinary;
+    private final VarBinaryVector varbinary;
 
-    public VarBinaryReallocator(NullableVarBinaryVector vector) {
+    public VarBinaryReallocator(VarBinaryVector vector) {
       this.varbinary = vector;
     }
 
@@ -67,9 +65,9 @@ public class Reallocators {
   }
 
   private static class VarCharReallocator implements Reallocator {
-    private final NullableVarCharVector varchar;
+    private final VarCharVector varchar;
 
-    public VarCharReallocator(NullableVarCharVector vector) {
+    public VarCharReallocator(VarCharVector vector) {
       this.varchar = vector;
     }
 
@@ -99,10 +97,10 @@ public class Reallocators {
   }
 
   public static Reallocator getReallocator(FieldVector vect){
-    if(vect instanceof NullableVarCharVector){
-      return new VarCharReallocator(((NullableVarCharVector) vect));
-    }else if(vect instanceof NullableVarBinaryVector){
-      return new VarBinaryReallocator(((NullableVarBinaryVector) vect));
+    if(vect instanceof VarCharVector){
+      return new VarCharReallocator(((VarCharVector) vect));
+    }else if(vect instanceof VarBinaryVector){
+      return new VarBinaryReallocator(((VarBinaryVector) vect));
     }else{
       throw new IllegalStateException("Invalid vector: " + Describer.describe(vect.getField()));
     }

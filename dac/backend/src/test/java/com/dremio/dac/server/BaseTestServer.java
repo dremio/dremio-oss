@@ -480,6 +480,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return l(DatasetVersionMutator.class);
   }
 
+  protected static SabotContext getSabotContext(){
+    return l(SabotContext.class);
+  }
+
   protected static <T> T l(Class<T> clazz) {
     return dremioBinder.lookup(clazz);
   }
@@ -746,7 +750,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
   }
 
   protected Invocation reapplyInvocation(DatasetVersionResourcePath versionResourcePath) {
-   return getBuilder(getAPIv2().path(versionResourcePath.toString() + "/reapply")).buildPost(null);
+   return getBuilder(getAPIv2().path(versionResourcePath.toString() + "/editOriginalSql")).buildPost(null);
   }
 
   protected InitialPreviewResponse reapply(DatasetVersionResourcePath versionResourcePath) {

@@ -227,7 +227,7 @@ export class JoinController extends Component {
     const viewStateWrapperStyle = this.props.viewState.get('isInProgress')
       ? { position: 'relative' } : {};
     return (
-      <ViewStateWrapper style={[styles.viewStateWrapper, viewStateWrapperStyle]} viewState={this.props.viewState}
+      <ViewStateWrapper style={{...styles.viewStateWrapper, ...viewStateWrapperStyle}} viewState={this.props.viewState}
         hideChildrenWhenFailed={false}>
         {joinTab === RECOMMENDED_JOIN && <ChooseDataset
           currentDatasetName={datasetName}

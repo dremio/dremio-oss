@@ -157,7 +157,7 @@ public class TestSystemStoragePluginInitializer {
     conf.connection = "classpath:///";
     conf.path = "/";
     conf.isInternal = false;
-    conf.properties = ImmutableList.of(new Property("abc", "bcd"), new Property("def", "123"));
+    conf.propertyList = ImmutableList.of(new Property("abc", "bcd"), new Property("def", "123"));
     c.setName("mytest");
     c.setConnectionConf(conf);
     c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);

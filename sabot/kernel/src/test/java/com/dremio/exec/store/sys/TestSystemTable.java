@@ -36,16 +36,16 @@ public class TestSystemTable extends BaseTestQuery {
   @Test
   public void alterSessionOption() throws Exception {
 
-    newTest() //
+    testBuilder() //
       .sqlQuery("select bool_val as bool from sys.options where name = '%s' order by type desc", ExecConstants.JSON_ALL_TEXT_MODE)
       .baselineColumns("bool")
       .ordered()
       .baselineValues(false)
       .go();
 
-    test("alter session set `%s` = true", ExecConstants.JSON_ALL_TEXT_MODE);
+    test("alter session set \"%s\" = true", ExecConstants.JSON_ALL_TEXT_MODE);
 
-    newTest() //
+    testBuilder() //
       .sqlQuery("select bool_val as bool from sys.options where name = '%s' order by type desc ", ExecConstants.JSON_ALL_TEXT_MODE)
       .baselineColumns("bool")
       .ordered()

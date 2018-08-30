@@ -21,3 +21,4 @@ export dataset from './dataset';
 export historyItem from './historyItem';
 export provision from './provision';
 export lru from './lru';
+export datasetSummary from './datasetSummary';

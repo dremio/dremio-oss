@@ -42,4 +42,6 @@ message AccelerationSettingsDescriptor {
   repeated string field = 4;
   optional int64 accelerationRefreshPeriod = 5;
   optional int64 accelerationGracePeriod = 6;
+  optional bool accelerationNeverExpire = 7 [default = false];
+  optional bool accelerationNeverRefresh = 8 [default = false];
 }

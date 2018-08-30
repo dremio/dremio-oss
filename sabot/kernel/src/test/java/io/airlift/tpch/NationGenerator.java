@@ -32,18 +32,18 @@ import com.google.common.base.Charsets;
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.VarCharVector;
 
 public class NationGenerator extends TpchGenerator {
   private static final int COMMENT_AVERAGE_LENGTH = 72;
 
   private final Distribution nations;
 
-  private final NullableBigIntVector nationKey;
-  private final NullableVarCharVector name;
-  private final NullableBigIntVector regionKey;
-  private final NullableVarCharVector comment;
+  private final BigIntVector nationKey;
+  private final VarCharVector name;
+  private final BigIntVector regionKey;
+  private final VarCharVector comment;
 
   final RandomText commentRandom = randomText(606179079, TextPool.getDefaultTestPool(), COMMENT_AVERAGE_LENGTH);
 

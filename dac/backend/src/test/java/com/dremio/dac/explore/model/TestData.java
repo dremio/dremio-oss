@@ -35,29 +35,29 @@ import javax.annotation.Nullable;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableBitVector;
-import org.apache.arrow.vector.NullableDateMilliVector;
-import org.apache.arrow.vector.NullableDecimalVector;
-import org.apache.arrow.vector.NullableFloat4Vector;
-import org.apache.arrow.vector.NullableFloat8Vector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableIntervalDayVector;
-import org.apache.arrow.vector.NullableIntervalYearVector;
-import org.apache.arrow.vector.NullableSmallIntVector;
-import org.apache.arrow.vector.NullableTimeMilliVector;
-import org.apache.arrow.vector.NullableTimeStampMilliVector;
-import org.apache.arrow.vector.NullableTinyIntVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.DateMilliVector;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.IntervalDayVector;
+import org.apache.arrow.vector.IntervalYearVector;
+import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TimeMilliVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
+import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
-import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.impl.UnionWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.VarCharWriter;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.commons.lang3.tuple.Pair;
@@ -305,8 +305,8 @@ public class TestData {
     void verify(DataPOJO output);
   }
 
-  private static Pair<NullableBitVector, ResultVerifier> testBitVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableBitVector colBitV = new NullableBitVector("colBit", allocator);
+  private static Pair<BitVector, ResultVerifier> testBitVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    BitVector colBitV = new BitVector("colBit", allocator);
     colBitV.allocateNew(5);
     colBitV.set(0, 1);
     colBitV.set(1, 0);
@@ -329,8 +329,8 @@ public class TestData {
     return Pair.of(colBitV, verifier);
   }
 
-  private static Pair<NullableTinyIntVector, ResultVerifier> testTinyIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableTinyIntVector colTinyIntV = new NullableTinyIntVector("colTinyInt", allocator);
+  private static Pair<TinyIntVector, ResultVerifier> testTinyIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    TinyIntVector colTinyIntV = new TinyIntVector("colTinyInt", allocator);
     colTinyIntV.allocateNew(5);
     colTinyIntV.set(0, 0);
     colTinyIntV.set(1, -1);
@@ -353,8 +353,8 @@ public class TestData {
     return Pair.of(colTinyIntV, verifier);
   }
 
-  private static Pair<NullableSmallIntVector, ResultVerifier> testSmallIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableSmallIntVector colSmallIntV = new NullableSmallIntVector("colSmallInt", allocator);
+  private static Pair<SmallIntVector, ResultVerifier> testSmallIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    SmallIntVector colSmallIntV = new SmallIntVector("colSmallInt", allocator);
     colSmallIntV.allocateNew(5);
     colSmallIntV.set(0, 20);
     colSmallIntV.setNull(1);
@@ -377,8 +377,8 @@ public class TestData {
     return Pair.of(colSmallIntV, verifier);
   }
 
-  private static Pair<NullableIntVector, ResultVerifier> testIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableIntVector colIntV = new NullableIntVector("colInt", allocator);
+  private static Pair<IntVector, ResultVerifier> testIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    IntVector colIntV = new IntVector("colInt", allocator);
     colIntV.allocateNew(5);
     colIntV.set(0, 20);
     colIntV.set(1, 50);
@@ -401,8 +401,8 @@ public class TestData {
     return Pair.of(colIntV, verifier);
   }
 
-  private static Pair<NullableBigIntVector, ResultVerifier> testBigIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableBigIntVector colBigIntV = new NullableBigIntVector("colBigInt", allocator);
+  private static Pair<BigIntVector, ResultVerifier> testBigIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    BigIntVector colBigIntV = new BigIntVector("colBigInt", allocator);
     colBigIntV.allocateNew(5);
     colBigIntV.setNull(0);
     colBigIntV.set(1, 50);
@@ -425,8 +425,8 @@ public class TestData {
     return Pair.of(colBigIntV, verifier);
   }
 
-  private static Pair<NullableFloat4Vector, ResultVerifier> testFloat4Vector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableFloat4Vector colFloat4V = new NullableFloat4Vector("colFloat4", allocator);
+  private static Pair<Float4Vector, ResultVerifier> testFloat4Vector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    Float4Vector colFloat4V = new Float4Vector("colFloat4", allocator);
     colFloat4V.allocateNew(5);
     colFloat4V.set(0, 20.0f);
     colFloat4V.set(1, 50.023f);
@@ -449,8 +449,8 @@ public class TestData {
     return Pair.of(colFloat4V, verifier);
   }
 
-  private static Pair<NullableFloat8Vector, ResultVerifier> testFloat8Vector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableFloat8Vector colFloat8V = new NullableFloat8Vector("colFloat8", allocator);
+  private static Pair<Float8Vector, ResultVerifier> testFloat8Vector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    Float8Vector colFloat8V = new Float8Vector("colFloat8", allocator);
     colFloat8V.allocateNew(5);
     colFloat8V.set(0, 20.2345234d);
     colFloat8V.set(1, 503453.023d);
@@ -473,8 +473,8 @@ public class TestData {
     return Pair.of(colFloat8V, verifier);
   }
 
-  private static Pair<NullableDateMilliVector, ResultVerifier> testDateMilliVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableDateMilliVector colDateV = new NullableDateMilliVector("colDate", allocator);
+  private static Pair<DateMilliVector, ResultVerifier> testDateMilliVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    DateMilliVector colDateV = new DateMilliVector("colDate", allocator);
     colDateV.allocateNew(5);
     colDateV.set(0, 234);
     colDateV.set(1, -2342);
@@ -497,8 +497,8 @@ public class TestData {
     return Pair.of(colDateV, verifier);
   }
 
-  private static Pair<NullableTimeMilliVector, ResultVerifier> testTimeVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableTimeMilliVector colTimeV = new NullableTimeMilliVector("colTime", allocator);
+  private static Pair<TimeMilliVector, ResultVerifier> testTimeVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    TimeMilliVector colTimeV = new TimeMilliVector("colTime", allocator);
     colTimeV.allocateNew(5);
     colTimeV.set(0, 23423234);
     colTimeV.set(1, -234223);
@@ -521,8 +521,8 @@ public class TestData {
     return Pair.of(colTimeV, verifier);
   }
 
-  private static Pair<NullableTimeStampMilliVector, ResultVerifier> testTimeStampVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableTimeStampMilliVector colTimeStampV = new NullableTimeStampMilliVector("colTimeStamp", allocator);
+  private static Pair<TimeStampMilliVector, ResultVerifier> testTimeStampVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    TimeStampMilliVector colTimeStampV = new TimeStampMilliVector("colTimeStamp", allocator);
     colTimeStampV.allocateNew(5);
     colTimeStampV.set(0, 23423234);
     colTimeStampV.set(1, -234223);
@@ -545,8 +545,8 @@ public class TestData {
     return Pair.of(colTimeStampV, verifier);
   }
 
-  private static Pair<NullableIntervalYearVector, ResultVerifier> testIntervalYearVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableIntervalYearVector colIntervalYearV = new NullableIntervalYearVector("colIntervalYear", allocator);
+  private static Pair<IntervalYearVector, ResultVerifier> testIntervalYearVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    IntervalYearVector colIntervalYearV = new IntervalYearVector("colIntervalYear", allocator);
     colIntervalYearV.allocateNew(5);
     colIntervalYearV.set(0, 2342);
     colIntervalYearV.set(1, -234);
@@ -569,8 +569,8 @@ public class TestData {
     return Pair.of(colIntervalYearV, verifier);
   }
 
-  private static Pair<NullableIntervalDayVector, ResultVerifier> testIntervalDayVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableIntervalDayVector colIntervalDayV = new NullableIntervalDayVector("colIntervalDay", allocator);
+  private static Pair<IntervalDayVector, ResultVerifier> testIntervalDayVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    IntervalDayVector colIntervalDayV = new IntervalDayVector("colIntervalDay", allocator);
     colIntervalDayV.allocateNew(5);
     colIntervalDayV.setNull(0);
     colIntervalDayV.set(1, 1, -300, 23423);
@@ -593,8 +593,8 @@ public class TestData {
     return Pair.of(colIntervalDayV, verifier);
   }
 
-  private static Pair<NullableDecimalVector, ResultVerifier> testDecimalVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableDecimalVector colDecimalV = new NullableDecimalVector("colDecimal", allocator, 10, 10);
+  private static Pair<DecimalVector, ResultVerifier> testDecimalVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    DecimalVector colDecimalV = new DecimalVector("colDecimal", allocator, 10, 10);
     colDecimalV.allocateNew(5);
     DecimalUtility.writeBigDecimalToArrowBuf(new BigDecimal(25.03).setScale(5, RoundingMode.HALF_UP), tempBuf, 0);
     colDecimalV.set(0, tempBuf);
@@ -621,8 +621,8 @@ public class TestData {
     return Pair.of(colDecimalV, verifier);
   }
 
-  private static Pair<NullableVarCharVector, ResultVerifier> testVarCharVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableVarCharVector colVarCharV = new NullableVarCharVector("colVarChar", allocator);
+  private static Pair<VarCharVector, ResultVerifier> testVarCharVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    VarCharVector colVarCharV = new VarCharVector("colVarChar", allocator);
     colVarCharV.allocateNew(500, 5);
     colVarCharV.set(0, "value1".getBytes());
     colVarCharV.set(1,
@@ -658,8 +658,8 @@ public class TestData {
     return Pair.of(colVarCharV, verifier);
   }
 
-  private static Pair<NullableVarBinaryVector, ResultVerifier> testVarBinaryVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NullableVarBinaryVector colVarBinaryV = new NullableVarBinaryVector("colVarBinary", allocator);
+  private static Pair<VarBinaryVector, ResultVerifier> testVarBinaryVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    VarBinaryVector colVarBinaryV = new VarBinaryVector("colVarBinary", allocator);
     colVarBinaryV.allocateNew(500, 5);
     colVarBinaryV.set(0, "value1".getBytes());
     colVarBinaryV.set(1,
@@ -704,10 +704,10 @@ public class TestData {
     writer.writeVarChar(0, varCharVal.length, tempBuf);
   }
 
-  private static Pair<MapVector, ResultVerifier> testMapVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    MapVector colMapV = new MapVector("colMap", allocator, null);
+  private static Pair<NonNullableStructVector, ResultVerifier> testMapVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+    NonNullableStructVector colStructV = new NonNullableStructVector("colMap", allocator, null);
 
-    ComplexWriterImpl mapWriter = new ComplexWriterImpl("colMap", colMapV);
+    ComplexWriterImpl structWriter = new ComplexWriterImpl("colMap", colStructV);
 
     // colMap contains the following records:
     // { bigint: 23, nVarCharCol: 'value', nListCol: [1970-01-01, 1970-01-03, 1969-12-31], nUnionCol: 2 }
@@ -716,45 +716,45 @@ public class TestData {
     // { }
     // { bigint: 234543 }
 
-    MapWriter mapWr = mapWriter.rootAsMap();
+    StructWriter structWr = structWriter.rootAsStruct();
 
-    mapWr.setPosition(0);
-    mapWr.start();
-    mapWr.bigInt(BIGINT_COL).writeBigInt(23);
-    writeVarChar(mapWr.varChar(VARCHAR_COL), "value");
-    mapWr.list(LIST_COL).startList();
-    mapWr.list(LIST_COL).dateMilli().writeDateMilli(2312L);
-    mapWr.list(LIST_COL).dateMilli().writeDateMilli(234823492L);
-    mapWr.list(LIST_COL).dateMilli().writeDateMilli(-2382437L);
-    mapWr.list(LIST_COL).endList();
-    mapWr.integer(UNION_COL).writeInt(2);
-    mapWr.end();
+    structWr.setPosition(0);
+    structWr.start();
+    structWr.bigInt(BIGINT_COL).writeBigInt(23);
+    writeVarChar(structWr.varChar(VARCHAR_COL), "value");
+    structWr.list(LIST_COL).startList();
+    structWr.list(LIST_COL).dateMilli().writeDateMilli(2312L);
+    structWr.list(LIST_COL).dateMilli().writeDateMilli(234823492L);
+    structWr.list(LIST_COL).dateMilli().writeDateMilli(-2382437L);
+    structWr.list(LIST_COL).endList();
+    structWr.integer(UNION_COL).writeInt(2);
+    structWr.end();
 
-    mapWr.setPosition(1);
-    mapWr.start();
-    mapWr.bigInt(BIGINT_COL).writeBigInt(223);
-    writeVarChar(mapWr.varChar(VARCHAR_COL), "long long value");
-    mapWr.list(LIST_COL).startList();
-    mapWr.list(LIST_COL).dateMilli().writeDateMilli(-234238942L);
-    mapWr.list(LIST_COL).dateMilli().writeDateMilli(-234238942L);
-    mapWr.list(LIST_COL).endList();
-    writeVarChar(mapWr.varChar(UNION_COL), "long long value");
-    mapWr.end();
+    structWr.setPosition(1);
+    structWr.start();
+    structWr.bigInt(BIGINT_COL).writeBigInt(223);
+    writeVarChar(structWr.varChar(VARCHAR_COL), "long long value");
+    structWr.list(LIST_COL).startList();
+    structWr.list(LIST_COL).dateMilli().writeDateMilli(-234238942L);
+    structWr.list(LIST_COL).dateMilli().writeDateMilli(-234238942L);
+    structWr.list(LIST_COL).endList();
+    writeVarChar(structWr.varChar(UNION_COL), "long long value");
+    structWr.end();
 
-    mapWr.setPosition(2);
-    mapWr.start();
-    mapWr.bigInt(BIGINT_COL).writeBigInt(54645L);
-    mapWr.map(MAP_COL).start();
-    mapWr.map(MAP_COL).integer("a").writeInt(1);
-    mapWr.map(MAP_COL).end();
-    mapWr.end();
+    structWr.setPosition(2);
+    structWr.start();
+    structWr.bigInt(BIGINT_COL).writeBigInt(54645L);
+    structWr.struct(MAP_COL).start();
+    structWr.struct(MAP_COL).integer("a").writeInt(1);
+    structWr.struct(MAP_COL).end();
+    structWr.end();
 
-    mapWr.setPosition(4);
-    mapWr.start();
-    mapWr.bigInt(BIGINT_COL).writeBigInt(234543L);
-    mapWr.end();
+    structWr.setPosition(4);
+    structWr.start();
+    structWr.bigInt(BIGINT_COL).writeBigInt(234543L);
+    structWr.end();
 
-    mapWriter.setValueCount(5);
+    structWriter.setValueCount(5);
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
@@ -778,7 +778,7 @@ public class TestData {
       }
     };
 
-    return Pair.of(colMapV, verifier);
+    return Pair.of(colStructV, verifier);
   }
 
   private static Pair<ListVector, ResultVerifier> testListVector(final int startIndexInCurrentOutput, final int startIndexInJob) {

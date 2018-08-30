@@ -13,19 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.filters-header {
-  & > div {
-    position: relative;
-    &:not(:last-child)::after{
-      content: '';
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      right: 0;
-      margin: auto;
-      height: 17px;
-      width: 1px;
-      background: rgba(0,0,0,.1);
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+    
+  .filters-header {
+    & > div {
+      position: relative;
+      &:not(:last-child)::after{
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: 0;
+        margin: auto;
+        height: 17px;
+        width: 1px;
+        background: rgba(0,0,0,.1);
+      }
     }
   }
 }

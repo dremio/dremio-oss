@@ -171,11 +171,27 @@
           <br />
           </#if>
 
+          <!-- Old measures, kept for bc -->
           <#if layout.measuresList?has_content >
           Measures:
             <#list layout.getMeasuresList() as measures>
               ${measures},
             </#list>
+          <br />
+          </#if>
+
+          <!-- New measures with types -->
+          <#if layout.measureColumnsList?has_content >
+          Measures:
+            <ul>
+            <#list layout.getMeasureColumnsList() as measures>
+              <li>${measures.getName()} (
+                <#list measures.getMeasureTypeList() as meastureTypeList>
+                  ${meastureTypeList},
+                </#list>
+                )</li>
+            </#list>
+            </ul>
           <br />
           </#if>
 
@@ -342,6 +358,24 @@
       </div>
     </div>
     </#list>
+  </div>
+
+  <h3>Nodes</h3>
+  <div class="panel-group" id="node-accordion">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h4 class="panel-title">
+          <a data-toggle="collapse" href="#node-overview">
+            Overview
+          </a>
+        </h4>
+      </div>
+      <div id="node-overview" class="panel-collapse collapse">
+        <div class="panel-body">
+          ${model.getNodesOverview()?no_esc}
+        </div>
+      </div>
+    </div>
   </div>
 
   <h3>Operators</h3>

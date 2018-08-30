@@ -22,7 +22,7 @@ public class TestTpchLimit0 extends BaseTestQuery{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestTpchLimit0.class);
 
   private void testLimitZeroQuery(String query) throws Exception {
-    query = "ALTER SESSION SET `planner.slice_target` = 1; select * from \n(" + query.replace(";", ")xyz limit 0;");
+    query = "ALTER SESSION SET \"planner.slice_target\" = 1; select * from \n(" + query.replace(";", ")xyz limit 0;");
     test(query);
   }
 
@@ -111,7 +111,7 @@ public class TestTpchLimit0 extends BaseTestQuery{
         "    l_suppkey,\n" +
         "    sum(l_extendedprice * (1 - l_discount))\n" +
         "  from\n" +
-        "    cp.`tpch/lineitem.parquet`\n" +
+        "    cp.\"tpch/lineitem.parquet\"\n" +
         "  where\n" +
         "    l_shipdate >= date '1993-05-01'\n" +
         "    and l_shipdate < date '1993-05-01' + interval '3' month\n" +
@@ -124,7 +124,7 @@ public class TestTpchLimit0 extends BaseTestQuery{
         "      s.s_phone,\n" +
         "      r.total_revenue\n" +
         "    from\n" +
-        "    cp.`tpch/supplier.parquet` s,\n" +
+        "    cp.\"tpch/supplier.parquet\" s,\n" +
         "      revenue0 r\n" +
         "      where\n" +
         "    s.s_suppkey = r.supplier_no\n" +

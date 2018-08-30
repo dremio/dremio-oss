@@ -20,6 +20,7 @@ import static com.dremio.service.reflection.ReflectionUtils.isPhysicalDataset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.rel.RelNode;
 
@@ -37,8 +38,10 @@ import com.dremio.service.accelerator.proto.LayoutDetailsDescriptor;
 import com.dremio.service.accelerator.proto.LayoutDimensionFieldDescriptor;
 import com.dremio.service.accelerator.proto.LayoutFieldDescriptor;
 import com.dremio.service.accelerator.proto.LayoutId;
+import com.dremio.service.accelerator.proto.LayoutMeasureFieldDescriptor;
 import com.dremio.service.accelerator.proto.LayoutType;
 import com.dremio.service.accelerator.proto.MaterializationDetails;
+import com.dremio.service.accelerator.proto.MeasureType;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.accelerator.proto.SubstitutionState;
 import com.dremio.service.namespace.NamespaceKey;
@@ -55,6 +58,7 @@ import com.dremio.service.reflection.proto.ReflectionDimensionField;
 import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
+import com.dremio.service.reflection.proto.ReflectionMeasureField;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -245,7 +249,7 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
             new LayoutDetailsDescriptor()
                 .setPartitionFieldList(toLayoutFieldDescriptors(details.getPartitionFieldList()))
                 .setDimensionFieldList(toLayoutDimensionFieldDescriptors(details.getDimensionFieldList()))
-                .setMeasureFieldList(toLayoutFieldDescriptors(details.getMeasureFieldList()))
+                .setMeasureFieldList(toLayoutMeasureFieldDescriptors(details.getMeasureFieldList()))
                 .setSortFieldList(toLayoutFieldDescriptors(details.getSortFieldList()))
                 .setDisplayFieldList(toLayoutFieldDescriptors(details.getDisplayFieldList()))
                 .setDistributionFieldList(toLayoutFieldDescriptors(details.getDistributionFieldList()))
@@ -263,6 +267,40 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
           }
         })
         .toList();
+  }
+
+
+  private static List<LayoutMeasureFieldDescriptor> toLayoutMeasureFieldDescriptors(final List<ReflectionMeasureField> fields) {
+    return AccelerationUtils.selfOrEmpty(fields).stream()
+        .map(ReflectionDetailsPopulatorImpl::toLayoutMeasureFieldDescriptor)
+        .collect(Collectors.toList());
+  }
+
+
+  private static MeasureType toMeasureType(com.dremio.service.reflection.proto.MeasureType t){
+    switch(t) {
+    case APPROX_COUNT_DISTINCT:
+      return MeasureType.APPROX_COUNT_DISTINCT;
+    case COUNT:
+      return MeasureType.COUNT;
+    case MAX:
+      return MeasureType.MAX;
+    case MIN:
+      return MeasureType.MIN;
+    case SUM:
+      return MeasureType.SUM;
+    case UNKNOWN:
+    default:
+      throw new UnsupportedOperationException(t.name());
+
+    }
+  }
+
+  private static LayoutMeasureFieldDescriptor toLayoutMeasureFieldDescriptor(ReflectionMeasureField measureField) {
+    return new LayoutMeasureFieldDescriptor(measureField.getName())
+        .setMeasureTypeList(AccelerationUtils.selfOrEmpty(measureField.getMeasureTypeList()).stream()
+            .map(ReflectionDetailsPopulatorImpl::toMeasureType)
+            .collect(Collectors.toList()));
   }
 
   private static List<LayoutDimensionFieldDescriptor> toLayoutDimensionFieldDescriptors(final List<ReflectionDimensionField> fields) {

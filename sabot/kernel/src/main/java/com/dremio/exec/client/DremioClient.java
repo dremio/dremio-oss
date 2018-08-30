@@ -74,7 +74,7 @@ import com.dremio.exec.proto.UserProtos.QueryPlanFragments;
 import com.dremio.exec.proto.UserProtos.RpcType;
 import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.proto.UserProtos.UserProperties;
-import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.rpc.BasicClientWithConnection.ServerConnection;
 import com.dremio.exec.rpc.ChannelClosedException;
 import com.dremio.exec.rpc.ConnectionFailedException;
@@ -160,7 +160,9 @@ public class DremioClient implements Closeable, ConnectionThrottle {
   private UserProperties props = null;
   private volatile ClusterCoordinator clusterCoordinator;
   private volatile boolean connected = false;
-  private final BufferAllocator allocator;
+  private final BufferAllocator rootAllocator;
+  private final BufferAllocator connectionAllocator;
+  private final BufferAllocator recordAllocator;
   private int reconnectTimes;
   private int reconnectDelay;
   private boolean supportComplexTypes;
@@ -212,7 +214,9 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     // going thru the zookeeper
     this.isDirectConnection = isDirect;
     this.ownsAllocator = allocator == null;
-    this.allocator = ownsAllocator ? RootAllocatorFactory.newRoot(config) : allocator;
+    this.rootAllocator = ownsAllocator ? RootAllocatorFactory.newRoot(config) : allocator;
+    this.connectionAllocator = rootAllocator.newChildAllocator("dremio-client-connections", 0, rootAllocator.getLimit());
+    this.recordAllocator = rootAllocator.newChildAllocator("dremio-client-records", 0, rootAllocator.getLimit());
     this.config = config;
     this.clusterCoordinator = ClusterCoordinatorWrapper.of(clusterCoordinator);
     this.reconnectTimes = config.getInt(ExecConstants.BIT_RETRY_TIMES);
@@ -323,7 +327,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
         super.afterExecute(r, t);
       }
     };
-    client = new UserClient(clientName, config, supportComplexTypes, allocator, eventLoopGroup, executor);
+    client = new UserClient(clientName, config, supportComplexTypes, connectionAllocator, eventLoopGroup, executor);
     logger.debug("Connecting to server {}:{}", endpoint.getAddress(), endpoint.getUserPort());
     connect(endpoint);
     connected = true;
@@ -366,8 +370,8 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     }
   }
 
-  public BufferAllocator getAllocator() {
-    return allocator;
+  public BufferAllocator getRecordAllocator() {
+    return recordAllocator;
   }
 
   /**
@@ -378,8 +382,10 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     if (this.client != null) {
       this.client.close();
     }
-    if (this.ownsAllocator && allocator != null) {
-      AutoCloseables.closeNoChecked(allocator);
+    AutoCloseables.closeNoChecked(recordAllocator);
+    AutoCloseables.closeNoChecked(connectionAllocator);
+    if (this.ownsAllocator && rootAllocator != null) {
+      AutoCloseables.closeNoChecked(rootAllocator);
     }
 
     if (clusterCoordinator != null) {

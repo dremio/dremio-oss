@@ -15,8 +15,11 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.List;
 
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 
 import com.dremio.sabot.op.common.ht2.LBlockHashTable;
@@ -43,9 +46,8 @@ public class SumAccumulators {
 
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
-      List<ArrowBuf> buffers = getInput().getFieldBuffers();
-      final long incomingBit = buffers.get(0).memoryAddress();
-      final long incomingValue = buffers.get(1).memoryAddress();
+      final long incomingBit = getInput().getValidityBufferAddress();
+      final long incomingValue =  getInput().getDataBufferAddress();
       final long[] bitAddresses = this.bitAddresses;
       final long[] valueAddresses = this.valueAddresses;
 
@@ -80,9 +82,8 @@ public class SumAccumulators {
 
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
-      List<ArrowBuf> buffers = getInput().getFieldBuffers();
-      final long incomingBit = buffers.get(0).memoryAddress();
-      final long incomingValue = buffers.get(1).memoryAddress();
+      final long incomingBit = getInput().getValidityBufferAddress();
+      final long incomingValue =  getInput().getDataBufferAddress();
       final long[] bitAddresses = this.bitAddresses;
       final long[] valueAddresses = this.valueAddresses;
 
@@ -117,9 +118,8 @@ public class SumAccumulators {
 
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
-      List<ArrowBuf> buffers = getInput().getFieldBuffers();
-      final long incomingBit = buffers.get(0).memoryAddress();
-      final long incomingValue = buffers.get(1).memoryAddress();
+      final long incomingBit = getInput().getValidityBufferAddress();
+      final long incomingValue =  getInput().getDataBufferAddress();
       final long[] bitAddresses = this.bitAddresses;
       final long[] valueAddresses = this.valueAddresses;
 
@@ -155,9 +155,8 @@ public class SumAccumulators {
 
     public void accumulate(final long memoryAddr, final int count) {
       final long maxAddr = memoryAddr + count * 4;
-      List<ArrowBuf> buffers = getInput().getFieldBuffers();
-      final long incomingBit = buffers.get(0).memoryAddress();
-      final long incomingValue = buffers.get(1).memoryAddress();
+      final long incomingBit = getInput().getValidityBufferAddress();
+      final long incomingValue =  getInput().getDataBufferAddress();
       final long[] bitAddresses = this.bitAddresses;
       final long[] valueAddresses = this.valueAddresses;
 
@@ -177,4 +176,43 @@ public class SumAccumulators {
     }
   }
 
+  public static class DecimalSumAccumulator extends BaseSingleAccumulator {
+    private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
+    private static final int WIDTH_INPUT = 16;      // decimal inputs
+    private static final int WIDTH_ACCUMULATOR = 8; // double accumulators
+    byte[] valBuf = new byte[WIDTH_INPUT];
+
+    public DecimalSumAccumulator(FieldVector input, FieldVector output) {
+      super(input, output);
+    }
+
+    @Override
+    void initialize(FieldVector vector) {
+      setNullAndZero(vector);
+    }
+
+    public void accumulate(final long memoryAddr, final int count) {
+      final long maxAddr = memoryAddr + count * WIDTH_ORDINAL;
+      FieldVector inputVector = getInput();
+      final long incomingBit = inputVector.getValidityBufferAddress();
+      final long incomingValue = inputVector.getDataBufferAddress();
+      final long[] bitAddresses = this.bitAddresses;
+      final long[] valueAddresses = this.valueAddresses;
+      final int scale = ((DecimalVector)inputVector).getScale();
+
+      int incomingIndex = 0;
+      for (long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += WIDTH_ORDINAL, incomingIndex++) {
+        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+        java.math.BigDecimal newVal = DecimalAccumulatorUtils.getBigDecimal(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
+        final int tableIndex = PlatformDependent.getInt(ordinalAddr);
+        int chunkIndex = tableIndex >>> LBlockHashTable.BITS_IN_CHUNK;
+        int chunkOffset = tableIndex & LBlockHashTable.CHUNK_OFFSET_MASK;
+        final long sumAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
+        final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
+        final int bitUpdateVal = bitVal << (chunkOffset & 31);
+        PlatformDependent.putLong(sumAddr, Double.doubleToLongBits(Double.longBitsToDouble(PlatformDependent.getLong(sumAddr)) + newVal.doubleValue() * bitVal));
+        PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+      }
+    }
+  }
 }

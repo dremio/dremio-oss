@@ -33,24 +33,28 @@ class MetaDataProviderModifier extends StatelessRelShuttleImpl {
   @Override
   public RelNode visit(RelNode other) {
     other.getCluster().setMetadataProvider(metadataProvider);
+    other.getCluster().invalidateMetadataQuery();
     return super.visitChildren(other);
   }
 
   @Override
   public RelNode visit(TableScan scan) {
     scan.getCluster().setMetadataProvider(metadataProvider);
+    scan.getCluster().invalidateMetadataQuery();
     return super.visit(scan);
   }
 
   @Override
   public RelNode visit(TableFunctionScan scan) {
     scan.getCluster().setMetadataProvider(metadataProvider);
+    scan.getCluster().invalidateMetadataQuery();
     return super.visit(scan);
   }
 
   @Override
   public RelNode visit(LogicalValues values) {
     values.getCluster().setMetadataProvider(metadataProvider);
+    values.getCluster().invalidateMetadataQuery();
     return super.visit(values);
   }
 
@@ -58,6 +62,7 @@ class MetaDataProviderModifier extends StatelessRelShuttleImpl {
   protected RelNode visitChild(RelNode parent, int i, RelNode child) {
     child.accept(this);
     parent.getCluster().setMetadataProvider(metadataProvider);
+    parent.getCluster().invalidateMetadataQuery();
     return parent;
   }
 }

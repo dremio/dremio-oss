@@ -339,18 +339,40 @@ SqlNode SqlRefreshReflection() :
 
 /**
  * Parses a LOAD MATERIALIZATION statement
- *   $LOAD MATERIALIZATION METADATA materializationId
+ *   $LOAD MATERIALIZATION METADATA materialization_path
  */
 SqlNode SqlLoadMaterialization() :
 {
     SqlParserPos pos;
-    SqlNode materializationId;
+    SqlIdentifier materializationPath;
 }
 {
     <LOAD> { pos = getPos(); }
     <MATERIALIZATION> <METADATA>
-    { materializationId = StringLiteral(); }
+    { materializationPath = CompoundIdentifier(); }
     {
-        return new SqlLoadMaterialization(pos, materializationId);
+        return new SqlLoadMaterialization(pos, materializationPath);
+    }
+}
+
+
+/**
+ * Parses a COMPACT REFRESH statement
+ *   $COMPACT MATERIALIZATION materialization_path AS materializationId
+ */
+SqlNode SqlCompactMaterialization() :
+{
+    SqlParserPos pos;
+    SqlIdentifier materializationPath;
+    SqlNode newMaterializationId;
+}
+{
+    <COMPACT> { pos = getPos(); }
+    <MATERIALIZATION>
+    { materializationPath = CompoundIdentifier(); }
+    <AS>
+    { newMaterializationId = StringLiteral(); }
+    {
+        return new SqlCompactMaterialization(pos, materializationPath, newMaterializationId);
     }
 }

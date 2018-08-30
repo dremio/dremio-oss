@@ -18,26 +18,25 @@ package com.dremio.exec.store.parquet2;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.parquet.schema.GroupType;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.store.parquet.ParquetReaderUtility;
+import com.dremio.options.OptionManager;
+import com.dremio.exec.store.parquet2.WriterProvider.StructWriterProvider;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
-import com.dremio.exec.store.parquet2.WriterProvider.MapWriterProvider;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Function;
 
 public class StructGroupConverter extends ParquetGroupConverter {
 
-  private final MapWriter mapWriter;
+  private final StructWriter structWriter;
   private final WriterProvider writerProvider;
 
   public StructGroupConverter(
       OutputMutator mutator,
-      MapWriter mapWriter,
+      StructWriter structWriter,
       GroupType schema,
       Collection<SchemaPath> columns,
       OptionManager options,
@@ -57,8 +56,8 @@ public class StructGroupConverter extends ParquetGroupConverter {
           }
         },
         schemaHelper);
-    this.mapWriter = mapWriter;
-    this.writerProvider = new MapWriterProvider(mapWriter);
+    this.structWriter = structWriter;
+    this.writerProvider = new StructWriterProvider(structWriter);
 
     convertChildren();
   }
@@ -70,14 +69,14 @@ public class StructGroupConverter extends ParquetGroupConverter {
 
   @Override
   public void start() {
-    mapWriter.start();
+    structWriter.start();
     super.startListWriters();
   }
 
   @Override
   public void end() {
     super.endListWriters();
-    mapWriter.end();
+    structWriter.end();
   }
 
 }

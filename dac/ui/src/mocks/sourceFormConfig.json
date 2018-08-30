@@ -1,0 +1,509 @@
+{
+  "data": [
+    {
+      "label": "Amazon Redshift",
+      "sourceType": "REDSHIFT",
+      "elements": [
+        {
+          "type": "text",
+          "propertyName": "connectionString",
+          "label": "JDBC Connection String"
+        },
+        {
+          "type": "credentials",
+          "propertyName": "authenticationType"
+        },
+        {
+          "type": "number",
+          "propertyName": "fetchSize",
+          "label": "Record fetch size",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "label": "Amazon S3",
+      "sourceType": "S3",
+      "elements": [
+        {
+          "type": "text",
+          "label": "AWS Access Key",
+          "propertyName": "accessKey"
+        },
+        {
+          "type": "text",
+          "label": "AWS Access Secret",
+          "propertyName": "accessSecret",
+          "secret": true
+        },
+        {
+          "type": "boolean",
+          "propertyName": "secure",
+          "label": "Encrypt connection",
+          "value": true
+        },
+        {
+          "type": "value_list",
+          "propertyName": "externalBucketList",
+          "label": "Bucket"
+        },
+        {
+          "type": "property_list",
+          "propertyName": "propertyList"
+        }
+      ]
+    },
+    {
+      "label": "Azure Data Lake Store",
+      "sourceType": "ADL",
+      "elements": [
+        {
+          "type": "text",
+          "propertyName": "accountName",
+          "label": "Data Lake Store Resource Name"
+        },
+        {
+          "type": "text",
+          "propertyName": "clientId",
+          "label": "Application ID"
+        },
+        {
+          "type": "text",
+          "propertyName": "clientKeyRefreshUrl",
+          "label": "OAuth 2.0 Token Endpoint"
+        },
+        {
+          "type": "text",
+          "propertyName": "clientKeyPassword",
+          "label": "Access key value",
+          "secret": true
+        },
+        {
+          "type": "property_list",
+          "propertyName": "propertyList"
+        }
+      ]
+    },
+    {
+      "label": "Elasticsearch",
+      "sourceType": "ELASTIC",
+      "elements": [
+        {
+          "type": "host_list",
+          "propertyName": "hostList"
+
+        },
+        {
+          "type": "boolean",
+          "propertyName": "sslEnabled",
+          "label": "Encrypt connection"
+        },
+        {
+          "type": "boolean",
+          "propertyName": "useWhitelist",
+          "label": "Elasticsearch-as-a-service cluster"
+        },
+        {
+          "type": "credentials",
+          "propertyName": "authenticationType"
+        },
+        {
+          "type": "boolean",
+          "propertyName": "showHiddenIndices",
+          "label": "Show hidden indices that start with a dot (.)"
+        },
+        {
+          "type": "boolean",
+          "propertyName": "usePainless",
+          "label": "Use Painless scripting with Elasticsearch 5.0+",
+          "value": true
+        },
+        {
+          "type": "boolean",
+          "propertyName": "showIdColumn",
+          "label": "Show _id columns"
+        },
+        {
+          "type": "boolean",
+          "propertyName": "allowPushdownOnNormalizedOrAnalyzedFields",
+          "label": "Use index/doc fields when pushing down aggregates and filters on analyzed and normalized fields (may produce unexpected results)",
+          "value": false
+        },
+        {
+          "type": "boolean",
+          "propertyName": "scriptsEnabled",
+          "label": "Use scripts for query pushdown",
+          "value": true
+        },
+        {
+          "type": "number",
+          "propertyName": "readTimeoutMillis",
+          "label": "Read timeout (milliseconds)",
+          "value": "60000"
+        },
+        {
+          "type": "number",
+          "propertyName": "scrollTimeoutMillis",
+          "label": "Scroll timeout (milliseconds)",
+          "value": "300000"
+        },
+        {
+          "type": "number",
+          "propertyName": "scrollSize",
+          "label": "Scroll size",
+          "value": "4000"
+        }
+      ]
+    },
+    {
+      "label": "HBase",
+      "sourceType": "HBASE",
+      "elements": [
+        {
+          "type": "text",
+          "propertyName": "zkQuorum",
+          "label": "Zookeeper Quorum"
+        },
+        {
+          "type": "number",
+          "propertyName": "port",
+          "label": "Port",
+          "value": 2181
+        },
+        {
+          "type": "boolean",
+          "propertyName": "isSizeCalcEnabled",
+          "label": "Region size calculation"
+        },
+        {
+          "type": "property_list",
+          "propertyName": "propertyList"
+        }
+      ]
+    },
+    {
+      "label": "HDFS",
+      "sourceType": "HDFS",
+      "elements": [
+        {
+          "type": "text",
+          "propertyName": "hostname",
+          "label": "NameNode Host"
+        },
+        {
+          "type": "number",
+          "propertyName": "port",
+          "label": "Port",
+          "value": 8020
+        },
+        {
+          "type": "boolean",
+          "propertyName": "enableImpersonation",
+          "label": "Enable impersonation"
+        },
+        {
+          "type": "text",
+          "propertyName": "rootPath",
+          "label": "Root Path",
+          "value": "/"
+        },
+        {
+          "type": "property_list",
+          "propertyName": "propertyList"
+        }
+      ]
+    },
+    {
+      "label": "Hive",
+      "sourceType": "HIVE",
+      "elements": [
+        {
+          "type": "text",
+          "propertyName": "hostname",
+          "label": "Hive Metastore Host"
+        },
+        {
+          "type": "number",
+          "propertyName": "port",
+          "label": "Port",
+          "value": 9083
+        },
+        {
+          "type": "boolean",
+          "propertyName": "enableSasl",
+          "label": "Enable SASL",
+          "value": true
+        },
+        {
+          "type": "text",
+          "propertyName": "kerberosPrincipal",
+          "label": "Hive Kerberos Principal"
+        },
+        {
+          "type": "property_list",
+          "propertyName": "propertyList"
+        }
+      ]
+    },
+    {
+      "label": "MapR-FS",
+      "sourceType": "MAPRFS",
+      "elements": [
+        {
+          "type": "text",
+          "propertyName": "clusterName",
+          "label": ""
+        },
+        {
+          "type": "boolean",
+          "propertyName": "enableImpersonation",
+          "label": "Enable impersonation"
+        },
+        {
+          "type": "boolean",
+          "propertyName": "secure",
+          "label": "Encrypt connection",
+          "value": true
+        },
+        {
+          "type": "text",
+          "propertyName": "rootPath",
+          "label": "Root Path",
+          "value": "/"
+        },
+        {
+          "type": "property_list",
+          "propertyName": "propertyList"
+        }
+      ]
+    },
+    {
+      "label": "Microsoft SQL Server",
+      "sourceType": "MSSQL",
+      "elements": [
+        {
+          "type": "text",
+          "propertyName": "hostname",
+          "label": "Host"
+        },
+        {
+          "type": "number",
+          "propertyName": "port",
+          "label": "Port",
+          "value": 1433
+        },
+        {
+          "type": "text",
+          "propertyName": "database",
+          "label": "Database (optional)"
+        },
+        {
+          "type": "credentials",
+          "propertyName": "authenticationType"
+        },
+        {
+          "type": "boolean",
+          "propertyName": "showOnlyConnectionDatabase",
+          "label": "Show only the initial database used for connecting"
+        },
+        {
+          "type": "number",
+          "propertyName": "fetchSize",
+          "label": "Record fetch size",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "label": "MongoDB",
+      "sourceType": "MONGO",
+      "elements": [
+        {
+          "type": "host_list",
+          "propertyName": "hostList",
+          "defaultPort": 27017
+        },
+        {
+          "type": "boolean",
+          "propertyName": "useSsl",
+          "label": "Encrypt connection"
+        },
+        {
+          "type": "boolean",
+          "propertyName": "secondaryReadsOnly",
+          "label": "Read from secondaries only"
+        },
+        {
+          "type": "credentials",
+          "propertyName": "authenticationType"
+        },
+        {
+          "type": "text",
+          "propertyName": "authDatabase",
+          "label": "Authentication Database",
+          "value": "admin"
+        },
+        {
+          "type": "number",
+          "propertyName": "subpartitionSize",
+          "label": "Subpartition Size",
+          "value": "0"
+        },
+        {
+          "type": "number",
+          "propertyName": "authenticationTimeoutMillis",
+          "label": "Auth Timeout (millis)",
+          "value": "2000"
+        },
+        {
+          "type": "property_list",
+          "propertyName": "propertyList"
+        }
+      ]
+    },
+    {
+      "label": "MySQL",
+      "sourceType": "MYSQL",
+      "elements": [
+        {
+          "type": "text",
+          "propertyName": "hostname",
+          "label": "Host"
+        },
+        {
+          "type": "number",
+          "propertyName": "port",
+          "label": "Port",
+          "value": 3306
+        },
+        {
+          "type": "text",
+          "propertyName": "database",
+          "label": "Database"
+        },
+        {
+          "type": "credentials",
+          "propertyName": "authenticationType"
+        },
+        {
+          "type": "boolean",
+          "propertyName": "showOnlyConnectionDatabase",
+          "label": "Show only the initial database used for connecting"
+        },
+        {
+          "type": "number",
+          "propertyName": "fetchSize",
+          "label": "Record fetch size",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "label": "NAS",
+      "sourceType": "NAS",
+      "elements": [
+        {
+          "type": "text",
+          "propertyName": "path",
+          "label": "Mount path"
+        }
+      ]
+    },
+    {
+      "label": "Oracle",
+      "sourceType": "ORACLE",
+      "elements": [
+        {
+          "type": "text",
+          "propertyName": "hostname",
+          "label": "Host"
+        },
+        {
+          "type": "number",
+          "propertyName": "port",
+          "label": "Port",
+          "value": 1521
+        },
+        {
+          "type": "text",
+          "propertyName": "instance",
+          "label": "Service Name"
+        },
+        {
+          "type": "credentials",
+          "propertyName": "authenticationType"
+        },
+        {
+          "type": "number",
+          "propertyName": "fetchSize",
+          "label": "Record fetch size",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "label": "PostgreSQL",
+      "sourceType": "POSTGRES",
+      "elements": [
+        {
+          "type": "text",
+          "propertyName": "hostname",
+          "label": "Host"
+        },
+        {
+          "type": "number",
+          "propertyName": "port",
+          "label": "Port",
+          "value": 5432
+        },
+        {
+          "type": "text",
+          "propertyName": "databaseName",
+          "label": "Database name"
+        },
+        {
+          "type": "credentials",
+          "propertyName": "authenticationType"
+        },
+        {
+          "type": "number",
+          "propertyName": "fetchSize",
+          "label": "Record fetch size",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "label": "IBM DB2",
+      "sourceType": "DB2",
+      "elements": [
+        {
+          "type": "text",
+          "propertyName": "hostname",
+          "label": "Host"
+        },
+        {
+          "type": "number",
+          "propertyName": "port",
+          "label": "Port",
+          "value": 50000
+        },
+        {
+          "type": "text",
+          "propertyName": "databaseName",
+          "label": "Database name"
+        },
+        {
+          "type": "credentials",
+          "propertyName": "authenticationType"
+        },
+        {
+          "type": "number",
+          "propertyName": "fetchSize",
+          "label": "Record fetch size",
+          "value": "0"
+        }
+      ]
+    }
+  ]
+}

@@ -73,7 +73,6 @@ class SortDragArea extends Component {
         onDrop={this.handleDrop}
         isDragged={this.props.isDragInProgress}
         emptyDragAreaText={DEFAULT_DRAG_AREA_TEXT}
-        dragContentStyle={{}}
       >
         {this.renderColumnsForDragArea()}
       </ExploreDragArea>

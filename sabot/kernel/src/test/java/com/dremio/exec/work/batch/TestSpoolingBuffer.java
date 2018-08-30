@@ -36,7 +36,7 @@ import com.dremio.exec.ExecTest;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.exec.proto.UserBitShared.QueryId;
-import com.dremio.exec.work.ExternalIdHelper;
+import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
 import com.dremio.sabot.exec.rpc.AckSender;
 import com.dremio.sabot.op.receiver.RawFragmentBatch;

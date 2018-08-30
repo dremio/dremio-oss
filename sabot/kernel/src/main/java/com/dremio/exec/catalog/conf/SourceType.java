@@ -27,5 +27,6 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE})
 public @interface SourceType {
   String value();
+  String label() default "";
   boolean configurable() default true;
 }

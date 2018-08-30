@@ -78,7 +78,7 @@ class CompareFunction extends ElasticFunction {
     }
 
     case GTE: {
-      String script = String.format("(%s == %s || (%s).isAfter(%s))", op1.getScript(), op2.getScript(), op1.getScript(), op2.getScript());
+      String script = String.format("(%s.equals(%s) || (%s).isAfter(%s))", op1.getScript(), op2.getScript(), op1.getScript(), op2.getScript());
       return new FunctionRender(script, nulls);
     }
 
@@ -88,7 +88,7 @@ class CompareFunction extends ElasticFunction {
     }
 
     case LTE: {
-      String script = String.format("(%s == %s || (%s).isBefore(%s))", op1.getScript(), op2.getScript(), op1.getScript(), op2.getScript());
+      String script = String.format("(%s.equals(%s) || (%s).isBefore(%s))", op1.getScript(), op2.getScript(), op1.getScript(), op2.getScript());
       return new FunctionRender(script, nulls);
     }
 

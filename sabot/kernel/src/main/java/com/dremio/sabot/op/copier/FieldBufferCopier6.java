@@ -31,7 +31,6 @@ import com.dremio.sabot.op.common.ht2.Reallocators.Reallocator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /**
@@ -64,16 +63,20 @@ public class FieldBufferCopier6 {
     @Override
     public void copy(long offsetAddr, int count) {
       targetAlt.allocateNew(count);
-      final List<ArrowBuf> targetBuffers = target.getFieldBuffers();
       final long max = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
       final long[] srcAddrs = this.srcAddrs;
-      long dstAddr = targetBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
+      long dstAddr = target.getDataBufferAddress();
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
         final int batchIndex = PlatformDependent.getInt(addr);
         final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(addr + 4));
         final long src = srcAddrs[batchIndex] + batchOffset * SIZE;
         PlatformDependent.putInt(dstAddr, PlatformDependent.getInt(src));
       }
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      throw new UnsupportedOperationException("set null not supported");
     }
 
     public void allocate(int records){
@@ -100,16 +103,20 @@ public class FieldBufferCopier6 {
     @Override
     public void copy(long offsetAddr, int count) {
       targetAlt.allocateNew(count);
-      final List<ArrowBuf> targetBuffers = target.getFieldBuffers();
       final long max = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
       final long[] srcAddrs = this.srcAddrs;
-      long dstAddr = targetBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
+      long dstAddr = target.getDataBufferAddress();
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
         final int batchIndex = PlatformDependent.getInt(addr);
         final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(addr + 4));
         final long src = srcAddrs[batchIndex] + batchOffset * SIZE;
         PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(src));
       }
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      throw new UnsupportedOperationException("set null not supported");
     }
 
     public void allocate(int records){
@@ -134,10 +141,9 @@ public class FieldBufferCopier6 {
     @Override
     public void copy(long offsetAddr, int count) {
       targetAlt.allocateNew(count);
-      final List<ArrowBuf> targetBuffers = target.getFieldBuffers();
       final long max = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
       final long[] srcAddrs = this.srcAddrs;
-      long dstAddr = targetBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
+      long dstAddr = target.getDataBufferAddress();
       for(long addr = offsetAddr; addr < max; addr += BUILD_RECORD_LINK_SIZE, dstAddr += SIZE){
         final int batchIndex = PlatformDependent.getInt(addr);
         final int batchOffset = Short.toUnsignedInt(PlatformDependent.getShort(addr + 4));
@@ -145,6 +151,11 @@ public class FieldBufferCopier6 {
         PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(src));
         PlatformDependent.putLong(dstAddr+8, PlatformDependent.getLong(src + 8));
       }
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      throw new UnsupportedOperationException("set null not supported");
     }
 
     public void allocate(int records){
@@ -179,7 +190,7 @@ public class FieldBufferCopier6 {
       final long srcDataAddrs[] = this.srcDataAddrs;
 
       targetAlt.allocateNew(AVG_VAR_WIDTH * count, count);
-      long dstOffsetAddr = target.getFieldBuffers().get(OFFSET_BUFFER_ORDINAL).memoryAddress() + 4;
+      long dstOffsetAddr = target.getOffsetBufferAddress() + 4;
       long initDataAddr = realloc.addr();
       long curDataAddr = realloc.addr();
       long maxDataAddr = realloc.max();
@@ -206,6 +217,11 @@ public class FieldBufferCopier6 {
       }
 
       realloc.setCount(count);
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      throw new UnsupportedOperationException("set null not supported");
     }
 
     public void allocate(int records){
@@ -238,7 +254,17 @@ public class FieldBufferCopier6 {
         targetAlt.allocateNew(count);
       }
       final long[] srcAddr = this.srcAddrs;
-      final long dstAddr = target.getFieldBuffers().get(bufferOrdinal).memoryAddress();
+      final long dstAddr;
+      switch (bufferOrdinal) {
+        case NULL_BUFFER_ORDINAL:
+          dstAddr = target.getValidityBufferAddress();
+          break;
+        case VALUE_BUFFER_ORDINAL:
+          dstAddr = target.getDataBufferAddress();
+          break;
+        default:
+          throw new UnsupportedOperationException("unexpected buffer offset");
+      }
 
       final long maxAddr = offsetAddr + count * BUILD_RECORD_LINK_SIZE;
       int targetIndex = 0;
@@ -250,6 +276,11 @@ public class FieldBufferCopier6 {
         final long addr = dstAddr + (targetIndex >>> 3);
         PlatformDependent.putByte(addr, (byte) (PlatformDependent.getByte(addr) | bitVal));
       }
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      throw new UnsupportedOperationException("set null not supported");
     }
 
     public void allocate(int records){
@@ -283,6 +314,11 @@ public class FieldBufferCopier6 {
         transfer[batchIndex].copyValueSafe(batchOffset, target);
         target++;
       }
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      throw new UnsupportedOperationException("set null not supported");
     }
 
     public void allocate(int records){
@@ -329,7 +365,7 @@ public class FieldBufferCopier6 {
       break;
 
     case LIST:
-    case MAP:
+    case STRUCT:
     case UNION:
       copiers.add(new GenericCopier(source, target));
       break;
@@ -354,8 +390,29 @@ public class FieldBufferCopier6 {
 
   public static long[] addresses(int offset, FieldVector... vectors){
     final long[] addresses = new long[vectors.length];
-    for(int i = 0; i < vectors.length; i++){
-      addresses[i] = vectors[i].getFieldBuffers().get(offset).memoryAddress();
+    int i;
+    switch (offset) {
+      case 0:
+        for(i = 0; i < vectors.length; i++){
+          addresses[i] = vectors[i].getValidityBufferAddress();
+        }
+        break;
+      case 1:
+        for(i = 0; i < vectors.length; i++){
+          if (vectors[i] instanceof VariableWidthVector) {
+            addresses[i] = vectors[i].getOffsetBufferAddress();
+          } else {
+            addresses[i] = vectors[i].getDataBufferAddress();
+          }
+        }
+        break;
+      case 2:
+        for(i = 0; i < vectors.length; i++){
+          addresses[i] = vectors[i].getDataBufferAddress();
+        }
+        break;
+      default:
+        throw new UnsupportedOperationException("unexpected buffer offset");
     }
 
     return addresses;

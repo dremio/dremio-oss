@@ -81,8 +81,8 @@ public class ReflectionSettings {
     if (homeDataset) {
       return new AccelerationSettings()
         .setMethod(RefreshMethod.FULL)
-        .setRefreshPeriod(0L) // never refresh
-        .setGracePeriod(TimeUnit.DAYS.toMillis(365)*1000); // 1000 years => never expires
+        .setNeverRefresh(true)
+        .setNeverExpire(true);
     } else {
       return new AccelerationSettings()
         .setMethod(RefreshMethod.FULL)

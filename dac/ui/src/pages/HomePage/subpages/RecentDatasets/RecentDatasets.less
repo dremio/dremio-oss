@@ -13,70 +13,73 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.recent-datasets {
-  width: 100%;
-  margin: 0;
-  margin-top: 0px;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+    
+  .recent-datasets {
+    width: 100%;
+    margin: 0;
+    margin-top: 0px;
 
-  .filter {
-    width: 300px;
-    position: relative;
-    margin-top: 10px;
-    margin-left: 15px;
+    .filter {
+      width: 300px;
+      position: relative;
+      margin-top: 10px;
+      margin-left: 15px;
 
-    .fa {
-      right: 12px;
-      position: absolute;
-      font-size: 16px;
-      top: 4px;
+      .fa {
+        right: 12px;
+        position: absolute;
+        font-size: 16px;
+        top: 4px;
+      }
+
+      input {
+        width: 300px;
+        height: 26px;
+        outline: none;
+        border-radius: 17px;
+        border: 1px solid #c1c1c1;
+        padding-left: 10px;
+        padding-right: 34px;
+      }
     }
 
-    input {
-      width: 300px;
+    button {
+      background-color: #f5f5f5;
+      width: 100px;
       height: 26px;
       outline: none;
-      border-radius: 17px;
-      border: 1px solid #c1c1c1;
-      padding-left: 10px;
-      padding-right: 34px;
+      outline: none;
+      box-shadow: none;
+      border: 1px solid #ccc;
+      padding-top: 0;
+      padding-bottom: 0;
+      padding-left: 0;
+      display: flex;
+      border-radius: 3px;
+      justify-content: center;
+      position: relative;
+      margin-right: 15px;
+      font-size: 13px;
+
+      &:hover {
+        background-color: darken(#f5f5f5, 10%);
+      }
     }
-  }
 
-  button {
-    background-color: #f5f5f5;
-    width: 100px;
-    height: 26px;
-    outline: none;
-    outline: none;
-    box-shadow: none;
-    border: 1px solid #ccc;
-    padding-top: 0;
-    padding-bottom: 0;
-    padding-left: 0;
-    display: flex;
-    border-radius: 3px;
-    justify-content: center;
-    position: relative;
-    margin-right: 15px;
-    font-size: 13px;
+    .recent-header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #c1c1c1;
+      align-items: center;
+      height: 45px;
+      background-color: #F3F3F3;
+      padding-left: 15px;
 
-    &:hover {
-      background-color: darken(#f5f5f5, 10%);
-    }
-  }
-
-  .recent-header {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    border-bottom: 1px solid #c1c1c1;
-    align-items: center;
-    height: 45px;
-    background-color: #F3F3F3;
-    padding-left: 15px;
-
-    .name {
-      font-size: 16px;
+      .name {
+        font-size: 16px;
+      }
     }
   }
 }

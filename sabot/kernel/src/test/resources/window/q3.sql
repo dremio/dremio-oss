@@ -4,6 +4,6 @@ SELECT
   LAST_VALUE(employee_id)
     OVER(PARTITION BY position_id
          ORDER by employee_id
-         RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS `last_value`
+         RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "last_value"
 FROM
-  dfs.`%s/window/b4.p4`
+  dfs."%s/window/b4.p4"

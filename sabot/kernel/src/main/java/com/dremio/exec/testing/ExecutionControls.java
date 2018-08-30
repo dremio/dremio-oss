@@ -23,10 +23,10 @@ import java.util.Map;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.server.options.OptionValue;
-import com.dremio.exec.server.options.OptionValue.OptionType;
-import com.dremio.exec.server.options.TypeValidators.TypeValidator;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
+import com.dremio.options.TypeValidators.TypeValidator;
 import com.dremio.exec.testing.InjectionSite.InjectionSiteKeyDeserializer;
 import com.dremio.exec.util.AssertionUtil;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -94,12 +94,12 @@ public class ExecutionControls {
 
     @Override
     public void validate(final OptionValue v) {
-      if (v.type != OptionType.SESSION) {
+      if (v.getType() != OptionType.SESSION) {
         throw UserException.validationError()
             .message("Controls can be set only at SESSION level.")
             .build(logger);
       }
-      final String jsonString = v.string_val;
+      final String jsonString = v.getStringVal();
       try {
         validateControlsString(jsonString);
       } catch (final IOException e) {
@@ -146,7 +146,7 @@ public class ExecutionControls {
       return;
     }
 
-    final String opString = optionValue.string_val;
+    final String opString = optionValue.getStringVal();
     final Controls controls;
     try {
       controls = controlsOptionMapper.readValue(opString, Controls.class);

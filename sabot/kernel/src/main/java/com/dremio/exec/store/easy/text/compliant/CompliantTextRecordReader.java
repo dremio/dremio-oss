@@ -23,6 +23,7 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
@@ -32,10 +33,13 @@ import org.apache.poi.hssf.util.CellReference;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Predicate;
@@ -50,8 +54,8 @@ import io.netty.buffer.ArrowBuf;
 public class CompliantTextRecordReader extends AbstractRecordReader {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CompliantTextRecordReader.class);
 
-  static final int READ_BUFFER = 1024*1024;
-  private static final int WHITE_SPACE_BUFFER = 64*1024;
+  static final int READ_BUFFER = 1024 * 1024;
+  private static final int WHITE_SPACE_BUFFER = 64 * 1024;
 
   // settings to be used while parsing
   private TextParsingSettings settings;
@@ -75,7 +79,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
   // checks to see if we are querying all columns(star) or individual columns
   @Override
   public boolean isStarQuery() {
-    if(settings.isUseRepeatedVarChar()) {
+    if (settings.isUseRepeatedVarChar()) {
       return super.isStarQuery() || Iterables.tryFind(getColumns(), new Predicate<SchemaPath>() {
         @Override
         public boolean apply(@Nullable SchemaPath path) {
@@ -90,14 +94,12 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
    * Performs the initial setup required for the record reader.
    * Initializes the input stream, handling of the output record batch
    * and the actual reader to be used.
-   * @param outputMutator  Used to create the schema in the output record batch
+   *
+   * @param outputMutator Used to create the schema in the output record batch
    * @throws ExecutionSetupException
    */
   @Override
   public void setup(OutputMutator outputMutator) throws ExecutionSetupException {
-    readBuffer = this.context.getManagedBuffer(READ_BUFFER);
-    whitespaceBuffer = this.context.getManagedBuffer(WHITE_SPACE_BUFFER);
-
     // setup Output, Input, and Reader
     try {
       TextOutput output = null;
@@ -128,6 +130,9 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
         }
       }
 
+      readBuffer = this.context.getAllocator().buffer(READ_BUFFER);
+      whitespaceBuffer = this.context.getAllocator().buffer(WHITE_SPACE_BUFFER);
+
       // setup Input using InputStream
       stream = dfs.openPossiblyCompressedStream(split.getPath());
       input = new TextInput(settings, stream, readBuffer, split.getStart(), split.getStart() + split.getLength());
@@ -135,7 +140,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
       // setup Reader using Input and Output
       reader = new TextReader(settings, input, output, whitespaceBuffer);
       reader.start();
-    } catch(IOException e) {
+    } catch (IOException e) {
       if (e.getCause() instanceof StreamFinishedPseudoException) {
         return;
       }
@@ -147,7 +152,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
     }
   }
 
-  private String [] readFirstLineForColumnNames() throws ExecutionSetupException, SchemaChangeException, IOException{
+  private String[] readFirstLineForColumnNames() throws ExecutionSetupException, SchemaChangeException, IOException {
     // setup Output using OutputMutator
     // we should use a separate output mutator to avoid reshaping query output with header data
     HeaderOutputMutator hOutputMutator = new HeaderOutputMutator();
@@ -157,10 +162,14 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
     // setup Input using InputStream
     // we should read file header irrespective of split given given to this reader
     InputStream hStream = dfs.openPossiblyCompressedStream(split.getPath());
-    TextInput hInput = new TextInput(settings,  hStream, context.getManagedBuffer(READ_BUFFER), 0, split.getLength());
+    // create read buffer for input
+    ArrowBuf readBufferInReader = this.context.getAllocator().buffer(READ_BUFFER);
+    TextInput hInput = new TextInput(settings, hStream, readBufferInReader, 0, split.getLength());
 
+    // create work buffer for reader
+    ArrowBuf whitespaceBufferInReader = this.context.getAllocator().buffer(WHITE_SPACE_BUFFER);
     // setup Reader using Input and Output
-    this.reader = new TextReader(settings, hInput, hOutput, context.getManagedBuffer(WHITE_SPACE_BUFFER));
+    this.reader = new TextReader(settings, hInput, hOutput, whitespaceBufferInReader);
     reader.start();
 
     String[] fieldNames;
@@ -175,7 +184,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
 
         // grab the field names from output
         fieldNames = ((RepeatedVarCharOutput) hOutput).getTextOutput();
-      } while(fieldNames == null);
+      } while (fieldNames == null);
 
       if (settings.isTrimHeader()) {
         for (int i = 0; i < fieldNames.length; i++) {
@@ -187,6 +196,8 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
       // cleanup and set to skip the first line next time we read input
       reader.close();
       hOutputMutator.close();
+      readBufferInReader.close();
+      whitespaceBufferInReader.close();
     }
   }
 
@@ -194,14 +205,15 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
    * This method is responsible to implement logic for extracting header from text file
    * Currently it is assumed to be first line if headerExtractionEnabled is set to true
    * TODO: enhance to support more common header patterns
+   *
    * @return field name strings
    */
-  private String [] extractHeader() throws SchemaChangeException, IOException, ExecutionSetupException{
+  private String[] extractHeader() throws SchemaChangeException, IOException, ExecutionSetupException {
     assert (settings.isHeaderExtractionEnabled());
 
     // don't skip header in case skipFirstLine is set true
     settings.setSkipFirstLine(false);
-    final String [] fieldNames = readFirstLineForColumnNames();
+    final String[] fieldNames = readFirstLineForColumnNames();
     settings.setSkipFirstLine(true);
     return validateColumnNames(fieldNames);
   }
@@ -231,17 +243,18 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
    * Generate fields names per column in text file.
    * Read first line and count columns and return fields names like excel sheet.
    * A, B, C and so on.
+   *
    * @return field name strings, null if no records found in text file.
    */
-  private String [] generateColumnNames() throws SchemaChangeException, IOException, ExecutionSetupException{
+  private String[] generateColumnNames() throws SchemaChangeException, IOException, ExecutionSetupException {
     assert (settings.isAutoGenerateColumnNames());
 
     final boolean shouldSkipFirstLine = settings.isSkipFirstLine();
     settings.setSkipFirstLine(false);
-    final String [] columns = readFirstLineForColumnNames();
+    final String[] columns = readFirstLineForColumnNames();
     settings.setSkipFirstLine(shouldSkipFirstLine);
     if (columns != null && columns.length > 0) {
-      String [] fieldNames = new String[columns.length];
+      String[] fieldNames = new String[columns.length];
       for (int i = 0; i < columns.length; ++i) {
         fieldNames[i] = CellReference.convertNumToColString(i);
       }
@@ -253,25 +266,25 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
 
   /**
    * Generates the next record batch
-   * @return  number of records in the batch
    *
+   * @return number of records in the batch
    */
   @Override
   public int next() {
     reader.resetForNextBatch();
     int cnt = 0;
 
-    try{
-      while(cnt < numRowsPerBatch && reader.parseNext()){
+    try {
+      while (cnt < numRowsPerBatch && reader.parseNext()) {
         cnt++;
       }
       reader.finishBatch();
       return cnt;
     } catch (IOException | TextParsingException e) {
       throw UserException.dataReadError(e)
-          .addContext("Failure while reading file %s. Happened at or shortly before byte position %d.",
-            split.getPath(), reader.getPos())
-          .build(logger);
+        .addContext("Failure while reading file %s. Happened at or shortly before byte position %d.",
+          split.getPath(), reader.getPos())
+        .build(logger);
     }
   }
 
@@ -286,8 +299,38 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
         reader.close();
         reader = null;
       }
+      if (readBuffer != null) {
+        readBuffer.close();
+        readBuffer = null;
+      }
+      if (whitespaceBuffer != null) {
+        whitespaceBuffer.close();
+        whitespaceBuffer = null;
+      }
     } catch (IOException e) {
       logger.warn("Exception while closing stream.", e);
+    }
+  }
+
+  @Override
+  public void allocate(Map<String, ValueVector> vectorMap) throws OutOfMemoryException {
+    int estimatedRecordCount;
+    if ((reader != null) && (reader.getInput() != null) && (vectorMap.size() > 0)) {
+      final OptionManager options = context.getOptions();
+      final int listSizeEstimate = (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
+      final int varFieldSizeEstimate = (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
+      final int estimatedRecordSize = BatchSchema.estimateRecordSize(vectorMap, listSizeEstimate, varFieldSizeEstimate);
+      if (estimatedRecordSize > 0) {
+        estimatedRecordCount = (int) Math.min(reader.getInput().length / estimatedRecordSize, numRowsPerBatch);
+      } else {
+        estimatedRecordCount = (int) numRowsPerBatch;
+      }
+    } else {
+      estimatedRecordCount = (int) numRowsPerBatch;
+    }
+    for (final ValueVector v : vectorMap.values()) {
+      v.setInitialCapacity(estimatedRecordCount);
+      v.allocateNew();
     }
   }
 
@@ -307,7 +350,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
         v = TypeHelper.getNewVector(field, context.getAllocator());
         if (!clazz.isAssignableFrom(v.getClass())) {
           throw new SchemaChangeException(String.format(
-              "Class %s was provided, expected %s.", clazz.getSimpleName(), v.getClass().getSimpleName()));
+            "Class %s was provided, expected %s.", clazz.getSimpleName(), v.getClass().getSimpleName()));
         }
         v.allocateNew();
         fieldVectorMap.put(field.getName().toLowerCase(), v);
@@ -317,7 +360,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
 
     @Override
     public ValueVector getVector(String name) {
-      return fieldVectorMap.get((name !=null) ? name.toLowerCase() : name);
+      return fieldVectorMap.get((name != null) ? name.toLowerCase() : name);
     }
 
     @Override
@@ -359,7 +402,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
 
   }
 
-  public boolean supportsSkipAllQuery(){
+  public boolean supportsSkipAllQuery() {
     return true;
   }
 

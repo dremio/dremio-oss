@@ -19,9 +19,9 @@ import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableVarCharVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.physical.config.HashPartitionSender;
@@ -52,8 +52,8 @@ public class OutgoingBatch extends VectorContainer {
   private final OperatorStats stats;
 
   // we need these to set the lastSet value for variable length vectors
-  private final List<NullableVarCharVector> varchars = Lists.newArrayList();
-  private final List<NullableVarBinaryVector> varbins = Lists.newArrayList();
+  private final List<VarCharVector> varchars = Lists.newArrayList();
+  private final List<VarBinaryVector> varbins = Lists.newArrayList();
 
   private final int batchIdx;
   private final int nextBatchIdx;
@@ -84,10 +84,10 @@ public class OutgoingBatch extends VectorContainer {
       outgoingVector.setInitialCapacity(maxRecords);
       add(outgoingVector);
 
-      if (outgoingVector instanceof NullableVarBinaryVector) {
-        varbins.add(((NullableVarBinaryVector) outgoingVector));
-      } else if (outgoingVector instanceof NullableVarCharVector) {
-        varchars.add(((NullableVarCharVector) outgoingVector));
+      if (outgoingVector instanceof VarBinaryVector) {
+        varbins.add(((VarBinaryVector) outgoingVector));
+      } else if (outgoingVector instanceof VarCharVector) {
+        varchars.add(((VarCharVector) outgoingVector));
       }
     }
   }
@@ -148,10 +148,10 @@ public class OutgoingBatch extends VectorContainer {
 
     stats.addLongStat(Metric.NUM_FLUSHES, 1);
 
-    for (NullableVarBinaryVector vector : varbins) {
+    for (VarBinaryVector vector : varbins) {
       vector.setLastSet(preCopyIdx);
     }
-    for (NullableVarCharVector vector : varchars) {
+    for (VarCharVector vector : varchars) {
       vector.setLastSet(preCopyIdx);
     }
     setAllCount(preCopyIdx);

@@ -46,7 +46,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.mapred.FileAlreadyExistsException;
@@ -120,8 +119,8 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
   }
 
   static FileSystem newLocalFileSystem(Configuration conf, boolean isLocalAccessAllowed) throws IOException {
-    // we'll grab a raw local file system so append is supported (rather than the checksum local file system).
-    final FileSystem localFS = isLocalAccessAllowed ? new RawLocalFileSystem() : new NoopFileSystem();
+    // we'll grab our own local file system so append is supported (rather than the checksum local file system).
+    final FileSystem localFS = isLocalAccessAllowed ? new PDFSLocalFileSystem() : new NoopFileSystem();
     localFS.initialize(localFS.getUri(), conf);
 
     return localFS;

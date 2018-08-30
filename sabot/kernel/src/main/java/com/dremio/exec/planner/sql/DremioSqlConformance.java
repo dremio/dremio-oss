@@ -15,45 +15,19 @@
  */
 package com.dremio.exec.planner.sql;
 
-import org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.calcite.sql.validate.SqlConformanceEnum;
+import org.apache.calcite.sql.validate.SqlDelegatingConformance;
 
-public class DremioSqlConformance implements SqlConformance {
+public final class DremioSqlConformance extends SqlDelegatingConformance {
 
-  public static DremioSqlConformance INSTANCE = new DremioSqlConformance();
+  public static final DremioSqlConformance INSTANCE = new DremioSqlConformance();
 
-  @Override
-  public boolean isSortByOrdinal() {
-    return SqlConformanceEnum.DEFAULT.isSortByOrdinal();
-  }
-
-  @Override
-  public boolean isSortByAlias() {
-    return SqlConformanceEnum.DEFAULT.isSortByAlias();
-  }
-
-  @Override
-  public boolean isSortByAliasObscures() {
-    return SqlConformanceEnum.DEFAULT.isSortByAliasObscures();
-  }
-
-  @Override
-  public boolean isFromRequired() {
-    return SqlConformanceEnum.DEFAULT.isFromRequired();
+  private DremioSqlConformance() {
+    super(SqlConformanceEnum.DEFAULT);
   }
 
   @Override
   public boolean isBangEqualAllowed() {
     return true;
-  }
-
-  @Override
-  public boolean isMinusAllowed() {
-    return SqlConformanceEnum.DEFAULT.isMinusAllowed();
-  }
-
-  @Override
-  public boolean isApplyAllowed() {
-    return SqlConformanceEnum.DEFAULT.isApplyAllowed();
   }
 }

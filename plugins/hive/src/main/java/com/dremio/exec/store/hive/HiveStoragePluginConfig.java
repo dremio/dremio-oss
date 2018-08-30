@@ -21,14 +21,14 @@ import javax.inject.Provider;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.protostuff.Tag;
 
-@SourceType("HIVE")
+@SourceType(value = "HIVE", label = "Hive")
 public class HiveStoragePluginConfig extends ConnectionConf<HiveStoragePluginConfig, HiveStoragePlugin> {
 
   //  optional string hostname = 1;
@@ -41,32 +41,35 @@ public class HiveStoragePluginConfig extends ConnectionConf<HiveStoragePluginCon
    * Hostname where Hive metastore server is running
    */
   @Tag(1)
+  @DisplayMetadata(label = "Hive Metastore Host")
   public String hostname;
 
   /*
    * Listening port of Hive metastore server
    */
   @Tag(2)
+  @DisplayMetadata(label = "Port")
   public int port = 9083;
 
   /*
    * Is kerberos authentication enabled on metastore services?
    */
   @Tag(3)
+  @DisplayMetadata(label = "Enable SASL")
   public boolean enableSasl = false;
 
   /*
    * Kerberos principal name of metastore servers if kerberos authentication is enabled
    */
   @Tag(4)
+  @DisplayMetadata(label = "Hive Kerberos Principal")
   public String kerberosPrincipal;
 
   /*
    * List of configuration properties.
    */
-  @JsonProperty("propertyList")
   @Tag(5)
-  public List<Property> properties;
+  public List<Property> propertyList;
 
   public HiveStoragePluginConfig() {
   }

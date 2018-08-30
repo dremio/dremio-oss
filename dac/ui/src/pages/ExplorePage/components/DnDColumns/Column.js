@@ -22,7 +22,6 @@ import PropTypes from 'prop-types';
 import { DragSource, DropTarget } from 'react-dnd';
 import { injectIntl } from 'react-intl';
 
-import 'components/Icon/FontIcon.less';
 import Art from 'components/Art';
 
 import { typeToIconType, typeToFormatMessageId } from 'constants/DataTypes';

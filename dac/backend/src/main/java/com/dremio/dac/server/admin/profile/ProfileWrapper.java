@@ -23,18 +23,20 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
+import com.dremio.exec.proto.UserBitShared.NodeQueryProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
-import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.service.accelerator.AccelerationDetailsUtils;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.google.common.base.Strings;
@@ -51,6 +53,7 @@ public class ProfileWrapper {
   private QueryProfile profile;
   private String id;
   private final List<FragmentWrapper> fragmentProfiles;
+  private final List<NodeWrapper> nodeProfiles;
   private final List<OperatorWrapper> operatorProfiles;
   private final AccelerationWrapper accelerationDetails;
 
@@ -67,6 +70,16 @@ public class ProfileWrapper {
       fragmentProfiles.add(new FragmentWrapper(major, profile.getStart(), debug));
     }
     this.fragmentProfiles = fragmentProfiles;
+
+    final List<NodeWrapper> nodeProfiles = new ArrayList<>();
+
+    final List<NodeQueryProfile> nodeQueryProfiles = new ArrayList<>(profile.getNodeProfileList());
+    Collections.sort(nodeQueryProfiles, Comparators.endpoint);
+
+    for (final NodeQueryProfile nodeQueryProfile : nodeQueryProfiles) {
+      nodeProfiles.add(new NodeWrapper(nodeQueryProfile, debug));
+    }
+    this.nodeProfiles = nodeProfiles;
 
     final List<OperatorWrapper> ows = new ArrayList<>();
     // temporary map to store (major_id, operator_id) -> [(op_profile, minor_id)]
@@ -98,7 +111,7 @@ public class ProfileWrapper {
     Collections.sort(keys);
 
     for (final ImmutablePair<Integer, Integer> ip : keys) {
-      ows.add(new OperatorWrapper(ip.getLeft(), opmap.get(ip)));
+      ows.add(new OperatorWrapper(ip.getLeft(), opmap.get(ip), profile.hasOperatorTypeMetricsMap() ? profile.getOperatorTypeMetricsMap(): null));
     }
     this.operatorProfiles = ows;
 
@@ -186,6 +199,15 @@ public class ProfileWrapper {
   public String getFragmentsOverview() {
     TableBuilder tb = new TableBuilder(FragmentWrapper.FRAGMENT_OVERVIEW_COLUMNS);
     for (final FragmentWrapper fw : fragmentProfiles) {
+      fw.addSummary(tb);
+    }
+    return tb.build();
+  }
+
+  @SuppressWarnings("unused")
+  public String getNodesOverview() {
+    TableBuilder tb = new TableBuilder(NodeWrapper.NODE_OVERVIEW_COLUMNS);
+    for (final NodeWrapper fw : nodeProfiles) {
       fw.addSummary(tb);
     }
     return tb.build();

@@ -20,7 +20,7 @@ import org.apache.arrow.vector.util.CallBack;
 import org.apache.arrow.vector.util.TransferPair;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.complex.AbstractMapVector;
+import org.apache.arrow.vector.complex.AbstractStructVector;
 import org.apache.arrow.vector.complex.FieldIdUtil2;
 
 import com.dremio.common.expression.SchemaPath;
@@ -96,7 +96,7 @@ public class SimpleVectorWrapper<T extends ValueVector> implements VectorWrapper
 
     ValueVector vector = this.vector;
     for (int i = 1; i < ids.length; i++) {
-      final AbstractMapVector mapLike = AbstractMapVector.class.cast(vector);
+      final AbstractStructVector mapLike = AbstractStructVector.class.cast(vector);
       if (mapLike == null) {
         return null;
       }

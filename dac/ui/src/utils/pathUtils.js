@@ -16,7 +16,6 @@
 //This is a bit hacky, but it won't be necessary after server and client urls match
 
 // full path is the . path used in sql
-import { HOME_SPACE_NAME, RECENT_SPACE_NAME } from 'constants/Constants';
 
 export function splitFullPath(fullPath, preserveQuoting) {
   const PATH_DELIMITER = '.';
@@ -100,14 +99,6 @@ export function getSourceNameFromResourceId(resourceId) {
   return resourceId.indexOf('.') > -1
     ? resourceId.slice(0, resourceId.indexOf('.'))
     : resourceId;
-}
-
-export function getResourceId(type, resourceId) {
-  const hash = {
-    home: HOME_SPACE_NAME,
-    recent: RECENT_SPACE_NAME
-  };
-  return hash[type] || resourceId;
 }
 
 export function getEntityType(urlPath) {

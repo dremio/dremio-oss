@@ -89,43 +89,43 @@ public class TestSubPathFileSystemPlugin extends BaseTestQuery {
 
   @Test
   public void queryValidPath() throws Exception {
-    test("SELECT * FROM subPathDfs.`tblInside.csv`");
-    test("SELECT * FROM subPathDfs.`dirInside/tbl.csv`");
+    test("SELECT * FROM subPathDfs.\"tblInside.csv\"");
+    test("SELECT * FROM subPathDfs.\"dirInside/tbl.csv\"");
   }
 
   @Test
   public void queryInvalidPath() throws Exception {
-    errorMsgTestHelper("SELECT * FROM subPathDfs.`../tblOutside.csv`",
+    errorMsgTestHelper("SELECT * FROM subPathDfs.\"../tblOutside.csv\"",
         "PERMISSION ERROR: Not allowed to access files outside of the source root");
   }
 
   @Test
   public void ctasAndDropTableValidPath() throws Exception {
-    test("CREATE TABLE subPathDfs.ctas AS SELECT * FROM cp.`region.json`");
+    test("CREATE TABLE subPathDfs.ctas AS SELECT * FROM cp.\"region.json\"");
     test("DROP TABLE subPathDfs.ctas");
   }
 
   @Test
   public void ctasInvalidPath() throws Exception {
-    errorMsgTestHelper("CREATE TABLE subPathDfs.`../ctas` AS SELECT * FROM cp.`region.json`",
+    errorMsgTestHelper("CREATE TABLE subPathDfs.\"../ctas\" AS SELECT * FROM cp.\"region.json\"",
         "PERMISSION ERROR: Not allowed to access files outside of the source root");
   }
 
   @Test
   public void dropTableInvalidPath() throws Exception {
-    errorMsgTestHelper("DROP TABLE subPathDfs.`../tblOutside.csv`",
+    errorMsgTestHelper("DROP TABLE subPathDfs.\"../tblOutside.csv\"",
         "PERMISSION ERROR: Not allowed to access files outside of the source root");
   }
 
   @Test
   public void createAndDropViewValidPath() throws Exception {
-    test("CREATE VIEW subPathDfs.`view` AS SELECT * FROM cp.`region.json`");
-    test("DROP VIEW subPathDfs.`view`");
+    test("CREATE VIEW subPathDfs.\"view\" AS SELECT * FROM cp.\"region.json\"");
+    test("DROP VIEW subPathDfs.\"view\"");
   }
 
   @Test
   public void createViewInvalidPath() throws Exception {
-    errorMsgTestHelper("CREATE VIEW subPathDfs.`../view` AS SELECT * FROM cp.`region.json`",
+    errorMsgTestHelper("CREATE VIEW subPathDfs.\"../view\" AS SELECT * FROM cp.\"region.json\"",
         "PERMISSION ERROR: Not allowed to access files outside of the source root");
   }
 

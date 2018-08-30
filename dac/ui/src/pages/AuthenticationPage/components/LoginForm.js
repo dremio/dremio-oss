@@ -116,7 +116,7 @@ export class LoginForm extends Component {
                 text={la('Log In')}/>
               <Spinner
                 iconStyle={styles.spinnerIcon}
-                style={[{display: viewState.get('isInProgress') ? 'block' : 'none'}, styles.spinner]}/>
+                style={{display: viewState.get('isInProgress') ? 'block' : 'none', ...styles.spinner}}/>
               {false && <div style={styles.link}>
                 <Link to='#' >{la('Forgot your password?')}</Link>
               </div>}

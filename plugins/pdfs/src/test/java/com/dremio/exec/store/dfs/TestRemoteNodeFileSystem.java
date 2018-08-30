@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -65,6 +66,8 @@ import io.netty.buffer.Unpooled;
  * Test class for {@link RemoteNodeFileSystem}
  */
 public class TestRemoteNodeFileSystem extends ExecTest {
+  private static final int TEST_RPC_TIMEOUT_MS = 100;
+
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestRemoteNodeFileSystem.class);
 
   private static final NodeEndpoint REMOTE_ENDPOINT = newNodeEndpoint("10.0.0.2", 1234);
@@ -142,8 +145,14 @@ public class TestRemoteNodeFileSystem extends ExecTest {
    * @throws IOException
    */
   private RemoteNodeFileSystem newRemoteNodeFileSystem() throws IOException {
+    final Configuration configuration = new Configuration(false);
+    configuration.setTimeDuration(RemoteNodeFileSystem.RPC_TIMEOUT_KEY, TEST_RPC_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    return newRemoteNodeFileSystem(configuration);
+  }
+
+  private RemoteNodeFileSystem newRemoteNodeFileSystem(Configuration configuration) throws IOException {
     RemoteNodeFileSystem fs =  new RemoteNodeFileSystem(runner, allocator);
-    fs.initialize(URI.create(String.format("sabot://%s:%d/", REMOTE_ENDPOINT.getAddress(), REMOTE_ENDPOINT.getFabricPort())), new Configuration(false));
+    fs.initialize(URI.create(String.format("sabot://%s:%d/", REMOTE_ENDPOINT.getAddress(), REMOTE_ENDPOINT.getFabricPort())), configuration);
     return fs;
   }
 
@@ -161,8 +170,12 @@ public class TestRemoteNodeFileSystem extends ExecTest {
     setupRPC(requestType, request, responseType, response, null);
   }
 
-  @SuppressWarnings("unchecked")
   private void setupRPC(final EnumLite requestType, final MessageLite request, final EnumLite responseType, final MessageLite response, final ByteBuf buffer) throws Exception {
+    setupRPC(requestType, Arrays.asList(request), responseType, Arrays.asList(response), Arrays.asList(buffer));
+  }
+
+  @SuppressWarnings("unchecked")
+  private void setupRPC(final EnumLite requestType, final List<MessageLite> requests, final EnumLite responseType, final List<MessageLite> responses, final List<ByteBuf> buffers) throws Exception {
     final ProxyConnection proxyConnection = mock(ProxyConnection.class);
     doAnswer(new Answer<Void>() {
       @Override
@@ -171,15 +184,21 @@ public class TestRemoteNodeFileSystem extends ExecTest {
       }
     }).when(proxyConnection).send(any(RpcOutcomeListener.class), any(EnumLite.class), any(MessageLite.class), any(Class.class));
 
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(final InvocationOnMock invocation) throws Throwable {
-        final RpcOutcomeListener<MessageLite> listener = invocation.getArgumentAt(0, RpcOutcomeListener.class);
-        listener.success(response, buffer);
+    for(int i = 0; i < requests.size(); i++) {
+      MessageLite request = requests.get(i);
+      MessageLite response = responses.get(i);
+      ByteBuf buffer = buffers.get(i);
 
-        return null;
-      }
-    }).when(proxyConnection).send(any(RpcOutcomeListener.class), eq(requestType), eq(request), eq(response.getClass()));
+      doAnswer(new Answer<Void>() {
+        @Override
+        public Void answer(final InvocationOnMock invocation) throws Throwable {
+          final RpcOutcomeListener<MessageLite> listener = invocation.getArgumentAt(0, RpcOutcomeListener.class);
+          listener.success(response, buffer);
+
+          return null;
+        }
+      }).when(proxyConnection).send(any(RpcOutcomeListener.class), eq(requestType), eq(request), eq(response.getClass()));
+    }
 
     doAnswer(new Answer<Void>() {
       @Override
@@ -197,6 +216,8 @@ public class TestRemoteNodeFileSystem extends ExecTest {
       }
     }).when(runner).runCommand(any(RpcCommand.class));
   }
+
+
 
   @SuppressWarnings("unchecked")
   private void setupRPC(final EnumLite requestType, final MessageLite request, Class<? extends MessageLite> responseClazz, final RpcException e) throws Exception {
@@ -322,11 +343,55 @@ public class TestRemoteNodeFileSystem extends ExecTest {
           .build();
 
       setupRPC(
-          DFS.RpcType.LIST_STATUS_REQUEST, DFS.ListStatusRequest.newBuilder().setPath("/").build(),
+          DFS.RpcType.LIST_STATUS_REQUEST, DFS.ListStatusRequest.newBuilder().setPath("/").setLimit(RemoteNodeFileSystem.LIST_STATUS_BATCH_SIZE_DEFAULT).build(),
           DFS.RpcType.LIST_STATUS_RESPONSE, listStatusResponse);
     }
 
     FileSystem fs = newRemoteNodeFileSystem();
+
+    Path root = new Path("/");
+    FileStatus[] statuses = fs.listStatus(root);
+
+    assertEquals(ENDPOINTS_LIST.size(), statuses.length);
+
+    assertEquals(new Path("sabot://10.0.0.2:1234/foo"), statuses[0].getPath());
+    assertTrue(statuses[0].isDirectory());
+    assertEquals(0755, statuses[0].getPermission().toExtendedShort());
+
+    assertEquals(new Path("sabot://10.0.0.2:1234/bar"), statuses[1].getPath());
+    assertFalse(statuses[1].isDirectory());
+    assertEquals(0644, statuses[1].getPermission().toExtendedShort());
+  }
+
+  @Test
+  public void testListStatusRootOneByOne() throws Exception {
+    {
+      DFS.ListStatusContinuationHandle handle = DFS.ListStatusContinuationHandle.newBuilder().setId("test-handle").build();
+
+      DFS.ListStatusResponse listStatusInitialResponse = DFS.ListStatusResponse.newBuilder()
+          .addStatuses(newFileStatus(42, true, 0, 0, 456, 879, 0755, "root", "wheel", "/foo"))
+          .setHandle(handle)
+          .build();
+      DFS.ListStatusResponse listStatusLastResponse = DFS.ListStatusResponse.newBuilder()
+          .addStatuses(newFileStatus(1024, false, 1, 4096, 354, 435, 0644, "admin", "admin", "/bar"))
+          .build();
+
+      setupRPC(
+          DFS.RpcType.LIST_STATUS_REQUEST,
+          Arrays.asList(
+              DFS.ListStatusRequest.newBuilder().setPath("/").setLimit(1).build(),
+              DFS.ListStatusRequest.newBuilder().setPath("/").setHandle(handle).setLimit(1).build()),
+          DFS.RpcType.LIST_STATUS_RESPONSE,
+          Arrays.asList(listStatusInitialResponse, listStatusLastResponse),
+          Arrays.asList((ByteBuf) null, null)
+          );
+    }
+    // Limit the number of results per batch
+    final Configuration configuration = new Configuration(false);
+    configuration.setTimeDuration(RemoteNodeFileSystem.RPC_TIMEOUT_KEY, TEST_RPC_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    configuration.setInt(RemoteNodeFileSystem.LIST_STATUS_BATCH_SIZE_KEY, 1);
+
+    FileSystem fs = newRemoteNodeFileSystem(configuration);
 
     Path root = new Path("/");
     FileStatus[] statuses = fs.listStatus(root);
@@ -351,7 +416,7 @@ public class TestRemoteNodeFileSystem extends ExecTest {
           .build();
 
       setupRPC(
-          DFS.RpcType.LIST_STATUS_REQUEST, DFS.ListStatusRequest.newBuilder().setPath("/foo/bar").build(),
+          DFS.RpcType.LIST_STATUS_REQUEST, DFS.ListStatusRequest.newBuilder().setPath("/foo/bar").setLimit(RemoteNodeFileSystem.LIST_STATUS_BATCH_SIZE_DEFAULT).build(),
           DFS.RpcType.LIST_STATUS_RESPONSE, listStatusResponse);
     }
 
@@ -374,7 +439,7 @@ public class TestRemoteNodeFileSystem extends ExecTest {
   @Test(expected = FileNotFoundException.class)
   public void testListStatusWithInvalidPath() throws Exception {
     setupRPC(
-        DFS.RpcType.LIST_STATUS_REQUEST, DFS.ListStatusRequest.newBuilder().setPath("/foo/bar").build(),
+        DFS.RpcType.LIST_STATUS_REQUEST, DFS.ListStatusRequest.newBuilder().setPath("/foo/bar").setLimit(RemoteNodeFileSystem.LIST_STATUS_BATCH_SIZE_DEFAULT).build(),
         DFS.ListStatusResponse.class, newRPCException(LOCAL_ENDPOINT, new FileNotFoundException("File not found")));
 
     FileSystem fs = newRemoteNodeFileSystem();

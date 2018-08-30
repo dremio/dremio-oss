@@ -18,6 +18,8 @@ import Radium from 'radium';
 import PropTypes from 'prop-types';
 import FontIcon from 'components/Icon/FontIcon';
 import Keys from 'constants/Keys.json';
+import classNames from 'classnames';
+import { base, searchInput } from './SearchField.less';
 
 @Radium
 export default class SearchField extends Component {
@@ -30,7 +32,8 @@ export default class SearchField extends Component {
     searchIconTheme: PropTypes.object,
     showCloseIcon: PropTypes.bool,
     inputClassName: PropTypes.string,
-    dataQa: PropTypes.string
+    dataQa: PropTypes.string,
+    className: PropTypes.string
   };
 
   constructor(props) {
@@ -66,18 +69,18 @@ export default class SearchField extends Component {
   render() {
     const showCloseIcon = this.props.showCloseIcon && this.state.value;
     return (
-      <div className='field' style={[styles.base, this.props.style]}>
+      <div className={classNames(['field', base, this.props.className])} style={[this.props.style]}>
         <FontIcon
           type='Search'
           theme={this.props.searchIconTheme || styles.searchIcon}
         />
         <input
           data-qa={this.props.dataQa}
-          className={'form-placeholder ' + (this.props.inputClassName || '')}
+          className={classNames(['form-placeholder ' + (this.props.inputClassName || ''), searchInput])}
           type='text'
           ref='input'
           placeholder={this.props.placeholder}
-          style={[styles.searchInput, this.props.inputStyle]}
+          style={this.props.inputStyle}
           value={this.state.value}
           onChange={(e) => this.onChange(e.target.value)}
           onKeyDown={this.handleKeyDown}
@@ -93,22 +96,6 @@ export default class SearchField extends Component {
 }
 
 const styles = {
-  base: {
-    clear: 'both',
-    display: 'flex',
-    position: 'relative',
-    width: '100%',
-    paddingTop: 3,
-    paddingRight: 3,
-    paddingBottom: 3,
-    paddingLeft: 3
-  },
-  searchInput: {
-    display: 'block',
-    border: '1px solid rgba(0,0,0, .1)',
-    width: '100%',
-    padding: '5px 10px 5px 25px'
-  },
   searchIcon: {
     Icon: {
       width: 24,

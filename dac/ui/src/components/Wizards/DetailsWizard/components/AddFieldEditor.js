@@ -117,6 +117,7 @@ export class AddFieldEditor extends Component {
               sqlSize={this.props.sqlHeight}
               style={styles.sqlEditorStyle}
               dragType={this.props.dragType}
+              autoCompleteEnabled={false}
             />
             {this.getFunctionsPanel()}
           </div>

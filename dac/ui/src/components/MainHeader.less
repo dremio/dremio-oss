@@ -14,45 +14,48 @@
  * limitations under the License.
  */
 @import "constants.less";
-.explore-header {
-  flex-shrink: 0;
-  display: flex;
 
-  background: #43b8c9;
-  background: linear-gradient(90deg, #2a394a 18%,  #3a8f9f 80%);
-  height: @mainheaderheight*1px;
-
-  .search-item {
-    margin: -8px 10px 0 0;
-  }
-
-  .header-wrap {
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  .explore-header {
+    flex-shrink: 0;
     display: flex;
-    width: 100%;
-    justify-content: space-between;
 
-    .left-part {
-      display: flex;
+    background: #43b8c9;
+    background: linear-gradient(90deg, #2a394a 18%,  #3a8f9f 80%);
+    height: @mainheaderheight*1px;
+
+    .search-item {
+      margin: -8px 10px 0 0;
     }
 
-    .right-part {
+    .header-wrap {
       display: flex;
+      width: 100%;
+      justify-content: space-between;
+
+      .left-part {
+        display: flex;
+      }
+
+      .right-part {
+        display: flex;
+      }
     }
-  }
 
-  .dremio {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-  }
+    .dremio {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
 
-  .logo {
-    width: 75px;
-    display: flex;
-    align-items: center;
-    padding-bottom: 1px;
-    color: #fff;
-    cursor: pointer;
-    font-size: 20px;
+    .logo {
+      width: 75px;
+      display: flex;
+      align-items: center;
+      padding-bottom: 1px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 20px;
+    }
   }
 }

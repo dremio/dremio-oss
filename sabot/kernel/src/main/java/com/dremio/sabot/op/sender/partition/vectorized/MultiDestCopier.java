@@ -20,6 +20,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import java.util.List;
 
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.VariableWidthVector;
 import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.expression.CompleteType;
@@ -56,8 +57,29 @@ public abstract class MultiDestCopier {
     this.srcBufferIdx = bufferOrdinal;
     this.fieldId = fieldId;
     dstAddrs = new long[targets.length];
-    for (int i = 0; i < targets.length; i++) {
-      dstAddrs[i] = targets[i].getFieldBuffers().get(bufferOrdinal).memoryAddress();
+    int i;
+    switch (bufferOrdinal) {
+      case 0:
+        for(i = 0; i < targets.length; i++){
+          dstAddrs[i] = targets[i].getValidityBufferAddress();
+        }
+        break;
+      case 1:
+        for(i = 0; i < targets.length; i++){
+          if (targets[i] instanceof VariableWidthVector) {
+            dstAddrs[i] = targets[i].getOffsetBufferAddress();
+          } else {
+            dstAddrs[i] = targets[i].getDataBufferAddress();
+          }
+        }
+        break;
+      case 2:
+        for(i = 0; i < targets.length; i++){
+          dstAddrs[i] = targets[i].getDataBufferAddress();
+        }
+        break;
+      default:
+        throw new UnsupportedOperationException("unexpected buffer offset");
     }
   }
 
@@ -75,7 +97,23 @@ public abstract class MultiDestCopier {
   public abstract void copy(long compoundAddr, int srcStart, int count);
 
   public void updateTargets(int index, FieldVector target) {
-    dstAddrs[index] = target.getFieldBuffers().get(srcBufferIdx).memoryAddress();
+    switch (srcBufferIdx) {
+      case 0:
+        dstAddrs[index] = target.getValidityBufferAddress();
+        break;
+      case 1:
+        if (target instanceof VariableWidthVector) {
+          dstAddrs[index] = target.getOffsetBufferAddress();
+        } else {
+          dstAddrs[index] = target.getDataBufferAddress();
+        }
+        break;
+      case 2:
+        dstAddrs[index] = target.getDataBufferAddress();
+        break;
+      default:
+        throw new UnsupportedOperationException("unexpected buffer offset");
+    }
   }
 
   static class FourByteCopier extends MultiDestCopier {
@@ -103,7 +141,7 @@ public abstract class MultiDestCopier {
       final long[] dstAddrs = this.dstAddrs;
 
       // compute address of first copied value
-      long srcAddr = source.getFieldBuffers().get(VALUE_BUFFER_ORDINAL).memoryAddress() + srcStart * SIZE;
+      long srcAddr = source.getDataBufferAddress() + srcStart * SIZE;
 
       final long max = compoundAddr + count * OFFSET_SIZE;
       for (; compoundAddr < max; compoundAddr +=OFFSET_SIZE, srcAddr += SIZE) {
@@ -142,7 +180,7 @@ public abstract class MultiDestCopier {
 
       final long[] dstAddrs = this.dstAddrs;
 
-      long srcAddr = source.getFieldBuffers().get(VALUE_BUFFER_ORDINAL).memoryAddress() + srcStart * SIZE;
+      long srcAddr = source.getDataBufferAddress() + srcStart * SIZE;
 
       final long max = compoundAddr + count * OFFSET_SIZE;
       for (; compoundAddr < max; compoundAddr +=OFFSET_SIZE, srcAddr += SIZE) {
@@ -180,7 +218,7 @@ public abstract class MultiDestCopier {
 
       final long[] dstAddrs = this.dstAddrs;
 
-      long srcAddr = source.getFieldBuffers().get(VALUE_BUFFER_ORDINAL).memoryAddress() + srcStart * SIZE;
+      long srcAddr = source.getDataBufferAddress() + srcStart * SIZE;
 
       final long max = compoundAddr + count * OFFSET_SIZE;
       for (; compoundAddr < max; compoundAddr +=OFFSET_SIZE, srcAddr += SIZE) {
@@ -213,7 +251,7 @@ public abstract class MultiDestCopier {
       dstOffsetAddrs = new long[numTargets];
       for (int i = 0; i < numTargets; i++) {
         reallocs[i] = Reallocators.getReallocator(targets[i]);
-        dstOffsetAddrs[i] = targets[i].getFieldBuffers().get(OFFSET_BUFFER_ORDINAL).memoryAddress();
+        dstOffsetAddrs[i] = targets[i].getOffsetBufferAddress();
       }
 
       this.copyWatch = copyWatch;
@@ -222,7 +260,7 @@ public abstract class MultiDestCopier {
     @Override
     public void updateTargets(int index, FieldVector target) {
       super.updateTargets(index, target);
-      dstOffsetAddrs[index] = target.getFieldBuffers().get(OFFSET_BUFFER_ORDINAL).memoryAddress();
+      dstOffsetAddrs[index] = target.getOffsetBufferAddress();
     }
 
     @Override
@@ -230,9 +268,8 @@ public abstract class MultiDestCopier {
       copyWatch.start();
 
       // source data/offset buffers
-      final List<ArrowBuf> sourceBuffers = source.getFieldBuffers();
-      final long srcDataAddr = sourceBuffers.get(VARIABLE_DATA_BUFFER_ORDINAL).memoryAddress();
-      long srcOffsetAddr = sourceBuffers.get(OFFSET_BUFFER_ORDINAL).memoryAddress();
+      final long srcDataAddr = source.getDataBufferAddress();
+      long srcOffsetAddr = source.getOffsetBufferAddress();
 
       // go the first copied record from src. recordIdx = srcSkip
       srcOffsetAddr += srcStart * 4;
@@ -298,7 +335,17 @@ public abstract class MultiDestCopier {
       final long[] dstAddrs = this.dstAddrs;
 
       // skip bytes, but make sure to account for the remaining bits too
-      final long srcAddr = source.getFieldBuffers().get(bufferOrdinal).memoryAddress();
+      final long srcAddr;
+      switch (bufferOrdinal) {
+        case NULL_BUFFER_ORDINAL:
+          srcAddr = source.getValidityBufferAddress();
+          break;
+        case VALUE_BUFFER_ORDINAL:
+          srcAddr = source.getDataBufferAddress();
+          break;
+        default:
+          throw new UnsupportedOperationException("unexpected buffer offset");
+      }
 
       final long max = compoundAddr + count * OFFSET_SIZE;
       for(; compoundAddr < max; compoundAddr +=OFFSET_SIZE, srcStart++){
@@ -398,7 +445,7 @@ public abstract class MultiDestCopier {
         break;
 
       case LIST:
-      case MAP:
+      case STRUCT:
       case UNION:
         copiers.add(new GenericCopier(source, fieldId, targets, copyWatches.getGeneric()));
         break;

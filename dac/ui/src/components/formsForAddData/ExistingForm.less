@@ -13,74 +13,77 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.existing-form {
-  @tab: 20px;
+ :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .divider-header {
-    width: 638px;
-    left: -1px;
-    bottom: -15px;
-    position: absolute;
-    height: 15px;
-    background-color: #F2F2F2;
-    border: 1px solid #ccc;
-    border-top: none;
-  }
+  .existing-form {
+    @tab: 20px;
 
-  .autocomplete > div > div {
-    border-radius: 3px !important;
-    border: 1px solid #c1c1c1;
-    z-index: 10;
-  }
+    .divider-header {
+      width: 638px;
+      left: -1px;
+      bottom: -15px;
+      position: absolute;
+      height: 15px;
+      background-color: #F2F2F2;
+      border: 1px solid #ccc;
+      border-top: none;
+    }
 
-  .autocomplete {
-    width: 400px;
-    position: relative;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    margin-right: 10px;
+    .autocomplete > div > div {
+      border-radius: 3px !important;
+      border: 1px solid #c1c1c1;
+      z-index: 10;
+    }
 
-    .autocomplete-item {
+    .autocomplete {
+      width: 400px;
+      position: relative;
       display: flex;
-      padding: 5px;
-      border-bottom: 1px solid #c1c1c1;
-      cursor: pointer;
+      justify-content: flex-end;
+      align-items: center;
+      margin-right: 10px;
 
-      &:last-child {
-        border-bottom: 0;
+      .autocomplete-item {
+        display: flex;
+        padding: 5px;
+        border-bottom: 1px solid #c1c1c1;
+        cursor: pointer;
+
+        &:last-child {
+          border-bottom: 0;
+        }
+      }
+
+      .fa {
+        right: 10px;
+        position: absolute;
+        font-size: 18px;
+        top: 12px;
+      }
+
+      input {
+        width: 345px;
+        height: 30px;
+        outline: none;
+        border-radius: 3px;
+        border: 1px solid #c1c1c1;
+        padding-left: 10px;
+        padding-right: 34px;
       }
     }
 
-    .fa {
-      right: 10px;
-      position: absolute;
-      font-size: 18px;
-      top: 12px;
-    }
+    .name {
+      margin-top: 10px;
 
-    input {
-      width: 345px;
-      height: 30px;
-      outline: none;
-      border-radius: 3px;
-      border: 1px solid #c1c1c1;
-      padding-left: 10px;
-      padding-right: 34px;
-    }
-  }
-
-  .name {
-    margin-top: 10px;
-
-    input {
-      margin-left: 15px;
-      padding-left: 10px;
-      width: 300px;
-      outline: none;
-      height: 30px;
-      border-radius: 2px;
-      border: 1px solid #AFE6FF;
+      input {
+        margin-left: 15px;
+        padding-left: 10px;
+        width: 300px;
+        outline: none;
+        height: 30px;
+        border-radius: 2px;
+        border: 1px solid #AFE6FF;
+      }
     }
   }
 }

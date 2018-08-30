@@ -36,7 +36,7 @@ import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting.FieldType;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.physical.base.ScanStats;
-import com.dremio.exec.store.parquet.FilterCondition.FilterProperties;
+import com.dremio.exec.store.parquet.ParquetFilterCondition.FilterProperties;
 import com.dremio.exec.store.parquet.ParquetReaderUtility.NanoTimeUtils;
 import com.dremio.service.namespace.DatasetSplitConverter;
 import com.dremio.service.namespace.dataset.proto.PartitionValue;
@@ -178,7 +178,7 @@ public class MetadataUtils {
       case LIST:
       case UNION:
       case NULL:
-      case MAP:
+      case STRUCT:
       default:
         throw new UnsupportedOperationException(type + " is not supported");
     }

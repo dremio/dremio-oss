@@ -13,22 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.transform {
-  .react-select-styles .Select-input, .react-select-styles .Select-control, .Select.has-value {
-    height: 22px;
-    color: #333333;
-  }
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .react-select-styles .Select-placeholder {
-    line-height: 22px;
-    color: #333333;
-  }
+  .transform {
+    .sql-help-panel {
+      height: 140px;
+    }
 
-  .sql-help-panel {
-    height: 140px;
-  }
-
-  progress[value]::-webkit-progress-bar {
-    background-color: #FFFFFF;
+    progress[value]::-webkit-progress-bar {
+      background-color: #FFFFFF;
+    }
   }
 }

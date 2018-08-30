@@ -15,16 +15,19 @@
  */
 package com.dremio.exec.store.parquet;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.store.RecordReader;
@@ -71,7 +74,8 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     final GlobalDictionaries globalDictionaries = GlobalDictionaries.create(context, fs,  config.getGlobalDictionaryEncodedColumns());
     final boolean vectorize = context.getOptions().getOption(ExecConstants.PARQUET_READER_VECTORIZE);
     final boolean autoCorrectCorruptDates = ((ParquetFileConfig)FileFormat.getForFile(config.getFormatSettings())).getAutoCorrectCorruptDates();
-    final boolean readInt96AsTimeStamp = context.getOptions().getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP).bool_val;
+    final boolean readInt96AsTimeStamp = context.getOptions().getOption(ExecConstants
+      .PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal();
     final boolean enableDetailedTracing = context.getOptions().getOption(ExecConstants.ENABLED_PARQUET_TRACING);
     final CodecFactory codec = CodecFactory.createDirectCodecFactory(fs.getConf(), new ParquetDirectByteBufferAllocator(context.getAllocator()), 0);
 
@@ -87,8 +91,8 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     final List<ParquetDatasetSplit> sortedSplits = Lists.newArrayList();
     final SingletonParquetFooterCache footerCache = new SingletonParquetFooterCache();
 
-    for (DatasetSplit spilt : config.getSplits()) {
-      sortedSplits.add(new ParquetDatasetSplit(spilt));
+    for (DatasetSplit split : config.getSplits()) {
+      sortedSplits.add(new ParquetDatasetSplit(split));
     }
     Collections.sort(sortedSplits);
 
@@ -96,29 +100,52 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       @Override
       public RecordReader apply(ParquetDatasetSplit split) {
 
-        final ParquetMetadata footer = footerCache.getFooter(fs, new Path(split.getSplitXAttr().getPath()));
+        boolean useSingleStream =
+          // option is set for single stream
+          context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM) ||
+            // number of columns is above threshold
+          finder.getRealFields().size() >= context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD) ||
+            // split size is below multi stream size limit and the limit is enabled
+          (context.getOptions().getOption(ExecConstants.PARQUET_MULTI_STREAM_SIZE_LIMIT_ENABLE) &&
+            split.getDatasetSplit().getSize() < context.getOptions().getOption(ExecConstants.PARQUET_MULTI_STREAM_SIZE_LIMIT));
 
-        final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
-            .readInt96AsTimeStamp(readInt96AsTimeStamp)
-            .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, config.getColumns(), autoCorrectCorruptDates))
-            .build();
+        try {
+          Path p = new Path(split.getSplitXAttr().getPath());
+          Long length = split.getSplitXAttr().getUpdateKey().getLength();
+          if (length == null || !context.getOptions().getOption(ExecConstants.PARQUET_CACHED_ENTITY_SET_FILE_SIZE)) {
+            length = fs.getFileStatus(p).getLen();
+          }
+          InputStreamProvider inputStreamProvider = new InputStreamProvider(fs, p, useSingleStream);
 
-        final UnifiedParquetReader inner = new UnifiedParquetReader(
-          context,
-          readerFactory,
-          finder.getRealFields(),
-          globalDictionaryEncodedColumns,
-          config.getConditions(),
-          split.getSplitXAttr(),
-          fs,
-          footer,
-          globalDictionaries,
-          codec,
-          schemaHelper,
-          vectorize,
-          enableDetailedTracing
-        );
-        return readerConfig.wrapIfNecessary(context.getAllocator(), inner, split.getDatasetSplit());
+          final ParquetMetadata footer = footerCache.getFooter(inputStreamProvider.stream(), split.getSplitXAttr().getPath(), length, fs);
+
+          final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
+              .readInt96AsTimeStamp(readInt96AsTimeStamp)
+              .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, config.getColumns(), autoCorrectCorruptDates))
+              .build();
+
+          final UnifiedParquetReader inner = new UnifiedParquetReader(
+            context,
+            readerFactory,
+            config.getSchema(),
+            finder.getRealFields(),
+            globalDictionaryEncodedColumns,
+            config.getConditions(),
+            split.getSplitXAttr(),
+            fs,
+            footer,
+            globalDictionaries,
+            codec,
+            schemaHelper,
+            vectorize,
+            enableDetailedTracing,
+            inputStreamProvider
+          );
+          return readerConfig.wrapIfNecessary(context.getAllocator(), inner, split.getDatasetSplit());
+        } catch (IOException e) {
+          throw UserException.dataReadError(e).addContext("Failure opening parquet file").addContext("File", split.getSplitXAttr().getPath()).build(logger);
+        }
+
       }
     });
 

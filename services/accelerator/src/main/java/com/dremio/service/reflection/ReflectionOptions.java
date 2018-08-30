@@ -18,9 +18,9 @@ package com.dremio.service.reflection;
 
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.exec.server.options.Options;
-import com.dremio.exec.server.options.TypeValidators.BooleanValidator;
-import com.dremio.exec.server.options.TypeValidators.PositiveLongValidator;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 
 /**
  * System options that affect the reflection service
@@ -50,4 +50,10 @@ public interface ReflectionOptions {
   BooleanValidator REFLECTION_ENABLE_SUBSTITUTION = new BooleanValidator("reflection.enable.substitutions", true);
   // if a reflection has no known dependencies how long should we wait before we attempt to refresh again
   PositiveLongValidator NO_DEPENDENCY_REFRESH_PERIOD_SECONDS = new PositiveLongValidator("reflection.no_dependency.refresh_period_seconds", Long.MAX_VALUE, TimeUnit.MINUTES.toSeconds(30));
+  // should compaction be enabled
+  BooleanValidator ENABLE_COMPACTION = new BooleanValidator("reflection.compaction.enabled", false);
+  // at least how many files there should be to trigger compaction
+  PositiveLongValidator COMPACTION_TRIGGER_NUMBER_FILES = new PositiveLongValidator("reflection.compaction.trigger.num_files", Long.MAX_VALUE, 1);
+  // Compaction will be triggered if the median file size is less than or equal to this parameter
+  PositiveLongValidator COMPACTION_TRIGGER_FILE_SIZE = new PositiveLongValidator("reflection.compaction.trigger.file_size_mb", Long.MAX_VALUE/(1024*1024), 16);
 }

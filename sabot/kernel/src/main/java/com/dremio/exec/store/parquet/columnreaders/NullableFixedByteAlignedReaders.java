@@ -21,15 +21,15 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableDateMilliVector;
-import org.apache.arrow.vector.NullableDecimalVector;
-import org.apache.arrow.vector.NullableFloat4Vector;
-import org.apache.arrow.vector.NullableFloat8Vector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableTimeStampMilliVector;
-import org.apache.arrow.vector.NullableTimeMilliVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.DateMilliVector;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
+import org.apache.arrow.vector.TimeMilliVector;
+import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.DecimalHelper;
 import org.apache.arrow.vector.util.DecimalUtility;
@@ -69,9 +69,9 @@ public class NullableFixedByteAlignedReaders {
    * a fixed length binary type, so this is read into a varbinary with the same size recorded for
    * each value.
    */
-  static class NullableFixedBinaryReader extends NullableFixedByteAlignedReader<NullableVarBinaryVector> {
+  static class NullableFixedBinaryReader extends NullableFixedByteAlignedReader<VarBinaryVector> {
     NullableFixedBinaryReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                              ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableVarBinaryVector v, SchemaElement schemaElement) throws ExecutionSetupException {
+                              ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, VarBinaryVector v, SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
 
@@ -107,14 +107,14 @@ public class NullableFixedByteAlignedReaders {
    * Class for reading parquet fixed binary type INT96, which is used for storing hive,
    * impala timestamp values with nanoseconds precision (12 bytes). So it reads such values as a Dremio timestamp (8 bytes).
    */
-  static class NullableFixedBinaryAsTimeStampReader extends NullableFixedByteAlignedReader<NullableTimeStampMilliVector> {
+  static class NullableFixedBinaryAsTimeStampReader extends NullableFixedByteAlignedReader<TimeStampMilliVector> {
     /**
      * The width of each element of the TimeStampMilliVector is 8 byte(s).
      */
     private static final int TIMESTAMP_LENGTH_IN_BITS = 64;
 
     NullableFixedBinaryAsTimeStampReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                              ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableTimeStampMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
+                              ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, TimeStampMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
 
@@ -138,10 +138,10 @@ public class NullableFixedByteAlignedReaders {
     }
   }
 
-  static class NullableDictionaryIntReader extends NullableColumnReader<NullableIntVector> {
+  static class NullableDictionaryIntReader extends NullableColumnReader<IntVector> {
 
     NullableDictionaryIntReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                                ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableIntVector v,
+                                ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, IntVector v,
                                 SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -161,10 +161,10 @@ public class NullableFixedByteAlignedReaders {
     }
   }
 
-  static class NullableDictionaryDecimal9Reader extends NullableColumnReader<NullableDecimalVector> {
+  static class NullableDictionaryDecimal9Reader extends NullableColumnReader<DecimalVector> {
 
     NullableDictionaryDecimal9Reader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                                     ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableDecimalVector v,
+                                     ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, DecimalVector v,
                                      SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -190,10 +190,10 @@ public class NullableFixedByteAlignedReaders {
     }
   }
 
-  static class NullableDictionaryTimeReader extends NullableColumnReader<NullableTimeMilliVector> {
+  static class NullableDictionaryTimeReader extends NullableColumnReader<TimeMilliVector> {
 
     NullableDictionaryTimeReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                                     ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableTimeMilliVector v,
+                                     ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, TimeMilliVector v,
                                      SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -213,10 +213,10 @@ public class NullableFixedByteAlignedReaders {
     }
   }
 
-  static class NullableDictionaryBigIntReader extends NullableColumnReader<NullableBigIntVector> {
+  static class NullableDictionaryBigIntReader extends NullableColumnReader<BigIntVector> {
 
     NullableDictionaryBigIntReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                                   ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableBigIntVector v,
+                                   ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, BigIntVector v,
                                    SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -236,10 +236,10 @@ public class NullableFixedByteAlignedReaders {
     }
   }
 
-  static class NullableDictionaryTimeStampReader extends NullableColumnReader<NullableTimeStampMilliVector> {
+  static class NullableDictionaryTimeStampReader extends NullableColumnReader<TimeStampMilliVector> {
 
     NullableDictionaryTimeStampReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                                   ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableTimeStampMilliVector v,
+                                   ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, TimeStampMilliVector v,
                                    SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -258,10 +258,10 @@ public class NullableFixedByteAlignedReaders {
       }
     }
   }
-  static class NullableDictionaryDecimal18Reader extends NullableColumnReader<NullableDecimalVector> {
+  static class NullableDictionaryDecimal18Reader extends NullableColumnReader<DecimalVector> {
 
     NullableDictionaryDecimal18Reader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                                      ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableDecimalVector v,
+                                      ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, DecimalVector v,
                                       SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -286,10 +286,10 @@ public class NullableFixedByteAlignedReaders {
       }
     }
   }
-  static class NullableDictionaryFloat4Reader extends NullableColumnReader<NullableFloat4Vector> {
+  static class NullableDictionaryFloat4Reader extends NullableColumnReader<Float4Vector> {
 
     NullableDictionaryFloat4Reader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                                   ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableFloat4Vector v,
+                                   ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, Float4Vector v,
                                    SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -309,10 +309,10 @@ public class NullableFixedByteAlignedReaders {
     }
   }
 
-  static class NullableDictionaryFloat8Reader extends NullableColumnReader<NullableFloat8Vector> {
+  static class NullableDictionaryFloat8Reader extends NullableColumnReader<Float8Vector> {
 
     NullableDictionaryFloat8Reader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                                   ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableFloat8Vector v,
+                                   ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, Float8Vector v,
                                    SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -355,9 +355,9 @@ public class NullableFixedByteAlignedReaders {
     abstract void addNext(int start, int index);
   }
 
-  public static class NullableDateReader extends NullableConvertedReader<NullableDateMilliVector> {
+  public static class NullableDateReader extends NullableConvertedReader<DateMilliVector> {
     NullableDateReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
-                       boolean fixedLength, NullableDateMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
+                       boolean fixedLength, DateMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
 
@@ -378,10 +378,10 @@ public class NullableFixedByteAlignedReaders {
   /**
    * Old versions of Drill were writing a non-standard format for date. See DRILL-4203
    */
-  public static class NullableCorruptDateReader extends NullableConvertedReader<NullableDateMilliVector> {
+  public static class NullableCorruptDateReader extends NullableConvertedReader<DateMilliVector> {
 
     NullableCorruptDateReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
-        boolean fixedLength, NullableDateMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
+        boolean fixedLength, DateMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
 
@@ -405,13 +405,13 @@ public class NullableFixedByteAlignedReaders {
    * For files that lack enough metadata to determine if the dates are corrupt, we must just
    * correct values when they look corrupt during this low level read.
    */
-  public static class CorruptionDetectingNullableDateReader extends NullableConvertedReader<NullableDateMilliVector> {
+  public static class CorruptionDetectingNullableDateReader extends NullableConvertedReader<DateMilliVector> {
 
-    NullableDateMilliVector dateVector;
+    DateMilliVector dateVector;
 
     CorruptionDetectingNullableDateReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize,
         ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
-        boolean fixedLength, NullableDateMilliVector v, SchemaElement schemaElement)
+        boolean fixedLength, DateMilliVector v, SchemaElement schemaElement)
             throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
       dateVector = v;
@@ -434,9 +434,9 @@ public class NullableFixedByteAlignedReaders {
     }
   }
 
-  public static class NullableDecimalReader extends NullableConvertedReader<NullableDecimalVector> {
+  public static class NullableDecimalReader extends NullableConvertedReader<DecimalVector> {
     NullableDecimalReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
-                          boolean fixedLength, NullableDecimalVector v, SchemaElement schemaElement) throws ExecutionSetupException {
+                          boolean fixedLength, DecimalVector v, SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
 

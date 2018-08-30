@@ -133,18 +133,40 @@ public class TestStringFunctions extends BaseTestFunction {
     });
   }
 
-
   @Test
-  public void position(){
+  public void position() {
     testFunctions(new Object[][]{
-      { "position('abc', 'AabcabcB')", 2},
-      { "position('', 'AabcabcB')", 0},
-      { "position('abc', '')", 0},
-      { "position('', '')", 0},
-      { "strpos('AabcabcB', 'abc')", 2},
-      { "strpos('', 'AabcabcB')", 0},
-      { "strpos('', 'abc')", 0},
-      { "strpos('', '')", 0}
+      {"position('abc', 'AabcabcB')", 2},
+      {"position('A', 'AabcabcB')", 1},
+      {"position('', 'AabcabcB')", 0},
+      {"position('abc', '')", 0},
+      {"position('', '')", 0},
+      {"position('abc', 'AabcabcB', 3)", 5},
+      {"position('A', 'AabcabcB', 1)", 1},
+      {"position('', 'AabcabcB', 1)", 0},
+      {"position('abc', '', 1)", 0},
+      {"position('', '', 5)", 0},
+      {"position('foo', 'foofoo', 1)", 1},
+      {"position('foo', 'foofoo', 2)", 4},
+      {"position('foo', 'foofoo', 3)", 4},
+      {"position('foo', 'foofoo', 4)", 4},
+      {"position('foo', 'foofoo', 5)", 0},
+      {"position('abc', '', 1)", 0},
+      {"position('', '', 5)", 0},
+      {"locate('abc', 'AabcabcB')", 2},
+      {"locate('A', 'AabcabcB')", 1},
+      {"locate('', 'AabcabcB')", 0},
+      {"locate('abc', '')", 0},
+      {"locate('', '')", 0},
+      {"locate('abc', 'AabcabcB', 3)", 5},
+      {"position('A', 'AabcabcB', 1)", 1},
+      {"locate('', 'AabcabcB', 1)", 0},
+      {"locate('abc', '', 1)", 0},
+      {"locate('', '', 5)", 0},
+      {"strpos('AabcabcB', 'abc')", 2},
+      {"strpos('', 'AabcabcB')", 0},
+      {"strpos('', 'abc')", 0},
+      {"strpos('', '')", 0}
     });
   }
 

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { SHOW_CONFIRMATION_DIALOG, HIDE_CONFIRMATION_DIALOG } from 'actions/confirmation';
+import { HIDE_CONFIRMATION_DIALOG, SHOW_CONFIRMATION_DIALOG } from 'actions/confirmation';
 import confirmationReducer from './confirmation';
 
 describe('confirmation reducer', () => {
@@ -48,7 +48,8 @@ describe('confirmation reducer', () => {
         hideCancelButton: true,
         showOnlyConfirm: false,
         showPrompt: false,
-        promptFieldProps: {}
+        promptFieldProps: {},
+        dataQa: 'test'
       });
       expect(result).to.be.eql({
         isOpen: true,
@@ -63,7 +64,8 @@ describe('confirmation reducer', () => {
         hideCancelButton: true,
         showOnlyConfirm: false,
         showPrompt: false,
-        promptFieldProps: {}
+        promptFieldProps: {},
+        dataQa: 'test'
       });
     });
   });

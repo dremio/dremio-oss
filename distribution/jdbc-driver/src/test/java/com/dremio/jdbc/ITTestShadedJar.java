@@ -16,9 +16,10 @@
 package com.dremio.jdbc;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -30,11 +31,13 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Vector;
 
+import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class ITTestShadedJar {
+  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ITTestShadedJar.class);
 
   private static NodeClassLoader nodeLoader;
   private static URLClassLoader rootClassLoader;
@@ -49,6 +52,25 @@ public class ITTestShadedJar {
 
   }
 
+  private static URLClassLoader classLoader;
+  private static java.sql.Driver driver;
+
+  @BeforeClass
+  public static void findDriver() throws ReflectiveOperationException, MalformedURLException {
+    LOGGER.info("java.class.path: {}", System.getProperty("java.class.path"));
+
+    classLoader = new URLClassLoader(new URL[] { getJdbcUrl() });
+
+    Class<? extends java.sql.Driver> clazz = classLoader.loadClass("com.dremio.jdbc.Driver").asSubclass(java.sql.Driver.class);
+    driver = clazz.newInstance();
+  }
+
+  @AfterClass
+  public static void closeClassLoader() throws IOException {
+    classLoader.close();
+  }
+
+
   /**
    * Helper method which creates a {@link Connection} using the JDBC driver. It is caller's responsibility to close
    * the connection
@@ -56,16 +78,6 @@ public class ITTestShadedJar {
    */
   private Connection createConnection() throws Exception {
     // print class path for debugging
-    System.out.println("java.class.path:");
-    System.out.println(System.getProperty("java.class.path"));
-
-    final URLClassLoader loader = (URLClassLoader) ClassLoader.getSystemClassLoader();
-    Method method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
-    method.setAccessible(true);
-    method.invoke(loader, getJdbcUrl());
-
-    Class<? extends Driver> clazz = loader.loadClass("com.dremio.jdbc.Driver").asSubclass(Driver.class);
-    Driver driver = clazz.newInstance();
     return driver.connect(jdbcURL, null);
   }
 
@@ -88,27 +100,23 @@ public class ITTestShadedJar {
 
   @Test
   public void executeJdbcAllQuery() throws Exception {
-
-    // print class path for debugging
-    System.out.println("java.class.path:");
-    System.out.println(System.getProperty("java.class.path"));
-
-    final URLClassLoader loader = (URLClassLoader) ClassLoader.getSystemClassLoader();
-    Method method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
-    method.setAccessible(true);
-    method.invoke(loader, getJdbcUrl());
-
-    Class<?> clazz = loader.loadClass("com.dremio.jdbc.Driver");
-    try {
-      Driver driver = (Driver) clazz.newInstance();
-      try (Connection c = driver.connect(jdbcURL, null)) {
-        String path = Paths.get("").toAbsolutePath().toString() + "/src/test/resources/types.json";
-        printQuery(c, "select * from dfs.\"" + path + "\"");
-      }
-    } catch (Exception ex) {
-      throw ex;
+    try (Connection c = createConnection()) {
+      String path = Paths.get("").toAbsolutePath().toString() + "/src/test/resources/types.json";
+      printQuery(c, "select * from dfs.\"" + path + "\"");
     }
+  }
 
+  @Test
+  public void executeFaultyQuery() throws Exception {
+    try (Connection c = createConnection();
+         Statement stmt = c.createStatement()) {
+      // Only catching exception during executeQuery (and not while trying to connect/create a statement)
+      try {
+        stmt.executeQuery("SELECT INVALID QUERY");
+      } catch (SQLException e) {
+        assertThat(e.getMessage(), CoreMatchers.containsString("Column 'INVALID' not found in any table"));
+      }
+    }
   }
 
   private static void printQuery(Connection c, String query) throws SQLException {

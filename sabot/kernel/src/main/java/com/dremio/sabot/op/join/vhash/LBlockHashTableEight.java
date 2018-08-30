@@ -49,6 +49,10 @@ public final class LBlockHashTableEight implements AutoCloseable {
   public static final int CHUNK_OFFSET_MASK = 0xFFFFFFFF >>> (32 - BITS_IN_CHUNK);
   public static final int POSITIVE_MASK = 0x7FFFFFFF;
   public static final int NO_MATCH = -1;
+  // The ordinal written in FixedBlockVector, this value should be less than 0, now it's set to -2.
+  private static final int NULL_ORDINAL_IN_FIXED_BLOCK_VECTOR = -2;
+  // The key value written in FixedBlockVector, this value can be any value, now it's set to 0.
+  private static final int NULL_KEY_VALUE = 0;
 
   private final HashConfigWrapper config;
   private final BufferAllocator allocator;
@@ -58,6 +62,16 @@ public final class LBlockHashTableEight implements AutoCloseable {
   private int maxSize;
   private int batches;
   private int currentOrdinal;
+  /* Ordinal of null key, it's initialized as NO_MATCH, which means no null key in hash table.
+   * After insertion of null key, its key value in FixedBlockVector is NULL_KEY_VALUE,
+   * and its ordinal in FixedBlockVector is not the actual ordinal of null key,
+   * but NULL_ORDINAL_IN_FIXED_BLOCK_VECTOR. During searching a key, the key is found
+   * only if key value matched and ordinal is not NULL_ORDINAL_IN_FIXED_BLOCK_VECTOR.
+   */
+  private int nullKeyOrdinal = NO_MATCH;
+  // The index of null key in FixedBlockVector, used to optimize rehash for null key
+  private int nullKeyIndex = -1;
+
   private long freeValue = Long.MIN_VALUE + 474747l;
 
   private FixedBlockVector[] fixedBlocks = new FixedBlockVector[0];
@@ -80,42 +94,115 @@ public final class LBlockHashTableEight implements AutoCloseable {
     return getOrInsert(key, true);
   }
 
-  public int get(long key) {
-    return getOrInsert(key, false);
+  /* Get the ordinal of null key
+   * It's NO_MATCH if no null key
+   */
+  public int getNull() {
+    return nullKeyOrdinal;
+  }
+
+  /* remove null key from hash table,
+   * it's used to optimize rehash for null key
+   */
+  private void removeNull() {
+    if (nullKeyOrdinal != NO_MATCH) {
+      long free = this.freeValue;
+      int index = nullKeyIndex;
+      int chunkIndex = index >>> BITS_IN_CHUNK;
+      int valueIndex = (index & CHUNK_OFFSET_MASK);
+      long addr = tableFixedAddresses[chunkIndex] + (valueIndex * BLOCK_WIDTH);
+
+      PlatformDependent.putLong(addr, free);
+
+      nullKeyOrdinal = NO_MATCH;
+      nullKeyIndex = -1;
+    }
+  }
+
+  /* Insert null key into hash table, return the ordinal of null key
+   * If null key is already inserted, just return the ordinal of null key.
+   */
+  public int insertNull() {
+    return insertNull(NO_MATCH);
+  }
+
+  /* Insert null key into hash table, return the ordinal of null key
+   * If null key is already inserted, just return the ordinal of null key.
+   * If oldNullKeyOrdinal is not NO_MATCH, which means insertNull is called from rehash
+   * to re-insert null key, then use oldNullKeyOrdinal as the ordinal key of null key.
+   */
+  public int insertNull(int oldNullKeyOrdinal) {
+    if (nullKeyOrdinal != NO_MATCH) {
+      return nullKeyOrdinal;
+    }
+
+    // Search an empty element in hash table
+    long free = this.freeValue;
+
+    final int capacityMask = this.capacityMask;
+    int index = hash(NULL_KEY_VALUE) & capacityMask;
+    int chunkIndex = index >>> BITS_IN_CHUNK;
+    int valueIndex = (index & CHUNK_OFFSET_MASK);
+    long addr = tableFixedAddresses[chunkIndex] + (valueIndex * BLOCK_WIDTH);
+
+    long cur;
+    while ((cur = PlatformDependent.getLong(addr)) != free) {
+      index = (index - 1) & capacityMask;
+      chunkIndex = index >>> BITS_IN_CHUNK;
+      valueIndex = (index & CHUNK_OFFSET_MASK);
+      addr = tableFixedAddresses[chunkIndex] + (valueIndex * BLOCK_WIDTH);
+    }
+
+    // set the key value of null key to NULL_KEY_VALUE.
+    PlatformDependent.putLong(addr, NULL_KEY_VALUE);
+    // set the ordinal of null key to NULL_ORDINAL_IN_FIXED_BLOCK_VECTOR.
+    PlatformDependent.putInt(addr + KEY_WIDTH, NULL_ORDINAL_IN_FIXED_BLOCK_VECTOR);
+
+    nullKeyIndex = index;
+    if (oldNullKeyOrdinal == NO_MATCH) {
+      nullKeyOrdinal = currentOrdinal;
+      currentOrdinal++;
+
+      // check if can resize.
+      if (currentOrdinal > maxSize) {
+        tryRehashForExpansion();
+      }
+    } else {
+      nullKeyOrdinal = oldNullKeyOrdinal;
+    }
+
+    return nullKeyOrdinal;
+  }
+
+    public int get(long key) {
+      return getOrInsert(key, false);
   }
 
   private final int getOrInsert(long key, boolean insertNew) {
 
     long free = this.freeValue;
 
-    int index;
-    long cur;
     final int capacityMask = this.capacityMask;
-    index = SeparateKVLongKeyMixing.mix(key) & capacityMask;
+    int index = SeparateKVLongKeyMixing.mix(key) & capacityMask;
     int chunkIndex = index >>> BITS_IN_CHUNK;
     int valueIndex = (index & CHUNK_OFFSET_MASK);
     long addr = tableFixedAddresses[chunkIndex] + (valueIndex * BLOCK_WIDTH);
+    long cur = PlatformDependent.getLong(addr);
 
-    keyAbsent:
-    if ((cur = PlatformDependent.getLong(addr)) != free) {
-        if (cur == key) {
-          return PlatformDependent.getInt(addr + KEY_WIDTH);
-        } else {
-          while (true) {
-              index = (index - 1) & capacityMask;
-              chunkIndex = index >>> BITS_IN_CHUNK;
-              valueIndex = (index & CHUNK_OFFSET_MASK);
-              addr = tableFixedAddresses[chunkIndex] + (valueIndex * BLOCK_WIDTH);
-
-              if ((cur = PlatformDependent.getLong(addr)) == free) {
-                break keyAbsent;
-              } else if (cur == key) {
-                return PlatformDependent.getInt(addr + KEY_WIDTH);
-              }
-            }
-        }
+    while (cur != free) {
+      /* If the ordinal is less than 0, the key in hash table should be null key
+       * and the inserting key is not found, otherwise the inserting key is found in hash table.
+       */
+      if ((cur == key) && (PlatformDependent.getInt(addr + KEY_WIDTH) >= 0)) {
+        return PlatformDependent.getInt(addr + KEY_WIDTH);
+      } else {
+        index = (index - 1) & capacityMask;
+        chunkIndex = index >>> BITS_IN_CHUNK;
+        valueIndex = (index & CHUNK_OFFSET_MASK);
+        addr = tableFixedAddresses[chunkIndex] + (valueIndex * BLOCK_WIDTH);
+        cur = PlatformDependent.getLong(addr);
+      }
     }
-
 
     if(!insertNew){
       return -1;
@@ -158,9 +245,12 @@ public final class LBlockHashTableEight implements AutoCloseable {
     Random random = ThreadLocalRandom.current();
     long newFree;
 
-      do {
-        newFree = random.nextLong();
-      } while (newFree == oldFree || getOrInsert(newFree, false) != NO_MATCH);
+    /* Search for other free value in hash table
+     * The new free value should not be in hash table, and it should not be NULL_KEY_VALUE
+     */
+    do {
+      newFree = random.nextLong();
+    } while (newFree == oldFree || newFree == NULL_KEY_VALUE || getOrInsert(newFree, false) != NO_MATCH);
     return newFree;
   }
 
@@ -169,6 +259,11 @@ public final class LBlockHashTableEight implements AutoCloseable {
     // grab old references.
 
     final long[] oldFixedAddrs = this.tableFixedAddresses;
+
+    final int oldNullKeyOrdinal = nullKeyOrdinal;
+    if (oldNullKeyOrdinal != NO_MATCH) {
+      removeNull();
+    }
 
     try(RollbackCloseable closer = new RollbackCloseable()){ // Close old control blocks when done rehashing.
       for(FixedBlockVector cb : this.fixedBlocks){
@@ -209,6 +304,10 @@ public final class LBlockHashTableEight implements AutoCloseable {
 
     } catch (Exception e) {
       throw Throwables.propagate(e);
+    }
+
+    if (oldNullKeyOrdinal != NO_MATCH) {
+      insertNull(oldNullKeyOrdinal);
     }
   }
 

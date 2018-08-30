@@ -28,6 +28,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.expr.fn.hll.HyperLogLog;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
@@ -96,20 +97,32 @@ public class SqlOperatorSerializer<T extends SqlOperator> extends FieldSerialize
 
       for (final Field operatorField:operators) {
         try {
-          final SqlOperator operator = (SqlOperator) operatorField.get(table);
-          final int identity = System.identityHashCode(operator);
-          final Integer ordinal = FORWARD.get(identity);
-          if (ordinal != null) {
-            final SqlOperator existing = BACKWARD.get(ordinal);
-            throw new IllegalStateException(String.format("there are colliding operators %s <-> %s", existing, operator));
-          }
-          FORWARD.put(identity, FORWARD.size());
-          BACKWARD.put(BACKWARD.size(), operator);
+          put((SqlOperator) operatorField.get(table));
         } catch (final IllegalAccessException ex) {
           logger.warn("unable to retrieve sql operator from table", ex);
         }
       }
+
+      put(HyperLogLog.HLL);
+      put(HyperLogLog.HLL_DECODE);
+      put(HyperLogLog.HLL_MERGE);
+      put(HyperLogLog.NDV);
     }
+
+    private static final void put(SqlOperator operator) {
+
+      final int identity = System.identityHashCode(operator);
+      final Integer ordinal = FORWARD.get(identity);
+      if (ordinal != null) {
+        final SqlOperator existing = BACKWARD.get(ordinal);
+        throw new IllegalStateException(String.format("there are colliding operators %s <-> %s", existing, operator));
+      }
+
+      FORWARD.put(identity, FORWARD.size());
+      BACKWARD.put(BACKWARD.size(), operator);
+
+    }
+
   }
 
   @Override

@@ -39,17 +39,15 @@ import org.apache.hadoop.hive.ql.security.authorization.AuthorizationPreEventLis
 import org.apache.hadoop.hive.ql.security.authorization.StorageBasedAuthorizationProvider;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.junit.AfterClass;
-import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
-import com.dremio.common.TestProfileHelper;
 import com.dremio.common.util.TestTools;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.WorkspaceConfig;
+import com.dremio.exec.store.hive.HivePluginOptions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
@@ -124,7 +122,7 @@ public class TestStorageBasedHiveAuthorization extends BaseTestHiveImpersonation
     addHiveStoragePlugin(getHivePluginConfig());
     addMiniDfsBasedStorage(Maps.<String, WorkspaceConfig>newHashMap(), /*impersonationEnabled=*/true);
     generateTestData();
-    test(String.format("alter session set `%s` = false", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+    test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
   }
 
   private static void setStorabaseBasedAuthorizationInHiveConf() {
@@ -382,7 +380,7 @@ public class TestStorageBasedHiveAuthorization extends BaseTestHiveImpersonation
         String.format("Table 'hive.%s.%s' not found", db_u0_only, u0_student_all_755));
   }
 
-  private static void queryViewHelper(final String queryUser, final String query) throws Exception {
+  private void queryViewHelper(final String queryUser, final String query) throws Exception {
     updateClient(queryUser);
     testBuilder()
         .sqlQuery(query)

@@ -17,7 +17,7 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.io.IOException;
 
-import org.apache.arrow.vector.NullableTimeStampMilliVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -91,7 +91,7 @@ public abstract class ColumnReader<V extends ValueVector> {
       if (columnDescriptor.getType() == PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY) {
         dataTypeLengthInBits = columnDescriptor.getTypeLength() * 8;
       } else if (columnDescriptor.getType() == PrimitiveTypeName.INT96
-        && (valueVec instanceof TimeStampMilliVector || valueVec instanceof NullableTimeStampMilliVector)) {
+        && (valueVec instanceof TimeStampMilliVector || valueVec instanceof TimeStampMilliVector)) {
         // if int 96 column is being read as a Timestamp, this truncates the time format used by Impala
         // dataTypeLengthInBits is only ever used when computing offsets into the destination vector, so it
         // needs to be set to the bit width of the resulting Arrow type, usually this matches the input length

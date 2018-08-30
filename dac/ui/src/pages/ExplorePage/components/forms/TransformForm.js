@@ -25,6 +25,7 @@ import DefaultWizardFooter from 'components/Wizards/components/DefaultWizardFoot
 import FormProgressWrapper from 'components/FormProgressWrapper';
 import Message from 'components/Message';
 import exploreUtils from 'utils/explore/exploreUtils';
+import { content } from './TransformForm.less';
 
 export function formWrapperProps(props) {
   return {
@@ -148,6 +149,7 @@ export class TransformForm extends Component {
         {error && <Message messageType='error' message={error.message} messageId={error.id} />}
         <div style={{ position: 'relative' }}>
           <ViewStateWrapper
+            className={content}
             viewState={viewState}
             spinnerStyle={styles.spinner}
             hideChildrenWhenInProgress

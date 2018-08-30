@@ -23,7 +23,7 @@ package com.dremio.exec.store.dfs.implicit;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.*;
-import org.apache.arrow.vector.ValueVector.Mutator;
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.holders.DecimalHolder;
 
 import com.dremio.common.AutoCloseables;
@@ -103,7 +103,7 @@ public class ConstantColumnPopulators {
 
   private static final class ${minor.class}Populator implements Populator, AutoCloseable {
     private NameValuePair pair;
-    private Nullable${minor.class}Vector vector;
+    private ${minor.class}Vector vector;
     <#if minor.class == "VarChar">
     private byte[] value;
     <#else>
@@ -120,12 +120,12 @@ public class ConstantColumnPopulators {
     }
 
     public void setup(OutputMutator output){
-      vector = (Nullable${minor.class}Vector)output.getVector(pair.getName());
+      vector = (${minor.class}Vector)output.getVector(pair.getName());
       if (vector == null) {
         <#if minor.class == "Decimal">
-        vector = output.addField(new Field(pair.getName(), true, new Decimal(value.precision, value.scale), null), NullableDecimalVector.class);
+        vector = output.addField(new Field(pair.getName(), true, new Decimal(value.precision, value.scale), null), DecimalVector.class);
         <#else>
-        vector = output.addField(CompleteType.${completeType}.toField(pair.name), Nullable${minor.class}Vector.class);
+        vector = output.addField(CompleteType.${completeType}.toField(pair.name), ${minor.class}Vector.class);
         </#if>
       }
     }
@@ -135,7 +135,7 @@ public class ConstantColumnPopulators {
         if(value != null) {
       <#switch minor.class>
       <#case "Bit">
-          ((Nullable${minor.class}Vector) vector).setSafe(i, value ? 1 : 0);
+          ((${minor.class}Vector) vector).setSafe(i, value ? 1 : 0);
       <#break>
       <#case "Int">
       <#case "BigInt">
@@ -144,14 +144,14 @@ public class ConstantColumnPopulators {
       <#case "DateMilli">
       <#case "TimeMilli">
       <#case "TimeStampMilli">
-          ((Nullable${minor.class}Vector) vector).setSafe(i, value);
+          ((${minor.class}Vector) vector).setSafe(i, value);
       <#break>
       <#case "Decimal">
-          ((NullableDecimalVector) vector).setSafe(i, value);
+          ((DecimalVector) vector).setSafe(i, value);
       <#break>
       <#case "VarBinary">
       <#case "VarChar">
-          ((Nullable${minor.class}Vector) vector).setSafe(i, value, 0, value.length);
+          ((${minor.class}Vector) vector).setSafe(i, value, 0, value.length);
       <#break>
       </#switch>
         }

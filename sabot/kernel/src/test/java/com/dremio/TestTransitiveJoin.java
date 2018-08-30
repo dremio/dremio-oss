@@ -40,8 +40,8 @@ public class TestTransitiveJoin extends PlanTestBase {
   public void testTransitiveJoin() throws Exception {
     testPlanOneExpectedPattern(""
         + "select l.l_orderkey as x, c.c_custkey as y \n" +
-        "  from cp.`tpch/lineitem.parquet` l " +
-        "  join cp.`tpch/customer.parquet` c " +
+        "  from cp.\"tpch/lineitem.parquet\" l " +
+        "  join cp.\"tpch/customer.parquet\" c " +
         "  on l.l_orderkey = c.c_custkey "
         + "where l_orderkey = 1 limit 1" +
         "", Pattern.quote("Filter(condition=[=($0, 1)]) : rowType = RecordType(INTEGER c_custkey)"));

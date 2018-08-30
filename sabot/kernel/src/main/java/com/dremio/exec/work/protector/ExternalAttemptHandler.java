@@ -19,13 +19,12 @@ import java.util.List;
 import java.util.Map;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.RecordBatchDef;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
+import com.dremio.options.OptionManager;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 

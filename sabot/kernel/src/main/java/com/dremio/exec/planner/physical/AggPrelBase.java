@@ -25,29 +25,19 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlAggFunction;
-import org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.calcite.sql.type.OperandTypes;
-import org.apache.calcite.sql.type.ReturnTypes;
-import org.apache.calcite.sql.type.SqlOperandTypeChecker;
-import org.apache.calcite.sql.type.SqlOperandTypeInference;
-import org.apache.calcite.sql.type.SqlReturnTypeInference;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.common.logical.data.NamedExpression;
+import com.dremio.exec.expr.fn.hll.HyperLogLog;
 import com.dremio.exec.planner.common.AggregateRelBase;
 import com.dremio.exec.planner.logical.RexToExpr;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 public abstract class AggPrelBase extends AggregateRelBase implements Prel {
+
 
   protected static enum OperatorPhase {PHASE_1of1, PHASE_1of2, PHASE_2of2};
 
@@ -72,7 +62,7 @@ public abstract class AggPrelBase extends AggregateRelBase implements Prel {
     for (Ord<AggregateCall> aggCall : Ord.zip(aggCalls)) {
       int aggExprOrdinal = groupSet.cardinality() + aggCall.i;
       if (getOperatorPhase() == OperatorPhase.PHASE_1of2) {
-        if (aggCall.e.getAggregation().getName().equals("COUNT")) {
+        if (aggCall.e.getAggregation().getName().equals(SqlStdOperatorTable.COUNT.getName())) {
           // If we are doing a COUNT aggregate in Phase1of2, then in Phase2of2 we should SUM the COUNTs,
           SqlAggFunction sumAggFun = SqlStdOperatorTable.SUM0;
           AggregateCall newAggCall =
@@ -85,15 +75,15 @@ public abstract class AggPrelBase extends AggregateRelBase implements Prel {
               aggCall.e.getName());
 
           phase2AggCallList.add(newAggCall);
-        } else if (aggCall.e.getAggregation().getName().equals("HLL")) {
-          SqlAggFunction hllMergeFunction = new SqlHllMergeAggFunction();
+        } else if (aggCall.e.getAggregation().getName().equals(HyperLogLog.HLL.getName())) {
+          SqlAggFunction hllMergeFunction = HyperLogLog.HLL_MERGE;
           AggregateCall newAggCall =
             AggregateCall.create(
               hllMergeFunction,
               aggCall.e.isDistinct(),
               Collections.singletonList(aggExprOrdinal),
               -1,
-              cluster.getTypeFactory().createTypeWithNullability(cluster.getTypeFactory().createSqlType(SqlTypeName.BIGINT), true),
+              aggCall.getValue().getType(),
               aggCall.e.getName());
 
           phase2AggCallList.add(newAggCall);
@@ -133,7 +123,6 @@ public abstract class AggPrelBase extends AggregateRelBase implements Prel {
     return ImmutableBitSet.range(0, groupSet.cardinality());
   }
 
-
   @Override
   public Iterator<Prel> iterator() {
     return PrelUtil.iter(getInput());
@@ -149,35 +138,5 @@ public abstract class AggPrelBase extends AggregateRelBase implements Prel {
     return true;
   }
 
-  public static class SqlHllAggFunction extends SqlAggFunction {
 
-    public SqlHllAggFunction() {
-      super("HLL",
-        null,
-        SqlKind.OTHER_FUNCTION,
-        ReturnTypes.explicit(SqlTypeName.BINARY),
-        null,
-        OperandTypes.ANY,
-        SqlFunctionCategory.USER_DEFINED_FUNCTION,
-        false,
-        false
-      );
-    }
-  }
-
-  public static class SqlHllMergeAggFunction extends SqlAggFunction {
-
-    public SqlHllMergeAggFunction() {
-      super("NDV_MERGE",
-        null,
-        SqlKind.OTHER_FUNCTION,
-        ReturnTypes.BIGINT_FORCE_NULLABLE,
-        null,
-        OperandTypes.BINARY,
-        SqlFunctionCategory.USER_DEFINED_FUNCTION,
-        false,
-        false
-      );
-    }
-  }
 }

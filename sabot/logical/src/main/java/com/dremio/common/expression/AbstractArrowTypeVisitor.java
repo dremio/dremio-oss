@@ -22,6 +22,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Bool;
 import org.apache.arrow.vector.types.pojo.ArrowType.Date;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.ArrowType.FixedSizeList;
+import org.apache.arrow.vector.types.pojo.ArrowType.FixedSizeBinary;
 import org.apache.arrow.vector.types.pojo.ArrowType.FloatingPoint;
 import org.apache.arrow.vector.types.pojo.ArrowType.Int;
 import org.apache.arrow.vector.types.pojo.ArrowType.Interval;
@@ -112,6 +113,11 @@ public abstract class AbstractArrowTypeVisitor<T> implements ArrowTypeVisitor<T>
 
   @Override
   public T visit(FixedSizeList type) {
+    return visitGeneric(type);
+  }
+
+  @Override
+  public T visit(FixedSizeBinary type) {
     return visitGeneric(type);
   }
 

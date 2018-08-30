@@ -18,7 +18,6 @@ package com.dremio;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
@@ -38,7 +37,7 @@ public class TestBugFixes extends BaseTestQuery {
   @Test
   public void leak1() throws Exception {
     String select = "select count(*) \n" +
-        "    from cp.`tpch/part.parquet` p1, cp.`tpch/part.parquet` p2 \n" +
+        "    from cp.\"tpch/part.parquet\" p1, cp.\"tpch/part.parquet\" p2 \n" +
         "    where p1.p_name = p2.p_name \n" +
         "  and p1.p_mfgr = p2.p_mfgr";
     test(select);
@@ -48,8 +47,8 @@ public class TestBugFixes extends BaseTestQuery {
   public void failingSmoke() throws Exception {
     String select = "select count(*) \n" +
         "  from (select l.l_orderkey as x, c.c_custkey as y \n" +
-        "  from cp.`tpch/lineitem.parquet` l \n" +
-        "    left outer join cp.`tpch/customer.parquet` c \n" +
+        "  from cp.\"tpch/lineitem.parquet\" l \n" +
+        "    left outer join cp.\"tpch/customer.parquet\" c \n" +
         "      on l.l_orderkey = c.c_custkey) as foo\n" +
         "  where x < 10000";
     test(select);
@@ -67,39 +66,23 @@ public class TestBugFixes extends BaseTestQuery {
 
   @Test
   public void DRILL883() throws Exception {
-    test("select n1.n_regionkey from cp.`tpch/nation.parquet` n1, (select n_nationkey from cp.`tpch/nation.parquet`) as n2 where n1.n_nationkey = n2.n_nationkey");
+    test("select n1.n_regionkey from cp.\"tpch/nation.parquet\" n1, (select n_nationkey from cp.\"tpch/nation.parquet\") as n2 where n1.n_nationkey = n2.n_nationkey");
   }
 
   @Test
   public void DRILL1061() throws Exception {
-    String query = "select foo.mycol.x as COMPLEX_COL from (select convert_from('{ x : [1,2], y : 100 }', 'JSON') as mycol from cp.`tpch/nation.parquet`) as foo(mycol) limit 1";
+    String query = "select foo.mycol.x as COMPLEX_COL from (select convert_from('{ x : [1,2], y : 100 }', 'JSON') as mycol from cp.\"tpch/nation.parquet\") as foo(mycol) limit 1";
     test(query);
   }
 
   @Test
   public void DRILL1126() throws Exception {
     try {
-      test(String.format("alter session set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-      String query = "select sum(cast(employee_id as decimal(38, 18))), avg(cast(employee_id as decimal(38, 18))) from cp.`employee.json` group by (department_id)";
+      test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+      String query = "select sum(cast(employee_id as decimal(38, 18))), avg(cast(employee_id as decimal(38, 18))) from cp.\"employee.json\" group by (department_id)";
       test(query);
     } finally {
-      test(String.format("alter session set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
-    }
-  }
-
-  /**
-   * This test is not checking results because the bug fixed only appears with functions taking no arguments.
-   * I could alternatively use something like the now() function, but this still would be hard to write
-   * result verification for. The important aspect of the test is that it verifies that the previous IOOB
-   * does not occur. The various no-argument functions should be verified in other ways.
-   */
-  @Test
-  public void Drill3484() throws Exception {
-    try {
-      test("alter SYSTEM set `dremio.exec.functions.cast_empty_string_to_null` = true;");
-      test("select random() from sys.nodes");
-    } finally {
-      test("alter SYSTEM set `dremio.exec.functions.cast_empty_string_to_null` = false;");
+      test(String.format("alter session set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
     }
   }
 
@@ -108,7 +91,7 @@ public class TestBugFixes extends BaseTestQuery {
   // Dremio will hit CanNotPlan, until we add code fix to transform the local LHS filter in left outer join properly.
   public void testDRILL1337_LocalLeftFilterLeftOutJoin() throws Exception {
     try {
-      test("select count(*) from cp.`tpch/nation.parquet` n left outer join cp.`tpch/region.parquet` r on n.n_regionkey = r.r_regionkey and n.n_nationkey > 10;");
+      test("select count(*) from cp.\"tpch/nation.parquet\" n left outer join cp.\"tpch/region.parquet\" r on n.n_regionkey = r.r_regionkey and n.n_nationkey > 10;");
     } catch (UserException e) {
       logger.info("***** Test resulted in expected failure: " + e.getMessage());
       throw e;
@@ -117,13 +100,13 @@ public class TestBugFixes extends BaseTestQuery {
 
   @Test
   public void testDRILL1337_LocalRightFilterLeftOutJoin() throws Exception {
-    test("select * from cp.`tpch/nation.parquet` n left outer join cp.`tpch/region.parquet` r on n.n_regionkey = r.r_regionkey and r.r_name not like '%ASIA' order by r.r_name;");
+    test("select * from cp.\"tpch/nation.parquet\" n left outer join cp.\"tpch/region.parquet\" r on n.n_regionkey = r.r_regionkey and r.r_name not like '%ASIA' order by r.r_name;");
   }
 
   @Test
   public void testDRILL2361_AggColumnAliasWithDots() throws Exception {
     testBuilder()
-      .sqlQuery("select count(*) as `test.alias` from cp.`employee.json`")
+      .sqlQuery("select count(*) as \"test.alias\" from cp.\"employee.json\"")
       .unOrdered()
       .baselineColumns("`test.alias`")
       .baselineValues(1155L)
@@ -133,7 +116,7 @@ public class TestBugFixes extends BaseTestQuery {
   @Test
   public void testDRILL2361_SortColumnAliasWithDots() throws Exception {
     testBuilder()
-            .sqlQuery("select o_custkey as `x.y.z` from cp.`tpch/orders.parquet` where o_orderkey < 5 order by `x.y.z`")
+            .sqlQuery("select o_custkey as \"x.y.z\" from cp.\"tpch/orders.parquet\" where o_orderkey < 5 order by \"x.y.z\"")
             .unOrdered()
             .baselineColumns("`x.y.z`")
             .baselineValues(370)
@@ -146,7 +129,7 @@ public class TestBugFixes extends BaseTestQuery {
   @Test
   public void testDRILL2361_JoinColumnAliasWithDots() throws Exception {
     testBuilder()
-            .sqlQuery("select count(*) as cnt from (select o_custkey as `x.y` from cp.`tpch/orders.parquet`) o inner join cp.`tpch/customer.parquet` c on o.`x.y` = c.c_custkey")
+            .sqlQuery("select count(*) as cnt from (select o_custkey as \"x.y\" from cp.\"tpch/orders.parquet\") o inner join cp.\"tpch/customer.parquet\" c on o.\"x.y\" = c.c_custkey")
             .unOrdered()
             .baselineColumns("cnt")
             .baselineValues(15000L)
@@ -156,7 +139,7 @@ public class TestBugFixes extends BaseTestQuery {
   @Test
   public void testDRILL4192() throws Exception {
 
-    String query = (String.format("select dir0, dir1 from dfs.`%s/bugs/DRILL-4192` order by dir1", TEST_RES_PATH));
+    String query = (String.format("select dir0, dir1 from dfs.\"%s/bugs/DRILL-4192\" order by dir1", TEST_RES_PATH));
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -165,7 +148,7 @@ public class TestBugFixes extends BaseTestQuery {
         .baselineValues("single_top_partition", "nested_partition_2")
         .go();
 
-    query = (String.format("select dir0, dir1 from dfs.`%s/bugs/DRILL-4192/*/nested_partition_1` order by dir1", TEST_RES_PATH));
+    query = (String.format("select dir0, dir1 from dfs.\"%s/bugs/DRILL-4192/*/nested_partition_1\" order by dir1", TEST_RES_PATH));
 
     testBuilder()
         .sqlQuery(query)
@@ -178,10 +161,10 @@ public class TestBugFixes extends BaseTestQuery {
   @Test // DRILL-4971
   public void testVisitBooleanOrWithoutFunctionsEvaluation() throws Exception {
     String query = "SELECT\n" +
-        "CASE WHEN employee_id IN (1) THEN 1 ELSE 0 END `first`\n" +
-        ", CASE WHEN employee_id IN (2) THEN 1 ELSE 0 END `second`\n" +
-        ", CASE WHEN employee_id IN (1, 2) THEN 1 ELSE 0 END `any`\n" +
-        "FROM cp.`employee.json` ORDER BY employee_id limit 2";
+        "CASE WHEN employee_id IN (1) THEN 1 ELSE 0 END \"first\"\n" +
+        ", CASE WHEN employee_id IN (2) THEN 1 ELSE 0 END \"second\"\n" +
+        ", CASE WHEN employee_id IN (1, 2) THEN 1 ELSE 0 END \"any\"\n" +
+        "FROM cp.\"employee.json\" ORDER BY employee_id limit 2";
 
     testBuilder()
         .sqlQuery(query)
@@ -194,7 +177,7 @@ public class TestBugFixes extends BaseTestQuery {
 
   @Test // DRILL-4971
   public void testVisitBooleanAndWithoutFunctionsEvaluation() throws Exception {
-    String query = "SELECT employee_id FROM cp.`employee.json` WHERE\n" +
+    String query = "SELECT employee_id FROM cp.\"employee.json\" WHERE\n" +
         "((employee_id > 1 AND employee_id < 3) OR (employee_id > 9 AND employee_id < 11))\n" +
         "AND (employee_id > 1 AND employee_id < 3)";
 

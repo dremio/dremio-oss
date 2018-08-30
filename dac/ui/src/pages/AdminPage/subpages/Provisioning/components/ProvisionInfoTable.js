@@ -19,8 +19,6 @@ import Immutable from 'immutable';
 import ViewCheckContent from 'components/ViewCheckContent';
 import TableViewer from 'components/TableViewer';
 
-import './ProvisionInfoTable.less';
-
 export default class ProvisionInfoTable extends Component {
   static propTypes = {
     provision: PropTypes.instanceOf(Immutable.Map)
@@ -53,11 +51,30 @@ export default class ProvisionInfoTable extends Component {
   }
 
   getTableColumns() {
+    // DX-11577 NOTE regarding widths. Previously reactable component was used to display this data. Widths below are taken from actual dom that is rendered by reactable component.
     return [ // todo: make this list dynamic for different provision types = i.e. just a mapping of known keys to UI strings
-      { key: 'status', label: la('Status') },
-      { key: 'host', label: la('Host') },
-      { key: 'memoryMB', label: la('Memory (MB)') },
-      { key: 'virtualCoreCount', label: la('Virtual Cores') }
+      {
+        key: 'status',
+        label: la('Status'),
+        width: 87
+      },
+      {
+        key: 'host',
+        label: la('Host'),
+        flexGrow: 1 // fills a rest of the available space
+      },
+      {
+        key: 'memoryMB',
+        label: la('Memory (MB)'),
+        align: 'right',
+        width: 131
+      },
+      {
+        key: 'virtualCoreCount',
+        label: la('Virtual Cores'),
+        align: 'right',
+        width: 126
+      }
     ];
   }
 
@@ -66,16 +83,16 @@ export default class ProvisionInfoTable extends Component {
     const tableData = this.getTableData(columns);
 
     return (
-      <div className='provision-table' style={styles.base}>
-        <TableViewer
+      <div style={styles.base}>
+        {tableData.size > 0 ? <TableViewer
           tableData={tableData}
           columns={columns}
-        />
+        /> :
         <ViewCheckContent
           message={la('No Workers')}
           dataIsNotAvailable={tableData.size === 0}
           customStyle={styles.emptyMessageStyle}
-        />
+        />}
       </div>
     );
   }

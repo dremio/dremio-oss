@@ -42,7 +42,7 @@ public class TestWithClause extends BaseTestQuery {
   public void withClauseOrderBy() throws Exception {
     String query = "WITH x \n" +
         "AS (SELECT n_nationkey a1 \n" +
-        "FROM  cp.`tpch/nation.parquet`) \n" +
+        "FROM  cp.\"tpch/nation.parquet\") \n" +
         "SELECT  x.a1 \n" +
         "FROM  x \n" +
         "ORDER BY x.a1 \n" +

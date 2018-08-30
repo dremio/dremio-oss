@@ -559,7 +559,7 @@ public class EvaluationVisitor {
             JClass nrClass = generator.getModel().ref(org.apache.arrow.vector.complex.impl.NullReader.class);
             JExpression nullReader;
             if (complex) {
-              nullReader = nrClass.staticRef("EMPTY_MAP_INSTANCE");
+              nullReader = nrClass.staticRef("EMPTY_STRUCT_INSTANCE");
 //            } else if (repeated) {
 //              nullReader = nrClass.staticRef("EMPTY_LIST_INSTANCE");
             } else {
@@ -1041,12 +1041,15 @@ public class EvaluationVisitor {
       if (shouldNestMethod()) {
         exprCount.push(0);
         HoldingContainer out = generator.declare(holder.getCompleteType(), false);
+        JMethod setupMethod = generator.nestSetupMethod();
         JMethod method = generator.innerMethod(holder.getCompleteType());
         HoldingContainer returnContainer = super.visitFunctionHolderExpression(holder, generator);
         method.body()._return(returnContainer.getHolder());
         generator.unNestEvalBlock();
-        JInvocation methodCall = generator.invokeInnerMethod(method);
+        generator.unNestSetupBlock();
+        JInvocation methodCall = generator.invokeInnerMethod(method, BlockType.EVAL);
         generator.getEvalBlock().assign(out.getHolder(), methodCall);
+        generator.getSetupBlock().add(generator.invokeInnerMethod(setupMethod, BlockType.SETUP));
 
         exprCount.pop();
         return out;
@@ -1060,12 +1063,15 @@ public class EvaluationVisitor {
       if (shouldNestMethod()) {
         exprCount.push(0);
         HoldingContainer out = generator.declare(ifExpr.getCompleteType(), false);
+        JMethod setupMethod = generator.nestSetupMethod();
         JMethod method = generator.innerMethod(ifExpr.getCompleteType());
         HoldingContainer returnContainer = super.visitIfExpression(ifExpr, generator);
         method.body()._return(returnContainer.getHolder());
         generator.unNestEvalBlock();
-        JInvocation methodCall = generator.invokeInnerMethod(method);
+        generator.unNestSetupBlock();
+        JInvocation methodCall = generator.invokeInnerMethod(method, BlockType.EVAL);
         generator.getEvalBlock().assign(out.getHolder(), methodCall);
+        generator.getSetupBlock().add(generator.invokeInnerMethod(setupMethod, BlockType.SETUP));
 
         exprCount.pop();
         return out;
@@ -1079,12 +1085,15 @@ public class EvaluationVisitor {
       if (shouldNestMethod()) {
         exprCount.push(0);
         HoldingContainer out = generator.declare(call.getCompleteType(), false);
+        JMethod setupMethod = generator.nestSetupMethod();
         JMethod method = generator.innerMethod(call.getCompleteType());
         HoldingContainer returnContainer = super.visitBooleanOperator(call, generator);
         method.body()._return(returnContainer.getHolder());
         generator.unNestEvalBlock();
-        JInvocation methodCall = generator.invokeInnerMethod(method);
+        generator.unNestSetupBlock();
+        JInvocation methodCall = generator.invokeInnerMethod(method, BlockType.EVAL);
         generator.getEvalBlock().assign(out.getHolder(), methodCall);
+        generator.getSetupBlock().add(generator.invokeInnerMethod(setupMethod, BlockType.SETUP));
 
         exprCount.pop();
         return out;
@@ -1104,12 +1113,15 @@ public class EvaluationVisitor {
       if (shouldNestMethod()) {
         exprCount.push(0);
         HoldingContainer out = generator.declare(e.getCompleteType(), false);
+        JMethod setupMethod = generator.nestSetupMethod();
         JMethod method = generator.innerMethod(e.getCompleteType());
         HoldingContainer returnContainer = super.visitConvertExpression(e, generator);
         method.body()._return(returnContainer.getHolder());
         generator.unNestEvalBlock();
-        JInvocation methodCall = generator.invokeInnerMethod(method);
+        generator.unNestSetupBlock();
+        JInvocation methodCall = generator.invokeInnerMethod(method, BlockType.EVAL);
         generator.getEvalBlock().assign(out.getHolder(), methodCall);
+        generator.getSetupBlock().add(generator.invokeInnerMethod(setupMethod, BlockType.SETUP));
 
         exprCount.pop();
         return out;

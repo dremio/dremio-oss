@@ -45,7 +45,7 @@ public class GNewValueFunctions {
 <#list vv.modes as mode>
   <#if mode.name != "Repeated" && mode.name != "Required" && !minor.class?starts_with("UInt") && !minor.class?starts_with("SmallInt") && !minor.class?starts_with("TinyInt") >
 
-<#if !minor.class.startsWith("Decimal") && !minor.class.startsWith("Interval")>
+<#if !minor.class.startsWith("Decimal") && !minor.class.startsWith("Interval") && (minor.class != "FixedSizeBinary")>
 @SuppressWarnings("unused")
 @FunctionTemplate(name = "newPartitionValue", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.INTERNAL)
 public static class NewValue${minor.class}${mode.prefix} implements SimpleFunction{

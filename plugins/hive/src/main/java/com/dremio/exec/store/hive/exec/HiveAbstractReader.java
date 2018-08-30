@@ -16,59 +16,40 @@
 package com.dremio.exec.store.hive.exec;
 
 import static com.dremio.common.util.MajorTypeHelper.getFieldForNameAndMajorType;
-import static com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorType;
+import static com.dremio.exec.store.hive.HiveUtilities.addProperties;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
-import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
-import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
-import org.apache.hadoop.hive.ql.metadata.HiveUtils;
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.hive.serde2.SerDe;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters.Converter;
-import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
-import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
-import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
-import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.RecordReader;
-import org.apache.hadoop.mapred.Reporter;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.AbstractRecordReader;
+import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.hive.HiveUtilities;
-import com.dremio.exec.work.ExecErrorConstants;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
-import com.dremio.hive.proto.HiveReaderProto.SerializedInputSplit;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
@@ -76,123 +57,70 @@ import com.dremio.service.namespace.dataset.proto.PartitionValue;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.io.ByteStreams;
 import com.google.protobuf.InvalidProtocolBufferException;
-
-import io.netty.buffer.ArrowBuf;
 
 public abstract class HiveAbstractReader extends AbstractRecordReader {
   protected final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
-  private static final org.slf4j.Logger abstractLogger = org.slf4j.LoggerFactory.getLogger(HiveAbstractReader.class);
-
-  protected ArrowBuf managedBuffer;
 
   protected StructField[] selectedStructFieldRefs;
   protected ObjectInspector[] selectedColumnObjInspectors;
   protected HiveFieldConverter[] selectedColumnFieldConverters;
-  protected RecordReader<Object, Object> reader;
   protected ValueVector[] vectors;
-  protected HiveConf hiveConf;
 
-  // SerDe of the reading partition (or table if the table is non-partitioned)
+  protected JobConf jobConf;
+
+  protected SerDe tableSerDe;
+  protected StructObjectInspector tableOI;
+
   protected SerDe partitionSerDe;
-
-  // ObjectInspector to read data from partitionSerDe (for a non-partitioned table this is same as the table
-  // ObjectInspector).
   protected StructObjectInspector partitionOI;
+
+  protected ScanFilter filter;
 
   // Final ObjectInspector. We may not use the partitionOI directly if there are schema changes between the table and
   // partition. If there are no schema changes then this is same as the partitionOI.
   protected StructObjectInspector finalOI;
 
-  // Converter which converts data from partition schema to table schema.
-  protected Converter partTblObjectInspectorConverter;
-
   private final DatasetSplit split;
   private final HiveTableXattr tableAttr;
-  private final List<String> partitionColumns;
-  protected OperatorContext context;
-  protected String defaultPartitionValue;
 
-  public HiveAbstractReader(
-      HiveTableXattr tableAttr,
-      DatasetSplit split,
-      List<SchemaPath> projectedColumns,
-      List<String> partitionColumns,
-      OperatorContext context,
-      final HiveConf hiveConf) throws ExecutionSetupException {
+  public HiveAbstractReader(final HiveTableXattr tableAttr, final DatasetSplit split,
+      final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
+      final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
+      final StructObjectInspector partitionOI, final ScanFilter filter) {
     super(context, projectedColumns);
     this.tableAttr = tableAttr;
     this.split = split;
-    this.partitionColumns = partitionColumns != null ? ImmutableList.copyOf(partitionColumns) : null;
-    this.hiveConf = hiveConf;
-    this.context = context;
-  }
-
-  public abstract void internalInit(Properties tableProperties, RecordReader<Object, Object> reader);
-
-  public static Properties addProperties(JobConf jobConf, Properties output, List<Prop> props){
-    for(Prop p : props){
-      output.setProperty(p.getKey(), p.getValue());
-      jobConf.set(p.getKey(), p.getValue());
-    }
-    return output;
+    this.jobConf = jobConf;
+    this.tableSerDe = tableSerDe;
+    this.tableOI = tableOI;
+    this.partitionSerDe = partitionSerDe == null ? tableSerDe : partitionSerDe;
+    this.partitionOI = partitionOI == null ? tableOI : partitionOI;
+    this.filter = filter;
   }
 
   @Override
-  public void setup(OutputMutator output) throws ExecutionSetupException {
-    this.managedBuffer = context.getManagedBuffer(256);
+  public void setup(OutputMutator output) {
     final HiveSplitXattr splitAttr;
     try {
       splitAttr = HiveSplitXattr.parseFrom(split.getExtendedProperty().toByteArray());
     } catch (InvalidProtocolBufferException e) {
-      throw createException("Failure deserializing Hive extended attributes.", e);
+      throw createExceptionWithContext("Failure deserializing Hive extended attributes.", e);
     }
 
-    final JobConf job = new JobConf(hiveConf);
-
-    // Get the configured default val
-    defaultPartitionValue = hiveConf.get(ConfVars.DEFAULTPARTITIONNAME.varname);
-
-    final Properties tableProperties = addProperties(job, new Properties(),
-        HiveReaderProtoUtil.getTableProperties(tableAttr));
+    final Properties tableProperties = new Properties();
+    addProperties(jobConf, tableProperties, HiveReaderProtoUtil.getTableProperties(tableAttr));
 
     List<String> selectedColumnNames;
     List<TypeInfo> selectedColumnTypes = new ArrayList<>();
 
     try {
-      final SerDe tableSerDe = createSerDe(job, HiveReaderProtoUtil.getTableSerializationLib(tableAttr).get(),
-          tableProperties);
-      final StructObjectInspector tableOI = getStructOI(tableSerDe);
-
-      boolean isPartitioned = partitionColumns != null && !partitionColumns.isEmpty();
-      if(isPartitioned){
-        final Properties partitionProperties = new Properties();
-        // First add table properties and then add partition properties. Partition properties override table properties.
-        addProperties(job, partitionProperties, HiveReaderProtoUtil.getTableProperties(tableAttr));
-        addProperties(job, partitionProperties,
-            HiveReaderProtoUtil.getPartitionProperties(tableAttr, splitAttr.getPartitionId()));
-
-        partitionSerDe =
-            createSerDe(job,
-                HiveReaderProtoUtil.getPartitionSerializationLib(tableAttr, splitAttr.getPartitionId()).get(),
-                partitionProperties);
-        partitionOI = getStructOI(partitionSerDe);
-
+      if(partitionSerDe != null) {
         finalOI = (StructObjectInspector)ObjectInspectorConverters.getConvertedOI(partitionOI, tableOI);
-        partTblObjectInspectorConverter = ObjectInspectorConverters.getConverter(partitionOI, finalOI);
-        job.setInputFormat(getInputFormatClass(job, tableAttr, splitAttr));
       } else {
-        // For non-partitioned tables, there is no need to create converter as there are no schema changes expected.
-        partitionSerDe = tableSerDe;
-        partitionOI = tableOI;
-        partTblObjectInspectorConverter = null;
         finalOI = tableOI;
-        job.setInputFormat(getInputFormatClass(job, tableAttr, null));
       }
 
       if (logger.isTraceEnabled()) {
@@ -211,26 +139,18 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
 
       // Select list of columns for project pushdown into Hive SerDe readers.
       final List<Integer> columnIds = Lists.newArrayList();
-      if (isStarQuery()) {
-        selectedColumnNames = tableColumnNames;
-        for(int i=0; i<selectedColumnNames.size(); i++) {
-          columnIds.add(i);
-        }
-      } else {
-        selectedColumnNames = Lists.newArrayList();
-        for (SchemaPath field : getColumns()) {
-          String columnName = field.getRootSegment().getPath();
-          columnIds.add(tableColumnNames.indexOf(columnName));
-          selectedColumnNames.add(columnName);
-        }
+      selectedColumnNames = Lists.newArrayList();
+      for (SchemaPath field : getColumns()) {
+        String columnName = field.getRootSegment().getPath();
+        columnIds.add(tableColumnNames.indexOf(columnName));
+        selectedColumnNames.add(columnName);
       }
 
-      ColumnProjectionUtils.appendReadColumns(job, columnIds, selectedColumnNames);
+      ColumnProjectionUtils.appendReadColumns(jobConf, columnIds, selectedColumnNames);
 
       List<StructField> selectedStructFieldRefs = new ArrayList<>();
       List<ObjectInspector> selectedColumnObjInspectors = new ArrayList<>();
       List<HiveFieldConverter> selectedColumnFieldConverters = new ArrayList<>();
-
 
       for (String columnName : selectedColumnNames) {
         StructField fieldRef = finalOI.getStructFieldRef(columnName);
@@ -259,48 +179,36 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
       this.selectedColumnFieldConverters = selectedColumnFieldConverters.toArray(new HiveFieldConverter[selectedColumnFieldConverters.size()]);
 
     } catch (Exception e) {
-      throw createException("Failure while initializing Hive Reader", e);
+      throw createExceptionWithContext("Failure while initializing Hive Reader", e);
+    }
+
+    this.vectors = new ValueVector[selectedColumnNames.size()];
+    final OptionManager options = context.getOptions();
+    int i = 0;
+    for (SchemaPath selectedColumn : getColumns()) {
+      final String colName = selectedColumn.getRootSegment().getPath();
+      MajorType type = HiveUtilities.getMajorTypeFromHiveTypeInfo(selectedColumnTypes.get(i), options);
+      Field field = getFieldForNameAndMajorType(colName, type);
+      vectors[i] = output.addField(field, ValueVector.class);
+      i++;
     }
 
     try {
-      final InputSplit inputSplit = deserializeInputSplit(splitAttr.getInputSplit());
-      reader = job.getInputFormat().getRecordReader(inputSplit, job, Reporter.NULL);
-      if(logger.isTraceEnabled()) {
-        logger.trace("hive reader created: {} for inputSplit {}", reader.getClass().getName(), inputSplit.toString());
-      }
+      final InputSplit inputSplit = HiveUtilities.deserializeInputSplit(splitAttr.getInputSplit());
+      internalInit(inputSplit, jobConf, vectors);
     } catch (Exception e) {
-      throw createException("Failed to get o.a.hadoop.mapred.RecordReader from Hive InputFormat", e);
+      throw createExceptionWithContext("Failed to initialize Hive record reader", e);
     }
-
-    internalInit(tableProperties, reader);
-
-    List<ValueVector> vectors = new ArrayList<>();
-    final OptionManager options = context.getOptions();
-    for (int i = 0; i < selectedColumnNames.size(); i++) {
-      MajorType type = getMajorTypeFromHiveTypeInfo(selectedColumnTypes.get(i), options);
-      Field field = getFieldForNameAndMajorType(selectedColumnNames.get(i), type);
-      vectors.add(output.addField(field, ValueVector.class));
-    }
-    this.vectors = vectors.toArray(new ValueVector[vectors.size()]);
-
   }
+
+  protected abstract void internalInit(InputSplit inputSplit, JobConf jobConf, ValueVector[] vectors) throws IOException;
 
   @Override
   public final int next() {
     try {
-      for (ValueVector vv : vectors) {
-        AllocationHelper.allocateNew(vv, (int) numRowsPerBatch);
-      }
-
-      int records = populateData();
-
-      for (ValueVector v : vectors) {
-        v.setValueCount(records);
-      }
-
-      return records;
+      return populateData();
     } catch (Throwable ex){
-      throw createException("Unexpected failure while reading hive table.", ex);
+      throw createExceptionWithContext("Unexpected failure while reading hive table.", ex);
     }
   }
 
@@ -308,169 +216,35 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
 
   @Override
   public void close() throws IOException {
-    if(reader != null){
-      reader.close();
-      reader = null;
-    }
-
+    // This is important to null out these to
     selectedStructFieldRefs = null;
     selectedColumnObjInspectors = null;
     selectedColumnFieldConverters = null;
     vectors = null;
-    hiveConf = null;
+    tableSerDe = null;
+    tableOI = null;
     partitionSerDe = null;
     partitionOI = null;
     finalOI = null;
-    partTblObjectInspectorConverter = null;
+    filter = null;
   }
-
-  public static InputSplit deserializeInputSplit(SerializedInputSplit split) throws IOException, ReflectiveOperationException{
-    Constructor<?> constructor = Class.forName(split.getInputSplitClass()).getDeclaredConstructor();
-    if (constructor == null) {
-      throw new ReflectiveOperationException("Class " + split.getInputSplitClass() + " does not implement a default constructor.");
-    }
-    constructor.setAccessible(true);
-    InputSplit deserializedSplit = (InputSplit) constructor.newInstance();
-    deserializedSplit.readFields(ByteStreams.newDataInput(split.getInputSplit().toByteArray()));
-    return deserializedSplit;
-  }
-
-  /**
-   * Utility method which creates a SerDe object for given SerDe class name and properties.
-   */
-  public static SerDe createSerDe(final JobConf job, final String sLib, final Properties properties) throws Exception {
-    final Class<? extends SerDe> c = Class.forName(sLib).asSubclass(SerDe.class);
-    final SerDe serde = c.getConstructor().newInstance();
-    serde.initialize(job, properties);
-
-    return serde;
-  }
-
-
-  public static StructObjectInspector getStructOI(final SerDe serDe) throws Exception {
-    ObjectInspector oi = serDe.getObjectInspector();
-    if (oi.getCategory() != Category.STRUCT) {
-      throw new UnsupportedOperationException(String.format("%s category not supported", oi.getCategory()));
-    }
-    return (StructObjectInspector) oi;
-  }
-
-  public static Class<? extends InputFormat<?, ?>> getInputFormatClass(final JobConf job, HiveTableXattr tableXattr, HiveSplitXattr xattr) throws Exception {
-    if (xattr != null) {
-      final Optional<String> inputFormat =
-          HiveReaderProtoUtil.getPartitionInputFormat(tableXattr, xattr.getPartitionId());
-      if (inputFormat.isPresent()) {
-        return (Class<? extends InputFormat<?, ?>>) Class.forName(inputFormat.get());
-      }
-
-      final Optional<String> storageHandlerName =
-          HiveReaderProtoUtil.getPartitionStorageHandler(tableXattr, xattr.getPartitionId());
-      if (storageHandlerName.isPresent()) {
-        final HiveStorageHandler storageHandler = HiveUtils.getStorageHandler(job, storageHandlerName.get());
-        return (Class<? extends InputFormat<?, ?>>) storageHandler.getInputFormatClass();
-      }
-    }
-
-    if (tableXattr != null) {
-      final Optional<String> inputFormat = HiveReaderProtoUtil.getTableInputFormat(tableXattr);
-      if (inputFormat.isPresent()) {
-        return (Class<? extends InputFormat<?, ?>>) Class.forName(inputFormat.get());
-      }
-
-      final Optional<String> storageHandlerName = HiveReaderProtoUtil.getTableStorageHandler(tableXattr);
-      if (storageHandlerName.isPresent()) {
-        final HiveStorageHandler storageHandler = HiveUtils.getStorageHandler(job, storageHandlerName.get());
-        return (Class<? extends InputFormat<?, ?>>) storageHandler.getInputFormatClass();
-      }
-    }
-
-    throw new ExecutionSetupException("Unable to get Hive table InputFormat class. There is neither " +
-        "InputFormat class explicitly specified nor a StorageHandler class provided.");
-  }
-
-
 
   @Override
   protected boolean supportsSkipAllQuery() {
     return true;
   }
 
-  public static MajorType getMajorTypeFromHiveTypeInfo(final TypeInfo typeInfo, final OptionManager options) {
-    switch (typeInfo.getCategory()) {
-      case PRIMITIVE: {
-        PrimitiveTypeInfo primitiveTypeInfo = (PrimitiveTypeInfo) typeInfo;
-        MinorType minorType = getMinorTypeFromHivePrimitiveTypeInfo(primitiveTypeInfo, options);
-        MajorType.Builder typeBuilder = MajorType.newBuilder().setMinorType(getMinorTypeFromArrowMinorType(minorType))
-                .setMode(DataMode.OPTIONAL); // Hive columns (both regular and partition) could have null values
-
-        if (primitiveTypeInfo.getPrimitiveCategory() == PrimitiveCategory.DECIMAL) {
-          DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) primitiveTypeInfo;
-          typeBuilder.setPrecision(decimalTypeInfo.precision())
-                  .setScale(decimalTypeInfo.scale()).build();
-        }
-
-        return typeBuilder.build();
-      }
-
-      case LIST:
-      case MAP:
-      case STRUCT:
-      case UNION:
-      default:
-        HiveUtilities.throwUnsupportedHiveDataTypeError(typeInfo.getCategory().toString());
-    }
-
-    return null;
-  }
-
-  public static MinorType getMinorTypeFromHivePrimitiveTypeInfo(PrimitiveTypeInfo primitiveTypeInfo, OptionManager options) {
-    switch(primitiveTypeInfo.getPrimitiveCategory()) {
-      case BINARY:
-        return MinorType.VARBINARY;
-      case BOOLEAN:
-        return MinorType.BIT;
-      case DECIMAL: {
-
-        if (options.getOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY).bool_val == false) {
-          throw UserException.unsupportedError()
-              .message(ExecErrorConstants.DECIMAL_DISABLE_ERR_MSG)
-              .build(abstractLogger);
-        }
-        return MinorType.DECIMAL;
-      }
-      case DOUBLE:
-        return MinorType.FLOAT8;
-      case FLOAT:
-        return MinorType.FLOAT4;
-      // TODO (DRILL-2470)
-      // Byte and short (tinyint and smallint in SQL types) are currently read as integers
-      // as these smaller integer types are not fully supported in Dremio today.
-      case SHORT:
-      case BYTE:
-      case INT:
-        return MinorType.INT;
-      case LONG:
-        return MinorType.BIGINT;
-      case STRING:
-      case VARCHAR:
-      case CHAR:
-        return MinorType.VARCHAR;
-      case TIMESTAMP:
-        return MinorType.TIMESTAMPMILLI;
-      case DATE:
-        return MinorType.DATEMILLI;
-    }
-    HiveUtilities.throwUnsupportedHiveDataTypeError(primitiveTypeInfo.getPrimitiveCategory().toString());
-    return null;
-  }
-
   /**
-   * Helper method which create {@link UserException} with useful context for debugging purposes.
+   * Helper method which create a {@link UserException} with useful context for trouble shooting purposes when an error
+   * occurs in Hive readers.
+   * @param errorMessage
+   * @param t (optional) exception thrown in the error context
+   * @return {@link UserException} with context
    */
-  private UserException createException(String msg, Throwable ex) {
-    UserException.Builder builder = UserException.dataReadError(ex)
-        .message(msg)
-        .addContext("Dataset split key: %s", split.getSplitKey());
+  public UserException createExceptionWithContext(String errorMessage, Throwable t) {
+    UserException.Builder builder = UserException.dataReadError(t)
+        .message(errorMessage)
+        .addContext("Dataset split key", split.getSplitKey());
 
     final List<PartitionValue> partitionValues = split.getPartitionValuesList();
     if (partitionValues != null && !partitionValues.isEmpty()) {
@@ -496,7 +270,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
     }
 
     final String tableProperties = Joiner.on("\n").join(
-        Iterables.transform(tableAttr.getTablePropertyList(),
+        Iterables.transform(HiveReaderProtoUtil.getTableProperties(tableAttr),
             new Function<Prop, String>() {
               @Nullable
               @Override

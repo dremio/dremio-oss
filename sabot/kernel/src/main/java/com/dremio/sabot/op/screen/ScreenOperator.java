@@ -18,6 +18,7 @@ package com.dremio.sabot.op.screen;
 import org.apache.arrow.memory.OutOfMemoryException;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.physical.config.Screen;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.QueryData;

@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.calcite.plan.RelOptCost;
+
 import com.dremio.common.logical.PlanProperties;
 import com.dremio.common.logical.PlanProperties.PlanPropertiesBuilder;
 import com.dremio.common.logical.PlanProperties.PlanType;
@@ -26,7 +28,6 @@ import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.physical.explain.PrelSequencer.OpId;
 import com.google.common.collect.Lists;
 
@@ -52,7 +53,7 @@ public class PhysicalPlanCreator {
 
   public PhysicalOperator addMetadata(Prel originalPrel, PhysicalOperator op){
     op.setOperatorId(opIdMap.get(originalPrel).getAsSingleInt());
-    op.setCost(originalPrel.estimateRowCount(DefaultRelMetadataProvider.INSTANCE.getRelMetadataQuery()));
+    op.setCost(originalPrel.getCostForParallelization());
     if (originalPrel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE) == DistributionTrait.SINGLETON) {
       op.setAsSingle();
     }

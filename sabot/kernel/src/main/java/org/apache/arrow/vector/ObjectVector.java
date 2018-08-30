@@ -23,7 +23,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.ObjectHolder;
-import org.apache.arrow.vector.schema.ArrowFieldNode;
+import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
@@ -201,12 +201,6 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
   }
 
   @Override
-  @Deprecated
-  public Accessor getAccessor() {
-    throw new UnsupportedOperationException("ObjectVector does not support Accessor");
-  }
-
-  @Override
   public ArrowBuf[] getBuffers(boolean clear) {
     throw new UnsupportedOperationException("ObjectVector does not support this");
   }
@@ -222,12 +216,6 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
 //  }
 
   @Override
-  @Deprecated
-  public Mutator getMutator() {
-    throw new UnsupportedOperationException("ObjectVector does not support Mutator");
-  }
-
-  @Override
   public Iterator<ValueVector> iterator() {
     throw new UnsupportedOperationException("ObjectVector does not support this");
   }
@@ -239,6 +227,11 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
       addNewArray();
     }
     return objectArrayList.get(listOffset)[index % allocationSize];
+  }
+
+  @Override
+  public int getNullCount() {
+    return 0;
   }
 
   @Override

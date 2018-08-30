@@ -44,7 +44,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.nodes.NodeProvider;
-import com.dremio.config.DremioConfig;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterEnriched;
@@ -57,6 +56,7 @@ import com.dremio.provision.Property;
 import com.dremio.provision.RunId;
 import com.dremio.provision.service.ProvisioningDefaultsConfigurator;
 import com.dremio.provision.service.ProvisioningHandlingException;
+import com.dremio.provision.service.ProvisioningService;
 import com.dremio.provision.service.ProvisioningServiceDelegate;
 import com.dremio.provision.service.ProvisioningStateListener;
 import com.dremio.provision.yarn.DacDaemonYarnApplication;
@@ -84,7 +84,7 @@ public class YarnService implements ProvisioningServiceDelegate {
     ImmutableSet.of(
     FS_DEFAULT_NAME_KEY,
     RM_HOSTNAME,
-    DremioConfig.YARN_HEAP_SIZE
+    ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY
     );
 
   public YarnService(ProvisioningStateListener stateListener, NodeProvider executionNodeProvider) {
@@ -214,8 +214,8 @@ public class YarnService implements ProvisioningServiceDelegate {
       Containers containers = new Containers();
       clusterEnriched.setRunTimeInfo(containers);
 
-      List<Container> runningList = new ArrayList<Container>();
-      List<Container> disconnectedList = new ArrayList<Container>();
+      List<Container> runningList = new ArrayList<>();
+      List<Container> disconnectedList = new ArrayList<>();
       clusterEnriched.getRunTimeInfo().setRunningList(runningList);
       clusterEnriched.getRunTimeInfo().setDisconnectedList(disconnectedList);
 
@@ -307,6 +307,8 @@ public class YarnService implements ProvisioningServiceDelegate {
     for (Map.Entry<String,String> entry : additionalProps.entrySet()) {
       yarnConfiguration.set(entry.getKey(), entry.getValue());
     }
+    // Fix for DX-12202: on hdp 2.8.3, timeline service might be enabled by default, hence disabling it here
+    yarnConfiguration.setBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED, false);
   }
 
   private TwillController getTwillControllerHelper(Cluster cluster) throws YarnProvisioningHandlingException {

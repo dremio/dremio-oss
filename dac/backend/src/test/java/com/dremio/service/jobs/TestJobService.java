@@ -28,12 +28,14 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
+
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.InitialTransformAndRunResponse;
@@ -52,12 +54,11 @@ import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionValue;
-import com.dremio.exec.server.options.OptionValue.OptionType;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.work.AttemptId;
-import com.dremio.exec.work.ExternalIdHelper;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
 import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobDetails;

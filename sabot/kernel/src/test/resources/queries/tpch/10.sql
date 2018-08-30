@@ -9,10 +9,10 @@ select
   c.c_phone,
   c.c_comment
 from
-  cp.`tpch/customer.parquet` c,
-  cp.`tpch/orders.parquet` o,
-  cp.`tpch/lineitem.parquet` l,
-  cp.`tpch/nation.parquet` n
+  cp."tpch/customer.parquet" c,
+  cp."tpch/orders.parquet" o,
+  cp."tpch/lineitem.parquet" l,
+  cp."tpch/nation.parquet" n
 where
   c.c_custkey = o.o_custkey
   and l.l_orderkey = o.o_orderkey

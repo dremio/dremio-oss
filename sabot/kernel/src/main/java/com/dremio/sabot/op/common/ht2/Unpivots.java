@@ -41,7 +41,7 @@ public class Unpivots {
 
     for(long srcAddr = startAddr; srcAddr < maxAddr; srcAddr += blockWidth, targetIndex++){
       final int byteValue = PlatformDependent.getInt(srcAddr);
-      int bitVal = ((byteValue >>> bitOffset ) & 1 ) << (targetIndex & 31);
+      int bitVal = ((byteValue >>> bitOffset) & 1) << (targetIndex & 31);
       final long addr = target + ((targetIndex >>> 5) * 4);
       PlatformDependent.putInt(addr, PlatformDependent.getInt(addr) | bitVal);
     }
@@ -69,6 +69,16 @@ public class Unpivots {
     }
   }
 
+  public static void unpivotBytes16(final long srcFixedAddr, final int blockWidth, final long target, final int byteOffset, int count) {
+    final long startAddr = srcFixedAddr;
+    long maxAddr = startAddr + (count * blockWidth);
+    long targetAddr = target;
+
+    for(long srcAddr = startAddr; srcAddr < maxAddr; srcAddr += blockWidth, targetAddr+=16){
+      PlatformDependent.putLong(targetAddr, PlatformDependent.getLong(srcAddr + byteOffset));
+      PlatformDependent.putLong(targetAddr + 8, PlatformDependent.getLong(srcAddr + 8 + byteOffset));
+    }
+  }
 
   public static void unpivotVariable(final long srcFixedAddr, final long srcVarAddr, final int blockWidth, FieldVector[] targets, int count) {
     final int dataWidth = blockWidth - LBlockHashTable.VAR_OFFSET_SIZE;
@@ -84,7 +94,7 @@ public class Unpivots {
 
     for(int i = 0; i < fieldCount; i++){
       FieldVector vect = targets[i];
-      offsetAddrs[i] = vect.getFieldBuffers().get(1).memoryAddress();
+      offsetAddrs[i] = vect.getOffsetBufferAddress();
       Reallocator realloc = Reallocators.getReallocator(vect);
       reallocs[i] = realloc;
       targetAddrs[i] = realloc.addr();
@@ -155,13 +165,15 @@ public class Unpivots {
     for(VectorPivotDef def : pivot.getNonBitFixedPivots()){
       switch(def.getType()){
       case FOUR_BYTE:
-        unpivotBytes4(fixedAddr, blockWidth, def.getOutgoingVector().getFieldBuffers().get(1).memoryAddress(), def.getOffset(), count);
+        unpivotBytes4(fixedAddr, blockWidth, def.getOutgoingVector().getDataBufferAddress(), def.getOffset(), count);
         break;
       case EIGHT_BYTE:
-        unpivotBytes8(fixedAddr, blockWidth, def.getOutgoingVector().getFieldBuffers().get(1).memoryAddress(), def.getOffset(), count);
+        unpivotBytes8(fixedAddr, blockWidth, def.getOutgoingVector().getDataBufferAddress(), def.getOffset(), count);
         break;
 
       case SIXTEEN_BYTE:
+        unpivotBytes16(fixedAddr, blockWidth, def.getOutgoingVector().getFieldBuffers().get(1).memoryAddress(), def.getOffset(), count);
+        break;
       default:
         throw new IllegalStateException();
       }

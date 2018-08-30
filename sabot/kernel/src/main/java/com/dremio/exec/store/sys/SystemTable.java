@@ -18,11 +18,13 @@ package com.dremio.exec.store.sys;
 import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.StreamSupport;
 
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordDataType;
@@ -32,7 +34,9 @@ import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationListManager.MaterializationInfo;
 import com.dremio.exec.store.sys.accel.AccelerationListManager.ReflectionInfo;
 import com.dremio.exec.work.WorkStats.FragmentInfo;
+import com.dremio.exec.work.WorkStats.SlicingThreadInfo;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.task.TaskPool;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceTableDefinition;
@@ -114,6 +118,7 @@ public enum SystemTable {
     }
   },
 
+  @SuppressWarnings("unchecked")
   REFLECTIONS("reflections", false, ReflectionInfo.class) {
     @Override
     public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
@@ -121,6 +126,7 @@ public enum SystemTable {
     }
   },
 
+  @SuppressWarnings("unchecked")
   REFRESH("refreshes", false, AccelerationListManager.RefreshInfo.class) {
     @Override
     public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
@@ -128,10 +134,34 @@ public enum SystemTable {
     }
   },
 
+  @SuppressWarnings("unchecked")
   MATERIALIZATIONS("materializations", false, MaterializationInfo.class){
     @Override
     public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
       return (Iterator<Object>) (Object) sContext.getAccelerationListManager().getMaterializations().iterator();
+    }
+  },
+
+  @SuppressWarnings("unchecked")
+  SLICING_THREADS("slicing_threads", true, SlicingThreadInfo.class) {
+    @Override
+    public Iterator<Object> getIterator(SabotContext sContext, OperatorContext context) {
+      final CoordinationProtos.NodeEndpoint endpoint = sContext.getEndpoint();
+      final Iterable<TaskPool.ThreadInfo> threadInfos = sContext.getWorkStatsProvider().get().getSlicingThreads();
+      return (Iterator<Object>) (Object) StreamSupport.stream(threadInfos.spliterator(), false)
+        .map((info) -> new SlicingThreadInfo(
+          endpoint.getAddress(),
+          endpoint.getFabricPort(),
+          info
+        )).iterator();
+    }
+  },
+
+  @SuppressWarnings("unchecked")
+  DEPENDENCIES("dependencies", false, AccelerationListManager.DependencyInfo.class){
+    @Override
+    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return (Iterator<Object>) (Object) sContext.getAccelerationListManager().getReflectionDependencies().iterator();
     }
   }
   ;
@@ -145,7 +175,7 @@ public enum SystemTable {
     this.tableName = tableName;
     this.distributed = distributed;
     this.pojoClass = pojoClass;
-    this.key = new NamespaceKey(ImmutableList.<String>of("sys", tableName));
+    this.key = new NamespaceKey(ImmutableList.of("sys", tableName));
   }
 
   public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
@@ -179,7 +209,7 @@ public enum SystemTable {
       }
 
       @Override
-      public DatasetConfig getDataset() throws Exception {
+      public DatasetConfig getDataset() {
         final DatasetConfig dataset;
         if(oldDataset == null) {
           dataset = new DatasetConfig()
@@ -203,10 +233,10 @@ public enum SystemTable {
       }
 
       @Override
-      public List<DatasetSplit> getSplits() throws Exception {
+      public List<DatasetSplit> getSplits() {
         // The split calculation is dynamic based on nodes at the time of execution, create a single split for the purposes here
         DatasetSplit split = new DatasetSplit();
-        split.setSize(1l);
+        split.setSize(1L);
         split.setSplitKey("1");
         return ImmutableList.of(split);
       }

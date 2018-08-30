@@ -31,6 +31,7 @@ import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -73,6 +74,7 @@ import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.InputValidation;
+import com.dremio.dac.server.UIOptions;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
@@ -84,6 +86,7 @@ import com.dremio.dac.service.errors.HomeNotFoundException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.file.File;
 import com.dremio.file.FileName;
 import com.dremio.file.FilePath;
@@ -127,6 +130,7 @@ public class HomeResource {
   private final HomeFileTool fileStore;
   private final CatalogServiceHelper catalogServiceHelper;
   private final Catalog catalog;
+  private final SabotContext sabotContext;
 
   @Inject
   public HomeResource(
@@ -138,6 +142,7 @@ public class HomeResource {
     HomeFileTool fileStore,
     CatalogServiceHelper catalogServiceHelper,
     Catalog catalog,
+    SabotContext sabotContext,
     @PathParam("homeName") HomeName homeName) {
     this.namespaceService = namespaceService;
     this.datasetService = datasetService;
@@ -149,6 +154,7 @@ public class HomeResource {
     this.fileStore = fileStore;
     this.catalogServiceHelper = catalogServiceHelper;
     this.catalog = catalog;
+    this.sabotContext = sabotContext;
   }
 
   protected Dataset newDataset(DatasetResourcePath resourcePath,
@@ -221,6 +227,11 @@ public class HomeResource {
                          @FormDataParam("file") FormDataContentDisposition contentDispositionHeader,
                          @FormDataParam("fileName") FileName fileName,
                          @QueryParam("extension") String extension) throws Exception {
+    // check if file uploads are allowed
+    if (!sabotContext.getOptionManager().getOption(UIOptions.ALLOW_FILE_UPLOADS)) {
+      throw new ForbiddenException("File uploads have been disabled.");
+    }
+
     // add some validation
     InputValidation inputValidation = new InputValidation();
     inputValidation.validate(fileName);
@@ -263,6 +274,11 @@ public class HomeResource {
   @Consumes(MediaType.APPLICATION_JSON)
   @Produces(MediaType.APPLICATION_JSON)
   public File finishUploadFile(FileFormat fileFormat, @PathParam("path") String path) throws Exception {
+    // check if file uploads are allowed
+    if (!sabotContext.getOptionManager().getOption(UIOptions.ALLOW_FILE_UPLOADS)) {
+      throw new ForbiddenException("File uploads have been disabled.");
+    }
+
     final FilePath filePath = FilePath.fromURLPath(homeName, path);
     if (namespaceService.exists(filePath.toNamespaceKey())) {
       throw UserException.validationError()

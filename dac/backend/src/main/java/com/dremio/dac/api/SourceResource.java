@@ -24,6 +24,7 @@ import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -31,12 +32,18 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.service.errors.ServerErrorException;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.conf.SourceType;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -54,6 +61,8 @@ import com.google.common.annotations.VisibleForTesting;
 @Consumes(APPLICATION_JSON)
 @Produces(APPLICATION_JSON)
 public class SourceResource {
+  private static final Logger logger = LoggerFactory.getLogger(SourceResource.class);
+
   /**
    * 1.5 changed _type to entityType, this class provides backwards compatibility
    */
@@ -90,10 +99,12 @@ public class SourceResource {
   }
 
   private final SourceService sourceService;
+  private final SabotContext sabotContext;
 
   @Inject
-  public SourceResource(SourceService sourceService) {
+  public SourceResource(SourceService sourceService, SabotContext sabotContext) {
     this.sourceService = sourceService;
+    this.sabotContext = sabotContext;
   }
 
   @GET
@@ -126,7 +137,7 @@ public class SourceResource {
   @GET
   @RolesAllowed({"admin", "user"})
   @Path("/{id}")
-  public SourceDeprecated getSource(@PathParam("id") String id) {
+  public SourceDeprecated getSource(@PathParam("id") String id) throws NamespaceException {
     SourceConfig sourceConfig = sourceService.getById(id);
 
     return fromSourceConfig(sourceConfig);
@@ -149,10 +160,47 @@ public class SourceResource {
   @DELETE
   @RolesAllowed("admin")
   @Path("/{id}")
-  public Response deleteSource(@PathParam("id") String id) {
+  public Response deleteSource(@PathParam("id") String id) throws NamespaceException {
     SourceConfig config = sourceService.getById(id);
     sourceService.deleteSource(config);
     return Response.ok().build();
+  }
+
+  // Returns all source types in Dremio
+  @GET
+  @RolesAllowed("admin")
+  @Path("/type")
+  public ResponseList<SourceTypeTemplate> getSourceTypes() {
+    final ResponseList<SourceTypeTemplate> types = new ResponseList<>();
+    final ScanResult classpathScan = sabotContext.getClasspathScan();
+
+    for(Class<?> input : classpathScan.getAnnotatedClasses(SourceType.class)) {
+      SourceType type = input.getAnnotation(SourceType.class);
+
+      // we can't use isInternal as its not a static method, instead we only list configurable sources
+      if (type.configurable()) {
+        types.add(SourceTypeTemplate.fromSourceClass(input, false));
+      }
+    }
+
+    return types;
+  }
+
+  // Returns the specified source type with all its properties expanded
+  @GET
+  @RolesAllowed("admin")
+  @Path("/type/{name}")
+  public SourceTypeTemplate getSourceByType(@PathParam("name") String name) {
+    ScanResult classpathScan = sabotContext.getClasspathScan();
+
+    for(Class<?> input : classpathScan.getAnnotatedClasses(SourceType.class)) {
+      SourceType type = input.getAnnotation(SourceType.class);
+      if (type.configurable() && type.value().equals(name)) {
+        return SourceTypeTemplate.fromSourceClass(input, true);
+      }
+    }
+
+    throw new NotFoundException(String.format("Could not find source of type [%s]", name));
   }
 
   @VisibleForTesting

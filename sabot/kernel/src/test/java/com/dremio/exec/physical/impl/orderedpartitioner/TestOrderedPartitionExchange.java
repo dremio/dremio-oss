@@ -97,9 +97,9 @@ public class TestOrderedPartitionExchange extends PopUnitTestBase {
             previous1 = current1;
             previous2 = current2;
             partPrevious = partCurrent;
-            current1 = vv1.getAccessor().get(i);
-            current2 = vv2.getAccessor().get(i);
-            partCurrent = pVector.getAccessor().get(i);
+            current1 = vv1.get(i);
+            current2 = vv2.get(i);
+            partCurrent = pVector.get(i);
             Assert.assertTrue(current1 >= previous1);
             if (current1 == previous1) {
               Assert.assertTrue(current2 <= previous2);

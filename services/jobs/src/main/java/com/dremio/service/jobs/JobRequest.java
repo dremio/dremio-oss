@@ -194,6 +194,16 @@ public final class JobRequest {
     }
 
     /**
+     * Set the substitution settings for this job request.
+     * @param the substitution settings for this run.
+     * @return this builder.
+     */
+    public Builder setSubstitutionSettings(SubstitutionSettings substitutionSettings) {
+      this.substitutionSettings = substitutionSettings;
+      return this;
+    }
+
+    /**
      * Set the dataset path that the job will run against. Optional.
      *
      * @param datasetPath dataset path

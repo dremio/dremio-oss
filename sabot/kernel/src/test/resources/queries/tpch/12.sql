@@ -14,8 +14,8 @@ select
     else 0
   end) as low_line_count
 from
-  cp.`tpch/orders.parquet` o,
-  cp.`tpch/lineitem.parquet` l
+  cp."tpch/orders.parquet" o,
+  cp."tpch/lineitem.parquet" l
 where
   o.o_orderkey = l.l_orderkey
   and l.l_shipmode in ('TRUCK', 'REG AIR')

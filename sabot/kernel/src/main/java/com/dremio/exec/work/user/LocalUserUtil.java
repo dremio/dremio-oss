@@ -22,7 +22,7 @@ import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;

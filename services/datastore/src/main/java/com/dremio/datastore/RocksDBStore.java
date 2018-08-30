@@ -254,32 +254,25 @@ class RocksDBStore implements ByteStore {
   @Override
   @VisibleForTesting
   public void deleteAllValues() throws IOException {
-    final DeferredException deferred = new DeferredException();
-    synchronized(this) {
-      deleteAllIterators(deferred);
+    exclusively((deferred) -> {
+      synchronized(this) {
+        deleteAllIterators(deferred);
 
-      try {
-        db.dropColumnFamily(handle);
-      }catch(RocksDBException ex){
-        deferred.addException(ex);
+        try {
+          db.dropColumnFamily(handle);
+        } catch(RocksDBException ex) {
+          deferred.addException(ex);
+        }
+
+        deferred.suppressingClose(handle);
+
+        try {
+          this.handle = db.createColumnFamily(family);
+        } catch (Exception ex) {
+          deferred.addException(ex);
+        }
       }
-
-      deferred.suppressingClose(handle);
-
-      try {
-        this.handle = db.createColumnFamily(family);
-      } catch (Exception ex) {
-        deferred.addException(ex);
-      }
-
-      try {
-        deferred.close();
-      }catch(IOException ex) {
-        throw ex;
-      }catch(Exception ex) {
-        throw new IOException(ex);
-      }
-    }
+    });
   }
 
   @Override
@@ -330,12 +323,29 @@ class RocksDBStore implements ByteStore {
     }
   }
 
+  private interface ExclusiveOperation {
+    void execute(DeferredException e) throws RocksDBException;
+  }
+
   @Override
   public void close() throws IOException {
     if (COLLECT_METRICS) {
       MetricUtils.removeAllMetricsThatStartWith(MetricRegistry.name(METRICS_PREFIX, name));
     }
 
+    exclusively((deferred) -> {
+      deleteAllIterators(deferred);
+      try(FlushOptions options = new FlushOptions()){
+        options.setWaitForFlush(true);
+        db.flush(options, handle);
+      } catch (RocksDBException ex) {
+        deferred.addException(ex);
+      }
+      deferred.suppressingClose(handle);
+    });
+  }
+
+  private void exclusively(ExclusiveOperation operation) throws IOException {
     // Attempt to acquire all exclusive locks to limit concurrent writes occurring.
     ArrayList<AutoCloseableLock> acquiredLocks = new ArrayList<>(exclusiveLocks.length);
     for (int i = 0; i < exclusiveLocks.length; i++) {
@@ -351,25 +361,17 @@ class RocksDBStore implements ByteStore {
       }
     }
 
-    DeferredException deferred = new DeferredException();
-    deleteAllIterators(deferred);
-    try(FlushOptions options = new FlushOptions()){
-      options.setWaitForFlush(true);
-      db.flush(options, handle);
-    } catch (RocksDBException ex) {
-      deferred.addException(ex);
-    }
-    deferred.suppressingClose(handle);
-
-    // Release acquired locks.
-    deferred.suppressingClose(AutoCloseables.all(acquiredLocks));
-
-    try {
-      deferred.close();
-    }catch(IOException ex) {
-      throw ex;
-    }catch(Exception ex) {
-      throw new IOException(ex);
+    try(DeferredException deferred = new DeferredException()) {
+      try {
+        operation.execute(deferred);
+      } catch(RocksDBException e) {
+        deferred.addException(e);
+      }
+      deferred.suppressingClose(AutoCloseables.all(acquiredLocks));
+    } catch (IOException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new IOException(e);
     }
   }
 

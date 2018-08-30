@@ -1,0 +1,18 @@
+[
+  {"label": "Amazon Redshift", "sourceType": "REDSHIFT"},
+  {"label": "Amazon S3", "sourceType": "S3"},
+  {"label": "Elasticsearch", "sourceType": "ELASTIC"},
+  {"label": "HBase", "sourceType": "HBASE"},
+  {"label": "HDFS", "sourceType": "HDFS"},
+  {"label": "Hive", "sourceType": "HIVE"},
+  {"label": "MapR-FS", "sourceType": "MAPRFS"},
+  {"label": "Microsoft SQL Server", "sourceType": "MSSQL"},
+  {"label": "MongoDB", "sourceType": "MONGO"},
+  {"label": "MySQL", "sourceType": "MYSQL"},
+  {"label": "NAS", "sourceType": "NAS"},
+  {"label": "Oracle", "sourceType": "ORACLE"},
+  {"label": "PostgreSQL", "sourceType": "POSTGRES"},
+  {"label": "Azure Data Lake Store", "sourceType": "ADL"},
+  {"label": "IBM DB2", "sourceType": "DB2"},
+  {"label": "Sample Source", "sourceType": "SampleSource"}
+]

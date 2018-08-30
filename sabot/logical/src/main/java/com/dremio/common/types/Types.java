@@ -43,7 +43,7 @@ public class Types {
   public static boolean isComplex(final MajorType type) {
     switch(type.getMinorType()) {
     case LIST:
-    case MAP:
+    case STRUCT:
       return true;
     }
 
@@ -124,7 +124,7 @@ public class Types {
       case FIXED16CHAR:     return "NATIONAL CHARACTER";
 
       case VARBINARY:       return "BINARY VARYING";
-      case FIXEDBINARY:     return "BINARY";
+      case FIXEDSIZEBINARY:     return "BINARY";
 
       case DATE:            return "DATE";
       case TIME:            return "TIME";
@@ -144,7 +144,7 @@ public class Types {
       // Composite types and other types that are not atomic types (SQL standard
       // or not) except ARRAY types (handled above):
 
-      case MAP:             return "MAP";
+      case STRUCT:             return "MAP";
       case LATE:            return "ANY";
       case NULL:            return "NULL";
       case UNION:           return "UNION";
@@ -245,7 +245,7 @@ public class Types {
           case VARCHAR:
           case FIXEDCHAR:      // SQL CHARACTER
           case VARBINARY:
-          case FIXEDBINARY:    // SQL BINARY
+          case FIXEDSIZEBINARY:    // SQL BINARY
           case DATE:
           case TIME:           // SQL TIME WITHOUT TIME ZONE
           case TIMESTAMP: // SQL TIMESTAMP WITHOUT TIME ZONE
@@ -259,7 +259,7 @@ public class Types {
           case GENERIC_OBJECT:
           case LATE:
           case LIST:
-          case MAP:
+          case STRUCT:
           case UNION:
           case NULL:
           case TIMETZ:      // SQL TIME WITH TIME ZONE
@@ -316,7 +316,7 @@ public class Types {
     case FIXED16CHAR:     return precision; // number of characters
 
     case VARBINARY:
-    case FIXEDBINARY:     return 2 * precision; // each binary byte is represented as a 2digit hex number
+    case FIXEDSIZEBINARY:     return 2 * precision; // each binary byte is represented as a 2digit hex number
 
     case DATE:            return 10; // yyyy-mm-dd
     case TIME:
@@ -347,7 +347,7 @@ public class Types {
           : 0; // if precision is not set, return 0 because there's not enough info
 
     case INTERVAL:
-    case MAP:
+    case STRUCT:
     case LATE:
     case NULL:
     case UNION:           return 0;
@@ -447,7 +447,7 @@ public class Types {
       return false;
     }
     switch(type.getMinorType()) {
-    case FIXEDBINARY:
+    case FIXEDSIZEBINARY:
     case VARBINARY:
       return true;
     default:
@@ -466,7 +466,7 @@ public class Types {
     switch(type.getMinorType()) {
     case LATE:
       return Comparability.UNKNOWN;
-    case MAP:
+    case STRUCT:
       return Comparability.NONE;
     case BIT:
       return Comparability.EQUAL;
@@ -702,7 +702,7 @@ public class Types {
    */
   public static boolean isSortable(MinorType type) {
     // Only map and list columns are not sortable.
-    return type != MinorType.MAP && type != MinorType.LIST;
+    return type != MinorType.STRUCT && type != MinorType.LIST;
   }
 
 }

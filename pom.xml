@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-root</artifactId>
-  <version>2.0.5-201806021755080191-767cfb5</version>
+  <version>2.1.4-201808302048550610_0981242</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Root</name>
@@ -30,8 +30,6 @@
   <url>https://github.com/dremio/dremio-oss</url>
 
   <properties>
-    <!-- IMPORTANT NOTE: always use the same version of lucene as elasticsearch -->
-    <lucene.version>5.5.2</lucene.version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -40,9 +38,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.8.0-201804280314010062-9a17ead-dremio203</arrow.version>
-    <avatica.version>1.9.0</avatica.version>
-    <calcite.version>1.12.0-201805292230260062-7cc8f8e</calcite.version>
+    <arrow.version>0.10.0-201806210053570350-1f84eef-dremio</arrow.version>
+    <avatica.version>1.11.0</avatica.version>
+    <calcite.version>1.16.0-201807312206090258-e1b02e7</calcite.version>
     <db2jcc.version>4.23.42</db2jcc.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
@@ -51,36 +49,42 @@
     <!-- Currently Hive storage plugin only supports Apache Hive 1.2 or vendor
       specific variants of the Apache Hive 1.2. If the version is changed, make
       sure the jars and their dependencies are updated. -->
-    <hive.version>1.2.1</hive.version>
+    <hive.version>2.1.1-dremio-201808171815330521-063f87a</hive.version>
     <hbase.version>1.1.3</hbase.version>
-    <hadoop.version>2.8.0</hadoop.version>
+    <hadoop.version>2.8.3</hadoop.version>
     <hsqldb.version>2.3.1</hsqldb.version>
     <jackson.version>2.7.9</jackson.version>
     <jersey.version>2.25.1</jersey.version>
     <jetty.version>9.2.22.v20170606</jetty.version>
     <javax.ws.rs-api.version>2.0.1</javax.ws.rs-api.version>
     <junit.version>4.12</junit.version>
+    <lilith.version>0.9.44</lilith.version>
     <!--  Careful, 1.1.6 & 1.1.7 break a weird validate debug feature in Calcite... -->
     <logback.version>1.1.3</logback.version>
     <metrics.version>4.0.2</metrics.version>
     <mariadb.connector.version>1.6.2</mariadb.connector.version>
-    <netty.version>4.1.17.Final</netty.version>
-    <parquet.version>1.8.1-fast-201804192325500953-3da9318</parquet.version>
+    <netty.version>4.1.22.Final</netty.version>
+    <parquet.version>1.8.1-fast-201808062344590567-7d04803</parquet.version>
     <postgresql.version>42.1.1.jre7</postgresql.version>
     <protobuf.version>2.5.0</protobuf.version>
     <protostuff.version>1.4.4</protostuff.version>
     <scott-data-hsqldb.version>0.1</scott-data-hsqldb.version>
     <slf4j.version>1.7.10</slf4j.version>
     <twill.version>0.11.0-201706241649560687-1b32fe4e</twill.version>
+    <zkclient.version>0.10</zkclient.version>
     <zookeeper.version>3.4.10</zookeeper.version>
     <curator.version>2.12.0</curator.version>
     <aws-sdk.version>1.11.156</aws-sdk.version>
+    <openhft-affinity.version>3.1.7</openhft-affinity.version>
+    <fbs.version>1.2.0-3f79e055</fbs.version>
 
-    <elasticsearch.version>2.2.1</elasticsearch.version>
+    <!-- Use ES 5.5 instead of 5.6. The 5.6 client sends "source" instead of "inline" which isn't supported with older ES5 servers. -->
+    <elasticsearch.version>5.5.3</elasticsearch.version>
+    <!-- Specify API versions to test ES against. -->
+    <tests.elasticsearch.api.version>${elasticsearch.version}</tests.elasticsearch.api.version>
     <!-- IMPORTANT NOTE: always use the same version of lucene as elasticsearch -->
-    <lucene.version>5.4.1</lucene.version>
+    <lucene.version>6.6.0</lucene.version>
 
-    <enable-backticks>false</enable-backticks>
     <surefire.extra.argLine></surefire.extra.argLine>
 
     <target.gen.source.path>${project.basedir}/target/generated-sources</target.gen.source.path>
@@ -116,7 +120,7 @@
         </property>
       </activation>
       <properties>
-        <hive.version>1.2.0-mapr-1703</hive.version>
+        <hive.version>2.1.1-mapr-1803-201808171816130523-b0e070e</hive.version>
         <hbase.version>1.1.8-mapr-1703</hbase.version>
         <hadoop.version>2.7.0-mapr-1703</hadoop.version>
         <maprfs.version>5.2.2.201801021050-mapr</maprfs.version>
@@ -291,6 +295,7 @@
                     <exclude>javax.servlet:servlet-api</exclude>
                     <exclude>org.mortbay.jetty:servlet-api</exclude>
                     <exclude>org.mortbay.jetty:servlet-api-2.5</exclude>
+                    <exclude>org.apache.logging.log4j:log4j-slf4j-impl</exclude>
                     <exclude>log4j:*</exclude>
                     <exclude>io.netty:*:4.0</exclude> <!-- exclude netty versions 4.0 and above. some of our dependencies (e.g. ES) still depend on netty 3.x which is fine as versions < 4.0 have a completely different package names -->
                   </excludes>
@@ -427,7 +432,6 @@ limitations under the License.
           <includes>
             <include>src/**</include>
             <include>*</include>
-            <include>**/.mvn/**</include>
           </includes>
           <excludes>
             <!-- default excludes (minus some items) from https://github.com/mycila/license-maven-plugin/blob/61f65ac65bfc38246a15fb84083796c5e3afb053/license-maven-plugin/src/main/java/com/mycila/maven/plugin/license/Default.java -->
@@ -462,6 +466,7 @@ limitations under the License.
             <exclude>**/.git/**</exclude>
             <exclude>**/.gitignore</exclude>
             <exclude>**/.gitmodules</exclude>
+            <exclude>**/.indexing</exclude>
             <exclude>**/BitKeeper</exclude>
             <exclude>**/BitKeeper/**</exclude>
             <exclude>**/ChangeSet</exclude>
@@ -541,6 +546,7 @@ limitations under the License.
             <exclude>**/*.jks</exclude>
             <exclude>**/*.nonformat</exclude>
             <exclude>**/*.gzip</exclude>
+            <exclude>**/*.fbs</exclude>
 
             <!-- by file name -->
             <exclude>**/Jenkinsfile</exclude>
@@ -554,6 +560,10 @@ limitations under the License.
             <exclude>**/.eslintrc</exclude>
             <exclude>**/git.properties</exclude>
             <exclude>**/pom.xml.versionsBackup</exclude>
+            <exclude>**/scheduler-core-default.xml</exclude>
+            <exclude>**/scheduler-yarn-default.xml</exclude>
+            <exclude>mvnw</exclude>
+            <exclude>mvnw.cmd</exclude>
 
             <!-- by directory name -->
             <exclude>**/node_modules/**</exclude>
@@ -657,7 +667,6 @@ limitations under the License.
               -XX:+CMSClassUnloadingEnabled
               ${surefire.extra.argLine}
             </argLine>
-            <rerunFailingTestsCount>3</rerunFailingTestsCount>
             <enableAssertions>true</enableAssertions>
             <forkCount>${forkCount}</forkCount>
             <reuseForks>true</reuseForks>
@@ -665,7 +674,6 @@ limitations under the License.
               <additionalClasspathElement>./exec/jdbc/src/test/resources/storage-plugins.json</additionalClasspathElement>
             </additionalClasspathElements>
             <systemPropertyVariables>
-              <dremio.legacy.backticks_for_identifiers>${enable-backticks}</dremio.legacy.backticks_for_identifiers>
               <dremio.exec.compile.cache_max_size>50</dremio.exec.compile.cache_max_size>
               <dremio.exec.http.enabled>false</dremio.exec.http.enabled>
               <dremio.test.query.printing.silent>true</dremio.test.query.printing.silent>
@@ -1005,6 +1013,11 @@ limitations under the License.
       <scope>runtime</scope>
     </dependency>
     <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-to-slf4j</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
       <scope>test</scope>
@@ -1069,6 +1082,11 @@ limitations under the License.
         <version>${project.version}</version>
       </dependency>
       <dependency>
+        <groupId>com.dremio.distribution</groupId>
+        <artifactId>dremio-distribution-resources</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
         <groupId>com.dremio.provision</groupId>
         <artifactId>dremio-provision-common</artifactId>
         <version>${project.version}</version>
@@ -1114,6 +1132,11 @@ limitations under the License.
         <artifactId>dremio-services-namespace</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.services</groupId>
+        <artifactId>dremio-services-resourcescheduler</artifactId>
+        <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>com.dremio.services</groupId>
@@ -1234,6 +1257,11 @@ limitations under the License.
         <artifactId>metrics-jmx</artifactId>
         <version>${metrics.version}</version>
       </dependency>
+       <dependency>
+         <groupId>com.101tec</groupId>
+         <artifactId>zkclient</artifactId>
+         <version>${zkclient.version}</version>
+       </dependency>
       <!--- MAKE SURE TO CHECK ON LICENSE -->
       <dependency>
         <groupId>com.dremio.jdbc</groupId>
@@ -1253,7 +1281,7 @@ limitations under the License.
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>18.0</version>
+        <version>20.0</version>
       </dependency>
       <dependency>
         <groupId>com.google.protobuf</groupId>
@@ -1308,7 +1336,7 @@ limitations under the License.
       <dependency>
         <groupId>com.vlkan</groupId>
         <artifactId>flatbuffers</artifactId>
-        <version>1.2.0-3f79e055</version>
+        <version>${fbs.version}</version>
       </dependency>
       <dependency>
         <groupId>commons-codec</groupId>
@@ -1323,7 +1351,7 @@ limitations under the License.
       <dependency>
         <groupId>de.huxhorn.lilith</groupId>
         <artifactId>de.huxhorn.lilith.logback.appender.multiplex-classic</artifactId>
-        <version>0.9.44</version>
+        <version>${lilith.version}</version>
       </dependency>
       <dependency>
         <groupId>io.netty</groupId>
@@ -1664,6 +1692,18 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-common-native</artifactId>
+        <version>${hadoop.version}</version>
+        <classifier>linux</classifier>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-native-libraries</artifactId>
+        <version>1.0.1</version>
+        <classifier>linux</classifier>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-client</artifactId>
         <version>${hadoop.version}</version>
         <exclusions>
@@ -1910,6 +1950,10 @@ limitations under the License.
             <groupId>org.codehaus.jackson</groupId>
             <artifactId>jackson-jaxrs</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -1934,6 +1978,10 @@ limitations under the License.
           <exclusion>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -2312,6 +2360,14 @@ limitations under the License.
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-common</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.mortbay.jetty</groupId>
+            <artifactId>servlet-api-2.5</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -2428,6 +2484,17 @@ limitations under the License.
         </exclusions>
       </dependency>
       <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-configuration2</artifactId>
+        <version>2.1.1</version>
+        <exclusions>
+          <exclusion>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>jcl-over-slf4j</artifactId>
         <version>${slf4j.version}</version>
@@ -2444,6 +2511,11 @@ limitations under the License.
         <artifactId>log4j-over-slf4j</artifactId>
         <version>${slf4j.version}</version>
         <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-to-slf4j</artifactId>
+        <version>2.8.2</version>
       </dependency>
       <dependency>
         <groupId>org.slf4j</groupId>
@@ -2469,6 +2541,36 @@ limitations under the License.
         <groupId>xalan</groupId>
         <artifactId>xalan</artifactId>
         <version>2.7.1</version>
+      </dependency>
+      <dependency>
+        <groupId>net.openhft</groupId>
+        <artifactId>affinity</artifactId>
+        <version>${openhft-affinity.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>net.java.dev.jna</groupId>
+        <artifactId>jna</artifactId>
+        <version>4.4.0</version>
+      </dependency>
+      <dependency>
+        <groupId>net.java.dev.jna</groupId>
+        <artifactId>jna-platform</artifactId>
+        <version>4.4.0</version>
+      </dependency>
+      <dependency>
+        <groupId>javax.xml.stream</groupId>
+        <artifactId>stax-api</artifactId>
+        <version>1.0-2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.xmlbeans</groupId>
+        <artifactId>xmlbeans</artifactId>
+        <exclusions>
+          <exclusion>
+            <groupId>stax</groupId>
+            <artifactId>stax-api</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
     </dependencies>
   </dependencyManagement>

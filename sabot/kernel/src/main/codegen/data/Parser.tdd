@@ -24,6 +24,7 @@
     "com.dremio.exec.planner.sql.parser.*",
     "org.apache.calcite.util.*",
     "com.dremio.exec.util.*",
+    "com.dremio.exec.planner.sql.parser.SqlCreateReflection.MeasureType",
     "java.util.*"
   ]
 
@@ -31,7 +32,6 @@
   keywords: [
     "DATABASES",
     "SCHEMAS",
-    "SHOW",
     "LOCALSORT",
     "TABLES",
     "USE",
@@ -52,7 +52,6 @@
     "LAYOUT",
     "REFLECTION",
     "DIMENSIONS",
-    "MEASURES",
     "RAW",
     "DISPLAY",
     "ENABLE",
@@ -62,8 +61,12 @@
     "VDS",
     "DATASET",
     "STATUS",
-    "LOAD"
-    "MATERIALIZATION"
+    "LOAD",
+    "MATERIALIZATION",
+    "APPROXIMATE",
+    "APPROX",
+    "STATS",
+    "COMPACT"
   ]
 
   nonReservedKeywords: [
@@ -91,7 +94,10 @@
     "VDS",
     "DATASET",
     "STATUS",
-    "MATERIALIZATION"
+    "MATERIALIZATION",
+    "APPROXIMATE",
+    "APPROX",
+    "STATS"
   ]
 
   # List of methods for parsing custom SQL statements.
@@ -107,7 +113,8 @@
     "SqlDropTable()",
     "SqlAccel()",
     "SqlRefreshReflection()",
-    "SqlLoadMaterialization()"
+    "SqlLoadMaterialization()",
+    "SqlCompactMaterialization()"
   ]
 
   # List of methods for parsing custom literals.

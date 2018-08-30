@@ -41,6 +41,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.dremio.common.VM;
 import com.dremio.config.DremioConfig;
 import com.dremio.provision.Property;
 import com.dremio.provision.PropertyType;
@@ -119,9 +120,10 @@ public class TestYarnController {
     assertTrue(jvmOptions.contains(" -Djava.security.auth.login.config=/opt/mapr/conf/mapr.login.conf"));
     assertTrue(jvmOptions.contains(" -Dpaths.spilling=[maprfs:///var/mapr/local/${NM_HOST}/mapred/spill]"));
     assertFalse(jvmOptions.contains("JAVA_HOME"));
-    assertTrue(jvmOptions.contains(" -D"+DremioConfig.EXECUTOR_CPU + "=2"));
+    assertTrue(jvmOptions.contains(" -D"+VM.DREMIO_CPU_AVAILABLE_PROPERTY + "=2"));
 
     DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {
+      @Override
       public String getEnv(String name) {
         return tempDir.getRoot().toString();
       }
@@ -153,6 +155,7 @@ public class TestYarnController {
     yarnConfiguration.set(DacDaemonYarnApplication.DEPLOYMENT_POLICY, "default");
 
     DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {
+      @Override
       public String getEnv(String name) {
         return tempDir.getRoot().toString();
       }
@@ -200,6 +203,7 @@ public class TestYarnController {
   public void testRegexInPath() throws Exception {
     assumeNonMaprProfile();
     DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {
+      @Override
       public String getEnv(String name) {
         return tempDir.getRoot().toString();
       }
@@ -208,7 +212,7 @@ public class TestYarnController {
     System.setProperty("provisioning.yarn.classpath", "["+ tempDir.getRoot().toString() +
       "/jars/bundled/" + SOME_JAR_TO_LOAD + "]");
     YarnConfiguration yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
-    yarnConfiguration.set(YarnDefaultsConfigurator.APP_CLASSPATH_JARS, YarnDefaultsConfigurator.MapRYarnDefaults.getAppClassPath());
+    yarnConfiguration.set(YarnDefaultsConfigurator.CLASSPATH_JARS, YarnDefaultsConfigurator.MapRYarnDefaults.getAppClassPath());
     DacDaemonYarnApplication dacDaemonApp = new DacDaemonYarnApplication(DremioConfig.create(),
       yarnConfiguration, myEnv);
 
@@ -227,6 +231,7 @@ public class TestYarnController {
   public void testRegexInPathNonMapR() throws Exception {
     assumeNonMaprProfile();
     DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {
+      @Override
       public String getEnv(String name) {
         return tempDir.getRoot().toString();
       }
@@ -251,13 +256,14 @@ public class TestYarnController {
   public void testEmptyYarnClasspath() throws Exception {
     assumeNonMaprProfile();
     DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {
+      @Override
       public String getEnv(String name) {
         return tempDir.getRoot().toString();
       }
     };
 
     YarnConfiguration yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
-    yarnConfiguration.set(YarnDefaultsConfigurator.APP_CLASSPATH_JARS, YarnDefaultsConfigurator.MapRYarnDefaults.getAppClassPath());
+    yarnConfiguration.set(YarnDefaultsConfigurator.CLASSPATH_JARS, YarnDefaultsConfigurator.MapRYarnDefaults.getAppClassPath());
     DacDaemonYarnApplication dacDaemonApp = new DacDaemonYarnApplication(DremioConfig.create(),
       yarnConfiguration, myEnv);
 
@@ -274,6 +280,7 @@ public class TestYarnController {
   public void testNonMapRYarnClasspath() throws Exception {
     assumeNonMaprProfile();
     DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {
+      @Override
       public String getEnv(String name) {
         return tempDir.getRoot().toString();
       }

@@ -25,9 +25,8 @@ import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.server.options.OptionValue;
-import com.dremio.exec.testing.ExecutionControls;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserSession;
 
@@ -44,7 +43,7 @@ public class ControlsInjectionUtil {
   public static void setSessionOption(final DremioClient dremioClient, final String option, final String value) {
     try {
       final List<QueryDataBatch> results = dremioClient.runQuery(
-        UserBitShared.QueryType.SQL, String.format("ALTER session SET `%s` = %s",
+        UserBitShared.QueryType.SQL, String.format("ALTER session SET \"%s\" = %s",
           option, value));
       for (final QueryDataBatch data : results) {
         data.release();

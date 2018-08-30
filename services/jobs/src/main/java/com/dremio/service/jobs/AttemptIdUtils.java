@@ -17,10 +17,11 @@ package com.dremio.service.jobs;
 
 import java.util.UUID;
 
+
+import com.dremio.common.utils.protos.ExternalIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
-import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.work.AttemptId;
-import com.dremio.exec.work.ExternalIdHelper;
 
 /**
  * Helper class to convert from/to {@code com.dremio.exec.work.AttemptId}

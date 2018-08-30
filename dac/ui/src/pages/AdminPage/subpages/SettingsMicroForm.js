@@ -18,37 +18,32 @@ import { connect } from 'react-redux';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import { propTypes as reduxFormPropTypes} from 'redux-form';
+import { propTypes as reduxFormPropTypes } from 'redux-form';
 
-import { InnerComplexForm, connectComplexForm } from 'components/Forms/connectComplexForm.js';
+import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm.js';
 import SimpleButton from 'components/Buttons/SimpleButton';
 import TextField from 'components/Fields/TextField';
 import Toggle from 'components/Fields/Toggle';
 import FieldWithError from 'components/Fields/FieldWithError';
-import { isRequired, isNumber, isInteger } from 'utils/validation';
+import { isInteger, isNumber, isRequired } from 'utils/validation';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import settingActions from 'actions/resources/setting';
 
-import {LABELS, FIELD_OVERRIDES} from './settingsConfig';
+import { FIELD_OVERRIDES, LABELS } from './settingsConfig';
 
 @Radium
 export class SettingsMicroForm extends PureComponent {
   static propTypes = {
     ...reduxFormPropTypes,
-
     viewId: PropTypes.string.isRequired,
-
     settingId: PropTypes.string.isRequired,
     setting: PropTypes.instanceOf(Immutable.Map),
-
     putSetting: PropTypes.func.isRequired,
     getSetting: PropTypes.func.isRequired,
-
     fields: PropTypes.object.isRequired,
-
     showLabel: PropTypes.bool.isRequired,
-
-    style: PropTypes.object
+    style: PropTypes.object,
+    resetSetting: PropTypes.func
   }
 
   static defaultProps = {
@@ -74,6 +69,10 @@ export class SettingsMicroForm extends PureComponent {
     return ApiUtils.attachFormSubmitHandlers(
       this.props.putSetting(data, {viewId: this.props.viewId})
     ).then(() => this.props.getSetting(this.props.settingId, {viewId: this.props.viewId}));
+  }
+
+  remove = () => {
+    this.props.resetSetting && this.props.resetSetting();
   }
 
   renderField() {
@@ -105,10 +104,19 @@ export class SettingsMicroForm extends PureComponent {
 
     const buttonStyle = {
       verticalAlign: 0,
-      // use visibility so that it takes up space (e.g. in Support table)
-      visibility: this.props.fields.value.dirty ? 'visible' : 'hidden',
       minWidth: 50
     };
+
+    const saveButtonStyle = {
+      ...buttonStyle,
+      // use visibility so that it takes up space (e.g. in Support table)
+      visibility: this.props.fields.value.dirty ? 'visible' : 'hidden'
+    };
+
+    // if the reset button is showing then we want the save button to not take up space
+    if (this.props.resetSetting && !this.props.fields.value.dirty) {
+      saveButtonStyle.display = 'none';
+    }
 
     let label = null;
     if (showLabel && LABELS[id] !== '') { // todo: ax
@@ -122,9 +130,12 @@ export class SettingsMicroForm extends PureComponent {
             {this.renderField()}
           </label>
           {/* todo: by default buttons and textfields and toggles don't align. need to (carefully) fix */}
-          <SimpleButton buttonStyle='secondary' style={buttonStyle}>
+          <SimpleButton buttonStyle='secondary' style={saveButtonStyle}>
             {la('Save')}
           </SimpleButton>
+          { this.props.resetSetting && <SimpleButton onClick={this.remove} buttonStyle='secondary' style={buttonStyle}>
+            {la('Reset')}
+          </SimpleButton>}
         </div>
       </FieldWithError>
     </InnerComplexForm>;

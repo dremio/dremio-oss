@@ -24,7 +24,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.common.util.DremioVersionInfo;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.ops.OperatorMetricRegistry;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlanCaptureAttemptObserver;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
@@ -39,17 +42,17 @@ import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.NodePhaseProfile;
+import com.dremio.exec.proto.UserBitShared.NodeQueryProfile;
 import com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
-import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.exec.server.options.OptionList;
 import com.dremio.exec.work.EndpointListener;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
+import com.dremio.options.OptionList;
 import com.dremio.service.Pointer;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -78,10 +81,12 @@ class QueryManager {
   private final CompletionListener completionListener;
   private final PlanCaptureAttemptObserver capturer;
   private final Catalog catalog;
+  private final OptionList nonDefaultOptions;
 
   private ImmutableMap<NodeEndpoint, NodeTracker> nodeMap = ImmutableMap.of();
   private ImmutableMap<FragmentHandle, FragmentData> fragmentDataMap = ImmutableMap.of();
   private ImmutableList<MajorFragmentReporter> reporters = ImmutableList.of();
+  private ImmutableMap<NodeEndpoint, NodeReporter> nodeReporters = ImmutableMap.of();
 
   // the following mutable variables are used to capture ongoing query status
   private long startPlanningTime;
@@ -109,6 +114,7 @@ class QueryManager {
     this.context = context;
     this.prepareId = prepareId;
     this.catalog = catalog;
+    this.nonDefaultOptions = context.getNonDefaultOptions();
 
     capturer = new PlanCaptureAttemptObserver(verboseProfiles, includeDatasetProfiles, context.getFunctionRegistry(),
       context.getAccelerationManager().newPopulator());
@@ -178,6 +184,7 @@ class QueryManager {
     Map<NodeEndpoint, NodeTracker> trackers = new HashMap<>();
     Map<FragmentHandle, FragmentData> dataCollectors = new HashMap<>();
     ArrayListMultimap<Integer, FragmentData> majors = ArrayListMultimap.create();
+    Map<NodeEndpoint, NodeReporter> nodeReporters = new HashMap<>();
 
     for(PlanFragment fragment : fragments) {
       final NodeEndpoint assignment = fragment.getAssignment();
@@ -192,6 +199,10 @@ class QueryManager {
       FragmentData data = new FragmentData(fragment.getHandle(), assignment);
       dataCollectors.put(fragment.getHandle(), data);
       majors.put(fragment.getHandle().getMajorFragmentId(), data);
+
+      if (nodeReporters.get(assignment) == null) {
+        nodeReporters.put(assignment, new NodeReporter(assignment));
+      }
     }
 
     // Major fragments are required to be dense: numbered 0 through N-1
@@ -205,6 +216,7 @@ class QueryManager {
     this.reporters = ImmutableList.copyOf(tempReporters);
     this.nodeMap = ImmutableMap.copyOf(trackers);
     this.fragmentDataMap = ImmutableMap.copyOf(dataCollectors);
+    this.nodeReporters = ImmutableMap.copyOf(nodeReporters);
   }
 
   /**
@@ -295,7 +307,8 @@ class QueryManager {
         .setPlanningStart(startPlanningTime)
         .setPlanningEnd(endPlanningTime)
         .setTotalFragments(fragmentDataMap.size())
-        .setFinishedFragments(finishedFragments.get());
+        .setFinishedFragments(finishedFragments.get())
+        .setDremioVersion(DremioVersionInfo.getVersion());
 
     if(prepareId.value != null){
       profileBuilder.setPrepareId(prepareId.value);
@@ -333,7 +346,6 @@ class QueryManager {
       }
     }
 
-    final OptionList nonDefaultOptions = context.getNonDefaultOptions();
     try {
       profileBuilder.setNonDefaultOptionsJSON(JSON_PRETTY_SERIALIZER.writeValueAsString(nonDefaultOptions));
     } catch (Exception e) {
@@ -345,10 +357,20 @@ class QueryManager {
     profileBuilder.addAllPlanPhases(catalog.getMetadataStatsCollector().getPlanPhaseProfiles());
 
     for(MajorFragmentReporter reporter : reporters) {
-      final MajorFragmentProfile.Builder builder = MajorFragmentProfile.newBuilder().setMajorFragmentId(reporter.majorFragmentId);
+      final MajorFragmentProfile.Builder builder = MajorFragmentProfile.newBuilder()
+        .setMajorFragmentId(reporter.majorFragmentId);
       reporter.add(builder);
       profileBuilder.addFragmentProfile(builder);
     }
+
+    for (NodeReporter nodeReporter : nodeReporters.values()) {
+      final NodeQueryProfile.Builder builder = NodeQueryProfile.newBuilder()
+        .setEndpoint(nodeReporter.endpoint);
+      nodeReporter.add(builder);
+      profileBuilder.addNodeProfile(builder);
+    }
+
+    profileBuilder.setOperatorTypeMetricsMap(OperatorMetricRegistry.getCoreOperatorTypeMetricsMap());
 
     return profileBuilder.build();
   }
@@ -553,6 +575,7 @@ class QueryManager {
     for (NodePhaseStatus phaseStatus : status.getPhaseStatusList()) {
       reporters.get(phaseStatus.getMajorFragmentId()).updatePhaseStatus(endpoint, phaseStatus);
     }
+    nodeReporters.get(endpoint).updateMaxMemory(status.getMaxMemoryUsed());
   }
 
   private class MajorFragmentReporter {
@@ -582,6 +605,25 @@ class QueryManager {
 
     public void updatePhaseStatus(NodeEndpoint assignment, NodePhaseStatus status) {
       perNodeStatus.put(assignment, status);
+    }
+  }
+
+  private class NodeReporter {
+    private final NodeEndpoint endpoint;
+    private long maxMemory;
+
+    public NodeReporter(NodeEndpoint endpoint) {
+      this.endpoint = endpoint;
+      this.maxMemory = 0;
+    }
+
+    public void add(NodeQueryProfile.Builder builder){
+      builder.setEndpoint(endpoint);
+      builder.setMaxMemoryUsed(maxMemory);
+    }
+
+    public void updateMaxMemory(long maxMemory) {
+      this.maxMemory = maxMemory;
     }
   }
 

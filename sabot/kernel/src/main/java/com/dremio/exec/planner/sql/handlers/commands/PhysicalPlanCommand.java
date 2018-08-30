@@ -18,10 +18,12 @@ package com.dremio.exec.planner.sql.handlers.commands;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.PhysicalPlanReader;
+import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
+import com.dremio.resource.ResourceAllocator;
 import com.google.protobuf.ByteString;
 
 // should be deprecated once tests are removed.
@@ -40,8 +42,9 @@ public class PhysicalPlanCommand extends AsyncCommand<Object> {
       QueryContext context,
       PhysicalPlanReader reader,
       AttemptObserver observer,
-      ByteString plan) {
-    super(context);
+      ByteString plan,
+      ResourceAllocator queryResourceManager) {
+    super(context, queryResourceManager, observer);
     this.tunnelCreator = tunnelCreator;
     this.context = context;
     this.reader = reader;
@@ -52,8 +55,8 @@ public class PhysicalPlanCommand extends AsyncCommand<Object> {
   @Override
   public double plan() throws Exception {
     PhysicalPlan plan = reader.readPhysicalPlan(this.plan, FragmentCodec.NONE);
-    setQueueTypeFromPlan(plan);
-    exec = ExecutionPlanCreator.getExecutionPlan(context, reader, observer, plan, getQueueType());
+    final PlanningSet planningSet = allocateResourcesBasedOnPlan(plan);
+    exec = ExecutionPlanCreator.getExecutionPlan(context, reader, observer, plan, resourceSet, planningSet);
     observer.planCompleted(exec);
     return plan.getCost();
   }

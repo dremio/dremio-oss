@@ -26,8 +26,8 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.types.Types;
@@ -62,8 +62,8 @@ public class CustomGenerator implements Generator {
   private final List<JsonStringArrayList<Long>> listValues;
 
   private final VectorContainer container;
-  private final NullableIntVector id;
-  private final NullableVarCharVector value;
+  private final IntVector id;
+  private final VarCharVector value;
   private final ListVector list;
 
   private int position;
@@ -186,8 +186,8 @@ public class CustomGenerator implements Generator {
     }
 
     public void assertIsSorted(VectorContainer container, int startIndex) {
-      final NullableIntVector idVector = container.addOrGet(ID);
-      final NullableVarCharVector valueVector = container.addOrGet(VALUE);
+      final IntVector idVector = container.addOrGet(ID);
+      final VarCharVector valueVector = container.addOrGet(VALUE);
 
       int recordCount = container.getRecordCount();
       int index = startIndex;

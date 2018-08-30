@@ -25,28 +25,28 @@ import java.util.List;
 import java.util.Map;
 import org.apache.arrow.flatbuf.Schema;
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableBitVector;
-import org.apache.arrow.vector.NullableDateMilliVector;
-import org.apache.arrow.vector.NullableDecimalVector;
-import org.apache.arrow.vector.NullableFloat4Vector;
-import org.apache.arrow.vector.NullableFloat8Vector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableIntervalDayVector;
-import org.apache.arrow.vector.NullableIntervalYearVector;
-import org.apache.arrow.vector.NullableSmallIntVector;
-import org.apache.arrow.vector.NullableTimeMilliVector;
-import org.apache.arrow.vector.NullableTimeStampMilliVector;
-import org.apache.arrow.vector.NullableTinyIntVector;
-import org.apache.arrow.vector.NullableUInt1Vector;
-import org.apache.arrow.vector.NullableUInt2Vector;
-import org.apache.arrow.vector.NullableUInt4Vector;
-import org.apache.arrow.vector.NullableUInt8Vector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.DateMilliVector;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.IntervalDayVector;
+import org.apache.arrow.vector.IntervalYearVector;
+import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TimeMilliVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
+import org.apache.arrow.vector.TinyIntVector;
+import org.apache.arrow.vector.UInt1Vector;
+import org.apache.arrow.vector.UInt2Vector;
+import org.apache.arrow.vector.UInt4Vector;
+import org.apache.arrow.vector.UInt8Vector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ZeroVector;
 import org.apache.arrow.vector.complex.ListVector;
-import org.apache.arrow.vector.complex.NullableMapVector;
+import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.BitHolder;
@@ -78,6 +78,7 @@ import org.apache.arrow.vector.holders.UnionHolder;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
+import org.apache.arrow.vector.holders.NullableFixedSizeBinaryHolder;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.IntervalUnit;
@@ -152,7 +153,7 @@ public class CompleteType {
   public static final CompleteType TIME = new CompleteType(new ArrowType.Time(TimeUnit.MILLISECOND, 32));
   public static final CompleteType TIMESTAMP = new CompleteType(new ArrowType.Timestamp(TimeUnit.MILLISECOND, null));
   public static final CompleteType VARCHAR = new CompleteType(ArrowType.Utf8.INSTANCE);
-
+  public static final CompleteType FIXEDSIZEBINARY = new CompleteType(new ArrowType.FixedSizeBinary(128));
 
   private static final String LIST_DATA_NAME = ListVector.DATA_VECTOR_NAME;
   private final ArrowType type;
@@ -272,7 +273,7 @@ public class CompleteType {
     // types that need additional information
     case UNION:
     case LIST:
-    case MAP:
+    case STRUCT:
       throw new UnsupportedOperationException("You can't create a complete type from a minor type when working with type of " + type.name());
 
 
@@ -290,7 +291,7 @@ public class CompleteType {
     case UINT8:
     case VAR16CHAR:
     case FIXED16CHAR:
-    case FIXEDBINARY:
+    case FIXEDSIZEBINARY:
     case FIXEDCHAR:
     case DECIMAL:
     case DECIMAL9:
@@ -404,50 +405,50 @@ public class CompleteType {
     switch (Types.getMinorTypeForArrowType(type)) {
     case UNION:
       return UnionVector.class;
-    case MAP:
-        return NullableMapVector.class;
+    case STRUCT:
+        return StructVector.class;
     case LIST:
         return ListVector.class;
     case NULL:
         return ZeroVector.class;
     case TINYINT:
-      return NullableTinyIntVector.class;
+      return TinyIntVector.class;
     case UINT1:
-      return NullableUInt1Vector.class;
+      return UInt1Vector.class;
     case UINT2:
-      return NullableUInt2Vector.class;
+      return UInt2Vector.class;
     case SMALLINT:
-      return NullableSmallIntVector.class;
+      return SmallIntVector.class;
     case INT:
-      return NullableIntVector.class;
+      return IntVector.class;
     case UINT4:
-      return NullableUInt4Vector.class;
+      return UInt4Vector.class;
     case FLOAT4:
-      return NullableFloat4Vector.class;
+      return Float4Vector.class;
     case INTERVALYEAR:
-      return NullableIntervalYearVector.class;
+      return IntervalYearVector.class;
     case TIMEMILLI:
-      return NullableTimeMilliVector.class;
+      return TimeMilliVector.class;
     case BIGINT:
-      return NullableBigIntVector.class;
+      return BigIntVector.class;
     case UINT8:
-      return NullableUInt8Vector.class;
+      return UInt8Vector.class;
     case FLOAT8:
-      return NullableFloat8Vector.class;
+      return Float8Vector.class;
     case DATEMILLI:
-      return NullableDateMilliVector.class;
+      return DateMilliVector.class;
     case TIMESTAMPMILLI:
-      return NullableTimeStampMilliVector.class;
+      return TimeStampMilliVector.class;
     case INTERVALDAY:
-      return NullableIntervalDayVector.class;
+      return IntervalDayVector.class;
     case DECIMAL:
-      return NullableDecimalVector.class;
+      return DecimalVector.class;
     case VARBINARY:
-      return NullableVarBinaryVector.class;
+      return VarBinaryVector.class;
     case VARCHAR:
-      return NullableVarCharVector.class;
+      return VarCharVector.class;
     case BIT:
-      return NullableBitVector.class;
+      return BitVector.class;
     default:
       break;
     }
@@ -562,6 +563,11 @@ public class CompleteType {
         return ComplexHolder.class;
       }
 
+      @Override
+      public Class<? extends ValueHolder> visit(ArrowType.FixedSizeBinary type) {
+        return ComplexHolder.class;
+      }
+
     });
 
   }
@@ -623,6 +629,8 @@ public class CompleteType {
         return CompleteType.OBJECT;
       } else if (holderClass.equals(UnionHolder.class)) {
         return new CompleteType(new Union(UnionMode.Sparse, new int[0]));
+      } else if (holderClass.equals(NullableFixedSizeBinaryHolder.class)) {
+        return CompleteType.FIXEDSIZEBINARY;
       }
 
       throw new UnsupportedOperationException(String.format("%s is not supported for 'getValueHolderType' method.", holderClass.getName()));

@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.exec.context;
 
+import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
 
@@ -38,6 +39,7 @@ public interface FunctionContext {
   public static final ImmutableMap<Class<?>, String> INJECTABLE_GETTER_METHODS =
       new ImmutableMap.Builder<Class<?>, String>()
           .put(ArrowBuf.class, "getManagedBuffer")
+          .put(BufferManager.class, "getBufferManager")
           .put(PartitionExplorer.class, "getPartitionExplorer")
           .put(ContextInformation.class, "getContextInformation")
           .put(FunctionErrorContext.class, "getFunctionErrorContext")
@@ -65,6 +67,11 @@ public interface FunctionContext {
    *           for memory management
    */
   ArrowBuf getManagedBuffer();
+
+  /**
+   * For UDFs
+   */
+  BufferManager getBufferManager();
 
   /**
    * A partition explorer allows UDFs to view the sub-partitions below a

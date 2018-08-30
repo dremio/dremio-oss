@@ -27,6 +27,8 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
+import com.dremio.test.UserExceptionMatcher;
 
 public class TestStringFunctions extends BaseTestQuery {
 
@@ -36,25 +38,62 @@ public class TestStringFunctions extends BaseTestQuery {
   @Test
   public void testStrPosMultiByte() throws Exception {
     testBuilder()
-        .sqlQuery("select `position`('a', 'abc') res1 from (values(1))")
+        .sqlQuery("select \"position\"('a', 'abc') res1 from (values(1))")
         .ordered()
         .baselineColumns("res1")
         .baselineValues(1)
         .go();
 
       testBuilder()
-          .sqlQuery("select `position`('a', 'abcabc', 2) res1 from (values(1))")
+          .sqlQuery("select \"position\"('a', 'abcabc', 2) res1 from (values(1))")
           .ordered()
           .baselineColumns("res1")
           .baselineValues(4)
           .go();
 
     testBuilder()
-        .sqlQuery("select `position`('\\u11E9', '\\u11E9\\u0031') res1 from (values(1))")
+        .sqlQuery("select \"position\"('\\u11E9', '\\u11E9\\u0031') res1 from (values(1))")
         .ordered()
         .baselineColumns("res1")
         .baselineValues(1)
         .go();
+
+    // edge case
+    testBuilder()
+        .sqlQuery("SELECT POSITION('foo' IN 'foobar' FROM 1) p1, POSITION('foo' IN a FROM 1) p2" +
+            " FROM (VALUES('foobar')) tbl(a)")
+        .ordered()
+        // p1 is calcite const evaluation, p2 is dremio expression evaluation
+        .baselineColumns("p1", "p2")
+        .baselineValues(1, 1)
+        .go();
+  }
+
+  @Test
+  public void locate() throws Exception {
+    testBuilder()
+        .sqlQuery("SELECT LOCATE('foo', 'foobar', 1) l1, LOCATE('foo', a, 1) l2" +
+            " FROM (VALUES('foobar')) tbl(a)")
+        .ordered()
+        // l1 is calcite const evaluation, l2 is dremio expression evaluation
+        .baselineColumns("l1", "l2")
+        .baselineValues(1, 1)
+        .go();
+
+    testBuilder()
+        .sqlQuery("SELECT LOCATE('nope', 'foobar', 1) l1, LOCATE('nope', a, 1) l2" +
+            " FROM (VALUES('foobar')) tbl(a)")
+        .ordered()
+        // l1 is calcite const evaluation, l2 is dremio expression evaluation
+        .baselineColumns("l1", "l2")
+        .baselineValues(0, 0)
+        .go();
+  }
+
+  @Test
+  public void invalidLocate() throws Exception {
+    thrownException.expect(new UserExceptionMatcher(ErrorType.FUNCTION, "Start index (0) must be greater than 0"));
+    test("SELECT LOCATE('nope', a, 0) FROM (VALUES('foobar')) tbl(a)");
   }
 
   @Test
@@ -126,7 +165,7 @@ public class TestStringFunctions extends BaseTestQuery {
     pw.close();
 
     testBuilder()
-      .sqlQuery(String.format("select split_part(columns[0], '~@~', 1) as res1 FROM dfs.`%s`",
+      .sqlQuery(String.format("select split_part(columns[0], '~@~', 1) as res1 FROM dfs.\"%s\"",
         datasetSplit.getAbsolutePath()))
       .ordered()
       .baselineColumns("res1")
@@ -136,7 +175,7 @@ public class TestStringFunctions extends BaseTestQuery {
       .go();
 
     testBuilder()
-      .sqlQuery(String.format("select split_part(columns[0], '~@~', 2) as res1 FROM dfs.`%s`",
+      .sqlQuery(String.format("select split_part(columns[0], '~@~', 2) as res1 FROM dfs.\"%s\"",
         datasetSplit.getAbsolutePath()))
       .ordered()
       .baselineColumns("res1")
@@ -149,7 +188,7 @@ public class TestStringFunctions extends BaseTestQuery {
     boolean expectedErrorEncountered;
     try {
       testBuilder()
-        .sqlQuery(String.format("select split_part(columns[0], '~@~', 0) as res1 FROM dfs.`%s`",
+        .sqlQuery(String.format("select split_part(columns[0], '~@~', 0) as res1 FROM dfs.\"%s\"",
           datasetSplit.getAbsolutePath()))
         .ordered()
         .baselineColumns("res1")
@@ -173,7 +212,7 @@ public class TestStringFunctions extends BaseTestQuery {
 
     // with a multi-byte splitter
     testBuilder()
-      .sqlQuery(String.format("select split_part(columns[0], '\\u1111', 2) as res1 FROM dfs.`%s`",
+      .sqlQuery(String.format("select split_part(columns[0], '\\u1111', 2) as res1 FROM dfs.\"%s\"",
         datasetMultiByteSplit.getAbsolutePath()))
       .ordered()
       .baselineColumns("res1")
@@ -184,7 +223,7 @@ public class TestStringFunctions extends BaseTestQuery {
 
     // if the delimiter does not appear in the string, 1 returns the whole string
     testBuilder()
-      .sqlQuery(String.format("select split_part(columns[0], ' ', 1) as res1 FROM dfs.`%s`",
+      .sqlQuery(String.format("select split_part(columns[0], ' ', 1) as res1 FROM dfs.\"%s\"",
         datasetSplit.getAbsolutePath()))
       .ordered()
       .baselineColumns("res1")
@@ -400,7 +439,7 @@ public class TestStringFunctions extends BaseTestQuery {
      *   { "a": "efa", "b": 5}
      *   { "b": 6}
      */
-    final String sql = format("select regexp_replace(a, '%s', '%s') as a from cp.`functions/string/regexp_replace.json`", pattern, newValue);
+    final String sql = format("select regexp_replace(a, '%s', '%s') as a from cp.\"functions/string/regexp_replace.json\"", pattern, newValue);
 
     TestBuilder builder = testBuilder()
         .sqlQuery(sql)
@@ -429,7 +468,7 @@ public class TestStringFunctions extends BaseTestQuery {
      *   { "a": "efa", "b": 5}
      *   { "b": 6}
      */
-    final String sql = format("select regexp_matches(a, '%s') as a from cp.`functions/string/regexp_replace.json`", pattern);
+    final String sql = format("select regexp_matches(a, '%s') as a from cp.\"functions/string/regexp_replace.json\"", pattern);
 
     TestBuilder builder = testBuilder()
         .sqlQuery(sql)
@@ -451,7 +490,7 @@ public class TestStringFunctions extends BaseTestQuery {
   public void testRegexpMatchesNonAscii() throws Exception {
     testBuilder()
         .sqlQuery("select regexp_matches(a, 'München') res1, regexp_matches(b, 'AMünchenA') res2 " +
-            "from cp.`functions/string/regexp_replace_ascii.json`")
+            "from cp.\"functions/string/regexp_replace_ascii.json\"")
         .unOrdered()
         .baselineColumns("res1", "res2")
         .baselineValues(true, false)
@@ -491,7 +530,7 @@ public class TestStringFunctions extends BaseTestQuery {
   @Test
   public void testILikeEscape() throws Exception {
     testBuilder()
-        .sqlQuery("select a from (select concat(r_name , '_region') a from cp.`tpch/region.parquet`) where ilike(a, 'asia#_region', '#') = true")
+        .sqlQuery("select a from (select concat(r_name , '_region') a from cp.\"tpch/region.parquet\") where ilike(a, 'asia#_region', '#') = true")
         .unOrdered()
         .baselineColumns("a")
         .baselineValues("ASIA_region")
@@ -502,7 +541,7 @@ public class TestStringFunctions extends BaseTestQuery {
   @Test
   public void testSubstr() throws Exception {
     testBuilder()
-        .sqlQuery("select substr(n_name, 'UN.TE.') a from cp.`tpch/nation.parquet` where ilike(n_name, 'united%') = true")
+        .sqlQuery("select substr(n_name, 'UN.TE.') a from cp.\"tpch/nation.parquet\" where ilike(n_name, 'united%') = true")
         .unOrdered()
         .baselineColumns("a")
         .baselineValues("UNITED")
@@ -514,11 +553,11 @@ public class TestStringFunctions extends BaseTestQuery {
   @Test
   public void testLpadTwoArgConvergeToLpad() throws Exception {
     final String query_1 = "SELECT lpad(r_name, 25) \n" +
-        "FROM cp.`tpch/region.parquet`";
+        "FROM cp.\"tpch/region.parquet\"";
 
 
     final String query_2 = "SELECT lpad(r_name, 25, ' ') \n" +
-        "FROM cp.`tpch/region.parquet`";
+        "FROM cp.\"tpch/region.parquet\"";
 
     testBuilder()
         .sqlQuery(query_1)
@@ -531,11 +570,11 @@ public class TestStringFunctions extends BaseTestQuery {
   @Test
   public void testRpadTwoArgConvergeToRpad() throws Exception {
     final String query_1 = "SELECT rpad(r_name, 25) \n" +
-        "FROM cp.`tpch/region.parquet`";
+        "FROM cp.\"tpch/region.parquet\"";
 
 
     final String query_2 = "SELECT rpad(r_name, 25, ' ') \n" +
-        "FROM cp.`tpch/region.parquet`";
+        "FROM cp.\"tpch/region.parquet\"";
 
     testBuilder()
         .sqlQuery(query_1)
@@ -548,11 +587,11 @@ public class TestStringFunctions extends BaseTestQuery {
   @Test
   public void testLtrimOneArgConvergeToLtrim() throws Exception {
     final String query_1 = "SELECT ltrim(concat(' ', r_name, ' ')) \n" +
-        "FROM cp.`tpch/region.parquet`";
+        "FROM cp.\"tpch/region.parquet\"";
 
 
     final String query_2 = "SELECT ltrim(concat(' ', r_name, ' '), ' ') \n" +
-        "FROM cp.`tpch/region.parquet`";
+        "FROM cp.\"tpch/region.parquet\"";
 
     testBuilder()
         .sqlQuery(query_1)
@@ -565,11 +604,11 @@ public class TestStringFunctions extends BaseTestQuery {
   @Test
   public void testRtrimOneArgConvergeToRtrim() throws Exception {
     final String query_1 = "SELECT rtrim(concat(' ', r_name, ' ')) \n" +
-        "FROM cp.`tpch/region.parquet`";
+        "FROM cp.\"tpch/region.parquet\"";
 
 
     final String query_2 = "SELECT rtrim(concat(' ', r_name, ' '), ' ') \n" +
-        "FROM cp.`tpch/region.parquet`";
+        "FROM cp.\"tpch/region.parquet\"";
 
     testBuilder()
         .sqlQuery(query_1)
@@ -582,11 +621,11 @@ public class TestStringFunctions extends BaseTestQuery {
   @Test
   public void testBtrimOneArgConvergeToBtrim() throws Exception {
     final String query_1 = "SELECT btrim(concat(' ', r_name, ' ')) \n" +
-        "FROM cp.`tpch/region.parquet`";
+        "FROM cp.\"tpch/region.parquet\"";
 
 
     final String query_2 = "SELECT btrim(concat(' ', r_name, ' '), ' ') \n" +
-        "FROM cp.`tpch/region.parquet`";
+        "FROM cp.\"tpch/region.parquet\"";
 
     testBuilder()
         .sqlQuery(query_1)

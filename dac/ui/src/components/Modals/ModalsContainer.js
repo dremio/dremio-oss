@@ -17,20 +17,21 @@ import React, { Component } from 'react';
 import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
+import { withLocation } from 'containers/dremioLocation';
 
 @pureRender
-export default class ModalsContainer extends Component {
+class ModalsContainer extends Component {
 
   static contextTypes = {
-    router: PropTypes.object.isRequired,
-    location: PropTypes.object.isRequired
+    router: PropTypes.object.isRequired
   }
 
   static propTypes = {
     bodyClassName: PropTypes.string,
     modals: PropTypes.object,
     children: PropTypes.node,
-    style: PropTypes.object
+    style: PropTypes.object,
+    location: PropTypes.object.isRequired
   }
 
   state = {
@@ -42,12 +43,11 @@ export default class ModalsContainer extends Component {
   }
 
   handleHide = () => {
-    this.context.router.replace({...this.context.location, state: {}});
+    this.context.router.replace({...this.props.location, state: {}});
   }
 
   renderModals() {
-    const {bodyClassName, modals} = this.props;
-    const {location} = this.context;
+    const {bodyClassName, modals, location} = this.props;
     const {modal, query, ...state} = location.state || {};
 
     modal && this.state.shown.add(modal);
@@ -80,3 +80,5 @@ export default class ModalsContainer extends Component {
     );
   }
 }
+
+export default withLocation(ModalsContainer);

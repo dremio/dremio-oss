@@ -21,8 +21,8 @@ import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
-import org.apache.arrow.vector.schema.ArrowRecordBatch;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
+import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -41,8 +41,8 @@ public class TestArrowRecordBatchLoader {
       writer.allocate();
       writer.setPosition(0);
       writer.startList();
-      MapWriter mapWriter = writer.map();
-      mapWriter.bigInt("a");
+      StructWriter structWriter = writer.struct();
+      structWriter.bigInt("a");
       writer.endList();
 
       VectorContainer container = new VectorContainer(allocator);

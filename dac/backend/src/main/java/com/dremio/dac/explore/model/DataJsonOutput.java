@@ -163,7 +163,7 @@ public class DataJsonOutput {
               output.writeList(reader, context);
             }
           })
-          .put(MinorType.MAP, new UnionFieldWriter() {
+          .put(MinorType.STRUCT, new UnionFieldWriter() {
             @Override
             public void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context)
                 throws IOException {

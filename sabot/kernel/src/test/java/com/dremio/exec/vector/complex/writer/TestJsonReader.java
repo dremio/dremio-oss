@@ -30,7 +30,7 @@ import java.io.PrintWriter;
 import java.util.List;
 import java.util.zip.GZIPOutputStream;
 
-import org.apache.arrow.vector.NullableIntVector;
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
@@ -64,7 +64,7 @@ public class TestJsonReader extends PlanTestBase {
   @Test
   public void testEmptyList() throws Exception {
     String root = FileUtils.getResourceAsFile("/store/json/emptyLists").toURI().toString();
-    String query = String.format("select count(a[0]) as ct from dfs_test.`%s`", root);
+    String query = String.format("select count(a[0]) as ct from dfs_test.\"%s\"", root);
 
     testBuilder()
         .sqlQuery(query)
@@ -78,7 +78,7 @@ public class TestJsonReader extends PlanTestBase {
   @Test
   @Ignore
   public void schemaChange() throws Exception {
-    test("select b from dfs.`${WORKING_PATH}/src/test/resources/vector/complex/writer/schemaChange/`");
+    test("select b from dfs.\"${WORKING_PATH}/src/test/resources/vector/complex/writer/schemaChange/\"");
   }
 
   @Test
@@ -86,9 +86,9 @@ public class TestJsonReader extends PlanTestBase {
   public void testFieldSelectionBug() throws Exception {
     try {
       testBuilder()
-          .sqlQuery("select t.field_4.inner_3 as col_1, t.field_4 as col_2 from cp.`store/json/schema_change_int_to_string.json` t")
+          .sqlQuery("select t.field_4.inner_3 as col_1, t.field_4 as col_2 from cp.\"store/json/schema_change_int_to_string.json\" t")
           .unOrdered()
-          .optionSettingQueriesForTestQuery("alter session set `store.json.all_text_mode` = true")
+          .optionSettingQueriesForTestQuery("alter session set \"store.json.all_text_mode\" = true")
           .baselineColumns("col_1", "col_2")
           .baselineValues(
               mapOf(),
@@ -109,7 +109,7 @@ public class TestJsonReader extends PlanTestBase {
                   "inner_3", mapOf()))
           .go();
     } finally {
-      test("alter session set `store.json.all_text_mode` = false");
+      test("alter session set \"store.json.all_text_mode\" = false");
     }
   }
 
@@ -117,7 +117,7 @@ public class TestJsonReader extends PlanTestBase {
   public void testSplitAndTransferFailure() throws Exception {
     final String testVal = "a string";
     testBuilder()
-        .sqlQuery("select flatten(config) as flat from cp.`/store/json/null_list.json`")
+        .sqlQuery("select flatten(config) as flat from cp.\"/store/json/null_list.json\"")
         .ordered()
         .baselineColumns("flat")
         .baselineValues(listOf())
@@ -125,7 +125,7 @@ public class TestJsonReader extends PlanTestBase {
         .go();
 
     testBuilder()
-        .sqlQuery("select flatten(config) as flat from cp.`/store/json/null_list_v2.json`")
+        .sqlQuery("select flatten(config) as flat from cp.\"/store/json/null_list_v2.json\"")
         .ordered()
         .baselineColumns("flat")
         .baselineValues(mapOf())
@@ -133,7 +133,7 @@ public class TestJsonReader extends PlanTestBase {
         .go();
 
     testBuilder()
-        .sqlQuery("select flatten(config) as flat from cp.`/store/json/null_list_v3.json`")
+        .sqlQuery("select flatten(config) as flat from cp.\"/store/json/null_list_v3.json\"")
         .ordered()
         .baselineColumns("flat")
         .baselineValues(mapOf("repeated_map", listOf(mapOf())))
@@ -145,7 +145,7 @@ public class TestJsonReader extends PlanTestBase {
   @Ignore("DRILL-1824")
   public void schemaChangeValidate() throws Exception {
     testBuilder() //
-      .sqlQuery("select b from dfs.`${WORKING_PATH}/src/test/resources/vector/complex/writer/schemaChange/`") //
+      .sqlQuery("select b from dfs.\"${WORKING_PATH}/src/test/resources/vector/complex/writer/schemaChange/\"") //
       .unOrdered() //
       .jsonBaselineFile("/vector/complex/writer/expected.json") //
       .build()
@@ -188,7 +188,7 @@ public class TestJsonReader extends PlanTestBase {
 
     gzipIt(f);
     testBuilder()
-        .sqlQuery("select * from dfs.`" + f.getPath() + ".gz" + "`")
+        .sqlQuery("select * from dfs.\"" + f.getPath() + ".gz" + "\"")
         .unOrdered()
         .baselineColumns("a")
         .baselineValues(5l)
@@ -196,7 +196,7 @@ public class TestJsonReader extends PlanTestBase {
 
     // test reading the uncompressed version as well
     testBuilder()
-        .sqlQuery("select * from dfs.`" + f.getPath() + "`")
+        .sqlQuery("select * from dfs.\"" + f.getPath() + "\"")
         .unOrdered()
         .baselineColumns("a")
         .baselineValues(5l)
@@ -224,7 +224,7 @@ public class TestJsonReader extends PlanTestBase {
 
   @Test
   public void testDrill_1419() throws Exception {
-    String[] queries = {"select t.trans_id, t.trans_info.prod_id[0],t.trans_info.prod_id[1] from cp.`/store/json/clicks.json` t limit 5"};
+    String[] queries = {"select t.trans_id, t.trans_info.prod_id[0],t.trans_info.prod_id[1] from cp.\"/store/json/clicks.json\" t limit 5"};
     long[] rowCounts = {5};
     String filename = "/store/json/clicks.json";
     runTestsOnFile(filename, UserBitShared.QueryType.SQL, queries, rowCounts);
@@ -232,7 +232,7 @@ public class TestJsonReader extends PlanTestBase {
 
   @Test
   public void testSingleColumnRead_vector_fill_bug() throws Exception {
-    String[] queries = {"select * from cp.`/store/json/single_column_long_file.json`"};
+    String[] queries = {"select * from cp.\"/store/json/single_column_long_file.json\""};
     long[] rowCounts = {13512};
     String filename = "/store/json/single_column_long_file.json";
     runTestsOnFile(filename, UserBitShared.QueryType.SQL, queries, rowCounts);
@@ -241,7 +241,7 @@ public class TestJsonReader extends PlanTestBase {
   @Test
   @Ignore
   public void testNonExistentColumnReadAlone() throws Exception {
-    String[] queries = {"select non_existent_column from cp.`/store/json/single_column_long_file.json`"};
+    String[] queries = {"select non_existent_column from cp.\"/store/json/single_column_long_file.json\""};
     long[] rowCounts = {13512};
     String filename = "/store/json/single_column_long_file.json";
     runTestsOnFile(filename, UserBitShared.QueryType.SQL, queries, rowCounts);
@@ -249,8 +249,8 @@ public class TestJsonReader extends PlanTestBase {
 
   @Test
   public void readComplexWithStar() throws Exception {
-    test("select * from cp.`/store/json/test_complex_read_with_star.json`");
-    List<QueryDataBatch> results = testSqlWithResults("select * from cp.`/store/json/test_complex_read_with_star.json`");
+    test("select * from cp.\"/store/json/test_complex_read_with_star.json\"");
+    List<QueryDataBatch> results = testSqlWithResults("select * from cp.\"/store/json/test_complex_read_with_star.json\"");
     assertEquals(1, results.size());
 
     RecordBatchLoader batchLoader = new RecordBatchLoader(getAllocator());
@@ -266,7 +266,7 @@ public class TestJsonReader extends PlanTestBase {
 
   @Test
   public void testNullWhereListExpected() throws Exception {
-    String[] queries = {"select * from cp.`/store/json/null_where_list_expected.json`"};
+    String[] queries = {"select * from cp.\"/store/json/null_where_list_expected.json\""};
     long[] rowCounts = {3};
     String filename = "/store/json/null_where_list_expected.json";
     runTestsOnFile(filename, UserBitShared.QueryType.SQL, queries, rowCounts);
@@ -274,7 +274,7 @@ public class TestJsonReader extends PlanTestBase {
 
   @Test
   public void testNullWhereMapExpected() throws Exception {
-    String[] queries = {"select * from cp.`/store/json/null_where_map_expected.json`"};
+    String[] queries = {"select * from cp.\"/store/json/null_where_map_expected.json\""};
     long[] rowCounts = {3};
     String filename = "/store/json/null_where_map_expected.json";
     runTestsOnFile(filename, UserBitShared.QueryType.SQL, queries, rowCounts);
@@ -284,7 +284,7 @@ public class TestJsonReader extends PlanTestBase {
   public void testNullAndEmptyMaps() throws Exception {
     testBuilder()
             .ordered()
-            .sqlQuery("SELECT map FROM cp.`/json/null_map.json` LIMIT 10")
+            .sqlQuery("SELECT map FROM cp.\"/json/null_map.json\" LIMIT 10")
             .baselineColumns("map")
             .baselineValues(mapOf("a", 1L, "b", 2L, "c", 3L))
             .baselineValues(((JsonStringHashMap<String, Object>) null))
@@ -299,7 +299,7 @@ public class TestJsonReader extends PlanTestBase {
   public void testNullAndEmptyLists() throws Exception {
     testBuilder()
             .ordered()
-            .sqlQuery("SELECT mylist FROM cp.`/json/null_list.json` LIMIT 10")
+            .sqlQuery("SELECT mylist FROM cp.\"/json/null_list.json\" LIMIT 10")
             .baselineColumns("mylist")
             .baselineValues(listOf("a", "b", "c"))
             .baselineValues(((JsonStringArrayList<Object>) null))
@@ -314,9 +314,9 @@ public class TestJsonReader extends PlanTestBase {
   @Ignore("schema change in raw data")
   public void ensureProjectionPushdown() throws Exception {
     // Tests to make sure that we are correctly eliminating schema changing columns.  If completes, means that the projection pushdown was successful.
-    test("alter system set `store.json.all_text_mode` = false; "
+    test("alter system set \"store.json.all_text_mode\" = false; "
         + "select  t.field_1, t.field_3.inner_1, t.field_3.inner_2, t.field_4.inner_1 "
-        + "from cp.`store/json/schema_change_int_to_string.json` t");
+        + "from cp.\"store/json/schema_change_int_to_string.json\" t");
   }
 
   // The project pushdown rule is correctly adding the projected columns to the scan, however it is not removing
@@ -353,7 +353,7 @@ public class TestJsonReader extends PlanTestBase {
     String root = FileUtils.getResourceAsFile("/store/json/jsonDirectoryWithEmpyFile").toURI().toString();
 
     String queryRightEmpty = String.format(
-        "select * from dfs_test.`%s`", root);
+        "select * from dfs_test.\"%s\"", root);
     try {
       test(queryRightEmpty);
     } catch (Exception e) {
@@ -379,7 +379,7 @@ public class TestJsonReader extends PlanTestBase {
     assertEquals("[5,10,15]", vw.getValueVector().getObject(2).toString());
 
     vw = batchLoader.getValueAccessorById(
-        NullableIntVector.class, //
+        IntVector.class, //
         batchLoader.getValueVectorId(SchemaPath.getCompoundPath("field_3", "inner_1")).getFieldIds() //
     );
     assertNull(vw.getValueVector().getObject(0));
@@ -387,7 +387,7 @@ public class TestJsonReader extends PlanTestBase {
     assertEquals(5l, vw.getValueVector().getObject(2));
 
     vw = batchLoader.getValueAccessorById(
-        NullableIntVector.class, //
+        IntVector.class, //
         batchLoader.getValueVectorId(SchemaPath.getCompoundPath("field_3", "inner_2")).getFieldIds() //
     );
     assertNull(vw.getValueVector().getObject(0));
@@ -446,7 +446,7 @@ public class TestJsonReader extends PlanTestBase {
       testBuilder()
         .sqlQuery(query1)
         .ordered()
-        .optionSettingQueriesForTestQuery("alter session set `store.json.all_text_mode` = true")
+        .optionSettingQueriesForTestQuery("alter session set \"store.json.all_text_mode\" = true")
         .baselineColumns("c", "cnt")
         .baselineValues(null, 4096L)
         .baselineValues("Hello World", 1L)
@@ -455,7 +455,7 @@ public class TestJsonReader extends PlanTestBase {
       testBuilder()
         .sqlQuery(query2)
         .ordered()
-        .optionSettingQueriesForTestQuery("alter session set `store.json.all_text_mode` = true")
+        .optionSettingQueriesForTestQuery("alter session set \"store.json.all_text_mode\" = true")
         .baselineColumns("a", "b", "c", "cnt")
         .baselineValues(null, null, null, 4096L)
         .baselineValues("123456789123", "99.999", "Hello World", 1L)
@@ -464,24 +464,24 @@ public class TestJsonReader extends PlanTestBase {
       testBuilder()
         .sqlQuery(query3)
         .ordered()
-        .optionSettingQueriesForTestQuery("alter session set `store.json.all_text_mode` = true")
+        .optionSettingQueriesForTestQuery("alter session set \"store.json.all_text_mode\" = true")
         .baselineColumns("x", "y", "z")
         .baselineValues("123456789123", "99.999", "Hello World")
         .go();
 
     } finally {
-      testNoResult("alter session set `store.json.all_text_mode` = false");
+      testNoResult("alter session set \"store.json.all_text_mode\" = false");
     }
   }
 
   @Test
   public void testSkipAll() throws Exception {
-    final String query = "SELECT count(*) FROM cp.`json/map_list_map.json`";
+    final String query = "SELECT count(*) FROM cp.\"json/map_list_map.json\"";
     testPhysicalPlan(query, "columns=[]");
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
-        .sqlBaselineQuery("SELECT count(id) FROM cp.`json/map_list_map.json`")
+        .sqlBaselineQuery("SELECT count(id) FROM cp.\"json/map_list_map.json\"")
         .go();
   }
 }

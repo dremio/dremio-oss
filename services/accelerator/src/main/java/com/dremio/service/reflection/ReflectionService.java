@@ -20,6 +20,7 @@ import java.util.List;
 
 import javax.inject.Provider;
 
+import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.service.Service;
 import com.dremio.service.namespace.NamespaceKey;
@@ -31,6 +32,7 @@ import com.dremio.service.reflection.proto.MaterializationMetrics;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
+import com.dremio.service.reflection.proto.Refresh;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -71,6 +73,8 @@ public interface ReflectionService extends Service {
 
   Materialization getLastDoneMaterialization(ReflectionId reflectionId);
 
+  Materialization getLastMaterialization(ReflectionId reflectionId);
+
   Iterable<Materialization> getMaterializations(ReflectionId reflectionId);
 
   MaterializationMetrics getMetrics(Materialization materialization);
@@ -101,7 +105,11 @@ public interface ReflectionService extends Service {
   @VisibleForTesting
   Iterable<DependencyEntry> getDependencies(ReflectionId reflectionId);
 
+  Iterable<AccelerationListManager.DependencyInfo> getReflectionDependencies();
+
   Optional<Materialization> getMaterialization(MaterializationId materializationId);
+
+  Iterable<Refresh> getRefreshes(Materialization materialization);
 
   ReflectionSettings getReflectionSettings();
 
@@ -196,6 +204,11 @@ public interface ReflectionService extends Service {
     }
 
     @Override
+    public Materialization getLastMaterialization(ReflectionId reflectionId) {
+      return null;
+    }
+
+    @Override
     public Iterable<Materialization> getMaterializations(ReflectionId reflectionId) {
       return null;
     }
@@ -215,8 +228,18 @@ public interface ReflectionService extends Service {
     }
 
     @Override
+    public Iterable<AccelerationListManager.DependencyInfo> getReflectionDependencies() {
+      throw new UnsupportedOperationException("getReflectionDependencies");
+    }
+
+    @Override
     public Optional<Materialization> getMaterialization(MaterializationId materializationId) {
       return Optional.absent();
+    }
+
+    @Override
+    public Iterable<Refresh> getRefreshes(Materialization materialization) {
+      return Collections.emptyList();
     }
 
     @Override

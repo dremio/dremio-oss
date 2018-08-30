@@ -49,6 +49,7 @@ import com.dremio.exec.proto.UserBitShared.SubstitutionProfile;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.sys.accel.AccelerationDetailsPopulator;
 import com.dremio.exec.work.foreman.ExecutionPlan;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -192,7 +193,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         .setMaterializationId(materialization.getMaterializationId())
         .setMaterializationExpirationTimestamp(materialization.getExpirationTimestamp())
         .addAllDimensions(materialization.getLayoutInfo().getDimensions())
-        .addAllMeasures(materialization.getLayoutInfo().getMeasures())
+        .addAllMeasureColumns(materialization.getLayoutInfo().getMeasures())
         .addAllSortedColumns(materialization.getLayoutInfo().getSortColumns())
         .addAllPartitionedColumns(materialization.getLayoutInfo().getPartitionColumns())
         .addAllDistributionColumns(materialization.getLayoutInfo().getDistributionColumns())
@@ -345,10 +346,18 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
           .setSql(view.getView().getSql())
           .build();
       } else {
+        Boolean allowApproxStats = false;
+
+        PhysicalDataset physicalDataset = t.getDatasetConfig().getPhysicalDataset();
+        if (physicalDataset != null) {
+          allowApproxStats = physicalDataset.getAllowApproxStats();
+        }
+
         return UserBitShared.DatasetProfile.newBuilder()
           .setDatasetPath(t.getPath().getSchemaPath())
           .setType(UserBitShared.DatasetType.PDS)
           .setBatchSchema(ByteString.copyFrom(t.getSchema().serialize()))
+          .setAllowApproxStats(allowApproxStats)
           .build();
       }
     } catch (Exception e) {

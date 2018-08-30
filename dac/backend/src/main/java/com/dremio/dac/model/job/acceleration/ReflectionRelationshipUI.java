@@ -16,9 +16,9 @@
 package com.dremio.dac.model.job.acceleration;
 
 import static com.dremio.dac.model.job.acceleration.UiMapper.toUI;
-import static com.dremio.dac.resource.ApiIntentMessageMapper.toApiMessage;
 
 import com.dremio.dac.proto.model.acceleration.LayoutApiDescriptor;
+import com.dremio.dac.resource.ApiIntentMessageMapper;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.accelerator.proto.SubstitutionState;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -56,7 +56,7 @@ public class ReflectionRelationshipUI {
       toUI(reflectionRelationship.getMaterialization()),
       toUI(reflectionRelationship.getDataset()),
       toUI(reflectionRelationship.getAccelerationSettings()),
-      toApiMessage(reflectionRelationship.getReflection(), reflectionRelationship.getReflectionType()),
+      ApiIntentMessageMapper.toApiMessage(reflectionRelationship.getReflection(), reflectionRelationship.getReflectionType()),
       reflectionRelationship.getSnowflake());
   }
 

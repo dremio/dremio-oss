@@ -21,10 +21,10 @@ import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.ListVectorHelper;
-import org.apache.arrow.vector.complex.MapVector;
-import org.apache.arrow.vector.complex.MapVectorHelper;
-import org.apache.arrow.vector.complex.NullableMapVector;
-import org.apache.arrow.vector.complex.NullableMapVectorHelper;
+import org.apache.arrow.vector.complex.NonNullableStructVector;
+import org.apache.arrow.vector.complex.NonNullableStructVectorHelper;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.StructVectorHelper;
 import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.arrow.vector.complex.UnionVectorHelper;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -36,8 +36,8 @@ public class ComplexTypeHelper extends TypeHelper {
   public static void materialize(ValueVector vector, Field field) {
     MinorType minorType = getMajorTypeForField(field).getMinorType();
     switch(minorType) {
-    case MAP:
-      new NullableMapVectorHelper((NullableMapVector) vector).materialize(field);
+    case STRUCT:
+      new StructVectorHelper((StructVector) vector).materialize(field);
       return;
     case LIST:
       new ListVectorHelper((ListVector) vector).materialize(field);

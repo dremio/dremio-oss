@@ -14,40 +14,37 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import PropTypes from 'prop-types';
 import { sortBy } from 'lodash/collection';
-import { FormattedMessage, injectIntl } from 'react-intl';
-import SelectConnectionButton from 'components/SelectConnectionButton';
+import { injectIntl } from 'react-intl';
+import PropTypes from 'prop-types';
 
+import SelectConnectionButton from 'components/SelectConnectionButton';
 import { FLEX_START_WRAP } from 'uiTheme/radium/flexStyle';
 
-import { sourceProperties } from 'dyn-load/constants/sourceTypes';
-
-import './SelectSourceType.less';
-
-const enabledSourceTypes = sortBy(
-  sourceProperties.filter((sourceProps) => !sourceProps.disabled),
-  ['label']
-);
-
-const disabledSourceTypes = sortBy(
-  sourceProperties.filter((sourceProps) => sourceProps.disabled),
-  ['enterprise', 'label']
-);
+import 'pages/HomePage/components/modals/AddSourceModal/SelectSourceType.less';
 
 @injectIntl
 export default class SelectSourceType extends Component {
   static propTypes = {
-    onSelectSource: PropTypes.func.isRequired,
-    onAddSampleSource: PropTypes.func.isRequired,
+    onSelectSource: PropTypes.func,
+    sourceTypes: PropTypes.array,
     intl: PropTypes.object.isRequired
   };
+
+  getEnabledSourceTypes(allTypes) {
+    return sortBy(allTypes.filter(type => !type.disabled), ['label']);
+  }
+
+  getDisabledSourceTypes(allTypes) {
+    return sortBy(allTypes.filter(type => type.disabled), ['enterprise', 'label']);
+  }
+
   renderSourceTypes(connections) {
     return connections.map((item) => {
       let pillText = '';
       if (item.disabled) {
         pillText = la('coming soon');
-      } else if (item.beta) {
+      } else if (item.tags && item.tags.includes('beta')) {
         pillText = la('beta');
       }
 
@@ -61,22 +58,23 @@ export default class SelectSourceType extends Component {
     });
   }
 
+  renderSampleSource() {
+    return <SelectConnectionButton
+      label={this.props.intl.formatMessage({ id: 'Source.SampleSource' })}
+      iconType={'sources/SampleSource'}
+      onClick={this.props.onSelectSource.bind(this, { sourceType: 'SampleSource'})}/>;
+  }
+
   render() {
     return (
       <div className='SelectSourceType'>
         <div className='main'>
-          <h3 className='normalWeight'>
-            <FormattedMessage id = 'Source.DataSourceTypes'/>
-          </h3>
           <div className='source-type-section' style={FLEX_START_WRAP}>
-            { this.renderSourceTypes(enabledSourceTypes) }
-            <SelectConnectionButton
-              label={this.props.intl.formatMessage({ id: 'Source.SampleSource' })}
-              iconType={'sources/SampleSource'}
-              onClick={this.props.onAddSampleSource}/>
+            { this.renderSourceTypes(this.getEnabledSourceTypes(this.props.sourceTypes)) }
+            { this.renderSampleSource() }
           </div>
           <div className='source-type-section' style={FLEX_START_WRAP}>
-            { this.renderSourceTypes(disabledSourceTypes) }
+            { this.renderSourceTypes(this.getDisabledSourceTypes(this.props.sourceTypes)) }
           </div>
         </div>
       </div>

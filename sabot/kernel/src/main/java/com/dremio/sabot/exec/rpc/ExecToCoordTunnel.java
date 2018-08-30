@@ -24,7 +24,7 @@ import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.exec.rpc.FutureBitCommand;
 import com.dremio.exec.rpc.ListeningCommand;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 

@@ -52,7 +52,8 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
     funcHelpPanel: PropTypes.bool,
     changeQueryContext: PropTypes.func,
     style: PropTypes.object,
-    dragType: PropTypes.string
+    dragType: PropTypes.string,
+    autoCompleteEnabled: PropTypes.bool.isRequired
   };
 
   static defaultProps = {
@@ -89,6 +90,7 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
       nextProps.datasetsPanel !== this.props.datasetsPanel ||
       nextProps.isGrayed !== this.props.isGrayed ||
       nextProps.sqlSize !== this.props.sqlSize ||
+      nextProps.autoCompleteEnabled !== this.props.autoCompleteEnabled ||
       !deepEqual(nextState, this.state)
     );
   }
@@ -122,8 +124,7 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
   }
 
   focus() {
-    if (!this.getMonacoEditorInstance()) return;
-    this.getMonacoEditorInstance().focus();
+    this.sqlEditor.focus();
   }
 
   resetValue() {
@@ -265,7 +266,7 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
 
   render() {
     const height = this.props.sqlSize - MARGIN_SQL_EDITOR;
-    const { datasetsPanel, funcHelpPanel, isGrayed, errors } = this.props;
+    const { datasetsPanel, funcHelpPanel, isGrayed, errors, autoCompleteEnabled, context } = this.props;
     const { query } = this.context.location;
     const widthSqlEditor = funcHelpPanel || datasetsPanel ? styles.smallerSqlEditor : {};
     return (
@@ -286,6 +287,8 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
             defaultValue={this.props.defaultValue}
             onChange={this.handleChange}
             errors={errors}
+            autoCompleteEnabled={autoCompleteEnabled}
+            sqlContext={context}
             />
           { query.type !== 'transform' && this.renderContext() }
         </div>

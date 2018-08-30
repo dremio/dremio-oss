@@ -46,7 +46,7 @@ export default class FinderNav extends Component {
     return (
       <div className={wrapClass}>
         <h4 className='finder-nav-title' data-qa={title}>
-          <Link className='pointer' to={listHref}>{title} »</Link>
+          {listHref ? <Link className='pointer' to={listHref}>{title} »</Link> : title }
           {addHref && (
             <Link
               className='pull-right'

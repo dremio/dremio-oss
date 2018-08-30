@@ -24,7 +24,8 @@ export DREMIO_ENV_SCRIPT="dremio-env"
 
 function exit_with_usage {
   RC=$1
-  echo "Usage: dremio (backup|clean|restore|set-password|upgrade) [args...]" >&2
+  echo "Usage: dremio-admin [--config <conf-dir>]\
+ (backup|clean|restore|set-password|upgrade) [args...]" >&2
   exit $RC
 }
 

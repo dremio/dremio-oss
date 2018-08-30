@@ -123,7 +123,7 @@ public class FormatList {
                   jsonWriter.write(nestedReader);
                 }
                 break;
-              case MAP:
+              case STRUCT:
                 for (String name : nestedReader) {
                   jsonWriter.write(nestedReader.reader(name));
                 }

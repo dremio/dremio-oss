@@ -44,7 +44,6 @@ import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators.VarBinaryName
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators.VarCharNameValuePair;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.PartitionValue;
-import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -57,23 +56,11 @@ public class CompositeReaderConfig {
   private CompositeReaderConfig(List<SchemaPath> innerColumns, List<FieldValuePair> partitionFields) {
     super();
     this.innerColumns = ImmutableList.copyOf(innerColumns);
-    this.partitionFieldMap = FluentIterable.from(partitionFields).uniqueIndex(new Function<FieldValuePair, String>(){
-      @Override
-      public String apply(FieldValuePair input) {
-        return input.field.getName();
-      }});
+    this.partitionFieldMap = FluentIterable.from(partitionFields).uniqueIndex(input -> input.field.getName());
   }
 
   public List<SchemaPath> getInnerColumns(){
     return innerColumns;
-  }
-
-  public boolean hasInnerColumns(){
-    return !innerColumns.isEmpty();
-  }
-
-  public boolean hasPartitionColumns(){
-    return !partitionFieldMap.isEmpty();
   }
 
   public RecordReader wrapIfNecessary(BufferAllocator allocator, RecordReader innerReader, DatasetSplit split){

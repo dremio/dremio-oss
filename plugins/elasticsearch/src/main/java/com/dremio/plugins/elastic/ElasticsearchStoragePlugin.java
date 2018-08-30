@@ -46,13 +46,13 @@ import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 import io.protostuff.ByteString;
-import jersey.repackaged.com.google.common.base.Preconditions;
 
 /**
  * Storage plugin for elasticsearch.
@@ -90,7 +90,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
     this.context = context;
     this.name = name;
     this.connectionPool = new ElasticConnectionPool(
-        config.hosts,
+        config.hostList,
         config.sslEnabled,
         config.username,
         config.password,

@@ -14,55 +14,58 @@
  * limitations under the License.
  */
 /* calendar global styles */
-.rdr-DateRange{
-  .rdr-Calendar{
-    .today{
-      font-weight: bold;
-      color: black!important;
-    }
-    .rdr-MonthAndYear{
-      .rdr-MonthAndYear-month{
-        margin: 0 5px 0 0;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+    
+  .rdr-DateRange{
+    .rdr-Calendar{
+      .today{
+        font-weight: bold;
+        color: black!important;
       }
-      .rdr-MonthAndYear-divider {
-        display: none;
+      .rdr-MonthAndYear{
+        .rdr-MonthAndYear-month{
+          margin: 0 5px 0 0;
+        }
+        .rdr-MonthAndYear-divider {
+          display: none;
+        }
       }
-    }
-    .is-inRange:hover {
-      background-color: #B3B3B3!important;
-    }
-    .is-passive{
-      opacity: 1 !important;
-      text-indent: -9999px!important;
-      border-bottom: 1px solid rgba(0,0,0,.1) !important;
-      background-color: #FFF!important;
-    }
-  }
-  .rdr-Calendar:nth-child(1) {
-    .rdr-MonthAndYear{
-      .next{
-        display: none!important;
+      .is-inRange:hover {
+        background-color: #B3B3B3!important;
+      }
+      .is-passive{
+        opacity: 1 !important;
+        text-indent: -9999px!important;
+        border-bottom: 1px solid rgba(0,0,0,.1) !important;
+        background-color: #FFF!important;
       }
     }
-    margin-right: 3px;
-    padding-right: 1px!important;
-  }
-  .rdr-Calendar:nth-child(2) {
-    .rdr-MonthAndYear{
-      .next{
-        display: none!important;
+    .rdr-Calendar:nth-child(1) {
+      .rdr-MonthAndYear{
+        .next{
+          display: none!important;
+        }
       }
-      .prev{
-        display: none!important;
-      }
+      margin-right: 3px;
+      padding-right: 1px!important;
     }
-    margin-right: 3px;
-    padding-right: 1px!important;
-  }
-  .rdr-Calendar:nth-child(3) {
-    .rdr-MonthAndYear{
-      .prev{
-        display: none!important;
+    .rdr-Calendar:nth-child(2) {
+      .rdr-MonthAndYear{
+        .next{
+          display: none!important;
+        }
+        .prev{
+          display: none!important;
+        }
+      }
+      margin-right: 3px;
+      padding-right: 1px!important;
+    }
+    .rdr-Calendar:nth-child(3) {
+      .rdr-MonthAndYear{
+        .prev{
+          display: none!important;
+        }
       }
     }
   }

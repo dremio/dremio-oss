@@ -25,6 +25,7 @@ import TrimWhiteSpaceOptions from 'components/Forms/TrimWhiteSpaceOptions';
 import NewFieldSection from 'components/Forms/NewFieldSection';
 import TransformForm, { formWrapperProps } from 'pages/ExplorePage/components/forms/TransformForm';
 import { transformProps } from 'pages/ExplorePage/components/forms/TransformationPropTypes';
+import { sectionMargin } from '@app/uiTheme/less/layout.less';
 
 const SECTIONS = [NewFieldSection, ConvertCaseOptions, TrimWhiteSpaceOptions];
 
@@ -59,7 +60,7 @@ class EditTextContent extends Component {
         >
         <div style={[style.base]} className='edit-text-content'>
           {content}
-          <NewFieldSection columnName={columnName} fields={fields}/>
+          <NewFieldSection columnName={columnName} fields={fields} className={sectionMargin} />
         </div>
       </TransformForm>
     );

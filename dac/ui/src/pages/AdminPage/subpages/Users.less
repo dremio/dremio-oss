@@ -13,42 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#admin-user{
-     
-  .add-users{
-    background: #eee;
-    border: 1px solid #c2c2c2;
-    width: 150px;
-    border-radius: 2px;
-    height: 35px;
-    line-height: 17px;
-    font-size: 12px;
-    float: right;
-    margin: 15px 0 0 0;
-  }
-
-  .actions-wrap{
-    .grey-button{
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  #admin-user{
+      
+    .add-users{
       background: #eee;
       border: 1px solid #c2c2c2;
-      width: 60px;
-      margin: 1px 5px 0 0;
+      width: 150px;
       border-radius: 2px;
-      height: 20px;
+      height: 35px;
       line-height: 17px;
       font-size: 12px;
+      float: right;
+      margin: 15px 0 0 0;
+    }
+
+    .actions-wrap{
+      .grey-button{
+        background: #eee;
+        border: 1px solid #c2c2c2;
+        width: 60px;
+        margin: 1px 5px 0 0;
+        border-radius: 2px;
+        height: 20px;
+        line-height: 17px;
+        font-size: 12px;
+      }
+    }
+
+    .group-count{
+      color: #232aff;
+      cursor: pointer;
+    }   
+
+    h2{
+      float: left;
     }
   }
-
-  .group-count{
-    color: #232aff;
-    cursor: pointer;
-  }   
-
-  h2{
-    float: left;
+  .tooltip-group{
+    text-align: left;
   }
-}
-.tooltip-group{
-  text-align: left;
 }

@@ -15,10 +15,11 @@
  */
 package com.dremio.service.accelerator;
 
-import static com.dremio.exec.server.options.OptionValue.OptionType.SYSTEM;
+import static com.dremio.options.OptionValue.OptionType.SYSTEM;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_ENABLED;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_DELETION_GRACE_PERIOD;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_MANAGER_REFRESH_DELAY_MILLIS;
+import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_PERIODIC_WAKEUP_ONLY;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static com.google.common.collect.Iterables.isEmpty;
 import static java.util.concurrent.TimeUnit.HOURS;
@@ -36,7 +37,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlExplainFormat;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
@@ -50,9 +50,9 @@ import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.sql.MaterializationDescriptor;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
-import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.options.OptionValue;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobRequest;
@@ -86,6 +86,7 @@ import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.dremio.service.reflection.store.MaterializationStore;
+import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
@@ -104,13 +105,13 @@ public class BaseTestReflection extends BaseTestServer {
   protected static final String TEST_SPACE = "refl_test";
 
   private static MaterializationStore materializationStore;
+  private static ReflectionEntriesStore entriesStore;
 
   @ClassRule
   public static final TemporaryFolder temp = new TemporaryFolder();
 
   @BeforeClass
   public static void init() throws Exception {
-    Assert.assertFalse(isMultinode()); // we need to connect to the master's node reflectionService to access the dependencies
     BaseTestServer.init();
 
     final NamespaceService nsService = getNamespaceService();
@@ -118,6 +119,7 @@ public class BaseTestReflection extends BaseTestServer {
     nsService.addOrUpdateSpace(new SpacePath(config.getName()).toNamespaceKey(), config);
 
     materializationStore = new MaterializationStore(p(KVStoreProvider.class));
+    entriesStore = new ReflectionEntriesStore(p(KVStoreProvider.class));
   }
 
   @AfterClass
@@ -129,6 +131,10 @@ public class BaseTestReflection extends BaseTestServer {
 
   protected static MaterializationStore getMaterializationStore() {
     return materializationStore;
+  }
+
+  protected static ReflectionEntriesStore getReflectionEntriesStore() {
+    return entriesStore;
   }
 
   protected Catalog cat() {
@@ -180,6 +186,17 @@ public class BaseTestReflection extends BaseTestServer {
     final NamespaceService nsService = getNamespaceService();
     nsService.addOrUpdateDataset(path.toNamespaceKey(), dataset);
     return nsService.getDataset(path.toNamespaceKey());
+  }
+
+  protected void setSystemOption(String optionName, String optionValue) {
+    final String query = String.format("ALTER SYSTEM SET \"%s\"=%s", optionName, optionValue);
+    final Job job = getJobsService().submitJob(JobRequest.newBuilder()
+      .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
+      .setQueryType(QueryType.UI_INTERNAL_RUN)
+      .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+      .setDatasetVersion(DatasetVersion.NONE)
+      .build(), NoOpJobStatusListener.INSTANCE);
+    job.getData().loadIfNecessary();
   }
 
   protected String getQueryPlan(final String query) {
@@ -256,6 +273,11 @@ public class BaseTestReflection extends BaseTestServer {
     );
   }
 
+  protected void onlyAllowPeriodicWakeup(boolean periodicOnly) {
+    getSabotContext().getOptionManager()
+      .setOption( OptionValue.createBoolean(SYSTEM, REFLECTION_PERIODIC_WAKEUP_ONLY.getOptionName(), periodicOnly));
+  }
+
   protected ReflectionId createRawFromQuery(String query, String testSpace, List<String> rawFields, String reflectionName) throws Exception {
     final DatasetPath datasetPath = createVdsFromQuery(query, testSpace);
     return createRawOnVds(datasetPath, reflectionName, rawFields);
@@ -279,17 +301,32 @@ public class BaseTestReflection extends BaseTestServer {
   }
 
   protected void setDatasetAccelerationSettings(NamespaceKey key, long refreshPeriod, long gracePeriod) {
-    setDatasetAccelerationSettings(key, refreshPeriod, gracePeriod, false, null);
+    setDatasetAccelerationSettings(key, refreshPeriod, gracePeriod, false, null, false, false);
+  }
+
+  protected void setDatasetAccelerationSettings(NamespaceKey key, long refreshPeriod, long gracePeriod, boolean neverExpire) {
+    setDatasetAccelerationSettings(key, refreshPeriod, gracePeriod, false, null, neverExpire, false);
+  }
+
+  protected void setDatasetAccelerationSettings(NamespaceKey key, long refreshPeriod, long gracePeriod, boolean neverExpire, boolean neverRefresh) {
+    setDatasetAccelerationSettings(key, refreshPeriod, gracePeriod, false, null, neverExpire, neverRefresh);
   }
 
   protected void setDatasetAccelerationSettings(NamespaceKey key, long refreshPeriod, long gracePeriod,
                                                 boolean incremental, String refreshField) {
+    setDatasetAccelerationSettings(key, refreshPeriod, gracePeriod, incremental, refreshField, false, false);
+  }
+
+  protected void setDatasetAccelerationSettings(NamespaceKey key, long refreshPeriod, long gracePeriod,
+                                                boolean incremental, String refreshField, boolean neverExpire, boolean neverRefresh) {
     // update dataset refresh/grace period
     getReflectionService().getReflectionSettings().setReflectionSettings(key, new AccelerationSettings()
       .setMethod(incremental ? RefreshMethod.INCREMENTAL : RefreshMethod.FULL)
       .setRefreshPeriod(refreshPeriod)
       .setGracePeriod(gracePeriod)
       .setRefreshField(refreshField)
+      .setNeverExpire(neverExpire)
+      .setNeverRefresh(neverRefresh)
     );
   }
 

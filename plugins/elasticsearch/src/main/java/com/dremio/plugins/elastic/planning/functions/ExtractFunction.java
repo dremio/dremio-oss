@@ -48,11 +48,32 @@ public class ExtractFunction extends ElasticFunction {
 
     FunctionRender render = schemaField.accept(renderer.getVisitor());
 
-    return new FunctionRender(getExtractScript(unit, render), EMPTY);
+    return new FunctionRender(getExtractScript(unit, render, renderer.isUsingPainless()), renderer.isUsingPainless() ? render.getNulls() : EMPTY);
   }
 
-  private String getExtractScript(String unit, FunctionRender render){
-    final String scriptFieldRef = render.getNullGuardedScript();
+  private String getExtractScript(String unit, FunctionRender render, boolean painless){
+    final String scriptFieldRef = painless ? render.getScript() : render.getNullGuardedScript();
+    if (painless) {
+      String s = String.format("LocalDateTime.ofInstant(%s, ZoneOffset.UTC)", scriptFieldRef);
+      switch (unit) {
+      case "year":
+        return s + ".getYear()";
+      case "month":
+        return s + ".getMonthValue()";
+      case "dow":
+        return s + ".getDayOfWeek().getValue()";
+      case "day":
+        return s + ".getDayOfMonth()";
+      case "hour":
+        return s + ".getHourOfDay()";
+      case "minute":
+        return s + ".getMinute()";
+      case "second":
+        return s + ".getSecond()";
+      default:
+        throw new RuntimeException("Unsupported unit for extract pushdown: " + unit);
+      }
+    } else {
     switch (unit) {
       case "year":
         return scriptFieldRef + ".year";
@@ -70,7 +91,7 @@ public class ExtractFunction extends ElasticFunction {
         return scriptFieldRef + ".secondOfMinute";
       default:
         throw new RuntimeException("Unsupported unit for extract pushdown: " + unit);
+      }
     }
   }
-
 }

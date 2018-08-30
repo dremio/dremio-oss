@@ -24,8 +24,9 @@ import static com.dremio.plugins.elastic.ElasticsearchType.DATE;
 import static com.dremio.plugins.elastic.ElasticsearchType.FLOAT;
 import static com.dremio.plugins.elastic.ElasticsearchType.GEO_POINT;
 import static com.dremio.plugins.elastic.ElasticsearchType.INTEGER;
+import static com.dremio.plugins.elastic.ElasticsearchType.KEYWORD;
 import static com.dremio.plugins.elastic.ElasticsearchType.NESTED;
-import static com.dremio.plugins.elastic.ElasticsearchType.STRING;
+import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
@@ -38,17 +39,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Before;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.PlanTestBase;
 import com.dremio.QueryTestUtil;
+import com.dremio.TestBuilder;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.plugins.Version;
+import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.fasterxml.jackson.core.JsonParser;
@@ -59,11 +63,11 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.ImmutableMap;
 
 public class ElasticBaseTestQuery extends PlanTestBase {
-
   private static final Logger logger = LoggerFactory.getLogger(ElasticBaseTestQuery.class);
 
-  protected static ElasticsearchCluster elastic = null;
+  protected static final Version ELASTIC_V6 = new Version(6, 0, 0);
 
+  protected ElasticsearchCluster elastic;
   protected String schema;
   protected String table;
   protected String alias;
@@ -81,19 +85,13 @@ public class ElasticBaseTestQuery extends PlanTestBase {
 
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.TYPE})
-  public @interface ElasticSize {
-
-    /**
-     * Sets the number of elasticsearch nodes to create
-     * <p/>
-     */
-    int nodes() default 1;
-  }
-
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target({ElementType.TYPE})
   public @interface ElasticScrollSize {
     int scrollSize() default ES_CONFIG_DEFAULT_BATCH_SIZE;
+  }
+
+  @Override
+  public TestBuilder testBuilder() {
+    return new TestBuilder(allocator);
   }
 
   @Retention(RetentionPolicy.RUNTIME)
@@ -124,69 +122,79 @@ public class ElasticBaseTestQuery extends PlanTestBase {
     boolean enabled() default false;
   }
 
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.TYPE})
+  public @interface AllowPushdownNormalizedOrAnalyzedFields {
+    boolean enabled() default false;
+  }
+
   @Before
   public void before() throws Exception {
-    if (elastic == null) {
-      ElasticSize clusterSizeAnnotation = this.getClass().getAnnotation(ElasticSize.class);
-      int elasticSize = 1;
-      if (clusterSizeAnnotation != null) {
-        elasticSize = clusterSizeAnnotation.nodes();
-      }
-      ScriptsEnabled scriptEnabledAnnotation = this.getClass().getAnnotation(ScriptsEnabled.class);
-      boolean scriptsEnabled = true;
-      if (scriptEnabledAnnotation != null) {
-        scriptsEnabled = scriptEnabledAnnotation.enabled();
-      }
-      PublishHost publishHostAnnotation = this.getClass().getAnnotation(PublishHost.class);
-      boolean publishHost = false;
-      if (publishHostAnnotation != null) {
-        publishHost = publishHostAnnotation.enabled();
-      }
-      ElasticSSL sslAnnotation = this.getClass().getAnnotation(ElasticSSL.class);
-      boolean sslEnabled = false; // one can actually turn SSL on globally by changing this to (elasticSize == 1) by default
-      if (sslAnnotation != null) {
-        sslEnabled = sslAnnotation.enabled();
-      }
-      ShowIDColumn showIDColumnAnnotation = this.getClass().getAnnotation(ShowIDColumn.class);
-      boolean showIDColumn = false;
-      if (showIDColumnAnnotation != null) {
-        showIDColumn = showIDColumnAnnotation.enabled();
-      }
-      ElasticScrollSize elasticScrollSize = this.getClass().getAnnotation(ElasticScrollSize.class);
-      int scrollSize = ES_CONFIG_DEFAULT_BATCH_SIZE;
-      if (elasticScrollSize != null) {
-        scrollSize = elasticScrollSize.scrollSize();
-      }
-
-      elastic = new ElasticsearchCluster(elasticSize, scrollSize, new Random(), scriptsEnabled, showIDColumn, publishHost, sslEnabled);
-
-
-      SourceConfig sc = new SourceConfig();
-      sc.setName("elasticsearch");
-      sc.setConnectionConf(elastic.config());
-      sc.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
-      ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().createSource(sc);
-
-    }
-
     schema = schemaName();
     table = tableName();
     alias = aliasName();
 
-//    test("alter system set `exec.enable_union_type` = true");
+//    test("alter system set \"exec.enable_union_type\" = true");
   }
 
-  @AfterClass
-  public static void afterClass() throws Exception {
+  public ElasticConnection getConnection() {
+    ElasticsearchStoragePlugin plugin = getSabotContext().getCatalogService().getSource("elasticsearch");
+    return plugin.getRandomConnection();
+  }
+
+  @Before
+  public void setupElastic() throws IOException {
+    ScriptsEnabled scriptEnabledAnnotation = this.getClass().getAnnotation(ScriptsEnabled.class);
+    boolean scriptsEnabled = true;
+    if (scriptEnabledAnnotation != null) {
+      scriptsEnabled = scriptEnabledAnnotation.enabled();
+    }
+
+    PublishHost publishHostAnnotation = this.getClass().getAnnotation(PublishHost.class);
+    boolean publishHost = false;
+    if (publishHostAnnotation != null) {
+      publishHost = publishHostAnnotation.enabled();
+    }
+
+    ElasticSSL sslAnnotation = this.getClass().getAnnotation(ElasticSSL.class);
+    boolean sslEnabled = false;
+    if (sslAnnotation != null) {
+      sslEnabled = sslAnnotation.enabled();
+    }
+
+    ShowIDColumn showIDColumnAnnotation = this.getClass().getAnnotation(ShowIDColumn.class);
+    boolean showIDColumn = false;
+    if (showIDColumnAnnotation != null) {
+      showIDColumn = showIDColumnAnnotation.enabled();
+    }
+    ElasticScrollSize elasticScrollSize = this.getClass().getAnnotation(ElasticScrollSize.class);
+    int scrollSize = ES_CONFIG_DEFAULT_BATCH_SIZE;
+    if (elasticScrollSize != null) {
+      scrollSize = elasticScrollSize.scrollSize();
+    }
+
+    AllowPushdownNormalizedOrAnalyzedFields pushdownAnalyzed =
+        this.getClass().getAnnotation(AllowPushdownNormalizedOrAnalyzedFields.class);
+    boolean allowPushdownNormalizedOrAnalyzedFields = false;
+    if (pushdownAnalyzed != null) {
+      allowPushdownNormalizedOrAnalyzedFields = pushdownAnalyzed.enabled();
+    }
+
+
+    elastic = new ElasticsearchCluster(scrollSize, new Random(), scriptsEnabled, showIDColumn, publishHost, sslEnabled);
+    SourceConfig sc = new SourceConfig();
+    sc.setName("elasticsearch");
+    sc.setConnectionConf(elastic.config(allowPushdownNormalizedOrAnalyzedFields));
+    sc.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    getSabotContext().getCatalogService().createSourceIfMissingWithThrow(sc);
+  }
+
+  @After
+  public void removeSource() {
+    CatalogServiceImpl service = (CatalogServiceImpl) getSabotContext().getCatalogService();
+    service.deleteSource("elasticsearch");
     if (elastic != null) {
-      try {
-        elastic.wipe();
-        elastic.close();
-        elastic = null;
-      } catch (Throwable t) {
-        logger.error("Error shutting down elasticsearch cluster", t);
-        elastic = null;
-      }
+      elastic.wipe();
     }
   }
 
@@ -197,21 +205,21 @@ public class ElasticBaseTestQuery extends PlanTestBase {
   public static ColumnData[] getNullBusinessData() {
     final DateTimeFormatter formatter = DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH:MI:SS").withZone(DateTimeZone.UTC);
     final ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("business_id", STRING, new Object[][]{
+      new ElasticsearchCluster.ColumnData("business_id", TEXT, new Object[][]{
         {null},
         {"abcde"},
         {"7890"},
         {"12345"},
         {"xyz"}
       }),
-      new ElasticsearchCluster.ColumnData("full_address", STRING, new Object[][]{
+      new ElasticsearchCluster.ColumnData("full_address", TEXT, new Object[][]{
         {"12345 A Street, Cambridge, MA"},
         {null},
         {"987 B Street, San Diego, CA"},
         {"12345 A Street, Cambridge, MA"},
         {"12345 C Avenue, San Francisco, CA"}
       }),
-      new ElasticsearchCluster.ColumnData("city", STRING, ImmutableMap.of("index", "not_analyzed"),
+      new ElasticsearchCluster.ColumnData("city", KEYWORD,
         new Object[][]{
           {"Cambridge"},
           {"San Francisco"},
@@ -219,7 +227,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
           {"Cambridge"},
           {"San Francisco"}
         }),
-      new ElasticsearchCluster.ColumnData("city_analyzed", STRING,
+      new ElasticsearchCluster.ColumnData("city_analyzed", TEXT,
         new Object[][]{
           {"Cambridge"},
           {"San Francisco"},
@@ -227,7 +235,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
           {"Cambridge"},
           {"San Francisco"}
         }),
-      new ElasticsearchCluster.ColumnData("state", STRING, ImmutableMap.of("index", "not_analyzed"),
+      new ElasticsearchCluster.ColumnData("state", KEYWORD,
         new Object[][]{
           {"MA"},
           {"CA"},
@@ -235,7 +243,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
           {null},
           {"CA"}
         }),
-      new ElasticsearchCluster.ColumnData("state_analyzed", STRING, new Object[][]{
+      new ElasticsearchCluster.ColumnData("state_analyzed", TEXT, new Object[][]{
         {"MA"},
         {"CA"},
         {"CA"},
@@ -263,7 +271,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
         {ImmutableMap.of("lat", 44, "lon", 44), ImmutableMap.of("lat", -44, "lon", -44)},
         {ImmutableMap.of("lat", 55, "lon", 55), ImmutableMap.of("lat", -55, "lon", -55)}
       }),
-      new ElasticsearchCluster.ColumnData("name", STRING, new Object[][]{
+      new ElasticsearchCluster.ColumnData("name", TEXT, new Object[][]{
         {"Store in Cambridge"},
         {"Store in San Francisco"},
         {"Store in San Diego"},
@@ -293,21 +301,21 @@ public class ElasticBaseTestQuery extends PlanTestBase {
   public static ColumnData[] getBusinessData() {
     DateTimeFormatter formatter = DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH:MI:SS").withZone(DateTimeZone.UTC);
     ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-        new ElasticsearchCluster.ColumnData("business_id", STRING, new Object[][]{
+        new ElasticsearchCluster.ColumnData("business_id", TEXT, new Object[][]{
             {"12345"},
             {"abcde"},
             {"7890"},
             {"12345"},
             {"xyz"}
         }),
-        new ElasticsearchCluster.ColumnData("full_address", STRING, new Object[][]{
+        new ElasticsearchCluster.ColumnData("full_address", TEXT, new Object[][]{
             {"12345 A Street, Cambridge, MA"},
             {"987 B Street, San Francisco, CA"},
             {"987 B Street, San Diego, CA"},
             {"12345 A Street, Cambridge, MA"},
             {"12345 C Avenue, San Francisco, CA"}
         }),
-        new ElasticsearchCluster.ColumnData("city", STRING, ImmutableMap.of("index", "not_analyzed"),
+        new ElasticsearchCluster.ColumnData("city", KEYWORD,
             new Object[][]{
                 {"Cambridge"},
                 {"San Francisco"},
@@ -315,7 +323,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
                 {"Cambridge"},
                 {"San Francisco"}
             }),
-        new ElasticsearchCluster.ColumnData("city_analyzed", STRING,
+        new ElasticsearchCluster.ColumnData("city_analyzed", TEXT,
             new Object[][]{
                 {"Cambridge"},
                 {"San Francisco"},
@@ -323,7 +331,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
                 {"Cambridge"},
                 {"San Francisco"}
             }),
-        new ElasticsearchCluster.ColumnData("state", STRING, ImmutableMap.of("index", "not_analyzed"),
+        new ElasticsearchCluster.ColumnData("state", KEYWORD,
             new Object[][]{
                 {"MA"},
                 {"CA"},
@@ -331,7 +339,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
                 {"MA"},
                 {"CA"}
             }),
-        new ElasticsearchCluster.ColumnData("state_analyzed", STRING, new Object[][]{
+        new ElasticsearchCluster.ColumnData("state_analyzed", TEXT, new Object[][]{
             {"MA"},
             {"CA"},
             {"CA"},
@@ -366,7 +374,7 @@ public class ElasticBaseTestQuery extends PlanTestBase {
             {ImmutableMap.of("lat", 44, "lon", 44)},
             {ImmutableMap.of("lat", 55, "lon", 55)}
         }),
-        new ElasticsearchCluster.ColumnData("name", STRING, new Object[][]{
+        new ElasticsearchCluster.ColumnData("name", TEXT, new Object[][]{
             {"Store in Cambridge"},
             {"Store in San Francisco"},
             {"Store in San Diego"},
@@ -381,6 +389,13 @@ public class ElasticBaseTestQuery extends PlanTestBase {
             {true},
             {false}
         }),
+        new ElasticsearchCluster.ColumnData("datefield2", DATE, new Object[][] {
+            {formatter.parseLocalDateTime("2015-02-10 10:50:42")},
+            {formatter.parseLocalDateTime("2015-02-11 10:50:42")},
+            {formatter.parseLocalDateTime("2015-02-12 10:50:42")},
+            {formatter.parseLocalDateTime("2015-02-11 10:50:42")},
+            {formatter.parseLocalDateTime("2015-02-10 10:50:42")}
+            }),
         new ElasticsearchCluster.ColumnData("datefield", DATE, new Object[][] {
             {formatter.parseLocalDateTime("2014-02-10 10:50:42")},
             {formatter.parseLocalDateTime("2014-02-11 10:50:42")},
@@ -406,9 +421,11 @@ public class ElasticBaseTestQuery extends PlanTestBase {
    * reduce the clutter from the patch that switched the tests to use this method.
    */
   public static void verifyJsonInPlan(String query, String[] jsonExpectedInPlan) throws Exception {
-    query = QueryTestUtil.normalizeQuery(query);
-    verifyJsonInPlanHelper(query, jsonExpectedInPlan, true);
-    verifyJsonInPlanHelper(query, jsonExpectedInPlan, false);
+    if(!ElasticsearchCluster.USE_EXTERNAL_ES5) {
+      query = QueryTestUtil.normalizeQuery(query);
+      verifyJsonInPlanHelper(query, jsonExpectedInPlan, true);
+      verifyJsonInPlanHelper(query, jsonExpectedInPlan, false);
+    }
   }
 
   /**

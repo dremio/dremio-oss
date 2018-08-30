@@ -19,6 +19,7 @@ package com.dremio.service.accelerator;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import com.dremio.service.accelerator.proto.Acceleration;
 import com.dremio.service.accelerator.proto.Layout;
@@ -65,6 +66,13 @@ public final class AccelerationUtils {
       return ImmutableList.of();
     }
     return ImmutableList.copyOf(iterable);
+  }
+
+  public static <T> Stream<T> selfOrEmpty(final Stream<T> stream) {
+    if (stream == null) {
+      return Stream.of();
+    }
+    return stream;
   }
 
   /**

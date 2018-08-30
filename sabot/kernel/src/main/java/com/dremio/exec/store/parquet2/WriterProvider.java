@@ -16,7 +16,7 @@
 package com.dremio.exec.store.parquet2;
 
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.BigIntWriter;
 import org.apache.arrow.vector.complex.writer.BitWriter;
 import org.apache.arrow.vector.complex.writer.DateMilliWriter;
@@ -34,8 +34,8 @@ import org.apache.arrow.vector.complex.writer.VarCharWriter;
  */
 interface WriterProvider {
 
-  //TODO I should probably just pass a MapOrListWriter
-  MapWriter map(String name);
+  //TODO I should probably just pass a StructOrListWriter
+  StructWriter struct(String name);
   ListWriter list(String name);
   IntWriter integer(String name);
   DecimalWriter decimal(String name, int scale, int precision);
@@ -50,81 +50,81 @@ interface WriterProvider {
   BitWriter bit(String name);
   VarCharWriter varChar(String name);
 
-  class MapWriterProvider implements WriterProvider {
-    private final MapWriter mapWriter;
+  class StructWriterProvider implements WriterProvider {
+    private final StructWriter structWriter;
 
-    MapWriterProvider(MapWriter mapWriter) {
-      this.mapWriter = mapWriter;
+    StructWriterProvider(StructWriter structWriter) {
+      this.structWriter = structWriter;
     }
 
     @Override
-    public MapWriter map(String name) {
-      return mapWriter.map(name);
+    public StructWriter struct(String name) {
+      return structWriter.struct(name);
     }
 
     @Override
     public ListWriter list(String name) {
-      return mapWriter.list(name);
+      return structWriter.list(name);
     }
 
     @Override
     public IntWriter integer(String name) {
-      return mapWriter.integer(name);
+      return structWriter.integer(name);
     }
 
     @Override
     public DecimalWriter decimal(String name, int scale, int precision) {
-      return mapWriter.decimal(name, scale, precision);
+      return structWriter.decimal(name, scale, precision);
     }
 
     @Override
     public DecimalWriter decimal(String name) {
-      return mapWriter.decimal(name);
+      return structWriter.decimal(name);
     }
 
     @Override
     public DateMilliWriter date(String name) {
-      return mapWriter.dateMilli(name);
+      return structWriter.dateMilli(name);
     }
 
     @Override
     public TimeMilliWriter time(String name) {
-      return mapWriter.timeMilli(name);
+      return structWriter.timeMilli(name);
     }
 
     @Override
     public BigIntWriter bigInt(String name) {
-      return mapWriter.bigInt(name);
+      return structWriter.bigInt(name);
     }
 
     @Override
     public TimeStampMilliWriter timeStamp(String name) {
-      return mapWriter.timeStampMilli(name);
+      return structWriter.timeStampMilli(name);
     }
 
     @Override
     public VarBinaryWriter varBinary(String name) {
-      return mapWriter.varBinary(name);
+      return structWriter.varBinary(name);
     }
 
     @Override
     public Float4Writer float4(String name) {
-      return mapWriter.float4(name);
+      return structWriter.float4(name);
     }
 
     @Override
     public Float8Writer float8(String name) {
-      return mapWriter.float8(name);
+      return structWriter.float8(name);
     }
 
     @Override
     public BitWriter bit(String name) {
-      return mapWriter.bit(name);
+      return structWriter.bit(name);
     }
 
     @Override
     public VarCharWriter varChar(String name) {
-      return mapWriter.varChar(name);
+      return structWriter.varChar(name);
     }
   }
 
@@ -136,8 +136,8 @@ interface WriterProvider {
     }
 
     @Override
-    public MapWriter map(String name) {
-      return listWriter.map();
+    public StructWriter struct(String name) {
+      return listWriter.struct();
     }
 
     @Override

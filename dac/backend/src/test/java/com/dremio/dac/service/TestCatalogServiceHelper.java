@@ -266,6 +266,7 @@ public class TestCatalogServiceHelper {
       null,
       "",
       null,
+      null,
       null
     );
     thrown.expect(IllegalArgumentException.class);
@@ -279,6 +280,7 @@ public class TestCatalogServiceHelper {
       null,
       Dataset.DatasetType.VIRTUAL_DATASET,
       Arrays.asList("source", "path"),
+      null,
       null,
       null,
       null,
@@ -303,6 +305,7 @@ public class TestCatalogServiceHelper {
       null,
       null,
       "sql",
+      null,
       null,
       null
     );
@@ -330,6 +333,7 @@ public class TestCatalogServiceHelper {
       null,
       null,
       "sql",
+      null,
       null,
       null
     );
@@ -426,6 +430,7 @@ public class TestCatalogServiceHelper {
       null,
       "sql",
       null,
+      null,
       null
     );
 
@@ -444,6 +449,7 @@ public class TestCatalogServiceHelper {
       "1",
       null,
       "sql",
+      null,
       null,
       null
     );
@@ -482,6 +488,7 @@ public class TestCatalogServiceHelper {
       null,
       null,
       null,
+      null,
       null
     );
 
@@ -500,6 +507,7 @@ public class TestCatalogServiceHelper {
       "1",
       null,
       "sql",
+      null,
       null,
       null
     );
@@ -545,6 +553,7 @@ public class TestCatalogServiceHelper {
       null,
       null,
       null,
+      null,
       null
     );
 
@@ -578,7 +587,8 @@ public class TestCatalogServiceHelper {
       null,
       null,
       null,
-      new JsonFileConfig()
+       new JsonFileConfig(),
+      null
     );
 
     DatasetConfig config = new DatasetConfig();
@@ -610,14 +620,6 @@ public class TestCatalogServiceHelper {
   }
 
   @Test
-  public void testUpdateFolderShouldFail() throws Exception {
-    Folder folder = new Folder("folder-id", Collections.singletonList("folder"), null, null);
-
-    thrown.expect(UnsupportedOperationException.class);
-    catalogServiceHelper.updateCatalogItem(folder, folder.getId());
-  }
-
-  @Test
   public void testUpdateFileShouldFail() throws Exception {
     File file = new File("file-id", Collections.singletonList("file"));
 
@@ -645,6 +647,7 @@ public class TestCatalogServiceHelper {
       null,
       "sql",
       null,
+      null,
       null
     );
 
@@ -652,6 +655,7 @@ public class TestCatalogServiceHelper {
     namespaceContainer.setType(NameSpaceContainer.Type.DATASET);
 
     DatasetConfig datasetConfig = new DatasetConfig();
+    datasetConfig.setId(new EntityId(dataset.getId()));
     datasetConfig.setType(VIRTUAL_DATASET);
     datasetConfig.setFullPathList(dataset.getPath());
     datasetConfig.setVersion(Long.valueOf(dataset.getTag()));
@@ -785,20 +789,15 @@ public class TestCatalogServiceHelper {
     sourceConfig.setId(new EntityId("source-id"));
     sourceConfig.setType("");
 
-    FileSystemPlugin storagePlugin = mock(FileSystemPlugin.class);
-
-    when(catalog.getSource(sourceConfig.getName())).thenReturn(storagePlugin);
-
-    NamespaceKey namespaceKey = new NamespaceKey(sourceConfig.getName());
-
     // mock getting entities
     NameSpaceContainer namespaceContainer = new NameSpaceContainer();
     namespaceContainer.setSource(sourceConfig);
     namespaceContainer.setType(NameSpaceContainer.Type.SOURCE);
-    when(namespaceService.getEntities(Collections.singletonList(namespaceKey))).thenReturn(Collections.singletonList(namespaceContainer));
+    when(namespaceService.getEntities(Collections.singletonList(new NamespaceKey(sourceConfig.getName())))).thenReturn(Collections.singletonList(namespaceContainer));
 
-    // mock listing
-    List<NameSpaceContainer> containerList = new ArrayList<>();
+    FileSystemPlugin storagePlugin = mock(FileSystemPlugin.class);
+
+    when(catalog.getSource(sourceConfig.getName())).thenReturn(storagePlugin);
 
     // folder 1
     FolderConfig folderConfig1 = new FolderConfig();
@@ -808,7 +807,6 @@ public class TestCatalogServiceHelper {
     NameSpaceContainer folder = new NameSpaceContainer();
     folder.setFolder(folderConfig1);
     folder.setType(NameSpaceContainer.Type.FOLDER);
-    containerList.add(folder);
 
     // folder 2
     FolderConfig folderConfig2 = new FolderConfig();
@@ -818,35 +816,14 @@ public class TestCatalogServiceHelper {
     folder = new NameSpaceContainer();
     folder.setFolder(folderConfig2);
     folder.setType(NameSpaceContainer.Type.FOLDER);
-    containerList.add(folder);
 
-    when(namespaceService.list(namespaceKey)).thenReturn(containerList);
+    // mock getting entities
+    SchemaEntity schemaEntityFolder1 = new SchemaEntity(com.dremio.common.utils.PathUtils.constructFullPath(folderConfig1.getFullPathList()), SchemaEntity.SchemaEntityType.FOLDER, "testuser");
+    SchemaEntity schemaEntityFolder2 = new SchemaEntity(com.dremio.common.utils.PathUtils.constructFullPath(folderConfig2.getFullPathList()), SchemaEntity.SchemaEntityType.FOLDER, "testuser");
 
-    // folder1/folder11
-    List<NameSpaceContainer> containerList2 = new ArrayList<>();
-    FolderConfig folderConfig11 = new FolderConfig();
-    folderConfig11.setId(new EntityId("folder-id-11"));
-    folderConfig11.setName("folder11");
-    folderConfig11.setFullPathList(Arrays.asList(sourceConfig.getName(), folderConfig1.getName(), folderConfig11.getName()));
-    folder = new NameSpaceContainer();
-    folder.setFolder(folderConfig11);
-    folder.setType(NameSpaceContainer.Type.FOLDER);
-    containerList2.add(folder);
-    when(namespaceService.list(new NamespaceKey(folderConfig1.getFullPathList()))).thenReturn(containerList2);
+    when(storagePlugin.list(eq(Arrays.asList(sourceConfig.getName())), any(String.class))).thenReturn(Arrays.asList(schemaEntityFolder1, schemaEntityFolder2));
 
-    // mock non-namespace listing
-    when(storagePlugin.list(Collections.singletonList(storagePlugin.getName()), "user")).thenReturn(Collections.<SchemaEntity>emptyList());
-
-    List<CatalogItem> childrenForPath = catalogServiceHelper.getChildrenForPath(namespaceKey);
+    List<CatalogItem> childrenForPath = catalogServiceHelper.getChildrenForPath(new NamespaceKey(sourceConfig.getName()));
     assertEquals(childrenForPath.size(), 2);
-    // mock non-namespace listing
-
-    List<SchemaEntity> schemaEntities = new ArrayList<>();
-    schemaEntities.add(new SchemaEntity("path", SchemaEntity.SchemaEntityType.FILE, "user"));
-    schemaEntities.add(new SchemaEntity("path2", SchemaEntity.SchemaEntityType.FILE, "user"));
-    when(storagePlugin.list(folderConfig1.getFullPathList(), "user")).thenReturn(schemaEntities);
-
-    childrenForPath = catalogServiceHelper.getChildrenForPath(new NamespaceKey(folderConfig1.getFullPathList()));
-    assertEquals(childrenForPath.size(), 3);
   }
 }

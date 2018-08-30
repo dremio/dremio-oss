@@ -32,12 +32,12 @@ import java.util.Map;
 import java.util.Random;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.ListVector;
-import org.apache.arrow.vector.complex.NullableMapVector;
-import org.apache.arrow.vector.complex.impl.NullableMapWriter;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.NullableStructWriter;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
 import org.apache.arrow.vector.types.Types.MinorType;
@@ -87,15 +87,15 @@ public class ComplexDataGenerator implements Generator {
 
   private final VectorContainer container;
 
-  private final NullableIntVector intsVector;
-  private final NullableVarCharVector stringsVector;
+  private final IntVector intsVector;
+  private final VarCharVector stringsVector;
   private final ListVector l1IntsVector;
   private final ListVector l1StringsVector;
   private final ListVector l2IntsVector;
   private final ListVector l2StringsVector;
   private final ListVector l3IntsVector;
   private final ListVector l3StringsVector;
-  private final NullableMapVector mapVector;
+  private final StructVector structVector;
 
   private int position;
   private ArrowBuf tempBuf;
@@ -140,10 +140,10 @@ public class ComplexDataGenerator implements Generator {
     addChild(addChild(addChild(l3IntsVector, LIST), LIST), INT);
     l3StringsVector = container.addOrGet(l3Strings);
     addChild(addChild(addChild(l3StringsVector, LIST), LIST), VARCHAR);
-    mapVector = container.addOrGet(map);
-    mapVector.addOrGet("varchar", nullable(VARCHAR.getType()), NullableVarCharVector.class);
-    mapVector.addOrGet("int", nullable(INT.getType()), NullableIntVector.class);
-    ListVector listVector = mapVector.addOrGet("bits", nullable(LIST.getType()), ListVector.class);
+    structVector = container.addOrGet(map);
+    structVector.addOrGet("varchar", nullable(VARCHAR.getType()), VarCharVector.class);
+    structVector.addOrGet("int", nullable(INT.getType()), IntVector.class);
+    ListVector listVector = structVector.addOrGet("bits", nullable(LIST.getType()), ListVector.class);
     addChild(listVector, BIT);
 
     tempBuf = allocator.buffer(2048);
@@ -265,7 +265,7 @@ public class ComplexDataGenerator implements Generator {
     UnionListWriter l2StringsWriter = l2StringsVector.getWriter();
     UnionListWriter l3IntsWriter = l3IntsVector.getWriter();
     UnionListWriter l3StringsWriter = l3StringsVector.getWriter();
-    NullableMapWriter mapWriter = mapVector.getWriter();
+    NullableStructWriter structWriter = structVector.getWriter();
 
     for (int i = 0; i < toReturn; i++) {
       intsVector.setSafe(i, intsVals.get(position + i));
@@ -379,15 +379,15 @@ public class ComplexDataGenerator implements Generator {
       }
 
       {
-        mapWriter.setPosition(i);
+        structWriter.setPosition(i);
 
         Map<String, Object> val = mapVals.get(position + i);
 
         byte[] bytes = ((String)val.get("varchar")).getBytes();
         tempBuf.setBytes(0, bytes, 0, bytes.length);
-        mapWriter.varChar("varchar").writeVarChar(0, bytes.length, tempBuf);
-        mapWriter.integer("int").writeInt((Integer)val.get("int"));
-        ListWriter listWriter = mapWriter.list("bits");
+        structWriter.varChar("varchar").writeVarChar(0, bytes.length, tempBuf);
+        structWriter.integer("int").writeInt((Integer)val.get("int"));
+        ListWriter listWriter = structWriter.list("bits");
         listWriter.startList();
         Boolean[] bits = (Boolean[])val.get("bits");
         for(int j = 0; j < bits.length; j++) {

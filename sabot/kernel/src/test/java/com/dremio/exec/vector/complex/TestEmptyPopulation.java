@@ -23,6 +23,7 @@ import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.arrow.vector.UInt4Vector;
 import org.apache.arrow.vector.complex.BaseRepeatedValueVector;
 import org.apache.arrow.vector.complex.EmptyValuePopulator;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -35,22 +36,21 @@ import com.dremio.BaseTestQuery;
 public class TestEmptyPopulation extends BaseTestQuery {
 
   private UInt4Vector offsets;
-  private UInt4Vector.Accessor accessor;
-  private UInt4Vector.Mutator mutator;
   private EmptyValuePopulator populator;
-  private final BufferAllocator allocator = RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG);
-
 
   @Before
   public void initialize() {
     offsets = new UInt4Vector("offsets", allocator);
     offsets.allocateNewSafe();
-    accessor = offsets.getAccessor();
-    mutator = offsets.getMutator();
-    mutator.set(0, 0);
-    mutator.setValueCount(1);
-    Assert.assertTrue("offsets must have one value", accessor.getValueCount() == 1);
+    offsets.set(0, 0);
+    offsets.setValueCount(1);
+    Assert.assertTrue("offsets must have one value", offsets.getValueCount() == 1);
     populator = new EmptyValuePopulator(offsets);
+  }
+
+  @After
+  public void cleanup() {
+    offsets.clear();
   }
 
   @Test(expected = IndexOutOfBoundsException.class)
@@ -61,35 +61,35 @@ public class TestEmptyPopulation extends BaseTestQuery {
   @Test
   public void testZeroHasNoEffect() {
     populator.populate(0);
-    Assert.assertTrue("offset must have one value", accessor.getValueCount() == 1);
+    Assert.assertTrue("offset must have one value", offsets.getValueCount() == 1);
   }
 
   @Test
   public void testEmptyPopulationWorks() {
     populator.populate(1);
-    Assert.assertEquals("offset must have valid size", 2, accessor.getValueCount());
-    Assert.assertEquals("value must match", 0, accessor.get(1));
+    Assert.assertEquals("offset must have valid size", 2, offsets.getValueCount());
+    Assert.assertEquals("value must match", 0, offsets.get(1));
 
-    mutator.set(1, 10);
+    offsets.set(1, 10);
     populator.populate(2);
-    Assert.assertEquals("offset must have valid size", 3, accessor.getValueCount());
-    Assert.assertEquals("value must match", 10, accessor.get(1));
+    Assert.assertEquals("offset must have valid size", 3, offsets.getValueCount());
+    Assert.assertEquals("value must match", 10, offsets.get(1));
 
-    mutator.set(2, 20);
+    offsets.set(2, 20);
     populator.populate(5);
-    Assert.assertEquals("offset must have valid size", 6, accessor.getValueCount());
+    Assert.assertEquals("offset must have valid size", 6, offsets.getValueCount());
     for (int i=2; i<=5;i++) {
-      Assert.assertEquals(String.format("value at index[%s] must match", i), 20, accessor.get(i));
+      Assert.assertEquals(String.format("value at index[%s] must match", i), 20, offsets.get(i));
     }
 
     populator.populate(0);
-    Assert.assertEquals("offset must have valid size", 1, accessor.getValueCount());
-    Assert.assertEquals("value must match", 0, accessor.get(0));
+    Assert.assertEquals("offset must have valid size", 1, offsets.getValueCount());
+    Assert.assertEquals("value must match", 0, offsets.get(0));
   }
 
   @Test
   public void testRepeatedScalarEmptyFirst() throws Exception {
-    final String query = "select * from cp.`vector/complex/repeated-scalar-empty-first.json`";
+    final String query = "select * from cp.\"vector/complex/repeated-scalar-empty-first.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -103,7 +103,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testRepeatedScalarEmptyLast() throws Exception {
-    final String query = "select * from cp.`vector/complex/repeated-scalar-empty-last.json`";
+    final String query = "select * from cp.\"vector/complex/repeated-scalar-empty-last.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -117,7 +117,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testRepeatedScalarEmptyInBetween() throws Exception {
-    final String query = "select * from cp.`vector/complex/repeated-scalar-empty-between.json`";
+    final String query = "select * from cp.\"vector/complex/repeated-scalar-empty-between.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -131,7 +131,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testRepeatedListEmptyFirst() throws Exception {
-    final String query = "select * from cp.`vector/complex/repeated-list-empty-first.json`";
+    final String query = "select * from cp.\"vector/complex/repeated-list-empty-first.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -145,7 +145,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testRepeatedListEmptyLast() throws Exception {
-    final String query = "select * from cp.`vector/complex/repeated-list-empty-last.json`";
+    final String query = "select * from cp.\"vector/complex/repeated-list-empty-last.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -159,7 +159,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testRepeatedListEmptyBetween() throws Exception {
-    final String query = "select * from cp.`vector/complex/repeated-list-empty-between.json`";
+    final String query = "select * from cp.\"vector/complex/repeated-list-empty-between.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -174,7 +174,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testRepeatedMapEmptyFirst() throws Exception {
-    final String query = "select * from cp.`vector/complex/repeated-map-empty-first.json`";
+    final String query = "select * from cp.\"vector/complex/repeated-map-empty-first.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -188,7 +188,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testRepeatedMapEmptyLast() throws Exception {
-    final String query = "select * from cp.`vector/complex/repeated-map-empty-last.json`";
+    final String query = "select * from cp.\"vector/complex/repeated-map-empty-last.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -202,7 +202,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testRepeatedMapEmptyBetween() throws Exception {
-    final String query = "select * from cp.`vector/complex/repeated-map-empty-between.json`";
+    final String query = "select * from cp.\"vector/complex/repeated-map-empty-between.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -216,7 +216,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testMapEmptyFirst() throws Exception {
-    final String query = "select * from cp.`vector/complex/map-empty-first.json`";
+    final String query = "select * from cp.\"vector/complex/map-empty-first.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -230,7 +230,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testMapEmptyLast() throws Exception {
-    final String query = "select * from cp.`vector/complex/map-empty-last.json`";
+    final String query = "select * from cp.\"vector/complex/map-empty-last.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -244,7 +244,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testMapEmptyBetween() throws Exception {
-    final String query = "select * from cp.`vector/complex/map-empty-between.json`";
+    final String query = "select * from cp.\"vector/complex/map-empty-between.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -258,7 +258,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testMultiLevelRepeatedListEmptyFirst() throws Exception {
-    final String query = "select * from cp.`vector/complex/multi-repeated-list-empty-first.json`";
+    final String query = "select * from cp.\"vector/complex/multi-repeated-list-empty-first.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -272,7 +272,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testMultiLevelRepeatedListEmptyLast() throws Exception {
-    final String query = "select * from cp.`vector/complex/multi-repeated-list-empty-last.json`";
+    final String query = "select * from cp.\"vector/complex/multi-repeated-list-empty-last.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -286,7 +286,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testMultiLevelRepeatedListEmptyBetween() throws Exception {
-    final String query = "select * from cp.`vector/complex/multi-repeated-list-empty-between.json`";
+    final String query = "select * from cp.\"vector/complex/multi-repeated-list-empty-between.json\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -301,7 +301,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
 
   @Test
   public void testMultiLevelRepeatedListWithMultipleEmpties() throws Exception {
-    final String query = "select * from cp.`vector/complex/multi-repeated-list-multi-empty.json`";
+    final String query = "select * from cp.\"vector/complex/multi-repeated-list-multi-empty.json\"";
 
     testBuilder()
         .sqlQuery(query)

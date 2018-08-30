@@ -31,22 +31,22 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableBitVector;
-import org.apache.arrow.vector.NullableDateMilliVector;
-import org.apache.arrow.vector.NullableDecimalVector;
-import org.apache.arrow.vector.NullableFloat4Vector;
-import org.apache.arrow.vector.NullableFloat8Vector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableSmallIntVector;
-import org.apache.arrow.vector.NullableTimeMilliVector;
-import org.apache.arrow.vector.NullableTimeStampMilliVector;
-import org.apache.arrow.vector.NullableTinyIntVector;
-import org.apache.arrow.vector.NullableUInt1Vector;
-import org.apache.arrow.vector.NullableUInt2Vector;
-import org.apache.arrow.vector.NullableUInt4Vector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.DateMilliVector;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.SmallIntVector;
+import org.apache.arrow.vector.TimeMilliVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
+import org.apache.arrow.vector.TinyIntVector;
+import org.apache.arrow.vector.UInt1Vector;
+import org.apache.arrow.vector.UInt2Vector;
+import org.apache.arrow.vector.UInt4Vector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
@@ -92,8 +92,8 @@ import com.dremio.exec.store.SplitsKey;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.MetadataUtils;
 import com.dremio.exec.store.dfs.PruneableScan;
-import com.dremio.exec.store.parquet.FilterCondition;
-import com.dremio.exec.store.parquet.FilterCondition.FilterProperties;
+import com.dremio.exec.store.parquet.ParquetFilterCondition;
+import com.dremio.exec.store.parquet.ParquetFilterCondition.FilterProperties;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
@@ -255,9 +255,9 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     final RelDataType rowType = filterRel.getRowType();
     final List<FilterProperties> filters = FluentIterable
       .from(conditions)
-      .transform(new Function<RexCall, FilterCondition.FilterProperties>() {
+      .transform(new Function<RexCall, ParquetFilterCondition.FilterProperties>() {
         @Override
-        public FilterCondition.FilterProperties apply(RexCall input) {
+        public ParquetFilterCondition.FilterProperties apply(RexCall input) {
           return new FilterProperties(input, rowType);
         }
       }).toList();
@@ -343,7 +343,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       miscTimer.reset();
 
       try(final BufferAllocator allocator = optimizerContext.getAllocator().newChildAllocator("prune-scan-rule", 0, Long.MAX_VALUE);
-      final NullableBitVector output = new NullableBitVector("", allocator);
+      final BitVector output = new BitVector("", allocator);
       final VectorContainer container = new VectorContainer();
           ){
         final ValueVector[] vectors = new ValueVector[partitionColumnsToIdMap.size()];
@@ -607,14 +607,14 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
   private void writePartitionValue(ValueVector vv, int index, PartitionValue pv, MajorType majorType, BufferAllocator allocator) {
     switch (majorType.getMinorType()) {
       case INT: {
-        NullableIntVector intVector = (NullableIntVector) vv;
+        IntVector intVector = (IntVector) vv;
         if(pv.getIntValue() != null){
           intVector.setSafe(index, pv.getIntValue());
         }
         return;
       }
       case SMALLINT: {
-        NullableSmallIntVector smallIntVector = (NullableSmallIntVector) vv;
+        SmallIntVector smallIntVector = (SmallIntVector) vv;
         Integer value = pv.getIntValue();
         if(value != null){
           smallIntVector.setSafe(index, value.shortValue());
@@ -622,7 +622,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         return;
       }
       case TINYINT: {
-        NullableTinyIntVector tinyIntVector = (NullableTinyIntVector) vv;
+        TinyIntVector tinyIntVector = (TinyIntVector) vv;
         Integer value = pv.getIntValue();
         if(value != null){
           tinyIntVector.setSafe(index, value.byteValue());
@@ -630,7 +630,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         return;
       }
       case UINT1: {
-        NullableUInt1Vector intVector = (NullableUInt1Vector) vv;
+        UInt1Vector intVector = (UInt1Vector) vv;
         Integer value = pv.getIntValue();
         if(value != null){
           intVector.setSafe(index, value.byteValue());
@@ -638,7 +638,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         return;
       }
       case UINT2: {
-        NullableUInt2Vector intVector = (NullableUInt2Vector) vv;
+        UInt2Vector intVector = (UInt2Vector) vv;
         Integer value = pv.getIntValue();
         if(value != null){
           intVector.setSafe(index, (char) value.shortValue());
@@ -646,7 +646,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         return;
       }
       case UINT4: {
-        NullableUInt4Vector intVector = (NullableUInt4Vector) vv;
+        UInt4Vector intVector = (UInt4Vector) vv;
         Integer value = pv.getIntValue();
         if(value != null){
           intVector.setSafe(index, value);
@@ -654,7 +654,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         return;
       }
       case BIGINT: {
-        NullableBigIntVector bigIntVector = (NullableBigIntVector) vv;
+        BigIntVector bigIntVector = (BigIntVector) vv;
         Long value = pv.getLongValue();
         if(value != null){
           bigIntVector.setSafe(index, value);
@@ -662,7 +662,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         return;
       }
       case FLOAT4: {
-        NullableFloat4Vector float4Vector = (NullableFloat4Vector) vv;
+        Float4Vector float4Vector = (Float4Vector) vv;
         Float value = pv.getFloatValue();
         if(value != null){
           float4Vector.setSafe(index, value);
@@ -670,7 +670,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         return;
       }
       case FLOAT8: {
-        NullableFloat8Vector float8Vector = (NullableFloat8Vector) vv;
+        Float8Vector float8Vector = (Float8Vector) vv;
         Double value = pv.getDoubleValue();
         if(value != null){
           float8Vector.setSafe(index, value);
@@ -678,7 +678,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         return;
       }
       case VARBINARY: {
-        NullableVarBinaryVector varBinaryVector = (NullableVarBinaryVector) vv;
+        VarBinaryVector varBinaryVector = (VarBinaryVector) vv;
         if(pv.getBinaryValue() != null){
           byte[] bytes = pv.getBinaryValue().toByteArray();
           varBinaryVector.setSafe(index, bytes, 0, bytes.length);
@@ -686,7 +686,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         return;
       }
       case DATE: {
-        NullableDateMilliVector dateVector = (NullableDateMilliVector) vv;
+        DateMilliVector dateVector = (DateMilliVector) vv;
         Long value = pv.getLongValue();
         if(value != null){
           dateVector.setSafe(index, value);
@@ -694,7 +694,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         return;
       }
       case TIME: {
-        NullableTimeMilliVector timeVector = (NullableTimeMilliVector) vv;
+        TimeMilliVector timeVector = (TimeMilliVector) vv;
         Integer value = pv.getIntValue();
         if(value != null){
           timeVector.setSafe(index, value);
@@ -702,7 +702,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         return;
       }
       case TIMESTAMP: {
-        NullableTimeStampMilliVector timeStampVector = (NullableTimeStampMilliVector) vv;
+        TimeStampMilliVector timeStampVector = (TimeStampMilliVector) vv;
         Long value = pv.getLongValue();
         if(value != null){
           timeStampVector.setSafe(index, value);
@@ -710,14 +710,14 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         return;
       }
       case BIT: {
-        NullableBitVector bitVect = (NullableBitVector) vv;
+        BitVector bitVect = (BitVector) vv;
         if(pv.getBitValue() != null){
           bitVect.setSafe(index, pv.getBitValue() ? 1 : 0);
         }
         return;
       }
       case DECIMAL: {
-        NullableDecimalVector decimal = (NullableDecimalVector) vv;
+        DecimalVector decimal = (DecimalVector) vv;
         if(pv.getBinaryValue() != null){
           byte[] bytes = pv.getBinaryValue().toByteArray();
           Preconditions.checkArgument(bytes.length == 16, "Expected 16 bytes, received %d", bytes.length);
@@ -729,7 +729,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         return;
       }
       case VARCHAR: {
-        NullableVarCharVector varCharVector = (NullableVarCharVector) vv;
+        VarCharVector varCharVector = (VarCharVector) vv;
         if(pv.getStringValue() != null){
           byte[] bytes = pv.getStringValue().getBytes();
           varCharVector.setSafe(index, bytes, 0, bytes.length);

@@ -20,8 +20,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -111,7 +111,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
 
       final ValueVectorReadExpression vvread = (ValueVectorReadExpression) expr;
       final FieldVector inputVector = incoming.getValueAccessorById(FieldVector.class, vvread.getFieldId().getFieldIds()).getValueVector();
-      if(inputVector instanceof NullableVarCharVector || inputVector instanceof NullableVarBinaryVector){
+      if(inputVector instanceof VarCharVector || inputVector instanceof VarBinaryVector){
         validationVectors.add(inputVector);
       }
       final FieldVector outputVector = TypeHelper.getNewVector(expr.getCompleteType().toField(ne.getRef()), context.getAllocator());

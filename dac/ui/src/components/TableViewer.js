@@ -15,32 +15,126 @@
  */
 import { Component } from 'react';
 import PropTypes from 'prop-types';
-import { Table, Tr } from 'reactable';
 import Immutable from 'immutable';
+import { Column, Table, Cell } from 'fixed-data-table-2';
+import classNames from 'classnames';
+import { AutoSizer } from 'react-virtualized';
+import ImmutablePropTypes from 'react-immutable-proptypes';
+import { tableViewer as tableViewerCls, tableViewerContainer } from './TableViewer.less';
+
+export const cellAlignment = {
+  left: 'left',
+  center: 'center',
+  right: 'right'
+};
+
+const cellType = PropTypes.node;
 
 export default class TableViewer extends Component {
+
   static propTypes = {
-    tableData: PropTypes.object,
-    className: PropTypes.string
-    // other props passed to reactable Table
-    // columns: PropTypes.array
+    tableData: ImmutablePropTypes.listOf(PropTypes.shape({
+      data: PropTypes.oneOfType([PropTypes.objectOf(cellType), PropTypes.arrayOf(cellType)]).isRequired,
+      rowClassName: PropTypes.string
+    })),
+    className: PropTypes.string,
+    rowHeight: PropTypes.number,
+    columns: PropTypes.arrayOf(
+      PropTypes.shape({
+        key: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+        label: PropTypes.string.isRequired, // todo what do we allow here????
+        align: PropTypes.oneOf(Object.values(cellAlignment)),
+        flexGrow: PropTypes.number,
+        width: PropTypes.number
+      })
+    ).isRequired
+    // other props passed to fixed-data-table-2 Table
   }
 
   static defaultProps = {
-    tableData: Immutable.List()
+    tableData: Immutable.List(),
+    rowHeight: 30
+  }
+
+  getColumn = (column, columnIndex) => {
+    return this.getColumnByConfig(column, columnIndex);
+  }
+
+  getColumnByConfig = ( /* columnConfig */ {
+    key,
+    label,
+    align = cellAlignment.left,
+    flexGrow = 0,
+    width = 20
+  }, columnIndex) => {
+    return (<Column
+        key={key === undefined ? columnIndex : key}
+        flexGrow={flexGrow}
+        width={width}
+        columnKey={key}
+        align={align}
+        header={<Cell>{label}</Cell>}
+        cell={this.renderCell(label)}
+      />);
+  }
+
+  getRowClassName = (rowIndex) => {
+    const {
+      tableData
+    } = this.props;
+
+    return tableData.get(rowIndex).rowClassName;
+  }
+
+  renderCell = label => (/* cellProps */ {
+    rowIndex,
+    columnKey,
+    ...cellProps
+  }) => {
+    const {
+      tableData
+    } = this.props;
+
+    return (<Cell>
+      <span data-qa={label}>
+        {tableData.get(rowIndex).data[columnKey]}
+      </span>
+    </Cell>);
+  }
+
+  renderTable = ({width, height}) => {
+    const {
+      rowHeight,
+      tableData,
+      className,
+      columns,
+      ...tableProps
+    } = this.props;
+
+    const tableColumns = columns.map(this.getColumn);
+
+    return (
+      <Table
+        rowHeight={rowHeight}
+        headerHeight={30}
+        width={width}
+        height={height}
+        rowsCount={tableData.size}
+        className={classNames([tableViewerCls, className])}
+        rowClassNameGetter={this.getRowClassName}
+        {...tableProps}>
+        {tableColumns}
+      </Table>
+    );
   }
 
   render() {
-    const { tableData, className, ...tableProps } = this.props;
     return (
-      <Table
-        className={`table table-striped ${className || ''}`}
-        {...tableProps}>
-        {tableData.toJS().map((row, index) => {
-          const rowClassName = row.rowClassName;
-          return <Tr className={rowClassName} key={index} data={row.data} />;
-        })}
-      </Table>
+      <div className={tableViewerContainer}>
+        <AutoSizer>
+          {this.renderTable}
+        </AutoSizer>
+      </div>
     );
   }
 }

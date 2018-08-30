@@ -24,22 +24,19 @@ import { getIconByEntityType } from 'utils/iconUtils';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 import DatasetAccelerationButton from 'dyn-load/components/Acceleration/DatasetAccelerationButton';
 import SettingsBtn from 'components/Buttons/SettingsBtn';
-import LinkButton from 'components/Buttons/LinkButton';
 import RealTimeTimer from 'components/RealTimeTimer';
 import CopyButton from 'components/Buttons/CopyButton';
-import CodeMirror from 'components/CodeMirror';
 import { injectIntl, FormattedMessage } from 'react-intl';
 
 import { BORDER_TABLE } from 'uiTheme/radium/colors';
+import SqlEditor from 'components/SQLEditor.js';
 
 import Quote from './Quote';
 import ListItem from './ListItem';
 import JobErrorLog from './JobErrorLog';
 import ReflectionList from './ReflectionList';
+import ReflectionBlock from './ReflectionBlock';
 
-import 'codemirror/mode/sql/sql';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/theme/mdn-like.css';
 
 @injectIntl
 @Radium
@@ -59,11 +56,6 @@ class OverviewContent extends Component {
 
   static contextTypes = {
     location: PropTypes.object.isRequired
-  };
-
-  static codeMirrorOptions = {
-    readOnly: true,
-    lineWrapping: true
   };
 
   getFormatMessageIdForQueryType() {
@@ -127,7 +119,19 @@ class OverviewContent extends Component {
     return !!jobDetails.get('datasetPathList');
   }
 
-  isParentsAvailable() {
+  isSingleReflectionBlockToBeShown() {
+    const { jobDetails } = this.props;
+    const materializationFor = jobDetails.get('materializationFor');
+    return this.isDatasetAvailable() && materializationFor && materializationFor.has('reflectionType');
+  }
+
+  isDatasetBlockToBeShown() {
+    const { jobDetails } = this.props;
+    const materializationFor = jobDetails.get('materializationFor');
+    return this.isDatasetAvailable() && materializationFor && !materializationFor.has('reflectionType');
+  }
+
+  isParentsBlockToBeShown() {
     const { jobDetails } = this.props;
 
     if (jobDetails.get('materializationFor')) return false; // this has no meaning to the user, so hide
@@ -136,13 +140,68 @@ class OverviewContent extends Component {
     return !!(listItem && (listItem.get('datasetPathList') || listItem.get('type')));
   }
 
+  renderJobSummary(jobDetails, intl) {
+    const endTime = jobsUtils.getFinishTime(jobDetails.get('state'), jobDetails.get('endTime'));
+    const jobId = jobDetails.get('jobId').get('id');
+    const jobIdUrl = jobsUtils.navigationURLForJobId(jobId, true);
+
+    return (
+      <div className='detail-row'>
+        <h4>{intl.formatMessage({ id: 'Job.Summary' })}</h4>
+        <div style={{marginBottom: 10}}>{this.renderInfoAboutProfile()}</div>
+        <ul>
+          <ListItem label={intl.formatMessage({ id: 'Job.QueryType' })}>
+            <span>{intl.formatMessage({ id: this.getFormatMessageIdForQueryType() })}</span>
+          </ListItem>
+          <ListItem label={intl.formatMessage({ id: 'Job.Duration' })}>
+            <span>{this.renderJobDuration()}</span>
+          </ListItem>
+          <ListItem label={intl.formatMessage({ id: 'Job.StartTime' })}>
+            <span>{timeUtils.formatTime(jobDetails.get('startTime'))}</span>
+          </ListItem>
+          <ListItem label={intl.formatMessage({ id: 'Job.EndTime' })}>
+            <span>{endTime}</span>
+          </ListItem>
+          <ListItem label={intl.formatMessage({ id: 'Common.User' })}>
+            <span>{jobDetails.get('user')}</span>
+          </ListItem>
+          <ListItem label={intl.formatMessage({ id: 'Job.JobID' })} style={{position: 'relative'}}>
+            <span style={styles.jobId}>
+              {jobId}
+              <CopyButton style={{marginLeft: 5}} title={intl.formatMessage({ id: 'Common.CopyLink' })} text={jobIdUrl} />
+            </span>
+          </ListItem>
+        </ul>
+      </div>
+    );
+  }
+
   renderErrorLog() {
     const failureInfo = this.props.jobDetails.get('failureInfo');
 
-    // TODO: move this into JobErrorLog
-    return (failureInfo && failureInfo.has('errors') && failureInfo.get('errors').size > 0) ? (
-      <JobErrorLog failureInfo={failureInfo} />
-    ) : null;
+    return (failureInfo) ? <JobErrorLog failureInfo={failureInfo} /> : null;
+  }
+
+  renderDatasetBlock() {
+    const { jobDetails, intl } = this.props;
+    const dataset = jobDetails.getIn(['datasetPathList', -1]) || intl.formatMessage({ id: 'File.Unknown' });
+    const label = intl.formatMessage({ id: 'Dataset.Dataset' });
+
+    return (
+      <ul>
+        <ListItem label={label} style={{ margin: 0, alignItems: 'center' }}>
+          <div style={{flex: '1 1', overflow: 'hidden', marginRight: 5}}>
+            <DatasetItemLabel
+              name={dataset}
+              fullPath={jobDetails.get('datasetPathList')}
+              showFullPath
+              typeIcon={getIconByEntityType(jobDetails.get('datasetType'))}
+              placement='right'
+            />
+          </div>
+        </ListItem>
+      </ul>
+    );
   }
 
   renderSqlBlock() {
@@ -150,24 +209,38 @@ class OverviewContent extends Component {
     if (jobDetails.get('materializationFor')) return null; // this has no meaning to the user, so hide
 
     const sqlString = jobDetails.get('sql');
+
     if (sqlString && !this.isMetadataJob()) {
       return (
         <div className='sql-wrap'>
           <h5>{`${intl.formatMessage({ id: 'SQL.SQL' })}`}</h5>
-          <CodeMirror
-            defaultValue={sqlString}
-            options={OverviewContent.codeMirrorOptions} />
+          <SqlEditor
+            readOnly
+            value={sqlString}
+            fitHeightToContent
+            maxHeight={500}
+            contextMenu={false}
+            />
         </div>
       );
     }
     return null;
   }
 
+  renderSingleReflectionBlock() {
+    const { jobDetails, intl } = this.props;
+    const datasetPathList = jobDetails.get('datasetPathList');
+
+    return (
+      <div>
+        <h4 style={{marginBottom: 10}}>{intl.formatMessage({ id: 'Job.Reflection' })}</h4>
+        <ReflectionBlock datasetFullPath={datasetPathList} jobDetails={jobDetails} />
+      </div>
+    );
+  }
+
   renderParentsBlock() {
     const { jobDetails } = this.props;
-    if (!this.isParentsAvailable()) {
-      return null;
-    }
 
     return (
       <div>
@@ -201,46 +274,13 @@ class OverviewContent extends Component {
     );
   }
 
-  renderReflectionsBlock() {
+  renderReflectionListBlock() {
     const byRelationship = jobsUtils.getReflectionsByRelationship(this.props.jobDetails);
 
     return byRelationship.CHOSEN && <div>
       <h5><FormattedMessage id='Job.AcceleratedBy'/></h5>
       <ReflectionList reflections={byRelationship.CHOSEN} jobDetails={this.props.jobDetails} />
     </div>;
-  }
-
-  renderDatasetBlock() {
-    const { jobDetails, intl } = this.props;
-    if (!this.isDatasetAvailable()) return;
-    const dataset = jobDetails.getIn(['datasetPathList', -1]) || intl.formatMessage({ id: 'File.Unknown' });
-    const materializationFor = jobDetails.get('materializationFor');
-    const label = intl.formatMessage({ id: materializationFor ? 'Job.ReflectionForDataset' : 'Dataset.Dataset' });
-
-    return (
-      <ul>
-        <ListItem label={label} style={{ margin: 0, alignItems: 'center' }}>
-          <div style={{flex: '1 1', overflow: 'hidden', marginRight: 5}}>
-            <DatasetItemLabel
-              name={dataset}
-              fullPath={jobDetails.get('datasetPathList')}
-              showFullPath
-              typeIcon={getIconByEntityType(jobDetails.get('datasetType'))}
-              placement='right'
-            />
-          </div>
-          { materializationFor && <LinkButton to={{
-            ...this.context.location,
-            state: {
-              modal: 'AccelerationModal',
-              datasetId: materializationFor.get('datasetId'),
-              layoutId: materializationFor.get('reflectionId')
-            }
-          }}>{intl.formatMessage({ id: 'Job.ShowReflection' })}</LinkButton>}
-
-        </ListItem>
-      </ul>
-    );
   }
 
   renderInfoAboutProfile() {
@@ -285,56 +325,27 @@ class OverviewContent extends Component {
     );
   }
 
+
   render() {
     const { jobDetails, intl } = this.props;
     if (!jobDetails) {
       return null;
     }
-    const endTime = jobsUtils.getFinishTime(jobDetails.get('state'), jobDetails.get('endTime'));
-    const quoteStyle = this.isDatasetAvailable() || this.isParentsAvailable()
-      ? {display: 'block'}
-      : {display: 'none'};
-
-    const jobId = jobDetails.get('jobId').get('id');
-    const jobIdUrl = jobsUtils.navigationURLForJobId(jobId, true);
 
     return (
       <div>
-        <div className='detail-row'>
-          <h4>{intl.formatMessage({ id: 'Job.Summary' })}</h4>
-          <div style={{marginBottom: 10}}>{this.renderInfoAboutProfile()}</div>
-          <ul>
-            <ListItem label={intl.formatMessage({ id: 'Job.QueryType' })}>
-              <span>{intl.formatMessage({ id: this.getFormatMessageIdForQueryType() })}</span>
-            </ListItem>
-            <ListItem label={intl.formatMessage({ id: 'Job.Duration' })}>
-              <span>{this.renderJobDuration()}</span>
-            </ListItem>
-            <ListItem label={intl.formatMessage({ id: 'Job.StartTime' })}>
-              <span>{timeUtils.formatTime(jobDetails.get('startTime'))}</span>
-            </ListItem>
-            <ListItem label={intl.formatMessage({ id: 'Job.EndTime' })}>
-              <span>{endTime}</span>
-            </ListItem>
-            <ListItem label={intl.formatMessage({ id: 'Common.User' })}>
-              <span>{jobDetails.get('user')}</span>
-            </ListItem>
-            <ListItem label={intl.formatMessage({ id: 'Job.JobID' })} style={{position: 'relative'}}>
-              <span style={styles.jobId}>
-                {jobId}
-                <CopyButton style={{marginLeft: 5}} title={intl.formatMessage({ id: 'Common.CopyLink' })} text={jobIdUrl} />
-              </span>
-            </ListItem>
-          </ul>
-        </div>
+        {this.renderJobSummary(jobDetails, intl)}
         {this.renderErrorLog()}
 
         {!this.isMetadataJob() &&
           <div className='detail-row'>
-            <h4 style={[quoteStyle]}>{intl.formatMessage({ id: 'Job.Query' })}</h4>
-            {this.renderDatasetBlock()}
-            {this.renderParentsBlock()}
-            {this.renderReflectionsBlock()}
+            {(this.isDatasetBlockToBeShown() || this.isParentsBlockToBeShown()) &&
+            <h4>{intl.formatMessage({ id: 'Job.Query' })}</h4>
+            }
+            {this.isDatasetBlockToBeShown() && this.renderDatasetBlock()}
+            {this.isSingleReflectionBlockToBeShown() && this.renderSingleReflectionBlock()}
+            {this.isParentsBlockToBeShown() && this.renderParentsBlock()}
+            {this.renderReflectionListBlock()}
             { jobDetails.get('stats') && <Quote jobIOData={jobDetails.get('stats')}/> }
             {this.renderSqlBlock()}
           </div>

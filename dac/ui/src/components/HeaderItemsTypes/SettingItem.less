@@ -13,17 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.setting-item {
-  width: 45px;
-  padding-left: 0px;
-  display: flex;
-  justify-content: space-around;
-  color: gray;
-  cursor: pointer;
-  border: 1px solid #c2c2c2;
-  border-radius: 5px;
-  height: 26px;
-  align-items: center;
-  margin-left: 10px;
-  margin-right: 10px;
-}
+ :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+
+  .setting-item {
+    width: 45px;
+    padding-left: 0px;
+    display: flex;
+    justify-content: space-around;
+    color: gray;
+    cursor: pointer;
+    border: 1px solid #c2c2c2;
+    border-radius: 5px;
+    height: 26px;
+    align-items: center;
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+ }

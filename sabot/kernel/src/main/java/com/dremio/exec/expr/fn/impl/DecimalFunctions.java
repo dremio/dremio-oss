@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
+import com.dremio.exec.expr.AggrFunction;
+import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.vector.holders.BigIntHolder;
@@ -23,7 +25,9 @@ import org.apache.arrow.vector.holders.DecimalHolder;
 import org.apache.arrow.vector.holders.Float4Holder;
 import org.apache.arrow.vector.holders.Float8Holder;
 import org.apache.arrow.vector.holders.IntHolder;
+import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableDecimalHolder;
+import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
 import com.dremio.exec.expr.SimpleFunction;
@@ -298,6 +302,157 @@ public class DecimalFunctions {
       out.buffer = buffer;
       out.precision = (int) precision.value;
       out.scale = (int) scale.value;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "sum", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  public static class NullableDecimalSum implements AggrFunction {
+    @Param NullableDecimalHolder in;
+    @Workspace NullableFloat8Holder sum;
+    @Workspace NullableBigIntHolder nonNullCount;
+    @Output NullableFloat8Holder out;
+
+    public void setup() {
+      sum = new NullableFloat8Holder();
+      sum.isSet = 1;
+      sum.value = 0;
+      nonNullCount = new NullableBigIntHolder();
+      nonNullCount.isSet = 1;
+      nonNullCount.value = 0;
+    }
+    public void add() {
+      if (in.isSet != 0) {
+        in.start = (in.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+        java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, in.start, in.scale);
+        sum.value += bd.doubleValue();
+        nonNullCount.value++;
+      }
+    }
+    public void output() {
+      if (nonNullCount.value > 0) {
+        out.isSet = 1;
+        out.value = sum.value;
+      } else {
+        // All values were null. Result should be null too
+        out.isSet = 0;
+      }
+    }
+    public void reset() {
+      sum.value = 0;
+      nonNullCount.value = 0;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "$sum0", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  public static class NullableDecimalSumZero implements AggrFunction {
+    @Param NullableDecimalHolder in;
+    @Workspace NullableFloat8Holder sum;
+    @Output NullableFloat8Holder out;
+
+    public void setup() {
+      sum = new NullableFloat8Holder();
+      sum.isSet = 1;
+      sum.value = 0;
+    }
+    public void add() {
+      if (in.isSet == 1) {
+        in.start = (in.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+        java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, in.start, in.scale);
+        sum.value += bd.doubleValue();
+      }
+    }
+    public void output() {
+      out.isSet = 1;
+      out.value = sum.value;
+    }
+    public void reset() {
+      sum.value = 0;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "min", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  public static class NullableDecimalMin implements AggrFunction {
+    @Param NullableDecimalHolder in;
+    @Workspace NullableFloat8Holder minVal;
+    @Workspace NullableBigIntHolder nonNullCount;
+    @Output NullableFloat8Holder out;
+
+    public void setup() {
+      minVal = new NullableFloat8Holder();
+      minVal.isSet = 1;
+      minVal.value = Double.MAX_VALUE;
+      nonNullCount = new NullableBigIntHolder();
+      nonNullCount.isSet = 1;
+      nonNullCount.value = 0;
+    }
+    public void add() {
+      if (in.isSet != 0) {
+        nonNullCount.value = 1;
+        in.start = (in.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+        java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, in.start, in.scale);
+        double val = bd.doubleValue();
+        if (val < minVal.value) {
+          minVal.value = val;
+        }
+      }
+    }
+    public void output() {
+      if (nonNullCount.value > 0) {
+        out.isSet = 1;
+        out.value = minVal.value;
+      } else {
+        // All values were null. Result should be null too
+        out.isSet = 0;
+      }
+    }
+    public void reset() {
+      minVal.value = 0;
+      nonNullCount.value = 0;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "max", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  public static class NullableDecimalMax implements AggrFunction {
+    @Param NullableDecimalHolder in;
+    @Workspace NullableFloat8Holder maxVal;
+    @Workspace NullableBigIntHolder nonNullCount;
+    @Output NullableFloat8Holder out;
+
+    public void setup() {
+      maxVal = new NullableFloat8Holder();
+      maxVal.isSet = 1;
+      maxVal.value = -Double.MAX_VALUE;
+      nonNullCount = new NullableBigIntHolder();
+      nonNullCount.isSet = 1;
+      nonNullCount.value = 0;
+    }
+    public void add() {
+      if (in.isSet != 0) {
+        nonNullCount.value = 1;
+        in.start = (in.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+        java.math.BigDecimal bd = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, in.start, in.scale);
+        double val = bd.doubleValue();
+        if (val > maxVal.value) {
+          maxVal.value = val;
+        }
+      }
+    }
+    public void output() {
+      if (nonNullCount.value > 0) {
+        out.isSet = 1;
+        out.value = maxVal.value;
+      } else {
+        // All values were null. Result should be null too
+        out.isSet = 0;
+      }
+    }
+    public void reset() {
+      maxVal.value = 0;
+      nonNullCount.value = 0;
     }
   }
 }

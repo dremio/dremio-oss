@@ -74,8 +74,6 @@ const styles = {
     alignItems: 'center'
   },
   menu: {
-    backgroundColor: '#FFFFFF',
-    border: '1px solid rgba(0,0,0,0.10)',
     height: 150
   }
 };

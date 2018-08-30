@@ -77,7 +77,7 @@ public class FlattenOperator implements SingleInputOperator {
   public FlattenOperator(OperatorContext context, FlattenPOP pop) throws OutOfMemoryException {
     this.config = pop;
     this.context = context;
-    this.outgoing = new VectorContainer(context.getAllocator());
+    this.outgoing = context.createOutputVectorContainer();
     this.allocationVectors = Lists.newArrayList();
   }
 

@@ -13,242 +13,246 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@import "~@app/uiTheme/less/variables.less";
+
 @home-background: #f3f3f3;
-@pull-out-right-tree-width: 250px;
 @home-activity-avatar-size: 36px;
 
-.pull-out-right-tree{
-  width: @pull-out-right-tree-width;
-  min-height: ~"calc(100vh - 45px)";
-  transform: translateX(0);
-  word-wrap: break-word;
-  flex-shrink: 0;
-  flex-grow: 0;
-  background: @home-background;
-  overflow: hidden;
-  .tab-list {
-    background-color: #ccc;
-    .tab-active{
-      background: @home-background;
-    }
-    .hide-tab{
-      background: @home-background;
-    }
-  }
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .delimiter {
-    background-color: #C0C0C0;
-    height: 1px;
-    width: 100%;
-  }
-
-  h6 {
-    font-weight: bold;
-  }
-
-  p {
-    margin-bottom: 0;
-  }
-
-  a{
-    color: #1191ff;
-  }
-
-  .editor {
-    margin-top: 15px;
-    margin-bottom: 5px;
-    .fa-pencil-square-o {
-      float: right;
-      cursor: pointer;
-      opacity: 0.4;
-
-      &:hover {
-        opacity: 1;
+  .pull-out-right-tree{
+    width: @pull-out-right-tree-width;
+    min-height: ~"calc(100vh - 45px)";
+    transform: translateX(0);
+    word-wrap: break-word;
+    flex-shrink: 0;
+    flex-grow: 0;
+    background: @home-background;
+    overflow: hidden;
+    .tab-list {
+      background-color: #ccc;
+      .tab-active{
+        background: @home-background;
+      }
+      .hide-tab{
+        background: @home-background;
       }
     }
-  }
 
-  .home-about-summary{
-    .about-dataset{
-      margin: 0 0 10px;
+    .delimiter {
+      background-color: #C0C0C0;
+      height: 1px;
+      width: 100%;
     }
-    .physical-dataset{
-      margin: 0 0 10px;
-      .toogle-physical-dataset {
-        float: left;
-        position: relative;
-        outline: 0;
-        display: inline-block;
-        cursor: pointer;
-        user-select: none;
-        margin: 0 0 5px 0;
 
-        &, &::after, &::before,
-        & *, & *::after, & *::before,
-        & + .tgl-btn {
-          box-sizing: border-box;
-          &::selection{
-            background: none;
-          }
-        }
-
-        span {
-          position: relative;
-          display: block;
-          height: 1.8em;
-          line-height: 1.2em;
-          overflow: hidden;
-          font-weight: normal;
-         text-align: center;
-          border-radius: 2em;
-          padding: 0.2em 1em;
-          border: 1px solid darken(#FFFFFF, 2);
-          box-shadow:
-          inset 0 2px 0 rgba(0,0,0,.2),
-          0 2px 0 rgba(255,255,255,0.7);
-
-
-
-          &::before {
-            position: relative;
-            display: block;
-            line-height: 1.3em;
-            padding: 0 0.2em;
-            font-size: 1em;
-          }
-
-          &::after {
-            position: absolute;
-            display: block;
-            content: '';
-            border-radius: 2em;
-            width: 1.3em;
-            height: 1.3em;
-            margin-left: -1.45em;
-            top: 0.2em;
-            background: #FFFFFF;
-            transition:
-              left 0.3s cubic-bezier( 0.175, 0.885, 0.320, 0.97 ),
-              background 0.3s ease-in-out;
-          }
-        }
-
-        input[type="checkbox"]{
-          display: none !important;
-
-          // Off
-          &:not(:checked) {
-            + span {
-              background: grey;
-              color: #FFFFFF;
-              padding-left: 1.6em;
-              padding-right: 0.4em;
-              &::before {
-                content: attr(data-off);
-                color: #FFFFFF;
-              }
-              &::after {
-                background: #FFFFFF;
-                left: 1.6em;
-              }
-            }
-          }
-
-          // On
-          &:checked {
-            + span {
-              background: #1E90FF;
-              color: #FFFFFF;
-              padding-left: 0.4em;
-              padding-right: 1.6em;
-              &::before {
-                content: attr(data-on);
-              }
-              &::after {
-                background: #FFFFFF;
-                left: 100%;
-             }
-           }
-          }
-
-          // Disabled
-          &:disabled, &:disabled + span, &:read-only, &:read-only + span {
-            cursor: not-allowed;
-          }
-        }
-    }
-  }
-
-    .home-about-header{
-      font-size: 12px;
-      padding:10px 0 0;
+    h6 {
       font-weight: bold;
     }
 
-    .HDFS {
-        width: 50px;
-        height: 50px;
-      }
-
-    .MongoDb {
-        width: 50px;
-        height: 50px;
-      }
-  }
-
-  .home-about-activity-list {
-    .home-about-activity-list-title {
-      margin-bottom: 10px;
+    p {
+      margin-bottom: 0;
     }
 
-    .home-about-activity-list-item {
-      .home-about-activity-author {
-        margin: 5px 0;
-        .home-about-activity-author-avatar {
-          .activity-default-avatar {
-            width: @home-activity-avatar-size;
-            height: @home-activity-avatar-size;
-            background: #c1c1c1;
-            border-radius: 100%;
+    a{
+      color: #1191ff;
+    }
+
+    .editor {
+      margin-top: 15px;
+      margin-bottom: 5px;
+      .fa-pencil-square-o {
+        float: right;
+        cursor: pointer;
+        opacity: 0.4;
+
+        &:hover {
+          opacity: 1;
+        }
+      }
+    }
+
+    .home-about-summary{
+      .about-dataset{
+        margin: 0 0 10px;
+      }
+      .physical-dataset{
+        margin: 0 0 10px;
+        .toogle-physical-dataset {
+          float: left;
+          position: relative;
+          outline: 0;
+          display: inline-block;
+          cursor: pointer;
+          user-select: none;
+          margin: 0 0 5px 0;
+
+          &, &::after, &::before,
+          & *, & *::after, & *::before,
+          & + .tgl-btn {
+            box-sizing: border-box;
+            &::selection{
+              background: none;
+            }
+          }
+
+          span {
+            position: relative;
+            display: block;
+            height: 1.8em;
+            line-height: 1.2em;
+            overflow: hidden;
+            font-weight: normal;
+          text-align: center;
+            border-radius: 2em;
+            padding: 0.2em 1em;
+            border: 1px solid darken(#FFFFFF, 2);
+            box-shadow:
+            inset 0 2px 0 rgba(0,0,0,.2),
+            0 2px 0 rgba(255,255,255,0.7);
+
+
+
+            &::before {
+              position: relative;
+              display: block;
+              line-height: 1.3em;
+              padding: 0 0.2em;
+              font-size: 1em;
+            }
+
+            &::after {
+              position: absolute;
+              display: block;
+              content: '';
+              border-radius: 2em;
+              width: 1.3em;
+              height: 1.3em;
+              margin-left: -1.45em;
+              top: 0.2em;
+              background: #FFFFFF;
+              transition:
+                left 0.3s cubic-bezier( 0.175, 0.885, 0.320, 0.97 ),
+                background 0.3s ease-in-out;
+            }
+          }
+
+          input[type="checkbox"]{
+            display: none !important;
+
+            // Off
+            &:not(:checked) {
+              + span {
+                background: grey;
+                color: #FFFFFF;
+                padding-left: 1.6em;
+                padding-right: 0.4em;
+                &::before {
+                  content: attr(data-off);
+                  color: #FFFFFF;
+                }
+                &::after {
+                  background: #FFFFFF;
+                  left: 1.6em;
+                }
+              }
+            }
+
+            // On
+            &:checked {
+              + span {
+                background: #1E90FF;
+                color: #FFFFFF;
+                padding-left: 0.4em;
+                padding-right: 1.6em;
+                &::before {
+                  content: attr(data-on);
+                }
+                &::after {
+                  background: #FFFFFF;
+                  left: 100%;
+              }
+            }
+            }
+
+            // Disabled
+            &:disabled, &:disabled + span, &:read-only, &:read-only + span {
+              cursor: not-allowed;
+            }
+          }
+      }
+    }
+
+      .home-about-header{
+        font-size: 12px;
+        padding:10px 0 0;
+        font-weight: bold;
+      }
+
+      .HDFS {
+          width: 50px;
+          height: 50px;
+        }
+
+      .MongoDb {
+          width: 50px;
+          height: 50px;
+        }
+    }
+
+    .home-about-activity-list {
+      .home-about-activity-list-title {
+        margin-bottom: 10px;
+      }
+
+      .home-about-activity-list-item {
+        .home-about-activity-author {
+          margin: 5px 0;
+          .home-about-activity-author-avatar {
+            .activity-default-avatar {
+              width: @home-activity-avatar-size;
+              height: @home-activity-avatar-size;
+              background: #c1c1c1;
+              border-radius: 100%;
+            }
+          }
+
+          .home-about-activity-summary {
+            margin-left: 5px;
           }
         }
-
-        .home-about-activity-summary {
-          margin-left: 5px;
-        }
+      }
+      .home-about-activity-description{
+        font-size: 12px;
+        line-height: 16px;
       }
     }
-    .home-about-activity-description{
-      font-size: 12px;
-      line-height: 16px;
+    .home-about-description{
+      margin: 5px 0;
     }
-  }
-  .home-about-description{
-    margin: 5px 0;
-  }
 
 
-  .Select{
-    width: 145px;
-    outline: 0;
-    float: left;
-    height: 24px;
-    .Select-control{
-      background: #F8F8F8;
-      border: 1px solid #ddd !important;
-      box-shadow: 0 0 2px #ddd !important;
+    .Select{
+      width: 145px;
+      outline: 0;
+      float: left;
       height: 24px;
-    }
-    .Select-input{
-      height: 24px;
-      & > input{
+      .Select-control{
+        background: #F8F8F8;
+        border: 1px solid #ddd !important;
+        box-shadow: 0 0 2px #ddd !important;
         height: 24px;
       }
-    }
-    .Select-placeholder{
-      color: #000;
-      height: 24px;
-      line-height: 25px;
+      .Select-input{
+        height: 24px;
+        & > input{
+          height: 24px;
+        }
+      }
+      .Select-placeholder{
+        color: #000;
+        height: 24px;
+        line-height: 25px;
+      }
     }
   }
 }

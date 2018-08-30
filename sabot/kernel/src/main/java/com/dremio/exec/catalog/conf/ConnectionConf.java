@@ -56,6 +56,7 @@ import io.protostuff.runtime.RuntimeSchema;
 public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends StoragePlugin> implements AbstractConnectionConf {
 
   private transient final Schema<T> schema;
+  public static final String USE_EXISTING_SECRET_VALUE = "$DREMIO_EXISTING_VALUE$";
 
   @SuppressWarnings("unchecked")
   protected ConnectionConf() {
@@ -67,7 +68,7 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
       @Override
       public boolean apply(Field field) {
         return field.isAnnotationPresent(Secret.class);
-      }});
+      }}, true);
   }
 
   public void clearNotMetadataImpacting() {
@@ -75,7 +76,7 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
       @Override
       public boolean apply(Field field) {
         return field.isAnnotationPresent(NotMetadataImpacting.class);
-      }});
+      }}, false);
   }
 
   /**
@@ -84,7 +85,7 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
    *
    * @param predicate
    */
-  private void clear(Predicate<Field> predicate) {
+  private void clear(Predicate<Field> predicate, boolean isSecret) {
     try {
       for(Field field : this.getClass().getDeclaredFields()) {
         if(predicate.apply(field)) {
@@ -104,6 +105,8 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
             field.setChar(field.getType(), (char) 0);
           } else if (field.getType().equals(boolean.class)) {
             field.setBoolean(this, false);
+          } else if (isSecret && field.getType().equals(String.class)) {
+            field.set(this, USE_EXISTING_SECRET_VALUE);
           } else {
             field.set(this, null);
           }
@@ -111,6 +114,27 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
       }
     } catch (IllegalAccessException e) {
       throw Throwables.propagate(e);
+    }
+  }
+
+  /**
+   * Applies secret values from existingConf to the connectionConf if they are set to {@link USE_EXISTING_SECRET_VALUE}.
+   *
+   * @param existingConf
+   */
+  public void applySecretsFrom(ConnectionConf existingConf) {
+    for (Field field : getClass().getDeclaredFields()) {
+      if (field.getAnnotation(Secret.class) == null) {
+        continue;
+      }
+
+      try {
+        if (field.getType().equals(String.class) && USE_EXISTING_SECRET_VALUE.equals(field.get(this))) {
+          field.set(this, field.get(existingConf));
+        }
+      } catch (IllegalAccessException e) {
+        throw Throwables.propagate(e);
+      }
     }
   }
 
@@ -159,12 +183,15 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
    * @return true if this connection conf equals other conf, ignoring fields that do not impact metadata
    */
   public final boolean equalsIgnoringNotMetadataImpacting(ConnectionConf<?, ?> other) {
-    ConnectionConf<?, ?> left = clone();
-    ConnectionConf<?, ?> right = other.clone();
+    final ConnectionConf<?, ?> existingConf = clone();
+    final ConnectionConf<?, ?> newConf = other.clone();
 
-    left.clearNotMetadataImpacting();
-    right.clearNotMetadataImpacting();
-    return left.equals(right);
+    // reapply any secrets from existingConf to newConf
+    newConf.applySecretsFrom(existingConf);
+
+    existingConf.clearNotMetadataImpacting();
+    newConf.clearNotMetadataImpacting();
+    return existingConf.equals(newConf);
   }
 
   @Override

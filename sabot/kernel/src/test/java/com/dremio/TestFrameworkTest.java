@@ -99,7 +99,7 @@ public class TestFrameworkTest extends BaseTestQuery{
   @Test
   public void testCSVVerification() throws Exception {
     testBuilder()
-        .sqlQuery("select employee_id, first_name, last_name from cp.`testframework/small_test_data.json`")
+        .sqlQuery("select employee_id, first_name, last_name from cp.\"testframework/small_test_data.json\"")
         .ordered()
         .csvBaselineFile("testframework/small_test_data.tsv")
         .baselineTypes(MinorType.BIGINT, MinorType.VARCHAR, MinorType.VARCHAR)
@@ -110,14 +110,14 @@ public class TestFrameworkTest extends BaseTestQuery{
   @Test
   public void testBaselineValsVerification() throws Exception {
     testBuilder()
-        .sqlQuery("select employee_id, first_name, last_name from cp.`testframework/small_test_data.json` limit 1")
+        .sqlQuery("select employee_id, first_name, last_name from cp.\"testframework/small_test_data.json\" limit 1")
         .ordered()
         .baselineColumns("employee_id", "first_name", "last_name")
         .baselineValues(12l, "Jewel", "Creek")
         .build().run();
 
     testBuilder()
-        .sqlQuery("select employee_id, first_name, last_name from cp.`testframework/small_test_data.json` limit 1")
+        .sqlQuery("select employee_id, first_name, last_name from cp.\"testframework/small_test_data.json\" limit 1")
         .unOrdered()
         .baselineColumns("employee_id", "first_name", "last_name")
         .baselineValues(12l, "Jewel", "Creek")
@@ -128,12 +128,12 @@ public class TestFrameworkTest extends BaseTestQuery{
   @Ignore("decimal")
   public void testDecimalBaseline() throws  Exception {
     try {
-      test(String.format("alter session set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+      test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
 
-//      test("select cast(columns[0]  as DECIMAL38SPARSE(38,2) ) `dec_col` from cp.`testframework/decimal_test.tsv`");
+//      test("select cast(columns[0]  as DECIMAL38SPARSE(38,2) ) \"dec_col\" from cp.\"testframework/decimal_test.tsv\"");
       // type information can be provided explicitly
       testBuilder()
-          .sqlQuery("select cast(dec_col as decimal(38,2)) dec_col from cp.`testframework/decimal_test.json`")
+          .sqlQuery("select cast(dec_col as decimal(38,2)) dec_col from cp.\"testframework/decimal_test.json\"")
           .unOrdered()
           .csvBaselineFile("testframework/decimal_test.tsv")
           .baselineTypes(MajorType.newBuilder().setMinorType(MinorType.DECIMAL).setMode(DataMode.REQUIRED).setPrecision(32).setScale(2).build())
@@ -144,7 +144,7 @@ public class TestFrameworkTest extends BaseTestQuery{
       // type information can also be left out, this will prompt the result types of the test query to drive the
       // interpretation of the test file
 //      testBuilder()
-//          .sqlQuery("select cast(dec_col as decimal(38,2)) dec_col from cp.`testframework/decimal_test.json`")
+//          .sqlQuery("select cast(dec_col as decimal(38,2)) dec_col from cp.\"testframework/decimal_test.json\"")
 //          .unOrdered()
 //          .csvBaselineFile("testframework/decimal_test.tsv")
 //          .baselineColumns("dec_col")
@@ -153,20 +153,20 @@ public class TestFrameworkTest extends BaseTestQuery{
       // Or you can provide explicit values to the builder itself to avoid going through the Dremio engine at all to
       // populate the baseline results
 //      testBuilder()
-//          .sqlQuery("select cast(dec_col as decimal(38,2)) dec_col from cp.`testframework/decimal_test.json`")
+//          .sqlQuery("select cast(dec_col as decimal(38,2)) dec_col from cp.\"testframework/decimal_test.json\"")
 //          .unOrdered()
 //          .baselineColumns("dec_col")
 //          .baselineValues(new BigDecimal("3.70"))
 //          .build().run();
     } finally {
-      test(String.format("alter session set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+      test(String.format("alter session set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
     }
   }
 
   @Test
   public void testMapOrdering() throws Exception {
     testBuilder()
-        .sqlQuery("select * from cp.`/testframework/map_reordering.json`")
+        .sqlQuery("select * from cp.\"/testframework/map_reordering.json\"")
         .unOrdered()
         .jsonBaselineFile("testframework/map_reordering2.json")
         .build().run();
@@ -175,7 +175,7 @@ public class TestFrameworkTest extends BaseTestQuery{
   @Test
   public void testBaselineValsVerificationWithNulls() throws Exception {
     testBuilder()
-        .sqlQuery("select * from cp.`store/json/json_simple_with_null.json`")
+        .sqlQuery("select * from cp.\"store/json/json_simple_with_null.json\"")
         .ordered()
         .baselineColumns("a", "b")
         .baselineValues(5l, 10l)
@@ -185,7 +185,7 @@ public class TestFrameworkTest extends BaseTestQuery{
         .build().run();
 
     testBuilder()
-        .sqlQuery("select * from cp.`store/json/json_simple_with_null.json`")
+        .sqlQuery("select * from cp.\"store/json/json_simple_with_null.json\"")
         .unOrdered()
         .baselineColumns("a", "b")
         .baselineValues(5l, 10l)
@@ -198,7 +198,7 @@ public class TestFrameworkTest extends BaseTestQuery{
   @Test
   public void testBaselineValsVerificationWithComplexAndNulls() throws Exception {
     testBuilder()
-        .sqlQuery("select * from cp.`/jsoninput/input2.json` limit 1")
+        .sqlQuery("select * from cp.\"/jsoninput/input2.json\" limit 1")
         .ordered()
         .baselineColumns("integer", "float", "x", "z", "l", "rl")
         .baselineValues(2010l,
@@ -218,7 +218,7 @@ public class TestFrameworkTest extends BaseTestQuery{
   public void testCSVVerification_missing_records_fails() throws Exception {
     try {
     testBuilder()
-        .sqlQuery("select employee_id, first_name, last_name from cp.`testframework/small_test_data.json`")
+        .sqlQuery("select employee_id, first_name, last_name from cp.\"testframework/small_test_data.json\"")
         .ordered()
         .csvBaselineFile("testframework/small_test_data_extra.tsv")
         .baselineTypes(MinorType.BIGINT, MinorType.VARCHAR, MinorType.VARCHAR)
@@ -237,7 +237,7 @@ public class TestFrameworkTest extends BaseTestQuery{
   public void testCSVVerification_extra_records_fails() throws Exception {
     try {
       testBuilder()
-          .sqlQuery("select " + CSV_COLS + " from cp.`testframework/small_test_data_extra.tsv`")
+          .sqlQuery("select " + CSV_COLS + " from cp.\"testframework/small_test_data_extra.tsv\"")
           .ordered()
           .csvBaselineFile("testframework/small_test_data.tsv")
           .baselineTypes(MinorType.BIGINT, MinorType.VARCHAR, MinorType.VARCHAR)
@@ -256,7 +256,7 @@ public class TestFrameworkTest extends BaseTestQuery{
   public void testCSVVerification_extra_column_fails() throws Exception {
     try {
       testBuilder()
-          .sqlQuery("select " + CSV_COLS + ", columns[3] as address from cp.`testframework/small_test_data_extra_col.tsv`")
+          .sqlQuery("select " + CSV_COLS + ", columns[3] as address from cp.\"testframework/small_test_data_extra_col.tsv\"")
           .ordered()
           .csvBaselineFile("testframework/small_test_data.tsv")
           .baselineTypes(MinorType.BIGINT, MinorType.VARCHAR, MinorType.VARCHAR)
@@ -274,7 +274,7 @@ public class TestFrameworkTest extends BaseTestQuery{
   public void testCSVVerification_missing_column_fails() throws Exception {
     try {
       testBuilder()
-          .sqlQuery("select employee_id, first_name, last_name from cp.`testframework/small_test_data.json`")
+          .sqlQuery("select employee_id, first_name, last_name from cp.\"testframework/small_test_data.json\"")
           .ordered()
           .csvBaselineFile("testframework/small_test_data_extra_col.tsv")
           .baselineTypes(MinorType.BIGINT, MinorType.VARCHAR, MinorType.VARCHAR, MinorType.VARCHAR)
@@ -292,7 +292,7 @@ public class TestFrameworkTest extends BaseTestQuery{
   public void testCSVVerificationOfTypes() throws Throwable {
     try {
     testBuilder()
-        .sqlQuery("select employee_id, first_name, last_name from cp.`testframework/small_test_data.json`")
+        .sqlQuery("select employee_id, first_name, last_name from cp.\"testframework/small_test_data.json\"")
         .ordered()
         .csvBaselineFile("testframework/small_test_data.tsv")
         .baselineTypes(MinorType.INT, MinorType.VARCHAR, MinorType.VARCHAR)
@@ -311,7 +311,7 @@ public class TestFrameworkTest extends BaseTestQuery{
   public void testCSVVerificationOfOrder_checkFailure() throws Throwable {
     try {
       testBuilder()
-          .sqlQuery("select columns[0] as employee_id, columns[1] as first_name, columns[2] as last_name from cp.`testframework/small_test_data_reordered.tsv`")
+          .sqlQuery("select columns[0] as employee_id, columns[1] as first_name, columns[2] as last_name from cp.\"testframework/small_test_data_reordered.tsv\"")
           .ordered()
           .csvBaselineFile("testframework/small_test_data.tsv")
           .baselineColumns("employee_id", "first_name", "last_name")
@@ -328,7 +328,7 @@ public class TestFrameworkTest extends BaseTestQuery{
   @Test
   public void testCSVVerificationOfUnorderedComparison() throws Throwable {
     testBuilder()
-        .sqlQuery("select columns[0] as employee_id, columns[1] as first_name, columns[2] as last_name from cp.`testframework/small_test_data_reordered.tsv`")
+        .sqlQuery("select columns[0] as employee_id, columns[1] as first_name, columns[2] as last_name from cp.\"testframework/small_test_data_reordered.tsv\"")
         .unOrdered()
         .csvBaselineFile("testframework/small_test_data.tsv")
         .baselineColumns("employee_id", "first_name", "last_name")
@@ -340,13 +340,13 @@ public class TestFrameworkTest extends BaseTestQuery{
   @Test
   public void testBasicJSON() throws Exception {
     testBuilder()
-        .sqlQuery("select * from cp.`scan_json_test_3.json`")
+        .sqlQuery("select * from cp.\"scan_json_test_3.json\"")
         .ordered()
         .jsonBaselineFile("/scan_json_test_3.json")
         .build().run();
 
     testBuilder()
-        .sqlQuery("select * from cp.`scan_json_test_3.json`")
+        .sqlQuery("select * from cp.\"scan_json_test_3.json\"")
         .unOrdered() // Check other verification method with same files
         .jsonBaselineFile("/scan_json_test_3.json")
         .build().run();
@@ -355,39 +355,39 @@ public class TestFrameworkTest extends BaseTestQuery{
   @Test
   public void testComplexJSON_all_text() throws Exception {
     testBuilder()
-        .sqlQuery("select * from cp.`store/json/schema_change_int_to_string.json`")
-        .optionSettingQueriesForTestQuery("alter system set `store.json.all_text_mode` = true")
+        .sqlQuery("select * from cp.\"store/json/schema_change_int_to_string.json\"")
+        .optionSettingQueriesForTestQuery("alter system set \"store.json.all_text_mode\" = true")
         .ordered()
         .jsonBaselineFile("store/json/schema_change_int_to_string.json")
-        .optionSettingQueriesForBaseline("alter system set `store.json.all_text_mode` = true")
+        .optionSettingQueriesForBaseline("alter system set \"store.json.all_text_mode\" = true")
         .build().run();
 
     testBuilder()
-        .sqlQuery("select * from cp.`store/json/schema_change_int_to_string.json`")
-        .optionSettingQueriesForTestQuery("alter system set `store.json.all_text_mode` = true")
+        .sqlQuery("select * from cp.\"store/json/schema_change_int_to_string.json\"")
+        .optionSettingQueriesForTestQuery("alter system set \"store.json.all_text_mode\" = true")
         .unOrdered() // Check other verification method with same files
         .jsonBaselineFile("store/json/schema_change_int_to_string.json")
-        .optionSettingQueriesForBaseline("alter system set `store.json.all_text_mode` = true")
+        .optionSettingQueriesForBaseline("alter system set \"store.json.all_text_mode\" = true")
         .build().run();
-    test("alter system set `store.json.all_text_mode` = false");
+    test("alter system set \"store.json.all_text_mode\" = false");
   }
 
   @Test
   public void testRepeatedColumnMatching() throws Exception {
     try {
       testBuilder()
-          .sqlQuery("select * from cp.`store/json/schema_change_int_to_string.json`")
-          .optionSettingQueriesForTestQuery("alter system set `store.json.all_text_mode` = true")
+          .sqlQuery("select * from cp.\"store/json/schema_change_int_to_string.json\"")
+          .optionSettingQueriesForTestQuery("alter system set \"store.json.all_text_mode\" = true")
           .ordered()
           .jsonBaselineFile("testframework/schema_change_int_to_string_non-matching.json")
-          .optionSettingQueriesForBaseline("alter system set `store.json.all_text_mode` = true")
+          .optionSettingQueriesForBaseline("alter system set \"store.json.all_text_mode\" = true")
           .build().run();
     } catch (Exception ex) {
       assertThat(ex.getMessage(), CoreMatchers.containsString(
           "at position 1 column '`field_1`' mismatched values, " +
           "expected: [\"5\",\"2\",\"3\",\"4\",\"1\",\"2\"](JsonStringArrayList) but received [\"5\"](JsonStringArrayList)"));
       // this indicates successful completion of the test
-      test("alter system set `store.json.all_text_mode` = false");
+      test("alter system set \"store.json.all_text_mode\" = false");
       return;
     }
     throw new Exception("Test framework verification failed, expected failure on order check.");
@@ -396,12 +396,12 @@ public class TestFrameworkTest extends BaseTestQuery{
   @Test
   public void testEmptyResultSet() throws Exception {
     testBuilder()
-        .sqlQuery("select * from cp.`store/json/json_simple_with_null.json` where 1=0")
+        .sqlQuery("select * from cp.\"store/json/json_simple_with_null.json\" where 1=0")
         .expectsEmptyResultSet()
         .build().run();
     try {
       testBuilder()
-          .sqlQuery("select * from cp.`store/json/json_simple_with_null.json`")
+          .sqlQuery("select * from cp.\"store/json/json_simple_with_null.json\"")
           .expectsEmptyResultSet()
           .build().run();
     } catch (AssertionError ex) {
@@ -419,7 +419,7 @@ public class TestFrameworkTest extends BaseTestQuery{
     typeMap.put(TestBuilder.parsePath("employee_id"), Types.optional(MinorType.INT));
     typeMap.put(TestBuilder.parsePath("last_name"), Types.optional(MinorType.VARCHAR));
     testBuilder()
-        .sqlQuery("select cast(columns[0] as int) employee_id, columns[1] as first_name, columns[2] as last_name from cp.`testframework/small_test_data_reordered.tsv`")
+        .sqlQuery("select cast(columns[0] as int) employee_id, columns[1] as first_name, columns[2] as last_name from cp.\"testframework/small_test_data_reordered.tsv\"")
         .unOrdered()
         .csvBaselineFile("testframework/small_test_data.tsv")
         .baselineColumns("employee_id", "first_name", "last_name")
@@ -437,7 +437,7 @@ public class TestFrameworkTest extends BaseTestQuery{
 
     try {
     testBuilder()
-        .sqlQuery("select cast(columns[0] as int) employee_id, columns[1] as first_name, columns[2] as last_name from cp.`testframework/small_test_data_reordered.tsv`")
+        .sqlQuery("select cast(columns[0] as int) employee_id, columns[1] as first_name, columns[2] as last_name from cp.\"testframework/small_test_data_reordered.tsv\"")
         .unOrdered()
         .csvBaselineFile("testframework/small_test_data.tsv")
         .baselineColumns("employee_id", "first_name", "last_name")

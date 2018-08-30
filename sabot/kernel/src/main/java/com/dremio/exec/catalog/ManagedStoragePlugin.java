@@ -32,7 +32,7 @@ import com.dremio.exec.catalog.PluginsManager.IdProvider;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.CatalogService.UpdateType;
 import com.dremio.exec.store.StoragePlugin;
@@ -45,6 +45,7 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.Message;
+import com.dremio.service.namespace.SourceState.SourceStatus;
 import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
@@ -238,8 +239,13 @@ public class ManagedStoragePlugin implements AutoCloseable {
           plugin.start();
           setLocals(config);
           startup.stop();
-          future.set(state);
+          if (state.getStatus() == SourceStatus.bad) {
+            // Check the state here and throw exception so that we close the partially started plugin properly in the
+            // exception handling code
+            throw new Exception(state.toString());
+          }
 
+          future.set(state);
         } catch(Throwable e) {
           state = SourceState.badState(e.getMessage());
 
@@ -464,6 +470,8 @@ public class ManagedStoragePlugin implements AutoCloseable {
        * have the state recorded as bad so the caller of refreshState()
        * will see BAD state for source.
        */
+      // TODO: this could cause NPE as the startAsync sets the plugin to null if there is an exception in starting the
+      // plugin.
       state = plugin.getState();
     }
   }
@@ -500,6 +508,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
        *     connection configurations don't match.
        */
       this.state = SourceState.badState("Plugin settings changed, restarting.");
+      // closing the plugin also cancels the metadata refresh thread and waits for it to exit
       metadataManager.close();
 
       // hold the old plugin until we successfully replace it.
@@ -551,6 +560,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
       metadataManager.close();
       plugin.close();
     }
+  }
+
+  void cancelMetadataRefreshTask() {
+    metadataManager.cancelRefreshTask();
   }
 
   boolean refresh(UpdateType updateType, MetadataPolicy policy) throws NamespaceException {

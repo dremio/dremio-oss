@@ -15,11 +15,15 @@
  */
 package com.dremio.exec.server.options;
 
-import com.dremio.common.map.CaseInsensitiveMap;
-import com.dremio.exec.server.options.OptionValue.OptionType;
-import com.google.common.collect.Maps;
-
 import java.util.Map;
+
+
+import com.dremio.common.map.CaseInsensitiveMap;
+import com.dremio.options.OptionList;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
+import com.google.common.collect.Maps;
 
 /**
  * {@link OptionManager} that holds options within a fragment.
@@ -34,7 +38,7 @@ public class FragmentOptionManager extends InMemoryOptionManager {
   private static Map<String, OptionValue> getMapFromOptionList(final OptionList options) {
     final Map<String, OptionValue> tmp = Maps.newHashMap();
     for (final OptionValue value : options) {
-      tmp.put(value.name, value);
+      tmp.put(value.getName(), value);
     }
     return CaseInsensitiveMap.newImmutableMap(tmp);
   }

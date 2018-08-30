@@ -299,12 +299,21 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     }
   }
 
-  public WithAutoCloseableLock<ManagedStoragePlugin> getWithPluginWriteLock(String name) {
+  /**
+   * Gets the plugin (if it exists) along with write lock on it. It also cancels the metadata refresh thread of
+   * the plugin if it is running.
+   * @param name
+   * @return
+   */
+  WithAutoCloseableLock<ManagedStoragePlugin> getWithPluginWriteLock(String name) {
     try(AutoCloseableLock l = readLock()) {
       ManagedStoragePlugin p = plugins.get(c(name));
       if(p == null) {
         return null;
       }
+
+      // we can't acquire a writeLock on plugin unless the refresh thread is exited which holds the writeLock
+      p.cancelMetadataRefreshTask();
       return new WithAutoCloseableLock<>(p.writeLock(), p);
     }
   }

@@ -13,63 +13,66 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* TODO describe style in each modal*/
-.add-file-form {
+/* TODO describe style in each modal (HomePage modals) */
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .add-file {
-    @background-color: #F5F5F5;
+  .add-file-form {
 
-    .file-content {
-      margin: 12px 15px;
-    }
+    .add-file {
+      @background-color: #F5F5F5;
 
-    .file-drop-form {
-      margin: 0 0 10px 0;
-
-      .inputDropClass{
-        color: black;
-        height: 160px;
-        width: 300px;
-        border: 2px dashed #ccc;
-        text-align: center;
+      .file-content {
+        margin: 12px 15px;
       }
-    }
 
-    .file-footer {
-      bottom: 0;
-      height: 50px;
-      width: 100%;
-      background-color: #F3F3F3;
-      justify-content: flex-end;
-      display: flex;
-      position: absolute;
-      align-items: center;
+      .file-drop-form {
+        margin: 0 0 10px 0;
 
-      .add-file-button {
-        background-color: @background-color;
-        width: 140px;
-        height: 30px;
-        outline: none;
-        box-shadow: none;
-        border: 1px solid #ccc;
+        .inputDropClass{
+          color: black;
+          height: 160px;
+          width: 300px;
+          border: 2px dashed #ccc;
+          text-align: center;
+        }
+      }
+
+      .file-footer {
+        bottom: 0;
+        height: 50px;
+        width: 100%;
+        background-color: #F3F3F3;
+        justify-content: flex-end;
         display: flex;
-        border-radius: 3px;
-        justify-content: center;
-        position: relative;
-        margin-left: 15px;
-        font-size: 13px;
+        position: absolute;
         align-items: center;
-        cursor: pointer;
 
-        &.button-next {
-          background-color: #0096FF;
-          border: 1px solid #0096FF;
-          color: #fff;
-          margin-right: 15px;
-          display: flex;
-          justify-content: center;
+        .add-file-button {
+          background-color: @background-color;
           width: 140px;
           height: 30px;
+          outline: none;
+          box-shadow: none;
+          border: 1px solid #ccc;
+          display: flex;
+          border-radius: 3px;
+          justify-content: center;
+          position: relative;
+          margin-left: 15px;
+          font-size: 13px;
+          align-items: center;
+          cursor: pointer;
+
+          &.button-next {
+            background-color: #0096FF;
+            border: 1px solid #0096FF;
+            color: #fff;
+            margin-right: 15px;
+            display: flex;
+            justify-content: center;
+            width: 140px;
+            height: 30px;
+          }
         }
       }
     }

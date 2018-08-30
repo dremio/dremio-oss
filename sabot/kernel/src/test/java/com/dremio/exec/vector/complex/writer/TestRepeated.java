@@ -19,12 +19,12 @@ import java.io.ByteArrayOutputStream;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
-import org.apache.arrow.vector.complex.MapVector;
-import org.apache.arrow.vector.complex.NullableMapVector;
+import org.apache.arrow.vector.complex.NonNullableStructVector;
+import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.IntWriter;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -40,18 +40,6 @@ import com.google.common.base.Charsets;
 public class TestRepeated extends ExecTest {
   // private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestRepeated.class);
 
-  private static BufferAllocator allocator;
-
-  @BeforeClass
-  public static void setupAllocator() {
-    allocator = RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG);
-  }
-
-  @AfterClass
-  public static void destroyAllocator() {
-    AutoCloseables.closeNoChecked(allocator);
-  }
-//
 //  @Test
 //  public void repeatedMap() {
 //
@@ -143,14 +131,14 @@ public class TestRepeated extends ExecTest {
      *  }
      */
 
-    final MapVector mapVector = new MapVector("", allocator, null);
-    final ComplexWriterImpl writer = new ComplexWriterImpl("col", mapVector);
-    final MapWriter map = writer.rootAsMap();
+    final NonNullableStructVector structVector = new NonNullableStructVector("", allocator, null);
+    final ComplexWriterImpl writer = new ComplexWriterImpl("col", structVector);
+    final StructWriter struct = writer.rootAsStruct();
 
     {
-      map.start();
+      struct.start();
 
-      final ListWriter list = map.list("a");
+      final ListWriter list = struct.list("a");
       list.startList();
 
       final ListWriter innerList = list.list();
@@ -169,9 +157,9 @@ public class TestRepeated extends ExecTest {
 
       list.endList();
 
-      map.integer("nums").writeInt(14);
+      struct.integer("nums").writeInt(14);
 
-      final MapWriter repeatedMap = map.list("b").map();
+      final StructWriter repeatedMap = struct.list("b").struct();
       repeatedMap.start();
       repeatedMap.integer("c").writeInt(1);
       repeatedMap.end();
@@ -181,14 +169,14 @@ public class TestRepeated extends ExecTest {
       repeatedMap.bigInt("x").writeBigInt(15);
       repeatedMap.end();
 
-      map.end();
+      struct.end();
     }
 
     writer.setPosition(1);
     {
-      map.start();
+      struct.start();
 
-      final ListWriter list = map.list("a");
+      final ListWriter list = struct.list("a");
       list.startList();
 
       final ListWriter innerList = list.list();
@@ -207,10 +195,10 @@ public class TestRepeated extends ExecTest {
 
       list.endList();
 
-      map.integer("nums").writeInt(-28);
+      struct.integer("nums").writeInt(-28);
 
-      map.list("b").startList();
-      final MapWriter repeatedMap = map.list("b").map();
+      struct.list("b").startList();
+      final StructWriter repeatedMap = struct.list("b").struct();
       repeatedMap.start();
       repeatedMap.integer("c").writeInt(-1);
       repeatedMap.end();
@@ -219,20 +207,20 @@ public class TestRepeated extends ExecTest {
       repeatedMap.integer("c").writeInt(-2);
       repeatedMap.bigInt("x").writeBigInt(-30);
       repeatedMap.end();
-      map.list("b").endList();
+      struct.list("b").endList();
 
-      map.end();
+      struct.end();
     }
     writer.setValueCount(2);
 
     final ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
 
-    System.out.println("Map of Object[0]: " + ow.writeValueAsString(mapVector.getObject(0)));
-    System.out.println("Map of Object[1]: " + ow.writeValueAsString(mapVector.getObject(1)));
+    System.out.println("Map of Object[0]: " + ow.writeValueAsString(structVector.getObject(0)));
+    System.out.println("Map of Object[1]: " + ow.writeValueAsString(structVector.getObject(1)));
 
     final ByteArrayOutputStream stream = new ByteArrayOutputStream();
     final JsonWriter jsonWriter = new JsonWriter(stream, true, true);
-    final FieldReader reader = mapVector.getChild("col", NullableMapVector.class).getReader();
+    final FieldReader reader = structVector.getChild("col", StructVector.class).getReader();
     reader.setPosition(0);
     jsonWriter.write(reader);
     reader.setPosition(1);

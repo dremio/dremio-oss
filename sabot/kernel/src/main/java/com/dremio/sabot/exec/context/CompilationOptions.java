@@ -17,7 +17,7 @@ package com.dremio.sabot.exec.context;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.server.options.CachingOptionManager;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 
 /**
  * Holds options associated with code generation.

@@ -13,30 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "../../uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/color-schema.less";
 
-.menu-item-inner{
-  background: #fff;
-  overflow: hidden;
-  &.disabled{
-    background: #fff !important;
-    color: #999 !important;
-    position: relative;
-    * {
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+
+  .menu-item-inner{
+    background: #fff;
+    overflow: hidden;
+    &.disabled{
+      background: #fff !important;
       color: #999 !important;
+      position: relative;
+      * {
+        color: #999 !important;
+      }
     }
-  }
-  &.disabled::after {
-    content: '';
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    cursor: default;
-    z-index: 10;
-  }
-  &:hover{
-    background: @PALE_BLUE;
+    &.disabled::after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      cursor: default;
+      z-index: 10;
+    }
+    &:hover{
+      background: @PALE_BLUE;
+    }
   }
 }

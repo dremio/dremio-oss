@@ -27,10 +27,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.proto.UserProtos.CatalogMetadata;
 import com.dremio.exec.proto.UserProtos.ColumnMetadata;
 import com.dremio.exec.proto.UserProtos.GetCatalogsResp;
@@ -46,6 +48,11 @@ import com.dremio.exec.proto.UserProtos.TableMetadata;
  * Tests for metadata provider APIs.
  */
 public class TestMetadataProvider extends BaseTestQuery {
+
+  @BeforeClass
+  public static void setupMetadata() throws Exception {
+    test("SELECT * from cp.\"tpch/customer.parquet\"");
+  }
 
   @Test
   public void catalogs() throws Exception {
@@ -175,13 +182,13 @@ public class TestMetadataProvider extends BaseTestQuery {
 
   @Test
   public void tables() throws Exception {
-    // test("SELECT * FROM INFORMATION_SCHEMA.`TABLES`"); // SQL equivalent
+    // test("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\""); // SQL equivalent
 
     GetTablesResp resp = client.getTables(null, null, null, null).get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(16, tables.size());
+    assertEquals(19, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -190,6 +197,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("INFORMATION_SCHEMA", "TABLES", iterator.next());
     verifyTable("INFORMATION_SCHEMA", "VIEWS", iterator.next());
     verifyTable("sys", "boot", iterator.next());
+    verifyTable("sys", "dependencies", iterator.next());
     verifyTable("sys", "fragments", iterator.next());
     verifyTable("sys", "materializations", iterator.next());
     verifyTable("sys", "memory", iterator.next());
@@ -198,33 +206,34 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "queries", iterator.next());
     verifyTable("sys", "reflections", iterator.next());
     verifyTable("sys", "refreshes", iterator.next());
+    verifyTable("sys", "slicing_threads", iterator.next());
     verifyTable("sys", "threads", iterator.next());
     verifyTable("sys", "version", iterator.next());
-
-
-
   }
 
   @Test
   public void tablesWithTableFilter() throws Exception {
-    // test("SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE TABLE_TYPE IN ('TABLE')"); // SQL equivalent
+    // test("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_TYPE IN ('TABLE')"); // SQL equivalent
 
     GetTablesResp resp = client.getTables(null, null, null, Arrays.asList("TABLE")).get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(0, tables.size());
+    assertEquals(1, tables.size());
+
+    Iterator<TableMetadata> iterator = tables.iterator();
+    verifyTable("cp", "tpch/customer.parquet", iterator.next());
   }
 
   @Test
   public void tablesWithSystemTableFilter() throws Exception {
-    // test("SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE TABLE_TYPE IN ('SYSTEM_TABLE')"); // SQL equivalent
+    // test("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_TYPE IN ('SYSTEM_TABLE')"); // SQL equivalent
 
     GetTablesResp resp = client.getTables(null, null, null, Arrays.asList("SYSTEM_TABLE")).get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(16, tables.size());
+    assertEquals(18, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -233,6 +242,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("INFORMATION_SCHEMA", "TABLES", iterator.next());
     verifyTable("INFORMATION_SCHEMA", "VIEWS", iterator.next());
     verifyTable("sys", "boot", iterator.next());
+    verifyTable("sys", "dependencies", iterator.next());
     verifyTable("sys", "fragments", iterator.next());
     verifyTable("sys", "materializations", iterator.next());
     verifyTable("sys", "memory", iterator.next());
@@ -241,20 +251,21 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "queries", iterator.next());
     verifyTable("sys", "reflections", iterator.next());
     verifyTable("sys", "refreshes", iterator.next());
+    verifyTable("sys", "slicing_threads", iterator.next());
     verifyTable("sys", "threads", iterator.next());
     verifyTable("sys", "version", iterator.next());
   }
 
   @Test
   public void tablesWithTableNameFilter() throws Exception {
-    // test("SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE TABLE_NAME LIKE '%o%'"); // SQL equivalent
+    // test("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_NAME LIKE '%o%'"); // SQL equivalent
 
     GetTablesResp resp = client.getTables(null, null,
         LikeFilter.newBuilder().setPattern("%o%").build(), null).get();
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(9, tables.size());
+    assertEquals(10, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -271,7 +282,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
   @Test
   public void tablesWithTableNameFilterAndSchemaNameFilter() throws Exception {
-    // test("SELECT * FROM INFORMATION_SCHEMA.`TABLES` " +
+    // test("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" " +
     //    "WHERE TABLE_SCHEMA LIKE '%N\\_S%' ESCAPE '\\' AND TABLE_NAME LIKE '%o%'"); // SQL equivalent
 
     GetTablesResp resp = client.getTables(null,
@@ -291,12 +302,13 @@ public class TestMetadataProvider extends BaseTestQuery {
   public void columns() throws Exception {
     // test("SELECT * FROM INFORMATION_SCHEMA.COLUMNS"); // SQL equivalent
 
-    GetColumnsResp resp = client.getColumns(null, null, null, null).get();
+    final GetColumnsResp resp1 = client.getColumns(null, null, null, null).get();
+    assertEquals(RequestStatus.OK, resp1.getStatus());
 
-    assertEquals(RequestStatus.OK, resp.getStatus());
-    List<ColumnMetadata> columns = resp.getColumnsList();
-    assertEquals(142, columns.size());
-    // too many records to verify the output.
+    final List<ColumnMetadata> columns1 = resp1.getColumnsList();
+    assertEquals(163, columns1.size());
+    assertTrue("incremental update column shouldn't be returned",
+      columns1.stream().noneMatch(input -> input.getColumnName().equals(IncrementalUpdateUtils.UPDATE_COLUMN)));
   }
 
   @Test
@@ -308,7 +320,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<ColumnMetadata> columns = resp.getColumnsList();
-    assertEquals(11, columns.size());
+    assertEquals(14, columns.size());
 
 
     Iterator<ColumnMetadata> iterator = columns.iterator();
@@ -318,11 +330,15 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyColumn("INFORMATION_SCHEMA", "COLUMNS", "DATETIME_PRECISION", iterator.next());
     verifyColumn("INFORMATION_SCHEMA", "COLUMNS", "INTERVAL_PRECISION", iterator.next());
 
+    verifyColumn("cp", "tpch/customer.parquet", "c_phone", iterator.next());
+
+    verifyColumn("sys", "dependencies", "dependency_path", iterator.next());
     verifyColumn("sys", "materializations", "data_partitions", iterator.next());
     verifyColumn("sys", "materializations", "last_refresh_from_pds", iterator.next());
     verifyColumn("sys", "memory", "fabric_port", iterator.next());
     verifyColumn("sys", "nodes", "user_port", iterator.next());
     verifyColumn("sys", "nodes", "fabric_port", iterator.next());
+    verifyColumn("sys", "slicing_threads", "fabric_port", iterator.next());
     verifyColumn("sys", "threads", "fabric_port", iterator.next());
   }
 
@@ -386,4 +402,6 @@ public class TestMetadataProvider extends BaseTestQuery {
     assertEquals(tableName, column.getTableName());
     assertEquals(columnName, column.getColumnName());
   }
+
+
 }

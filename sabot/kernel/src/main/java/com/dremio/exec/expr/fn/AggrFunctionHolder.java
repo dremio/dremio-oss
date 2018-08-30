@@ -17,6 +17,7 @@ package com.dremio.exec.expr.fn;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.types.Types;
 import com.dremio.exec.expr.ClassGenerator;
@@ -24,6 +25,7 @@ import com.dremio.exec.expr.ClassGenerator.BlockType;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.record.TypedFieldId;
+import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.sun.codemodel.JBlock;
@@ -143,9 +145,14 @@ class AggrFunctionHolder extends BaseFunctionHolder {
 
 
     for(int i =0 ; i < workspaceVars.length; i++){
-      if (workspaceVars[i].isInject() == true) {
+      final WorkspaceReference workspaceVar = workspaceVars[i];
+      if (workspaceVar.isInject()) {
+        String function = FunctionContext.INJECTABLE_GETTER_METHODS.get(workspaceVar.type);
+        if(function == null) {
+          throw UserException.validationError().message("Unknown inject type %s.", workspaceVar.type.getName()).build(logger);
+        }
         workspaceJVars[i] = g.declareClassField("work", g.getModel()._ref(workspaceVars[i].type));
-        g.getBlock(BlockType.SETUP).assign(workspaceJVars[i], JExpr.direct("context").invoke("getManagedBuffer"));
+        g.getBlock(BlockType.SETUP).assign(workspaceJVars[i], JExpr.direct("context").invoke(function));
       } else {
         Preconditions.checkState(workspaceVars[i].completeType.isFixedWidthScalar(), "Workspace variable '%s' in aggregation function '%s' is not allowed to have variable length type.", workspaceVars[i].name, registeredNames[0]);
 

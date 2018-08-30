@@ -73,6 +73,7 @@ public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTy
     return MAX_NUMERIC_PRECISION;
   }
 
+
   @Override
   public RelDataType deriveSumType(
       RelDataTypeFactory typeFactory, RelDataType argumentType) {
@@ -88,6 +89,26 @@ public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTy
         return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.DOUBLE), argumentType.isNullable());
     }
     return argumentType;
+  }
+
+  @Override
+  public RelDataType deriveAvgAggType(RelDataTypeFactory typeFactory, RelDataType argumentType) {
+    return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.DOUBLE), true);
+  }
+
+  @Override
+  public RelDataType deriveFractionalRankType(RelDataTypeFactory typeFactory) {
+    return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.DOUBLE), false);
+  }
+
+  @Override
+  public RelDataType deriveRankType(RelDataTypeFactory typeFactory) {
+    return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.BIGINT), false);
+  }
+
+  @Override
+  public RelDataType deriveCovarType(RelDataTypeFactory typeFactory, RelDataType arg0Type, RelDataType arg1Type) {
+    return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.DOUBLE), true);
   }
 
   @Override

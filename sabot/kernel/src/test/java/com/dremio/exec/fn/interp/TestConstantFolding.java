@@ -114,31 +114,31 @@ public class TestConstantFolding extends PlanTestBase {
   @Ignore
   public void testConstantFolding_allTypes() throws Exception {
     try {
-      test("alter session set `store.json.all_text_mode` = true;");
-      test(String.format("alter session set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+      test("alter session set \"store.json.all_text_mode\" = true;");
+      test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
 
       String query2 = "SELECT *  " +
-          "FROM   cp.`/parquet/alltypes.json`  " +
+          "FROM   cp.\"/parquet/alltypes.json\"  " +
           "WHERE  12 = extract(day from (to_timestamp('2014-02-12 03:18:31:07 AM', 'YYYY-MM-DD HH:MI:SS:FF AM'))) " +
-          "AND    cast( `int_col` AS             int) = castint('1')  " +
-          "AND    cast( `bigint_col` AS          bigint) = castbigint('100000000000')  " +
-          "AND    cast( `decimal9_col` AS        decimal(9, 4)) = 1.0 + 0.0  " +
-          "AND    cast( `decimal18_col` AS       decimal(18,9)) = 123456789.000000000 + 0.0  " +
-          "AND    cast( `decimal28sparse_col` AS decimal(28, 14)) = 123456789.000000000 + 0.0 " +
-          "AND    cast( `decimal38sparse_col` AS decimal(38, 19)) = 123456789.000000000 + 0.0 " +
-          "AND    cast( `date_col` AS            date) = cast('1995-01-01' as date)  " +
-          "AND    cast( `date_col` AS            date) = castdate('1995-01-01')  " +
-          "AND    cast( `date_col` AS            date) = DATE '1995-01-01'  " +
-          "AND    cast( `timestamp_col` AS timestamp) = casttimestamp('1995-01-01 01:00:10.000')  " +
-          "AND    cast( `float4_col` AS float) = castfloat4('1')  " +
-          "AND    cast( `float8_col` AS DOUBLE) = castfloat8('1')  " +
-          "AND    cast( `varbinary_col` AS varbinary(65000)) = castvarbinary('qwerty', 0)  " +
-          "AND    cast( `intervalyear_col` AS interval year) = castintervalyear('P1Y')  " +
-          "AND    cast( `intervalday_col` AS interval day) = castintervalday('P1D')" +
-          "AND    cast( `bit_col` AS       boolean) = castbit('false')  " +
-          "AND    `varchar_col` = concat('qwe','rty')  " +
+          "AND    cast( \"int_col\" AS             int) = castint('1')  " +
+          "AND    cast( \"bigint_col\" AS          bigint) = castbigint('100000000000')  " +
+          "AND    cast( \"decimal9_col\" AS        decimal(9, 4)) = 1.0 + 0.0  " +
+          "AND    cast( \"decimal18_col\" AS       decimal(18,9)) = 123456789.000000000 + 0.0  " +
+          "AND    cast( \"decimal28sparse_col\" AS decimal(28, 14)) = 123456789.000000000 + 0.0 " +
+          "AND    cast( \"decimal38sparse_col\" AS decimal(38, 19)) = 123456789.000000000 + 0.0 " +
+          "AND    cast( \"date_col\" AS            date) = cast('1995-01-01' as date)  " +
+          "AND    cast( \"date_col\" AS            date) = castdate('1995-01-01')  " +
+          "AND    cast( \"date_col\" AS            date) = DATE '1995-01-01'  " +
+          "AND    cast( \"timestamp_col\" AS timestamp) = casttimestamp('1995-01-01 01:00:10.000')  " +
+          "AND    cast( \"float4_col\" AS float) = castfloat4('1')  " +
+          "AND    cast( \"float8_col\" AS DOUBLE) = castfloat8('1')  " +
+          "AND    cast( \"varbinary_col\" AS varbinary(65000)) = castvarbinary('qwerty', 0)  " +
+          "AND    cast( \"intervalyear_col\" AS interval year) = castintervalyear('P1Y')  " +
+          "AND    cast( \"intervalday_col\" AS interval day) = castintervalday('P1D')" +
+          "AND    cast( \"bit_col\" AS       boolean) = castbit('false')  " +
+          "AND    \"varchar_col\" = concat('qwe','rty')  " +
 
-          "AND    cast( `time_col` AS            time) = casttime('01:00:00')  " +
+          "AND    cast( \"time_col\" AS            time) = casttime('01:00:00')  " +
 
           "";
 
@@ -161,8 +161,8 @@ public class TestConstantFolding extends PlanTestBase {
           )
           .go();
     } finally {
-      test("alter session set `store.json.all_text_mode` = false;");
-      test(String.format("alter session set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+      test("alter session set \"store.json.all_text_mode\" = false;");
+      test(String.format("alter session set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
     }
   }
 
@@ -172,7 +172,7 @@ public class TestConstantFolding extends PlanTestBase {
     new SmallFileCreator(folder).createFiles(1, 8);
     String path = folder.getRoot().toPath().toString();
     testPlanOneExpectedPatternOneExcluded(
-        "select * from dfs.`" + path + "/*/*.csv` where dir0 = concat('small','file')",
+        "select * from dfs.\"" + path + "/*/*.csv\" where dir0 = concat('small','file')",
         "smallfile",
         "bigfile");
   }
@@ -182,7 +182,7 @@ public class TestConstantFolding extends PlanTestBase {
     new SmallFileCreator(folder).createFiles(1, 1000);
     String path = folder.getRoot().toPath().toString();
     testPlanOneExpectedPatternOneExcluded(
-        "select * from dfs.`" + path + "/*/*.csv` where dir0 = concat('small','file')",
+        "select * from dfs.\"" + path + "/*/*.csv\" where dir0 = concat('small','file')",
         "smallfile",
         "bigfile");
   }
@@ -191,7 +191,7 @@ public class TestConstantFolding extends PlanTestBase {
   @Ignore
   public void testConstExprFolding_nonDirFilter() throws Exception {
     testPlanOneExpectedPatternOneExcluded(
-        "select * from cp.`functions/interp/test_input.csv` where columns[0] = 2+2",
+        "select * from cp.\"functions/interp/test_input.csv\" where columns[0] = 2+2",
         "Filter\\(condition=\\[=\\(ITEM\\(\\$[0-9]+, 0\\), 4\\)",
         "Filter\\(condition=\\[=\\(ITEM\\(\\$[0-9]+, 0\\), \\+\\(2, 2\\)\\)");
   }
@@ -199,12 +199,12 @@ public class TestConstantFolding extends PlanTestBase {
   @Test
   public void testConstantFoldingDisableOption() throws Exception {
     try {
-      test("alter session set `planner.enable_constant_folding` = false");
+      test("alter session set \"planner.enable_constant_folding\" = false");
       testPlanOneExpectedPattern(
-          "select * from cp.`functions/interp/test_input.csv` where columns[0] = 2+2",
+          "select * from cp.\"functions/interp/test_input.csv\" where columns[0] = 2+2",
           "\\+\\(2, 2\\)");
     } finally {
-      test("alter session set `planner.enable_constant_folding` = true");
+      test("alter session set \"planner.enable_constant_folding\" = true");
     }
   }
 
@@ -212,7 +212,7 @@ public class TestConstantFolding extends PlanTestBase {
   @Ignore
   public void testConstExprFolding_moreComplicatedNonDirFilter() throws Exception {
     testPlanOneExpectedPatternOneExcluded(
-        "select * from cp.`functions/interp/test_input.csv` where columns[1] = ABS((6-18)/(2*3))",
+        "select * from cp.\"functions/interp/test_input.csv\" where columns[1] = ABS((6-18)/(2*3))",
         "Filter\\(condition=\\[=\\(ITEM\\(\\$[0-9]+, 1\\), 2\\)",
         "Filter\\(condition=\\[=\\(ITEM\\(\\$[0-9]+, 1\\), ABS\\(/\\(-\\(6, 18\\), \\*\\(2, 3\\)\\)\\)\\)");
   }
@@ -220,14 +220,14 @@ public class TestConstantFolding extends PlanTestBase {
   @Test
   public void testConstExprFolding_dontFoldRandom() throws Exception {
     testPlanOneExpectedPattern(
-        "select * from cp.`functions/interp/test_input.csv` where columns[0] = random()",
+        "select * from cp.\"functions/interp/test_input.csv\" where columns[0] = random()",
         "RANDOM()");
   }
 
   @Test
   public void testConstExprFolding_ToLimit0() throws Exception {
     testPlanOneExpectedPatternOneExcluded(
-        "select * from cp.`functions/interp/test_input.csv` where 1=0",
+        "select * from cp.\"functions/interp/test_input.csv\" where 1=0",
         "Empty",
         "Filter\\(condition=\\[=\\(1, 0\\)\\]\\)");
   }
@@ -242,7 +242,7 @@ public class TestConstantFolding extends PlanTestBase {
   @Ignore("DRILL-2218")
   @Test
   public void testConstExprFolding_InSelect() throws Exception {
-    testPlanOneExcludedPattern("select columns[0], 3+5 from cp.`functions/interp/test_input.csv`",
+    testPlanOneExcludedPattern("select columns[0], 3+5 from cp.\"functions/interp/test_input.csv\"",
         "EXPR\\$[0-9]+=\\[\\+\\(3, 5\\)\\]");
   }
 

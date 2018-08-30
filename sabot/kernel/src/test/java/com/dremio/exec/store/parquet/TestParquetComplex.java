@@ -26,7 +26,7 @@ import com.dremio.exec.ExecConstants;
 
 public class TestParquetComplex extends BaseTestQuery {
 
-  private static final String DATAFILE = "cp.`store/parquet/complex/complex.parquet`";
+  private static final String DATAFILE = "cp.\"store/parquet/complex/complex.parquet\"";
 
   @Test
   public void sort() throws Exception {
@@ -52,7 +52,7 @@ public class TestParquetComplex extends BaseTestQuery {
 
   @Test
   public void hashJoin() throws Exception{
-    String query = String.format("select t1.amount, t1.`date`, t1.marketing_info, t1.`time`, t1.trans_id, t1.trans_info, t1.user_info " +
+    String query = String.format("select t1.amount, t1.\"date\", t1.marketing_info, t1.\"time\", t1.trans_id, t1.trans_info, t1.user_info " +
             "from %s t1, %s t2 where t1.amount = t2.amount", DATAFILE, DATAFILE);
     testBuilder()
             .sqlQuery(query)
@@ -92,8 +92,8 @@ public class TestParquetComplex extends BaseTestQuery {
   @Ignore("DX-3852")
   @Test
   public void mergeJoin() throws Exception{
-    test("alter session set `planner.enable_hashjoin` = false");
-    String query = String.format("select t1.amount, t1.`date`, t1.marketing_info, t1.`time`, t1.trans_id, t1.trans_info, t1.user_info " +
+    test("alter session set \"planner.enable_hashjoin\" = false");
+    String query = String.format("select t1.amount, t1.\"date\", t1.marketing_info, t1.\"time\", t1.trans_id, t1.trans_info, t1.user_info " +
             "from %s t1, %s t2 where t1.amount = t2.amount", DATAFILE, DATAFILE);
     testBuilder()
             .sqlQuery(query)
@@ -105,7 +105,7 @@ public class TestParquetComplex extends BaseTestQuery {
 
   @Test
   public void selectAllColumns() throws Exception {
-    String query = String.format("select amount, `date`, marketing_info, `time`, trans_id, trans_info, user_info from %s", DATAFILE);
+    String query = String.format("select amount, \"date\", marketing_info, \"time\", trans_id, trans_info, user_info from %s", DATAFILE);
     testBuilder()
             .sqlQuery(query)
             .ordered()
@@ -116,12 +116,12 @@ public class TestParquetComplex extends BaseTestQuery {
 
   @Test
   public void q() throws Exception {
-    test("select p.marketing_info from cp.`store/parquet/complex/complex.parquet` p");
+    test("select p.marketing_info from cp.\"store/parquet/complex/complex.parquet\" p");
   }
 
   @Test
   public void selectMap() throws Exception {
-    String query = "select marketing_info from cp.`store/parquet/complex/complex.parquet`";
+    String query = "select marketing_info from cp.\"store/parquet/complex/complex.parquet\"";
     testBuilder()
             .sqlQuery(query)
             .ordered()
@@ -132,7 +132,7 @@ public class TestParquetComplex extends BaseTestQuery {
 
   @Test
   public void selectMapAndElements() throws Exception {
-    String query = "select marketing_info, t.marketing_info.camp_id as camp_id, t.marketing_info.keywords[2] as keyword2 from cp.`store/parquet/complex/complex.parquet` t";
+    String query = "select marketing_info, t.marketing_info.camp_id as camp_id, t.marketing_info.keywords[2] as keyword2 from cp.\"store/parquet/complex/complex.parquet\" t";
     testBuilder()
             .sqlQuery(query)
             .ordered()
@@ -143,7 +143,7 @@ public class TestParquetComplex extends BaseTestQuery {
 
   @Test
   public void selectMultiElements() throws Exception {
-    String query = "select t.marketing_info.camp_id as camp_id, t.marketing_info.keywords as keywords from cp.`store/parquet/complex/complex.parquet` t";
+    String query = "select t.marketing_info.camp_id as camp_id, t.marketing_info.keywords as keywords from cp.\"store/parquet/complex/complex.parquet\" t";
     testBuilder()
             .sqlQuery(query)
             .ordered()
@@ -155,7 +155,7 @@ public class TestParquetComplex extends BaseTestQuery {
   @Test
   public void testStar() throws Exception {
     testBuilder()
-            .sqlQuery("select * from cp.`store/parquet/complex/complex.parquet`")
+            .sqlQuery("select * from cp.\"store/parquet/complex/complex.parquet\"")
             .ordered()
             .jsonBaselineFile("store/parquet/complex/baseline.json")
             .build()
@@ -165,7 +165,7 @@ public class TestParquetComplex extends BaseTestQuery {
   @Test
   @Ignore
   public void missingColumnInMap() throws Exception {
-    String query = "select t.trans_info.keywords as keywords from cp.`store/parquet/complex/complex.parquet` t";
+    String query = "select t.trans_info.keywords as keywords from cp.\"store/parquet/complex/complex.parquet\" t";
     String[] columns = {"keywords"};
     testBuilder()
             .sqlQuery(query)
@@ -178,7 +178,7 @@ public class TestParquetComplex extends BaseTestQuery {
 
   @Test
   public void secondElementInMap() throws Exception {
-    String query = String.format("select t.`marketing_info`.keywords as keywords from %s t", DATAFILE);
+    String query = String.format("select t.\"marketing_info\".keywords as keywords from %s t", DATAFILE);
     String[] columns = {"keywords"};
     testBuilder()
             .sqlQuery(query)
@@ -191,7 +191,7 @@ public class TestParquetComplex extends BaseTestQuery {
 
   @Test
   public void elementsOfArray() throws Exception {
-    String query = String.format("select t.`marketing_info`.keywords[0] as keyword0, t.`marketing_info`.keywords[2] as keyword2 from %s t", DATAFILE);
+    String query = String.format("select t.\"marketing_info\".keywords[0] as keyword0, t.\"marketing_info\".keywords[2] as keyword2 from %s t", DATAFILE);
     String[] columns = {"keyword0", "keyword2"};
     testBuilder()
             .sqlQuery(query)
@@ -204,7 +204,7 @@ public class TestParquetComplex extends BaseTestQuery {
 
   @Test
   public void elementsOfArrayCaseInsensitive() throws Exception {
-    String query = String.format("select t.`MARKETING_INFO`.keywords[0] as keyword0, t.`Marketing_Info`.Keywords[2] as keyword2 from %s t", DATAFILE);
+    String query = String.format("select t.\"MARKETING_INFO\".keywords[0] as keyword0, t.\"Marketing_Info\".Keywords[2] as keyword2 from %s t", DATAFILE);
     String[] columns = {"keyword0", "keyword2"};
     testBuilder()
             .sqlQuery(query)
@@ -218,7 +218,7 @@ public class TestParquetComplex extends BaseTestQuery {
   @Test //DRILL-3533
   @Ignore("json null type")
   public void notxistsField() throws Exception {
-    String query = String.format("select t.`marketing_info`.notexists as notexists, t.`marketing_info`.camp_id as id from %s t", DATAFILE);
+    String query = String.format("select t.\"marketing_info\".notexists as notexists, t.\"marketing_info\".camp_id as id from %s t", DATAFILE);
     String[] columns = {"notexists", "id"};
     testBuilder()
         .sqlQuery(query)
@@ -244,7 +244,7 @@ public class TestParquetComplex extends BaseTestQuery {
   @Test
   public void testLegacyRepeatedMap() throws Exception {
     final String query = "SELECT sub.fmap.str1 as str FROM (" +
-            "SELECT flatten(t.rep_map) fmap FROM cp.`/parquet/alltypes-repeated.parquet` t) sub";
+            "SELECT flatten(t.rep_map) fmap FROM cp.\"/parquet/alltypes-repeated.parquet\" t) sub";
     testBuilder()
             .unOrdered()
             .sqlQuery(query)

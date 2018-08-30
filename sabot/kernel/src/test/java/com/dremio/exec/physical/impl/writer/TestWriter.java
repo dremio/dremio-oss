@@ -18,7 +18,7 @@ package com.dremio.exec.physical.impl.writer;
 import static org.junit.Assert.assertEquals;
 import java.util.List;
 
-import org.apache.arrow.vector.NullableBigIntVector;
+import org.apache.arrow.vector.BigIntVector;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -35,7 +35,7 @@ public class TestWriter extends BaseTestQuery {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestWriter.class);
 
   static FileSystem fs;
-  static String ALTER_SESSION = String.format("ALTER SESSION SET `%s` = 'csv'", ExecConstants.OUTPUT_FORMAT_OPTION);
+  static String ALTER_SESSION = String.format("ALTER SESSION SET \"%s\" = 'csv'", ExecConstants.OUTPUT_FORMAT_OPTION);
 
   @BeforeClass
   public static void initFs() throws Exception {
@@ -53,7 +53,7 @@ public class TestWriter extends BaseTestQuery {
     runSQL("Use dfs_test");
     runSQL(ALTER_SESSION);
 
-    final String testQuery = String.format("CREATE TABLE %s AS SELECT * FROM cp.`employee.json`", tableName);
+    final String testQuery = String.format("CREATE TABLE %s AS SELECT * FROM cp.\"employee.json\"", tableName);
 
     testCTASQueryHelper(tableName, testQuery, 1155);
   }
@@ -64,7 +64,7 @@ public class TestWriter extends BaseTestQuery {
     runSQL("Use dfs_test");
     runSQL(ALTER_SESSION);
     final String testQuery = String.format("CREATE TABLE %s AS SELECT first_name, last_name, " +
-        "position_id FROM cp.`employee.json`", tableName);
+        "position_id FROM cp.\"employee.json\"", tableName);
 
     testCTASQueryHelper(tableName, testQuery, 1155);
   }
@@ -74,8 +74,8 @@ public class TestWriter extends BaseTestQuery {
     final String tableName = "complex1ctas";
     runSQL("Use dfs_test");
     runSQL(ALTER_SESSION);
-    final String testQuery = String.format("CREATE TABLE %s AS SELECT CAST(`birth_date` as Timestamp) FROM " +
-        "cp.`employee.json` GROUP BY birth_date", tableName);
+    final String testQuery = String.format("CREATE TABLE %s AS SELECT CAST(\"birth_date\" as Timestamp) FROM " +
+        "cp.\"employee.json\" GROUP BY birth_date", tableName);
 
     testCTASQueryHelper(tableName, testQuery, 52);
   }
@@ -85,7 +85,7 @@ public class TestWriter extends BaseTestQuery {
     final String tableName = "/test/simplectas2";
     runSQL(ALTER_SESSION);
     final String testQuery =
-        String.format("CREATE TABLE dfs_test.`%s` AS SELECT * FROM cp.`employee.json`",tableName);
+        String.format("CREATE TABLE dfs_test.\"%s\" AS SELECT * FROM cp.\"employee.json\"",tableName);
 
     testCTASQueryHelper(tableName, testQuery, 1155);
   }
@@ -94,16 +94,16 @@ public class TestWriter extends BaseTestQuery {
   public void simpleParquetDecimal() throws Exception {
     try {
       final String tableName = "simpleparquetdecimal";
-      final String testQuery = String.format("CREATE TABLE dfs_test.`%s` AS SELECT cast(salary as " +
-          "decimal(30,2)) * -1 as salary FROM cp.`employee.json`", tableName);
+      final String testQuery = String.format("CREATE TABLE dfs_test.\"%s\" AS SELECT cast(salary as " +
+          "decimal(30,2)) * -1 as salary FROM cp.\"employee.json\"", tableName);
 
       // enable decimal
-      test(String.format("alter session set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+      test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
       testCTASQueryHelper(tableName, testQuery, 1155);
 
       // disable decimal
     } finally {
-      test(String.format("alter session set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+      test(String.format("alter session set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
     }
   }
 
@@ -121,7 +121,7 @@ public class TestWriter extends BaseTestQuery {
           continue;
         }
 
-        NullableBigIntVector recordWrittenV = (NullableBigIntVector) batchLoader.getValueAccessorById(NullableBigIntVector.class, 1).getValueVector();
+        BigIntVector recordWrittenV = (BigIntVector) batchLoader.getValueAccessorById(BigIntVector.class, 1).getValueVector();
 
         for (int i = 0; i < batchLoader.getRecordCount(); i++) {
           recordsWritten += recordWrittenV.get(i);

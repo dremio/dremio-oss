@@ -20,7 +20,7 @@ import ReactDOM from 'react-dom';
 import json from '../../../../utils/mappers/mocks/gridMapper/expected.json';
 import { MIN_COLUMN_WIDTH } from '../../../../uiTheme/radium/sizes';
 
-import ExploreTable, { RIGHT_TREE_OFFSET } from './ExploreTable';
+import { ExploreTableView as ExploreTable, RIGHT_TREE_OFFSET } from './ExploreTable';
 
 describe('ExploreTable', () => {
 
@@ -355,7 +355,10 @@ describe('ExploreTable', () => {
 
   describe('#updateSize', () => {
     beforeEach(() => {
-      sinon.stub(ReactDOM, 'findDOMNode').returns(document.createElement('div'));
+      const fakeEl = document.createElement('div');
+      fakeEl.getClientRects = () => []; //  a fix after jquery update to v3. $.offset fails when tryes to call getClientRects. Previously jquery does not use this method
+
+      sinon.stub(ReactDOM, 'findDOMNode').returns(fakeEl);
     });
     afterEach(() => {
       ReactDOM.findDOMNode.restore();

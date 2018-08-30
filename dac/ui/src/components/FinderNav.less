@@ -14,80 +14,82 @@
  * limitations under the License.
  */
 @import "colors.less";
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-.finder-nav {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+  .finder-nav {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 
-  .pointer {
-    cursor: pointer;
-  }
-
-  .finder-nav-title {
-    flex: 0 0 auto;
-    padding: 10px 5px 6px 10px;
-    border: 1px solid rgba(0,0,0,.1);
-    border-width: 1px 0;
-
-    .pull-right{
-      margin: -2px 0 0;
+    .pointer {
       cursor: pointer;
     }
-  }
 
-  ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
+    .finder-nav-title {
+      flex: 0 0 auto;
+      padding: 10px 5px 6px 10px;
+      border: 1px solid rgba(0,0,0,.1);
+      border-width: 1px 0;
 
-  .nav-list {
-    flex: 1 1 auto;
-    overflow: auto;
-    padding: 5px 0;
-
-    .show-more-btn{
-      color: @blue;
-      margin: 7px 0 0;
-      cursor: pointer;
-      display: inline-block;
-    }
-    .open-more{
-      position: relative;
-      padding: 0 0 23px;
-      .show-more-btn{
-        position: absolute;
-        bottom: 0;
-        left: 0;
+      .pull-right{
+        margin: -2px 0 0;
+        cursor: pointer;
       }
     }
-  }
 
-  .loader{
-    min-height: 30px;
-    text-align: center;
-    .fa{
-      vertical-align: middle;
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
     }
-  }
 
-  .new-item-button{
-    text-align: center;
-    padding: 25px 5px;
-    border: 2px dashed @active-icon-dark;
-    margin: 10px 0 30px;
-    button{
-      background: @blue;
-      color: @white;
-      border: 1px solid @blue;
-      border-radius: 5px;
-      font-size: 13px;
-      font-weight: bold;
-      width: 140px;
-      height: 35px;
-      &:hover{
-        background: darken(@blue, 5%);
+    .nav-list {
+      flex: 1 1 auto;
+      overflow: auto;
+      padding: 5px 0;
+
+      .show-more-btn{
+        color: @blue;
+        margin: 7px 0 0;
+        cursor: pointer;
+        display: inline-block;
+      }
+      .open-more{
+        position: relative;
+        padding: 0 0 23px;
+        .show-more-btn{
+          position: absolute;
+          bottom: 0;
+          left: 0;
+        }
+      }
+    }
+
+    .loader{
+      min-height: 30px;
+      text-align: center;
+      .fa{
+        vertical-align: middle;
+      }
+    }
+
+    .new-item-button{
+      text-align: center;
+      padding: 25px 5px;
+      border: 2px dashed @active-icon-dark;
+      margin: 10px 0 30px;
+      button{
+        background: @blue;
+        color: @white;
+        border: 1px solid @blue;
+        border-radius: 5px;
+        font-size: 13px;
+        font-weight: bold;
+        width: 140px;
+        height: 35px;
+        &:hover{
+          background: darken(@blue, 5%);
+        }
       }
     }
   }

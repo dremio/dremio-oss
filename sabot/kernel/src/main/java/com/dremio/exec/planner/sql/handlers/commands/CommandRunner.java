@@ -43,6 +43,11 @@ public interface CommandRunner<T> {
   double plan() throws Exception;
 
   /**
+   * Release any resources
+   * @throws Exception
+   */
+  void close() throws Exception;
+  /**
    * Finish planning and start execution.
    * @throws Exception
    */

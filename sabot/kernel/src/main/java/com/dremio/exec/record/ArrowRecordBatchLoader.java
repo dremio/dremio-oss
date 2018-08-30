@@ -26,12 +26,13 @@ import org.apache.arrow.flatbuf.Buffer;
 import org.apache.arrow.flatbuf.FieldNode;
 import org.apache.arrow.flatbuf.RecordBatch;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.TypeLayout;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.BufferLayout;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.schema.ArrowFieldNode;
-import org.apache.arrow.vector.schema.ArrowRecordBatch;
-import org.apache.arrow.vector.schema.VectorLayout;
+import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
+import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -166,9 +167,9 @@ public class ArrowRecordBatchLoader implements VectorAccessible, Iterable<Vector
     checkArgument(nodes.hasNext(),
         "no more field nodes for for field " + field + " and vector " + vector);
     ArrowFieldNode fieldNode = nodes.next();
-    List<VectorLayout> typeLayout = field.getTypeLayout().getVectors();
-    List<ArrowBuf> ownBuffers = new ArrayList<>(typeLayout.size());
-    for (int j = 0; j < typeLayout.size(); j++) {
+    List<BufferLayout> bufferLayouts = TypeLayout.getTypeLayout(field.getType()).getBufferLayouts();
+    List<ArrowBuf> ownBuffers = new ArrayList<>(bufferLayouts.size());
+    for (int j = 0; j < bufferLayouts.size(); j++) {
       ownBuffers.add(buffers.next());
     }
     try {

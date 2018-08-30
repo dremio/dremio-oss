@@ -70,7 +70,6 @@ export const textInput = {
   borderRadius: '2px',
   height: '28px',
   width: '310px',
-  marginRight: '10px',
   ':focus': {
     border: '1px solid #C0E9F5',
     boxShadow: '0 0 4px 0 rgba(129,209,235,0.20)'
@@ -98,7 +97,8 @@ export const textInputSmall = {
 export const textArea = {
   ...textInput,
   height: '56px',
-  width: '630px'
+  width: '100%',
+  display: 'block'
 };
 
 export const description = {

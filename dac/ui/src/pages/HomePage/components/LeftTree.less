@@ -13,28 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-.left-tree {
-  .left-tree-wrap:last-child {
-    .nav-list {
-      padding-bottom: 2em; // provide padding so you can scroll past the status bar
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  .left-tree {
+    .left-tree-wrap:last-child {
+      .nav-list {
+        padding-bottom: 2em; // provide padding so you can scroll past the status bar
+      }
     }
-  }
 
-  .button-wrap {
-    padding: 10px;
-    border: 1px dotted #46B4D5;
-    min-height: 110px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    text-align: center;
-    margin: 5px 10px; // 5px top/bottom adds to 5px built in the container
+    .button-wrap {
+      padding: 10px;
+      border: 1px dotted #46B4D5;
+      min-height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      text-align: center;
+      margin: 5px 10px; // 5px top/bottom adds to 5px built in the container
 
-    > :not(:first-child) {
-      margin-top: 10px;
+      > :not(:first-child) {
+        margin-top: 10px;
+      }
     }
-  }
 
+  }
 }

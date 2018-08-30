@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.arrow.vector.NullableVarBinaryVector;
+import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.mapred.FileSplit;
@@ -54,8 +54,8 @@ public class SequenceFileRecordReader extends AbstractRecordReader {
   private static final String keySchema = "binary_key";
   private static final String valueSchema = "binary_value";
 
-  private NullableVarBinaryVector keyVector;
-  private NullableVarBinaryVector valueVector;
+  private VarBinaryVector keyVector;
+  private VarBinaryVector valueVector;
   private final FileSplit split;
   private org.apache.hadoop.mapred.RecordReader<BytesWritable, BytesWritable> reader;
   private final BytesWritable key = new BytesWritable();
@@ -103,8 +103,8 @@ public class SequenceFileRecordReader extends AbstractRecordReader {
     final Field keyField = new Field(keySchema, true, getArrowTypeForMajorType(KEY_TYPE), null);
     final Field valueField = new Field(valueSchema, true, getArrowTypeForMajorType(VALUE_TYPE), null);
     try {
-      keyVector = output.addField(keyField, NullableVarBinaryVector.class);
-      valueVector = output.addField(valueField, NullableVarBinaryVector.class);
+      keyVector = output.addField(keyField, VarBinaryVector.class);
+      valueVector = output.addField(valueField, VarBinaryVector.class);
     } catch (SchemaChangeException sce) {
       throw new ExecutionSetupException("Error in setting up sequencefile reader.", sce);
     }

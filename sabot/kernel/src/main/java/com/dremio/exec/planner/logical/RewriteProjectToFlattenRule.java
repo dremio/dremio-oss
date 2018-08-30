@@ -37,22 +37,24 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
+import org.apache.calcite.rex.RexPatternFieldRef;
 import org.apache.calcite.rex.RexRangeRef;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexSubQuery;
+import org.apache.calcite.rex.RexTableInputRef;
 import org.apache.calcite.rex.RexVisitor;
 import org.apache.calcite.tools.RelBuilder;
 
 import com.dremio.exec.calcite.logical.FlattenCrel;
 import com.dremio.exec.planner.sql.SqlFlattenOperator;
 import com.google.common.base.Function;
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
-import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
-import com.google.common.base.MoreObjects;
 
 /**
  * A rule that canonicalizes flatten expressions by their flatten index. It then
@@ -189,6 +191,7 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
       super(0, type);
     }
 
+    @Override
     public int getIndex(){
       Preconditions.checkNotNull(index, "Mutable index must be set before retrieval.");
       return index;
@@ -392,6 +395,7 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
 
     }
 
+    @Override
     protected List<RexNode> visitList(
         List<? extends RexNode> exprs, boolean[] update, LevelHolder output) {
       ImmutableList.Builder<RexNode> clonedOperands = ImmutableList.builder();
@@ -464,6 +468,16 @@ public class RewriteProjectToFlattenRule extends RelOptRule {
 
     @Override
     public Boolean visitLocalRef(RexLocalRef localRef) {
+      return true;
+    }
+
+    @Override
+    public Boolean visitPatternFieldRef(RexPatternFieldRef fieldRef) {
+      return true;
+    }
+
+    @Override
+    public Boolean visitTableInputRef(RexTableInputRef fieldRef) {
       return true;
     }
 

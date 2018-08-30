@@ -32,7 +32,7 @@ import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
-import com.dremio.exec.server.options.OptionList;
+import com.dremio.options.OptionList;
 import com.dremio.exec.util.Utilities;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.collect.Lists;

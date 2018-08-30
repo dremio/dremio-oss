@@ -17,6 +17,7 @@ import { Component } from 'react';
 import ReactDOM from 'react-dom';
 import { Overlay } from 'react-overlays';
 import pureRender from 'pure-render-decorator';
+import classNames from 'classnames';
 
 import PropTypes from 'prop-types';
 
@@ -29,7 +30,8 @@ export default class HoverHelp extends Component {
   static propTypes = {
     style: PropTypes.object,
     tooltipInnerStyle: PropTypes.object,
-    content: PropTypes.node
+    content: PropTypes.node,
+    className: PropTypes.string
   };
 
   constructor(props) {
@@ -48,13 +50,17 @@ export default class HoverHelp extends Component {
   }
 
   render() {
-    const { style, content, tooltipInnerStyle } = this.props;
+    const { style, content, tooltipInnerStyle, className } = this.props;
     const {hover} = this.state;
+    const finalInnerStyle = {...styles.defaultInnerStyle, ...tooltipInnerStyle};
 
-    return <div className='hover-help' style={{position:'relative', ...style}}>
+    return <div
+      className={classNames(['hover-help', className])}
+      style={{position:'relative', ...style}}>
       <FontIcon
         type={hover ? 'InfoCircleSolid' : 'InfoCircle'}
         ref='target'
+        iconStyle={styles.iconStyle}
         onMouseEnter={this.onMouseEnter}
         onMouseLeave={this.onMouseLeave}
       />
@@ -63,8 +69,27 @@ export default class HoverHelp extends Component {
         container={this}
         placement='right'
         target={() => ReactDOM.findDOMNode(this.refs.target)}>
-        <Tooltip type='info' placement='right' content={content} tooltipInnerStyle={tooltipInnerStyle}/>
+        <Tooltip type='status' placement='right' content={content} tooltipInnerStyle={finalInnerStyle}/>
       </Overlay>
     </div>;
   }
 }
+
+const styles = {
+  iconStyle: {
+    width: 19,
+    height: 19,
+    marginLeft: 3,
+    marginBottom: -3
+  },
+  defaultInnerStyle: {
+    borderRadius: 5,
+    padding: 10,
+    textAlign: 'left',
+    width: 300,
+    whiteSpace: 'pre-line',
+    fontWeight: 400,
+    fontSize: 12,
+    color: '#FFFFFF'
+  }
+};

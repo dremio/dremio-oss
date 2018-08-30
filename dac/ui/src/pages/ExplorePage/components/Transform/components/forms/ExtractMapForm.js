@@ -23,6 +23,7 @@ import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import NewFieldSection from 'components/Forms/NewFieldSection';
 import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
 import { getTransformCards } from 'selectors/transforms';
+import { sectionMargin } from '@app/uiTheme/less/layout.less';
 import TransformForm, { formWrapperProps } from '../../../forms/TransformForm';
 import ExtractMapCards from './sections/ExtractMapCards';
 
@@ -68,7 +69,7 @@ export class ExtractMapForm extends Component {
           <ExtractMapCards
             cards={cards}
             fields={fields}/>
-          <NewFieldSection fields={fields}/>
+          <NewFieldSection fields={fields} className={sectionMargin}/>
         </div>
       </TransformForm>
     );

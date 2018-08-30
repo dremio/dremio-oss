@@ -27,7 +27,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DecimalHelper;
-import org.apache.arrow.vector.NullableDecimalVector;
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.NullableDecimalVectorHelper;
 import org.apache.arrow.vector.UInt1Vector;
 import org.junit.After;
@@ -137,18 +137,19 @@ public class TestBackwardsCompatibilityHandler {
 
       int count = 100;
       for (int i = 0; i < count ; i++) {
-        bits.getMutator().setSafe(i, i % 2);
+        bits.setSafe(i, i % 2);
       }
-      bits.getMutator().setValueCount(count);
+      bits.setValueCount(count);
 
-      ArrowBuf oldBuf = bits.getBuffer();
+      ArrowBuf oldBuf = bits.getDataBuffer();
       oldBuf.retain();
       SerializedField.Builder fieldBuilder = TypeHelper.getMetadataBuilder(bits);
       ArrowBuf newBuf = convertBitsToBytes(allocator, fieldBuilder, oldBuf);
-
-      TypeHelper.load(bytes, fieldBuilder.build(), newBuf);
+      bytes.setValueCount(count);
+      SerializedField.Builder newfieldBuilder = TypeHelper.getMetadataBuilder(bytes);
+      TypeHelper.loadData(bytes, newfieldBuilder.build(), newBuf);
       for (int i = 0; i < count ; i++) {
-        assertEquals(i % 2, bytes.getAccessor().get(i));
+        assertEquals(i % 2, bytes.get(i));
       }
       newBuf.release();
     }
@@ -157,7 +158,7 @@ public class TestBackwardsCompatibilityHandler {
   @Test
   public void testPatchDecimal() {
     try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
-      NullableDecimalVector decimalVector = new NullableDecimalVector("decimal", allocator, 38, 9);
+      DecimalVector decimalVector = new DecimalVector("decimal", allocator, 38, 9);
       decimalVector.allocateNew(8);
 
       BigDecimal decimal1 = new BigDecimal("123456789.000000000");
@@ -198,31 +199,31 @@ public class TestBackwardsCompatibilityHandler {
       int startIndex = 0;
       BigDecimal bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
       assertEquals(bd, decimal1);
-      startIndex += NullableDecimalVector.TYPE_WIDTH + 8;
+      startIndex += DecimalVector.TYPE_WIDTH + 8;
 
       bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
       assertEquals(bd, decimal2);
-      startIndex += NullableDecimalVector.TYPE_WIDTH + 8;
+      startIndex += DecimalVector.TYPE_WIDTH + 8;
 
       bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
       assertEquals(bd, decimal3);
-      startIndex += NullableDecimalVector.TYPE_WIDTH + 8;
+      startIndex += DecimalVector.TYPE_WIDTH + 8;
 
       bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
       assertEquals(bd, decimal4);
-      startIndex += NullableDecimalVector.TYPE_WIDTH + 8;
+      startIndex += DecimalVector.TYPE_WIDTH + 8;
 
       bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
       assertEquals(bd, decimal5);
-      startIndex += NullableDecimalVector.TYPE_WIDTH + 8;
+      startIndex += DecimalVector.TYPE_WIDTH + 8;
 
       bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
       assertEquals(bd, decimal6);
-      startIndex += NullableDecimalVector.TYPE_WIDTH + 8;
+      startIndex += DecimalVector.TYPE_WIDTH + 8;
 
       bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
       assertEquals(bd, decimal7);
-      startIndex += NullableDecimalVector.TYPE_WIDTH + 8;
+      startIndex += DecimalVector.TYPE_WIDTH + 8;
 
       bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
       assertEquals(bd, decimal8);
@@ -244,19 +245,21 @@ public class TestBackwardsCompatibilityHandler {
 
       int count = 100;
       for (int i = 0; i < count * 8 ; i++) {
-        bytes.getMutator().setSafe(i, i % 8);
+        bytes.setSafe(i, i % 8);
       }
-      bytes.getMutator().setValueCount(count * 8);
+      bytes.setValueCount(count * 8);
 
-      ArrowBuf oldBuf = bytes.getBuffer();
+      ArrowBuf oldBuf = bytes.getDataBuffer();
       oldBuf.retain();
       SerializedField.Builder fieldBuilder = TypeHelper.getMetadataBuilder(bytes);
       ArrowBuf newBuf = padValues(allocator, fieldBuilder, oldBuf, originalTypeByteWidth, targetTypeByteWidth);
-      fieldBuilder.setValueCount(count * 12); // since we're loading it in a bytes vector
-      TypeHelper.load(bytes, fieldBuilder.build(), newBuf);
+      bytes.setValueCount(count * 12);
+      SerializedField.Builder newfieldBuilder = TypeHelper.getMetadataBuilder(bytes);
+      // load data in newBuf into bytes, all the validity will be set to one
+      TypeHelper.loadData(bytes, newfieldBuilder.build(), newBuf);
       for (int i = 0; i < count ; i++) {
         for (int byteIndex = 0; byteIndex < 8 ; byteIndex++) {
-          assertEquals((i * 8 + byteIndex) % 8, bytes.getAccessor().get(i * 12 + byteIndex));
+          assertEquals((i * 8 + byteIndex) % 8, bytes.get(i * 12 + byteIndex));
         }
       }
       newBuf.release();

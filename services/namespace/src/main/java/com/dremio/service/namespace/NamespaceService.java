@@ -15,6 +15,7 @@
  */
 package com.dremio.service.namespace;
 
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 
@@ -53,15 +54,15 @@ public interface NamespaceService {
   }
 
   //// Create
-  void addOrUpdateSource(NamespaceKey sourcePath, SourceConfig sourceConfig) throws NamespaceException;
+  void addOrUpdateSource(NamespaceKey sourcePath, SourceConfig sourceConfig, NamespaceAttribute... attributes) throws NamespaceException;
 
-  void addOrUpdateSpace(NamespaceKey spacePath, SpaceConfig spaceConfig) throws NamespaceException;
+  void addOrUpdateSpace(NamespaceKey spacePath, SpaceConfig spaceConfig, NamespaceAttribute... attributes) throws NamespaceException;
 
-  void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset) throws NamespaceException;
+  void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, NamespaceAttribute... attributes) throws NamespaceException;
 
-  void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, List<DatasetSplit> splits) throws NamespaceException;
+  void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, List<DatasetSplit> splits, NamespaceAttribute... attributes) throws NamespaceException;
 
-  void addOrUpdateFolder(NamespaceKey folderPath, FolderConfig folderConfig) throws NamespaceException;
+  void addOrUpdateFolder(NamespaceKey folderPath, FolderConfig folderConfig, NamespaceAttribute... attributes) throws NamespaceException;
 
   void addOrUpdateHome(NamespaceKey homePath, HomeConfig homeConfig) throws NamespaceException;
 
@@ -71,13 +72,13 @@ public interface NamespaceService {
 
   SourceConfig getSource(NamespaceKey sourcePath) throws NamespaceException;
 
-  SourceConfig getSourceById(String id) throws NamespaceNotFoundException;
+  SourceConfig getSourceById(String id) throws NamespaceException;
 
   SpaceConfig getSpace(NamespaceKey spacePath) throws NamespaceException;
 
-  SpaceConfig getSpaceById(String id) throws NamespaceNotFoundException;
+  SpaceConfig getSpaceById(String id) throws NamespaceException;
 
-  NameSpaceContainer getEntityById(String id) throws NamespaceNotFoundException;
+  NameSpaceContainer getEntityById(String id) throws NamespaceException;
 
   /**
    * Returns {@link DatasetConfig configuration} corresponding to given path.
@@ -163,7 +164,7 @@ public interface NamespaceService {
   // Create physical dataset if it doesn't exist.
   // TODO: DX-4493 No one is checking the return value. Not sure of the purpose of the return value.
   // Also rewrite this function as utility that uses the
-  boolean tryCreatePhysicalDataset(NamespaceKey datasetPath, DatasetConfig config) throws NamespaceException;
+  boolean tryCreatePhysicalDataset(NamespaceKey datasetPath, DatasetConfig config, NamespaceAttribute... attributes) throws NamespaceException;
 
   /**
    * Find entries by condition. If condition is not provided, returns all items.
@@ -214,4 +215,12 @@ public interface NamespaceService {
    */
   DatasetConfig findDatasetByUUID(String uuid);
 
+
+  /**
+   * Checks if a sourceConfig can be saved.  Currently does concurrency checks for the config and any passed in attributes
+   *
+   * @param newConfig the new config we want to save
+   * @param attributes
+   */
+  void canSourceConfigBeSaved(SourceConfig newConfig, SourceConfig existingConfig, NamespaceAttribute... attributes) throws ConcurrentModificationException;
 }

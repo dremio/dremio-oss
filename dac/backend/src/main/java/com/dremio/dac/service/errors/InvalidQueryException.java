@@ -17,6 +17,7 @@ package com.dremio.dac.service.errors;
 
 import java.util.List;
 
+import com.dremio.dac.explore.model.DatasetSummary;
 import com.dremio.dac.model.job.QueryError;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -46,15 +47,18 @@ public class InvalidQueryException extends IllegalArgumentException {
     private final String sql;
     private final List<String> context;
     private final List<QueryError> errors;
+    private final DatasetSummary datasetSummary;
 
     @JsonCreator
     public Details(
         @JsonProperty("sql") String sql,
         @JsonProperty("context") List<String> context,
-        @JsonProperty("errors") List<QueryError> errors) {
+        @JsonProperty("errors") List<QueryError> errors,
+        @JsonProperty("datasetSummary") DatasetSummary datasetSummary) {
       this.sql = sql;
       this.context = context;
       this.errors = errors;
+      this.datasetSummary = datasetSummary;
     }
 
     public String getSql() {
@@ -68,5 +72,7 @@ public class InvalidQueryException extends IllegalArgumentException {
     public List<QueryError> getErrors() {
       return errors;
     }
+
+    public DatasetSummary getDatasetSummary() { return datasetSummary; }
   }
 }

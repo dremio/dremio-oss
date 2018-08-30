@@ -13,81 +13,80 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.job-details{
-  h4 {
-    margin: 15px 0;
-  }
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+    
+  .job-details{
+    h4 {
+      margin: 15px 0;
+    }
 
-  h5 {
-    margin: 7px 0;
-  }
+    h5 {
+      margin: 7px 0;
+    }
 
-  .tab-wrapper > * {
-    padding: 10px 10px 10px;
+    .tab-wrapper > * {
+      padding: 10px 10px 10px;
 
-    & > .detail-row:first-child {
-      margin-top: 0;
-      h4 {
+      & > .detail-row:first-child {
         margin-top: 0;
+        h4 {
+          margin-top: 0;
+        }
       }
     }
-  }
 
-  .quote-block{
-    &::before{
-      content: '';
-      position: absolute;
-      border-right: 8px solid rgba(0, 0, 0, 0.1);
-      border-top: 8px solid rgba(0, 0, 0, 0);
-      border-bottom: 8px solid rgba(0, 0, 0, 0);
-      left: -8px;
-      top: 20px;
-    }
-    &::after{
-      content: '';
-      position: absolute;
-      border-right: 8px solid #F5FCFF;
-      border-top: 8px solid rgba(245, 252, 255, 0);
-      border-bottom: 8px solid rgba(245, 252, 255, 0);
-      left: -7px;
-      top: 20px;
-    }
-  }
-
-  .CodeMirror {
-    height: auto;
-    background: #fff;
-    border: 1px solid #e4e4e4;
-
-    span:not(.cm-keyword) {
-      font-family: Menlo;
-      font-size: 11px;
-      color: #333333;
-    }
-  }
-
-  .detail-row{
-    clear: both;
-    margin: 8px 0;
-    .sql-wrap{
-      margin: 10px 0 0;
-    }
-    &.quote-holder {
-      ul {
-        margin: 0;
-        padding: 0;
+    .quote-block{
+      &::before{
+        content: '';
+        position: absolute;
+        border-right: 8px solid rgba(0, 0, 0, 0.1);
+        border-top: 8px solid rgba(0, 0, 0, 0);
+        border-bottom: 8px solid rgba(0, 0, 0, 0);
+        left: -8px;
+        top: 20px;
       }
-      .input-title {
-        float: left;
-        width: 50%;
+      &::after{
+        content: '';
+        position: absolute;
+        border-right: 8px solid #F5FCFF;
+        border-top: 8px solid rgba(245, 252, 255, 0);
+        border-bottom: 8px solid rgba(245, 252, 255, 0);
+        left: -7px;
+        top: 20px;
       }
-      .quote-wrap {
-        list-style: none;
-        margin: 0 0 5px;
-        .quote-data{
-          .input{
-            float: left;
-            width: 50%;
+    }
+
+    @slq-editor-border: 1px solid #e4e4e4;
+
+    .react-monaco-editor-container {
+      height: auto;
+      border: @slq-editor-border;
+
+    }
+
+    .detail-row{
+      clear: both;
+      margin: 8px 0;
+      .sql-wrap{
+        margin: 10px 0 0;
+      }
+      &.quote-holder {
+        ul {
+          margin: 0;
+          padding: 0;
+        }
+        .input-title {
+          float: left;
+          width: 50%;
+        }
+        .quote-wrap {
+          list-style: none;
+          margin: 0 0 5px;
+          .quote-data{
+            .input{
+              float: left;
+              width: 50%;
+            }
           }
         }
       }

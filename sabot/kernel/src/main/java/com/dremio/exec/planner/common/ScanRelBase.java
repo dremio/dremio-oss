@@ -198,7 +198,8 @@ public abstract class ScanRelBase extends TableScan {
     final double estimatedRowCount = Math.max(1, rowCount);
 
     final int fieldCount = getLeafColumnCount(tableMetadata.getSchema(), projectedColumns);
-    final double workCost = getCostAdjustmentFactor() * (rowCount * fieldCount * getTableMetadata().getReadDefinition().getScanStats().getScanFactor()) * DremioCost.SCAN_CPU_COST_MULTIPLIER;
+
+    double workCost = getCostAdjustmentFactor() * (rowCount * fieldCount * getTableMetadata().getReadDefinition().getScanStats().getScanFactor()) * DremioCost.SCAN_CPU_COST_MULTIPLIER;
 
     if (PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       return planner.getCostFactory().makeCost(estimatedRowCount, workCost, workCost);

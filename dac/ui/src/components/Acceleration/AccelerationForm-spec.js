@@ -18,10 +18,10 @@ import Immutable from 'immutable';
 import { formFields } from 'testUtil';
 import { cloneDeep } from 'lodash/lang';
 
-import {createReflectionFormValues} from 'utils/accelerationUtils';
+import { createReflectionFormValues } from 'utils/accelerationUtils';
 
 
-import { ModalForm, FormBody } from 'components/Forms';
+import { FormBody, ModalForm } from 'components/Forms';
 //import Button from '../Buttons/Button';
 import { AccelerationForm } from './AccelerationForm';
 
@@ -35,8 +35,8 @@ describe('AccelerationForm', () => {
       version: 1,
       aggregationReflections: [
         // WARNING: this might not be exactly accurate - but it's enough for the test
-        createReflectionFormValues({id:'a', measureFields: ['cm1'], dimensionFields: ['cd1'], type: 'AGGREGATION', tag: 'a', enabled: true}),
-        createReflectionFormValues({id:'c', measureFields: ['cm1'], dimensionFields: ['cd1'], type: 'AGGREGATION', tag: null, enabled: true})
+        createReflectionFormValues({id:'a', measureFields: [{name: 'cm1', measureTypeList: ['SUM', 'COUNT']}], dimensionFields: ['cd1'], type: 'AGGREGATION', tag: 'a', enabled: true}),
+        createReflectionFormValues({id:'c', measureFields: [{name: 'cm1', measureTypeList: ['SUM', 'COUNT']}], dimensionFields: ['cd1'], type: 'AGGREGATION', tag: null, enabled: true})
       ],
       rawReflections: [
         // WARNING: this might not be exactly accurate - but it's enough for the test

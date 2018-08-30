@@ -77,14 +77,14 @@ import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.NodeDebugContextProvider;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.server.options.OptionValue;
-import com.dremio.exec.server.options.OptionValue.OptionType;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
 import com.dremio.exec.server.options.SystemOptionManager;
-import com.dremio.exec.server.options.TypeValidators.BooleanValidator;
-import com.dremio.exec.server.options.TypeValidators.DoubleValidator;
-import com.dremio.exec.server.options.TypeValidators.LongValidator;
-import com.dremio.exec.server.options.TypeValidators.StringValidator;
+import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.DoubleValidator;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.StringValidator;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.exec.testing.ExecutionControls;
@@ -320,6 +320,7 @@ public class BaseTestOperator extends ExecTest {
           config,
           handle,
           pop,
+          child,
           child,
           compiler,
           stats,

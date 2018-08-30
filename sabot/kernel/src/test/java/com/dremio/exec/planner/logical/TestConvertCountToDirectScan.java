@@ -25,14 +25,14 @@ public class TestConvertCountToDirectScan extends PlanTestBase {
   @Test
   public void ensureCaseDoesntConvertToDirectScan() throws Exception {
     testPlanMatchingPatterns(
-        "select count(case when r_name = 'ALGERIA' and r_regionkey = 2 then r_regionkey else null end) as cnt from dfs.`${WORKING_PATH}/src/test/resources/directcount.parquet`",
+        "select count(case when r_name = 'ALGERIA' and r_regionkey = 2 then r_regionkey else null end) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/directcount.parquet\"",
         new String[] { "CASE" },
         new String[]{});
   }
 
   @Test
   public void ensureConvertSimpleCountToDirectScan() throws Exception {
-    final String sql = "select count(*) as cnt from cp.`tpch/nation.parquet`";
+    final String sql = "select count(*) as cnt from cp.\"tpch/nation.parquet\"";
     testPlanMatchingPatterns(
         sql,
         new String[] { "Values" },
@@ -49,7 +49,7 @@ public class TestConvertCountToDirectScan extends PlanTestBase {
 
   @Test
   public void ensureConvertSimpleCountConstToDirectScan() throws Exception {
-    final String sql = "select count(100) as cnt from cp.`tpch/nation.parquet`";
+    final String sql = "select count(100) as cnt from cp.\"tpch/nation.parquet\"";
     testPlanMatchingPatterns(
         sql,
         new String[] { "Values" },
@@ -66,7 +66,7 @@ public class TestConvertCountToDirectScan extends PlanTestBase {
 
   @Test
   public void ensureConvertSimpleCountConstExprToDirectScan() throws Exception {
-    final String sql = "select count(1 + 2) as cnt from cp.`tpch/nation.parquet`";
+    final String sql = "select count(1 + 2) as cnt from cp.\"tpch/nation.parquet\"";
     testPlanMatchingPatterns(
         sql,
         new String[] { "Values" },

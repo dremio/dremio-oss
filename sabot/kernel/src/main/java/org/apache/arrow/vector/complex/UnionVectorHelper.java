@@ -47,7 +47,7 @@ public class UnionVectorHelper {
     int typesLength = metadata.getChild(0).getBufferLength();
     int mapLength = metadata.getChild(1).getBufferLength();
     loadTypeBuffer(metadata.getChild(0), buffer);
-    TypeHelper.load(unionVector.internalMap, metadata.getChild(1), buffer.slice(typesLength, mapLength));
+    TypeHelper.load(unionVector.internalStruct, metadata.getChild(1), buffer.slice(typesLength, mapLength));
   }
 
   private void loadTypeBuffer(SerializedField metadata, ArrowBuf buffer) {
@@ -79,7 +79,7 @@ public class UnionVectorHelper {
             .setValueCount(unionVector.valueCount);
 
     b.addChild(buildTypeField());
-    b.addChild(TypeHelper.getMetadata(unionVector.internalMap));
+    b.addChild(TypeHelper.getMetadata(unionVector.internalStruct));
     return b.build();
   }
 
@@ -93,7 +93,7 @@ public class UnionVectorHelper {
     return typeBuilder.build();
   }
 
-  public MapVector getInternalMap() {
-    return unionVector.internalMap;
+  public NonNullableStructVector getInternalMap() {
+    return unionVector.internalStruct;
   }
 }

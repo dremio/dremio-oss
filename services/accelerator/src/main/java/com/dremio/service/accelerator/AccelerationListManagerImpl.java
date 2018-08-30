@@ -35,6 +35,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.job.proto.JoinAnalysis;
+import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionStatusService;
 import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.proto.DataPartition;
@@ -55,6 +56,7 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
   private final MaterializationStore materializationStore;
   private Provider<SabotContext> contextProvider;
   private Provider<ReflectionStatusService> reflectionStatusService;
+  private Provider<ReflectionService> reflectionService;
   private final Provider<FabricService> fabric;
   private final BindingCreator bindingCreator;
   private ReflectionTunnelCreator reflectionTunnelCreator;
@@ -62,12 +64,14 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
 
   public AccelerationListManagerImpl(Provider<KVStoreProvider> storeProvider, Provider<SabotContext> contextProvider,
                                      Provider<ReflectionStatusService> reflectionStatusService,
+                                     Provider<ReflectionService> reflectionService,
                                      final Provider<FabricService> fabric,
                                      final BindingCreator bindingCreator
   ) {
     this.materializationStore = new MaterializationStore(storeProvider);
     this.contextProvider = contextProvider;
     this.reflectionStatusService = reflectionStatusService;
+    this.reflectionService = reflectionService;
     this.fabric = fabric;
     this.bindingCreator = bindingCreator;
   }
@@ -75,7 +79,7 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
   @Override
   public void start() {
     final FabricRunnerFactory reflectionTunnelFactory = fabric.get().registerProtocol(new ReflectionProtocol
-      (contextProvider.get().getAllocator(), reflectionStatusService.get(), contextProvider.get().getConfig()));
+      (contextProvider.get().getAllocator(), reflectionStatusService.get(), reflectionService.get(), contextProvider.get().getConfig()));
 
     reflectionTunnelCreator = new ReflectionTunnelCreator(reflectionTunnelFactory);
     bindingCreator.bindSelf(reflectionTunnelCreator);
@@ -122,6 +126,44 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
       // in this case at least we will
     } else {
       return reflectionStatusService.get().getReflections();
+    }
+  }
+
+  @Override
+  public Iterable<DependencyInfo> getReflectionDependencies() {
+    if(!contextProvider.get().isMaster()) {
+      // need to do RPC call
+      // trying to get master
+      CoordinationProtos.NodeEndpoint master = null;
+      for (CoordinationProtos.NodeEndpoint coordinator : contextProvider.get().getCoordinators()) {
+        if (coordinator.getRoles().getMaster()) {
+          master = coordinator;
+          break;
+        }
+      }
+      if (master == null) {
+        throw UserException.connectionError().message("Unable to get master while trying to get Dependency Information")
+          .build(logger);
+      }
+      final ReflectionTunnel reflectionTunnel = reflectionTunnelCreator.getTunnel(master);
+      try {
+        final ReflectionRPC.DependencyInfoResp dependencyInfosResp =
+          reflectionTunnel.requestDependencyInfos().get(15, TimeUnit.SECONDS);
+        FluentIterable<DependencyInfo> dependencyInfos = FluentIterable.from(dependencyInfosResp
+          .getDependencyInfoList()).transform(new Function<ReflectionRPC.DependencyInfo, DependencyInfo>() {
+          @Override
+          public DependencyInfo apply(ReflectionRPC.DependencyInfo dependencyInfo) {
+            return DependencyInfo.getDependencyInfo(dependencyInfo);
+          }
+        });
+        return dependencyInfos;
+      } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        throw UserException.connectionError(e).message("Error while getting Dependency Information")
+          .build(logger);
+      }
+      // in this case at least we will
+    } else {
+      return reflectionService.get().getReflectionDependencies();
     }
   }
 

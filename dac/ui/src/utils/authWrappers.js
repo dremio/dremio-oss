@@ -15,7 +15,6 @@
  */
 import { replace } from 'react-router-redux';
 import { UserAuthWrapper } from 'redux-auth-wrapper';
-
 import userUtils from 'utils/userUtils';
 
 export const UserIsAuthenticated = UserAuthWrapper({

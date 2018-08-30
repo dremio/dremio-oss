@@ -13,29 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.large-overlay.top {
-  .pointer-top {
-    position: absolute;
-    border-left: 10px solid rgba(255, 241, 190, 0);
-    border-right: 10px solid rgba(255, 241, 190, 0);
-    border-top: 10px solid #FFFFFF;
-    bottom: -9px;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  .large-overlay.top {
+    .pointer-top {
+      position: absolute;
+      border-left: 10px solid rgba(255, 241, 190, 0);
+      border-right: 10px solid rgba(255, 241, 190, 0);
+      border-top: 10px solid #FFFFFF;
+      bottom: -9px;
+    }
+    .pointer-bottom {
+      position: absolute;
+      border-left: 10px solid rgba(113, 101, 58, 0);
+      border-right: 10px solid rgba(113, 101, 58, 0);
+      border-top: 10px solid rgb(233, 233, 233);
+      bottom: -10px;
+    }
   }
-  .pointer-bottom {
-    position: absolute;
-    border-left: 10px solid rgba(113, 101, 58, 0);
-    border-right: 10px solid rgba(113, 101, 58, 0);
-    border-top: 10px solid rgb(233, 233, 233);
-    bottom: -10px;
-  }
-}
 
-.large-overlay.bottom {
-  .pointer-bottom, .pointer-top {
-    position: absolute;
-    border-left: 10px solid rgba(113, 101, 58, 0);
-    border-right: 10px solid rgba(113, 101, 58, 0);
-    border-bottom: 10px solid rgb(243, 243, 243);
-    top: -10px;
+  .large-overlay.bottom {
+    .pointer-bottom, .pointer-top {
+      position: absolute;
+      border-left: 10px solid rgba(113, 101, 58, 0);
+      border-right: 10px solid rgba(113, 101, 58, 0);
+      border-bottom: 10px solid rgb(243, 243, 243);
+      top: -10px;
+    }
   }
 }

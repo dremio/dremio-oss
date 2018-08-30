@@ -17,7 +17,7 @@ package com.dremio.exec.work.protector;
 
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.work.foreman.TerminationListenerRegistry;
 import com.dremio.sabot.rpc.user.UserSession;
 

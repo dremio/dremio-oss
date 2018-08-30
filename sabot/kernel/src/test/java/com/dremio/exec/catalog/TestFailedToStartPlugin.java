@@ -20,7 +20,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -150,6 +149,22 @@ public class TestFailedToStartPlugin {
       .thenReturn(Sets.newHashSet(ClusterCoordinator.Role.MASTER));
 
     schedulerService = mock(SchedulerService.class);
+  }
+
+  /**
+   * Simple counter
+   */
+  private class InvocationCounter {
+    private volatile long count = 0;
+    public long getCount() {
+      return count;
+    }
+    public void incrementCount() {
+      count++;
+    }
+  }
+
+  private void mockScheduleInvocation(InvocationCounter counter) {
     doAnswer(new Answer<Cancellable>() {
       @Override
       public Cancellable answer(InvocationOnMock invocation) {
@@ -164,6 +179,7 @@ public class TestFailedToStartPlugin {
             } catch (Exception e) {
               // ignored
             }
+            counter.incrementCount();
             r.run();
           }
 
@@ -173,8 +189,22 @@ public class TestFailedToStartPlugin {
     }).when(schedulerService).schedule(any(Schedule.class), any(Runnable.class));
   }
 
+  /**
+   * Wait until metadata refresh counts up twice, making sure the metadata refresh actually ran in the meantime
+   * N.B., if we only wait for one upcount, we might race with the metadata refresh
+   */
+  private static void waitForRefresh(InvocationCounter counter) throws Exception {
+    long initialCount = counter.getCount();
+    while (counter.getCount() <= initialCount + 2) {
+      Thread.sleep(1);
+    }
+  }
+
   @Test
   public void testFailedToStart() throws Exception {
+    InvocationCounter counter = new InvocationCounter();
+    mockScheduleInvocation(counter);
+
     KVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
     plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService);
 
@@ -182,18 +212,21 @@ public class TestFailedToStartPlugin {
     assertEquals(0, mockUpPlugin.getNumFailedStarts());
     plugins.start();
     // mockUpPlugin should be failing over and over right around now
-    Thread.sleep(10);
+    waitForRefresh(counter);
     long currNumFailedStarts = mockUpPlugin.getNumFailedStarts();
     assertTrue(currNumFailedStarts > 1);
     mockUpPlugin.unsetThrowAtStart();
-    Thread.sleep(10);
+    waitForRefresh(counter);
     currNumFailedStarts = mockUpPlugin.getNumFailedStarts();
-    Thread.sleep(10);
+    waitForRefresh(counter);
     assertEquals(currNumFailedStarts, mockUpPlugin.getNumFailedStarts());
   }
 
   @Test
   public void testBadSourceAtStart() throws Exception {
+    InvocationCounter counter = new InvocationCounter();
+    mockScheduleInvocation(counter);
+
     KVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
     plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService);
 
@@ -201,18 +234,18 @@ public class TestFailedToStartPlugin {
     assertEquals(false, mockUpPlugin.gotDatasets());
     plugins.start();
     // metadata refresh should be running right now
-    Thread.sleep(10);
+    waitForRefresh(counter);
     assertFalse(mockUpPlugin.gotDatasets());
     mockUpPlugin.setSimulateBadState(false);
     // Give metadata refresh a chance to run again
-    Thread.sleep(10);
+    waitForRefresh(counter);
     assertTrue(mockUpPlugin.gotDatasets());
     mockUpPlugin.unsetGotDatasets();
-    Thread.sleep(10);
+    waitForRefresh(counter);
     assertTrue(mockUpPlugin.gotDatasets());
   }
 
-  @SourceType(MOCK_UP)
+  @SourceType(value = MOCK_UP, configurable = false)
   public static class MockUpConfig extends ConnectionConf<MockUpConfig, MockUpPlugin> {
 
     @Override

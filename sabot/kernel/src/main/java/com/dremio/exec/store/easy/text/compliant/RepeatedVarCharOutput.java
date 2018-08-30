@@ -97,7 +97,7 @@ class RepeatedVarCharOutput extends TextOutput {
 
     this.output = outputMutator;
     rootWriter = new VectorContainerWriter(outputMutator);
-    listWriter = rootWriter.rootAsMap().list(COL_NAME);
+    listWriter = rootWriter.rootAsStruct().list(COL_NAME);
     tmpBuf = outputMutator.getManagedBuffer();
 
     { // setup fields

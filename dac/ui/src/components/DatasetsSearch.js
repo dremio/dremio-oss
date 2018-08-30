@@ -75,9 +75,9 @@ export default class DatasetsSearch extends Component {
               typeIcon={getIconDataTypeFromDatasetType(value.get('datasetType'))}
             />
           </div>
-          <div style={styles.parentDatasetsHolder} data-qa='ds-parent'>
+          {/* DX-11249 <div style={styles.parentDatasetsHolder} data-qa='ds-parent'>
             {this.getParentItems(value, inputValue)}
-          </div>
+          </div> */}
           {this.getActionButtons(value)}
         </div>
       );

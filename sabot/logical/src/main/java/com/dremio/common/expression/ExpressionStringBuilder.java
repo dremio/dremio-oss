@@ -257,7 +257,7 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
     case VARBINARY:
     case VARCHAR:
     case FIXED16CHAR:
-    case FIXEDBINARY:
+    case FIXEDSIZEBINARY:
     case FIXEDCHAR:
 
       // add size in parens

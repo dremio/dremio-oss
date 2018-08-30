@@ -34,70 +34,70 @@ public class MapUtility {
    * and use the value holder to write to the Map.
    */
   // TODO : This should be templatized and generated using freemarker
-  public static void writeToMapFromReader(FieldReader fieldReader, BaseWriter.MapWriter mapWriter) {
+  public static void writeToMapFromReader(FieldReader fieldReader, BaseWriter.StructWriter structWriter) {
     try {
       MinorType valueMinorType = getMinorTypeFromArrowMinorType(fieldReader.getMinorType());
 
       switch (valueMinorType) {
         case TINYINT:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.tinyInt(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.tinyInt(MappifyUtility.fieldValue));
           break;
         case SMALLINT:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.smallInt(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.smallInt(MappifyUtility.fieldValue));
           break;
         case BIGINT:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.bigInt(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.bigInt(MappifyUtility.fieldValue));
           break;
         case INT:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.integer(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.integer(MappifyUtility.fieldValue));
           break;
         case UINT1:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.uInt1(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.uInt1(MappifyUtility.fieldValue));
           break;
         case UINT2:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.uInt2(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.uInt2(MappifyUtility.fieldValue));
           break;
         case UINT4:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.uInt4(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.uInt4(MappifyUtility.fieldValue));
           break;
         case UINT8:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.uInt8(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.uInt8(MappifyUtility.fieldValue));
           break;
         case DATE:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.dateMilli(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.dateMilli(MappifyUtility.fieldValue));
           break;
         case TIME:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.timeMilli(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.timeMilli(MappifyUtility.fieldValue));
           break;
         case TIMESTAMP:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.timeStampMilli(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.timeStampMilli(MappifyUtility.fieldValue));
           break;
         case INTERVALDAY:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.intervalDay(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.intervalDay(MappifyUtility.fieldValue));
           break;
         case INTERVALYEAR:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.intervalYear(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.intervalYear(MappifyUtility.fieldValue));
           break;
         case FLOAT4:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.float4(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.float4(MappifyUtility.fieldValue));
           break;
         case FLOAT8:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.float8(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.float8(MappifyUtility.fieldValue));
           break;
         case BIT:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.bit(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.bit(MappifyUtility.fieldValue));
           break;
         case VARCHAR:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.varChar(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.varChar(MappifyUtility.fieldValue));
           break;
         case VARBINARY:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.varBinary(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.varBinary(MappifyUtility.fieldValue));
           break;
-        case MAP:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.map(MappifyUtility.fieldValue));
+        case STRUCT:
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.struct(MappifyUtility.fieldValue));
           break;
         case LIST:
-          ComplexCopier.copy(fieldReader, (FieldWriter) mapWriter.list(MappifyUtility.fieldValue));
+          ComplexCopier.copy(fieldReader, (FieldWriter) structWriter.list(MappifyUtility.fieldValue));
           break;
         default:
           throw new IllegalArgumentException(String.format("kvgen does not support input of type: %s", valueMinorType));

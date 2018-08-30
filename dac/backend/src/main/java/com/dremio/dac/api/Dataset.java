@@ -53,6 +53,9 @@ public class Dataset implements CatalogEntity {
   private final String sql;
   private final List<String> sqlContext;
 
+  // for PDS
+  private final Boolean approximateStatisticsAllowed;
+
   // for promoted PDS
   private final FileFormat format;
 
@@ -66,7 +69,8 @@ public class Dataset implements CatalogEntity {
     RefreshSettings accelerationRefreshPolicy,
     String sql,
     List<String> sqlContext,
-    FileFormat format) {
+    FileFormat format,
+    Boolean approximateStatisticsAllowed) {
     this.id = id;
     this.type = type;
     this.path = path;
@@ -77,6 +81,7 @@ public class Dataset implements CatalogEntity {
     this.sql = sql;
     this.sqlContext = sqlContext;
     this.format = format;
+    this.approximateStatisticsAllowed = approximateStatisticsAllowed;
   }
 
   @JsonCreator
@@ -89,9 +94,10 @@ public class Dataset implements CatalogEntity {
     @JsonProperty("accelerationRefreshPolicy") RefreshSettings accelerationRefreshPolicy,
     @JsonProperty("sql") String sql,
     @JsonProperty("sqlContext") List<String> sqlContext,
-    @JsonProperty("format") FileFormat format) {
+    @JsonProperty("format") FileFormat format,
+    @JsonProperty("approximateStatisticsAllowed") Boolean approximateStatisticsAllowed) {
     // we don't want to deserialize fields ever since they are immutable anyways
-    this(id, type, path, null, createdAt, tag, accelerationRefreshPolicy, sql, sqlContext, format);
+    this(id, type, path, null, createdAt, tag, accelerationRefreshPolicy, sql, sqlContext, format, approximateStatisticsAllowed);
   }
 
   public String getId() {
@@ -132,6 +138,10 @@ public class Dataset implements CatalogEntity {
 
   public RefreshSettings getAccelerationRefreshPolicy() {
     return accelerationRefreshPolicy;
+  }
+
+  public Boolean getApproximateStatisticsAllowed() {
+    return approximateStatisticsAllowed;
   }
 
   /**

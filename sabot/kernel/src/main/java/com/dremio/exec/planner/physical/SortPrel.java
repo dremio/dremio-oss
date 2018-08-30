@@ -65,7 +65,7 @@ public class SortPrel extends org.apache.calcite.rel.core.Sort implements Prel {
     // avgFieldWidth * numFields * inputRows
     double numFields = this.getRowType().getFieldCount();
     long fieldWidth = PrelUtil.getPlannerSettings(planner).getOptions()
-      .getOption(ExecConstants.AVERAGE_FIELD_WIDTH_KEY).num_val;
+      .getOption(ExecConstants.AVERAGE_FIELD_WIDTH_KEY).getNumVal();
 
     double memCost = fieldWidth * numFields * inputRows;
 

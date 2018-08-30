@@ -24,12 +24,13 @@ import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DoubleDocValuesField;
-import org.apache.lucene.document.DoubleField;
+import org.apache.lucene.document.DoublePoint;
 import org.apache.lucene.document.Field.Store;
-import org.apache.lucene.document.IntField;
-import org.apache.lucene.document.LongField;
+import org.apache.lucene.document.IntPoint;
+import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedDocValuesField;
+import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.util.BytesRef;
 
@@ -167,7 +168,12 @@ public final class IndexKey {
       return;
     }
 
-    doc.add(new LongField(indexFieldName, value, stored ? Store.YES : Store.NO));
+    if(stored) {
+      doc.add(new StoredField(indexFieldName, value));
+    }
+
+    doc.add(new LongPoint(indexFieldName, value));
+
     if(isSorted()){
       Preconditions.checkArgument(sortedValueType == SearchFieldSorting.FieldType.LONG);
       doc.add(new NumericDocValuesField(indexFieldName, value));
@@ -180,7 +186,13 @@ public final class IndexKey {
       return;
     }
 
-    doc.add(new IntField(indexFieldName, value, stored ? Store.YES : Store.NO));
+
+    if(stored) {
+      doc.add(new StoredField(indexFieldName, value));
+    }
+
+    doc.add(new IntPoint(indexFieldName, value));
+
     if(isSorted()){
       Preconditions.checkArgument(sortedValueType == SearchFieldSorting.FieldType.INTEGER);
       doc.add(new NumericDocValuesField(indexFieldName, (long)value));
@@ -193,7 +205,11 @@ public final class IndexKey {
       return;
     }
 
-    doc.add(new DoubleField(indexFieldName, value, stored ? Store.YES : Store.NO));
+    if(stored) {
+      doc.add(new StoredField(indexFieldName, value));
+    }
+
+    doc.add(new DoublePoint(indexFieldName, value));
     if(isSorted()){
       Preconditions.checkArgument(sortedValueType == SearchFieldSorting.FieldType.DOUBLE);
       doc.add(new DoubleDocValuesField(indexFieldName, value));

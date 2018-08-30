@@ -39,26 +39,26 @@ public class TestLimitWithExchanges extends BaseTestQuery {
   public void testPushLimitPastUnionExchange() throws Exception {
     // Push limit past through UnionExchange.
     try {
-      test("alter session set `planner.slice_target` = 1");
-      test("alter session set `planner.enable_trivial_singular` = false");
+      test("alter session set \"planner.slice_target\" = 1");
+      test("alter session set \"planner.enable_trivial_singular\" = false");
       final String[] excludedPlan = {};
 
       // case 1. single table query.
-      final String sql = String.format("select * from dfs_root.`%s/multilevel/json` limit 1 offset 2", TEST_RES_PATH);
+      final String sql = String.format("select * from dfs_root.\"%s/multilevel/json\" limit 1 offset 2", TEST_RES_PATH);
       final String[] expectedPlan ={"(?s)Limit\\(offset=\\[2\\], fetch=\\[1\\].*UnionExchange.*Limit\\(fetch=\\[3\\]\\).*Scan"};
       testLimitHelper(sql, expectedPlan, excludedPlan, 1);
 
-      final String sql2 = String.format("select * from dfs_root.`%s/multilevel/json` limit 1 offset 0", TEST_RES_PATH);
+      final String sql2 = String.format("select * from dfs_root.\"%s/multilevel/json\" limit 1 offset 0", TEST_RES_PATH);
       final String[] expectedPlan2 = {"(?s)Limit\\(offset=\\[0\\], fetch=\\[1\\].*UnionExchange.*Limit\\(fetch=\\[1\\]\\).*Scan"};
       testLimitHelper(sql2, expectedPlan2, excludedPlan, 1);
 
-      final String sql3 = String.format("select * from dfs_root.`%s/multilevel/json` limit 1", TEST_RES_PATH);
+      final String sql3 = String.format("select * from dfs_root.\"%s/multilevel/json\" limit 1", TEST_RES_PATH);
       final String[] expectedPlan3 = {"(?s)Limit\\(fetch=\\[1\\].*UnionExchange.*Limit\\(fetch=\\[1\\]\\).*Scan"};
       testLimitHelper(sql3, expectedPlan3, excludedPlan, 1);
 
       // case 2: join query.
       final String sql4 = String.format(
-          "select * from dfs_root.`%s/tpchmulti/region` r,  dfs_root.`%s/tpchmulti/nation` n " +
+          "select * from dfs_root.\"%s/tpchmulti/region\" r,  dfs_root.\"%s/tpchmulti/nation\" n " +
           "where r.r_regionkey = n.n_regionkey limit 1 offset 2", TEST_RES_PATH, TEST_RES_PATH );
 
       final String[] expectedPlan4 = {"(?s)Limit\\(offset=\\[2\\], fetch=\\[1\\].*UnionExchange.*Limit\\(fetch=\\[3\\]\\).*Join"};
@@ -66,14 +66,14 @@ public class TestLimitWithExchanges extends BaseTestQuery {
       testLimitHelper(sql4, expectedPlan4, excludedPlan, 1);
 
       final String sql5 = String.format(
-          "select * from dfs_root.`%s/tpchmulti/region` r,  dfs_root.`%s/tpchmulti/nation` n " +
+          "select * from dfs_root.\"%s/tpchmulti/region\" r,  dfs_root.\"%s/tpchmulti/nation\" n " +
               "where r.r_regionkey = n.n_regionkey limit 1", TEST_RES_PATH, TEST_RES_PATH );
 
       final String[] expectedPlan5 = {"(?s)Limit\\(fetch=\\[1\\].*UnionExchange.*Limit\\(fetch=\\[1\\]\\).*Join"};
       testLimitHelper(sql5, expectedPlan5, excludedPlan, 1);
     } finally {
-      test("alter session set `planner.enable_trivial_singular` = true");
-      test("alter session set `planner.slice_target` = " + ExecConstants.SLICE_TARGET_OPTION.getDefault().getValue());
+      test("alter session set \"planner.enable_trivial_singular\" = true");
+      test("alter session set \"planner.slice_target\" = " + ExecConstants.SLICE_TARGET_OPTION.getDefault().getValue());
     }
   }
 
@@ -81,20 +81,20 @@ public class TestLimitWithExchanges extends BaseTestQuery {
   public void testNegPushLimitPastUnionExchange() throws Exception {
     // Negative case: should not push limit past through UnionExchange.
     try {
-      test("alter session set `planner.slice_target` = 1");
+      test("alter session set \"planner.slice_target\" = 1");
       final String[] expectedPlan ={};
 
       // case 1. Only "offset", but no "limit" : should not push "limit" down.
-      final String sql = String.format("select * from dfs_root.`%s/tpchmulti/region` offset 2", TEST_RES_PATH);
+      final String sql = String.format("select * from dfs_root.\"%s/tpchmulti/region\" offset 2", TEST_RES_PATH);
       final String[] excludedPlan = {"(?s)Limit\\(offset=\\[2\\].*UnionExchange.*Limit.*Scan"};
 
       // case 2. "limit" is higher than # of rowcount in table : should not push "limit" down.
-      final String sql2 = String.format("select * from dfs_root.`%s/tpchmulti/region` limit 100", TEST_RES_PATH);
+      final String sql2 = String.format("select * from dfs_root.\"%s/tpchmulti/region\" limit 100", TEST_RES_PATH);
       final String[] excludedPlan2 = {"(?s)Limit\\(fetch=\\[100\\].*UnionExchange.*Limit.*Scan"};
 
       testLimitHelper(sql2, expectedPlan, excludedPlan2, 5);
     } finally {
-      test("alter session set `planner.slice_target` = " + ExecConstants.SLICE_TARGET_OPTION.getDefault().getValue());
+      test("alter session set \"planner.slice_target\" = " + ExecConstants.SLICE_TARGET_OPTION.getDefault().getValue());
     }
   }
 

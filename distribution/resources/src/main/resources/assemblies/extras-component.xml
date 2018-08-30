@@ -53,6 +53,7 @@
     </dependencySet>
 
     <dependencySet>
+      <fileMode>0755</fileMode>
       <outputDirectory>lib/</outputDirectory>
       <unpack>true</unpack>
       <unpackOptions>
@@ -63,6 +64,7 @@
       <useProjectArtifact>false</useProjectArtifact>
       <includes>
         <include>org.apache.hadoop:hadoop-common-native</include>
+        <include>org.apache.hadoop:hadoop-native-libraries</include>
       </includes>
     </dependencySet>
   </dependencySets>

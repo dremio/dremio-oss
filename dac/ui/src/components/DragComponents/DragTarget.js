@@ -17,6 +17,8 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import { DropTarget } from 'react-dnd';
 import { findDOMNode } from 'react-dom';
+import classNames from 'classnames';
+import { base } from './DragTarget.less';
 
 const DEFAULT_TYPE = 'groupBy';
 
@@ -70,7 +72,8 @@ export default class DragTargetWrap extends Component {
     connectDropTarget: PropTypes.func,
     children: PropTypes.node,
     canDropOnChild: PropTypes.bool,
-    isOver: PropTypes.bool
+    isOver: PropTypes.bool,
+    className: PropTypes.string
   };
 
   static defaultProps = {
@@ -87,17 +90,13 @@ export default class DragTargetWrap extends Component {
   }
 
   render() {
+    const {
+      className
+    } = this.props;
     return this.props.connectDropTarget(
-      <div onDragOver={this.props.onDragOver} style={styles.base}>
+      <div onDragOver={this.props.onDragOver} className={classNames([base, className])}>
         {this.props.children}
       </div>
     );
   }
 }
-
-const styles = {
-  base: {
-    width: '100%',
-    height: '100%'
-  }
-};

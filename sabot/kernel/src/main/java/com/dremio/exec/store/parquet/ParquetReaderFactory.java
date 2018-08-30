@@ -18,15 +18,12 @@ package com.dremio.exec.store.parquet;
 import java.util.List;
 
 import org.apache.arrow.vector.SimpleIntVector;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.parquet.ParquetReaderUtility.DateCorruptionStatus;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 public interface ParquetReaderFactory {
@@ -35,16 +32,15 @@ public interface ParquetReaderFactory {
 
   RecordReader newReader(OperatorContext context,
       List<SchemaPath> columns,
-      FileSystem fs,
       String path,
       CodecFactory codecFactory,
-      List<FilterCondition> conditions,
+      List<ParquetFilterCondition> conditions,
       boolean enableDetailedTracing,
       ParquetMetadata footer,
       int rowGroupIndex,
       SimpleIntVector deltas,
       SchemaDerivationHelper schemaHelper,
-      boolean useSingleStream);
+      InputStreamProvider inputStreamProvider);
 
   ParquetReaderFactory NONE = new ParquetReaderFactory(){
 
@@ -54,10 +50,10 @@ public interface ParquetReaderFactory {
     }
 
     @Override
-    public RecordReader newReader(OperatorContext context, List<SchemaPath> columns, FileSystem fs, String path,
-        CodecFactory codecFactory, List<FilterCondition> conditions, boolean enableDetailedTracing,
+    public RecordReader newReader(OperatorContext context, List<SchemaPath> columns, String path,
+        CodecFactory codecFactory, List<ParquetFilterCondition> conditions, boolean enableDetailedTracing,
         ParquetMetadata footer, int rowGroupIndex, SimpleIntVector deltas, SchemaDerivationHelper schemaHelper,
-        boolean useSingleStream) {
+        InputStreamProvider inputStreamProvider) {
       throw new UnsupportedOperationException();
     }};
 

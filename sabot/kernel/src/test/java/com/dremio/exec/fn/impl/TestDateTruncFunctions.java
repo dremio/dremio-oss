@@ -30,16 +30,16 @@ public class TestDateTruncFunctions extends BaseTestQuery {
   @Test
   public void dateTruncOnTime() throws Exception {
     final String query = "SELECT " +
-        "date_trunc('SECOND', time '2:30:21.5') as `second`, " +
-        "date_trunc('MINUTE', time '2:30:21.5') as `minute`, " +
-        "date_trunc('HOUR', time '2:30:21.5') as `hour`, " +
-        "date_trunc('DAY', time '2:30:21.5') as `day`, " +
-        "date_trunc('MONTH', time '2:30:21.5') as `month`, " +
-        "date_trunc('YEAR', time '2:30:21.5') as `year`, " +
-        "date_trunc('QUARTER', time '2:30:21.5') as `quarter`, " +
-        "date_trunc('DECADE', time '2:30:21.5') as `decade`, " +
-        "date_trunc('CENTURY', time '2:30:21.5') as `century`, " +
-        "date_trunc('MILLENNIUM', time '2:30:21.5') as `millennium` " +
+        "date_trunc('SECOND', time '2:30:21.5') as \"second\", " +
+        "date_trunc('MINUTE', time '2:30:21.5') as \"minute\", " +
+        "date_trunc('HOUR', time '2:30:21.5') as \"hour\", " +
+        "date_trunc('DAY', time '2:30:21.5') as \"day\", " +
+        "date_trunc('MONTH', time '2:30:21.5') as \"month\", " +
+        "date_trunc('YEAR', time '2:30:21.5') as \"year\", " +
+        "date_trunc('QUARTER', time '2:30:21.5') as \"quarter\", " +
+        "date_trunc('DECADE', time '2:30:21.5') as \"decade\", " +
+        "date_trunc('CENTURY', time '2:30:21.5') as \"century\", " +
+        "date_trunc('MILLENNIUM', time '2:30:21.5') as \"millennium\" " +
         "FROM sys.version";
 
     testBuilder()
@@ -63,19 +63,19 @@ public class TestDateTruncFunctions extends BaseTestQuery {
   @Test
   public void dateTruncOnDateSimpleUnits() throws Exception {
     final String query = "SELECT " +
-        "date_trunc('SECOND', date '2011-2-3') as `second`, " +
-        "date_trunc('MINUTE', date '2011-2-3') as `minute`, " +
-        "date_trunc('HOUR', date '2011-2-3') as `hour`, " +
-        "date_trunc('DAY', date '2011-2-3') as `day`, " +
-        "date_trunc('WEEK', date '2011-2-3') as `week`, " +
-        "date_trunc('MONTH', date '2011-2-3') as `month`, " +
-        "date_trunc('YEAR', date '2011-2-3') as `year`, " +
-        "date_trunc('QUARTER', date '2011-5-3') as `q1`, " +
-        "date_trunc('QUARTER', date '2011-7-13') as `q2`, " +
-        "date_trunc('QUARTER', date '2011-9-13') as `q3`, " +
-        "date_trunc('DECADE', date '2011-2-3') as `decade1`, " +
-        "date_trunc('DECADE', date '2072-2-3') as `decade2`, " +
-        "date_trunc('DECADE', date '1978-2-3') as `decade3` " +
+        "date_trunc('SECOND', date '2011-2-3') as \"second\", " +
+        "date_trunc('MINUTE', date '2011-2-3') as \"minute\", " +
+        "date_trunc('HOUR', date '2011-2-3') as \"hour\", " +
+        "date_trunc('DAY', date '2011-2-3') as \"day\", " +
+        "date_trunc('WEEK', date '2011-2-3') as \"week\", " +
+        "date_trunc('MONTH', date '2011-2-3') as \"month\", " +
+        "date_trunc('YEAR', date '2011-2-3') as \"year\", " +
+        "date_trunc('QUARTER', date '2011-5-3') as \"q1\", " +
+        "date_trunc('QUARTER', date '2011-7-13') as \"q2\", " +
+        "date_trunc('QUARTER', date '2011-9-13') as \"q3\", " +
+        "date_trunc('DECADE', date '2011-2-3') as \"decade1\", " +
+        "date_trunc('DECADE', date '2072-2-3') as \"decade2\", " +
+        "date_trunc('DECADE', date '1978-2-3') as \"decade3\" " +
         "FROM sys.version";
 
     testBuilder()
@@ -129,11 +129,11 @@ public class TestDateTruncFunctions extends BaseTestQuery {
     // TODO: It would be good to have some tests on dates in BC period, but looks like currently Calcite parser is
     // not accepting date literals in BC.
     final String query = "SELECT " +
-        "date_trunc('MILLENNIUM', date '2011-2-3') as `m1`, " +
-        "date_trunc('MILLENNIUM', date '2000-11-3') as `m2`, " +
-        "date_trunc('MILLENNIUM', date '1983-05-18') as `m3`, " +
-        "date_trunc('MILLENNIUM', date '990-11-3') as `m4`, " +
-        "date_trunc('MILLENNIUM', date '0001-11-3') as `m5` " +
+        "date_trunc('MILLENNIUM', date '2011-2-3') as \"m1\", " +
+        "date_trunc('MILLENNIUM', date '2000-11-3') as \"m2\", " +
+        "date_trunc('MILLENNIUM', date '1983-05-18') as \"m3\", " +
+        "date_trunc('MILLENNIUM', date '990-11-3') as \"m4\", " +
+        "date_trunc('MILLENNIUM', date '0001-11-3') as \"m5\" " +
         "FROM sys.version";
 
     testBuilder()
@@ -152,19 +152,19 @@ public class TestDateTruncFunctions extends BaseTestQuery {
   @Test
   public void dateTruncOnTimeStampSimpleUnits() throws Exception {
     final String query = "SELECT " +
-        "date_trunc('SECOND', timestamp '2011-2-3 10:11:12.100') as `second`, " +
-        "date_trunc('MINUTE', timestamp '2011-2-3 10:11:12.100') as `minute`, " +
-        "date_trunc('HOUR', timestamp '2011-2-3 10:11:12.100') as `hour`, " +
-        "date_trunc('DAY', timestamp '2011-2-3 10:11:12.100') as `day`, " +
-        "date_trunc('WEEK', timestamp '2011-2-3 10:11:12.100') as `week`, " +
-        "date_trunc('MONTH', timestamp '2011-2-3 10:11:12.100') as `month`, " +
-        "date_trunc('YEAR', timestamp '2011-2-3 10:11:12.100') as `year`, " +
-        "date_trunc('QUARTER', timestamp '2011-5-3 10:11:12.100') as `q1`, " +
-        "date_trunc('QUARTER', timestamp '2011-7-13 10:11:12.100') as `q2`, " +
-        "date_trunc('QUARTER', timestamp '2011-9-13 10:11:12.100') as `q3`, " +
-        "date_trunc('DECADE', timestamp '2011-2-3 10:11:12.100') as `decade1`, " +
-        "date_trunc('DECADE', timestamp '2072-2-3 10:11:12.100') as `decade2`, " +
-        "date_trunc('DECADE', timestamp '1978-2-3 10:11:12.100') as `decade3` " +
+        "date_trunc('SECOND', timestamp '2011-2-3 10:11:12.100') as \"second\", " +
+        "date_trunc('MINUTE', timestamp '2011-2-3 10:11:12.100') as \"minute\", " +
+        "date_trunc('HOUR', timestamp '2011-2-3 10:11:12.100') as \"hour\", " +
+        "date_trunc('DAY', timestamp '2011-2-3 10:11:12.100') as \"day\", " +
+        "date_trunc('WEEK', timestamp '2011-2-3 10:11:12.100') as \"week\", " +
+        "date_trunc('MONTH', timestamp '2011-2-3 10:11:12.100') as \"month\", " +
+        "date_trunc('YEAR', timestamp '2011-2-3 10:11:12.100') as \"year\", " +
+        "date_trunc('QUARTER', timestamp '2011-5-3 10:11:12.100') as \"q1\", " +
+        "date_trunc('QUARTER', timestamp '2011-7-13 10:11:12.100') as \"q2\", " +
+        "date_trunc('QUARTER', timestamp '2011-9-13 10:11:12.100') as \"q3\", " +
+        "date_trunc('DECADE', timestamp '2011-2-3 10:11:12.100') as \"decade1\", " +
+        "date_trunc('DECADE', timestamp '2072-2-3 10:11:12.100') as \"decade2\", " +
+        "date_trunc('DECADE', timestamp '1978-2-3 10:11:12.100') as \"decade3\" " +
         "FROM sys.version";
 
     testBuilder()
@@ -218,11 +218,11 @@ public class TestDateTruncFunctions extends BaseTestQuery {
     // TODO: It would be good to have some tests on dates in BC period, but looks like currently Calcite parser is
     // not accepting date literals in BC.
     final String query = "SELECT " +
-        "date_trunc('MILLENNIUM', timestamp '2011-2-3 10:11:12.100') as `m1`, " +
-        "date_trunc('MILLENNIUM', timestamp '2000-11-3 10:11:12.100') as `m2`, " +
-        "date_trunc('MILLENNIUM', timestamp '1983-05-18 10:11:12.100') as `m3`, " +
-        "date_trunc('MILLENNIUM', timestamp '990-11-3 10:11:12.100') as `m4`, " +
-        "date_trunc('MILLENNIUM', timestamp '0001-11-3 10:11:12.100') as `m5` " +
+        "date_trunc('MILLENNIUM', timestamp '2011-2-3 10:11:12.100') as \"m1\", " +
+        "date_trunc('MILLENNIUM', timestamp '2000-11-3 10:11:12.100') as \"m2\", " +
+        "date_trunc('MILLENNIUM', timestamp '1983-05-18 10:11:12.100') as \"m3\", " +
+        "date_trunc('MILLENNIUM', timestamp '990-11-3 10:11:12.100') as \"m4\", " +
+        "date_trunc('MILLENNIUM', timestamp '0001-11-3 10:11:12.100') as \"m5\" " +
         "FROM sys.version";
 
     testBuilder()
@@ -241,16 +241,16 @@ public class TestDateTruncFunctions extends BaseTestQuery {
   @Test
   public void dateTruncOnIntervalYear() throws Exception {
     final String query = "SELECT " +
-        "date_trunc('SECOND', interval '217-7' year(3) to month) as `second`, " +
-        "date_trunc('MINUTE', interval '217-7' year(3) to month) as `minute`, " +
-        "date_trunc('HOUR', interval '217-7' year(3) to month) as `hour`, " +
-        "date_trunc('DAY', interval '217-7' year(3) to month) as `day`, " +
-        "date_trunc('MONTH', interval '217-7' year(3) to month) as `month`, " +
-        "date_trunc('YEAR', interval '217-7' year(3) to month) as `year`, " +
-        "date_trunc('QUARTER', interval '217-7' year(3) to month) as `quarter`, " +
-        "date_trunc('DECADE', interval '217-7' year(3) to month) as `decade`, " +
-        "date_trunc('CENTURY', interval '217-7' year(3) to month) as `century`, " +
-        "date_trunc('MILLENNIUM', interval '217-7' year(3) to month) as `millennium` " +
+        "date_trunc('SECOND', interval '217-7' year(3) to month) as \"second\", " +
+        "date_trunc('MINUTE', interval '217-7' year(3) to month) as \"minute\", " +
+        "date_trunc('HOUR', interval '217-7' year(3) to month) as \"hour\", " +
+        "date_trunc('DAY', interval '217-7' year(3) to month) as \"day\", " +
+        "date_trunc('MONTH', interval '217-7' year(3) to month) as \"month\", " +
+        "date_trunc('YEAR', interval '217-7' year(3) to month) as \"year\", " +
+        "date_trunc('QUARTER', interval '217-7' year(3) to month) as \"quarter\", " +
+        "date_trunc('DECADE', interval '217-7' year(3) to month) as \"decade\", " +
+        "date_trunc('CENTURY', interval '217-7' year(3) to month) as \"century\", " +
+        "date_trunc('MILLENNIUM', interval '217-7' year(3) to month) as \"millennium\" " +
         "FROM sys.version";
 
     testBuilder()
@@ -274,16 +274,16 @@ public class TestDateTruncFunctions extends BaseTestQuery {
   @Test
   public void dateTruncOnIntervalDay() throws Exception {
     final String query = "SELECT " +
-        "date_trunc('SECOND', interval '200 10:20:30.123' day(3) to second) as `second`, " +
-        "date_trunc('MINUTE', interval '200 10:20:30.123' day(3) to second) as `minute`, " +
-        "date_trunc('HOUR', interval '200 10:20:30.123' day(3) to second) as `hour`, " +
-        "date_trunc('DAY', interval '200 10:20:30.123' day(3) to second) as `day`, " +
-        "date_trunc('MONTH', interval '200 10:20:30.123' day(3) to second) as `month`, " +
-        "date_trunc('YEAR', interval '200 10:20:30.123' day(3) to second) as `year`, " +
-        "date_trunc('QUARTER', interval '200 10:20:30.123' day(3) to second) as `quarter`, " +
-        "date_trunc('DECADE', interval '200 10:20:30.123' day(3) to second) as `decade`, " +
-        "date_trunc('CENTURY', interval '200 10:20:30.123' day(3) to second) as `century`, " +
-        "date_trunc('MILLENNIUM', interval '200 10:20:30.123' day(3) to second) as `millennium` " +
+        "date_trunc('SECOND', interval '200 10:20:30.123' day(3) to second) as \"second\", " +
+        "date_trunc('MINUTE', interval '200 10:20:30.123' day(3) to second) as \"minute\", " +
+        "date_trunc('HOUR', interval '200 10:20:30.123' day(3) to second) as \"hour\", " +
+        "date_trunc('DAY', interval '200 10:20:30.123' day(3) to second) as \"day\", " +
+        "date_trunc('MONTH', interval '200 10:20:30.123' day(3) to second) as \"month\", " +
+        "date_trunc('YEAR', interval '200 10:20:30.123' day(3) to second) as \"year\", " +
+        "date_trunc('QUARTER', interval '200 10:20:30.123' day(3) to second) as \"quarter\", " +
+        "date_trunc('DECADE', interval '200 10:20:30.123' day(3) to second) as \"decade\", " +
+        "date_trunc('CENTURY', interval '200 10:20:30.123' day(3) to second) as \"century\", " +
+        "date_trunc('MILLENNIUM', interval '200 10:20:30.123' day(3) to second) as \"millennium\" " +
         "FROM sys.version";
 
     testBuilder()
@@ -313,7 +313,7 @@ public class TestDateTruncFunctions extends BaseTestQuery {
         + "date_trunc('SECOND', timestamp '1991-05-05 10:11:12.100') as TS2, "
         + "date_trunc('MONTH', date '2011-2-2') as DATE1, "
         + "date_trunc('YEAR', date '2011-2-2') as DATE2 "
-        + "from cp.`employee.json` where employee_id < 2";
+        + "from cp.\"employee.json\" where employee_id < 2";
 
     LocalDateTime time1 = formatTime.parseLocalDateTime("2:30:00.0");
     LocalDateTime time2 = formatTime.parseLocalDateTime("2:30:21.0");

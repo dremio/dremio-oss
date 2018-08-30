@@ -15,24 +15,30 @@
  */
 package com.dremio.sabot;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableBitVector;
-import org.apache.arrow.vector.NullableDateMilliVector;
-import org.apache.arrow.vector.NullableFloat4Vector;
-import org.apache.arrow.vector.NullableFloat8Vector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableTimeMilliVector;
-import org.apache.arrow.vector.NullableTimeStampMilliVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.DateMilliVector;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.IntervalDayVector;
+import org.apache.arrow.vector.IntervalYearVector;
+import org.apache.arrow.vector.TimeMilliVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
@@ -40,11 +46,13 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.util.DateUtility;
 import org.apache.arrow.vector.util.Text;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDate;
 import org.joda.time.LocalDateTime;
 import org.joda.time.LocalTime;
+import org.joda.time.Period;
 import org.junit.Assert;
 
 import com.dremio.common.expression.CompleteType;
@@ -80,6 +88,9 @@ public final class Fixtures {
   public static final Cell NULL_TIMESTAMP = new Timestamp(null);
   public static final Cell NULL_TIME = new Time(null);
   public static final Cell NULL_DATE = new Date(null);
+  public static final Cell NULL_INTERVAL_DAY_SECOND = new IntervalDaySecond(null);
+  public static final Cell NULL_INTERVAL_YEAR_MONTH = new IntervalYearMonth(null);
+  public static final Cell NULL_DECIMAL = new Decimal(null);
 
 
   private Fixtures(){}
@@ -89,6 +100,7 @@ public final class Fixtures {
     private final Field[] fields;
     private final DataBatch[] batches;
     private final int records;
+    private boolean orderSensitive;
 
     private final boolean expectZero;
 
@@ -103,6 +115,12 @@ public final class Fixtures {
         recordCount += b.size();
       }
       this.records = expectZero ? 0 : recordCount;
+      this.orderSensitive = true;
+    }
+
+    public Table orderInsensitive() {
+      orderSensitive = false;
+      return this;
     }
 
     public boolean isExpectZero() {
@@ -111,6 +129,17 @@ public final class Fixtures {
 
     public Generator toGenerator(BufferAllocator allocator){
       return new TableFixtureGenerator(allocator, this);
+    }
+
+    private HashMap<Object, Fixtures.DataRow> makeResultMap() {
+      HashMap<Object, DataRow> result = new HashMap<>();
+      final int keyColumnIndex = 0;
+      for (DataBatch b : batches) {
+        for (DataRow r : b.rows) {
+          result.put(r.cells[keyColumnIndex].unwrap(), r);
+        }
+      }
+      return result;
     }
 
     public void checkValid(List<RecordBatchData> actualBatches){
@@ -170,7 +199,13 @@ public final class Fixtures {
       if (!expectZero) {
         // thirdly, compare record by record.
         if(!batchSequenceMustMatch) {
-          boolean tablesMatched = compare(sb, fields, this.batches, actualBatches, this.records);
+          boolean tablesMatched;
+          if (orderSensitive) {
+            tablesMatched = compare(sb, fields, this.batches, actualBatches, this.records);
+          } else {
+            HashMap<Object, Fixtures.DataRow> resultMap = makeResultMap();
+            tablesMatched = compareTableResultMap(sb, fields, actualBatches, this.records, resultMap);
+          }
           if(!tablesMatched){
             okay = false;
           }
@@ -198,6 +233,100 @@ public final class Fixtures {
       this.vectors = ImmutableList.copyOf(vectors);
     }
 
+  }
+
+  private static boolean compareTableResultMap(StringBuilder sb, Field[] fields, List<RecordBatchData> actual,
+                                               int expectedRecordCount, HashMap<Object, Fixtures.DataRow> resultMap) {
+    final StringBuilder sb1 = new StringBuilder(sb);
+
+    NavigableMap<Integer, RangeHolder<DataHolder>> actualRange = new TreeMap<>();
+    {
+      int offset = 0;
+      for(RecordBatchData b : actual){
+        actualRange.put(offset, new RangeHolder<>(new DataHolder(b), offset, b.getRecordCount()));
+        offset += b.getRecordCount();
+      }
+    }
+
+    boolean ok = true;
+
+    final V2_AsciiTable actualOutputTable = new V2_AsciiTable();
+    final V2_AsciiTable expectedOutputTable = new V2_AsciiTable();
+
+    Object[] header = new Object[fields.length];
+    for(int i =0; i < header.length; i++){
+      header[i] = Describer.describe(fields[i]);
+    }
+
+    actualOutputTable.addRule();
+    actualOutputTable.addRow((Object[]) header);
+    actualOutputTable.addRule();
+
+    expectedOutputTable.addRule();
+    expectedOutputTable.addRow((Object[]) header);
+    expectedOutputTable.addRule();
+
+    final int keyColumnIndex = 0;
+    for (int rowNumber = 0; rowNumber < expectedRecordCount; rowNumber++) {
+      RangeHolder<DataHolder> actualHolder = actualRange.floorEntry(rowNumber).getValue();
+      final int localRowNumber = rowNumber - actualHolder.offset;
+      final int vectorOffset = actualHolder.data.sv2 == null ? localRowNumber : actualHolder.data.sv2.getIndex(localRowNumber);
+      String[] actualValues = new String[fields.length];
+      final boolean isValid = actualHolder.check(rowNumber);
+      Object actualKey = isValid ? actualHolder.data.vectors.get(keyColumnIndex).getObject(vectorOffset) : null;
+      actualValues[keyColumnIndex] = isValid ? (actualKey != null ? actualKey.toString() : "null") : "null";
+      if (resultMap.containsKey(actualKey)) {
+        final DataRow expectedRowData = resultMap.get(actualKey);
+        for (int columnIndex = 1; columnIndex < fields.length; columnIndex++) {
+          Object actualCellValue = isValid ? actualHolder.data.vectors.get(columnIndex).getObject(vectorOffset) : null;
+          CellCompare comparison = expectedRowData.cells[columnIndex].compare(actualHolder.data.vectors.get(columnIndex), vectorOffset, actualHolder.check(rowNumber));
+          if (!comparison.equal) {
+            ok = false;
+          }
+          actualValues[columnIndex] = (actualCellValue == null) ? "null" : actualCellValue.toString();
+        }
+      } else {
+        ok = false;
+        for (int columnIndex = 1; columnIndex < fields.length; columnIndex++) {
+          Object actualCellValue = isValid ? actualHolder.data.vectors.get(columnIndex).getObject(vectorOffset) : null;
+          actualValues[columnIndex] = actualCellValue.toString();
+        }
+      }
+
+      actualOutputTable.addRow(actualValues);
+      actualOutputTable.addRule();
+    }
+
+    if(!ok){
+      sb.append("\n\n---------Actual Output Table (order not important) ---------- \n");
+      V2_AsciiTableRenderer rend = new V2_AsciiTableRenderer();
+      rend.setTheme(V2_E_TableThemes.UTF_LIGHT.get());
+      rend.setWidth(new WidthAbsoluteEven(76));
+      sb.append(rend.render(actualOutputTable));
+      sb.append("\n\n");
+
+      /* build expected output table from provided map */
+      for (Map.Entry<Object, DataRow> expectedEntry : resultMap.entrySet()) {
+        String[] expectedValues = new String[fields.length];
+        expectedValues[0] = expectedEntry.getKey() == null ? "null" : expectedEntry.getKey().toString();
+        final DataRow expectedDataRow = expectedEntry.getValue();
+        for (int columnIndex = 1; columnIndex < fields.length; columnIndex++) {
+          final Object expectedCellValue = ((ValueCell)expectedDataRow.cells[columnIndex]).obj;
+          expectedValues[columnIndex] = (expectedCellValue == null) ? "null" : expectedCellValue.toString();
+        }
+
+        expectedOutputTable.addRow(expectedValues);
+        expectedOutputTable.addRule();
+      }
+
+      sb.append(" ---------Expected Output Table (order not important) ---------- \n");
+      rend = new V2_AsciiTableRenderer();
+      rend.setTheme(V2_E_TableThemes.UTF_LIGHT.get());
+      rend.setWidth(new WidthAbsoluteEven(76));
+      sb.append(rend.render(expectedOutputTable));
+      sb.append("\n\n");
+    }
+    return ok;
   }
 
   private static boolean compare(StringBuilder sb, Field[] fields, DataBatch[] expected, List<RecordBatchData> actual, int expectedRecordCount){
@@ -254,7 +383,7 @@ public final class Fixtures {
       sb.append(" - Values don't match expected. [actual (expected)]. \n");
       V2_AsciiTableRenderer rend = new V2_AsciiTableRenderer();
       rend.setTheme(V2_E_TableThemes.UTF_LIGHT.get());
-      rend.setWidth(new WidthAbsoluteEven(76));
+      rend.setWidth(new WidthAbsoluteEven(300));
       sb.append(rend.render(outputTable));
       sb.append("\n");
     }
@@ -349,6 +478,14 @@ public final class Fixtures {
     return new LocalDateTime(val);
   }
 
+  public static IntervalDaySecond interval_day(int days, int millis) {
+    return new IntervalDaySecond(Period.days(days).plusMillis(millis));
+  }
+
+  public static IntervalYearMonth interval_year(int years, int months) {
+    return new IntervalYearMonth(Period.years(years).plusMonths(months));
+  }
+
   public static class DataRow {
     Cell[] cells;
 
@@ -371,7 +508,7 @@ public final class Fixtures {
   public static class DataBatch {
     private final DataRow[] rows;
 
-    public DataBatch(DataRow[] rows) {
+    public DataBatch(DataRow... rows) {
       this.rows = rows;
     }
 
@@ -420,6 +557,18 @@ public final class Fixtures {
       return new Date((LocalDate)obj);
     }else if(obj instanceof List) {
       return new ListCell((List<Integer>)obj);
+    }else if(obj instanceof BigDecimal) {
+      return new Decimal((BigDecimal) obj);
+    }else if(obj instanceof Period) {
+      Period p = (Period) obj;
+
+      if (p.getYears() == 0 && p.getMonths() == 0) {
+        return new IntervalDaySecond(p);
+      }
+
+      if (p.getDays() == 0) {
+        return new IntervalYearMonth(p);
+      }
     }
 
     throw new UnsupportedOperationException(String.format("Unable to interpret object of type %s.", obj.getClass().getSimpleName()));
@@ -466,6 +615,7 @@ public final class Fixtures {
     Field toField(String name);
     CellCompare compare(ValueVector vector, int index, boolean isValid);
     void set(ValueVector v, int index);
+    Object unwrap();
   }
 
   static abstract class ValueCell<V> implements Cell {
@@ -508,6 +658,11 @@ public final class Fixtures {
       }else{
         return new CellCompare(false, toString(obj) + " ("+toString(this.obj)+")");
       }
+    }
+
+    @Override
+    public Object unwrap() {
+      return obj;
     }
 
     boolean evaluateEquality(V obj1, V obj2){
@@ -582,7 +737,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableBigIntVector) v).setSafe(index, obj);
+        ((BigIntVector) v).setSafe(index, obj);
       }
     }
 
@@ -602,7 +757,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableIntVector) v).setSafe(index, obj);
+        ((IntVector) v).setSafe(index, obj);
       }
     }
 
@@ -621,7 +776,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableFloat4Vector) v).setSafe(index, obj);
+        ((Float4Vector) v).setSafe(index, obj);
       }
     }
 
@@ -656,7 +811,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableFloat8Vector) v).setSafe(index, obj);
+        ((Float8Vector) v).setSafe(index, obj);
       }
     }
 
@@ -671,7 +826,7 @@ public final class Fixtures {
       }
 
       if ((f1 + f2) / 2 != 0) {
-        return Math.abs(f1 - f2) / Math.abs((f1 + f2) / 2) < 1.0E-12;
+        return Math.abs(f1 - f2) / Math.abs((f1 + f2) / 2) < 1.0E-6;
       } else {
         return !(f1 != 0);
       }
@@ -693,7 +848,7 @@ public final class Fixtures {
     public void set(ValueVector v, int index) {
       if(obj != null){
         byte[] bytes = obj.getBytes();
-        ((NullableVarCharVector) v).setSafe(index, bytes, 0, obj.getLength());
+        ((VarCharVector) v).setSafe(index, bytes, 0, obj.getLength());
       }
     }
 
@@ -709,7 +864,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableTimeStampMilliVector) v).setSafe(index, com.dremio.common.util.DateTimes.toMillis(obj));
+        ((TimeStampMilliVector) v).setSafe(index, com.dremio.common.util.DateTimes.toMillis(obj));
       }
     }
 
@@ -730,7 +885,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableDateMilliVector) v).setSafe(index,  obj.toDateTimeAtStartOfDay(DateTimeZone.UTC).getMillis());
+        ((DateMilliVector) v).setSafe(index,  obj.toDateTimeAtStartOfDay(DateTimeZone.UTC).getMillis());
       }
     }
 
@@ -750,7 +905,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableTimeMilliVector) v).setSafe(index, (int) obj.getMillisOfDay());
+        ((TimeMilliVector) v).setSafe(index, (int) obj.getMillisOfDay());
       }
     }
 
@@ -761,6 +916,45 @@ public final class Fixtures {
 
   }
 
+  private static class IntervalDaySecond extends ValueCell<Period> {
+    public IntervalDaySecond(Period obj) {
+      super(obj);
+    }
+
+    @Override
+    public void set(ValueVector v, int index) {
+      if(obj != null){
+        int numMillis = obj.getHours() * DateUtility.hoursToMillis
+          + obj.getMinutes() * DateUtility.minutesToMillis
+          + obj.getSeconds() * DateUtility.secondsToMillis
+          + obj.getMillis();
+        ((IntervalDayVector) v).setSafe(index, obj.getDays(), numMillis);
+      }
+    }
+
+    @Override
+    ArrowType getType() {
+      return CompleteType.INTERVAL_DAY_SECONDS.getType();
+    }
+  }
+
+  private static class IntervalYearMonth extends ValueCell<Period> {
+    public IntervalYearMonth(Period obj) {
+      super(obj);
+    }
+
+    @Override
+    public void set(ValueVector v, int index) {
+      if(obj != null){
+        ((IntervalYearVector) v).setSafe(index, obj.getMonths() + obj.getYears() * DateUtility.yearsToMonths);
+      }
+    }
+
+    @Override
+    ArrowType getType() {
+      return CompleteType.INTERVAL_YEAR_MONTHS.getType();
+    }
+  }
 
   private static class BooleanCell extends ValueCell<Boolean> {
 
@@ -776,7 +970,7 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableBitVector) v).setSafe(index, obj == true ? 1 : 0);
+        ((BitVector) v).setSafe(index, obj == true ? 1 : 0);
       }
     }
 
@@ -805,8 +999,31 @@ public final class Fixtures {
     @Override
     public void set(ValueVector v, int index) {
       if(obj != null){
-        ((NullableVarBinaryVector) v).setSafe(index, obj, 0, obj.length);
+        ((VarBinaryVector) v).setSafe(index, obj, 0, obj.length);
       }
+    }
+  }
+
+  private static class Decimal extends ValueCell<BigDecimal> {
+    public Decimal(BigDecimal obj) {
+      super(obj);
+    }
+
+    @Override
+    ArrowType getType() {
+      return new ArrowType.Decimal(38, 0);
+    }
+
+    @Override
+    public void set(ValueVector v, int index) {
+      if(obj != null){
+        ((DecimalVector) v).setSafe(index, obj);
+      }
+    }
+
+    @Override
+    boolean evaluateEquality(BigDecimal val1, BigDecimal val2) {
+      return val1.equals(val2);
     }
   }
 

@@ -17,19 +17,17 @@ package com.dremio.exec.fn.hive;
 
 import java.util.List;
 
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.QueryTestUtil;
 import com.dremio.TestBuilder;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.types.Types;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.exec.compile.ClassTransformer;
+import com.dremio.common.types.Types;
 import com.dremio.exec.hive.HiveTestBase;
-import com.dremio.exec.server.options.OptionValue;
 import com.google.common.collect.Lists;
 
 public class TestInbuiltHiveUDFs extends HiveTestBase {
@@ -95,7 +93,7 @@ public class TestInbuiltHiveUDFs extends HiveTestBase {
   @Ignore("DX-5213")
   public void testIf() throws Exception {
     testBuilder()
-        .sqlQuery("select `if`(1999 > 2000, 'latest', 'old') Period from hive.kv limit 1")
+        .sqlQuery("select \"if\"(1999 > 2000, 'latest', 'old') Period from hive.kv limit 1")
         .ordered()
         .baselineColumns("Period")
         .baselineValues("old")
@@ -117,7 +115,7 @@ public class TestInbuiltHiveUDFs extends HiveTestBase {
   public void testEmbeddedHiveFunctionCall() throws Exception {
     final String[] queries = {
         "SELECT convert_from(unhex(key2), 'INT_BE') as intkey \n" +
-            "FROM cp.`functions/conv/conv.json`",
+            "FROM cp.\"functions/conv/conv.json\"",
     };
 
     for (String query: queries) {

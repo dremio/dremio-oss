@@ -48,9 +48,8 @@ import com.dremio.exec.planner.physical.LeafPrel;
 import com.dremio.exec.planner.physical.LimitPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
-import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
-import com.dremio.exec.store.parquet.FilterCondition;
+import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetDatasetXAttrSerDe;
 import com.dremio.exec.store.parquet.ParquetScanPrel;
 import com.dremio.exec.util.GlobalDictionaryBuilder;
@@ -357,8 +356,9 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
 
     // Make sure we don't apply global dictionary on columns that have conditions pushed into the scan
     final Set<String> columnsPushedToScan = new HashSet<>();
-    if (parquetScanPrel.getConditions() != null) {
-      Iterables.addAll(columnsPushedToScan, Iterables.transform(parquetScanPrel.getConditions(), FilterCondition.EXTRACT_COLUMN_NAME));
+    if (parquetScanPrel.getFilter() != null) {
+      Iterables.addAll(columnsPushedToScan,
+          Iterables.transform(parquetScanPrel.getFilter().getConditions(), ParquetFilterCondition.EXTRACT_COLUMN_NAME));
     }
 
     final Map<String, String> dictionaryEncodedColumnsToDictionaryFilePath = Maps.newHashMap();

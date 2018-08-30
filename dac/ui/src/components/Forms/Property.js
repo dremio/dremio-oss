@@ -19,8 +19,38 @@ import PropTypes from 'prop-types';
 
 import FieldWithError from 'components/Fields/FieldWithError';
 import TextField from 'components/Fields/TextField';
+import {RemoveButton, RemoveButtonStyles } from 'components/Fields/FieldList';
 
 import { applyValidators, isRequired } from 'utils/validation';
+import { inputSpacing as inputSpacingCssValue} from '@app/uiTheme/less/variables.less';
+
+const inputSpacing = parseInt(inputSpacingCssValue, 10);
+
+export class PropertyValue extends Component {
+  static propTypes = {
+    field: PropTypes.object,
+    style: PropTypes.object,
+    elementConfig: PropTypes.object,
+    onRemove: PropTypes.func
+  };
+
+  render() {
+    const {elementConfig, onRemove, field} = this.props;
+    const label = elementConfig && elementConfig.label || 'Value';
+    const propertyStyle = {display: 'flex'};
+    const fieldStyle = {flex: 'auto'};
+    const textStyle = {width: '100%'};
+
+    return (
+      <div style={propertyStyle}>
+        <FieldWithError label={label} {...field} style={fieldStyle} errorPlacement='top'>
+          <TextField {...field} style={textStyle}/>
+        </FieldWithError>
+        {onRemove && <RemoveButton onClick={onRemove} style={styles.removeButton}/>}
+      </div>
+    );
+  }
+}
 
 export default class Property extends Component {
   static getFields() {
@@ -31,8 +61,9 @@ export default class Property extends Component {
 
   static propTypes = {
     fields: PropTypes.object,
-    style: PropTypes.object
-  }
+    style: PropTypes.object,
+    onRemove: PropTypes.func
+  };
 
   static validate(values) {
     return applyValidators(values, [
@@ -42,17 +73,28 @@ export default class Property extends Component {
   }
 
   render() {
-    const {style, fields: {name, value}} = this.props;
+    const {onRemove, fields: {name, value}} = this.props;
+    const propertyStyle = {display: 'flex'};
+    const fieldStyle = {flex: '1 1 auto'};
+    const textStyle = {width: '100%'};
 
     return (
-      <div style={style}>
-        <FieldWithError label='Name' {...name} style={{display: 'inline-block'}}>
-          <TextField {...name} />
+      <div style={propertyStyle}>
+        <FieldWithError label='Name' {...name} style={{...fieldStyle, marginRight: inputSpacing}} errorPlacement='top'>
+          <TextField {...name} style={textStyle} />
         </FieldWithError>
-        <FieldWithError label='Value' {...value} style={{display: 'inline-block'}}>
-          <TextField {...value} />
+        <FieldWithError label='Value' {...value} style={fieldStyle} errorPlacement='top'>
+          <TextField {...value} style={textStyle} />
         </FieldWithError>
+        {onRemove && <RemoveButton onClick={onRemove} style={styles.removeButton}/> }
       </div>
     );
   }
 }
+
+const styles = {
+  removeButton: {
+    ...RemoveButtonStyles.inline,
+    marginTop: 17
+  }
+};

@@ -18,13 +18,12 @@ package com.dremio.dac.api;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.htrace.fasterxml.jackson.annotation.JsonCreator;
-
 import com.dremio.service.accelerator.AccelerationDetailsUtils;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.jobs.Job;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**

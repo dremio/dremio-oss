@@ -108,6 +108,7 @@ import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
+import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -387,7 +388,7 @@ public class DatasetVersionResource {
     return new DatasetUIWithHistory(savedDataset, tool.getHistory(asDatasetPath, savedDataset.getDatasetVersion()));
   }
 
-  public DatasetUI save(VirtualDatasetUI vds, DatasetPath asDatasetPath, Long savedVersion)
+  public DatasetUI save(VirtualDatasetUI vds, DatasetPath asDatasetPath, Long savedVersion, NamespaceAttribute... attributes)
       throws DatasetNotFoundException, UserNotFoundException, NamespaceException, DatasetVersionNotFoundException {
     final List<String> fullPathList = asDatasetPath.toPathList();
     if (isAncestor(vds, fullPathList)) {
@@ -419,7 +420,7 @@ public class DatasetVersionResource {
         vds.setPreviousVersion(rewrittenPrev);
       }
 
-      datasetService.put(vds);
+      datasetService.put(vds, attributes);
       vds.setPreviousVersion(prevDataset);
       tool.rewriteHistory(vds, asDatasetPath);
       vds.setPreviousVersion(rewrittenPrev);
@@ -531,7 +532,7 @@ public class DatasetVersionResource {
    * @throws DatasetNotFoundException if dataset is not found
    * @throws DatasetVersionNotFoundException if dataset version is not found
    */
-  @POST @Path("/reapply")
+  @POST @Path("/editOriginalSql")
   @Produces(APPLICATION_JSON)
   public InitialPreviewResponse reapplyDatasetAndPreview() throws DatasetVersionNotFoundException, DatasetNotFoundException, NamespaceException {
     DatasetAndJob datasetAndJob = reapplyDataset(QueryType.UI_PREVIEW);
@@ -545,7 +546,7 @@ public class DatasetVersionResource {
       transforms.add(dataset.getLastTransform());
     }
 
-    return transformer.reapply(version, transforms, queryType);
+    return transformer.editOriginalSql(version, transforms, queryType);
 
   }
 

@@ -213,17 +213,7 @@ class QueryProfileParser {
         inputRecords += stream.getRecords();
         inputBytes += stream.getSize();
       }
-      if (jobStats.getInputBytes() != null) {
-        jobStats.setInputBytes(jobStats.getInputBytes() + inputBytes);
-      } else {
-        jobStats.setInputBytes(inputBytes);
-      }
-
-      if (jobStats.getInputRecords() != null) {
-        jobStats.setInputRecords(jobStats.getInputRecords() + inputRecords);
-      } else {
-        jobStats.setInputRecords(inputRecords);
-      }
+      addInputBytesAndRecords(inputBytes, inputRecords);
     }
 
     if (operatorToTable.containsKey(operatorId)) {
@@ -238,6 +228,19 @@ class QueryProfileParser {
       setCommonDatasetProfile(tableDatasetProfile.getDatasetProfile(), operatorProfile, majorFragment, inputBytes, inputRecords,
         PathUtils.parseFullPath(tableName));
       tableDatasetProfile.setPushdownQuery(null);
+    }
+  }
+
+  private void addInputBytesAndRecords(long inputBytes, long inputRecords) {
+    if (jobStats.getInputBytes() != null) {
+      jobStats.setInputBytes(jobStats.getInputBytes() + inputBytes);
+    } else {
+      jobStats.setInputBytes(inputBytes);
+    }
+    if (jobStats.getInputRecords() != null) {
+      jobStats.setInputRecords(jobStats.getInputRecords() + inputRecords);
+    } else {
+      jobStats.setInputRecords(inputRecords);
     }
   }
 
@@ -343,8 +346,14 @@ class QueryProfileParser {
             case ELASTICSEARCH_AGGREGATOR_SUB_SCAN:
             case ELASTICSEARCH_SUB_SCAN:
             case MONGO_SUB_SCAN:
+            case JDBC_SUB_SCAN:
               setScanStats(operatorType, operatorProfile, majorFragment);
               // wait time in scan is shown per table.
+              setOperationStats(OperationType.Reading, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              break;
+
+            case VALUES_READER:
+              addInputBytesAndRecords(0, 0); // 0 bytes/records read from disk
               setOperationStats(OperationType.Reading, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 

@@ -15,7 +15,15 @@
  */
 package com.dremio.exec.ops;
 
+import java.util.Optional;
+import java.util.function.BiConsumer;
+
+import org.apache.commons.lang3.ArrayUtils;
+
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
+import com.dremio.exec.proto.UserBitShared.CoreOperatorTypeMetricsMap;
+import com.dremio.exec.proto.UserBitShared.MetricsDef;
 import com.dremio.exec.store.parquet.ParquetRecordWriter;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.op.common.hashtable.HashTableStats;
@@ -36,46 +44,112 @@ import com.dremio.sabot.op.writer.WriterOperator;
 public class OperatorMetricRegistry {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OperatorMetricRegistry.class);
 
-  // Mapping: operator type --> metric id --> metric name
-  private static final String[][] OPERATOR_METRICS = new String[CoreOperatorType.values().length][];
+  private static final CoreOperatorTypeMetricsMap CORE_OPERATOR_TYPE_METRICS_MAP;
+  private static final String[][] OPERATOR_METRICS_NAMES = new String[CoreOperatorType.values().length][];
 
   static {
-    register(CoreOperatorType.SCREEN_VALUE, ScreenOperator.Metric.class);
-    register(CoreOperatorType.SINGLE_SENDER_VALUE, SingleSenderOperator.Metric.class);
-    register(CoreOperatorType.BROADCAST_SENDER_VALUE, BroadcastOperator.Metric.class);
-    register(CoreOperatorType.ROUND_ROBIN_SENDER_VALUE, RoundRobinOperator.Metric.class);
-    register(CoreOperatorType.HASH_PARTITION_SENDER_VALUE, PartitionSenderOperator.Metric.class);
-    register(CoreOperatorType.MERGING_RECEIVER_VALUE, MergingReceiverOperator.Metric.class);
-    register(CoreOperatorType.UNORDERED_RECEIVER_VALUE, UnorderedReceiverOperator.Metric.class);
-    register(CoreOperatorType.HASH_AGGREGATE_VALUE, HashTableStats.Metric.class);
-    register(CoreOperatorType.HASH_JOIN_VALUE, HashTableStats.Metric.class);
-    register(CoreOperatorType.EXTERNAL_SORT_VALUE, ExternalSortOperator.Metric.class);
-    register(CoreOperatorType.HIVE_SUB_SCAN_VALUE, ScanOperator.Metric.class);
-    register(CoreOperatorType.PARQUET_ROW_GROUP_SCAN_VALUE, ScanOperator.Metric.class);
-    register(CoreOperatorType.PARQUET_WRITER_VALUE, ParquetRecordWriter.Metric.class);
-    register(CoreOperatorType.ARROW_WRITER_VALUE, WriterOperator.Metric.class);
+    final CoreOperatorTypeMetricsMap.Builder builder = getMapBuilder();
+    register(builder, CoreOperatorType.SCREEN_VALUE, ScreenOperator.Metric.class);
+    register(builder, CoreOperatorType.SINGLE_SENDER_VALUE, SingleSenderOperator.Metric.class);
+    register(builder, CoreOperatorType.BROADCAST_SENDER_VALUE, BroadcastOperator.Metric.class);
+    register(builder, CoreOperatorType.ROUND_ROBIN_SENDER_VALUE, RoundRobinOperator.Metric.class);
+    register(builder, CoreOperatorType.HASH_PARTITION_SENDER_VALUE, PartitionSenderOperator.Metric.class);
+    register(builder, CoreOperatorType.MERGING_RECEIVER_VALUE, MergingReceiverOperator.Metric.class);
+    register(builder, CoreOperatorType.UNORDERED_RECEIVER_VALUE, UnorderedReceiverOperator.Metric.class);
+    register(builder, CoreOperatorType.HASH_AGGREGATE_VALUE, HashTableStats.Metric.class);
+    register(builder, CoreOperatorType.HASH_JOIN_VALUE, HashTableStats.Metric.class);
+    register(builder, CoreOperatorType.EXTERNAL_SORT_VALUE, ExternalSortOperator.Metric.class);
+    register(builder, CoreOperatorType.HIVE_SUB_SCAN_VALUE, ScanOperator.Metric.class);
+    register(builder, CoreOperatorType.PARQUET_ROW_GROUP_SCAN_VALUE, ScanOperator.Metric.class);
+    register(builder, CoreOperatorType.PARQUET_WRITER_VALUE, ParquetRecordWriter.Metric.class);
+    register(builder, CoreOperatorType.ARROW_WRITER_VALUE, WriterOperator.Metric.class);
+    CORE_OPERATOR_TYPE_METRICS_MAP = builder.build();
   }
 
-  private static void register(final int operatorType, final Class<? extends MetricDef> metricDef) {
-    // Currently registers a metric def that has enum constants
+  private static void register(CoreOperatorTypeMetricsMap.Builder builder, final Integer operatorType, final Class<? extends MetricDef> metricDef) {
     final MetricDef[] enumConstants = metricDef.getEnumConstants();
-    if (enumConstants != null) {
-      final String[] names = new String[enumConstants.length];
-      for (int i = 0; i < enumConstants.length; i++) {
-        names[i] = enumConstants[i].name();
-      }
-      OPERATOR_METRICS[operatorType] = names;
+    MetricsDef.Builder metricsDefBuilder = builder.getMetricsDefBuilder(operatorType);
+    if (enumConstants == null) {
+      return;
     }
+    final String[] names = new String[enumConstants.length];
+    for (int i = 0; i < enumConstants.length; i++) {
+      metricsDefBuilder.addMetricDef(UserBitShared.MetricDef.newBuilder()
+        .setId(enumConstants[i].metricId())
+        .setName(enumConstants[i].name()).build()
+      );
+      names[i] = enumConstants[i].name();
+    }
+    OPERATOR_METRICS_NAMES[operatorType] = names;
+    builder.setMetricsDef(operatorType, metricsDefBuilder.build());
+  }
+
+  private static CoreOperatorTypeMetricsMap.Builder getMapBuilder() {
+    CoreOperatorTypeMetricsMap.Builder builder = CoreOperatorTypeMetricsMap.newBuilder();
+    for (int i = 0; i < CoreOperatorType.values().length; i++) {
+      // Initalizing with metricsdef object with empty list => This can be modified later at the time of registration
+      builder.addMetricsDef(MetricsDef.getDefaultInstance());
+    }
+    return builder;
+  }
+
+  public static CoreOperatorTypeMetricsMap getCoreOperatorTypeMetricsMap() {
+    return CORE_OPERATOR_TYPE_METRICS_MAP;
+  }
+
+  private static Optional<MetricsDef> getMetricsDef(CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap, int operatorType) {
+    if (operatorType < coreOperatorTypeMetricsMap.getMetricsDefCount()) {
+      return Optional.ofNullable(coreOperatorTypeMetricsMap.getMetricsDef(operatorType));
+    }
+    return Optional.empty();
   }
 
   /**
-   * Given an operator type, this method returns an array of metric names (indexable by metric id).
-   *
-   * @param operatorType the operator type
-   * @return metric names if operator was registered, null otherwise
+   * @param coreOperatorTypeMetricsMap
+   * @param operatorType
+   * @return Array of Metric names if operator type is present in the map else empty list
    */
-  public static String[] getMetricNames(final int operatorType) {
-    return OPERATOR_METRICS[operatorType];
+  public static String[] getMetricNames(CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap, int operatorType) {
+    Optional<MetricsDef> metricsDef = getMetricsDef(coreOperatorTypeMetricsMap, operatorType);
+    return metricsDef.map((metricDef) -> metricDef.getMetricDefList().stream().map(UserBitShared.MetricDef::getName).toArray(String[]::new)).orElse(ArrayUtils.EMPTY_STRING_ARRAY);
+  }
+
+  /**
+   * @param operatorType
+   * @return Array of Metric names if operator type is registered, else list
+   */
+  public static String[] getMetricNames(int operatorType) {
+    return Optional.ofNullable(OPERATOR_METRICS_NAMES[operatorType]).orElse(ArrayUtils.EMPTY_STRING_ARRAY);
+  }
+
+  /**
+   * @param coreOperatorTypeMetricsMap
+   * @param operatorType
+   * @return Array of Metric Ids if operator type is present in the map else empty list
+   */
+  public static Integer[] getMetricIds(CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap, int operatorType) {
+    Optional<MetricsDef> metricsDef = getMetricsDef(coreOperatorTypeMetricsMap, operatorType);
+    return metricsDef.map((metricDef) -> metricDef.getMetricDefList().stream().map(UserBitShared.MetricDef::getId).toArray(Integer[]::new)).orElse(ArrayUtils.EMPTY_INTEGER_OBJECT_ARRAY);
+  }
+
+  /**
+   * @param coreOperatorTypeMetricsMap
+   * @param operatorType
+   * @param metricId
+   * @return Optional<MetricDef> containing metric defination if present in the map
+   */
+  public static Optional<UserBitShared.MetricDef> getMetricById(CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap, int operatorType, int metricId) {
+    Optional<MetricsDef> metricsDef = getMetricsDef(coreOperatorTypeMetricsMap, operatorType);
+    if (metricsDef.isPresent() && metricId < metricsDef.get().getMetricDefCount()) {
+      return Optional.ofNullable(metricsDef.get().getMetricDef(metricId));
+    }
+    return Optional.empty();
+  }
+
+
+  public static boolean isRegistered(int operatorType, int metricId){
+    CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap = getCoreOperatorTypeMetricsMap();
+    return getMetricById(coreOperatorTypeMetricsMap, operatorType, metricId).isPresent();
   }
 
   // to prevent instantiation

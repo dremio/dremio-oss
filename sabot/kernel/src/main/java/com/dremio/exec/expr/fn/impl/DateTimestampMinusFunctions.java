@@ -41,6 +41,7 @@ public class DateTimestampMinusFunctions {
 
     public void eval() {
       out.days =  (int) ((input1.value - input2.value) / org.apache.arrow.vector.util.DateUtility.daysToStandardMillis);
+      out.milliseconds = 0;
     }
   }
 

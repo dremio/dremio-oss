@@ -206,33 +206,42 @@ public class NamespaceServiceImpl implements NamespaceService {
    * @param entity
    * @throws NamespaceException
    */
-  private void createOrUpdateEntity(final NamespaceEntity entity) throws NamespaceException {
+  private void createOrUpdateEntity(final NamespaceEntity entity, NamespaceAttribute... attributes) throws NamespaceException {
     final NamespaceKey entityPath = entity.getPathKey().getPath();
 
     final List<NameSpaceContainer> entitiesOnPath = getEntitiesOnPath(entityPath);
-    doCreateOrUpdateEntity(entity, entitiesOnPath);
+    doCreateOrUpdateEntity(entity, entitiesOnPath, attributes);
   }
 
-  protected void doCreateOrUpdateEntity(final NamespaceEntity entity, List<NameSpaceContainer> entitiesOnPath) throws NamespaceException {
+  protected void doCreateOrUpdateEntity(final NamespaceEntity entity, List<NameSpaceContainer> entitiesOnPath, NamespaceAttribute... attributes) throws NamespaceException {
     final NameSpaceContainer prevContainer = lastElement(entitiesOnPath);
     ensureIdExistsTypeMatches(entity, prevContainer);
 
     namespace.put(entity.getPathKey().getKey(), entity.getContainer());
   }
 
+  /**
+   * Checks if the updated entity matches the type of the existing container.  In the case of promoting a folder to a
+   * dataset, it will delete the existing folder namespace entry (which is created when you un-promote a folder dataset).
+   *
+   * @param newOrUpdatedEntity
+   * @param existingContainer
+   * @return true if there was a side effect where existingContainer was deleted
+   * @throws NamespaceException
+   */
   // TODO: Remove this operation and move to kvstore
-  private void ensureIdExistsTypeMatches(NamespaceEntity newOrUpdatedEntity, NameSpaceContainer existingContainer) throws NamespaceException{
+  protected boolean ensureIdExistsTypeMatches(NamespaceEntity newOrUpdatedEntity, NameSpaceContainer existingContainer) throws NamespaceException{
     final String idInContainer = getId(newOrUpdatedEntity.getContainer());
 
     if (existingContainer == null) {
       if (idInContainer != null) {
         // If the client already gives an id, take it.
-        return;
+        return true;
       }
 
       // generate a new id
       setId(newOrUpdatedEntity.getContainer(), UUID.randomUUID().toString());
-      return;
+      return true;
     }
 
     // TODO: this is a side effect and shouldn't be done in this method.
@@ -244,7 +253,7 @@ public class NamespaceServiceImpl implements NamespaceService {
       existingContainer.getType() == FOLDER) {
       namespace.delete((new NamespaceInternalKey(new NamespaceKey(existingContainer.getFullPathList()), keyNormalization)).getKey(),
         existingContainer.getFolder().getVersion());
-      return;
+      return false;
     }
 
     NameSpaceContainerVersionExtractor extractor = new NameSpaceContainerVersionExtractor();
@@ -278,20 +287,22 @@ public class NamespaceServiceImpl implements NamespaceService {
         .message("Id for an existing entity cannot be modified")
         .build(logger);
     }
+
+    return true;
   }
 
   @Override
-  public void addOrUpdateSource(NamespaceKey sourcePath, SourceConfig sourceConfig) throws NamespaceException {
-    createOrUpdateEntity(NamespaceEntity.toEntity(SOURCE, sourcePath, sourceConfig, keyNormalization));
+  public void addOrUpdateSource(NamespaceKey sourcePath, SourceConfig sourceConfig, NamespaceAttribute... attributes) throws NamespaceException {
+    createOrUpdateEntity(NamespaceEntity.toEntity(SOURCE, sourcePath, sourceConfig, keyNormalization), attributes);
   }
 
   @Override
-  public void addOrUpdateSpace(NamespaceKey spacePath, SpaceConfig spaceConfig) throws NamespaceException {
-    createOrUpdateEntity(NamespaceEntity.toEntity(SPACE, spacePath, spaceConfig, keyNormalization));
+  public void addOrUpdateSpace(NamespaceKey spacePath, SpaceConfig spaceConfig, NamespaceAttribute... attributes) throws NamespaceException {
+    createOrUpdateEntity(NamespaceEntity.toEntity(SPACE, spacePath, spaceConfig, keyNormalization), attributes);
   }
 
   @Override
-  public void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset) throws NamespaceException {
+  public void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, NamespaceAttribute... attributes) throws NamespaceException {
     dataset.setSchemaVersion(DatasetHelper.CURRENT_VERSION);
 
     // ensure physical dataset has acceleration TTL
@@ -317,7 +328,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         break;
     }
 
-    createOrUpdateEntity(NamespaceEntity.toEntity(DATASET, datasetPath, dataset, keyNormalization));
+    createOrUpdateEntity(NamespaceEntity.toEntity(DATASET, datasetPath, dataset, keyNormalization), attributes);
   }
 
   /**
@@ -362,12 +373,12 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, List<DatasetSplit> splits) throws NamespaceException {
+  public void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, List<DatasetSplit> splits, NamespaceAttribute... attributes) throws NamespaceException {
     Preconditions.checkNotNull(dataset.getReadDefinition());
 
     if (dataset.getReadDefinition() != null && dataset.getReadDefinition().getSplitVersion() != null &&
       !compareSplits(dataset, splits, splitsStore.find(DatasetSplitId.getSplitsRange(dataset)))) {
-      addOrUpdateDataset(datasetPath, dataset);
+      addOrUpdateDataset(datasetPath, dataset, attributes);
       return;
     }
 
@@ -383,14 +394,16 @@ public class NamespaceServiceImpl implements NamespaceService {
     dataset.getReadDefinition().setSplitVersion(nextSplitVersion);
     while (true) {
       try {
-        addOrUpdateDataset(datasetPath, dataset);
+        addOrUpdateDataset(datasetPath, dataset, attributes);
         break;
       } catch (ConcurrentModificationException cme) {
         // Get dataset config again
         final DatasetConfig existingDatasetConfig = getDataset(datasetPath);
         if (existingDatasetConfig.getReadDefinition() != null &&
           existingDatasetConfig.getReadDefinition().getSplitVersion() != null &&
-          existingDatasetConfig.getReadDefinition().getSplitVersion() >= nextSplitVersion) {
+          // Only delete splits if strictly newer. If splitVersions are equals, we
+          // could end up delete the splits of the existing dataset (see DX-12232)
+          existingDatasetConfig.getReadDefinition().getSplitVersion() > nextSplitVersion) {
           deleteSplits(splitIds);
           break;
         }
@@ -408,8 +421,8 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public void addOrUpdateFolder(NamespaceKey folderPath, FolderConfig folderConfig) throws NamespaceException {
-    createOrUpdateEntity(NamespaceEntity.toEntity(FOLDER, folderPath, folderConfig, keyNormalization));
+  public void addOrUpdateFolder(NamespaceKey folderPath, FolderConfig folderConfig,  NamespaceAttribute... attributes) throws NamespaceException {
+    createOrUpdateEntity(NamespaceEntity.toEntity(FOLDER, folderPath, folderConfig, keyNormalization), attributes);
   }
 
   @Override
@@ -426,6 +439,13 @@ public class NamespaceServiceImpl implements NamespaceService {
   public DatasetConfig findDatasetByUUID(String uuid) {
     NameSpaceContainer namespaceContainer = getByIndex(DatasetIndexKeys.DATASET_UUID, uuid);
     return (namespaceContainer!=null)?namespaceContainer.getDataset():null;
+  }
+
+  @Override
+  public void canSourceConfigBeSaved(SourceConfig newConfig, SourceConfig existingConfig, NamespaceAttribute... attributes) throws ConcurrentModificationException {
+    if (!Objects.equals(newConfig.getVersion(), existingConfig.getVersion())) {
+      throw new ConcurrentModificationException("Source was already created.");
+    }
   }
 
   protected List<NameSpaceContainer> doGetEntities(List<NamespaceKey> lookupKeys) {
@@ -478,7 +498,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   }
 
-  private NameSpaceContainer getEntityByIndex(IndexKey key, String index, Type type) throws NamespaceNotFoundException {
+  protected NameSpaceContainer getEntityByIndex(IndexKey key, String index, Type type) throws NamespaceException {
     NameSpaceContainer namespaceContainer = getByIndex(key, index);
 
     if (namespaceContainer == null || namespaceContainer.getType() != type) {
@@ -494,7 +514,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public SourceConfig getSourceById(String id) throws NamespaceNotFoundException {
+  public SourceConfig getSourceById(String id) throws NamespaceException {
     return getEntityByIndex(NamespaceIndexKeys.SOURCE_ID, id, SOURCE).getSource();
   }
 
@@ -504,12 +524,12 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public SpaceConfig getSpaceById(String id) throws NamespaceNotFoundException {
+  public SpaceConfig getSpaceById(String id) throws NamespaceException {
     return getEntityByIndex(NamespaceIndexKeys.SPACE_ID, id, SPACE).getSpace();
   }
 
   @Override
-  public NameSpaceContainer getEntityById(String id) throws NamespaceNotFoundException {
+  public NameSpaceContainer getEntityById(String id) throws NamespaceException {
     final SearchQuery query = SearchQueryUtils.or(
       SearchQueryUtils.newTermQuery(DatasetIndexKeys.DATASET_UUID, id),
       SearchQueryUtils.newTermQuery(NamespaceIndexKeys.SOURCE_ID, id),
@@ -967,18 +987,18 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public boolean tryCreatePhysicalDataset(NamespaceKey datasetPath, DatasetConfig datasetConfig) throws NamespaceException {
+  public boolean tryCreatePhysicalDataset(NamespaceKey datasetPath, DatasetConfig datasetConfig, NamespaceAttribute... attributes) throws NamespaceException {
     if (createSourceFolders(datasetPath)) {
       datasetConfig.setSchemaVersion(DatasetHelper.CURRENT_VERSION);
       final NamespaceInternalKey searchKey = new NamespaceInternalKey(datasetPath, keyNormalization);
       NameSpaceContainer existingContainer = namespace.get(searchKey.getKey());
-      return doTryCreatePhysicalDataset(datasetPath, datasetConfig, searchKey, existingContainer);
+      return doTryCreatePhysicalDataset(datasetPath, datasetConfig, searchKey, existingContainer, attributes);
     }
     return false;
   }
 
   protected boolean doTryCreatePhysicalDataset(NamespaceKey datasetPath, DatasetConfig datasetConfig,
-                                               NamespaceInternalKey searchKey, NameSpaceContainer existingContainer) throws NamespaceException {
+                                               NamespaceInternalKey searchKey, NameSpaceContainer existingContainer, NamespaceAttribute... attributes) throws NamespaceException {
     if (existingContainer != null) {
       switch (existingContainer.getType()) {
         case DATASET: {
@@ -1007,7 +1027,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     }
 
     try {
-      addOrUpdateDataset(datasetPath, datasetConfig);
+      addOrUpdateDataset(datasetPath, datasetConfig, attributes);
     } catch (ConcurrentModificationException e) {
       logger.warn("Failure while updating dataset " + datasetPath, e);
       // No one is checking the return value. TODO DX-4490

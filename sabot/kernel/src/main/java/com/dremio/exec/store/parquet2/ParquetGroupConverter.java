@@ -24,7 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.BigIntWriter;
 import org.apache.arrow.vector.complex.writer.BitWriter;
 import org.apache.arrow.vector.complex.writer.DateMilliWriter;
@@ -64,7 +64,7 @@ import org.joda.time.DateTimeConstants;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet.columnreaders.DeprecatedParquetVectorizedReader;
@@ -208,7 +208,7 @@ abstract class ParquetGroupConverter extends GroupConverter {
       );
     }
 
-    final MapWriter map;
+    final StructWriter struct;
     if (groupType.isRepetition(REPEATED)) {
       if (arrowSchema != null) {
         //TODO assert this should never occur at this level
@@ -217,11 +217,12 @@ abstract class ParquetGroupConverter extends GroupConverter {
         // only happen in LogicalList converter
         arrowSchema = handleRepeatedField(arrowSchema, groupType);
       }
-      map = list(nameForChild).map();
+      struct = list(nameForChild).struct();
     } else {
-      map = getWriterProvider().map(nameForChild);
+      struct = getWriterProvider().struct(nameForChild);
     }
-    return new StructGroupConverter(mutator, map, groupType, c, options, arrowSchema, schemaHelper);
+
+    return new StructGroupConverter(mutator, struct, groupType, c, options, arrowSchema, schemaHelper);
   }
 
   /**
@@ -235,7 +236,7 @@ abstract class ParquetGroupConverter extends GroupConverter {
       UserException.dataReadError()
               .message("invalid children. Expected a single child named $data$, was actually %s for repeated type %s. ", arrowSchema, groupType);
     }
-    // in the case of list, we skip over the inner type (map = list(nameForChild).map() bellow)
+    // in the case of list, we skip over the inner type (struct = list(nameForChild).struct() bellow)
     return arrowSchema.get(0).getChildren();
   }
 

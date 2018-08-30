@@ -93,7 +93,7 @@ public class TopNOperator implements SingleInputOperator {
   public VectorAccessible setup(final VectorAccessible incoming) throws Exception {
     state.is(State.NEEDS_SETUP);
     this.incoming = incoming;
-    this.outgoing = new VectorContainer(context.getAllocator());
+    this.outgoing = context.createOutputVectorContainer();
     outgoing.addSchema(incoming.getSchema());
     outgoing.setInitialCapacity(context.getTargetBatchSize());
     outgoing.allocateNew();

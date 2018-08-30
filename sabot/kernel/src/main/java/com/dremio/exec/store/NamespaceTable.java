@@ -23,6 +23,7 @@ import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelDistribution;
 import org.apache.calcite.rel.RelDistributionTraitDef;
+import org.apache.calcite.rel.RelReferentialConstraint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.Schema.TableType;
@@ -36,6 +37,7 @@ import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -75,7 +77,21 @@ public class NamespaceTable implements DremioTable {
       public Double getRowCount() {
         return (double) dataset.getReadDefinition().getScanStats().getRecordCount();
       }
+
+      @Override
+      public List<RelReferentialConstraint> getReferentialConstraints() {
+        return ImmutableList.of();
+      }
     };
+  }
+
+  public boolean isApproximateStatsAllowed() {
+    PhysicalDataset pd = dataset.getDatasetConfig().getPhysicalDataset();
+    if(pd == null) {
+      return false;
+    }
+
+    return pd.getAllowApproxStats() == null ? false : pd.getAllowApproxStats();
   }
 
   @Override

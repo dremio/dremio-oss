@@ -54,18 +54,24 @@ public class PutSpaceResource {
     this.spacePath = new SpacePath(spaceName);
   }
 
+  public static SpaceConfig addOrUpdateSpace(NamespaceService service,
+                                             SpacePath spacePath, Space space)
+    throws NamespaceException, UserNotFoundException {
+
+    SpaceConfig spaceConfig = new SpaceConfig()
+      .setId(space.getId() != null ? new EntityId(space.getId()) : null)
+      .setName(space.getName())
+      .setDescription(space.getDescription())
+      .setVersion(space.getVersion());
+
+    service.addOrUpdateSpace(spacePath.toNamespaceKey(), spaceConfig);
+    return service.getSpace(spacePath.toNamespaceKey());
+  }
+
   @PUT
   @Produces(MediaType.APPLICATION_JSON)
   public Space putSpace(Space space) throws NamespaceException, UserNotFoundException {
-    SpaceConfig spaceConfig = new SpaceConfig()
-        .setId(space.getId() != null ? new EntityId(space.getId()) : null)
-        .setName(space.getName())
-        .setDescription(space.getDescription())
-        .setVersion(space.getVersion());
-
-    namespaceService.addOrUpdateSpace(spacePath.toNamespaceKey(), spaceConfig);
-    spaceConfig = namespaceService.getSpace(spacePath.toNamespaceKey());
-
+    SpaceConfig spaceConfig = PutSpaceResource.addOrUpdateSpace(namespaceService, spacePath, space);
     return Space.newInstance(spaceConfig, null, namespaceService.getDatasetCount(spacePath.toNamespaceKey(), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH).getCount());
   }
 }

@@ -20,6 +20,7 @@ import json from 'utils/mappers/mocks/gridMapper/expected.json';
 
 import exploreUtils from 'utils/explore/exploreUtils';
 import { EXPLORE_VIEW_ID } from 'reducers/resources/view';
+import { getContext } from 'containers/dremioLocation';
 import { ExploreTableController } from './ExploreTableController';
 
 const location = {
@@ -79,11 +80,6 @@ describe('ExploreTableController', () => {
   });
 
   describe('ExploreTableController specs', () => {
-
-    it('should render .fixed-data-table', () => {
-      expect(wrapper.children().at(0).shallow().hasClass('fixed-data-table')).to.equal(true);
-    });
-
     describe('makeTransform', () => {
       it('should dispatch transformHistoryCheck', () => {
         const data = {
@@ -334,7 +330,7 @@ describe('ExploreTableController', () => {
         columnName: 'col1',
         valueUrl: ''
       }});
-      const ExploreCellLargeOverlay = shallow(instance.renderExploreCellLargeOverlay());
+      const ExploreCellLargeOverlay = shallow(instance.renderExploreCellLargeOverlay(), { context: getContext({}) });
       expect(ExploreCellLargeOverlay).to.be.exist;
     });
   });

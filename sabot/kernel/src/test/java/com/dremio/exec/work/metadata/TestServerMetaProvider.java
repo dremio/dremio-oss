@@ -42,6 +42,6 @@ public class TestServerMetaProvider extends BaseTestQuery {
     ServerMeta serverMeta = resp.getServerMeta();
     logger.trace("Server metadata: {}", serverMeta);
 
-    assertEquals(Quoting.BACK_TICK.string, serverMeta.getIdentifierQuoteString());
+    assertEquals(Quoting.DOUBLE_QUOTE.string, serverMeta.getIdentifierQuoteString());
   }
 }

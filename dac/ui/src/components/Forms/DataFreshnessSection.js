@@ -16,7 +16,6 @@
 import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
-import { label } from 'uiTheme/radium/forms';
 import { formDefault } from 'uiTheme/radium/typography';
 import HoverHelp from 'components/HoverHelp';
 import DurationField from 'components/Fields/DurationField';
@@ -37,8 +36,10 @@ export default class DataFreshnessSection extends Component {
   static propTypes = {
     fields: PropTypes.object,
     entityType: PropTypes.string,
-    dataset: PropTypes.instanceOf(Immutable.Map)
-  }
+    dataset: PropTypes.instanceOf(Immutable.Map),
+    elementConfig: PropTypes.object,
+    editing: PropTypes.bool
+  };
 
   static defaultFormValueRefreshInterval() {
     return DURATION_ONE_HOUR;
@@ -49,7 +50,7 @@ export default class DataFreshnessSection extends Component {
   }
 
   static getFields() {
-    return ['accelerationRefreshPeriod', 'accelerationGracePeriod'];
+    return ['accelerationRefreshPeriod', 'accelerationGracePeriod', 'accelerationNeverExpire', 'accelerationNeverRefresh'];
   }
 
   static validate(values, props) {
@@ -69,7 +70,7 @@ export default class DataFreshnessSection extends Component {
       } else {
         errors.accelerationGracePeriod = la('Reflection expiry must be at least 1 hour.');
       }
-    } else if (values.accelerationRefreshPeriod > values.accelerationGracePeriod) {
+    } else if (!values.accelerationNeverExpire && values.accelerationRefreshPeriod > values.accelerationGracePeriod) {
       errors.accelerationGracePeriod = la('Reflections cannot be configured to expire faster than they refresh.');
     }
 
@@ -77,15 +78,8 @@ export default class DataFreshnessSection extends Component {
   }
 
   state = {
-    disableRefreshing: false,
     refreshingReflections: false
-  }
-
-  componentWillMount() {
-    if (this.props.fields.accelerationRefreshPeriod.value === 0) {
-      this.setState({disableRefreshing: true});
-    }
-  }
+  };
 
   refreshAll = () => {
     ApiUtils.fetch(`catalog/${encodeURIComponent(this.props.dataset.get('id'))}/refresh`, {method: 'POST'}).then().catch();
@@ -107,42 +101,44 @@ export default class DataFreshnessSection extends Component {
     });
 
     this.setState({refreshingReflections: true});
-  }
+  };
 
   render() {
-    const { entityType, fields: { accelerationRefreshPeriod, accelerationGracePeriod } } = this.props;
-    const { disableRefreshing } = this.state;
+    const { entityType, elementConfig, editing, fields: { accelerationRefreshPeriod, accelerationGracePeriod, accelerationNeverRefresh, accelerationNeverExpire } } = this.props;
     const helpContent = la('How often reflections are refreshed and how long data can be served before expiration.');
 
     let message = null;
-    if (accelerationGracePeriod.value !== accelerationGracePeriod.initialValue) {
+    if (editing && accelerationGracePeriod.value !== accelerationGracePeriod.initialValue) {
       message = la(`Please note that reflections dependent on this ${entityType === 'dataset' ? 'dataset' : 'source'} will not use the updated expiration configuration until their next scheduled refresh. Use "Refresh Dependent Reflections" on ${entityType === 'dataset' ? 'this dataset' : ' any affected physical datasets'} for new configuration to take effect immediately.`);
     }
 
+    // do not show Refresh Policy header and tooltip in configurable forms with elementConfig
     return (
       <div>
         <NotificationSystem style={notificationStyles} ref='notificationSystem' autoDismiss={0} dismissible={false} />
+        {!elementConfig &&
         <span style={styles.label}>
           {la('Refresh Policy')}
-          <HoverHelp content={helpContent} tooltipInnerStyle={styles.hoverTip}/>
+          <HoverHelp content={helpContent}/>
         </span>
+        }
         <table>
           <tbody>
-            <tr colspan={2}>
-              <div style={{...styles.inputLabel, marginLeft: 5}}>
-                <Checkbox
-                  onChange={this.onCheckboxChange}
-                  checked={this.state.disableRefreshing}
-                  label={la('Never refresh')}/>
-              </div>
+            <tr>
+              <td colSpan={2}>
+                <div style={styles.inputLabel}>
+                  <Checkbox
+                    {...accelerationNeverRefresh}
+                    label={la('Never refresh')}/>
+                </div>
+              </td>
             </tr>
             <tr>
-              <td><div style={styles.inputLabel}>{la('Refresh every')}</div></td> {/* todo: ax: <label> */}
+              <td><div style={styles.inputLabel}>{la('Refresh every')}</div></td>{/* todo: ax: <label> */}
               <td>
                 <FieldWithError errorPlacement='right' {...accelerationRefreshPeriod}>
                   <div style={{display: 'flex'}}>
-                    <DurationField {...accelerationRefreshPeriod} min={MIN_DURATION} style={styles.durationField} disabled={disableRefreshing}/>
-
+                    <DurationField {...accelerationRefreshPeriod} min={MIN_DURATION} style={styles.durationField} disabled={!!accelerationNeverRefresh.value}/>
                     {entityType === 'dataset' && <Button
                       disable={this.state.refreshingReflections}
                       disableSubmit
@@ -156,12 +152,21 @@ export default class DataFreshnessSection extends Component {
               </td>
             </tr>
             <tr>
+              <td colSpan={2}>
+                <div style={styles.inputLabel}>
+                  <Checkbox
+                    {...accelerationNeverExpire}
+                    label={la('Never expire')}/>
+                </div>
+              </td>
+            </tr>
+            <tr>
               <td>
                 <div style={styles.inputLabel}>{la('Expire after')}</div> {/* todo: ax: <label> */}
               </td>
               <td>
                 <FieldWithError errorPlacement='right' {...accelerationGracePeriod}>
-                  <DurationField {...accelerationGracePeriod} min={MIN_DURATION} style={styles.durationField}/>
+                  <DurationField {...accelerationGracePeriod} min={MIN_DURATION} style={styles.durationField} disabled={!!accelerationNeverExpire.value}/>
                 </FieldWithError>
               </td>
             </tr>
@@ -170,14 +175,6 @@ export default class DataFreshnessSection extends Component {
         { message && <Message style={{marginTop: 5}} messageType={'warning'} message={message}/> }
       </div>
     );
-  }
-
-  onCheckboxChange = (e) => {
-    const { fields: { accelerationRefreshPeriod } } = this.props;
-    const disableRefreshing = e.target.checked;
-
-    this.setState({disableRefreshing});
-    accelerationRefreshPeriod.onChange(disableRefreshing ? 0 : accelerationRefreshPeriod.initialValue);
   }
 }
 
@@ -192,22 +189,22 @@ const styles = {
     marginTop: 3
   },
   label: {
-    ...label,
+    fontSize: '18px',
+    fontWeight: 300,
+    margin: '0 0 8px 0px',
+    color: '#555555',
     display: 'flex',
     alignItems: 'center'
   },
   inputLabel: {
     ...formDefault,
-    marginLeft: 10,
-    marginRight: 10
-  },
-  hoverTip: {
-    textAlign: 'left',
-    width: 300,
-    whiteSpace: 'pre-line'
+    marginRight: 10,
+    fontWeight: 500,
+    marginBottom: 4
   },
   durationField: {
-    width: 250
+    width: 250,
+    marginBottom: 7
   }
 };
 

@@ -26,13 +26,6 @@ export const areaWrap = {
   overflow: 'hidden'
 };
 
-export const fieldArea = {
-  background: whiteBackground,
-  border: borderSolidGray,
-  margin: '10px',
-  width: fieldAreaWidth
-};
-
 export const fieldBox = {
   background: greenBackground,
   border: borderDottedGreen,
@@ -42,7 +35,6 @@ export const fieldBox = {
 };
 
 const greenBorderColor = '#92E2D0';
-const grayBorderColor = 'rgba(0,0,0,0.10)';
 const defaultBorderWidth = {
   borderLeftWidth: '1px',
   borderRightWidth: '1px',
@@ -71,7 +63,7 @@ const dragArea = {
     minHeight: 180,
     height: '100%',
     overflow: 'auto',
-    padding: '2px 0',
+    //padding: '2px 0',
     ...defaultBorderWidth
   },
   empty: {
@@ -82,11 +74,7 @@ const dragArea = {
   },
   notEmpty: {
     alignItems: 'flex-start',
-    background: whiteBackground,
-    ...defaultBorderWidth,
-    borderColor: grayBorderColor,
-    borderStyle: 'solid',
-    boxShadow: 'none'
+    background: whiteBackground
   },
   grabbed: {
     alignItems: 'top',

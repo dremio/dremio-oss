@@ -18,36 +18,32 @@ package com.dremio.plugins.s3.store;
 import static org.apache.hadoop.fs.s3a.Constants.ENDPOINT;
 
 import java.io.IOException;
+import java.net.URI;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Nullable;
-
-import org.apache.directory.api.util.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.amazonaws.ClientConfiguration;
-import com.amazonaws.Protocol;
-import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.Region;
+import com.dremio.plugins.s3.store.copy.S3ClientFactory.DefaultS3ClientFactory;
+import com.dremio.plugins.s3.store.copy.S3Constants;
 import com.dremio.plugins.util.ContainerFileSystem;
-import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 
 /**
  * FileSystem implementation that treats multiple s3 buckets as a unified namespace
@@ -56,35 +52,22 @@ public class S3FileSystem extends ContainerFileSystem {
 
   private static final Logger logger = LoggerFactory.getLogger(S3FileSystem.class);
   private static final String S3_URI_SCHEMA = "s3a://";
+  private static final URI S3_URI = URI.create("s3a://aws"); // authority doesn't matter here, it is just to avoid exceptions
 
   private AmazonS3 s3;
 
   // TODO: why static?
-  private static final LoadingCache<S3ClientKey, AmazonS3Client> clientCache = CacheBuilder
+  private static final LoadingCache<S3ClientKey, AmazonS3> clientCache = CacheBuilder
           .newBuilder()
           .expireAfterAccess(1,TimeUnit.HOURS)
           .maximumSize(20)
-          .build(new CacheLoader<S3ClientKey, AmazonS3Client>() {
+          .build(new CacheLoader<S3ClientKey, AmazonS3>() {
             @Override
-            public AmazonS3Client load(S3ClientKey clientKey) throws Exception {
+            public AmazonS3 load(S3ClientKey clientKey) throws Exception {
               logger.debug("Opening S3 client connection for {}", clientKey);
-              ClientConfiguration clientConf = new ClientConfiguration();
-              clientConf.setProtocol(clientKey.isSecure ? Protocol.HTTPS : Protocol.HTTP);
-              // Proxy settings (if configured)
-              clientConf.setProxyHost(clientKey.s3Config.get(Constants.PROXY_HOST));
-              if (clientKey.s3Config.get(Constants.PROXY_PORT) != null) {
-                clientConf.setProxyPort(Integer.valueOf(clientKey.s3Config.get(Constants.PROXY_PORT)));
-              }
-              clientConf.setProxyDomain(clientKey.s3Config.get(Constants.PROXY_DOMAIN));
-              clientConf.setProxyUsername(clientKey.s3Config.get(Constants.PROXY_USERNAME));
-              clientConf.setProxyPassword(clientKey.s3Config.get(Constants.PROXY_PASSWORD));
-              clientConf.setProxyWorkstation(clientKey.s3Config.get(Constants.PROXY_WORKSTATION));
-
-              if (clientKey.accessKey == null){
-                return new AmazonS3Client(new AnonymousAWSCredentialsProvider(), clientConf);
-              } else {
-                return new AmazonS3Client(new BasicAWSCredentials(clientKey.accessKey, clientKey.secretKey), clientConf);
-              }
+              DefaultS3ClientFactory clientFactory = new DefaultS3ClientFactory();
+              clientFactory.setConf(clientKey.s3Config);
+              return clientFactory.createS3Client(S3_URI);
             }
           }); // Looks like there is no close/cleanup for AmazonS3Client
 
@@ -94,17 +77,14 @@ public class S3FileSystem extends ContainerFileSystem {
   }
 
   // Work around bug in s3a filesystem where the parent directory is included in list. Similar to HADOOP-12169
-  private static final Predicate<CorrectableFileStatus> ELIMINATE_PARENT_DIRECTORY = new Predicate<CorrectableFileStatus>() {
-    @Override
-    public boolean apply(@Nullable CorrectableFileStatus input) {
-      final FileStatus status = input.getStatus();
-
-      if (!status.isDirectory()) {
-        return true;
-      }
-      return !Path.getPathWithoutSchemeAndAuthority(input.getPathWithoutContainerName()).equals(Path.getPathWithoutSchemeAndAuthority(status.getPath()));
-    }
-  };
+  private static final Predicate<CorrectableFileStatus> ELIMINATE_PARENT_DIRECTORY =
+      (input -> {
+        final FileStatus status = input.getStatus();
+        if (!status.isDirectory()) {
+          return true;
+        }
+        return !Path.getPathWithoutSchemeAndAuthority(input.getPathWithoutContainerName()).equals(Path.getPathWithoutSchemeAndAuthority(status.getPath()));
+      });
 
   @Override
   protected void setup(Configuration conf) throws IOException {
@@ -122,36 +102,16 @@ public class S3FileSystem extends ContainerFileSystem {
 
     String externalBucketList = getConf().get(S3PluginConfig.EXTERNAL_BUCKETS);
     FluentIterable<String> buckets = externalBucketList == null ? FluentIterable.of(new String[0]) :
-      FluentIterable.of(externalBucketList.split(","))
-      .transform(new Function<String, String>(){
-
-        @Override
-        public String apply(String input) {
-          return input.trim();
-        }})
-
-      .filter(new Predicate<String>() {
-          @Override
-          public boolean apply(String input) {
-            return !Strings.isEmpty(input.trim());
-          }});
-
+        FluentIterable.of(externalBucketList.split(","))
+            .transform(input -> input.trim())
+            .filter(input -> !Strings.isNullOrEmpty(input));
 
     if(getConf().get(Constants.ACCESS_KEY) != null){
       // if we have an access key, add in owner buckets.
-      buckets = buckets.append(FluentIterable.from(s3.listBuckets())
-          .transform(new Function<Bucket, String>(){
-            @Override
-            public String apply(Bucket input) {
-              return input.getName();
-            }}));
+      buckets = buckets.append(FluentIterable.from(s3.listBuckets()).transform(input -> input.getName()));
     }
 
-    return FluentIterable.from(buckets.toSet()).transform(new Function<String, ContainerCreator>(){
-      @Override
-      public ContainerCreator apply(String input) {
-        return new BucketCreator(getConf(), input);
-      }});
+    return FluentIterable.from(buckets.toSet()).transform(input -> new BucketCreator(getConf(), input));
   }
 
   @Override
@@ -225,23 +185,41 @@ public class S3FileSystem extends ContainerFileSystem {
    * Key to identify a connection.
    */
   public static final class S3ClientKey {
-    private final String accessKey;
-    private final String secretKey;
-    private final boolean isSecure;
+
+    /**
+     * List of properties unique to a connection. This works in conjuction with {@link DefaultS3ClientFactory}
+     * implementation.
+     */
+    private static final List<String> UNIQUE_PROPS = ImmutableList.of(
+        Constants.ACCESS_KEY,
+        Constants.SECRET_KEY,
+        Constants.SECURE_CONNECTIONS,
+        Constants.ENDPOINT,
+        S3Constants.AWS_CREDENTIALS_PROVIDER,
+        Constants.MAXIMUM_CONNECTIONS,
+        Constants.MAX_ERROR_RETRIES,
+        Constants.ESTABLISH_TIMEOUT,
+        Constants.SOCKET_TIMEOUT,
+        S3Constants.SOCKET_SEND_BUFFER,
+        S3Constants.SOCKET_RECV_BUFFER,
+        S3Constants.SIGNING_ALGORITHM,
+        S3Constants.USER_AGENT_PREFIX,
+        Constants.PROXY_HOST,
+        Constants.PROXY_PORT,
+        Constants.PROXY_DOMAIN,
+        Constants.PROXY_USERNAME,
+        Constants.PROXY_PASSWORD,
+        Constants.PROXY_WORKSTATION,
+        S3Constants.PATH_STYLE_ACCESS
+    );
+
     private final Configuration s3Config;
 
     public static S3ClientKey create(final Configuration fsConf) {
-      return new S3ClientKey(
-              fsConf.get(Constants.ACCESS_KEY),
-              fsConf.get(Constants.SECRET_KEY),
-              Boolean.valueOf(fsConf.get(Constants.SECURE_CONNECTIONS, "true" /*default is true*/)),
-              fsConf);
+      return new S3ClientKey(fsConf);
     }
 
-    private S3ClientKey(final String accessKey, final String secretKey, final boolean isSecure, Configuration s3Config) {
-      this.accessKey = accessKey;
-      this.secretKey = secretKey;
-      this.isSecure = isSecure;
+    private S3ClientKey(final Configuration s3Config) {
       this.s3Config = s3Config;
     }
 
@@ -255,27 +233,30 @@ public class S3FileSystem extends ContainerFileSystem {
       }
 
       S3ClientKey that = (S3ClientKey) o;
-      return Objects.equals(accessKey, that.accessKey) &&
-              Objects.equals(secretKey, that.secretKey) &&
-              isSecure == that.isSecure &&
-              s3Config.get(Constants.PROXY_HOST) == that.s3Config.get(Constants.PROXY_HOST) &&
-              s3Config.get(Constants.PROXY_PORT) == that.s3Config.get(Constants.PROXY_PORT) &&
-              s3Config.get(Constants.PROXY_DOMAIN) == that.s3Config.get(Constants.PROXY_DOMAIN) &&
-              s3Config.get(Constants.PROXY_USERNAME) == that.s3Config.get(Constants.PROXY_USERNAME) &&
-              s3Config.get(Constants.PROXY_PASSWORD) == that.s3Config.get(Constants.PROXY_PASSWORD) &&
-              s3Config.get(Constants.PROXY_WORKSTATION) == that.s3Config.get(Constants.PROXY_WORKSTATION);
+
+      for(String prop : UNIQUE_PROPS) {
+        if (!Objects.equals(s3Config.get(prop), that.s3Config.get(prop))) {
+          return false;
+        }
+      }
+
+      return true;
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(accessKey, secretKey, isSecure);
+      int hash = 1;
+      for(String prop : UNIQUE_PROPS) {
+        hash = Objects.hash(hash, s3Config.get(prop));
+      }
+
+      return hash;
     }
 
     @Override
     public String toString() {
-      return "[ Access Key=" + accessKey + ", Secret Key =*****, isSecure="+ isSecure + " ]";
+      return "[ Access Key=" + s3Config.get(Constants.ACCESS_KEY) + ", Secret Key =*****, isSecure=" +
+          s3Config.get(Constants.SECURE_CONNECTIONS) + " ]";
     }
   }
-
-
 }

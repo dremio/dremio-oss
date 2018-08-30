@@ -69,7 +69,6 @@ public class TestResourceLeak extends DremioTest {
   private static SabotNode bit;
   private static ClusterCoordinator clusterCoordinator;
   private static SabotConfig config;
-  private static BufferAllocator allocator;
 
   @SuppressWarnings("serial")
   private static final Properties TEST_CONFIGURATIONS = new Properties() {
@@ -81,7 +80,6 @@ public class TestResourceLeak extends DremioTest {
   @BeforeClass
   public static void openClient() throws Exception {
     config = SabotConfig.create(TEST_CONFIGURATIONS);
-    allocator = RootAllocatorFactory.newRoot(config);
     clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
 
     bit = new SabotNode(config, clusterCoordinator, DremioTest.CLASSPATH_SCAN_RESULT, true);
@@ -93,7 +91,7 @@ public class TestResourceLeak extends DremioTest {
   public void tpch01() throws Exception {
     final String query = getFile("memory/tpch01_memory_leak.sql");
     try {
-      QueryTestUtil.test(client, "alter session set `planner.slice_target` = 10; " + query);
+      QueryTestUtil.test(client, "alter session set \"planner.slice_target\" = 10; " + query);
     } catch (UserRemoteException e) {
       if (e.getMessage().contains("Allocator closed with outstanding buffers allocated")) {
         return;
@@ -117,7 +115,6 @@ public class TestResourceLeak extends DremioTest {
       client.close();
       bit.close();
       clusterCoordinator.close();
-      allocator.close();
     } catch (IllegalStateException e) {
       e.printStackTrace();
     }

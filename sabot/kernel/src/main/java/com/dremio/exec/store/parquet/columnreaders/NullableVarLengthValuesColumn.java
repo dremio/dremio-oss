@@ -19,7 +19,7 @@ import io.netty.buffer.ArrowBuf;
 
 import java.io.IOException;
 
-import org.apache.arrow.vector.BaseNullableVariableWidthVector;
+import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.ValueVector;
 
 import org.apache.parquet.column.ColumnDescriptor;
@@ -72,7 +72,7 @@ public abstract class NullableVarLengthValuesColumn<V extends ValueVector> exten
     if ( columnDescriptor.getMaxDefinitionLevel() > currDefLevel) {
       nullsRead++;
       // set length of zero, each index in the vector defaults to null so no need to set the nullability
-      ((BaseNullableVariableWidthVector)variableWidthVector).setValueLengthSafe(
+      ((BaseVariableWidthVector)variableWidthVector).setValueLengthSafe(
           valuesReadInCurrentPass + pageReader.valuesReadyToRead, 0);
       currentValNull = true;
       return false;// field is null, no length to add to data vector
@@ -129,7 +129,7 @@ public abstract class NullableVarLengthValuesColumn<V extends ValueVector> exten
         currDictValToWrite = pageReader.dictionaryValueReader.readBytes();
       }
       // re-purposing  this field here for length in BYTES to prevent repetitive multiplication/division
-      dataTypeLengthInBits = ((BaseNullableVariableWidthVector)variableWidthVector).getValueLength(valuesReadInCurrentPass);
+      dataTypeLengthInBits = ((BaseVariableWidthVector)variableWidthVector).getValueLength(valuesReadInCurrentPass);
       boolean success = setSafe(valuesReadInCurrentPass, pageReader.pageData,
           (int) pageReader.readPosInBytes + 4, dataTypeLengthInBits);
       assert success;

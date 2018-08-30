@@ -91,9 +91,9 @@ public class HashAggPrel extends AggPrelBase implements Prel{
     // TODO: use distinct row count
     // + hash table template stuff
     double factor = PrelUtil.getPlannerSettings(planner).getOptions()
-      .getOption(ExecConstants.HASH_AGG_TABLE_FACTOR_KEY).float_val;
+      .getOption(ExecConstants.HASH_AGG_TABLE_FACTOR_KEY).getFloatVal();
     long fieldWidth = PrelUtil.getPlannerSettings(planner).getOptions()
-      .getOption(ExecConstants.AVERAGE_FIELD_WIDTH_KEY).num_val;
+      .getOption(ExecConstants.AVERAGE_FIELD_WIDTH_KEY).getNumVal();
 
     // table + hashValues + links
     double memCost =
@@ -131,21 +131,23 @@ public class HashAggPrel extends AggPrelBase implements Prel{
         return false;
       }
 
-      switch(expr.getCompleteType().toMinorType()){
-      case BIGINT:
-      case DATE:
-      case FLOAT4:
-      case FLOAT8:
-      case INT:
-      case INTERVALDAY:
-      case INTERVALYEAR:
-      case TIME:
-      case TIMESTAMP:
-      case VARBINARY:
-      case VARCHAR:
-        continue;
-      default:
-        return false;
+      switch(expr.getCompleteType().toMinorType()) {
+        case BIGINT:
+        case DATE:
+        case FLOAT4:
+        case FLOAT8:
+        case INT:
+        case INTERVALDAY:
+        case INTERVALYEAR:
+        case TIME:
+        case TIMESTAMP:
+        case VARBINARY:
+        case VARCHAR:
+        case DECIMAL:
+        case BIT:
+          continue;
+        default:
+          return false;
       }
     }
 
@@ -173,6 +175,17 @@ public class HashAggPrel extends AggPrelBase implements Prel{
       switch(func.getName()){
       case "$sum0":
       case "sum":
+        switch(inputType.toMinorType()){
+          case BIGINT:
+          case FLOAT4:
+          case FLOAT8:
+          case INT:
+          case DECIMAL:
+            continue;
+        }
+
+        return false;
+
       case "min":
       case "max":
         switch(inputType.toMinorType()){
@@ -180,6 +193,13 @@ public class HashAggPrel extends AggPrelBase implements Prel{
         case FLOAT4:
         case FLOAT8:
         case INT:
+        case BIT:
+        case DATE:
+        case INTERVALDAY:
+        case INTERVALYEAR:
+        case TIME:
+        case TIMESTAMP:
+        case DECIMAL:
           continue;
         }
 

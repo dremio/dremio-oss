@@ -23,6 +23,7 @@ import static com.dremio.exec.planner.sql.SqlExceptionHelper.START_LINE_CONTEXT;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import com.dremio.common.exceptions.UserException;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -41,6 +42,28 @@ public final class QueryError {
     private final int startColumn;
     private final int endLine;
     private final int endColumn;
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+
+      if (!(o instanceof QueryError.Range)) {
+        return false;
+      }
+
+      Range range = (Range) o;
+      return startLine == range.startLine &&
+        startColumn == range.startColumn &&
+        endLine == range.endLine &&
+        endColumn == range.endColumn;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(startLine, startColumn, endLine, endColumn);
+    }
 
     @JsonCreator
     public Range(

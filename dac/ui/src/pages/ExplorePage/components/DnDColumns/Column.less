@@ -13,60 +13,63 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.column-elem{
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+    
+  .column-elem{
 
-  .popup-column{
-    height: 22px;
-    padding: 3px 15px;
-    cursor: move;
-    font-size: 12px;
-    line-height: 20px;
+    .popup-column{
+      height: 22px;
+      padding: 3px 15px;
+      cursor: move;
+      font-size: 12px;
+      line-height: 20px;
 
-    .toogle-visible{
-      cursor: pointer;
-      margin-top: -6px;
-      width: 20px;
+      .toogle-visible{
+        cursor: pointer;
+        margin-top: -6px;
+        width: 20px;
+      }
+      .wrapper-tree {
+        margin-left: 40px;
+        text-align: left;
+        display: flex;
+        align-items: center;
+
+        .column-type {
+          margin-right: 5px;
+          color: #CACACA;
+        }
+
+        .node-selected {
+          background-color: #f3f3f3;
+        }
+
+        .hover {
+          background-color: #f3f3f3;
+          position: absolute;
+          top: 0;
+          height: 30px;
+          z-index: 0;
+        }
+
+        .node-icon {
+          display: none;
+          margin: 0;
+          padding-right: 10px;
+        }
+
+        .node-text {
+          color: black;
+          cursor: move;
+          display: inline-block;
+          position: absolute;
+        }
+      }
     }
-    .wrapper-tree {
-      margin-left: 40px;
-      text-align: left;
-      display: flex;
-      align-items: center;
 
-      .column-type {
-        margin-right: 5px;
-         color: #CACACA;
-       }
-
-      .node-selected {
-        background-color: #f3f3f3;
-      }
-
-      .hover {
-        background-color: #f3f3f3;
-        position: absolute;
-        top: 0;
-        height: 30px;
-        z-index: 0;
-      }
-
-      .node-icon {
-        display: none;
-        margin: 0;
-        padding-right: 10px;
-      }
-
-      .node-text {
-        color: black;
-        cursor: move;
-        display: inline-block;
-        position: absolute;
-      }
+    .column-draging{
+      opacity: 0;
     }
-  }
 
-  .column-draging{
-    opacity: 0;
   }
-
 }

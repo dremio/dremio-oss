@@ -31,6 +31,17 @@ DREMIO_LOG_DIR=/var/log/dremio
 DREMIO_PID_DIR=/var/run/dremio
 
 #
+# Max total memory size (in MB) for the Dremio process
+#
+# If not set, default to using max heap and max direct.
+#
+# If both max heap and max direct are set, this is not used
+# If one is set, the other is calculated as difference
+# of max memory and the one that is set.
+#
+#DREMIO_MAX_MEMORY_SIZE_MB=
+
+#
 # Max heap memory size (in MB) for the Dremio process
 #
 # Default to 4096 for server

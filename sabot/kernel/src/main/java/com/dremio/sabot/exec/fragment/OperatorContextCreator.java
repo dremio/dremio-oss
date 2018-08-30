@@ -29,17 +29,16 @@ import org.apache.arrow.memory.BufferAllocator;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.common.util.Numbers;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
-import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.NodeDebugContextProvider;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.sabot.exec.context.FragmentStats;
@@ -48,12 +47,14 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.service.namespace.NamespaceService;
+import com.google.common.base.Preconditions;
 
 class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
 
   private final List<AutoCloseable> operatorContexts = new ArrayList<>();
   private final FragmentStats stats;
   private final BufferAllocator allocator;
+  private BufferAllocator fragmentOutputAllocator;
   private final CodeCompiler compiler;
   private final SabotConfig config;
   private final FragmentHandle handle;
@@ -73,6 +74,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     super();
     this.stats = stats;
     this.allocator = allocator;
+    this.fragmentOutputAllocator = null;
     this.compiler = compiler;
     this.config = config;
     this.handle = handle;
@@ -85,8 +87,14 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     this.nodeDebugContextProvider = nodeDebugContextProvider;
   }
 
+  public void setFragmentOutputAllocator(BufferAllocator fragmentOutputAllocator) {
+    Preconditions.checkState(this.fragmentOutputAllocator == null);
+    this.fragmentOutputAllocator = fragmentOutputAllocator;
+  }
+
   @Override
   public OperatorContext newOperatorContext(PhysicalOperator popConfig) throws Exception {
+    Preconditions.checkState(this.fragmentOutputAllocator != null);
 
     final String allocatorName = String.format("op:%s:%d:%s",
       QueryIdHelper.getFragmentId(handle),
@@ -103,6 +111,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
         handle,
         popConfig,
         operatorAllocator,
+        fragmentOutputAllocator,
         compiler,
         stats,
         executionControls,

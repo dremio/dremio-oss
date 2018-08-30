@@ -47,12 +47,13 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
   @Test
   public void showTablesFromDb() throws Exception{
     testBuilder()
-        .sqlQuery("SHOW TABLES FROM hive.`default`")
+        .sqlQuery("SHOW TABLES FROM hive.\"default\"")
         .unOrdered()
         .baselineColumns("TABLE_SCHEMA", "TABLE_NAME")
         .baselineValues("hive.default", "partition_pruning_test")
         .baselineValues("hive.default", "readtest")
         .baselineValues("hive.default", "readtest_parquet")
+        .baselineValues("hive.default", "readtest_orc")
         .baselineValues("hive.default", "empty_table")
         .baselineValues("hive.default", "partitioned_empty_table")
         .baselineValues("hive.default", "infoschematest")
@@ -66,6 +67,7 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "dummy")
         .baselineValues("hive.default", "sorted_parquet")
         .baselineValues("hive.default", "parquet_region")
+        .baselineValues("hive.default", "orc_region")
         .baselineValues("hive.default", "parquet_mult_rowgroups")
         .go();
 
@@ -113,7 +115,7 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
         .go();
   }
 
-  private static void describeHelper(final String options, final String describeCmd) throws Exception {
+  private void describeHelper(final String options, final String describeCmd) throws Exception {
     final TestBuilder builder = testBuilder();
 
     if (!Strings.isNullOrEmpty(options)) {
@@ -131,14 +133,14 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
   // When table name is fully qualified with schema name (sub-schema is default schema)
   @Test
   public void describeTable1() throws Exception{
-    describeHelper(null, "DESCRIBE hive.`default`.kv");
+    describeHelper(null, "DESCRIBE hive.\"default\".kv");
   }
 
   // When table name is fully qualified with schema name (sub-schema is non-default schema)
   @Test
   public void describeTable2() throws Exception{
     testBuilder()
-        .sqlQuery("DESCRIBE hive.`db1`.kv_db1")
+        .sqlQuery("DESCRIBE hive.\"db1\".kv_db1")
         .unOrdered()
         .baselineColumns(baselineCols)
         .baselineValues("key", "CHARACTER VARYING", "YES")
@@ -156,7 +158,7 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
   // When table name is qualified with multi-level schema (sub-schema is default schema) given as single level schema name.
   @Test
   public void describeTable4() throws Exception {
-    describeHelper(null, "DESCRIBE `hive.default`.kv");
+    describeHelper(null, "DESCRIBE \"hive.default\".kv");
   }
 
   // When table name is qualified with multi-level schema (sub-schema is non-default schema)
@@ -164,7 +166,7 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
   @Test
   public void describeTable5() throws Exception {
     testBuilder()
-        .sqlQuery("DESCRIBE `hive.db1`.kv_db1")
+        .sqlQuery("DESCRIBE \"hive.db1\".kv_db1")
         .unOrdered()
         .baselineColumns(baselineCols)
         .baselineValues("key", "CHARACTER VARYING", "YES")
@@ -182,19 +184,19 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
   // When default schema is fully qualified with schema name and table is not qualified with a schema name
   @Test
   public void describeTable7() throws Exception {
-    describeHelper("USE hive.`default`", "DESCRIBE kv");
+    describeHelper("USE hive.\"default\"", "DESCRIBE kv");
   }
 
   // When default schema is qualified with multi-level schema.
   @Test
   public void describeTable8() throws Exception {
-    describeHelper("USE `hive`.`default`", "DESCRIBE kv");
+    describeHelper("USE \"hive\".\"default\"", "DESCRIBE kv");
   }
 
   // When default schema is top-level schema and table is qualified with sub-schema
   @Test
   public void describeTable9() throws Exception {
-    describeHelper("USE `hive`", "DESCRIBE `default`.kv");
+    describeHelper("USE \"hive\"", "DESCRIBE \"default\".kv");
   }
 
   @Test
@@ -202,7 +204,7 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
     final String query =
         "SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, " +
         "       NUMERIC_PRECISION_RADIX, NUMERIC_PRECISION, NUMERIC_SCALE " +
-        "FROM INFORMATION_SCHEMA.`COLUMNS` " +
+        "FROM INFORMATION_SCHEMA.\"COLUMNS\" " +
         "WHERE TABLE_SCHEMA = 'hive.default' AND TABLE_NAME = 'infoschematest' AND " +
         "(COLUMN_NAME = 'stringtype' OR COLUMN_NAME = 'varchartype' OR COLUMN_NAME = 'chartype' OR " +
         "COLUMN_NAME = 'inttype' OR COLUMN_NAME = 'decimaltype')";

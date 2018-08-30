@@ -16,12 +16,15 @@
 package com.dremio.exec.compile;
 
 import java.io.IOException;
+
+
 import org.codehaus.commons.compiler.CompileException;
+
 import com.dremio.common.util.DremioStringUtils;
 import com.dremio.common.util.FileUtils;
 import com.dremio.exec.exception.ClassTransformationException;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.server.options.Options;
+import com.dremio.options.OptionManager;
+import com.dremio.options.Options;
 import com.google.common.base.Preconditions;
 
 @Options

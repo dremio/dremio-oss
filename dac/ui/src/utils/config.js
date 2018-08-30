@@ -30,6 +30,7 @@ export default { // defaults, and defaults for unit tests
   showUserAndUserProperties: true,
   outsideCommunicationDisabled: false,
   lowerProvisioningSettingsEnabled: false,
+  allowFileUploads: true,
   versionInfo: {},
   isReleaseBuild: false,
   ...((window && window.dremioConfig) || {})

@@ -49,10 +49,17 @@ message ReflectionDetails {
   repeated ReflectionField partitionField = 1;
   repeated ReflectionField sortField = 2;
   repeated ReflectionDimensionField dimensionField = 3;
-  repeated ReflectionField measureField = 4;
+  repeated ReflectionMeasureField measureField = 4;
   repeated ReflectionField displayField = 5;
   repeated ReflectionField distributionField = 6;
   optional PartitionDistributionStrategy partitionDistributionStrategy = 7 [default = CONSOLIDATED];
+}
+
+message ReflectionMeasureField {
+  // field name
+  required string name = 1;
+
+  repeated MeasureType measure_type = 2;
 }
 
 message ReflectionField {

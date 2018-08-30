@@ -2,8 +2,8 @@
 select
   sum(l.l_extendedprice* (1 - l.l_discount)) as revenue
 from
-  cp.`tpch/lineitem.parquet` l,
-  cp.`tpch/part.parquet` p
+  cp."tpch/lineitem.parquet" l,
+  cp."tpch/part.parquet" p
 where
     p.p_partkey = l.l_partkey
     and (

@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import {Link} from 'react-router';
+import { Link } from 'react-router';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import Immutable from 'immutable';
 import { injectIntl } from 'react-intl';
 
+import config from 'utils/config';
 import Art from 'components/Art';
 import HeaderButtonsMixin from 'dyn-load/pages/HomePage/components/HeaderButtonsMixin';
 
@@ -120,13 +121,6 @@ export class HeaderButtons extends Component {
     const headerButtonsHash = {
       space: [
         ...this.getSpaceSettingsButtons()
-        /*,
-        {
-          qa: 'add-dataset',
-          iconType: 'VirtualDataset',
-          to: {...location, state: {modal: 'AddDatasetModal'}},
-          isAdd: true
-        }   */
       ],
       source: [
         ...this.getSourceSettingsButtons(),
@@ -138,22 +132,21 @@ export class HeaderButtons extends Component {
           iconType: 'Folder',
           to: {...location, state: {modal: 'AddFolderModal'}},
           isAdd: true
-        },
-        // TODO disabled for beta 1
-        // {
-        //   qa: 'add-dataset',
-        //   iconType: 'VirtualDataset',
-        //   to: {...location, state: {modal: 'AddDatasetModal'}},
-        //   isAdd: true
-        // },
+        }
+      ]
+    };
+
+    if (config.allowFileUploads) {
+      headerButtonsHash.home.push(
         {
           qa: 'add-file',
           iconType: 'File',
           to: {...location, state: {modal: 'AddFileModal'}},
           isAdd: true
         }
-      ]
-    };
+      );
+    }
+
     const buttonsForCurrentPage = headerButtonsHash[rootEntityType] || [];
     const { rightTreeVisible } = this.props;
     const buttonsClass = classNames('settings-button', {'active': rightTreeVisible});

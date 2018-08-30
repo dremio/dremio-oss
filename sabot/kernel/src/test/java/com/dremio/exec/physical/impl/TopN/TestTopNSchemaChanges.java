@@ -39,7 +39,7 @@ public class TestTopNSchemaChanges extends BaseTestQuery {
   private void attemptTestNumericTypes(String query) throws Exception {
     TestBuilder builder = testBuilder()
       .sqlQuery(query)
-      .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
+      .optionSettingQueriesForTestQuery("alter session set \"exec.enable_union_type\" = true")
       .ordered()
       .baselineColumns("kl", "vl");
 
@@ -68,7 +68,7 @@ public class TestTopNSchemaChanges extends BaseTestQuery {
       writer.write(String.format("{ \"kl\" : %f , \"vl\": %f }\n", (float)i, (float)i));
     }
     writer.close();
-    String query = String.format("select * from dfs_root.`%s` order by kl limit 12", data_dir.toPath().toString());
+    String query = String.format("select * from dfs_root.\"%s\" order by kl limit 12", data_dir.toPath().toString());
 
     // First query will get a schema change error
     try {
@@ -86,7 +86,7 @@ public class TestTopNSchemaChanges extends BaseTestQuery {
   private void attemptTestNumericAndStringTypes(String query) throws Exception {
     TestBuilder builder = testBuilder()
       .sqlQuery(query)
-      .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
+      .optionSettingQueriesForTestQuery("alter session set \"exec.enable_union_type\" = true")
       .ordered()
       .baselineColumns("kl", "vl")
       .baselineValues("999", "999")
@@ -119,7 +119,7 @@ public class TestTopNSchemaChanges extends BaseTestQuery {
       writer.write(String.format("{ \"kl\" : \"%s\" , \"vl\": \"%s\" }\n", i, i));
     }
     writer.close();
-    String query = String.format("select * from dfs_root.`%s` order by kl desc limit 12", data_dir.toPath().toString());
+    String query = String.format("select * from dfs_root.\"%s\" order by kl desc limit 12", data_dir.toPath().toString());
     // First query will get a schema change error
     try {
       attemptTestNumericAndStringTypes(query);
@@ -153,11 +153,11 @@ public class TestTopNSchemaChanges extends BaseTestQuery {
       }
     }
     writer.close();
-    String query = String.format("select * from dfs_root.`%s` order by kl limit 8", data_dir.toPath().toString());
+    String query = String.format("select * from dfs_root.\"%s\" order by kl limit 8", data_dir.toPath().toString());
 
     TestBuilder builder = testBuilder()
       .sqlQuery(query)
-      .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
+      .optionSettingQueriesForTestQuery("alter session set \"exec.enable_union_type\" = true")
       .ordered()
       .baselineColumns("kl", "vl")
       .baselineValues(0l, 0l)

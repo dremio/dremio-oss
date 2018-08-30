@@ -109,7 +109,7 @@ public class ConvertCountToDirectScan extends Prule {
   @Override
   public boolean matches(RelOptRuleCall call) {
     FilesystemScanDrel scan = call.rel(scanIndex);
-    if(scan.getConditions() != null && !scan.getConditions().isEmpty()){
+    if(scan.getFilter() != null){
       return false;
     }
     // we only support accurate counts when using Parquet, everything else is executed normally.

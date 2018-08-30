@@ -17,43 +17,37 @@ package com.dremio.exec.fn.impl;
 
 import static org.junit.Assert.assertTrue;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.arrow.vector.ValueHolderHelper;
 import org.apache.arrow.vector.holders.VarCharHolder;
 import org.apache.arrow.vector.util.ByteFunctionHelpers;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecTest;
 
 public class TestByteComparisonFunctions extends ExecTest {
   //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestByteComparisonFunctions.class);
 
-  private static BufferAllocator allocator;
   private static VarCharHolder hello;
   private static VarCharHolder goodbye;
   private static VarCharHolder helloLong;
   private static VarCharHolder goodbyeLong;
 
-  @BeforeClass
-  public static void setup() {
-    allocator = RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG);
+  @Before
+  public void setup() {
     hello = ValueHolderHelper.getVarCharHolder(allocator, "hello");
     goodbye = ValueHolderHelper.getVarCharHolder(allocator, "goodbye");
     helloLong = ValueHolderHelper.getVarCharHolder(allocator, "hellomyfriend");
     goodbyeLong = ValueHolderHelper.getVarCharHolder(allocator, "goodbyemyenemy");
   }
 
-  @AfterClass
-  public static void teardown() {
+  @After
+  public void teardown() {
     hello.buffer.release();
     helloLong.buffer.release();
     goodbye.buffer.release();
     goodbyeLong.buffer.release();
-    AutoCloseables.closeNoChecked(allocator);
   }
 
   @Test

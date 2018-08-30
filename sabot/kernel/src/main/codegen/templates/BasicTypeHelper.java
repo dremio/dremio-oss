@@ -23,7 +23,7 @@
 
 <#include "/@includes/vv_imports.ftl" />
 import org.apache.arrow.vector.complex.ListVector;
-import org.apache.arrow.vector.complex.NullableMapVector;
+import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.arrow.vector.util.CallBack;
 import org.apache.arrow.vector.complex.impl.*;
@@ -65,7 +65,8 @@ public class BasicTypeHelper {
     case ${minor.class?upper_case}:
     return ${type.width}<#if minor.class?substring(0, 3) == "Var" ||
             minor.class?substring(0, 3) == "PRO" ||
-            minor.class?substring(0, 3) == "MSG"> + WIDTH_ESTIMATE</#if>;
+            minor.class?substring(0, 3) == "MSG" ||
+            minor.class?substring(0, 3) == "Fix"> + WIDTH_ESTIMATE</#if>;
     </#if>
     </#list>
     </#list>
@@ -77,8 +78,8 @@ public class BasicTypeHelper {
     switch (type) {
     case UNION:
       return UnionVector.class;
-    case MAP:
-        return NullableMapVector.class;
+    case STRUCT:
+        return StructVector.class;
     case LIST:
         return ListVector.class;
     case NULL:
@@ -89,8 +90,8 @@ public class BasicTypeHelper {
     <#assign supported = typeMapping.supported!true>
     <#if supported>
     case ${minor.class?upper_case}:
-      return Nullable${minor.class}Vector.class;
-    </#if>  
+      return ${minor.class}Vector.class;
+    </#if>
     </#list>
     </#list>
     default:
@@ -111,7 +112,7 @@ public class BasicTypeHelper {
     <#assign supported = typeMapping.supported!true>
     <#if supported>
     case ${minor.class?upper_case}:
-      return Nullable${minor.class}ReaderImpl.class;
+      return ${minor.class}ReaderImpl.class;
     </#if>
     </#list>
     </#list>
@@ -125,7 +126,7 @@ public class BasicTypeHelper {
   public static Class<?> getWriterInterface(MinorType type){
     switch (type) {
     case UNION: return UnionWriter.class;
-    case MAP: return MapWriter.class;
+    case STRUCT: return StructWriter.class;
     case LIST: return ListWriter.class;
     <#list vv.types as type>
     <#list type.minor as minor>
@@ -146,8 +147,8 @@ public class BasicTypeHelper {
     switch (type) {
     case UNION:
       return UnionWriter.class;
-    case MAP:
-        return NullableMapWriter.class;
+    case STRUCT:
+        return NullableStructWriter.class;
     case LIST:
         return UnionListWriter.class;
       <#list vv.types as type>
@@ -157,7 +158,7 @@ public class BasicTypeHelper {
     <#if supported>
     case ${minor.class?upper_case}:
       return ${minor.class}WriterImpl.class;
-    </#if>  
+    </#if>
     </#list>
     </#list>
     default:
@@ -210,12 +211,12 @@ public class BasicTypeHelper {
         listVector.initializeChildrenFromFields(children);
       }
       return listVector;
-    case MAP:
-      NullableMapVector mapVector = new NullableMapVector(field.getName(), allocator, callBack);
+    case STRUCT:
+      StructVector structVector = new StructVector(field.getName(), allocator, callBack);
       if(!children.isEmpty()){
-        mapVector.initializeChildrenFromFields(children);
+        structVector.initializeChildrenFromFields(children);
       }
-      return mapVector;
+      return structVector;
 
     case NULL:
         return new ZeroVector();
@@ -227,11 +228,15 @@ public class BasicTypeHelper {
     case ${minor.class?upper_case}:
       <#if minor.class == "Decimal">
       Decimal dec = ((Decimal) field.getType());
-      return new NullableDecimalVector(field.getName(), allocator, dec.getPrecision(), dec.getScale());
+      return new DecimalVector(field.getName(), allocator, dec.getPrecision(), dec.getScale());
       <#else>
-      return new Nullable${minor.class}Vector(field.getName(), allocator);
+      <#if minor.class == "FixedSizeBinary">
+      return new ${minor.class}Vector(field.getName(), allocator, WIDTH_ESTIMATE);
+      <#else>
+      return new ${minor.class}Vector(field.getName(), allocator);
       </#if>
-    </#if>  
+      </#if>
+    </#if>
     </#list>
     </#list>
     default:
@@ -376,17 +381,17 @@ public class BasicTypeHelper {
     case ${dremioMinorType} :
     switch (type.getMode()) {
     case REQUIRED:
-      ((${minor.class}Vector) vector).getMutator().setSafe(index, (${minor.class}Holder) holder);
+      ((${minor.class}Vector) vector).setSafe(index, (${minor.class}Holder) holder);
     return;
     case OPTIONAL:
     if (holder instanceof Nullable${minor.class}Holder) {
         if (((Nullable${minor.class}Holder) holder).isSet == 1) {
-        ((Nullable${minor.class}Vector) vector).setSafe(index, (Nullable${minor.class}Holder) holder);
+        ((${minor.class}Vector) vector).setSafe(index, (Nullable${minor.class}Holder) holder);
       } else {
-        ((Nullable${minor.class}Vector) vector).isSafe(index);
+        ((${minor.class}Vector) vector).isSafe(index);
       }
     } else {
-      ((Nullable${minor.class}Vector) vector).setSafe(index, (${minor.class}Holder) holder);
+      ((${minor.class}Vector) vector).setSafe(index, (${minor.class}Holder) holder);
     }
     return;
     }
@@ -450,18 +455,18 @@ public class BasicTypeHelper {
     <#if supported>
     case ${minor.class?upper_case} :
     <#if minor.class?starts_with("Var") || minor.class == "IntervalDay" || minor.class == "Interval" ||
-            minor.class?starts_with("Decimal")>
+            minor.class?starts_with("Decimal") || minor.class == "FixedSizeBinary">
       holder = new Nullable${minor.class}Holder();
-    ((Nullable${minor.class}Holder)holder).isSet = ((Nullable${minor.class}Vector) vector).isSet(index);
+    ((Nullable${minor.class}Holder)holder).isSet = ((${minor.class}Vector) vector).isSet(index);
     if (((Nullable${minor.class}Holder)holder).isSet == 1) {
-      ((Nullable${minor.class}Vector) vector).get(index, (Nullable${minor.class}Holder)holder);
+      ((${minor.class}Vector) vector).get(index, (Nullable${minor.class}Holder)holder);
     }
     return holder;
     <#else>
       holder = new Nullable${minor.class}Holder();
-    ((Nullable${minor.class}Holder)holder).isSet = ((Nullable${minor.class}Vector) vector).isSet(index);
+    ((Nullable${minor.class}Holder)holder).isSet = ((${minor.class}Vector) vector).isSet(index);
     if (((Nullable${minor.class}Holder)holder).isSet == 1) {
-      ((Nullable${minor.class}Holder)holder).value = ((Nullable${minor.class}Vector) vector).get(index);
+      ((Nullable${minor.class}Holder)holder).value = ((${minor.class}Vector) vector).get(index);
     }
     return holder;
     </#if>

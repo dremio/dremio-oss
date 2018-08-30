@@ -33,6 +33,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.Transformer.DatasetAndJob;
 import com.dremio.dac.explore.model.DatasetName;
 import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.explore.model.DatasetSummary;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.DatasetVersionResourcePath;
 import com.dremio.dac.explore.model.FromBase;
@@ -199,7 +200,7 @@ public class DatasetTool {
         case EXECUTION:
         case VALIDATION:
           error = new ApiErrorModel<>(ApiErrorModel.ErrorType.INVALID_QUERY, failureInfo.getMessage(), null,
-              new InvalidQueryException.Details(jobInfo.getSql(), ImmutableList.<String> of(), failureInfo.getErrors()));
+              new InvalidQueryException.Details(jobInfo.getSql(), ImmutableList.<String> of(), failureInfo.getErrors(), null));
           break;
 
         case UNKNOWN:
@@ -218,7 +219,7 @@ public class DatasetTool {
       DatasetVersion version,
       List<String> context)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
-    return newUntitled(from, version, context, false);
+    return newUntitled(from, version, context, null, false);
   }
 
   private List<String> getParentDataset(FromBase from) {
@@ -239,12 +240,25 @@ public class DatasetTool {
    *
    * @param e
    * @param sql
-   * @param datasetType
-   * @param from
    * @param context
    * @return the original exception if it cannot be converted into {@code InvalidQueryException}
    */
   public static UserException toInvalidQueryException(UserException e, String sql, List<String> context) {
+    return toInvalidQueryException(e, sql, context, null);
+  }
+
+  /**
+   * Check if UserException can be converted into {@code InvalidQueryException} and throw this exception
+   * instead
+   *
+   * @param e
+   * @param sql
+   * @param context
+   * @param datasetSummary
+   * @return the original exception if it cannot be converted into {@code InvalidQueryException}
+   */
+  public static UserException toInvalidQueryException(UserException e, String sql, List<String> context,
+                                                      DatasetSummary datasetSummary) {
     switch(e.getErrorType()) {
     case PARSE:
     case PLAN:
@@ -253,7 +267,7 @@ public class DatasetTool {
           new InvalidQueryException.Details(
               sql,
               context,
-              QueryError.of(e)), e);
+              QueryError.of(e), datasetSummary), e);
 
       default:
         return e;
@@ -276,6 +290,7 @@ public class DatasetTool {
       FromBase from,
       DatasetVersion version,
       List<String> context,
+      DatasetSummary parentSummary,
       boolean prepare)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
 
@@ -293,11 +308,12 @@ public class DatasetTool {
       List<String> parentDataset = getParentDataset(from);
 
       if (ex instanceof UserException) {
-        toInvalidQueryException((UserException) ex, query.getSql(), context);
+        toInvalidQueryException((UserException) ex, query.getSql(), context, parentSummary);
       }
 
+      // make sure we pass the parentSummary so that the UI can render edit original sql
       throw new NewDatasetQueryException(new NewDatasetQueryException.ExplorePageInfo(
-        parentDataset, query.getSql(), context, newDataset(newDataset, null).getDatasetType()), ex);
+        parentDataset, query.getSql(), context, newDataset(newDataset, null).getDatasetType(), parentSummary), ex);
     }
   }
 
@@ -375,6 +391,7 @@ public class DatasetTool {
     vds.setState(dss);
     vds.setSql(SQLGenerator.generateSQL(dss));
     vds.setId(UUID.randomUUID().toString());
+    vds.setContextList(sqlContext);
     return vds;
   }
 
@@ -507,6 +524,7 @@ public class DatasetTool {
               .setDatasetPath(newPath.toPathString())
               .setDatasetVersion(previousVersion.getDatasetVersion());
           currentDataset.setPreviousVersion(prev);
+          currentDataset.setName(newPath.getDataset().getName());
           datasetService.putVersion(currentDataset);
           currentDataset = datasetService.getVersion(previousPath, previousDatasetVersion);
         } else {
@@ -564,7 +582,7 @@ public class DatasetTool {
     }
 
     final Set<List<String>> origins = new HashSet<>();
-    for(FieldOrigin col : newDataset.getFieldOriginsList()){
+    for(FieldOrigin col : listNotNull(newDataset.getFieldOriginsList())) {
       for(Origin colOrigin : listNotNull(col.getOriginsList())){
         origins.add(colOrigin.getTableList());
       }

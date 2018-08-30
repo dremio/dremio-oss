@@ -22,7 +22,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.parquet.schema.GroupType;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.sabot.op.scan.OutputMutator;

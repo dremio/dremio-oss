@@ -20,7 +20,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.schema.ArrowRecordBatch;
+import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.MinorFragmentEndpoint;

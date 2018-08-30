@@ -45,7 +45,7 @@ export class EditSourceModal extends Component {
     const { isOpen, query, hide, updateFormDirtyState, intl } = this.props;
     return (
       <Modal
-        size='large'
+        size='medium'
         title={intl.formatMessage({ id: 'Source.EditSource' })}
         isOpen={isOpen}
         hide={hide}>

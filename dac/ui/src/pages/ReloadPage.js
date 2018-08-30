@@ -33,7 +33,7 @@ export default class ReloadPage extends PureComponent {
     try {
       this.context.router.replace(this.props.location.state.to);
     } catch (e) {
-      console.error(e);
+      console.error(e.message);
       this.context.router.replace('/');
     }
   }

@@ -29,6 +29,10 @@ import com.dremio.service.Service;
  * subsequent calls to the "getter" APIs will return more info as available
  */
 public interface ProvisioningService extends Service {
+  /**
+   * Property for configuring container heap size (in MB)
+   */
+  public static final String YARN_HEAP_SIZE_MB_PROPERTY = "provisioning.yarn.heapsize";
 
   /**
    * Create Cluster configuration API as well as starting cluster

@@ -21,10 +21,10 @@ import java.util.concurrent.TimeUnit;
 
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.exec.serialization.JacksonSerializer;
-import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.sys.PersistentStore;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
+import com.dremio.options.OptionValue;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;

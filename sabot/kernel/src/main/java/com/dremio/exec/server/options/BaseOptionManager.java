@@ -15,10 +15,13 @@
  */
 package com.dremio.exec.server.options;
 
-import com.dremio.exec.server.options.TypeValidators.BooleanValidator;
-import com.dremio.exec.server.options.TypeValidators.DoubleValidator;
-import com.dremio.exec.server.options.TypeValidators.LongValidator;
-import com.dremio.exec.server.options.TypeValidators.StringValidator;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidator;
+import com.dremio.options.OptionValue;
+import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.DoubleValidator;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.StringValidator;
 
 abstract class BaseOptionManager implements OptionManager {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseOptionManager.class);
@@ -36,21 +39,21 @@ abstract class BaseOptionManager implements OptionManager {
 
   @Override
   public boolean getOption(BooleanValidator validator) {
-    return getOptionSafe(validator).bool_val;
+    return getOptionSafe(validator).getBoolVal();
   }
 
   @Override
   public double getOption(DoubleValidator validator) {
-    return getOptionSafe(validator).float_val;
+    return getOptionSafe(validator).getFloatVal();
   }
 
   @Override
   public long getOption(LongValidator validator) {
-    return getOptionSafe(validator).num_val;
+    return getOptionSafe(validator).getNumVal();
   }
 
   @Override
   public String getOption(StringValidator validator) {
-    return getOptionSafe(validator).string_val;
+    return getOptionSafe(validator).getStringVal();
   }
 }

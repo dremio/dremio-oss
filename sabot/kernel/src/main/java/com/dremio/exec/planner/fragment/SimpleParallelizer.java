@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -38,6 +39,7 @@ import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.fragment.Fragment.ExchangeFragmentPair;
 import com.dremio.exec.planner.fragment.Materializer.IndexedFragmentNode;
 import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.Collector;
 import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
 import com.dremio.exec.proto.CoordExecRPC.IncomingMinorFragment;
@@ -46,10 +48,10 @@ import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.QueryId;
-import com.dremio.exec.server.options.OptionList;
-import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ForemanSetupException;
+import com.dremio.options.OptionList;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
@@ -77,8 +79,14 @@ public class SimpleParallelizer implements ParallelizationParameters {
   private final AttemptObserver observer;
   private final ExecutionNodeMap executionMap;
   private final FragmentCodec fragmentCodec;
+  private final QueryContext queryContext;
 
   public SimpleParallelizer(QueryContext context, AttemptObserver observer) {
+    this(context, observer, null);
+  }
+
+  public SimpleParallelizer(QueryContext context, AttemptObserver observer, Collection<NodeEndpoint> activeEndpoints) {
+    this.queryContext = context;
     OptionManager optionManager = context.getOptions();
     long sliceTarget = context.getPlannerSettings().getSliceTarget();
     this.parallelizationThreshold = sliceTarget > 0 ? sliceTarget : 1;
@@ -92,17 +100,23 @@ public class SimpleParallelizer implements ParallelizationParameters {
       logger.debug("Cluster load {} exceeded cutoff, max_width_factor = {}. current max_width = {}",
         clusterLoad, maxWidthFactor, this.maxWidthPerNode);
     }
-    this.executionMap = new ExecutionNodeMap(context.getActiveEndpoints());
+    this.executionMap = new ExecutionNodeMap(Optional.ofNullable(activeEndpoints).orElse(context.getActiveEndpoints()));
     this.maxGlobalWidth = (int) optionManager.getOption(ExecConstants.MAX_WIDTH_GLOBAL);
     this.affinityFactor = optionManager.getOption(ExecConstants.AFFINITY_FACTOR);
     this.useNewAssignmentCreator = !optionManager.getOption(ExecConstants.OLD_ASSIGNMENT_CREATOR);
     this.assignmentCreatorBalanceFactor = optionManager.getOption(ExecConstants.ASSIGNMENT_CREATOR_BALANCE_FACTOR);
     this.observer = observer;
     this.fragmentCodec = FragmentCodec.valueOf(optionManager.getOption(ExecConstants.FRAGMENT_CODEC).toUpperCase());
-
   }
 
-  public SimpleParallelizer(long parallelizationThreshold, int maxWidthPerNode, int maxGlobalWidth, double affinityFactor, AttemptObserver observer, boolean useNewAssignmentCreator, double assignmentCreatorBalanceFactor) {
+  @VisibleForTesting
+  public SimpleParallelizer(long parallelizationThreshold,
+                            int maxWidthPerNode,
+                            int maxGlobalWidth,
+                            double affinityFactor,
+                            AttemptObserver observer,
+                            boolean useNewAssignmentCreator,
+                            double assignmentCreatorBalanceFactor) {
     this.executionMap = new ExecutionNodeMap(Collections.<NodeEndpoint>emptyList());
     this.parallelizationThreshold = parallelizationThreshold;
     this.maxWidthPerNode = maxWidthPerNode;
@@ -112,6 +126,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
     this.useNewAssignmentCreator = useNewAssignmentCreator;
     this.assignmentCreatorBalanceFactor = assignmentCreatorBalanceFactor;
     this.fragmentCodec = FragmentCodec.NONE;
+    this.queryContext = null;
   }
 
   @Override
@@ -176,7 +191,35 @@ public class SimpleParallelizer implements ParallelizationParameters {
     stopwatch.stop();
     observer.planAssignmentTime(stopwatch.elapsed(TimeUnit.MILLISECONDS));
     stopwatch.start();
-    List<PlanFragment> fragments = generateWorkUnit(options, foremanNode, queryId, reader, rootFragment, planningSet, session, queryContextInfo, functionLookupContext);
+    List<PlanFragment> fragments = generateWorkUnit(options, foremanNode, queryId, reader, rootFragment, planningSet,
+      session, queryContextInfo, functionLookupContext);
+    stopwatch.stop();
+    observer.planGenerationTime(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    observer.plansDistributionComplete(new QueryWorkUnit(fragments));
+    return fragments;
+  }
+
+  /**
+   * Generate set of assigned fragments based on predefined PlanningSet
+   * versus doing parallelization in place
+   * QueryContext has to be not null from construction of Parallelizer
+   * @param options
+   * @param planningSet
+   * @param reader
+   * @param rootFragment
+   * @return
+   * @throws ExecutionSetupException
+   */
+  public List<PlanFragment> getFragments(
+    OptionList options,
+    PlanningSet planningSet,
+    PhysicalPlanReader reader,
+    Fragment rootFragment) throws ExecutionSetupException {
+    Preconditions.checkNotNull(queryContext);
+    final Stopwatch stopwatch = Stopwatch.createStarted();
+    observer.planAssignmentTime(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    List<PlanFragment> fragments =
+      generateWorkUnit(options, reader, rootFragment, planningSet);
     stopwatch.stop();
     observer.planGenerationTime(stopwatch.elapsed(TimeUnit.MILLISECONDS));
     observer.plansDistributionComplete(new QueryWorkUnit(fragments));
@@ -190,7 +233,8 @@ public class SimpleParallelizer implements ParallelizationParameters {
    * @return
    * @throws ExecutionSetupException
    */
-  protected PlanningSet getFragmentsHelper(Collection<NodeEndpoint> activeEndpoints, Fragment rootFragment) throws ExecutionSetupException {
+  public PlanningSet getFragmentsHelper(Collection<NodeEndpoint> activeEndpoints, Fragment rootFragment) throws
+    ExecutionSetupException {
 
     PlanningSet planningSet = new PlanningSet();
 
@@ -205,6 +249,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
 
     return planningSet;
   }
+
 
   // For every fragment, create a Wrapper in PlanningSet.
   @VisibleForTesting
@@ -266,7 +311,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
    * parallelizing the given fragment.
    */
   private void parallelizeFragment(Wrapper fragmentWrapper, PlanningSet planningSet,
-      Collection<NodeEndpoint> activeEndpoints) throws PhysicalOperatorSetupException {
+                                   Collection<NodeEndpoint> activeEndpoints) throws PhysicalOperatorSetupException {
     // If the fragment is already parallelized, return.
     if (fragmentWrapper.isEndpointsAssignmentDone()) {
       return;
@@ -285,11 +330,40 @@ public class SimpleParallelizer implements ParallelizationParameters {
     fragmentWrapper.getNode().getRoot().accept(new StatsCollector(planningSet, executionMap), fragmentWrapper);
 
     fragmentWrapper.getStats().getDistributionAffinity()
-        .getFragmentParallelizer()
-        .parallelizeFragment(fragmentWrapper, this, activeEndpoints);
+      .getFragmentParallelizer()
+      .parallelizeFragment(fragmentWrapper, this, activeEndpoints);
   }
 
-  protected List<PlanFragment> generateWorkUnit(
+  /**
+   * To facilitate generating workunits
+   * with the assumption that QueryContext is NOT null
+   * it's not always going to be true, since e.g. QueryContextInfo
+   * may change between ctor and this method
+   * @param options
+   * @param reader
+   * @param rootNode
+   * @param planningSet
+   * @return
+   * @throws ExecutionSetupException
+   */
+  private List<PlanFragment> generateWorkUnit(
+    OptionList options,
+    PhysicalPlanReader reader,
+    Fragment rootNode,
+    PlanningSet planningSet) throws ExecutionSetupException {
+    Preconditions.checkNotNull(queryContext);
+    return generateWorkUnit(options,
+      queryContext.getCurrentEndpoint(),
+      queryContext.getQueryId(),
+      reader,
+      rootNode,
+      planningSet,
+      queryContext.getSession(),
+      queryContext.getQueryContextInfo(),
+      queryContext.getFunctionRegistry());
+  }
+
+    protected List<PlanFragment> generateWorkUnit(
       OptionList options,
       NodeEndpoint foremanNode,
       QueryId queryId,
@@ -315,6 +389,10 @@ public class SimpleParallelizer implements ParallelizationParameters {
       }
       // a fragment is self driven if it doesn't rely on any other exchanges.
       boolean isLeafFragment = node.getReceivingExchangePairs().size() == 0;
+
+      CoordExecRPC.QueryContextInformation queryContextInformation = CoordExecRPC.QueryContextInformation.newBuilder
+        (queryContextInfo)
+        .setQueryMaxAllocation(wrapper.getMaxAllocation()).build();
 
       // Create a minorFragment for each major fragment.
       for (int minorFragmentId = 0; minorFragmentId < wrapper.getWidth(); minorFragmentId++) {
@@ -347,9 +425,9 @@ public class SimpleParallelizer implements ParallelizationParameters {
             .setHandle(handle) //
             .setAssignment(wrapper.getAssignedEndpoint(minorFragmentId)) //
             .setLeafFragment(isLeafFragment) //
-            .setContext(queryContextInfo)
+            .setContext(queryContextInformation)
             .setMemInitial(wrapper.getInitialAllocation())//
-            .setMemMax(wrapper.getMaxAllocation())
+            .setMemMax(wrapper.getMemoryAllocationPerNode(minorFragmentId))
             .setOptionsJson(optionsData)
             .setCredentials(session.getCredentials())
             .addAllCollector(CountRequiredFragments.getCollectors(root))

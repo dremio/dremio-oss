@@ -20,7 +20,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -44,6 +45,7 @@ import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.proto.UserProtos.PreparedStatementHandle;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 
 public class TestBuilder {
 
@@ -316,7 +318,7 @@ public class TestBuilder {
     if (baselineRecords == null) {
       baselineRecords = new ArrayList<>();
     }
-    Map<String, Object> ret = new HashMap<>();
+    Map<String, Object> ret = new LinkedHashMap<>();
     int i = 0;
     assertTrue("Must set expected columns before baseline values/records.", baselineColumns != null);
     if (baselineValues == null) {
@@ -505,9 +507,9 @@ public class TestBuilder {
           precision = "(65000)";
         }
         aliasedExpectedColumns[i] = "cast(" + aliasedExpectedColumns[i] + " as " +
-            getNameOfMinorType(majorType.getMinorType()) + precision +  " ) " + baselineColumns[i];
+            getNameOfMinorType(majorType.getMinorType()) + precision +  " ) " + baselineColumns[i].replace('`', '"');
       }
-      String query = "select " + Joiner.on(", ").join(aliasedExpectedColumns) + " from cp.`" + baselineFilePath + "`";
+      String query = "select " + Joiner.on(", ").join(aliasedExpectedColumns) + " from cp.\"" + baselineFilePath + "\"";
       return query;
     }
 
@@ -572,7 +574,9 @@ public class TestBuilder {
 
     @Override
     String getValidationQuery() {
-      return "select " + Joiner.on(", ").join(baselineColumns) + " from cp.`" + baselineFilePath + "`";
+      return "select "
+          + Joiner.on(", ").join(Iterables.transform(Arrays.asList(baselineColumns), column -> column.replace('`', '"')))
+          + " from cp.\"" + baselineFilePath + "\"";
     }
 
     @Override

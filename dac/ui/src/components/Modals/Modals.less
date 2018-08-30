@@ -13,85 +13,112 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.ReactModalPortal {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1000;
 
-  /*
-  This element is always present even when modals are not open.
-  Before this element had no size, then the contained overlay was position: fixed to fill the screen. But now we need this element to also be 100%/100% to give the size to its child.
-  So need pointer-events: none to not block the screen.
-  However, it's child still needs to be clickable, so put it back with pointer-events: all in modal.js
-  */
-  pointer-events: none;
-}
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+    
+  .ReactModalPortal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
 
-body.body-modal-open #root {
-  filter: blur(2px);
-  overflow: hidden;
-}
+    /*
+    This element is always present even when modals are not open.
+    Before this element had no size, then the contained overlay was position: fixed to fill the screen. But now we need this element to also be 100%/100% to give the size to its child.
+    So need pointer-events: none to not block the screen.
+    However, it's child still needs to be clickable, so put it back with pointer-events: all in modal.js
+    */
+    pointer-events: none;
+  }
 
-.modal-form-wrapper {
-  margin: 0 auto;
-}
+  body.body-modal-open #root {
+    filter: blur(2px);
+    overflow: hidden;
+  }
 
-.small-modal .modal-form-wrapper {
-  width: 670px;
-  overflow-y: auto;
-}
+  .modal-form-wrapper {
+    margin: 0 auto;
+  }
 
-.ReactModal__Overlay {
-  opacity: 0;
-}
+  .small-modal .modal-form-wrapper {
+    width: 670px;
+    overflow-y: auto;
+  }
 
-.ReactModal__Overlay--after-open {
-  opacity: 1;
-  transition: all 150ms ease-out;
-}
+  .ReactModal__Overlay {
+    opacity: 0;
+  }
 
-.ReactModal__Overlay--before-close {
-  opacity: 0;
-  transition: all 150ms ease-in;
-}
+  .ReactModal__Overlay--after-open {
+    opacity: 1;
+    transition: all 150ms ease-out;
+  }
 
-/** small-modal */
+  .ReactModal__Overlay--before-close {
+    opacity: 0;
+    transition: all 150ms ease-in;
+  }
 
-.ReactModal__Overlay.small-modal {
-  margin-top: -80px;
-}
+  /** small-modal */
 
-.ReactModal__Overlay--after-open.small-modal {
-  margin: 0;
-  transition: all 150ms ease-out;
-}
+  .ReactModal__Overlay.small-modal {
+    margin-top: -80px;
+  }
 
-.ReactModal__Overlay--before-close.small-modal {
-  margin-top: -80px;
-}
+  .ReactModal__Overlay--after-open.small-modal {
+    margin: 0;
+    transition: all 150ms ease-out;
+  }
 
-/** large-modal */
+  .ReactModal__Overlay--before-close.small-modal {
+    margin-top: -80px;
+  }
 
-.large-modal .ReactModal__Content {
-  top: 0;
-  bottom: 80px;
-}
+  /** medium-modal */
 
-.large-modal .ReactModal__Content--after-open {
-  top: 40px;
-  bottom: 40px;
-  transition: all 150ms ease-in;
-}
+  .medium-modal .ReactModal__Content {
+    top: 0;
+    bottom: 80px;
+  }
 
-.large-modal .ReactModal__Content--before-close {
-  top: 0;
-  bottom: 80px;
-  transition: all 150ms ease-in;
-}
+  .medium-modal .ReactModal__Content--after-open {
+    top: 40px;
+    bottom: 40px;
+    transition: all 150ms ease-in;
+  }
 
-.large-modal .modal-form-wrapper {
-  overflow-y: auto;
+  .medium-modal .ReactModal__Content--before-close {
+    top: 0;
+    bottom: 80px;
+    transition: all 150ms ease-in;
+  }
+
+  .medium-modal .modal-form-wrapper {
+    overflow-y: auto;
+  }
+
+  /** large-modal */
+
+  .large-modal .ReactModal__Content {
+    top: 0;
+    bottom: 80px;
+  }
+
+  .large-modal .ReactModal__Content--after-open {
+    top: 40px;
+    bottom: 40px;
+    transition: all 150ms ease-in;
+  }
+
+  .large-modal .ReactModal__Content--before-close {
+    top: 0;
+    bottom: 80px;
+    transition: all 150ms ease-in;
+  }
+
+  .large-modal .modal-form-wrapper {
+    overflow-y: auto;
+  }
 }

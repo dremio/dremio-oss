@@ -42,12 +42,12 @@ public class TestParquetTimestampInt96 extends BaseTestQuery {
     conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "local");
 
     fs = FileSystem.get(conf);
-    test(String.format("alter system set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    test(String.format("alter system set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
   @AfterClass
   public static void disableDecimalDataType() throws Exception {
-    test(String.format("alter system set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    test(String.format("alter system set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
   public void compareParquetReadersColumnar(String selection, String table) throws Exception {
@@ -58,16 +58,16 @@ public class TestParquetTimestampInt96 extends BaseTestQuery {
         .ordered()
         .sqlQuery(query)
         .optionSettingQueriesForTestQuery(
-            "alter system set `store.parquet.use_new_reader` = false")
+            "alter system set \"store.parquet.use_new_reader\" = false")
         .sqlBaselineQuery(query)
         .optionSettingQueriesForBaseline(
-            "alter system set `store.parquet.use_new_reader` = true")
+            "alter system set \"store.parquet.use_new_reader\" = true")
         .build().run();
     } finally {
-      test("alter system set `%s` = %b",
+      test("alter system set \"%s\" = %b",
           ExecConstants.PARQUET_NEW_RECORD_READER,
           ExecConstants.PARQUET_RECORD_READER_IMPLEMENTATION_VALIDATOR
-              .getDefault().bool_val);
+              .getDefault().getBoolVal());
     }
   }
 
@@ -78,7 +78,7 @@ public class TestParquetTimestampInt96 extends BaseTestQuery {
    */
   @Test
   public void testImpalaParquetInt96() throws Exception {
-    compareParquetReadersColumnar("field_impala_ts", "cp.`parquet/int96_impala_1.parquet`");
+    compareParquetReadersColumnar("field_impala_ts", "cp.\"parquet/int96_impala_1.parquet\"");
   }
 
   /*
@@ -89,7 +89,7 @@ public class TestParquetTimestampInt96 extends BaseTestQuery {
     final String WORKING_PATH = TestTools.getWorkingPath();
     final String TEST_RES_PATH = WORKING_PATH + "/src/test/resources";
     testBuilder()
-      .sqlQuery("select int96_ts from dfs.`%s/parquet/int96_dict_change` order by int96_ts", TEST_RES_PATH)
+      .sqlQuery("select int96_ts from dfs.\"%s/parquet/int96_dict_change\" order by int96_ts", TEST_RES_PATH)
       .ordered()
       .csvBaselineFile("testframework/testParquetReader/testInt96DictChange/q1.tsv")
       .baselineTypes(TypeProtos.MinorType.TIMESTAMP)
@@ -101,7 +101,7 @@ public class TestParquetTimestampInt96 extends BaseTestQuery {
   public void testInt96TimeStampValueWidth() throws Exception {
     testBuilder()
     .ordered()
-    .sqlQuery("select c, d from cp.`parquet/data.snappy.parquet` where d = '2015-07-18 13:52:51'")
+    .sqlQuery("select c, d from cp.\"parquet/data.snappy.parquet\" where d = '2015-07-18 13:52:51'")
     .baselineColumns("c", "d")
     .baselineValues(DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD").parseLocalDateTime("2011-04-11"),
         DateFunctionsUtils.getISOFormatterForFormatString("YYYY-MM-DD HH24:MI:SS").parseLocalDateTime("2015-07-18 13:52:51"))
@@ -115,7 +115,7 @@ public class TestParquetTimestampInt96 extends BaseTestQuery {
     testBuilder()
       .ordered()
       .sqlQuery("SELECT varchar_field, timestamp_field\n" +
-        "FROM cp.`parquet/int96.parquet`\n" +
+        "FROM cp.\"parquet/int96.parquet\"\n" +
         "where varchar_field = 'c'")
       .baselineColumns("varchar_field", "timestamp_field")
       .baselineValues("c",

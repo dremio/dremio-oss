@@ -28,19 +28,20 @@ import org.junit.Test;
 
 import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 
 public class TestHivePartitionPruning extends HiveTestBase {
   // enable decimal data type
   @BeforeClass
   public static void enableDecimalDataType() throws Exception {
-    test(String.format("alter session set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
   //Currently we do not have a good way to test plans so using a crude string comparison
   @Test
   public void testSimplePartitionFilter() throws Exception {
-    final String query = "explain plan for select * from hive.`default`.partition_pruning_test where c = 1";
+    final String query = "explain plan for select * from hive.\"default\".partition_pruning_test where c = 1";
     final String plan = getPlanInString(query, OPTIQ_FORMAT);
 
     // Check and make sure that Filter is not present in the plan
@@ -52,7 +53,7 @@ public class TestHivePartitionPruning extends HiveTestBase {
    */
   @Test
   public void testDisjunctsPartitionFilter() throws Exception {
-    final String query = "explain plan for select * from hive.`default`.partition_pruning_test where (c = 1) or (d = 1)";
+    final String query = "explain plan for select * from hive.\"default\".partition_pruning_test where (c = 1) or (d = 1)";
     final String plan = getPlanInString(query, OPTIQ_FORMAT);
 
     // Check and make sure that Filter is not present in the plan
@@ -61,7 +62,7 @@ public class TestHivePartitionPruning extends HiveTestBase {
 
   @Test
   public void testConjunctsPartitionFilter() throws Exception {
-    final String query = "explain plan for select * from hive.`default`.partition_pruning_test where c = 1 and d = 1";
+    final String query = "explain plan for select * from hive.\"default\".partition_pruning_test where c = 1 and d = 1";
     final String plan = getPlanInString(query, OPTIQ_FORMAT);
 
     // Check and make sure that Filter is not present in the plan
@@ -70,7 +71,7 @@ public class TestHivePartitionPruning extends HiveTestBase {
 
   @Test
   public void testComplexFilter() throws Exception {
-    final String query = "explain plan for select * from hive.`default`.partition_pruning_test where (c = 1 and d = 1) or (c = 2 and d = 3)";
+    final String query = "explain plan for select * from hive.\"default\".partition_pruning_test where (c = 1 and d = 1) or (c = 2 and d = 3)";
     final String plan = getPlanInString(query, OPTIQ_FORMAT);
 
     // Check and make sure that Filter is not present in the plan
@@ -80,7 +81,7 @@ public class TestHivePartitionPruning extends HiveTestBase {
   @Test
   public void testRangeFilter() throws Exception {
     final String query = "explain plan for " +
-        "select * from hive.`default`.partition_pruning_test where " +
+        "select * from hive.\"default\".partition_pruning_test where " +
         "c > 1 and d > 1";
 
     final String plan = getPlanInString(query, OPTIQ_FORMAT);
@@ -92,7 +93,7 @@ public class TestHivePartitionPruning extends HiveTestBase {
   @Test
   public void testRangeFilterWithDisjunct() throws Exception {
     final String query = "explain plan for " +
-        "select * from hive.`default`.partition_pruning_test where " +
+        "select * from hive.\"default\".partition_pruning_test where " +
         "(c > 1 and d > 1) or (c < 2 and d < 2)";
 
     final String plan = getPlanInString(query, OPTIQ_FORMAT);
@@ -119,7 +120,7 @@ public class TestHivePartitionPruning extends HiveTestBase {
   @Test
   public void pruneDataTypeSupportNativeReaders() throws Exception {
     try {
-      test(String.format("alter session set `%s` = true", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
       final String query = "EXPLAIN PLAN FOR " +
           "SELECT * FROM hive.readtest_parquet WHERE tinyint_part = 64";
 
@@ -131,7 +132,7 @@ public class TestHivePartitionPruning extends HiveTestBase {
       // Make sure the plan contains the Hive scan utilizing native parquet reader
       assertTrue(plan, plan.contains("mode=[NATIVE_PARQUET]"));
     } finally {
-      test(String.format("alter session set `%s` = false", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+      test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
     }
   }
 
@@ -179,6 +180,6 @@ public class TestHivePartitionPruning extends HiveTestBase {
 
   @AfterClass
   public static void disableDecimalDataType() throws Exception {
-    test(String.format("alter session set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    test(String.format("alter session set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 }

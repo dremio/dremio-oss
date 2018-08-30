@@ -17,6 +17,7 @@ package com.dremio.dac.service.errors;
 
 import java.util.List;
 
+import com.dremio.dac.explore.model.DatasetSummary;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 
 /**
@@ -45,12 +46,14 @@ public class NewDatasetQueryException extends Exception {
     private final String sql;
     private final List<String> context;
     private final DatasetType datasetType;
+    private final DatasetSummary datasetSummary;
 
-    public ExplorePageInfo(List<String> path, String sql, List<String> context, DatasetType datasetType) {
+    public ExplorePageInfo(List<String> path, String sql, List<String> context, DatasetType datasetType, DatasetSummary datasetSummary) {
       this.displayFullPath = path;
       this.sql = sql;
       this.context = context;
       this.datasetType = datasetType;
+      this.datasetSummary = datasetSummary;
     }
 
     public List<String> getDisplayFullPath() {
@@ -67,6 +70,10 @@ public class NewDatasetQueryException extends Exception {
 
     public DatasetType getDatasetType() {
       return datasetType;
+    }
+
+    public DatasetSummary getDatasetSummary() {
+      return datasetSummary;
     }
   }
 }

@@ -17,7 +17,7 @@ package com.dremio.exec.store.dfs.implicit;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.DecimalHelper;
-import org.apache.arrow.vector.NullableDecimalVector;
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -56,12 +56,12 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
   }
 
   private final class BigDecimalPopulator implements Populator, AutoCloseable {
-    private NullableDecimalVector vector;
+    private DecimalVector vector;
 
     public void setup(OutputMutator output){
-      vector = (NullableDecimalVector)output.getVector(name);
+      vector = (DecimalVector)output.getVector(name);
       if (vector == null) {
-        vector = output.addField(new Field(name, true, new Decimal(precision, scale), null), NullableDecimalVector.class);
+        vector = output.addField(new Field(name, true, new Decimal(precision, scale), null), DecimalVector.class);
       }
     }
 

@@ -82,7 +82,7 @@ public class ProjectOperator implements SingleInputOperator {
   public ProjectOperator(final OperatorContext context, final Project config) throws OutOfMemoryException {
     this.config = config;
     this.context = context;
-    this.outgoing = new VectorContainer(context.getAllocator());
+    this.outgoing = context.createOutputVectorContainer();
   }
 
   @Override

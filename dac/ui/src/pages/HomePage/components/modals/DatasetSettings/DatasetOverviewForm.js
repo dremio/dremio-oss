@@ -27,7 +27,8 @@ import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 
 import { getIconDataTypeFromEntity } from 'utils/iconUtils';
 
-import DatasetOverviewFormMixin from 'dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetOverviewFormMixin'; // eslint-disable-line max-len
+import DatasetOverviewFormMixin
+  from 'dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetOverviewFormMixin'; // eslint-disable-line max-len
 
 @pureRender
 @DatasetOverviewFormMixin
@@ -61,7 +62,6 @@ export default class DatasetOverviewForm extends Component {
             showFullPath
             shouldShowOverlay={false}
             typeIcon={typeIcon}/>
-          {this.renderMoveLink()}
         </div>
       </FormBody>
     );

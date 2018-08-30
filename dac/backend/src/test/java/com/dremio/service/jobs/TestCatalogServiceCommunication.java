@@ -112,7 +112,7 @@ public class TestCatalogServiceCommunication extends BaseTestServer {
   /**
    * Mock source config.
    */
-  @SourceType(MOCK_UP)
+  @SourceType(value = MOCK_UP, configurable = false)
   public static class MockUpConfig extends ConnectionConf<TestCatalogServiceImpl.MockUpConfig, MockUpPlugin> {
 
     @Override

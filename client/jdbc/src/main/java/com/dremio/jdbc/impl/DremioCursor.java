@@ -43,7 +43,7 @@ import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.proto.UserProtos.PreparedStatement;
-import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.rpc.ConnectionThrottle;
@@ -352,7 +352,7 @@ class DremioCursor implements Cursor {
         client.getConfig().getInt(
             ExecConstants.JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD );
     resultsListener = new ResultsListener(batchQueueThrottlingThreshold);
-    currentBatchHolder = new RecordBatchLoader(client.getAllocator());
+    currentBatchHolder = new RecordBatchLoader(client.getRecordAllocator());
   }
 
   protected int getCurrentRecordNumber() {

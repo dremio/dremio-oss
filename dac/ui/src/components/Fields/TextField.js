@@ -17,8 +17,11 @@ import { Component } from 'react';
 import Radium from 'radium';
 
 import PropTypes from 'prop-types';
+import classNames from 'classnames';
+import { textInput } from '@app/uiTheme/less/forms.less';
 
 import forms from 'uiTheme/radium/forms';
+import { formPlaceholder } from 'uiTheme/radium/typography';
 
 @Radium
 export default class TextField extends Component {
@@ -32,12 +35,24 @@ export default class TextField extends Component {
     default: PropTypes.string,
     type: PropTypes.string,
     style: PropTypes.object,
-    placeholder: PropTypes.string // only shown if the field is not disabled
+    className: PropTypes.string,
+    placeholder: PropTypes.string, // only shown if the field is not disabled
+    value: PropTypes.any,
+    initialValue: PropTypes.any,
+    autofill: PropTypes.any,
+    onUpdate: PropTypes.any,
+    valid: PropTypes.any,
+    invalid: PropTypes.any,
+    dirty: PropTypes.any,
+    pristine: PropTypes.any,
+    active: PropTypes.any,
+    visited: PropTypes.any,
+    autofilled: PropTypes.any
   };
 
   static defaultProps = {
     type: 'text',
-    autoComplete: 'off'
+    autoComplete: 'new-password'
   };
 
   componentDidMount() {
@@ -54,18 +69,25 @@ export default class TextField extends Component {
   }
 
   render() {
+    // remove "initialFocus" from rendered input properties to avoid react warning
+    const {
+      className,
+      initialFocus, initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled,
+      placeholder,
+      ...props
+    } = this.props;
     return (
       <input
         ref='input'
-        {...this.props}
-        placeholder={this.props.disabled ? '' : this.props.placeholder}
+        {...props}
+        placeholder={props.disabled ? '' : placeholder}
         defaultValue={this.props.default}
-        className='field'
+        className={classNames(['field', textInput, className])}
         style={[
-          forms.textInput,
           this.props.style,
           this.props.error && this.props.touched && forms.textInputError,
-          this.props.disabled && forms.textInputDisabled
+          this.props.disabled && forms.textInputDisabled,
+          this.props.placeholder && !this.props.value && {...formPlaceholder, ...{opacity: 0.7}}
         ]}/>
     );
   }

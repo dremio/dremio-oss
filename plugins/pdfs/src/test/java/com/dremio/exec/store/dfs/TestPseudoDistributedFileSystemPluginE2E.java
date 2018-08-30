@@ -78,9 +78,9 @@ public class TestPseudoDistributedFileSystemPluginE2E extends BaseTestQuery {
 
   @Test
   public void test() throws Exception {
-    testNoResult("CREATE TABLE pdfs.test_table AS SELECT * FROM cp.`employees.json`");
+    testNoResult("CREATE TABLE pdfs.test_table AS SELECT * FROM cp.\"employees.json\"");
 
-    newTest()
+    testBuilder()
       .sqlQuery("SELECT * FROM pdfs.test_table")
       .ordered()
       .jsonBaselineFile("employees.json")

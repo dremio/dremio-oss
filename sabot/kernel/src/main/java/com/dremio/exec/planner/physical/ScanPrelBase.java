@@ -23,6 +23,7 @@ import java.util.Set;
 
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import com.dremio.common.expression.SchemaPath;
@@ -99,5 +100,16 @@ public abstract class ScanPrelBase extends ScanRelBase implements LeafPrel {
     return this.tableMetadata.getStoragePluginId().getCapabilities().getCapability(SourceCapabilities.REQUIRES_HARD_AFFINITY) ? DistributionAffinity.HARD : DistributionAffinity.SOFT;
   }
 
+  @Override
+  public double getCostForParallelization() {
+    RelOptCost cost = computeSelfCost(getCluster().getPlanner(), getCluster().getMetadataQuery());
+    double costForParallelization = Math.max(cost.getRows(), 1);
 
+    PlannerSettings settings = PrelUtil.getSettings(getCluster());
+    if (settings.useMinimumCostPerSplit()) {
+      double minCostPerSplit = settings.getMinimumCostPerSplit(getPluginId().getType());
+      costForParallelization = Math.max(costForParallelization, minCostPerSplit * tableMetadata.getSplitCount());
+    }
+    return costForParallelization;
+  }
 }

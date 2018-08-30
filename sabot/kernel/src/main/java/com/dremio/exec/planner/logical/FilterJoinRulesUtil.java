@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.logical;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptUtil;
@@ -24,6 +25,7 @@ import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexNode;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 
@@ -36,26 +38,33 @@ public class FilterJoinRulesUtil {
    *           OUTER JOIN,   Keep any filter in JOIN.
   */
   public static final FilterJoinRule.Predicate EQUAL_IS_NOT_DISTINCT_FROM =
-      new FilterJoinRule.Predicate() {
-        public boolean apply(Join join, JoinRelType joinType, RexNode exp) {
-          if (joinType != JoinRelType.INNER) {
-            return true;  // In OUTER join, we could not pull-up the filter.
-                          // All we can do is keep the filter with JOIN, and
-                          // then decide whether the filter could be pushed down
-                          // into LEFT/RIGHT.
-          }
+    (join, joinType, exp) -> {
+      if (joinType != JoinRelType.INNER) {
+        return true;  // In OUTER join, we could not pull-up the filter.
+                      // All we can do is keep the filter with JOIN, and
+                      // then decide whether the filter could be pushed down
+                      // into LEFT/RIGHT.
+      }
 
-          List<RexNode> tmpLeftKeys = Lists.newArrayList();
-          List<RexNode> tmpRightKeys = Lists.newArrayList();
-          List<RelDataTypeField> sysFields = Lists.newArrayList();
-          List<Integer> filterNulls = Lists.newArrayList();
+      List<RexNode> tmpLeftKeys = Lists.newArrayList();
+      List<RexNode> tmpRightKeys = Lists.newArrayList();
+      List<RelDataTypeField> sysFields = Lists.newArrayList();
+      List<Integer> filterNulls = Lists.newArrayList();
 
-          RexNode remaining = RelOptUtil.splitJoinCondition(sysFields, join.getLeft(), join.getRight(),
-              exp, tmpLeftKeys, tmpRightKeys, filterNulls, null);
+      RexNode remaining = RelOptUtil.splitJoinCondition(sysFields, join.getLeft(), join.getRight(),
+          exp, tmpLeftKeys, tmpRightKeys, filterNulls, null);
 
-          return remaining.isAlwaysTrue();
-        }
-      };
+      // if the remaining condition can be pushed down (i.e. a = 1), we should not push the condition above
+      ArrayList<RexNode> conditions = new ArrayList<>();
+      ArrayList<RexNode> leftConditions = new ArrayList<>();
+      ArrayList<RexNode> rightConditions = new ArrayList<>();
+
+      conditions.add(remaining);
+      RelOptUtil.classifyFilters(join, conditions, join.getJoinType(), false, true, true, conditions, leftConditions, rightConditions);
+
+      // if the conditions list is empty, that means we were able to push the condition below the join
+      return conditions.size() == 0 || remaining.isAlwaysTrue();
+    };
 
   private FilterJoinRulesUtil() {
   }

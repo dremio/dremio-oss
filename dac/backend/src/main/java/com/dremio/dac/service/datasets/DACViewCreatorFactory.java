@@ -21,7 +21,6 @@ import java.util.List;
 import javax.inject.Provider;
 import javax.ws.rs.core.SecurityContext;
 
-import com.dremio.common.store.ViewCreatorFactory;
 import com.dremio.dac.explore.DatasetTool;
 import com.dremio.dac.explore.DatasetVersionResource;
 import com.dremio.dac.explore.QueryExecutor;
@@ -30,9 +29,11 @@ import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.datastore.KVStoreProvider;
+import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.reflection.ReflectionService;
@@ -88,7 +89,7 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
     }
 
     @Override
-    public void createView(List<String> path, String sql, List<String> sqlContext) {
+    public void createView(List<String> path, String sql, List<String> sqlContext, NamespaceAttribute... attributes) {
 
       SecurityContext securityContext = new SecurityContext() {
         @Override
@@ -124,10 +125,10 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
       try {
         DatasetVersion version = new DatasetVersion(System.currentTimeMillis());
         DatasetPath datasetPath = new DatasetPath(path);
-        InitialPreviewResponse response = tool.newUntitled(new FromSQL(sql), version, sqlContext, true);
+        InitialPreviewResponse response = tool.newUntitled(new FromSQL(sql), version, sqlContext, null, true);
         DatasetPath tmpPath = new DatasetPath(response.getDataset().getFullPath());
         VirtualDatasetUI vds = datasetService.getVersion(tmpPath, response.getDataset().getDatasetVersion());
-        newDatasetVersionResource(securityContext, tool, version, tmpPath).save(vds, datasetPath, null);
+        newDatasetVersionResource(securityContext, tool, version, tmpPath).save(vds, datasetPath, null, attributes);
       } catch (Exception e) {
         throw Throwables.propagate(e);
       }

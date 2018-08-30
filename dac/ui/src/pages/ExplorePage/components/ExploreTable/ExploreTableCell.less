@@ -13,27 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.cell-data {
-  height: 100%;
-  width: 100%;
-  display: flex;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .cell-wrap {
-    position: absolute;
+  .cell-data {
     height: 100%;
+    width: 100%;
+    display: flex;
+
+    .cell-wrap {
+      position: absolute;
+      height: 100%;
+    }
   }
-}
 
-.ellipsis-icon {
-  opacity: 0;
-  position: absolute;
-  right: 0;
-}
+  .ellipsis-icon {
+    opacity: 0;
+    position: absolute;
+    right: 0;
+  }
 
-.explore-cell .cell-wrap {
-  user-select: text;
-}
+  .explore-cell .cell-wrap {
+    user-select: text;
+  }
 
-.explore-cell-overflow:hover .ellipsis-icon {
-  opacity: 1;
+  .explore-cell-overflow:hover .ellipsis-icon {
+    opacity: 1;
+  }
 }

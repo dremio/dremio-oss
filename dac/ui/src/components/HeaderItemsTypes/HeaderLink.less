@@ -14,27 +14,30 @@
  * limitations under the License.
  */
 
-.HeaderLink {
-  a {
-    position: relative;
-    &.active .header-link-underline {
-      background-color: rgba(255, 255, 255, 0.8);
-      bottom: -1px;
-    }
-    &:hover:not(.active-link) .header-link-underline {
-      transform: scaleX(1.0);
-      bottom: -1px;
-    }
-  }
+ :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .header-link-underline {
-    position: absolute;
-    width: 100%;
-    height: 2px;
-    left: 0;
-    bottom: 0;
-    background-color: rgba(255, 255, 255, 0.4);
-    transform: scaleX(0);
-    transition: all 0.1s ease-in-out 0s;
+  .HeaderLink {
+    a {
+      position: relative;
+      &.active .header-link-underline {
+        background-color: rgba(255, 255, 255, 0.8);
+        bottom: -1px;
+      }
+      &:hover:not(.active-link) .header-link-underline {
+        transform: scaleX(1.0);
+        bottom: -1px;
+      }
+    }
+
+    .header-link-underline {
+      position: absolute;
+      width: 100%;
+      height: 2px;
+      left: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.4);
+      transform: scaleX(0);
+      transition: all 0.1s ease-in-out 0s;
+    }
   }
 }

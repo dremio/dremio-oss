@@ -34,7 +34,7 @@ import org.apache.hadoop.io.ByteBufferPool;
  * Wrapper around FSDataInputStream to capture {@code FSError}.
  */
 class FSDataInputStreamWrapper extends FSDataInputStream {
-  private final FSDataInputStream underlyingIs;
+  private FSDataInputStream underlyingIs;
 
   public FSDataInputStreamWrapper(FSDataInputStream in) throws IOException {
     super(new WrappedInputStream(in));
@@ -185,10 +185,13 @@ class FSDataInputStreamWrapper extends FSDataInputStream {
 
   @Override
   public void close() throws IOException {
-    try {
-      underlyingIs.close();
-    } catch(FSError e) {
-      throw FileSystemWrapper.propagateFSError(e);
+    if (underlyingIs != null) {
+      try {
+        underlyingIs.close();
+        underlyingIs = null;
+      } catch(FSError e) {
+        throw FileSystemWrapper.propagateFSError(e);
+      }
     }
   }
 
@@ -222,7 +225,7 @@ class FSDataInputStreamWrapper extends FSDataInputStream {
    * FSDataInputStreamWrapper.
    */
   static class WrappedInputStream extends InputStream implements Seekable, PositionedReadable {
-    private final FSDataInputStream is;
+    private FSDataInputStream is;
 
     protected WrappedInputStream(FSDataInputStream is) {
       this.is = is;
@@ -279,10 +282,13 @@ class FSDataInputStreamWrapper extends FSDataInputStream {
 
     @Override
     public void close() throws IOException {
-      try{
-        is.close();
-      } catch(FSError e) {
-        throw FileSystemWrapper.propagateFSError(e);
+      if (is != null) {
+        try{
+          is.close();
+          is = null;
+        } catch(FSError e) {
+          throw FileSystemWrapper.propagateFSError(e);
+        }
       }
     }
 

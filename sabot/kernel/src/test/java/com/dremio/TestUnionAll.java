@@ -34,16 +34,16 @@ import com.google.common.collect.Lists;
 public class TestUnionAll extends BaseTestQuery{
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestUnionAll.class);
 
-  private static final String sliceTargetSmall = "alter session set `planner.slice_target` = 1";
-  private static final String sliceTargetDefault = "alter session reset `planner.slice_target`";
-  private static final String enableDistribute = "alter session set `planner.enable_unionall_distribute` = true";
-  private static final String defaultDistribute = "alter session reset `planner.enable_unionall_distribute`";
-  private static final String enableRoundRobinUnionAll = "alter session set `planner.enable_union_all_round_robin` = true";
-  private static final String disableRoundRobinUnionAll = "alter session set `planner.enable_union_all_round_robin` = false";
+  private static final String sliceTargetSmall = "alter session set \"planner.slice_target\" = 1";
+  private static final String sliceTargetDefault = "alter session reset \"planner.slice_target\"";
+  private static final String enableDistribute = "alter session set \"planner.enable_unionall_distribute\" = true";
+  private static final String defaultDistribute = "alter session reset \"planner.enable_unionall_distribute\"";
+  private static final String enableRoundRobinUnionAll = "alter session set \"planner.enable_union_all_round_robin\" = true";
+  private static final String disableRoundRobinUnionAll = "alter session set \"planner.enable_union_all_round_robin\" = false";
 
   @Test  // Simple Union-All over two scans
   public void testUnionAll1() throws Exception {
-    String query = "(select n_regionkey from cp.`tpch/nation.parquet`) union all (select r_regionkey from cp.`tpch/region.parquet`)";
+    String query = "(select n_regionkey from cp.\"tpch/nation.parquet\") union all (select r_regionkey from cp.\"tpch/region.parquet\")";
 
     testBuilder()
         .sqlQuery(query)
@@ -57,9 +57,9 @@ public class TestUnionAll extends BaseTestQuery{
   @Test  // Union-All over inner joins
   public void testUnionAll2() throws Exception {
     String query =
-         "select n1.n_nationkey from cp.`tpch/nation.parquet` n1 inner join cp.`tpch/region.parquet` r1 on n1.n_regionkey = r1.r_regionkey where n1.n_nationkey in (1, 2) " +
+         "select n1.n_nationkey from cp.\"tpch/nation.parquet\" n1 inner join cp.\"tpch/region.parquet\" r1 on n1.n_regionkey = r1.r_regionkey where n1.n_nationkey in (1, 2) " +
          "union all " +
-         "select n2.n_nationkey from cp.`tpch/nation.parquet` n2 inner join cp.`tpch/region.parquet` r2 on n2.n_regionkey = r2.r_regionkey where n2.n_nationkey in (3, 4)";
+         "select n2.n_nationkey from cp.\"tpch/nation.parquet\" n2 inner join cp.\"tpch/region.parquet\" r2 on n2.n_regionkey = r2.r_regionkey where n2.n_nationkey in (3, 4)";
 
     testBuilder()
         .sqlQuery(query)
@@ -72,7 +72,7 @@ public class TestUnionAll extends BaseTestQuery{
 
   @Test  // Union-All over grouped aggregates
   public void testUnionAll3() throws Exception {
-    String query = "select n1.n_nationkey from cp.`tpch/nation.parquet` n1 where n1.n_nationkey in (1, 2) group by n1.n_nationkey union all select r1.r_regionkey from cp.`tpch/region.parquet` r1 group by r1.r_regionkey";
+    String query = "select n1.n_nationkey from cp.\"tpch/nation.parquet\" n1 where n1.n_nationkey in (1, 2) group by n1.n_nationkey union all select r1.r_regionkey from cp.\"tpch/region.parquet\" r1 group by r1.r_regionkey";
 
     testBuilder()
         .sqlQuery(query)
@@ -85,7 +85,7 @@ public class TestUnionAll extends BaseTestQuery{
 
   @Test    // Chain of Union-Alls
   public void testUnionAll4() throws Exception {
-    String query = "select n_regionkey from cp.`tpch/nation.parquet` union all select r_regionkey from cp.`tpch/region.parquet` union all select n_nationkey from cp.`tpch/nation.parquet` union all select c_custkey from cp.`tpch/customer.parquet` where c_custkey < 5";
+    String query = "select n_regionkey from cp.\"tpch/nation.parquet\" union all select r_regionkey from cp.\"tpch/region.parquet\" union all select n_nationkey from cp.\"tpch/nation.parquet\" union all select c_custkey from cp.\"tpch/customer.parquet\" where c_custkey < 5";
 
     testBuilder()
         .sqlQuery(query)
@@ -98,9 +98,9 @@ public class TestUnionAll extends BaseTestQuery{
 
   @Test  // Union-All of all columns in the table
   public void testUnionAll5() throws Exception {
-    String query = "select r_name, r_comment, r_regionkey from cp.`tpch/region.parquet` r1 " +
+    String query = "select r_name, r_comment, r_regionkey from cp.\"tpch/region.parquet\" r1 " +
                      "union all " +
-                     "select r_name, r_comment, r_regionkey from cp.`tpch/region.parquet` r2";
+                     "select r_name, r_comment, r_regionkey from cp.\"tpch/region.parquet\" r2";
 
     testBuilder()
         .sqlQuery(query)
@@ -113,7 +113,7 @@ public class TestUnionAll extends BaseTestQuery{
 
   @Test // Union-All where same column is projected twice in right child
   public void testUnionAll6() throws Exception {
-    String query = "select n_nationkey, n_regionkey from cp.`tpch/nation.parquet` where n_regionkey = 1 union all select r_regionkey, r_regionkey from cp.`tpch/region.parquet` where r_regionkey = 2";
+    String query = "select n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" where n_regionkey = 1 union all select r_regionkey, r_regionkey from cp.\"tpch/region.parquet\" where r_regionkey = 2";
 
     testBuilder()
         .sqlQuery(query)
@@ -126,7 +126,7 @@ public class TestUnionAll extends BaseTestQuery{
 
   @Test // Union-All where same column is projected twice in left and right child
   public void testUnionAll6_1() throws Exception {
-    String query = "select n_nationkey, n_nationkey from cp.`tpch/nation.parquet` union all select r_regionkey, r_regionkey from cp.`tpch/region.parquet`";
+    String query = "select n_nationkey, n_nationkey from cp.\"tpch/nation.parquet\" union all select r_regionkey, r_regionkey from cp.\"tpch/region.parquet\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -139,7 +139,7 @@ public class TestUnionAll extends BaseTestQuery{
 
   @Test  // Union-all of two string literals of different lengths
   public void testUnionAll7() throws Exception {
-    String query = "select 'abc' from cp.`tpch/region.parquet` union all select 'abcdefgh' from cp.`tpch/region.parquet`";
+    String query = "select 'abc' from cp.\"tpch/region.parquet\" union all select 'abcdefgh' from cp.\"tpch/region.parquet\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -152,7 +152,7 @@ public class TestUnionAll extends BaseTestQuery{
 
   @Test  // Union-all of two character columns of different lengths
   public void testUnionAll8() throws Exception {
-    String query = "select n_name, n_nationkey from cp.`tpch/nation.parquet` union all select r_comment, r_regionkey  from cp.`tpch/region.parquet`";
+    String query = "select n_name, n_nationkey from cp.\"tpch/nation.parquet\" union all select r_comment, r_regionkey  from cp.\"tpch/region.parquet\"";
 
     testBuilder()
         .sqlQuery(query)
@@ -167,8 +167,8 @@ public class TestUnionAll extends BaseTestQuery{
   public void testUnionAll9() throws Exception {
     String file0 = FileUtils.getResourceAsFile("/multilevel/json/1994/Q1/orders_94_q1.json").toURI().toString();
     String file1 = FileUtils.getResourceAsFile("/multilevel/json/1995/Q1/orders_95_q1.json").toURI().toString();
-    String query = String.format("select o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment, o_orderkey from dfs_test.`%s` union all " +
-                                 "select o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment, o_orderkey from dfs_test.`%s`", file0, file1);
+    String query = String.format("select o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment, o_orderkey from dfs_test.\"%s\" union all " +
+                                 "select o_custkey, o_orderstatus, o_totalprice, o_orderdate, o_orderpriority, o_clerk, o_shippriority, o_comment, o_orderkey from dfs_test.\"%s\"", file0, file1);
 
     testBuilder()
         .sqlQuery(query)
@@ -183,9 +183,9 @@ public class TestUnionAll extends BaseTestQuery{
 
   @Test // Union All constant literals
   public void testUnionAll10() throws Exception {
-    String query = "(select n_name, 'LEFT' as LiteralConstant, n_nationkey, 1 as NumberConstant from cp.`tpch/nation.parquet`) " +
+    String query = "(select n_name, 'LEFT' as LiteralConstant, n_nationkey, 1 as NumberConstant from cp.\"tpch/nation.parquet\") " +
               "union all " +
-              "(select 'RIGHT', r_name, 2, r_regionkey from cp.`tpch/region.parquet`)";
+              "(select 'RIGHT', r_name, 2, r_regionkey from cp.\"tpch/region.parquet\")";
 
     testBuilder()
         .sqlQuery(query)
@@ -199,16 +199,16 @@ public class TestUnionAll extends BaseTestQuery{
   @Test
   public void testUnionAllViewExpandableStar() throws Exception {
     test("use dfs_test");
-    test("create view nation_view_testunionall as select n_name, n_nationkey from cp.`tpch/nation.parquet`;");
-    test("create view region_view_testunionall as select r_name, r_regionkey from cp.`tpch/region.parquet`;");
+    test("create view nation_view_testunionall as select n_name, n_nationkey from cp.\"tpch/nation.parquet\";");
+    test("create view region_view_testunionall as select r_name, r_regionkey from cp.\"tpch/region.parquet\";");
 
-    String query1 = "(select * from dfs_test.`nation_view_testunionall`) " +
+    String query1 = "(select * from dfs_test.\"nation_view_testunionall\") " +
                     "union all " +
-                    "(select * from dfs_test.`region_view_testunionall`) ";
+                    "(select * from dfs_test.\"region_view_testunionall\") ";
 
-    String query2 =  "(select r_name, r_regionkey from cp.`tpch/region.parquet`) " +
+    String query2 =  "(select r_name, r_regionkey from cp.\"tpch/region.parquet\") " +
                      "union all " +
-                     "(select * from dfs_test.`nation_view_testunionall`)";
+                     "(select * from dfs_test.\"nation_view_testunionall\")";
 
     try {
       testBuilder()
@@ -236,9 +236,9 @@ public class TestUnionAll extends BaseTestQuery{
   public void testDistinctOverUnionAllwithFullyQualifiedColumnNames() throws Exception {
     String query = "select distinct sq.x1, sq.x2 " +
         "from " +
-        "((select n_regionkey as a1, n_name as b1 from cp.`tpch/nation.parquet`) " +
+        "((select n_regionkey as a1, n_name as b1 from cp.\"tpch/nation.parquet\") " +
         "union all " +
-        "(select r_regionkey as a2, r_name as b2 from cp.`tpch/region.parquet`)) as sq(x1,x2)";
+        "(select r_regionkey as a2, r_name as b2 from cp.\"tpch/region.parquet\")) as sq(x1,x2)";
 
     testBuilder()
         .sqlQuery(query)
@@ -251,9 +251,9 @@ public class TestUnionAll extends BaseTestQuery{
 
   @Test // see DRILL-1923
   public void testUnionAllContainsColumnANumericConstant() throws Exception {
-    String query = "(select n_nationkey, n_regionkey, n_name from cp.`tpch/nation.parquet`  limit 5) " +
+    String query = "(select n_nationkey, n_regionkey, n_name from cp.\"tpch/nation.parquet\"  limit 5) " +
         "union all " +
-        "(select 1, n_regionkey, 'abc' from cp.`tpch/nation.parquet` limit 5)";
+        "(select 1, n_regionkey, 'abc' from cp.\"tpch/nation.parquet\" limit 5)";
 
     testBuilder()
         .sqlQuery(query)
@@ -266,13 +266,13 @@ public class TestUnionAll extends BaseTestQuery{
 
   @Test // see DRILL-2207
   public void testUnionAllEmptySides() throws Exception {
-    String query1 = "(select n_nationkey, n_regionkey, n_name from cp.`tpch/nation.parquet`  limit 0) " +
+    String query1 = "(select n_nationkey, n_regionkey, n_name from cp.\"tpch/nation.parquet\"  limit 0) " +
         "union all " +
-        "(select 1, n_regionkey, 'abc' from cp.`tpch/nation.parquet` limit 5)";
+        "(select 1, n_regionkey, 'abc' from cp.\"tpch/nation.parquet\" limit 5)";
 
-    String query2 = "(select n_nationkey, n_regionkey, n_name from cp.`tpch/nation.parquet`  limit 5) " +
+    String query2 = "(select n_nationkey, n_regionkey, n_name from cp.\"tpch/nation.parquet\"  limit 5) " +
         "union all " +
-        "(select 1, n_regionkey, 'abc' from cp.`tpch/nation.parquet` limit 0)";
+        "(select 1, n_regionkey, 'abc' from cp.\"tpch/nation.parquet\" limit 0)";
 
     testBuilder()
         .sqlQuery(query1)
@@ -296,17 +296,17 @@ public class TestUnionAll extends BaseTestQuery{
   public void testAggregationOnUnionAllOperator() throws Exception {
     String root = FileUtils.getResourceAsFile("/store/text/data/t.json").toURI().toString();
     String query1 = String.format(
-            "(select calc1, max(b1) as `max`, min(b1) as `min`, count(c1) as `count` " +
-                    "from (select a1 + 10 as calc1, b1, c1 from dfs_test.`%s` " +
+            "(select calc1, max(b1) as \"max\", min(b1) as \"min\", count(c1) as \"count\" " +
+                    "from (select a1 + 10 as calc1, b1, c1 from dfs_test.\"%s\" " +
                     "union all " +
-                    "select a1 + 100 as diff1, b1 as diff2, c1 as diff3 from dfs_test.`%s`) " +
+                    "select a1 + 100 as diff1, b1 as diff2, c1 as diff3 from dfs_test.\"%s\") " +
                     "group by calc1 order by calc1)", root, root);
 
     String query2 = String.format(
-        "(select calc1, min(b1) as `min`, max(b1) as `max`, count(c1) as `count` " +
-        "from (select a1 + 10 as calc1, b1, c1 from dfs_test.`%s` " +
+        "(select calc1, min(b1) as \"min\", max(b1) as \"max\", count(c1) as \"count\" " +
+        "from (select a1 + 10 as calc1, b1, c1 from dfs_test.\"%s\" " +
         "union all " +
-        "select a1 + 100 as diff1, b1 as diff2, c1 as diff3 from dfs_test.`%s`) " +
+        "select a1 + 100 as diff1, b1 as diff2, c1 as diff3 from dfs_test.\"%s\") " +
         "group by calc1 order by calc1)", root, root);
 
     testBuilder()
@@ -332,9 +332,9 @@ public class TestUnionAll extends BaseTestQuery{
     String rootBoolean = FileUtils.getResourceAsFile("/store/json/booleanData.json").toURI().toString();
 
     String query = String.format(
-        "(select key from dfs_test.`%s` " +
+        "(select key from dfs_test.\"%s\" " +
         "union all " +
-        "select key from dfs_test.`%s` )", rootInt, rootBoolean);
+        "select key from dfs_test.\"%s\" )", rootInt, rootBoolean);
 
     test(query);
   }
@@ -345,19 +345,19 @@ public class TestUnionAll extends BaseTestQuery{
     String rootTimpStmp = FileUtils.getResourceAsFile("/store/json/timeStmpData.json").toURI().toString();
 
     String query1 = String.format(
-        "(select max(key) as key from dfs_test.`%s` " +
+        "(select max(key) as key from dfs_test.\"%s\" " +
         "union all " +
-        "select key from dfs_test.`%s`)", rootDate, rootTimpStmp);
+        "select key from dfs_test.\"%s\")", rootDate, rootTimpStmp);
 
     String query2 = String.format(
-        "select key from dfs_test.`%s` " +
+        "select key from dfs_test.\"%s\" " +
         "union all " +
-        "select max(key) as key from dfs_test.`%s`", rootDate, rootTimpStmp);
+        "select max(key) as key from dfs_test.\"%s\"", rootDate, rootTimpStmp);
 
     String query3 = String.format(
-        "select key from dfs_test.`%s` " +
+        "select key from dfs_test.\"%s\" " +
         "union all " +
-        "select max(key) as key from dfs_test.`%s`", rootDate, rootTimpStmp);
+        "select max(key) as key from dfs_test.\"%s\"", rootDate, rootTimpStmp);
 
     testBuilder()
         .sqlQuery(query1)
@@ -388,17 +388,17 @@ public class TestUnionAll extends BaseTestQuery{
   @Test // see DRILL-2637
   public void testUnionAllOneInputContainsAggFunction() throws Exception {
     String root = FileUtils.getResourceAsFile("/multilevel/csv/1994/Q1/orders_94_q1.csv").toURI().toString();
-    String query1 = String.format("select * from ((select count(c1) as ct from (select columns[0] c1 from dfs.`%s`)) \n" +
+    String query1 = String.format("select * from ((select count(c1) as ct from (select columns[0] c1 from dfs.\"%s\")) \n" +
         "union all \n" +
-        "(select columns[0] c2 from dfs.`%s`)) order by ct limit 3", root, root);
+        "(select columns[0] c2 from dfs.\"%s\")) order by ct limit 3", root, root);
 
-    String query2 = String.format("select * from ((select columns[0] ct from dfs.`%s`)\n" +
+    String query2 = String.format("select * from ((select columns[0] ct from dfs.\"%s\")\n" +
         "union all \n" +
-        "(select count(c1) as c2 from (select columns[0] c1 from dfs.`%s`))) order by ct limit 3", root, root);
+        "(select count(c1) as c2 from (select columns[0] c1 from dfs.\"%s\"))) order by ct limit 3", root, root);
 
-    String query3 = String.format("select * from ((select count(c1) as ct from (select columns[0] c1 from dfs.`%s`))\n" +
+    String query3 = String.format("select * from ((select count(c1) as ct from (select columns[0] c1 from dfs.\"%s\"))\n" +
         "union all \n" +
-        "(select count(c1) as c2 from (select columns[0] c1 from dfs.`%s`))) order by ct", root, root);
+        "(select count(c1) as c2 from (select columns[0] c1 from dfs.\"%s\"))) order by ct", root, root);
 
     testBuilder()
         .sqlQuery(query1)
@@ -431,10 +431,10 @@ public class TestUnionAll extends BaseTestQuery{
   public void testUnionInputsGroupByOnCSV() throws Exception {
     String root = FileUtils.getResourceAsFile("/multilevel/csv/1994/Q1/orders_94_q1.csv").toURI().toString();
     String query = String.format("select * from \n" +
-            "((select columns[0] as col0 from dfs.`%s` t1 \n" +
+            "((select columns[0] as col0 from dfs.\"%s\" t1 \n" +
             "where t1.columns[0] = 66) \n" +
             "union all \n" +
-            "(select columns[0] c2 from dfs.`%s` t2 \n" +
+            "(select columns[0] c2 from dfs.\"%s\" t2 \n" +
             "where t2.columns[0] is not null \n" +
             "group by columns[0])) \n" +
         "group by col0"
@@ -462,9 +462,9 @@ public class TestUnionAll extends BaseTestQuery{
     String rootSimple = FileUtils.getResourceAsFile("/store/json/booleanData.json").toURI().toString();
 
     String queryRightEmptyBatch = String.format(
-        "select key from dfs_test.`%s` " +
+        "select key from dfs_test.\"%s\" " +
             "union all " +
-            "select key from dfs_test.`%s` where 1 = 0",
+            "select key from dfs_test.\"%s\" where 1 = 0",
         rootSimple,
         rootSimple);
 
@@ -482,9 +482,9 @@ public class TestUnionAll extends BaseTestQuery{
     String rootSimple = FileUtils.getResourceAsFile("/store/json/booleanData.json").toURI().toString();
 
     final String queryLeftBatch = String.format(
-        "select key from dfs_test.`%s` where 1 = 0 " +
+        "select key from dfs_test.\"%s\" where 1 = 0 " +
             "union all " +
-            "select key from dfs_test.`%s`",
+            "select key from dfs_test.\"%s\"",
         rootSimple,
         rootSimple);
 
@@ -503,9 +503,9 @@ public class TestUnionAll extends BaseTestQuery{
   public void testUnionAllBothEmptyBatch() throws Exception {
     String rootSimple = FileUtils.getResourceAsFile("/store/json/booleanData.json").toURI().toString();
     final String query = String.format(
-        "select key from dfs_test.`%s` where 1 = 0 " +
+        "select key from dfs_test.\"%s\" where 1 = 0 " +
             "union all " +
-            "select key from dfs_test.`%s` where 1 = 0",
+            "select key from dfs_test.\"%s\" where 1 = 0",
         rootSimple,
         rootSimple);
 
@@ -523,7 +523,7 @@ public class TestUnionAll extends BaseTestQuery{
   @Test // see DRILL-2746
   public void testFilterPushDownOverUnionAll() throws Exception {
     String query = "select n_regionkey from \n"
-        + "(select n_regionkey from cp.`tpch/nation.parquet` union all select r_regionkey from cp.`tpch/region.parquet`) \n"
+        + "(select n_regionkey from cp.\"tpch/nation.parquet\" union all select r_regionkey from cp.\"tpch/region.parquet\") \n"
         + "where n_regionkey > 0 and n_regionkey < 2 \n"
         + "order by n_regionkey";
 
@@ -550,9 +550,9 @@ public class TestUnionAll extends BaseTestQuery{
   @Test // see DRILL-2746
   public void testInListOnUnionAll() throws Exception {
     String query = "select n_nationkey \n" +
-        "from (select n1.n_nationkey from cp.`tpch/nation.parquet` n1 inner join cp.`tpch/region.parquet` r1 on n1.n_regionkey = r1.r_regionkey \n" +
+        "from (select n1.n_nationkey from cp.\"tpch/nation.parquet\" n1 inner join cp.\"tpch/region.parquet\" r1 on n1.n_regionkey = r1.r_regionkey \n" +
         "union all \n" +
-        "select n2.n_nationkey from cp.`tpch/nation.parquet` n2 inner join cp.`tpch/region.parquet` r2 on n2.n_regionkey = r2.r_regionkey) \n" +
+        "select n2.n_nationkey from cp.\"tpch/nation.parquet\" n2 inner join cp.\"tpch/region.parquet\" r2 on n2.n_regionkey = r2.r_regionkey) \n" +
         "where n_nationkey in (1, 2)";
 
     // Validate the plan
@@ -587,9 +587,9 @@ public class TestUnionAll extends BaseTestQuery{
   public void testFilterPushDownOverUnionAllCSV() throws Exception {
     String root = FileUtils.getResourceAsFile("/multilevel/csv/1994/Q1/orders_94_q1.csv").toURI().toString();
     String query = String.format("select ct \n" +
-        "from ((select count(c1) as ct from (select columns[0] c1 from dfs.`%s`)) \n" +
+        "from ((select count(c1) as ct from (select columns[0] c1 from dfs.\"%s\")) \n" +
         "union all \n" +
-        "(select columns[0] c2 from dfs.`%s`)) \n" +
+        "(select columns[0] c2 from dfs.\"%s\")) \n" +
         "where ct < 100", root, root);
 
     // Validate the plan
@@ -618,8 +618,8 @@ public class TestUnionAll extends BaseTestQuery{
   @Test // see DRILL-3130
   public void testProjectPushDownOverUnionAllWithProject() throws Exception {
     String query = "select n_nationkey, n_name from \n" +
-        "(select n_nationkey, n_name from cp.`tpch/nation.parquet` \n" +
-        "union all select r_regionkey, r_name  from cp.`tpch/region.parquet`)";
+        "(select n_nationkey, n_name from cp.\"tpch/nation.parquet\" \n" +
+        "union all select r_regionkey, r_name  from cp.\"tpch/region.parquet\")";
 
     // Validate the plan
     final String[] expectedPlan = {"Project\\(n_nationkey=\\[\\$0\\], n_name=\\[\\$1\\]\\).*\n" +
@@ -645,8 +645,8 @@ public class TestUnionAll extends BaseTestQuery{
   @Test // see DRILL-3130
   public void testProjectPushDownOverUnionAllWithoutProject() throws Exception {
     String query = "select n_nationkey from \n" +
-        "(select n_nationkey, n_comment from cp.`tpch/nation.parquet` \n" +
-        "union all select r_regionkey, r_comment  from cp.`tpch/region.parquet`)";
+        "(select n_nationkey, n_comment from cp.\"tpch/nation.parquet\" \n" +
+        "union all select r_regionkey, r_comment  from cp.\"tpch/region.parquet\")";
 
     // Validate the plan
     final String[] expectedPlan = {"Project\\(n_nationkey=\\[\\$0\\]\\).*\n" +
@@ -670,8 +670,8 @@ public class TestUnionAll extends BaseTestQuery{
   @Test // see DRILL-3130
   public void testProjectWithExpressionPushDownOverUnionAll() throws Exception {
     String query = "select 2 * n_nationkey as col from \n" +
-        "(select n_nationkey, n_name, n_comment from cp.`tpch/nation.parquet` \n" +
-        "union all select r_regionkey, r_name, r_comment  from cp.`tpch/region.parquet`)";
+        "(select n_nationkey, n_name, n_comment from cp.\"tpch/nation.parquet\" \n" +
+        "union all select r_regionkey, r_name, r_comment  from cp.\"tpch/region.parquet\")";
 
     // Validate the plan
     final String[] expectedPlan = {
@@ -697,8 +697,8 @@ public class TestUnionAll extends BaseTestQuery{
   public void testProjectDownOverUnionAllImplicitCasting() throws Exception {
     String root = FileUtils.getResourceAsFile("/store/text/data/nations.csv").toURI().toString();
     String query = String.format("select 2 * n_nationkey as col from \n" +
-        "(select n_nationkey, n_name, n_comment from cp.`tpch/nation.parquet` \n" +
-        "union all select columns[0], columns[1], columns[2] from dfs.`%s`) \n" +
+        "(select n_nationkey, n_name, n_comment from cp.\"tpch/nation.parquet\" \n" +
+        "union all select columns[0], columns[1], columns[2] from dfs.\"%s\") \n" +
         "order by col limit 10", root);
 
     // Validate the plan
@@ -724,8 +724,8 @@ public class TestUnionAll extends BaseTestQuery{
   @Test // see DRILL-3130
   public void testProjectPushDownProjectColumnReorderingAndAlias() throws Exception {
     String query = "select n_comment as col1, n_nationkey as col2, n_name as col3 from \n" +
-        "(select n_nationkey, n_name, n_comment from cp.`tpch/nation.parquet` \n" +
-        "union all select r_regionkey, r_name, r_comment  from cp.`tpch/region.parquet`)";
+        "(select n_nationkey, n_name, n_comment from cp.\"tpch/nation.parquet\" \n" +
+        "union all select r_regionkey, r_name, r_comment  from cp.\"tpch/region.parquet\")";
 
     // Validate the plan
     final String[] expectedPlan = {
@@ -748,8 +748,8 @@ public class TestUnionAll extends BaseTestQuery{
   @Test // see DRILL-2746, DRILL-3130
   public void testProjectFiltertPushDownOverUnionAll() throws Exception {
     String query = "select n_nationkey from \n" +
-        "(select n_nationkey, n_name, n_comment from cp.`tpch/nation.parquet` \n" +
-        "union all select r_regionkey, r_name, r_comment  from cp.`tpch/region.parquet`) \n" +
+        "(select n_nationkey, n_name, n_comment from cp.\"tpch/nation.parquet\" \n" +
+        "union all select r_regionkey, r_name, r_comment  from cp.\"tpch/region.parquet\") \n" +
         "where n_nationkey > 0 and n_nationkey < 4";
 
     /**
@@ -783,11 +783,11 @@ public class TestUnionAll extends BaseTestQuery{
     final String query1 = "WITH year_total \n" +
         "     AS (SELECT c.r_regionkey    customer_id,\n" +
         "                1 year_total\n" +
-        "         FROM   cp.`tpch/region.parquet` c\n" +
+        "         FROM   cp.\"tpch/region.parquet\" c\n" +
         "         UNION ALL \n" +
         "         SELECT c.r_regionkey    customer_id, \n" +
         "                1 year_total\n" +
-        "         FROM   cp.`tpch/region.parquet` c) \n" +
+        "         FROM   cp.\"tpch/region.parquet\" c) \n" +
         "SELECT count(t_s_secyear.customer_id) as ct \n" +
         "FROM   year_total t_s_firstyear, \n" +
         "       year_total t_s_secyear, \n" +
@@ -804,11 +804,11 @@ public class TestUnionAll extends BaseTestQuery{
     final String query2 = "WITH year_total \n" +
         "     AS (SELECT c.r_regionkey    customer_id,\n" +
         "                1 year_total\n" +
-        "         FROM   cp.`tpch/region.parquet` c\n" +
+        "         FROM   cp.\"tpch/region.parquet\" c\n" +
         "         UNION ALL \n" +
         "         SELECT c.r_regionkey    customer_id, \n" +
         "                1 year_total\n" +
-        "         FROM   cp.`tpch/region.parquet` c) \n" +
+        "         FROM   cp.\"tpch/region.parquet\" c) \n" +
         "SELECT count(t_w_firstyear.customer_id) as ct \n" +
         "FROM   year_total t_w_firstyear, \n" +
         "       year_total t_w_secyear \n" +
@@ -818,19 +818,19 @@ public class TestUnionAll extends BaseTestQuery{
     final String query3 = "WITH year_total_1\n" +
         "             AS (SELECT c.r_regionkey    customer_id,\n" +
         "                        1 year_total\n" +
-        "                 FROM   cp.`tpch/region.parquet` c\n" +
+        "                 FROM   cp.\"tpch/region.parquet\" c\n" +
         "                 UNION ALL \n" +
         "                 SELECT c.r_regionkey    customer_id, \n" +
         "                        1 year_total\n" +
-        "                 FROM   cp.`tpch/region.parquet` c) \n" +
+        "                 FROM   cp.\"tpch/region.parquet\" c) \n" +
         "             , year_total_2\n" +
         "             AS (SELECT c.n_nationkey    customer_id,\n" +
         "                        1 year_total\n" +
-        "                 FROM   cp.`tpch/nation.parquet` c\n" +
+        "                 FROM   cp.\"tpch/nation.parquet\" c\n" +
         "                 UNION ALL \n" +
         "                 SELECT c.n_nationkey    customer_id, \n" +
         "                        1 year_total\n" +
-        "                 FROM   cp.`tpch/nation.parquet` c) \n" +
+        "                 FROM   cp.\"tpch/nation.parquet\" c) \n" +
         "        SELECT count(t_w_firstyear.customer_id) as ct\n" +
         "        FROM   year_total_1 t_w_firstyear,\n" +
         "               year_total_2 t_w_secyear\n" +
@@ -840,19 +840,19 @@ public class TestUnionAll extends BaseTestQuery{
     final String query4 = "WITH year_total_1\n" +
         "             AS (SELECT c.r_regionkey    customer_id,\n" +
         "                        1 year_total\n" +
-        "                 FROM   cp.`tpch/region.parquet` c\n" +
+        "                 FROM   cp.\"tpch/region.parquet\" c\n" +
         "                 UNION ALL \n" +
         "                 SELECT c.n_nationkey    customer_id, \n" +
         "                        1 year_total\n" +
-        "                 FROM   cp.`tpch/nation.parquet` c), \n" +
+        "                 FROM   cp.\"tpch/nation.parquet\" c), \n" +
         "             year_total_2\n" +
         "             AS (SELECT c.r_regionkey    customer_id,\n" +
         "                        1 year_total\n" +
-        "                 FROM   cp.`tpch/region.parquet` c\n" +
+        "                 FROM   cp.\"tpch/region.parquet\" c\n" +
         "                 UNION ALL \n" +
         "                 SELECT c.n_nationkey    customer_id, \n" +
         "                        1 year_total\n" +
-        "                 FROM   cp.`tpch/nation.parquet` c) \n" +
+        "                 FROM   cp.\"tpch/nation.parquet\" c) \n" +
         "        SELECT count(t_w_firstyear.customer_id) as ct \n" +
         "        FROM   year_total_1 t_w_firstyear,\n" +
         "               year_total_2 t_w_secyear\n" +
@@ -900,8 +900,8 @@ public class TestUnionAll extends BaseTestQuery{
     final String l = FileUtils.getResourceAsFile("/multilevel/parquet/1994").toURI().toString();
     final String r = FileUtils.getResourceAsFile("/multilevel/parquet/1995").toURI().toString();
 
-    final String query = String.format("SELECT o_custkey FROM dfs_test.`%s` \n" +
-        "Union All SELECT o_custkey FROM dfs_test.`%s`", l, r);
+    final String query = String.format("SELECT o_custkey FROM dfs_test.\"%s\" \n" +
+        "Union All SELECT o_custkey FROM dfs_test.\"%s\"", l, r);
 
     // Validate the plan
     final String[] expectedPlan = {"UnionExchange.*\n",
@@ -932,8 +932,8 @@ public class TestUnionAll extends BaseTestQuery{
     final String r = FileUtils.getResourceAsFile("/multilevel/parquet/1995").toURI().toString();
 
     final String query = String.format("Select o_custkey, count(*) as cnt from \n" +
-        " (SELECT o_custkey FROM dfs_test.`%s` \n" +
-        "Union All SELECT o_custkey FROM dfs_test.`%s`) \n" +
+        " (SELECT o_custkey FROM dfs_test.\"%s\" \n" +
+        "Union All SELECT o_custkey FROM dfs_test.\"%s\") \n" +
         "group by o_custkey", l, r);
 
     // Validate the plan
@@ -963,8 +963,8 @@ public class TestUnionAll extends BaseTestQuery{
     final String r = FileUtils.getResourceAsFile("/multilevel/parquet/1995").toURI().toString();
 
     final String query = String.format("SELECT o_custkey FROM \n" +
-        " (select o1.o_custkey from dfs_test.`%s` o1 inner join dfs_test.`%s` o2 on o1.o_orderkey = o2.o_custkey) \n" +
-        " Union All SELECT o_custkey FROM dfs_test.`%s` where o_custkey < 10", l, r, l);
+        " (select o1.o_custkey from dfs_test.\"%s\" o1 inner join dfs_test.\"%s\" o2 on o1.o_orderkey = o2.o_custkey) \n" +
+        " Union All SELECT o_custkey FROM dfs_test.\"%s\" where o_custkey < 10", l, r, l);
 
     // Validate the plan
     final String[] expectedPlan = {"(?s)UnionExchange.*UnionAll.*HashJoin.*"};
@@ -993,8 +993,8 @@ public class TestUnionAll extends BaseTestQuery{
     final String r = FileUtils.getResourceAsFile("/multilevel/parquet/1995").toURI().toString();
 
     final String query = String.format("SELECT o_custkey FROM \n" +
-        " ((select o1.o_custkey from dfs_test.`%s` o1 inner join dfs_test.`%s` o2 on o1.o_orderkey = o2.o_custkey) \n" +
-        " Union All (SELECT o_custkey FROM dfs_test.`%s` order by dir0 limit 1))", l, r, l);
+        " ((select o1.o_custkey from dfs_test.\"%s\" o1 inner join dfs_test.\"%s\" o2 on o1.o_orderkey = o2.o_custkey) \n" +
+        " Union All (SELECT o_custkey FROM dfs_test.\"%s\" order by dir0 limit 1))", l, r, l);
 
     // Validate the plan
     final String[] expectedPlan = {"(?s)UnionExchange.*UnionAll.*HashJoin.*"};
@@ -1037,9 +1037,9 @@ public class TestUnionAll extends BaseTestQuery{
     final String r = FileUtils.getResourceAsFile("/multilevel/parquet/1995").toURI().toString();
 
     final String query = String.format("SELECT o_custkey FROM \n" +
-        " ((SELECT o_custkey FROM dfs_test.`%s` order by dir0 limit 1) \n" +
+        " ((SELECT o_custkey FROM dfs_test.\"%s\" order by dir0 limit 1) \n" +
         " union all \n" +
-        " (select o1.o_custkey from dfs_test.`%s` o1 inner join dfs_test.`%s` o2 on o1.o_orderkey = o2.o_custkey))", l, r, l);
+        " (select o1.o_custkey from dfs_test.\"%s\" o1 inner join dfs_test.\"%s\" o2 on o1.o_orderkey = o2.o_custkey))", l, r, l);
 
     // Validate the plan
     final String[] expectedPlan = {"(?s)UnionExchange.*UnionAll.*HashJoin.*"};

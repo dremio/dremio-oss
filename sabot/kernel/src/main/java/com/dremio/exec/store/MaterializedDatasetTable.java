@@ -20,6 +20,7 @@ import java.util.List;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelReferentialConstraint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.Schema.TableType;
@@ -38,6 +39,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.QuietAccessor;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.google.common.collect.ImmutableList;
 
 /**
  * DatasetTable that is used for table with options.
@@ -78,6 +80,11 @@ public class MaterializedDatasetTable implements TranslatableTable {
       public Double getRowCount() {
         return (double) datasetAccessor.getDataset().getReadDefinition().getScanStats().getRecordCount();
       }
+
+      @Override
+      public List<RelReferentialConstraint> getReferentialConstraints() {
+        return ImmutableList.of();
+      }
     };
   }
 
@@ -108,5 +115,4 @@ public class MaterializedDatasetTable implements TranslatableTable {
       return this;
     }
   }
-
 }

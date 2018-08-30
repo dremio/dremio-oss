@@ -26,13 +26,14 @@ import dataFormatUtils from 'utils/dataFormatUtils';
 import exploreUtils from 'utils/explore/exploreUtils';
 import { RED } from 'uiTheme/radium/colors';
 
+import { withLocation } from 'containers/dremioLocation';
 import EllipsisIcon from '../EllipsisIcon';
 
 import './ExploreTableCell.less';
 
 const CACHED_ROWS_NUMBER = 50;
 
-export default class ExploreTableCell extends Component {
+export class ExploreTableCellView extends Component {
   static propTypes = {
     columnType: PropTypes.string.isRequired,
     onShowMore: PropTypes.func,
@@ -48,13 +49,15 @@ export default class ExploreTableCell extends Component {
     tableData: PropTypes.object,
     onCellTextSelect: PropTypes.func,
     selectItemsOfList: PropTypes.func,
-    location: PropTypes.object,
     shouldRenderInvisibles: PropTypes.bool, // this is a dangerous/experimental option, it can interfere with other features (e.g. selection dropdown)
 
     // Cell props
     width: PropTypes.number,
     height: PropTypes.number,
-    style: PropTypes.object
+    style: PropTypes.object,
+
+    // context properties
+    location: PropTypes.object
   };
 
   static contextTypes = {
@@ -73,7 +76,7 @@ export default class ExploreTableCell extends Component {
     this.onEllipsisClick = this.onEllipsisClick.bind(this);
     this.getCellValue = this.getCellValue.bind(this);
     this.state = {
-      cellStringBiggerThanCell: false,
+      innerContentWidth: 0, // will be used to calculate should we display ellipses or not. Zero value is ignored
       curSelectedCell: '',
       startSelect: false
     };
@@ -87,7 +90,7 @@ export default class ExploreTableCell extends Component {
   shouldComponentUpdate(nextProps, nextState) {
     const dataPath = [nextProps.rowIndex, 'row', nextProps.columnKey];
 
-    const props = ['rowIndex', 'columnKey', 'columnStatus'];
+    const props = ['rowIndex', 'columnKey', 'columnStatus', 'width'];
     return !shallowEqual(pick(nextProps, props), pick(this.props, props))
       || !shallowEqual(nextState, this.state)
       || !Immutable.is(nextProps.data.getIn(dataPath), this.props.data.getIn(dataPath));
@@ -110,14 +113,10 @@ export default class ExploreTableCell extends Component {
 
   onMouseEnter(e) {
     const elem = $(e.target);
-    const fixedTableElement = elem.closest('.public_fixedDataTableCell_main');
-    const elemWidth = elem.outerWidth(true);
-    const cellStringBiggerThanCell = elemWidth > fixedTableElement.outerWidth();
-    if (cellStringBiggerThanCell !== this.state.cellStringBiggerThanCell) {
-      this.setState({
-        cellStringBiggerThanCell: elemWidth > fixedTableElement.outerWidth()
-      });
-    }
+
+    this.setState({
+      innerContentWidth: elem.outerWidth(true)
+    });
   }
 
   onMouseUp() {
@@ -132,7 +131,7 @@ export default class ExploreTableCell extends Component {
       return null;
     }
 
-    const columnName = selectionData.oRange.startContainer.parentNode.getAttribute('data-columnname');
+    const columnName = this.getColumnName(selectionData.oRange.startContainer);
     const columnText = selectionData.oRange.startContainer.data;
     const columnType = this.props.tableData.get('columns').find(col => col.get('name') === columnName).get('type');
     const cellValue = this.getCellValue();
@@ -195,7 +194,7 @@ export default class ExploreTableCell extends Component {
         !$(this.state.curSelectedCell).closest('.public_fixedDataTableCell_main')) {
       return true;
     }
-    const columnName = selectionData.oRange.startContainer.parentNode.getAttribute('data-columnname');
+    const columnName = this.getColumnName(selectionData.oRange.startContainer);
     const column = this.props.tableData.get('columns').find(col => col.get('name') === columnName);
     if (!column) return true;
 
@@ -203,10 +202,31 @@ export default class ExploreTableCell extends Component {
     return Boolean(query.type && query.type === 'transform' && columnStatus === 'HIGHLIGHTED');
   }
 
+  // When shouldRenderInvisibles= true, there is additional wrapping above the cell values. We have to find a cell wrapper to determine a cell wrapper.
+  // Without that following selenium tests failed.
+  // Test / selenium / smoketests.016_extract.Extract from menu
+  // Test / selenium / smoketests.018_transformation.transformation DX-3716#Case1 #Case4 #Case5
+
+  getColumnName(cellContentEl) {
+    let currentElement = cellContentEl;
+
+    while (currentElement && (!currentElement.className || currentElement.className.indexOf('cell-wrap') < 0)) {
+      currentElement = currentElement.parentNode;
+    }
+
+    if (currentElement) {
+      return currentElement.getAttribute('data-columnname');
+    }
+    return null;
+  }
+
   showEllipsis() {
-    const { columnType } = this.props;
+    const {
+      columnType,
+      width
+    } = this.props;
     const value = this.getCellValue();
-    return value !== null && Boolean(this.state.cellStringBiggerThanCell
+    return value !== null && Boolean(this.state.innerContentWidth > width
                   || this.getFullValueUrl()
                   || columnType === MAP
                   || columnType === LIST);
@@ -259,6 +279,8 @@ export default class ExploreTableCell extends Component {
     );
   }
 }
+
+export default withLocation(ExploreTableCellView);
 
 const styles = {
   removedCell: {

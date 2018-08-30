@@ -20,11 +20,13 @@ import org.apache.calcite.sql.SqlNode;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.PhysicalPlanReader;
+import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
+import com.dremio.resource.ResourceAllocator;
 
 /**
  * Take a sql node and run as async command.
@@ -49,8 +51,9 @@ public class HandlerToExec extends AsyncCommand<Object> {
       String sql,
       SqlNode sqlNode,
       SqlToPlanHandler handler,
-      SqlHandlerConfig config) {
-    super(context);
+      SqlHandlerConfig config,
+      ResourceAllocator queryResourceManager) {
+    super(context, queryResourceManager, observer);
     this.tunnelCreator = tunnelCreator;
     this.reader = reader;
     this.observer = observer;
@@ -64,8 +67,9 @@ public class HandlerToExec extends AsyncCommand<Object> {
   public double plan() throws Exception {
     observer.planStart(sql);
     PhysicalPlan plan = handler.getPlan(config, sql, sqlNode);
-    setQueueTypeFromPlan(plan);
-    exec = ExecutionPlanCreator.getExecutionPlan(context, reader, observer, plan, getQueueType());
+    final PlanningSet planningSet = allocateResourcesBasedOnPlan(plan);
+    exec = ExecutionPlanCreator.getExecutionPlan(context, reader, observer, plan,
+      resourceSet, planningSet);
     observer.planCompleted(exec);
     return plan.getCost();
   }

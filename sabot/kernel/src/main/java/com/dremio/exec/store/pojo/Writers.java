@@ -18,13 +18,14 @@ package com.dremio.exec.store.pojo;
 import java.lang.reflect.Field;
 import java.sql.Timestamp;
 
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableBitVector;
-import org.apache.arrow.vector.NullableFloat8Vector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableTimeStampMilliVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
+import org.apache.arrow.vector.holders.VarCharHolder;
 
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
@@ -36,7 +37,7 @@ import io.netty.buffer.ArrowBuf;
 public class Writers {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Writers.class);
 
-  public static class IntWriter extends AbstractWriter<NullableIntVector> {
+  public static class IntWriter extends AbstractWriter<IntVector> {
     public static final MajorType TYPE = Types.optional(MinorType.INT);
 
     public IntWriter(Field field) {
@@ -55,7 +56,7 @@ public class Writers {
     }
   }
 
-  public static class BitWriter extends AbstractWriter<NullableBitVector>{
+  public static class BitWriter extends AbstractWriter<BitVector>{
     public static final MajorType TYPE = Types.optional(MinorType.BIT);
 
     public BitWriter(Field field) {
@@ -75,7 +76,7 @@ public class Writers {
 
   }
 
-  public static class LongWriter extends AbstractWriter<NullableBigIntVector>{
+  public static class LongWriter extends AbstractWriter<BigIntVector>{
     public static final MajorType TYPE = Types.optional(MinorType.BIGINT);
 
     public LongWriter(Field field) {
@@ -94,7 +95,7 @@ public class Writers {
     }
   }
 
-  public static class DoubleWriter extends AbstractWriter<NullableFloat8Vector>{
+  public static class DoubleWriter extends AbstractWriter<Float8Vector>{
     public static final MajorType TYPE = Types.optional(MinorType.FLOAT8);
 
     public DoubleWriter(Field field) {
@@ -114,7 +115,7 @@ public class Writers {
 
   }
 
-  private abstract static class AbstractStringWriter extends AbstractWriter<NullableVarCharVector>{
+  private abstract static class AbstractStringWriter extends AbstractWriter<VarCharVector>{
     public static final MajorType TYPE = Types.optional(MinorType.VARCHAR);
 
     private ArrowBuf data;
@@ -185,7 +186,7 @@ public class Writers {
     }
   }
 
-  public static class TimeStampMilliWriter extends AbstractWriter<NullableTimeStampMilliVector>{
+  public static class TimeStampMilliWriter extends AbstractWriter<TimeStampMilliVector>{
     public static final MajorType TYPE = Types.optional(MinorType.TIMESTAMP);
 
     public TimeStampMilliWriter(Field field) {

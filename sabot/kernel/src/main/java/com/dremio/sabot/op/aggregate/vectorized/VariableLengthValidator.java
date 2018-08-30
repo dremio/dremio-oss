@@ -19,8 +19,8 @@ import java.util.List;
 
 import org.apache.arrow.memory.BoundsChecking;
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 
 import com.google.common.base.Preconditions;
 
@@ -54,7 +54,7 @@ public class VariableLengthValidator {
       return;
     }
 
-    assert vector instanceof NullableVarCharVector || vector instanceof NullableVarBinaryVector;
+    assert vector instanceof VarCharVector || vector instanceof VarBinaryVector;
 
     final List<ArrowBuf> buffers = vector.getFieldBuffers();
 

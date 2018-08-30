@@ -19,25 +19,41 @@ import ReactDOM from 'react-dom';
 import Paper from 'material-ui/Paper';
 import Menu from 'material-ui/Menu';
 import MenuItem from 'material-ui/MenuItem';
-import Divider from 'material-ui/Divider';
+import { get } from 'lodash/object';
 import { formLabel } from 'uiTheme/radium/typography';
 import { ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
 import { Overlay } from 'react-overlays';
 import DragTarget from 'components/DragComponents/DragTarget';
 import DragSource from 'components/DragComponents/DragSource';
+import { Checkbox } from 'components/Fields';
+import {
+  fieldTypes,
+  measureTypeLabels,
+  cellType,
+  granularityValue} from 'constants/AccelerationConstants';
+
+import { checkboxStandalone } from '@app/components/Fields/Checkbox.less';
 
 const WIDTH_MENU = 170;
+const WIDTH_MENU_MEASURE = 190;
 
-//TODO Refactor cellPopover render methods and configure externally with type
 export default class CellPopover extends Component {
   static propTypes = {
     anchorEl: PropTypes.object,
-    currentCell: PropTypes.string,
+    currentCell: PropTypes.shape({
+      columnIndex: PropTypes.number,
+      rowIndex: PropTypes.number,
+      labelCell: PropTypes.oneOf(Object.values(cellType)),
+      field: PropTypes.oneOf(Object.values(fieldTypes)),
+      value: PropTypes.string,
+      measureTypeList: PropTypes.array,
+      measureTypeAll: PropTypes.array
+    }),
     sortFields: PropTypes.array,
     onRequestClose: PropTypes.func.isRequired,
-    onSelectSortItem: PropTypes.func,
     partitionFields: PropTypes.array,
-    onSelectPartitionItem: PropTypes.func
+    onSelectPartitionItem: PropTypes.func,
+    onSelectMenuItem: PropTypes.func
   };
 
   state = {
@@ -46,8 +62,10 @@ export default class CellPopover extends Component {
     dragColumns: {
       partitionFields: [],
       sortFields: []
-    }
-  }
+    },
+    isMeasureCell: false,
+    measureTypeList: []
+  };
 
   componentWillMount() {
     this.receiveProps(this.props);
@@ -62,14 +80,18 @@ export default class CellPopover extends Component {
     this.props[fieldName].removeField(dragIndex);
     this.props[fieldName].addField(column, hoverIndex);
     this.setState({dragIndex: -1, hoverIndex: -1});
-  }
+  };
 
   receiveProps(nextProps, oldProps) {
-    const sortFieldsChanged = this.compareColumnAreaFields('sortFields', nextProps, oldProps);
-    const partitionFieldsChanged = this.compareColumnAreaFields('partitionFields', nextProps, oldProps);
+    const sortFieldsChanged = this.compareColumnAreaFields(fieldTypes.sort, nextProps, oldProps);
+    const partitionFieldsChanged = this.compareColumnAreaFields(fieldTypes.partition, nextProps, oldProps);
     if (sortFieldsChanged || partitionFieldsChanged) {
       this.updateFields(nextProps);
     }
+    this.setState({
+      isMeasureCell: get(nextProps, 'currentCell.labelCell') === cellType.measure,
+      measureTypeList: get(nextProps, 'currentCell.measureTypeList', [])
+    });
   }
 
   compareColumnAreaFields(fieldName, nextProps, oldProps) {
@@ -90,8 +112,8 @@ export default class CellPopover extends Component {
   }
 
   updateFields(props) {
-    const sortFields = this.mapColumnAreaFields(props.sortFields || []);
-    const partitionFields = this.mapColumnAreaFields(props.partitionFields || []);
+    const sortFields = this.mapColumnAreaFields(props.sortFields);
+    const partitionFields = this.mapColumnAreaFields(props.partitionFields);
     this.setState({
       dragColumns: {
         sortFields,
@@ -100,7 +122,9 @@ export default class CellPopover extends Component {
     });
   }
 
-  handleDragStart = config => this.setState({dragIndex: config.index, hoverIndex: config.index})
+  handleDragStart = config => this.setState({
+    dragIndex: config.index, hoverIndex: config.index
+  });
 
   handleMoveColumn = (fieldName, dragIndex, hoverIndex) => {
     const column = this.state.dragColumns[fieldName][dragIndex];
@@ -114,7 +138,11 @@ export default class CellPopover extends Component {
         hoverIndex
       };
     });
-  }
+  };
+
+  handleHide = () => {
+    this.props.onRequestClose();
+  };
 
   renderColumnArea = fieldName => {
     const columns = this.state.dragColumns[fieldName];
@@ -158,79 +186,119 @@ export default class CellPopover extends Component {
         }
       </div>
     );
-  }
+  };
 
   renderSortMenu = () => {
     const { sortFields } = this.props;
     return (
       <div style={{ width: WIDTH_MENU }}>
-        <MenuItem onClick={() => this.props.onSelectSortItem()} primaryText={la('Off')}/>
-        <MenuItem
-          onClick={() => this.props.onSelectSortItem('sortFields')}
-          primaryText={la('Sorted')}
-        />
         { sortFields.length > 0 &&
           <div>
-            <Divider />
-            <span style={{ margin: '5px 5px 0 10px', ...formLabel }}>{la('Sort Order:')}</span>
+            <span style={styles.menuHeader}>
+              {la('Drag to change sort order:')}
+            </span>
             {this.renderColumnArea('sortFields')}
           </div>
         }
       </div>
     );
-  }
+  };
 
-  // note: this has been disabled pending BE support
-  renderPartitionCell = () => {
-    const { partitionFields } = this.props;
+  renderGranularityMenu = () => {
+    const { currentCell } = this.props;
+    // our material-ui is old, and MenuItem does not support selected property, thus messing with styles here
     return (
       <div style={{ width: WIDTH_MENU }}>
-        <MenuItem
-          onClick={() => this.props.onSelectPartitionItem()}
-          primaryText={la('Off')}
-        />
-        <MenuItem
-          onClick={() => this.props.onSelectPartitionItem('partitionFields')}
-          primaryText={la('Partitioned')}
-        />
-        { partitionFields && partitionFields.length > 0 &&
-        <div>
-          <Divider />
-          <span style={{ margin: '5px 5px 0 10px', ...formLabel }}>{la('Partition Order:')}</span>
-          {this.renderColumnArea('partitionFields')}
+        <span style={styles.menuHeader}>
+          {la('Date Granularity:')}
+        </span>
+        <div style={{marginTop: 5}}>
+          <MenuItem
+            onClick={() => this.props.onSelectMenuItem(cellType.dimension, granularityValue.normal)}
+            primaryText={la('Original')}
+            style={currentCell.value === granularityValue.normal ? styles.menuItemSelected : styles.menuItem}
+          />
+          <MenuItem
+            onClick={() => this.props.onSelectMenuItem(cellType.dimension, granularityValue.date)}
+            primaryText={la('Date')} style={styles.menuItem}
+            style={currentCell.value === granularityValue.date ? styles.menuItemSelected : styles.menuItem}
+          />
         </div>
-        }
       </div>
     );
-  }
+  };
 
-  renderContent = () => {
-    const {currentCell} = this.props;
-    let content;
-    if (currentCell === 'sort') {
-      content = this.renderSortMenu();
+  toggleMeasure = (measure) => {
+    // add or remove measure to/from currentCell.measureTypeList
+    const measureTypeList = this.state.measureTypeList.slice();
+    const pos = measureTypeList.indexOf(measure);
+    if (pos === -1) {
+      measureTypeList.push(measure);
+    } else if (measureTypeList.length === 1) {
+      // prevent user from removing a check from the last checkbox, leaving measure type list empty
+      return;
+    } else {
+      measureTypeList.splice(pos, 1);
     }
+    this.props.onSelectMenuItem(cellType.measure, measureTypeList);
+  };
+
+  renderMeasureMenu = () => {
+    const typesToDisplay = get(this.props, 'currentCell.measureTypeAll', []);
     return (
-      <Paper>
-        <Menu width={WIDTH_MENU}>
-          {content}
-        </Menu>
-      </Paper>
+      <div style={styles.measureMenu}>
+        <span style={styles.measureMenuHeader}>
+          {la('Selected Measures:')}
+        </span>
+        <div>
+          {typesToDisplay.map((measure, index) => {
+            return <div style={styles.measureMenuItem} key={index}>
+              <Checkbox className={checkboxStandalone}
+                checked={Boolean(this.state.measureTypeList.find(item => item === measure))}
+                dataQa={`checkbox-${measure}`}
+                onChange={this.toggleMeasure.bind(this, measure)}
+                label={measureTypeLabels[measure]}/>
+            </div>;
+          })
+          }
+        </div>
+      </div>
     );
-  }
+  };
+
+  makeContent = () => {
+    if (!this.props.currentCell) return '';
+
+    switch (this.props.currentCell.labelCell) {
+    case cellType.sort:
+      return this.renderSortMenu();
+    case cellType.dimension:
+      return this.renderGranularityMenu();
+    case cellType.measure:
+      return this.renderMeasureMenu();
+    default:
+      return '';
+    }
+  };
 
   render() {
+    const showOverlay = !!(get(this.props, 'currentCell.labelCell'));
+    const menuWidth = (this.state.isMeasureCell) ? WIDTH_MENU_MEASURE : WIDTH_MENU;
     return (
       <Overlay
-        show={Boolean(this.props.currentCell)}
+        show={showOverlay}
         container={this}
         target={() => ReactDOM.findDOMNode(this.props.anchorEl)}
         placement='bottom'
-        onHide={this.props.onRequestClose}
+        onHide={this.handleHide}
         rootClose
       >
-        <div style={styles.base}>
-          {this.renderContent()}
+        <div style={{...styles.base, width: menuWidth}}>
+          <Paper>
+            <Menu width={menuWidth}>
+              {this.makeContent()}
+            </Menu>
+          </Paper>
         </div>
       </Overlay>
     );
@@ -270,5 +338,29 @@ const styles = {
     alignItems: 'center',
     backgroundColor: '#96e3d1',
     height: '100%'
+  },
+  menuHeader: {
+    margin: '5px 5px 0 10px',
+    ...formLabel
+  },
+  menuItem: {
+    lineHeight: '25px',
+    minHeight: '25px',
+    fontSize: 12
+  },
+  measureMenu: {
+    width: WIDTH_MENU_MEASURE,
+    padding: '0 10px'
+  },
+  measureMenuHeader: {
+      ...formLabel
+  },
+  measureMenuItem: {
+    marginTop: 7
   }
+};
+
+styles.menuItemSelected = {
+  ...styles.menuItem,
+  backgroundColor: '#ebf9f6'
 };

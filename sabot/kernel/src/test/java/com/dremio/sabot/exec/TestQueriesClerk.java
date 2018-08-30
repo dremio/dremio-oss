@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Collection;
 
+import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.AllocationReservation;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
@@ -124,7 +125,11 @@ public class TestQueriesClerk {
       this.name = name;
       numAllocators++;
     }
+
     public BufferAllocator newChildAllocator(String childName, long dummy1, long dummy2) {
+      return newChildAllocator(childName, null, dummy1, dummy2);
+    }
+    public BufferAllocator newChildAllocator(String childName, AllocationListener listener, long dummy1, long dummy2) {
       return new TestAllocator(this, childName);
     }
     public void close() {

@@ -32,11 +32,11 @@ public class TestIsDateFunctions extends BaseTestQuery {
   @Test
   public void testIsDate() throws Exception {
     final String query = "SELECT " +
-      "IS_DATE(`date`, 'MM.DD.YY') AS f1, " +
-      "IS_DATE(`date`, 'MONTH DD, YYYY') AS f2, " +
-      "IS_DATE(`date`, 'DY, MONTH DD, YYYY') AS f3, " +
-      "IS_DATE(`date`, 'MM.DD.YY, HH24:MI:SS') AS f4 " +
-      "FROM cp.`/is_date.json`";
+      "IS_DATE(\"date\", 'MM.DD.YY') AS f1, " +
+      "IS_DATE(\"date\", 'MONTH DD, YYYY') AS f2, " +
+      "IS_DATE(\"date\", 'DY, MONTH DD, YYYY') AS f3, " +
+      "IS_DATE(\"date\", 'MM.DD.YY, HH24:MI:SS') AS f4 " +
+      "FROM cp.\"/is_date.json\"";
     testBuilder()
       .ordered()
       .sqlQuery(query)
@@ -52,7 +52,7 @@ public class TestIsDateFunctions extends BaseTestQuery {
   @Test
   public void testInvalidIsDatePattern() throws Exception {
     try {
-      test("SELECT IS_DATE(`date`, 'yummy') FROM cp.`/is_date.json`");
+      test("SELECT IS_DATE(\"date\", 'yummy') FROM cp.\"/is_date.json\"");
       fail("Query expected to fail");
     } catch (UserException uex) {
       assertEquals(ErrorType.FUNCTION, uex.getErrorType());
@@ -63,7 +63,7 @@ public class TestIsDateFunctions extends BaseTestQuery {
   @Test
   public void testInvalidIsTimePattern() throws Exception {
     try {
-      test("SELECT IS_TIME(`time`, 'yummy') FROM cp.`/is_time.json`");
+      test("SELECT IS_TIME(\"time\", 'yummy') FROM cp.\"/is_time.json\"");
       fail("Query expected to fail");
     } catch (UserException uex) {
       assertEquals(ErrorType.FUNCTION, uex.getErrorType());
@@ -74,7 +74,7 @@ public class TestIsDateFunctions extends BaseTestQuery {
   @Test
   public void testInvalidIsTimestampPattern() throws Exception {
     try {
-      test("SELECT IS_TIMESTAMP(`time`, 'yummy') FROM cp.`/is_time.json`");
+      test("SELECT IS_TIMESTAMP(\"time\", 'yummy') FROM cp.\"/is_time.json\"");
       fail("Query expected to fail");
     } catch (UserException uex) {
       assertEquals(ErrorType.FUNCTION, uex.getErrorType());
@@ -85,10 +85,10 @@ public class TestIsDateFunctions extends BaseTestQuery {
   @Test
   public void testIsTime() throws Exception {
     final String query = "SELECT " +
-      "IS_TIME(`time`, 'HH:MI:SS') as f1, " +
-      "IS_TIME(`time`, 'HH24:MI:SS.FFF') as f2, " +
-      "IS_TIME(`time`, 'DD-MON-YY HH12.MI.SS.FFF AM') as f3 " +
-      "FROM cp.`/is_time.json`";
+      "IS_TIME(\"time\", 'HH:MI:SS') as f1, " +
+      "IS_TIME(\"time\", 'HH24:MI:SS.FFF') as f2, " +
+      "IS_TIME(\"time\", 'DD-MON-YY HH12.MI.SS.FFF AM') as f3 " +
+      "FROM cp.\"/is_time.json\"";
     testBuilder()
             .ordered()
             .sqlQuery(query)
@@ -103,10 +103,10 @@ public class TestIsDateFunctions extends BaseTestQuery {
   @Test
   public void testIsTimestamp() throws Exception {
     final String query = "SELECT " +
-            "IS_TIMESTAMP(`time`, 'HH:MI:SS') as f1, " +
-            "IS_TIMESTAMP(`time`, 'HH24:MI:SS.FFF') as f2, " +
-            "IS_TIMESTAMP(`time`, 'DD-MON-YY HH12.MI.SS.FFF AM') as f3 " +
-            "FROM cp.`/is_time.json`";
+            "IS_TIMESTAMP(\"time\", 'HH:MI:SS') as f1, " +
+            "IS_TIMESTAMP(\"time\", 'HH24:MI:SS.FFF') as f2, " +
+            "IS_TIMESTAMP(\"time\", 'DD-MON-YY HH12.MI.SS.FFF AM') as f3 " +
+            "FROM cp.\"/is_time.json\"";
     testBuilder()
             .ordered()
             .sqlQuery(query)

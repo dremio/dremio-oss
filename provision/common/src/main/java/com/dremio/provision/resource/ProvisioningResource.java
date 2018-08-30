@@ -15,9 +15,10 @@
  */
 package com.dremio.provision.resource;
 
-
-import static com.dremio.provision.service.ProvisioningServiceImpl.DEFAULT_HEAP_MEMORY;
-import static com.dremio.provision.service.ProvisioningServiceImpl.MIN_MEMORY_REQUIRED;
+import static com.dremio.provision.service.ProvisioningServiceImpl.DEFAULT_HEAP_MEMORY_MB;
+import static com.dremio.provision.service.ProvisioningServiceImpl.LARGE_SYSTEMS_DEFAULT_HEAP_MEMORY_MB;
+import static com.dremio.provision.service.ProvisioningServiceImpl.LARGE_SYSTEMS_MIN_MEMORY_MB;
+import static com.dremio.provision.service.ProvisioningServiceImpl.MIN_MEMORY_REQUIRED_MB;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,9 +36,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.SecurityContext;
 
-import com.dremio.config.DremioConfig;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.provision.Cluster;
@@ -77,14 +76,12 @@ public class ProvisioningResource {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProvisioningResource.class);
 
 
-  private final SecurityContext securityContext;
   private final ProvisioningService service;
   //private boolean isMaster;
 
   @Inject
-  public ProvisioningResource(ProvisioningService service, SecurityContext securityContext) {
+  public ProvisioningResource(ProvisioningService service) {
     this.service = service;
-    this.securityContext = securityContext;
   }
 
   @PUT
@@ -105,19 +102,27 @@ public class ProvisioningResource {
   @Produces(MediaType.APPLICATION_JSON)
   public ClusterResponse createCluster(ClusterCreateRequest clusterCreateRequest) throws Exception {
 
+    ClusterConfig clusterConfig = getClusterConfig(clusterCreateRequest);
+    ClusterEnriched cluster = service.createCluster(clusterConfig);
+    return toClusterResponse(cluster);
+   }
+
+  public ClusterConfig getClusterConfig(ClusterCreateRequest clusterCreateRequest) {
     Preconditions.checkNotNull(clusterCreateRequest.getMemoryMB());
     Preconditions.checkNotNull(clusterCreateRequest.getDistroType());
     Preconditions.checkNotNull(clusterCreateRequest.getIsSecure());
 
-    if(clusterCreateRequest.getMemoryMB() < MIN_MEMORY_REQUIRED) {
+    if(clusterCreateRequest.getMemoryMB() < MIN_MEMORY_REQUIRED_MB) {
       throw new IllegalArgumentException("Minimum memory required should be greater or equal than: " +
-        MIN_MEMORY_REQUIRED + "MB");
+        MIN_MEMORY_REQUIRED_MB + "MB");
     }
 
-    int onHeap = DEFAULT_HEAP_MEMORY;
+    int onHeap = clusterCreateRequest.getMemoryMB() < LARGE_SYSTEMS_MIN_MEMORY_MB
+                                                    ? DEFAULT_HEAP_MEMORY_MB
+                                                    : LARGE_SYSTEMS_DEFAULT_HEAP_MEMORY_MB;
     List<Property> properties = Optional.fromNullable(clusterCreateRequest.getSubPropertyList()).or(new ArrayList<Property>());
     for (Property prop : properties) {
-      if (DremioConfig.YARN_HEAP_SIZE.equalsIgnoreCase(prop.getKey())) {
+      if (ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY.equalsIgnoreCase(prop.getKey())) {
         String onHeapStr = prop.getValue();
         try {
           onHeap = Integer.valueOf(onHeapStr);
@@ -139,9 +144,8 @@ public class ProvisioningResource {
     clusterConfig.setDistroType(clusterCreateRequest.getDistroType());
     clusterConfig.setIsSecure(clusterCreateRequest.getIsSecure());
     clusterConfig.setSubPropertyList(clusterCreateRequest.getSubPropertyList());
-    ClusterEnriched cluster = service.createCluster(clusterConfig);
-    return toClusterResponse(cluster);
-   }
+    return clusterConfig;
+  }
 
   @PUT
   @Path("/cluster/{id}")
@@ -249,7 +253,7 @@ public class ProvisioningResource {
     int onHeap = 0;
     if (clusterConfig.getSubPropertyList() != null) {
       for (Property prop : clusterConfig.getSubPropertyList()) {
-        if (!DremioConfig.YARN_HEAP_SIZE.equalsIgnoreCase(prop.getKey())) {
+        if (!ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY.equalsIgnoreCase(prop.getKey())) {
           continue;
         }
         String onHeapStr = prop.getValue();

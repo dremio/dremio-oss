@@ -15,6 +15,8 @@
  */
 package com.dremio.exec;
 
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -26,6 +28,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.PlanTestBase;
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.util.GlobalDictionaryBuilder;
 
 /**
@@ -35,6 +38,9 @@ public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
 
   @ClassRule
   public static TemporaryFolder folder = new TemporaryFolder();
+
+  private static BufferAllocator testRootAllocator;
+  private static BufferAllocator testAllocator;
 
   private static FileSystem fs;
   private static Path lineitem;
@@ -48,16 +54,19 @@ public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
 
   @BeforeClass
   public static void setup() throws Exception {
-    testNoResult("alter session set `store.parquet.enable_dictionary_encoding_binary_type`=true");
+    testRootAllocator = RootAllocatorFactory.newRoot(config);
+    testAllocator = testRootAllocator.newChildAllocator("test-tpch-distrib", 0, testRootAllocator.getLimit());
+
+    testNoResult("alter session set \"store.parquet.enable_dictionary_encoding_binary_type\"=true");
     fs = FileSystem.getLocal(new Configuration());
-    testNoResult("CREATE TABLE dfs_test.tpch_lineitem_gd AS SELECT * FROM cp.`tpch/lineitem.parquet`");
-    testNoResult("CREATE TABLE dfs_test.tpch_customer_gd AS SELECT * FROM cp.`tpch/customer.parquet`");
-    testNoResult("CREATE TABLE dfs_test.tpch_part_gd AS SELECT * FROM cp.`tpch/part.parquet`");
-    testNoResult("CREATE TABLE dfs_test.tpch_partsupp_gd AS SELECT * FROM cp.`tpch/partsupp.parquet`");
-    testNoResult("CREATE TABLE dfs_test.tpch_region_gd AS SELECT * FROM cp.`tpch/region.parquet`");
-    testNoResult("CREATE TABLE dfs_test.tpch_nation_gd AS SELECT * FROM cp.`tpch/nation.parquet`");
-    testNoResult("CREATE TABLE dfs_test.tpch_supplier_gd AS SELECT * FROM cp.`tpch/supplier.parquet`");
-    testNoResult("CREATE TABLE dfs_test.tpch_orders_gd AS SELECT * FROM cp.`tpch/orders.parquet`");
+    testNoResult("CREATE TABLE dfs_test.tpch_lineitem_gd AS SELECT * FROM cp.\"tpch/lineitem.parquet\"");
+    testNoResult("CREATE TABLE dfs_test.tpch_customer_gd AS SELECT * FROM cp.\"tpch/customer.parquet\"");
+    testNoResult("CREATE TABLE dfs_test.tpch_part_gd AS SELECT * FROM cp.\"tpch/part.parquet\"");
+    testNoResult("CREATE TABLE dfs_test.tpch_partsupp_gd AS SELECT * FROM cp.\"tpch/partsupp.parquet\"");
+    testNoResult("CREATE TABLE dfs_test.tpch_region_gd AS SELECT * FROM cp.\"tpch/region.parquet\"");
+    testNoResult("CREATE TABLE dfs_test.tpch_nation_gd AS SELECT * FROM cp.\"tpch/nation.parquet\"");
+    testNoResult("CREATE TABLE dfs_test.tpch_supplier_gd AS SELECT * FROM cp.\"tpch/supplier.parquet\"");
+    testNoResult("CREATE TABLE dfs_test.tpch_orders_gd AS SELECT * FROM cp.\"tpch/orders.parquet\"");
 
     lineitem = new Path(getDfsTestTmpSchemaLocation() + "/tpch_lineitem_gd");
     customer = new Path(getDfsTestTmpSchemaLocation() + "/tpch_customer_gd");
@@ -68,21 +77,21 @@ public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
     supplier = new Path(getDfsTestTmpSchemaLocation() + "/tpch_supplier_gd");
     orders = new Path(getDfsTestTmpSchemaLocation() + "/tpch_orders_gd");
 
-    GlobalDictionaryBuilder.createGlobalDictionaries(fs, lineitem, getAllocator());
-    GlobalDictionaryBuilder.createGlobalDictionaries(fs, customer, getAllocator());
-    GlobalDictionaryBuilder.createGlobalDictionaries(fs, part, getAllocator());
-    GlobalDictionaryBuilder.createGlobalDictionaries(fs, partsupp, getAllocator());
-    GlobalDictionaryBuilder.createGlobalDictionaries(fs, region, getAllocator());
-    GlobalDictionaryBuilder.createGlobalDictionaries(fs, nation, getAllocator());
-    GlobalDictionaryBuilder.createGlobalDictionaries(fs, supplier, getAllocator());
-    GlobalDictionaryBuilder.createGlobalDictionaries(fs, orders, getAllocator());
+    GlobalDictionaryBuilder.createGlobalDictionaries(fs, lineitem, testAllocator);
+    GlobalDictionaryBuilder.createGlobalDictionaries(fs, customer, testAllocator);
+    GlobalDictionaryBuilder.createGlobalDictionaries(fs, part, testAllocator);
+    GlobalDictionaryBuilder.createGlobalDictionaries(fs, partsupp, testAllocator);
+    GlobalDictionaryBuilder.createGlobalDictionaries(fs, region, testAllocator);
+    GlobalDictionaryBuilder.createGlobalDictionaries(fs, nation, testAllocator);
+    GlobalDictionaryBuilder.createGlobalDictionaries(fs, supplier, testAllocator);
+    GlobalDictionaryBuilder.createGlobalDictionaries(fs, orders, testAllocator);
     disableGlobalDictionary();
   }
 
   @AfterClass
   public static void cleanup() throws Exception {
-    testNoResult("alter session set `store.parquet.enable_dictionary_encoding_binary_type`=false");
-    test("alter session set `planner.slice_target` = " + ExecConstants.SLICE_TARGET_DEFAULT);
+    testNoResult("alter session set \"store.parquet.enable_dictionary_encoding_binary_type\"=false");
+    test("alter session set \"planner.slice_target\" = " + ExecConstants.SLICE_TARGET_DEFAULT);
     localFs.delete(lineitem, true);
     localFs.delete(customer, true);
     localFs.delete(part, true);
@@ -92,6 +101,7 @@ public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
     localFs.delete(supplier, true);
     localFs.delete(orders, true);
     enableGlobalDictionary();
+    AutoCloseables.close(testAllocator, testRootAllocator);
   }
 
   private static void testDistributed(final String fileName, String tag) throws Exception {

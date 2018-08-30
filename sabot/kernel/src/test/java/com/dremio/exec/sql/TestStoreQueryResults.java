@@ -34,6 +34,8 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.CloseableByteBuf;
 import com.dremio.common.DeferredException;
 import com.dremio.common.util.TestTools;
+import com.dremio.common.utils.protos.ExternalIdHelper;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
@@ -51,13 +53,11 @@ import com.dremio.exec.proto.UserProtos.SubmissionSource;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.AttemptId;
-import com.dremio.exec.work.ExternalIdHelper;
 import com.dremio.exec.work.protector.UserResult;
+import com.dremio.exec.work.user.LocalExecutionConfig;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.SubstitutionSettings;
-import com.dremio.exec.work.user.LocalExecutionConfig;
 import com.dremio.proto.model.attempts.AttemptReason;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 
@@ -137,25 +137,25 @@ public class TestStoreQueryResults extends BaseTestQuery {
 
   @BeforeClass
   public static void setup() throws Exception {
-    test("alter session set `planner.slice_target` = 1");
+    test("alter session set \"planner.slice_target\" = 1");
   }
 
   @AfterClass
   public static void shutdown() throws Exception {
-    test("alter session set `planner.slice_target` = " + ExecConstants.SLICE_TARGET_DEFAULT);
+    test("alter session set \"planner.slice_target\" = " + ExecConstants.SLICE_TARGET_DEFAULT);
   }
 
   @Test
   public void simpleQuery() throws Exception {
     String storeTblName = "simpleQuery";
-    String query = "SELECT n_nationkey, COUNT(*) AS `total` FROM cp.`tpch/nation.parquet` GROUP BY n_nationkey";
+    String query = "SELECT n_nationkey, COUNT(*) AS \"total\" FROM cp.\"tpch/nation.parquet\" GROUP BY n_nationkey";
 
     localQueryHelper(query, storeTblName);
 
     // Now try to query from the place where the above query results are stored
     testBuilder()
         .sqlQuery(
-            format("SELECT * FROM TABLE(%s.`%s`(type => 'arrow')) ORDER BY n_nationkey LIMIT 2",
+            format("SELECT * FROM TABLE(%s.\"%s\"(type => 'arrow')) ORDER BY n_nationkey LIMIT 2",
                 TEMP_SCHEMA, storeTblName))
         .unOrdered()
         .baselineColumns("n_nationkey", "total")
@@ -176,7 +176,7 @@ public class TestStoreQueryResults extends BaseTestQuery {
     // Now try to query from the place where the above query results are stored
     testBuilder()
         .sqlQuery(
-            format("SELECT * FROM TABLE(%s.`%s`(type => 'arrow')) ORDER BY TABLE_NAME", TEMP_SCHEMA, storeTblName))
+            format("SELECT * FROM TABLE(%s.\"%s\"(type => 'arrow')) ORDER BY TABLE_NAME", TEMP_SCHEMA, storeTblName))
         .unOrdered()
         .baselineColumns("TABLE_SCHEMA", "TABLE_NAME")
         .baselineValues("INFORMATION_SCHEMA", "CATALOGS")
@@ -192,14 +192,14 @@ public class TestStoreQueryResults extends BaseTestQuery {
   @Test
   public void setOption() throws Exception {
     String storeTblName = "setOption";
-    String query = format("ALTER SESSION SET `%s`=false", PlannerSettings.HASHAGG.getOptionName());
+    String query = format("ALTER SESSION SET \"%s\"=false", PlannerSettings.HASHAGG.getOptionName());
 
     localQueryHelper(query, storeTblName);
 
     // Now try to query from the place where the above query results are stored
     testBuilder()
         .sqlQuery(
-            format("SELECT * FROM TABLE(%s.`%s`(type => 'arrow'))", TEMP_SCHEMA, storeTblName))
+            format("SELECT * FROM TABLE(%s.\"%s\"(type => 'arrow'))", TEMP_SCHEMA, storeTblName))
         .unOrdered()
         .baselineColumns("ok", "summary")
         .baselineValues(true, "planner.enable_hashagg updated.")
@@ -212,14 +212,14 @@ public class TestStoreQueryResults extends BaseTestQuery {
   public void ctasAndDrop() throws Exception {
     String ctasStoreTblName = "ctas";
     String ctasTableName = "newTable";
-    String ctasQuery = format("CREATE TABLE %s.%s AS SELECT * FROM cp.`region.json` ORDER BY region_id LIMIT 2", TEMP_SCHEMA, ctasTableName);
+    String ctasQuery = format("CREATE TABLE %s.%s AS SELECT * FROM cp.\"region.json\" ORDER BY region_id LIMIT 2", TEMP_SCHEMA, ctasTableName);
 
     localQueryHelper(ctasQuery, ctasStoreTblName);
 
     // Now try to query from the place where the above query results are stored
     testBuilder()
         .sqlQuery(
-            format("SELECT count(*) as cnt FROM TABLE(%s.`%s`(type => 'arrow'))", TEMP_SCHEMA, ctasStoreTblName))
+            format("SELECT count(*) as cnt FROM TABLE(%s.\"%s\"(type => 'arrow'))", TEMP_SCHEMA, ctasStoreTblName))
         .unOrdered()
         .baselineColumns("cnt")
         .baselineValues(1L)
@@ -232,7 +232,7 @@ public class TestStoreQueryResults extends BaseTestQuery {
     // Now try to query from the place where the above query results are stored
     testBuilder()
         .sqlQuery(
-            format("SELECT * FROM TABLE(%s.`%s`(type => 'arrow'))", TEMP_SCHEMA, dropTableStoreTblName))
+            format("SELECT * FROM TABLE(%s.\"%s\"(type => 'arrow'))", TEMP_SCHEMA, dropTableStoreTblName))
         .unOrdered()
         .baselineColumns("ok", "summary")
         .baselineValues(true, "Table [dfs_test.newTable] dropped")
@@ -252,7 +252,7 @@ public class TestStoreQueryResults extends BaseTestQuery {
     // Now try to query from the place where the above query results are stored
     testBuilder()
         .sqlQuery(
-            format("SELECT count(*) as cnt FROM TABLE(%s.`%s`(type => 'arrow'))", TEMP_SCHEMA, storeTblName))
+            format("SELECT count(*) as cnt FROM TABLE(%s.\"%s\"(type => 'arrow'))", TEMP_SCHEMA, storeTblName))
         .unOrdered()
         .baselineColumns("cnt")
         .baselineValues(1L)
@@ -266,7 +266,7 @@ public class TestStoreQueryResults extends BaseTestQuery {
     final String newTblName = "ctasSingleCommitter";
     final String testWorkingPath = TestTools.getWorkingPath();
     final String parquetFiles = testWorkingPath + "/src/test/resources/parquet/4203_corrupt_dates/fewtypes_datepartition";
-    final String ctasQuery = String.format("CREATE TABLE %s.%s AS SELECT * from dfs.`" + parquetFiles + "`", TEMP_SCHEMA, newTblName);
+    final String ctasQuery = String.format("CREATE TABLE %s.%s AS SELECT * from dfs.\"" + parquetFiles + "\"", TEMP_SCHEMA, newTblName);
 
     localQueryHelper(ctasQuery, newTblName, true);
     FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
@@ -286,7 +286,7 @@ public class TestStoreQueryResults extends BaseTestQuery {
         .setPlan(query)
         .build();
 
-    String queryResultsStorePath = format("%s.`%s`", TEMP_SCHEMA, storeTblName);
+    String queryResultsStorePath = format("%s.\"%s\"", TEMP_SCHEMA, storeTblName);
     LocalExecutionConfig config = LocalExecutionConfig.newBuilder()
         .setEnableLeafLimits(false)
         .setFailIfNonEmptySent(false)

@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
-import org.apache.calcite.plan.RelOptMaterialization;
-
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 
 /**
  * Factory class to create default (calcite) {@code org.apache.calcite.plan.substitution.UnifyingSubstitutionProvider}

@@ -52,6 +52,7 @@ describe('SqlEditorController', () => {
       setQueryContext: sinon.spy(),
       toggleSqlError: sinon.spy(),
       queryContext: Immutable.List(),
+      getDatasetChangeDetails: () => ({}),
       location
     };
     context = {
@@ -86,7 +87,8 @@ describe('SqlEditorController', () => {
       beforeEach(() => {
         instance.refs = {
           editor: {
-            resetValue: sinon.spy()
+            resetValue: sinon.spy(),
+            focus: sinon.spy()
           }
         };
       });

@@ -28,6 +28,7 @@ import {
   areReflectionFormValuesBasic,
   areReflectionFormValuesUnconfigured,
   createReflectionFormValues,
+  fixupReflection,
   forceChangesForDatasetChange
 } from 'utils/accelerationUtils';
 import ApiUtils from 'utils/apiUtils/apiUtils';
@@ -157,8 +158,8 @@ export class AccelerationForm extends Component {
       return response.json().then(({data: reflections}) => {
         ReactUpdates.batchedUpdates(() => {
           if (!this.state.waitingForRecommendations || this.unmounted) return;
-          if (!reflections.length || !reflections.some(r => r.type === 'AGGREGATION')) {
-            // protect - ensure we get at least one agg
+          if (this.state.mode === 'ADVANCED' || !reflections.length || !reflections.some(r => r.type === 'AGGREGATION')) {
+            // protect - ensure we get at least one agg or if user switched to advanced mode
             this.setState({ waitingForRecommendations: false });
             return;
           }
@@ -293,6 +294,8 @@ export class AccelerationForm extends Component {
           reflection.shouldDelete = true;
         }
       }
+
+      fixupReflection(reflection, this.props.dataset);
     }
 
     reflections = reflections.filter(reflection => {

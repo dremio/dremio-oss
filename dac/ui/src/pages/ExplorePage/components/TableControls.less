@@ -13,230 +13,234 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.table-viewer-short{
-  .table-controls{
-    width: ~"calc(100% - 275px)";
-  }
-}
 
-.table-controls {
-  margin-top: 11px;
-  margin-left: 20px;
-  height: 50px;
-  display: flex;
-  justify-content: space-between;
-  position: relative;
-  user-select: none;
-
-  input {
-    user-select: none;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+    
+  .table-viewer-short{
+    .table-controls{
+      width: ~"calc(100% - 275px)";
+    }
   }
 
-  .tooltip-warn {
-    position: absolute;
-    top: -74px;
-    left: -20px;
-    width: 480px;
-    font-size: 12px;
+  .table-controls {
+    margin-top: 11px;
+    margin-left: 20px;
+    height: 50px;
     display: flex;
-    flex-wrap: wrap;
-    background-color: #272727;
-    color: #fff;
-    padding: 10px;
-    border-radius: 3px;
-    overflow: visible;
+    justify-content: space-between;
+    position: relative;
+    user-select: none;
 
-    .triangle {
-      width: 0;
-      height: 0;
-      border-style: solid;
-      border-width: 10px 10px 0px 10px;
-      border-color: #272727 transparent transparent transparent;
-      position: absolute;
-      left: 25px;
-      top: 63px;
+    input {
+      user-select: none;
     }
 
-    .run-again {
-      margin-top: 10px;
+    .tooltip-warn {
+      position: absolute;
+      top: -74px;
+      left: -20px;
+      width: 480px;
+      font-size: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      background-color: #272727;
+      color: #fff;
+      padding: 10px;
+      border-radius: 3px;
+      overflow: visible;
+
+      .triangle {
+        width: 0;
+        height: 0;
+        border-style: solid;
+        border-width: 10px 10px 0px 10px;
+        border-color: #272727 transparent transparent transparent;
+        position: absolute;
+        left: 25px;
+        top: 63px;
+      }
+
+      .run-again {
+        margin-top: 10px;
+        color: #0096FF;
+        cursor: pointer;
+      }
+    }
+
+    .active-data-graph {
+      background-color: darken(#EFEFEF, 10%) !important;
+    }
+
+    .columns-text {
       color: #0096FF;
       cursor: pointer;
     }
-  }
 
-  .active-data-graph {
-    background-color: darken(#EFEFEF, 10%) !important;
-  }
+    .dropdown-for-actions {
+      top: 40px;
+      left: 180px;
+      position: absolute;
+      z-index: 100;
+    }
 
-  .columns-text {
-    color: #0096FF;
-    cursor: pointer;
-  }
+    .control-wrap {
+      display: flex;
+      align-items: center;
+      min-width: 521px;
+      justify-content: flex-end;
 
-  .dropdown-for-actions {
-    top: 40px;
-    left: 180px;
-    position: absolute;
-    z-index: 100;
-  }
+      &.inactive-element{
+        background-color: transparent;
+        opacity: 0.4;
 
-  .control-wrap {
-    display: flex;
-    align-items: center;
-    min-width: 521px;
-    justify-content: flex-end;
-
-    &.inactive-element{
-      background-color: transparent;
-      opacity: 0.4;
-
-      &:hover {
-        background-color: transparent !important;
+        &:hover {
+          background-color: transparent !important;
+        }
       }
-    }
 
-    .black-triangle {
-      position: relative;
-      left: 10px;
-      display: inline-block;
-      height: 9px;
-      width: 5px;
-      background: #000;
-      z-index: 0;
-    }
-  }
-
-  .setting-dot-item {
-    height: 28px;
-    margin-right: 0;
-
-    &.inactive-element{
-      background-color: transparent;
-      opacity: 0.4;
-      cursor: default;
-
-      &:hover {
-        background-color: transparent !important;
-      }
-    }
-  }
-
-  .info-button {
-    border: 1px solid #ccc;
-    width: 90px;
-    height: 28px;
-    border-radius: 4px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: #EFEFEF;
-    font-size: 14px;
-    margin-left: 15px;
-
-    &.inactive-element{
-      background-color: transparent;
-      opacity: 0.4;
-
-      &:hover {
-        background-color: transparent !important;
-      }
-    }
-
-    &.add-columns {
-      width: 115px;
-      margin-left: 0;
-    }
-
-    &.group-by {
-      width: 95px;
-    }
-
-    &.join {
-      width: 80px;
-    }
-
-    &:hover {
-      background-color: darken(#EFEFEF, 10%);
-    }
-
-    &.data-graph-button {
-      cursor: pointer;
-      margin-left: 20px;
-      min-width: 120px;
-      background-color: #FFFFFF;
-
-      .fa {
-        font-size: 17px;
-        margin-right: 6px;
+      .black-triangle {
         position: relative;
-        top: 1px;
+        left: 10px;
+        display: inline-block;
+        height: 9px;
+        width: 5px;
+        background: #000;
+        z-index: 0;
       }
     }
 
-    &.blue-button {
-      background-color: #0094FB;
-      color: #fff;
-      border-color: #0094FB;
+    .setting-dot-item {
+      height: 28px;
+      margin-right: 0;
+
+      &.inactive-element{
+        background-color: transparent;
+        opacity: 0.4;
+        cursor: default;
+
+        &:hover {
+          background-color: transparent !important;
+        }
+      }
+    }
+
+    .info-button {
+      border: 1px solid #ccc;
+      width: 90px;
+      height: 28px;
+      border-radius: 4px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #EFEFEF;
+      font-size: 14px;
+      margin-left: 15px;
+
+      &.inactive-element{
+        background-color: transparent;
+        opacity: 0.4;
+
+        &:hover {
+          background-color: transparent !important;
+        }
+      }
+
+      &.add-columns {
+        width: 115px;
+        margin-left: 0;
+      }
+
+      &.group-by {
+        width: 95px;
+      }
+
+      &.join {
+        width: 80px;
+      }
 
       &:hover {
-        background-color: darken(#0094FB, 10%);
+        background-color: darken(#EFEFEF, 10%);
+      }
+
+      &.data-graph-button {
+        cursor: pointer;
+        margin-left: 20px;
+        min-width: 120px;
+        background-color: #FFFFFF;
+
+        .fa {
+          font-size: 17px;
+          margin-right: 6px;
+          position: relative;
+          top: 1px;
+        }
+      }
+
+      &.blue-button {
+        background-color: #0094FB;
+        color: #fff;
+        border-color: #0094FB;
+
+        &:hover {
+          background-color: darken(#0094FB, 10%);
+        }
+      }
+
+      &:hover {
+        background-color: darken(#EFEFEF, 10%);
       }
     }
 
-    &:hover {
-      background-color: darken(#EFEFEF, 10%);
+    .title {
+      font-weight: 700;
     }
-  }
-
-  .title {
-    font-weight: 700;
-  }
-
-  .controls {
-    display: flex;
-    align-items: center; // make sure all the buttons line up nicely
-  }
-
-  .left-controls {
-    display: flex;
-    align-items: center;
-  }
-
-  .right-controls {
-    display: flex;
-    width: auto;
-    margin-left: auto;
-    margin-right: 30px;
 
     .controls {
-      margin-right: 4px;
-      min-width: 300px;
-      overflow: visible;
-      height: 24px;
+      display: flex;
+      align-items: center; // make sure all the buttons line up nicely
+    }
 
-      .control-wrap{
+    .left-controls {
+      display: flex;
+      align-items: center;
+    }
+
+    .right-controls {
+      display: flex;
+      width: auto;
+      margin-left: auto;
+      margin-right: 30px;
+
+      .controls {
+        margin-right: 4px;
         min-width: 300px;
+        overflow: visible;
+        height: 24px;
+
+        .control-wrap{
+          min-width: 300px;
+        }
       }
-    }
 
-    .setting-item {
-      height: 26px;
-      margin-left: 0;
-    }
+      .setting-item {
+        height: 26px;
+        margin-left: 0;
+      }
 
-    .filter {
-      position: relative;
-      float: right;
-      margin-right: 20px;
-      min-width: 290px;
-      border-radius: 6px;
-      box-shadow: none;
-      border: 1px solid #e1e1e1;
-      padding: 4px;
-      height: 26px;
+      .filter {
+        position: relative;
+        float: right;
+        margin-right: 20px;
+        min-width: 290px;
+        border-radius: 6px;
+        box-shadow: none;
+        border: 1px solid #e1e1e1;
+        padding: 4px;
+        height: 26px;
 
-      &:focus {
-        outline: none;
+        &:focus {
+          outline: none;
+        }
       }
     }
   }

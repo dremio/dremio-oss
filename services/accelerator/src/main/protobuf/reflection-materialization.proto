@@ -35,16 +35,16 @@ message Materialization {
   optional int64 version = 2;
   optional int64 created_at = 3;
   optional int64 modified_at = 4;
-  optional ReflectionId reflectionId = 5;
+  optional ReflectionId reflection_id = 5;
   optional MaterializationState state = 6 [default = RUNNING];
-  optional int64 expiration = 12; // REMOVE, should be computed
+  optional int64 expiration = 12; // should be computed
   optional int64 last_refresh_from_pds = 14;
-  optional bytes logicalPlan = 15;
+  optional bytes logical_plan = 15;
   optional int64 reflection_goal_version = 17;
   optional JoinAnalysis join_analysis = 18;
   optional Failure failure = 13; // failure details set if state is failed
   
-  optional int64 seriesId = 23;
+  optional int64 series_id = 23;
   repeated DataPartition partition = 8; // nodes containing materialized data
   optional int64 init_refresh_submit = 19;
   optional int64 init_refresh_execution = 20;
@@ -58,38 +58,39 @@ message RefreshId {
 
 message Refresh {
   optional RefreshId id = 1;
-  optional ReflectionId reflectionId = 2;
-  optional int64 seriesId = 3;
+  optional ReflectionId reflection_id = 2;
+  optional int64 series_id = 3;
   optional int64 created_at = 4;
   optional int64 modified_at = 5;
-  optional string path = 6; 
+  optional string path = 6;
   optional JobDetails job = 7;
   optional MaterializationMetrics metrics = 8;
-  optional int64 updateId = 9;
+  optional int64 update_id = 9;
   repeated DataPartition partition = 10; // nodes containing materialized data
   optional int32 seriesOrdinal = 11 [default = 0]; // refresh order in its series, 0 for initial refresh
+  optional bool compacted = 12 [default = false]; // true if this refresh is the result of a compaction
 }
 
 // materialization job details
 message JobDetails {
-  optional string jobId = 1;
-  optional int64 jobStart = 2;
-  optional int64 jobEnd = 3;
-  optional int64 inputBytes = 4;
-  optional int64 inputRecords = 5;
-  optional int64 outputBytes = 6;
-  optional int64 outputRecords = 7;
+  optional string job_id = 1;
+  optional int64 job_start = 2;
+  optional int64 job_end = 3;
+  optional int64 input_bytes = 4;
+  optional int64 input_records = 5;
+  optional int64 output_bytes = 6;
+  optional int64 output_records = 7;
 }
 
 message RefreshDecision {
-  optional bool initialRefresh = 1;
-  optional int64 updateId = 2;
-  optional int64 seriesId = 3;
-  optional com.dremio.service.namespace.dataset.proto.AccelerationSettings accelerationSettings = 4;
-  optional int32 datasetHash = 5;
-  optional bytes logicalPlan = 6;
-  repeated ScanPath scanPaths = 7;
-  optional int32 seriesOrdinal = 8 [default = 0];
+  optional bool initial_refresh = 1;
+  optional int64 update_id = 2;
+  optional int64 series_id = 3;
+  optional com.dremio.service.namespace.dataset.proto.AccelerationSettings acceleration_settings = 4;
+  optional int32 dataset_hash = 5;
+  optional bytes logical_plan = 6;
+  repeated ScanPath scan_paths = 7;
+  optional int32 series_ordinal = 8 [default = 0];
 }
 
 // data partition host address
@@ -102,7 +103,9 @@ message MaterializationMetrics {
   // how many bytes does
   required int64 footprint = 1 [default = 0];
   // original query cost of running view definition
-  required double originalCost = 2 [default = 1.0];
+  required double original_cost = 2 [default = 1.0];
+  optional int32 num_files = 3 [default = 0];
+  optional int64 median_file_size = 4 [default = 0];
 }
 
 message JoinDependencyProperties {

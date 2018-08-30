@@ -122,11 +122,11 @@ public class JobsBasedRecommender implements JoinRecommender {
             List<String> leftTablePathList = joinTables.get(join.getJoinConditionsList().get(0).getProbeSideTableId()).getTableSchemaPathList();
             List<String> rightTablePathList = joinTables.get(join.getJoinConditionsList().get(0).getBuildSideTableId()).getTableSchemaPathList();
             if (parents.contains(leftTablePathList)) {
-              addJoinReco(refs, recommendations, recency, join, rightTablePathList, leftTablePathList);
+              addJoinReco(refs, recommendations, recency, join, rightTablePathList, leftTablePathList, joinTables);
             }
             // we can add it both ways if both tables are there
             if (parents.contains(rightTablePathList)) {
-              addJoinReco(refs, recommendations, recency, join, leftTablePathList, rightTablePathList);
+              addJoinReco(refs, recommendations, recency, join, leftTablePathList, rightTablePathList, joinTables);
             }
           }
         }
@@ -175,8 +175,8 @@ public class JobsBasedRecommender implements JoinRecommender {
 
   private void addJoinReco(
       Map<Origin, String> refs, List<JoinRecoForScoring> recommendations, long recency,
-      JoinStats joinStats, List<String> rightTable, List<String> leftTable) {
-    Map<String, String> j = translateConditions(joinStats);
+      JoinStats joinStats, List<String> rightTable, List<String> leftTable, Map<Integer,JoinTable> tableMap) {
+    Map<String, String> j = translateConditions(joinStats, refs, leftTable, rightTable, tableMap);
     if (j != null) {
       recommendations.add(new JoinRecoForScoring(new JoinRecommendation(toJoinType(joinStats.getJoinType()), rightTable, j), 1, recency));
     }
@@ -208,11 +208,38 @@ public class JobsBasedRecommender implements JoinRecommender {
     return joinRecommendations;
   }
 
-  private Map<String, String> translateConditions(JoinStats stats) {
+  private Map<String, String> translateConditions(JoinStats stats, Map<Origin,String> refs, List<String> leftTable, List<String> rightTable, Map<Integer,JoinTable> tableMap) {
     SortedMap<String, String> joinConditions = new TreeMap<>();
     // translate names if needed
-    for (JoinCondition joinCondition : stats.getJoinConditionsList()) {
-      joinConditions.put(joinCondition.getProbeSideColumn(), joinCondition.getBuildSideColumn());
+    for (JoinCondition condition : stats.getJoinConditionsList()) {
+      String leftColumn;
+      String rightColumn;
+      // figure out which is which
+      if (
+        leftTable.equals(tableMap.get(condition.getProbeSideTableId()).getTableSchemaPathList()) &&
+          rightTable.equals(tableMap.get(condition.getBuildSideTableId()).getTableSchemaPathList())
+        ) {
+        leftColumn = condition.getProbeSideColumn();
+        rightColumn = condition.getBuildSideColumn();
+      } else if (
+        rightTable.equals(tableMap.get(condition.getProbeSideTableId()).getTableSchemaPathList()) &&
+          leftTable.equals(tableMap.get(condition.getBuildSideTableId()).getTableSchemaPathList())
+        ) {
+        leftColumn = condition.getBuildSideColumn();
+        rightColumn = condition.getProbeSideColumn();
+      } else {
+        // this join condition refers a col that is not in the dataset
+        return null;
+      }
+      String leftColumAlias = refs.get(new Origin(leftColumn, false).setTableList(leftTable));
+      if (leftColumAlias != null) {
+        // if this column is actually in the dataset, translate the name
+        leftColumn = leftColumAlias;
+      } else {
+        // this join condition refers a col that is not in the dataset
+        return null;
+      }
+      joinConditions.put(leftColumn, rightColumn);
     }
     return joinConditions;
   }

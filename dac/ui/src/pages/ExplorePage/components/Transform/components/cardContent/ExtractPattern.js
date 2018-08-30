@@ -92,7 +92,7 @@ class ExtractPattern extends Component {
           <Select
             dataQa='PatternValue'
             items={this.items}
-            style={[{width: 200}, bodySmall]}
+            style={{width: 200, ...bodySmall}}
             {...value.value}
             />
           {(value.value.value === 'CAPTURE_GROUP' || value.value.value === 'INDEX') &&

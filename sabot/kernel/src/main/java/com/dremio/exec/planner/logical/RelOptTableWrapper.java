@@ -23,8 +23,10 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelDistribution;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelReferentialConstraint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.schema.ColumnStrategy;
 import org.apache.calcite.util.ImmutableBitSet;
 
 public class RelOptTableWrapper implements RelOptTable {
@@ -94,5 +96,15 @@ public class RelOptTableWrapper implements RelOptTable {
   @Override
   public RelOptTable extend(List<RelDataTypeField> extendedFields) {
     return relOptTable.extend(extendedFields);
+  }
+
+  @Override
+  public List<ColumnStrategy> getColumnStrategies() {
+    return relOptTable.getColumnStrategies();
+  }
+
+  @Override
+  public List<RelReferentialConstraint> getReferentialConstraints() {
+    return relOptTable.getReferentialConstraints();
   }
 }

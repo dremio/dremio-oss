@@ -13,29 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '../../../components/colors.less';
+@import '../../../components/colors.less'; // contains only variables
 
-#account-info{
-  .Select {
-    width: 400px;
-    outline: 0;
-    float: left;
-    margin: 0 7px 0 0;
-    height: 30px;
-    .Select-control{
-      background: #f4f4f4;
-      border: 1px solid #ddd !important;
-      box-shadow: 0 0 2px #ddd !important;
-      color: @black;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+
+  #account-info{
+    .Select {
+      width: 400px;
+      outline: 0;
+      float: left;
+      margin: 0 7px 0 0;
       height: 30px;
-    }
-    .Select-input{
-      height: 30px;
-    }
-    .Select-placeholder{
-      color: #666;
-      height: 30px;
-      line-height: 30px;
+      .Select-control{
+        background: #f4f4f4;
+        border: 1px solid #ddd !important;
+        box-shadow: 0 0 2px #ddd !important;
+        color: @black;
+        height: 30px;
+      }
+      .Select-input{
+        height: 30px;
+      }
+      .Select-placeholder{
+        color: #666;
+        height: 30px;
+        line-height: 30px;
+      }
     }
   }
 }

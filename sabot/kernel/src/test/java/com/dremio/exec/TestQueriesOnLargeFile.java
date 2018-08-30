@@ -22,7 +22,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.List;
 
-import org.apache.arrow.vector.NullableBigIntVector;
+import org.apache.arrow.vector.BigIntVector;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -72,7 +72,7 @@ public class TestQueriesOnLargeFile extends BaseTestQuery {
   @Test
   public void testRead() throws Exception {
     List<QueryDataBatch> results = testSqlWithResults(
-        String.format("SELECT count(*) FROM dfs.`%s`", dataFile.getPath()));
+        String.format("SELECT count(*) FROM dfs.\"%s\"", dataFile.getPath()));
 
     RecordBatchLoader batchLoader = new RecordBatchLoader(getAllocator());
 
@@ -83,7 +83,7 @@ public class TestQueriesOnLargeFile extends BaseTestQuery {
         continue;
       }
 
-      NullableBigIntVector countV = batchLoader.getValueAccessorById(NullableBigIntVector.class, 0).getValueVector();
+      BigIntVector countV = batchLoader.getValueAccessorById(BigIntVector.class, 0).getValueVector();
       assertTrue("Total of "+ NUM_RECORDS + " records expected in count", countV.get(0) == NUM_RECORDS);
 
       batchLoader.clear();

@@ -28,7 +28,6 @@ import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -49,9 +48,8 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
   @Tag(3)
   public boolean enableImpersonation = false;
 
-  @JsonProperty("propertyList")
   @Tag(4)
-  public List<Property> properties = Lists.newArrayList();
+  public List<Property> propertyList = Lists.newArrayList();
 
   @Tag(5)
   public SchemaMutability mutability = SchemaMutability.NONE;
@@ -71,7 +69,7 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
 
   @Override
   public List<Property> getProperties() {
-    return properties;
+    return propertyList;
   }
 
   @Override
@@ -92,11 +90,11 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
   public InternalFileConf() {
   }
 
-  public InternalFileConf(String connection, String path, boolean enableImpersonation, List<Property> properties, SchemaMutability mutability) {
+  public InternalFileConf(String connection, String path, boolean enableImpersonation, List<Property> propertyList, SchemaMutability mutability) {
     this.connection = connection;
     this.path = path;
     this.enableImpersonation = enableImpersonation;
-    this.properties = properties;
+    this.propertyList = propertyList;
     this.mutability = mutability;
   }
 

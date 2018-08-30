@@ -31,7 +31,7 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.vector.CopyUtil;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -274,8 +274,9 @@ public class PartitionSenderOperator extends BaseSender {
 
   static int getNumberPartitions(OperatorContext context, HashPartitionSender config){
     final OptionManager optMgr = context.getOptions();
-    long sliceTarget = optMgr.getOption(ExecConstants.SLICE_TARGET).num_val;
-    int threadFactor = optMgr.getOption(PlannerSettings.PARTITION_SENDER_THREADS_FACTOR.getOptionName()).num_val.intValue();
+    long sliceTarget = optMgr.getOption(ExecConstants.SLICE_TARGET).getNumVal();
+    int threadFactor = optMgr.getOption(PlannerSettings.PARTITION_SENDER_THREADS_FACTOR.getOptionName()).getNumVal()
+      .intValue();
     int tmpParts = 1;
     int outGoingBatchCount = config.getDestinations().size();
     double cost = config.getCost();
@@ -285,11 +286,13 @@ public class PartitionSenderOperator extends BaseSender {
         tmpParts = 1;
       }
     }
-    final int imposedThreads = optMgr.getOption(PlannerSettings.PARTITION_SENDER_SET_THREADS.getOptionName()).num_val.intValue();
+    final int imposedThreads = optMgr.getOption(PlannerSettings.PARTITION_SENDER_SET_THREADS.getOptionName()).getNumVal()
+      .intValue();
     if (imposedThreads > 0 ) {
       return imposedThreads;
     } else {
-      return Math.min(tmpParts, optMgr.getOption(PlannerSettings.PARTITION_SENDER_MAX_THREADS.getOptionName()).num_val.intValue());
+      return Math.min(tmpParts, optMgr.getOption(PlannerSettings.PARTITION_SENDER_MAX_THREADS.getOptionName()).getNumVal()
+        .intValue());
     }
   }
 

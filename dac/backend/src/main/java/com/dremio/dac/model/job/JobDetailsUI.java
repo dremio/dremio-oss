@@ -281,15 +281,13 @@ public class JobDetailsUI {
         failureInfo,
         attempts.get(0).getInfo().getSql(),
         attempts.get(0).getInfo().getDescription(),
-        attempts.get(0).getStats(), // TODO: I don't think this is correct for multiple attempt case. This shows up in "Details" tab in Job Details
+        Util.last(attempts).getStats(),
         DatasetType.VIRTUAL_DATASET, // TODO: return correct result. This is closest since only the ui submits queries and they are using virtual datasets...
         datasetVersion,
         resultsAvailable,
-        attempts.get(0).getInfo().getMaterializationFor(),
+        Util.last(attempts).getInfo().getMaterializationFor(),
         toUI(accelerationDetails)
-        );
-
-
+    );
   }
 
   public JobId getJobId() {

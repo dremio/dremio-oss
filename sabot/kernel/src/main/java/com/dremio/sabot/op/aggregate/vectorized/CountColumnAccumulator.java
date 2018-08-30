@@ -28,7 +28,7 @@ public class CountColumnAccumulator extends BaseSingleAccumulator {
 
   public void accumulate(final long offsetAddr, final int count){
     final long maxAddr = offsetAddr + count * 4;
-    final long incomingBit = getInput().getFieldBuffers().get(0).memoryAddress();
+    final long incomingBit = getInput().getValidityBufferAddress();
     final long[] valueAddresses = this.valueAddresses;
 
     int incomingIndex = 0;

@@ -26,6 +26,7 @@ import Message from 'components/Message';
 import { dismissViewStateError } from 'actions/resources';
 
 import { overlay } from 'uiTheme/radium/overlay';
+import classNames from 'classnames';
 
 const TIME_TP_WAIT_BEFORE_SPINNER = 500;
 
@@ -44,7 +45,8 @@ export class ViewStateWrapper extends Component {
     progressMessage: PropTypes.string,
     dismissViewStateError: PropTypes.func,
     onDismissError: PropTypes.func,
-    messageIsDismissable: PropTypes.bool
+    messageIsDismissable: PropTypes.bool,
+    className: PropTypes.string
   };
 
   static defaultProps = {
@@ -66,8 +68,11 @@ export class ViewStateWrapper extends Component {
   }
 
   componentWillReceiveProps(nextProps) {
-    if (nextProps.viewState.get('isInProgress')) {
-      this.checkTimer();
+    const inProgress = nextProps.viewState.get('isInProgress');
+    if (inProgress) {
+      if (inProgress !== this.props.viewState.get('isInProgress')) {
+        this.checkTimer();
+      }
     } else {
       clearTimeout(this.timer);
       this.setState({
@@ -136,10 +141,12 @@ export class ViewStateWrapper extends Component {
   }
 
   render() {
-    const { style } = this.props;
+    const { style, className } = this.props;
 
     return (
-      <div className='view-state-wrapper' style={[styles.base, style]}>
+      <div
+        className={classNames(['view-state-wrapper', className])}
+        style={[styles.base, style]}>
         {this.renderChildren()}
         {this.renderStatus()}
       </div>

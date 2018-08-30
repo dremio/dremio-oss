@@ -36,8 +36,6 @@ import { getAllDatasets } from 'selectors/datasets';
 import { getImmutableTable } from 'selectors/explore';
 import { getViewState } from 'selectors/resources';
 
-import { PALE_BLUE } from 'uiTheme/radium/colors';
-
 import { CUSTOM_JOIN } from 'constants/explorePage/joinTabs';
 import CalculatedFieldContent from './DetailsWizard/CalculatedFieldContent';
 import TransformContent from './DetailsWizard/TransformContent';
@@ -46,6 +44,7 @@ import SortMultiplyContent from './DetailsWizard/SortMultiplyContent';
 import RawHeader from './components/RawHeader';
 import GroupByController from './GroupByWizard/GroupByController';
 import JoinController from './JoinWizard/JoinController';
+import { base } from './DetailsWizard.less';
 
 export const RECOMMENDED_JOINS_VIEW_ID = 'RecommendedJoins';
 
@@ -73,7 +72,6 @@ export class DetailsWizard extends Component {
   };
 
   static contextTypes = {
-    location: PropTypes.object,
     router: PropTypes.object
   };
 
@@ -180,7 +178,6 @@ export class DetailsWizard extends Component {
       return <JoinHeader
         viewState={this.getJoinViewState()}
         hasRecommendations={this.props.recommendedJoins && this.props.recommendedJoins.size > 0}
-        location={location}
         {...defaultProps}/>;
     case 'CONVERT_CASE':
       return <RawHeader text='Convert Case' {...defaultProps}/>;
@@ -285,7 +282,7 @@ export class DetailsWizard extends Component {
     const height = hash[detailType] || '100%';
 
     return (
-      <div style={styles.base}>
+      <div className={base}>
         {this.renderHeader()}
         <div style={{height}}>
           {this.renderContent()}
@@ -316,9 +313,3 @@ export default connect(mapStateToProps, {
   transformPeek,
   resetViewState
 })(DetailsWizard);
-
-const styles = {
-  base: {
-    backgroundColor: PALE_BLUE
-  }
-};

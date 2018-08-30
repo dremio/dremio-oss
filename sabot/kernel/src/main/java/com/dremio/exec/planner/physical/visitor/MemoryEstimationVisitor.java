@@ -17,16 +17,16 @@ package com.dremio.exec.planner.physical.visitor;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 
 public class MemoryEstimationVisitor extends BasePrelVisitor<Double, Void, RuntimeException> {
 
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MemoryEstimationVisitor.class);
 
   public static boolean enoughMemory(Prel prel, OptionManager options, int numNodes) {
-    long allottedMemory = options.getOption(ExecConstants.MAX_QUERY_MEMORY_PER_NODE_KEY).num_val * numNodes;
+    long allottedMemory = options.getOption(ExecConstants.MAX_QUERY_MEMORY_PER_NODE_KEY).getNumVal() * numNodes;
     long estimatedMemory = (long) Math.ceil(prel.accept(new MemoryEstimationVisitor(), null) / (1024.0 * 1024.0));
-    estimatedMemory += options.getOption(ExecConstants.NON_BLOCKING_OPERATORS_MEMORY_KEY).num_val * numNodes;
+    estimatedMemory += options.getOption(ExecConstants.NON_BLOCKING_OPERATORS_MEMORY_KEY).getNumVal() * numNodes;
 
     if (estimatedMemory > allottedMemory) {
       logger.debug("Estimated memory (" + estimatedMemory + ") exceeds maximum allowed (" + allottedMemory + ")");

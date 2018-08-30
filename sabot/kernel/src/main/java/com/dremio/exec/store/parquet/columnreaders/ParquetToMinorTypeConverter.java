@@ -27,7 +27,7 @@ import org.apache.parquet.schema.PrimitiveType;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.CoreDecimalUtility;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 
 public class ParquetToMinorTypeConverter {

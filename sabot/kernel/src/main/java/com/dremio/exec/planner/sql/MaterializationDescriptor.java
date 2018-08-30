@@ -22,6 +22,7 @@ import javax.annotation.Nullable;
 
 import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
 import com.dremio.exec.planner.acceleration.JoinDependencyProperties;
+import com.dremio.exec.proto.UserBitShared.MeasureColumn;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -151,7 +152,7 @@ public class MaterializationDescriptor {
     private final List<String> partitionColumns;
     private final List<String> distributionColumns;
     private final List<String> dimensions;
-    private final List<String> measures;
+    private final List<MeasureColumn> measures;
     private final List<String> displayColumns;
 
     public ReflectionInfo(
@@ -162,7 +163,7 @@ public class MaterializationDescriptor {
         List<String> partitionColumns,
         List<String> distributionColumns,
         List<String> dimensions,
-        List<String> measures,
+        List<MeasureColumn> measures,
         List<String> displayColumns) {
       super();
       this.name = name;
@@ -184,7 +185,7 @@ public class MaterializationDescriptor {
       return dimensions;
     }
 
-    public List<String> getMeasures() {
+    public List<MeasureColumn> getMeasures() {
       return measures;
     }
 

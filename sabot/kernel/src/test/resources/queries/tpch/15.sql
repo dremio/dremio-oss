@@ -6,7 +6,7 @@ create view revenue0 (supplier_no, total_revenue) as
     l_suppkey,
     sum(l_extendedprice * (1 - l_discount))
   from
-    cp.`tpch/lineitem.parquet`
+    cp."tpch/lineitem.parquet"
   where
     l_shipdate >= date '1993-05-01'
     and l_shipdate < date '1993-05-01' + interval '3' month
@@ -20,7 +20,7 @@ select
   s.s_phone,
   r.total_revenue
 from
-  cp.`tpch/supplier.parquet` s,
+  cp."tpch/supplier.parquet" s,
   revenue0 r
 where
   s.s_suppkey = r.supplier_no

@@ -22,11 +22,13 @@ import java.util.logging.LogManager;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 import org.junit.After;
+import org.junit.Before;
 import org.mockito.Mockito;
 import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -44,7 +46,6 @@ import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.metrics.Metrics;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
 import com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnection;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.test.DremioTest;
@@ -55,7 +56,8 @@ import io.netty.util.concurrent.GenericFutureListener;
 
 public class ExecTest extends DremioTest {
 
-  protected final BufferAllocator allocator = RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG);
+  private BufferAllocator rootAllocator;
+  protected BufferAllocator allocator;
 
   private static volatile FunctionImplementationRegistry FUNCTION_REGISTRY;
 
@@ -73,12 +75,23 @@ public class ExecTest extends DremioTest {
     SLF4JBridgeHandler.install();
   }
 
+  @Before
+  public void initAllocators() {
+    rootAllocator = RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG);
+    allocator = rootAllocator.newChildAllocator(TEST_NAME.getMethodName(), 0, rootAllocator.getLimit());
+  }
+
   @After
   public void clear(){
     // TODO:  (Re DRILL-1735) Check whether still needed now that
     // BootstrapContext.close() resets the metrics.
     Metrics.resetMetrics();
-    allocator.close();
+    AutoCloseables.closeNoChecked(allocator);
+    AutoCloseables.closeNoChecked(rootAllocator);
+  }
+
+  protected BufferAllocator getAllocator() {
+    return allocator;
   }
 
   protected QueryContext mockQueryContext(SabotContext dbContext) throws Exception {

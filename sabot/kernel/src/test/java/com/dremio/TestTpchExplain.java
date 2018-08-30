@@ -125,9 +125,9 @@ public class TestTpchExplain extends PlanTestBase {
         });
 
     try {
-      test("alter session set `planner.slice_target` = 10");
-      test("alter session set `planner.broadcast_factor` = 1000.0");
-      test("alter session set `planner.broadcast_min_threshold` = 1");
+      test("alter session set \"planner.slice_target\" = 10");
+      test("alter session set \"planner.broadcast_factor\" = 1000.0");
+      test("alter session set \"planner.broadcast_min_threshold\" = 1");
       checkPlan("queries/tpch/12.sql",
           new String[]{
               "HashJoin",
@@ -135,9 +135,9 @@ public class TestTpchExplain extends PlanTestBase {
               "Scan.*tpch/lineitem.parquet"},
           null);
       } finally {
-      test("alter session set `planner.slice_target` = " + ExecConstants.SLICE_TARGET_DEFAULT);
-      test("alter session set `planner.broadcast_factor` = 2.0");
-      test("alter session set `planner.broadcast_min_threshold` = 500000");
+      test("alter session set \"planner.slice_target\" = " + ExecConstants.SLICE_TARGET_DEFAULT);
+      test("alter session set \"planner.broadcast_factor\" = 2.0");
+      test("alter session set \"planner.broadcast_min_threshold\" = 500000");
     }
   }
 
@@ -161,7 +161,7 @@ public class TestTpchExplain extends PlanTestBase {
         "    l_suppkey,\n" +
         "    sum(l_extendedprice * (1 - l_discount))\n" +
         "  from\n" +
-        "    cp.`tpch/lineitem.parquet`\n" +
+        "    cp.\"tpch/lineitem.parquet\"\n" +
         "  where\n" +
         "    l_shipdate >= date '1993-05-01'\n" +
         "    and l_shipdate < date '1993-05-01' + interval '3' month\n" +
@@ -174,7 +174,7 @@ public class TestTpchExplain extends PlanTestBase {
         "      s.s_phone,\n" +
         "      r.total_revenue\n" +
         "    from\n" +
-        "    cp.`tpch/supplier.parquet` s,\n" +
+        "    cp.\"tpch/supplier.parquet\" s,\n" +
         "      revenue0 r\n" +
         "      where\n" +
         "    s.s_suppkey = r.supplier_no\n" +
@@ -204,8 +204,7 @@ public class TestTpchExplain extends PlanTestBase {
             "HashJoin",
             "columns=\\[`l_partkey`, `l_quantity`, `l_extendedprice`\\]",
             "columns=\\[`p_partkey`, `p_brand`, `p_container`\\]",
-            "columns=\\[`l_partkey`, `l_quantity`\\]",
-            "columns=\\[`l_partkey`\\]"},
+            "columns=\\[`l_partkey`, `l_quantity`\\]"},
         new String[] { "MergeJoin", "columns=\\[`\\*`\\]" });
   }
 

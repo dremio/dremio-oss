@@ -27,7 +27,6 @@ import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.Pair;
@@ -43,6 +42,7 @@ import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.NamespaceTable;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
@@ -125,7 +125,8 @@ public class MaterializationExpander {
   /**
    * Compare row types ignoring field names, nullability, ANY and CHAR/VARCHAR types
    */
-  private boolean areRowTypesEqual(RelDataType rowType1, RelDataType rowType2) {
+  @VisibleForTesting
+  static boolean areRowTypesEqual(RelDataType rowType1, RelDataType rowType2) {
       if (rowType1 == rowType2) {
         return true;
       }
@@ -134,8 +135,8 @@ public class MaterializationExpander {
         return false;
       }
 
-      final List<RelDataTypeField> f1 = rowType1.getFieldList();
-      final List<RelDataTypeField> f2 = rowType2.getFieldList();
+      final List<RelDataTypeField> f1 = rowType1.getFieldList(); // materialized field
+      final List<RelDataTypeField> f2 = rowType2.getFieldList(); // original materialization query field
       for (Pair<RelDataTypeField, RelDataTypeField> pair : Pair.zip(f1, f2)) {
         // remove nullability
         final RelDataType type1 = JavaTypeFactoryImpl.INSTANCE.createTypeWithNullability(pair.left.getType(), false);
@@ -154,6 +155,11 @@ public class MaterializationExpander {
         // are both types from the CHARACTER family ?
         if (type1.getSqlTypeName().getFamily() == SqlTypeFamily.CHARACTER &&
             type2.getSqlTypeName().getFamily() == SqlTypeFamily.CHARACTER) {
+          continue;
+        }
+
+        // safely ignore when materialized field is DOUBLE instead of DECIMAL
+        if (type1.getSqlTypeName() == SqlTypeName.DOUBLE && type2.getSqlTypeName() == SqlTypeName.DECIMAL) {
           continue;
         }
 
@@ -178,12 +184,6 @@ public class MaterializationExpander {
 
       @Override
       public RelRoot expandView(RelDataType rowType, String queryString, List<String> schemaPath,
-                                List<String> viewPath) {
-        return null;
-      }
-
-      @Override
-      public RelRoot expandView(RelDataType rowType, String queryString, SchemaPlus rootSchema, List<String> schemaPath,
                                 List<String> viewPath) {
         return null;
       }

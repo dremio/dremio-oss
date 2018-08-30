@@ -16,6 +16,10 @@
 package com.dremio.exec.planner.logical;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,22 +48,25 @@ import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 import org.apache.arrow.vector.util.DateUtility;
 import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexExecutor;
 import org.apache.calcite.rex.RexExecutorImpl;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.NlsString;
-import org.joda.time.DateTimeZone;
-import org.joda.time.LocalDateTime;
+import org.apache.calcite.util.TimeString;
+import org.apache.calcite.util.TimestampString;
 
 import com.dremio.common.expression.ExpressionStringBuilder;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.util.DateTimes;
 import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
@@ -70,7 +77,7 @@ import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.collect.ImmutableList;
 
-public class ConstExecutor implements RelOptPlanner.Executor {
+public class ConstExecutor implements RexExecutor {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ConstExecutor.class);
 
   private final PlannerSettings plannerSettings;
@@ -85,7 +92,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
       // outputs of functions that take literals as inputs (such as a convert_fromJSON with a literal string
       // as input), so we need to identify functions with these return types as non-foldable until we have a
       // literal representation for them
-      MinorType.MAP, MinorType.LIST,
+      MinorType.STRUCT, MinorType.LIST,
 
       // TODO - DRILL-2551 - Varbinary is used in execution, but it is missing a literal definition
       // in the logical expression representation and subsequently is not supported in
@@ -95,7 +102,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
       MinorType.TIMESTAMPTZ, MinorType.TIMETZ, MinorType.LATE,
       MinorType.TINYINT, MinorType.SMALLINT, MinorType.GENERIC_OBJECT, MinorType.NULL,
       MinorType.DECIMAL28DENSE, MinorType.DECIMAL38DENSE, MinorType.MONEY,
-      MinorType.FIXEDBINARY, MinorType.FIXEDCHAR, MinorType.FIXED16CHAR,
+      MinorType.FIXEDSIZEBINARY, MinorType.FIXEDCHAR, MinorType.FIXED16CHAR,
       MinorType.VAR16CHAR, MinorType.UINT1, MinorType.UINT2, MinorType.UINT4,
       MinorType.UINT8)
       .build();
@@ -108,7 +115,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
     this.funcImplReg = funcImplReg;
     this.udfUtilities = udfUtilities;
     this.plannerSettings = plannerSettings;
-    this.calciteExecutor = new RexExecutorImpl(Schemas.createDataContext(null));
+    this.calciteExecutor = new RexExecutorImpl(Schemas.createDataContext(null, null));
   }
 
   @Override
@@ -268,8 +275,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
             } else {
               dateValue = ((NullableDateMilliHolder) output).value;
             }
-            reducedValues.add(rexBuilder.makeLiteral(
-                com.dremio.common.util.DateTimes.toDateTime(new LocalDateTime(dateValue, DateTimeZone.UTC)).toCalendar(null),
+            reducedValues.add(rexBuilder.makeLiteral(toDateString(dateValue),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.DATE, false, null),
               false));
             break;
@@ -280,8 +286,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
             } else {
               timeValue = ((NullableTimeMilliHolder) output).value;
             }
-            reducedValues.add(rexBuilder.makeLiteral(
-                com.dremio.common.util.DateTimes.toDateTime(new LocalDateTime(timeValue, DateTimeZone.UTC)).toCalendar(null),
+            reducedValues.add(rexBuilder.makeLiteral(toTimeString(timeValue),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.TIME, false, null),
               false));
             break;
@@ -293,8 +298,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
               timestampValue = ((NullableTimeStampMilliHolder) output).value;
             }
             // Should not ignore the TIMESTAMP precision here
-            reducedValues.add(rexBuilder.makeTimestampLiteral(
-                com.dremio.common.util.DateTimes.toDateTime(new LocalDateTime(timestampValue, DateTimeZone.UTC)).toCalendar(null), newCall.getType().getPrecision()));
+            reducedValues.add(rexBuilder.makeTimestampLiteral(toTimestampString(timestampValue), newCall.getType().getPrecision()));
             break;
           case INTERVALYEAR:
             int yearValue;
@@ -333,7 +337,7 @@ public class ConstExecutor implements RelOptPlanner.Executor {
             break;
         }
       } catch (Exception e) {
-        logger.debug("Failed to reduce expression {}", newCall);
+        logger.debug("Failed to reduce expression {}", newCall, e);
         reducedValues.add(newCall);
       }
     }
@@ -347,6 +351,29 @@ public class ConstExecutor implements RelOptPlanner.Executor {
         reducedValues.add(i, rexBuilder.makeCast(constExpr.getType(), reducedExpr, true /* match nullability*/));
       }
     }
+  }
+
+  @Override
+  public boolean implies(RexBuilder rexBuilder, RelDataType rowType, RexNode first, RexNode second) {
+    return calciteExecutor.implies(rexBuilder, rowType, first, second);
+  }
+
+  private static DateString toDateString(long epoch) {
+    LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(epoch), ZoneOffset.UTC);
+    // LocalDate toString returns ISO format
+    return new DateString(localDateTime.toLocalDate().format(DateTimes.CALCITE_LOCAL_DATE_FORMATTER));
+  }
+
+  private static TimeString toTimeString(long epoch) {
+    LocalTime localTime = LocalTime.ofNanoOfDay(java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(epoch));
+
+    return new TimeString(localTime.format(DateTimes.CALCITE_LOCAL_TIME_FORMATTER));
+  }
+
+  private static TimestampString toTimestampString(long epoch) {
+    LocalDateTime localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(epoch), ZoneOffset.UTC);
+
+    return new TimestampString(localDateTime.format(DateTimes.CALCITE_LOCAL_DATETIME_FORMATTER));
   }
 }
 

@@ -17,6 +17,7 @@ package com.dremio.exec.planner.physical;
 
 
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.calcite.config.CalciteConnectionConfig;
@@ -26,20 +27,23 @@ import org.apache.calcite.util.CancelFlag;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.server.options.CachingOptionManager;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.server.options.OptionValidator;
-import com.dremio.exec.server.options.Options;
-import com.dremio.exec.server.options.TypeValidators;
-import com.dremio.exec.server.options.TypeValidators.BooleanValidator;
-import com.dremio.exec.server.options.TypeValidators.DoubleValidator;
-import com.dremio.exec.server.options.TypeValidators.LongValidator;
-import com.dremio.exec.server.options.TypeValidators.PositiveLongValidator;
-import com.dremio.exec.server.options.TypeValidators.QueryLevelOptionValidation;
-import com.dremio.exec.server.options.TypeValidators.RangeDoubleValidator;
-import com.dremio.exec.server.options.TypeValidators.RangeLongValidator;
-import com.dremio.exec.server.options.TypeValidators.StringValidator;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidator;
+import com.dremio.options.OptionValue;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
+import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.DoubleValidator;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
+import com.dremio.options.TypeValidators.QueryLevelOptionValidation;
+import com.dremio.options.TypeValidators.RangeDoubleValidator;
+import com.dremio.options.TypeValidators.RangeLongValidator;
+import com.dremio.options.TypeValidators.StringValidator;
+import com.google.common.collect.ImmutableSet;
 
 @Options
 public class PlannerSettings implements Context{
@@ -128,7 +132,7 @@ public class PlannerSettings implements Context{
 
   public static final LongValidator RING_COUNT = new TypeValidators.PowerOfTwoLongValidator("planner.ring_count", 4096, 64);
 
-  public static final BooleanValidator WRITER_TEMP_FILE = new BooleanValidator("planner.writer_temp_file", true);
+  public static final BooleanValidator WRITER_TEMP_FILE = new BooleanValidator("planner.writer_temp_file", false);
 
   /**
    * Controls whether to use the cached prepared statement handles more than once. Setting it to false will remove the
@@ -141,10 +145,56 @@ public class PlannerSettings implements Context{
 
   public static final BooleanValidator INCLUDE_DATASET_PROFILE = new BooleanValidator("planner.include_dataset_profile", true);
 
+  public static final BooleanValidator USE_LEGACY_DECORRELATOR = new BooleanValidator("planner.experimental.decorrelator.use_legacy", false);
+
+  public static final BooleanValidator ENABLE_JOIN_OPTIMIZATION = new BooleanValidator("planner.enable_join_optimization", true);
+
+  public static final BooleanValidator ENABLE_EXPERIMENTAL_BUSHY_JOIN_OPTIMIZER = new BooleanValidator("planner.experimental.enable_bushy_join_optimizer", false);
+
   public static final DoubleValidator FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR =
       new RangeDoubleValidator("planner.filter.min_selectivity_estimate_factor", 0.0, 1.0, 0.0d);
   public static final DoubleValidator FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR =
       new RangeDoubleValidator("planner.filter.max_selectivity_estimate_factor", 0.0, 1.0, 1.0d);
+
+  public static final BooleanValidator ENABLE_SCAN_MIN_COST = new BooleanValidator("planner.cost.minimum.enable", true);
+  public static final DoubleValidator DEFAULT_SCAN_MIN_COST = new DoubleValidator("planner.default.min_cost_per_split", 0);
+  public static final DoubleValidator ADLS_SCAN_MIN_COST = new DoubleValidator("planner.adl.min_cost_per_split", 1E6);
+  public static final DoubleValidator S3_SCAN_MIN_COST = new DoubleValidator("planner.s3.min_cost_per_split", 1E6);
+  public static final DoubleValidator ACCELERATION_SCAN_MIN_COST = new DoubleValidator("planner.acceleration.min_cost_per_split", 0);
+  public static final DoubleValidator HOME_SCAN_MIN_COST = new DoubleValidator("planner.home.min_cost_per_split", 0);
+  public static final DoubleValidator INTERNAL_SCAN_MIN_COST = new DoubleValidator("planner.internal.min_cost_per_split", 0);
+  public static final DoubleValidator ELASTIC_SCAN_MIN_COST = new DoubleValidator("planner.elastic.min_cost_per_split", 0);
+  public static final DoubleValidator MONGO_SCAN_MIN_COST = new DoubleValidator("planner.mongo.min_cost_per_split", 0);
+  public static final DoubleValidator HBASE_SCAN_MIN_COST = new DoubleValidator("planner.hbase.min_cost_per_split", 0);
+  public static final DoubleValidator HIVE_SCAN_MIN_COST = new DoubleValidator("planner.hive.min_cost_per_split", 0);
+  public static final DoubleValidator PDFS_SCAN_MIN_COST = new DoubleValidator("planner.pdfs.min_cost_per_split", 0);
+  public static final DoubleValidator HDFS_SCAN_MIN_COST = new DoubleValidator("planner.hdfs.min_cost_per_split", 0);
+  public static final DoubleValidator MAPRFS_SCAN_MIN_COST = new DoubleValidator("planner.maprfs.min_cost_per_split", 0);
+  public static final DoubleValidator NAS_SCAN_MIN_COST = new DoubleValidator("planner.nas.min_cost_per_split", 0);
+
+  private static final Set<String> SOURCES_WITH_MIN_COST = ImmutableSet.of(
+    "adl",
+    "s3",
+    "acceleration",
+    "home",
+    "internal",
+    "elastic",
+    "mongo",
+    "hbase",
+    "hive",
+    "pdfs",
+    "hdfs",
+    "maprfs",
+    "nas"
+    );
+
+  /**
+   * Option to enable additional push downs (filter, project, etc.) to JDBC sources. Enabling the option may cause
+   * the SQL query being push down to be written differently from what is submitted by the user. For example, the join
+   * order may change, filter pushed past join, etc.
+   */
+  public static final BooleanValidator JDBC_PUSH_DOWN_PLUS =
+      new BooleanValidator("planner.jdbc.experimental.enable_additional_pushdowns", false);
 
   private final SabotConfig sabotConfig;
   public final OptionManager options;
@@ -184,7 +234,7 @@ public class PlannerSettings implements Context{
   }
 
   public boolean isSingleMode() {
-    return forceSingleMode || options.getOption(EXCHANGE.getOptionName()).bool_val;
+    return forceSingleMode || options.getOption(EXCHANGE.getOptionName()).getBoolVal();
   }
 
   public long getMaxPlanningPerPhaseMS() {
@@ -200,7 +250,7 @@ public class PlannerSettings implements Context{
   }
 
   public double getRowCountEstimateFactor(){
-    return options.getOption(JOIN_ROW_COUNT_ESTIMATE_FACTOR.getOptionName()).float_val;
+    return options.getOption(JOIN_ROW_COUNT_ESTIMATE_FACTOR.getOptionName()).getFloatVal();
   }
 
   public double getBroadcastFactor(){
@@ -216,11 +266,11 @@ public class PlannerSettings implements Context{
   }
 
   public double getNestedLoopJoinFactor(){
-    return options.getOption(NESTEDLOOPJOIN_FACTOR.getOptionName()).float_val;
+    return options.getOption(NESTEDLOOPJOIN_FACTOR.getOptionName()).getFloatVal();
   }
 
   public boolean isNlJoinForScalarOnly() {
-    return options.getOption(NLJOIN_FOR_SCALAR.getOptionName()).bool_val;
+    return options.getOption(NLJOIN_FOR_SCALAR.getOptionName()).getBoolVal();
   }
 
   public double getFlattenExpansionAmount(){
@@ -248,15 +298,15 @@ public class PlannerSettings implements Context{
   }
 
   public boolean isHashAggEnabled() {
-    return options.getOption(HASHAGG.getOptionName()).bool_val;
+    return options.getOption(HASHAGG.getOptionName()).getBoolVal();
   }
 
   public boolean isConstantFoldingEnabled() {
-    return options.getOption(CONSTANT_FOLDING.getOptionName()).bool_val;
+    return options.getOption(CONSTANT_FOLDING.getOptionName()).getBoolVal();
   }
 
   public boolean isReduceProjectExpressionsEnabled() {
-    return options.getOption(ENABLE_REDUCE_PROJECT.getOptionName()).bool_val;
+    return options.getOption(ENABLE_REDUCE_PROJECT.getOptionName()).getBoolVal();
   }
 
   public boolean isProjectLogicalCleanupEnabled() {
@@ -268,23 +318,23 @@ public class PlannerSettings implements Context{
   }
 
   public boolean isReduceFilterExpressionsEnabled() {
-    return options.getOption(ENABLE_REDUCE_FILTER.getOptionName()).bool_val;
+    return options.getOption(ENABLE_REDUCE_FILTER.getOptionName()).getBoolVal();
   }
 
   public boolean isReduceCalcExpressionsEnabled() {
-    return options.getOption(ENABLE_REDUCE_CALC.getOptionName()).bool_val;
+    return options.getOption(ENABLE_REDUCE_CALC.getOptionName()).getBoolVal();
   }
 
   public boolean isGlobalDictionariesEnabled() {
-    return options.getOption(ENABLE_GLOBAL_DICTIONARY.getOptionName()).bool_val;
+    return options.getOption(ENABLE_GLOBAL_DICTIONARY.getOptionName()).getBoolVal();
   }
 
   public boolean isStreamAggEnabled() {
-    return options.getOption(STREAMAGG.getOptionName()).bool_val;
+    return options.getOption(STREAMAGG.getOptionName()).getBoolVal();
   }
 
   public boolean isHashJoinEnabled() {
-    return options.getOption(HASHJOIN.getOptionName()).bool_val;
+    return options.getOption(HASHJOIN.getOptionName()).getBoolVal();
   }
 
   public boolean isMergeJoinEnabled() {
@@ -292,29 +342,29 @@ public class PlannerSettings implements Context{
   }
 
   public boolean isNestedLoopJoinEnabled() {
-    return options.getOption(NESTEDLOOPJOIN.getOptionName()).bool_val;
+    return options.getOption(NESTEDLOOPJOIN.getOptionName()).getBoolVal();
   }
 
   public boolean isMultiPhaseAggEnabled() {
-    return options.getOption(MULTIPHASE.getOptionName()).bool_val;
+    return options.getOption(MULTIPHASE.getOptionName()).getBoolVal();
   }
 
   public boolean isBroadcastJoinEnabled() {
-    return options.getOption(BROADCAST.getOptionName()).bool_val;
+    return options.getOption(BROADCAST.getOptionName()).getBoolVal();
   }
 
   public boolean isHashSingleKey() {
-    return options.getOption(HASH_SINGLE_KEY.getOptionName()).bool_val;
+    return options.getOption(HASH_SINGLE_KEY.getOptionName()).getBoolVal();
   }
 
   public boolean isHashJoinSwapEnabled() {
-    return options.getOption(HASH_JOIN_SWAP.getOptionName()).bool_val;
+    return options.getOption(HASH_JOIN_SWAP.getOptionName()).getBoolVal();
   }
 
-  public boolean isHepOptEnabled() { return options.getOption(HEP_OPT.getOptionName()).bool_val;}
+  public boolean isHepOptEnabled() { return options.getOption(HEP_OPT.getOptionName()).getBoolVal();}
 
   public double getHashJoinSwapMarginFactor() {
-    return options.getOption(HASH_JOIN_SWAP_MARGIN_FACTOR.getOptionName()).float_val / 100d;
+    return options.getOption(HASH_JOIN_SWAP_MARGIN_FACTOR.getOptionName()).getFloatVal() / 100d;
   }
 
   public long getBroadcastThreshold() {
@@ -328,7 +378,7 @@ public class PlannerSettings implements Context{
   }
 
   public long getSliceTarget(){
-    long sliceTarget = options.getOption(ExecConstants.SLICE_TARGET).num_val;
+    long sliceTarget = options.getOption(ExecConstants.SLICE_TARGET).getNumVal();
     if (isLeafLimitsEnabled() && minimumSampleSize > 0) {
       return Math.min(sliceTarget, minimumSampleSize);
     }
@@ -336,11 +386,11 @@ public class PlannerSettings implements Context{
   }
 
   public boolean isMemoryEstimationEnabled() {
-    return options.getOption(ExecConstants.ENABLE_MEMORY_ESTIMATION_KEY).bool_val;
+    return options.getOption(ExecConstants.ENABLE_MEMORY_ESTIMATION_KEY).getBoolVal();
   }
 
   public String getFsPartitionColumnLabel() {
-    return options.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL).string_val;
+    return options.getOption(ExecConstants.FILESYSTEM_PARTITION_COLUMN_LABEL).getStringVal();
   }
 
   public double getFilterMinSelectivityEstimateFactor() {
@@ -352,11 +402,11 @@ public class PlannerSettings implements Context{
   }
 
   public long getIdentifierMaxLength(){
-    return options.getOption(IDENTIFIER_MAX_LENGTH.getOptionName()).num_val;
+    return options.getOption(IDENTIFIER_MAX_LENGTH.getOptionName()).getNumVal();
   }
 
   public long getPlanningMemoryLimit() {
-    return options.getOption(PLANNER_MEMORY_LIMIT.getOptionName()).num_val;
+    return options.getOption(PLANNER_MEMORY_LIMIT.getOptionName()).getNumVal();
   }
 
   public static long getInitialPlanningMemorySize() {
@@ -375,8 +425,30 @@ public class PlannerSettings implements Context{
     return options.getOption(ENABLE_TRIVIAL_SINGULAR);
   }
 
+  public double getMinimumCostPerSplit(SourceType sourceType) {
+    if (SOURCES_WITH_MIN_COST.contains(sourceType.value().toLowerCase())) {
+      OptionValue value = options.getOption(String.format("planner.%s.min_cost_per_split", sourceType.value().toLowerCase()));
+      if (value != null) {
+        return value.getFloatVal();
+      }
+    }
+    return options.getOption(DEFAULT_SCAN_MIN_COST);
+  }
+
+  public boolean useMinimumCostPerSplit() {
+    return options.getOption(ENABLE_SCAN_MIN_COST);
+  }
+
   public int getExecutorCount() {
     return clusterInfo.getExecutorNodeCount();
+  }
+
+  public boolean isJoinOptimizationEnabled() {
+    return options.getOption(ENABLE_JOIN_OPTIMIZATION);
+  }
+
+  public boolean isExperimentalBushyJoinOptimizerEnabled() {
+    return options.getOption(ENABLE_EXPERIMENTAL_BUSHY_JOIN_OPTIMIZER);
   }
 
   @Override
@@ -384,7 +456,7 @@ public class PlannerSettings implements Context{
     if(clazz == PlannerSettings.class){
       return (T) this;
     } else if(clazz == CalciteConnectionConfig.class){
-      return (T) config;
+      return (T) CONFIG;
     } if (clazz == SabotConfig.class) {
       return (T) sabotConfig;
     } else if (CancelFlag.class.isAssignableFrom(clazz)) {
@@ -393,9 +465,9 @@ public class PlannerSettings implements Context{
     return null;
   }
 
-  private static final Config config = new Config();
+  public static final Config CONFIG = new Config();
 
-  private static class Config extends CalciteConnectionConfigImpl {
+  public static class Config extends CalciteConnectionConfigImpl {
 
     public Config() {
       super(new Properties());

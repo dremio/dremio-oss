@@ -15,10 +15,10 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import java.util.Collection;
+
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-
-import java.util.Collection;
 
 /**
  * Generic interface to provide different parallelization strategies for MajorFragments.

@@ -23,10 +23,10 @@ import org.apache.hadoop.fs.Path;
 import org.hibernate.validator.constraints.NotBlank;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.dfs.SchemaMutability;
 import com.google.common.collect.ImmutableList;
 
 import io.protostuff.Tag;
@@ -38,6 +38,7 @@ public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin> {
 
   @NotBlank
   @Tag(1)
+  @DisplayMetadata(label = "Mount Path")
   public String path;
 
   @Override

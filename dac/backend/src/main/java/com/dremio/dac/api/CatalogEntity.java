@@ -33,4 +33,5 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
   @JsonSubTypes.Type(value = Home.class, name = "home")
 })
 public interface CatalogEntity {
+  String getId();
 }

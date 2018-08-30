@@ -129,6 +129,7 @@ export default class BrowseTable extends Component {
                   placeholder={intl.formatMessage({ id: 'Dataset.SearchEllipsis' })}
                   showCloseIcon
                   inputClassName='mousetrap'
+                  dataQa='browse-table-search'
                 />
                 {buttons}
               </div>

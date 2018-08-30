@@ -27,6 +27,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Bool;
 import org.apache.arrow.vector.types.pojo.ArrowType.Date;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.ArrowType.FixedSizeList;
+import org.apache.arrow.vector.types.pojo.ArrowType.FixedSizeBinary;
 import org.apache.arrow.vector.types.pojo.ArrowType.FloatingPoint;
 import org.apache.arrow.vector.types.pojo.ArrowType.Int;
 import org.apache.arrow.vector.types.pojo.ArrowType.Interval;
@@ -274,6 +275,11 @@ public class Describer {
     @Override
     public String visit(FixedSizeList type) {
       return String.format("list(%d)", type.getListSize());
+    }
+
+    @Override
+    public String visit(FixedSizeBinary type) {
+      return String.format("binary(%d)", type.getByteWidth());
     }
   }
 

@@ -65,7 +65,7 @@ public class TypeCastRules {
     rule.add(MinorType.BIT);
     rule.add(MinorType.FIXEDCHAR);
     rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
@@ -88,7 +88,7 @@ public class TypeCastRules {
     rule.add(MinorType.BIT);
     rule.add(MinorType.FIXEDCHAR);
     rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
@@ -110,7 +110,7 @@ public class TypeCastRules {
     rule.add(MinorType.BIT);
     rule.add(MinorType.FIXEDCHAR);
     rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
@@ -132,7 +132,7 @@ public class TypeCastRules {
     rule.add(MinorType.BIT);
     rule.add(MinorType.FIXEDCHAR);
     rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
@@ -154,7 +154,7 @@ public class TypeCastRules {
     rule.add(MinorType.BIT);
     rule.add(MinorType.FIXEDCHAR);
     rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
@@ -176,7 +176,7 @@ public class TypeCastRules {
     rule.add(MinorType.BIT);
     rule.add(MinorType.FIXEDCHAR);
     rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
@@ -189,7 +189,7 @@ public class TypeCastRules {
     rule.add(MinorType.TIMESTAMPTZ);
     rule.add(MinorType.FIXEDCHAR);
     rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
@@ -202,7 +202,7 @@ public class TypeCastRules {
     rule.add(MinorType.TIMESTAMPTZ);
     rule.add(MinorType.FIXEDCHAR);
     rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
@@ -234,7 +234,7 @@ public class TypeCastRules {
     rule.add(MinorType.TIME);
     rule.add(MinorType.FIXEDCHAR);
     rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
@@ -250,7 +250,7 @@ public class TypeCastRules {
     rule.add(MinorType.TIMESTAMPTZ);
     rule.add(MinorType.FIXEDCHAR);
     rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
@@ -266,7 +266,7 @@ public class TypeCastRules {
     rule.add(MinorType.TIMESTAMPTZ);
     rule.add(MinorType.FIXEDCHAR);
     rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
@@ -282,7 +282,7 @@ public class TypeCastRules {
     rule.add(MinorType.TIMESTAMPTZ);
     rule.add(MinorType.FIXEDCHAR);
     rule.add(MinorType.FIXED16CHAR);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
@@ -360,7 +360,7 @@ public class TypeCastRules {
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.DATE);
     rule.add(MinorType.TIME);
     rule.add(MinorType.TIMESTAMP);
@@ -390,7 +390,7 @@ public class TypeCastRules {
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.DATE);
     rule.add(MinorType.TIME);
     rule.add(MinorType.TIMESTAMP);
@@ -400,7 +400,7 @@ public class TypeCastRules {
     rule.add(MinorType.INTERVALDAY);
     rules.put(MinorType.FIXED16CHAR, rule);
 
-    /** FIXEDBINARY cast able from **/
+    /** FIXEDSIZEBINARY cast able from **/
     rule = new HashSet<>();
     rule.add(MinorType.TINYINT);
     rule.add(MinorType.SMALLINT);
@@ -418,8 +418,8 @@ public class TypeCastRules {
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
-    rule.add(MinorType.FIXEDBINARY);
-    rules.put(MinorType.FIXEDBINARY, rule);
+    rule.add(MinorType.FIXEDSIZEBINARY);
+    rules.put(MinorType.FIXEDSIZEBINARY, rule);
 
     /** VARCHAR cast able from **/
     rule = new HashSet<>();
@@ -441,7 +441,7 @@ public class TypeCastRules {
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.DATE);
     rule.add(MinorType.TIME);
     rule.add(MinorType.TIMESTAMP);
@@ -470,7 +470,7 @@ public class TypeCastRules {
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VAR16CHAR);
     rule.add(MinorType.VARBINARY);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rule.add(MinorType.DATE);
     rule.add(MinorType.TIME);
     rule.add(MinorType.TIMESTAMP);
@@ -498,7 +498,7 @@ public class TypeCastRules {
     rule.add(MinorType.BIT);
     rule.add(MinorType.VARCHAR);
     rule.add(MinorType.VARBINARY);
-    rule.add(MinorType.FIXEDBINARY);
+    rule.add(MinorType.FIXEDSIZEBINARY);
     rules.put(MinorType.VARBINARY, rule);
 
     rules.put(MinorType.UNION, Sets.newHashSet(MinorType.UNION));

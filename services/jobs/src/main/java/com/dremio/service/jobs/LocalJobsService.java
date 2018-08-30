@@ -52,8 +52,8 @@ import javax.annotation.Nullable;
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.NullableVarBinaryVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -70,6 +70,9 @@ import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.common.utils.SqlUtils;
+import com.dremio.common.utils.protos.ExternalIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.KVStore;
@@ -111,20 +114,17 @@ import com.dremio.exec.proto.UserProtos.QueryPriority;
 import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.proto.UserProtos.SubmissionSource;
 import com.dremio.exec.proto.beans.NodeEndpoint;
-import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.serialization.InstanceSerializer;
 import com.dremio.exec.serialization.ProtoSerializer;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.exec.store.sys.accel.AccelerationDetailsPopulator;
 import com.dremio.exec.work.AttemptId;
-import com.dremio.exec.work.ExternalIdHelper;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.ForemenTool;
 import com.dremio.exec.work.protector.UserRequest;
@@ -135,8 +135,8 @@ import com.dremio.exec.work.rpc.CoordTunnelCreator;
 import com.dremio.exec.work.user.LocalExecutionConfig;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.LocalUserUtil;
+import com.dremio.options.OptionManager;
 import com.dremio.proto.model.attempts.AttemptReason;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
 import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserSession;
@@ -150,6 +150,7 @@ import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.JoinAnalysis;
+import com.dremio.service.job.proto.JoinInfo;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.metadata.QueryMetadata;
@@ -904,6 +905,22 @@ public class LocalJobsService implements JobsService {
       final QueryProfile profile = userResult.getProfile();
       final UserException ex = userResult.getException();
       try {
+        if (state == QueryState.COMPLETED) {
+          attemptObserver.detailsPopulator.attemptCompleted(userResult.getProfile());
+          final Prel finalPrel = attemptObserver.detailsPopulator.getFinalPrel();
+          final JoinAnalysis joinAnalysis;
+          if (finalPrel != null) {
+            JoinAnalyzer joinAnalyzer = new JoinAnalyzer(userResult.getProfile(), finalPrel);
+            joinAnalysis = joinAnalyzer.computeJoinAnalysis();
+          } else {
+            // If no prel, probably because user only asked for the plan
+            joinAnalysis = null;
+          }
+
+          if (joinAnalysis != null) {
+            job.getJobAttempt().getInfo().setJoinAnalysis(joinAnalysis);
+          }
+        }
         addAttemptToJob(job, state, profile);
       } catch (IOException e) {
         exception.addException(e);
@@ -1227,6 +1244,10 @@ public class LocalJobsService implements JobsService {
         if (parents.isPresent()) {
           jobInfo.setParentsList(parents.get());
         }
+        Optional<List<JoinInfo>> joins = metadata.getJoins();
+        if (joins.isPresent()) {
+          jobInfo.setJoinsList(joins.get());
+        }
         Optional<List<FieldOrigin>> fieldOrigins = metadata.getFieldOrigins();
         if (fieldOrigins.isPresent()) {
           jobInfo.setFieldOriginsList(fieldOrigins.get());
@@ -1259,6 +1280,7 @@ public class LocalJobsService implements JobsService {
 
     @Override
     public void recordExtraInfo(String name, byte[] bytes) {
+      //TODO DX-10977 the reflection manager should rely on its own observer to store this information in a separate store
       if(job.getJobAttempt().getExtraInfoList() == null) {
         job.getJobAttempt().setExtraInfoList(new ArrayList<ExtraInfo>());
       }
@@ -1280,7 +1302,8 @@ public class LocalJobsService implements JobsService {
         final RelOptCost cost = after.getCluster().getMetadataQuery().getCumulativeCost(after);
         builder.addCost(cost);
         break;
-      case JOIN_PLANNING:
+      case JOIN_PLANNING_MULTI_JOIN:
+        // Join planning starts with multi-join analysis phase
         builder.addPreJoinPlan(before);
         break;
       default:
@@ -1323,13 +1346,13 @@ public class LocalJobsService implements JobsService {
         try (RecordBatchData batch = new RecordBatchData(loader, allocator)) {
           List<ValueVector> vectors = batch.getVectors();
 
-          if (vectors.size() < 4 || !(vectors.get(3) instanceof NullableVarBinaryVector) ) {
+          if (vectors.size() < 4 || !(vectors.get(3) instanceof VarBinaryVector) ) {
             throw UserException.unsupportedError()
                 .message("Job output contains invalid data")
                 .build(logger);
           }
 
-          NullableVarBinaryVector metadataVector = (NullableVarBinaryVector) vectors.get(3);
+          VarBinaryVector metadataVector = (VarBinaryVector) vectors.get(3);
 
           for (int i = 0; i < batch.getRecordCount(); i++) {
             final ArrowFileFormat.ArrowFileMetadata metadata =

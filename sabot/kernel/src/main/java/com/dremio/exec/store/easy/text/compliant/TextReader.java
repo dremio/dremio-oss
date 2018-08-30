@@ -146,7 +146,7 @@ final class TextReader {
         }
         if(earlyTerm){
           if(ch != newLine){
-            input.skipLines(1);
+            input.skipLines(1, newLine);
           }
           break;
         }
@@ -494,4 +494,11 @@ final class TextReader {
     input.close();
   }
 
+  /**
+   * Get the input
+   * @return input
+   */
+  public TextInput getInput() {
+    return input;
+  }
 }

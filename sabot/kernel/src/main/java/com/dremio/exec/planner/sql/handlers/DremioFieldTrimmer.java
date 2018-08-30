@@ -17,19 +17,36 @@ package com.dremio.exec.planner.sql.handlers;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
+import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.SetOp;
+import org.apache.calcite.rel.rules.MultiJoin;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
+import org.apache.calcite.rel.type.RelRecordType;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexPermuteInputsShuttle;
+import org.apache.calcite.rex.RexVisitor;
+import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql2rel.RelFieldTrimmer;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.calcite.util.ImmutableIntList;
+import org.apache.calcite.util.Util;
+import org.apache.calcite.util.mapping.IntPair;
 import org.apache.calcite.util.mapping.Mapping;
 import org.apache.calcite.util.mapping.MappingType;
 import org.apache.calcite.util.mapping.Mappings;
@@ -39,23 +56,29 @@ import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.FlattenVisitors;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 public class DremioFieldTrimmer extends RelFieldTrimmer {
-
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioFieldTrimmer.class);
 
   private final RelBuilder builder;
 
   public static DremioFieldTrimmer of(RelOptCluster cluster) {
     RelBuilder builder = DremioRelFactories.CALCITE_LOGICAL_BUILDER.create(cluster, null);
-    return new DremioFieldTrimmer(cluster, builder);
+    return new DremioFieldTrimmer(builder);
   }
 
-  private DremioFieldTrimmer(RelOptCluster cluster, RelBuilder builder) {
+  private DremioFieldTrimmer(RelBuilder builder) {
     super(null, builder);
     this.builder = builder;
   }
 
+  /**
+   * Variant of {@link #trimFields(RelNode, ImmutableBitSet, Set)} for {@link ScanCrel}.
+   */
+  @SuppressWarnings("unused")
   public TrimResult trimFields(
       ScanCrel crel,
       ImmutableBitSet fieldsUsed,
@@ -189,4 +212,228 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
 
   }
 
+  /**
+   * Variant of {@link #trimFields(RelNode, ImmutableBitSet, Set)} for {@link MultiJoin}.
+   */
+  @SuppressWarnings("unused")
+  public TrimResult trimFields(
+      MultiJoin multiJoin,
+      ImmutableBitSet fieldsUsed,
+      Set<RelDataTypeField> extraFields
+  ) {
+    Util.discard(extraFields); // unlike #trimFields in RelFieldTrimmer
+
+    final List<RelNode> originalInputs = multiJoin.getInputs();
+    final RexNode originalJoinFilter = multiJoin.getJoinFilter();
+    final List<RexNode> originalOuterJoinConditions = multiJoin.getOuterJoinConditions();
+    final RexNode originalPostJoinFilter = multiJoin.getPostJoinFilter();
+
+    int fieldCount = 0;
+    for (RelNode input : originalInputs) {
+      fieldCount += input.getRowType().getFieldCount();
+    }
+
+    // add in fields used in the all the conditions; including the ones requested in "fieldsUsed"
+    final RelOptUtil.InputFinder inputFinder = new RelOptUtil.InputFinder();
+    inputFinder.inputBitSet.addAll(fieldsUsed);
+    originalJoinFilter.accept(inputFinder);
+    originalOuterJoinConditions.forEach(
+        rexNode -> {
+          if (rexNode != null) {
+            rexNode.accept(inputFinder);
+          }
+        });
+    if (originalPostJoinFilter != null) {
+      originalPostJoinFilter.accept(inputFinder);
+    }
+    final ImmutableBitSet fieldsUsedPlus = inputFinder.inputBitSet.build();
+
+    int offset = 0;
+    int changeCount = 0;
+    int newFieldCount = 0;
+
+    final List<RelNode> newInputs = Lists.newArrayListWithExpectedSize(originalInputs.size());
+    final List<Mapping> inputMappings = Lists.newArrayList();
+
+    for (RelNode input : originalInputs) {
+      final RelDataType inputRowType = input.getRowType();
+      final int inputFieldCount = inputRowType.getFieldCount();
+
+      // compute required mapping
+      final ImmutableBitSet.Builder inputFieldsUsed = ImmutableBitSet.builder();
+      for (int bit : fieldsUsedPlus) {
+        if (bit >= offset && bit < offset + inputFieldCount) {
+          inputFieldsUsed.set(bit - offset);
+        }
+      }
+
+      final TrimResult trimResult = trimChild(multiJoin, input, inputFieldsUsed.build(), Collections.emptySet());
+      newInputs.add(trimResult.left);
+      //noinspection ObjectEquality
+      if (trimResult.left != input) {
+        ++changeCount;
+      }
+
+      final Mapping inputMapping = trimResult.right;
+      inputMappings.add(inputMapping);
+
+      // move offset to point to start of next input
+      offset += inputFieldCount;
+      newFieldCount += inputMapping.getTargetCount();
+    }
+
+    final Mapping mapping = Mappings.create(MappingType.INVERSE_SURJECTION, fieldCount, newFieldCount);
+
+    offset = 0;
+    int newOffset = 0;
+    for (final Mapping inputMapping : inputMappings) {
+      ImmutableBitSet.Builder projBuilder = ImmutableBitSet.builder();
+      for (final IntPair pair : inputMapping) {
+        mapping.set(pair.source + offset, pair.target + newOffset);
+      }
+
+      offset += inputMapping.getSourceCount();
+      newOffset += inputMapping.getTargetCount();
+    }
+
+    if (changeCount == 0 && mapping.isIdentity()) {
+      result(multiJoin, Mappings.createIdentity(fieldCount));
+    }
+
+    // build new MultiJoin
+
+    final RexVisitor<RexNode> inputFieldPermuter =
+        new RexPermuteInputsShuttle(mapping, newInputs.toArray(new RelNode[0]));
+
+    final RexNode newJoinFilter = originalJoinFilter.accept(inputFieldPermuter);
+
+    // row type is simply re-mapped
+    final List<RelDataTypeField> originalFieldList = multiJoin.getRowType().getFieldList();
+    final RelDataType newRowType =
+        new RelRecordType(StreamSupport.stream(mapping.spliterator(), false)
+            .map(pair -> pair.source)
+            .map(originalFieldList::get)
+            .map(originalField ->
+                new RelDataTypeFieldImpl(originalField.getName(),
+                    mapping.getTarget(originalField.getIndex()),
+                    originalField.getType()))
+            .collect(Collectors.toList()));
+
+    final List<RexNode> newOuterJoinConditions = originalOuterJoinConditions.stream()
+        .map(expr -> expr == null ? null : expr.accept(inputFieldPermuter))
+        .collect(Collectors.toList());
+
+    // see MultiJoin#getProjFields; ideally all input fields must be used, and this is a list of "nulls"
+    final List<ImmutableBitSet> newProjFields = Lists.newArrayList();
+
+    for (final Ord<Mapping> inputMapping : Ord.zip(inputMappings)) {
+      if (multiJoin.getProjFields().get(inputMapping.i) == null) {
+        newProjFields.add(null);
+        continue;
+      }
+
+      ImmutableBitSet.Builder projBuilder = ImmutableBitSet.builder();
+      for (final IntPair pair : inputMapping.e) {
+        if (multiJoin.getProjFields().get(inputMapping.i).get(pair.source)) {
+          projBuilder.set(pair.target);
+        }
+      }
+      newProjFields.add(projBuilder.build());
+    }
+
+    final ImmutableMap<Integer, ImmutableIntList> newJoinFieldRefCountsMap =
+        computeJoinFieldRefCounts(newInputs, newFieldCount, newJoinFilter);
+
+    final RexNode newPostJoinFilter =
+        originalPostJoinFilter == null
+            ? null
+            : originalPostJoinFilter.accept(inputFieldPermuter);
+
+    final MultiJoin newMultiJoin = new MultiJoin(
+        multiJoin.getCluster(),
+        newInputs,
+        newJoinFilter,
+        newRowType,
+        multiJoin.isFullOuterJoin(),
+        newOuterJoinConditions,
+        multiJoin.getJoinTypes(),
+        newProjFields,
+        newJoinFieldRefCountsMap,
+        newPostJoinFilter);
+
+    return result(newMultiJoin, mapping);
+  }
+
+  /**
+   * Compute the reference counts of fields in the inputs from the new join condition.
+   *
+   * @param inputs          inputs into the new MultiJoin
+   * @param totalFieldCount total number of fields in the MultiJoin
+   * @param joinCondition   the new join condition
+   * @return Map containing the new join condition
+   */
+  private static ImmutableMap<Integer, ImmutableIntList> computeJoinFieldRefCounts(
+      final List<RelNode> inputs,
+      final int totalFieldCount,
+      final RexNode joinCondition
+  ) {
+    // count the input references in the join condition
+    final int[] joinCondRefCounts = new int[totalFieldCount];
+    joinCondition.accept(new InputReferenceCounter(joinCondRefCounts));
+
+    final Map<Integer, int[]> refCountsMap = Maps.newHashMap();
+    final int numInputs = inputs.size();
+    int currInput = 0;
+    for (final RelNode input : inputs) {
+      refCountsMap.put(currInput++, new int[input.getRowType().getFieldCount()]);
+    }
+
+    // add on to the counts for each input into the MultiJoin the
+    // reference counts computed for the current join condition
+    currInput = -1;
+    int startField = 0;
+    int inputFieldCount = 0;
+    for (int i = 0; i < totalFieldCount; i++) {
+      if (joinCondRefCounts[i] == 0) {
+        continue;
+      }
+      while (i >= (startField + inputFieldCount)) {
+        startField += inputFieldCount;
+        currInput++;
+        assert currInput < numInputs;
+        inputFieldCount =
+            inputs.get(currInput)
+                .getRowType()
+                .getFieldCount();
+      }
+      final int[] refCounts = refCountsMap.get(currInput);
+      refCounts[i - startField] += joinCondRefCounts[i];
+    }
+
+    final ImmutableMap.Builder<Integer, ImmutableIntList> builder = ImmutableMap.builder();
+    for (final Map.Entry<Integer, int[]> entry : refCountsMap.entrySet()) {
+      builder.put(entry.getKey(), ImmutableIntList.of(entry.getValue()));
+    }
+    return builder.build();
+  }
+
+  /**
+   * Visitor that keeps a reference count of the inputs used by an expression.
+   * <p>
+   * Duplicates {@link org.apache.calcite.rel.rules.JoinToMultiJoinRule.InputReferenceCounter}.
+   */
+  private static class InputReferenceCounter extends RexVisitorImpl<Void> {
+    private final int[] refCounts;
+
+    InputReferenceCounter(int[] refCounts) {
+      super(true);
+      this.refCounts = refCounts;
+    }
+
+    @Override
+    public Void visitInputRef(RexInputRef inputRef) {
+      refCounts[inputRef.getIndex()]++;
+      return null;
+    }
+  }
 }

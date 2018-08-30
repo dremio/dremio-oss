@@ -17,7 +17,12 @@ package com.dremio.exec.server.options;
 
 import java.util.Iterator;
 
-import com.dremio.exec.server.options.OptionValue.OptionType;
+
+import com.dremio.options.OptionList;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidator;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
 import com.google.common.collect.Iterables;
 
 /**
@@ -111,7 +116,7 @@ public abstract class FallbackOptionManager extends BaseOptionManager {
 
   @Override
   public void setOption(OptionValue value) {
-    final OptionValidator validator = fallback.getValidator(value.name);
+    final OptionValidator validator = fallback.getValidator(value.getName());
 
     validator.validate(value); // validate the option
 

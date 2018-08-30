@@ -13,77 +13,80 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.dataset-warning {
-  background-color: #FEE799;
-  font-size: 12px;
-  width: 100%;
-  position: relative;
-  padding: 10px 10px 10px 40px;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  &::before {
-    position: absolute;
-    top: 2px;
-    left: 5px;
-    font-size: 32px;
-    color: #FC8007;
-  }
+  .dataset-warning {
+    background-color: #FEE799;
+    font-size: 12px;
+    width: 100%;
+    position: relative;
+    padding: 10px 10px 10px 40px;
 
-  .dependent-datasets {
-    margin-top: 10px;
-
-    .and-more {
-      color: #1180FF;
-      cursor: pointer;
-    }
-  }
-}
-
-.update-dataset {
-  min-width: 670px;
-  min-height: 200px;
-  height: 100%;
-  background-color: #fff;
-
-  .update-dataset-content {
-    margin: 15px 15px 0 15px;
-
-    .property {
-
-      label {
-        display: block;
-        margin-bottom: 0;
-      }
-
-      input, .treeview {
-        border: 1px solid #A3E2FF;
-        border-radius: 3px;
-        display: block;
-        box-shadow: none;
-        outline: none;
-        width: 600px;
-      }
-
-      input {
-        height: 30px;
-        padding: 5px;
-      }
-
-      .treeview {
-        height: 200px;
-      }
+    &::before {
+      position: absolute;
+      top: 2px;
+      left: 5px;
+      font-size: 32px;
+      color: #FC8007;
     }
 
-    .name {
-      margin-bottom: 15px;
-    }
+    .dependent-datasets {
+      margin-top: 10px;
 
-    .location {
-      margin-bottom: 5px;
-    }
-
-    .selected-location {
-      color: #808080;
+      .and-more {
+        color: #1180FF;
+        cursor: pointer;
+      }
     }
   }
 
+  .update-dataset {
+    min-width: 670px;
+    min-height: 200px;
+    height: 100%;
+    background-color: #fff;
+
+    .update-dataset-content {
+      margin: 15px 15px 0 15px;
+
+      .property {
+
+        label {
+          display: block;
+          margin-bottom: 0;
+        }
+
+        input, .treeview {
+          border: 1px solid #A3E2FF;
+          border-radius: 3px;
+          display: block;
+          box-shadow: none;
+          outline: none;
+          width: 600px;
+        }
+
+        input {
+          height: 30px;
+          padding: 5px;
+        }
+
+        .treeview {
+          height: 200px;
+        }
+      }
+
+      .name {
+        margin-bottom: 15px;
+      }
+
+      .location {
+        margin-bottom: 5px;
+      }
+
+      .selected-location {
+        color: #808080;
+      }
+    }
+
+  }
 }

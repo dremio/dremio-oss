@@ -29,7 +29,6 @@ import java.util.Objects;
 
 import javax.annotation.Nullable;
 
-import org.apache.directory.api.util.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -45,6 +44,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -397,7 +397,7 @@ public abstract class ContainerFileSystem extends FileSystem {
   private static FileStatus transform(FileStatus input, String containerName) {
     String relativePath = removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(input.getPath()).toString());
     Path containerPath  = new Path(Path.SEPARATOR + containerName);
-    Path fullPath = Strings.isEmpty(relativePath) ? containerPath : new Path(containerPath, relativePath);
+    Path fullPath = Strings.isNullOrEmpty(relativePath) ? containerPath : new Path(containerPath, relativePath);
     return new FileStatus(input.getLen(),
             input.isDirectory(),
             input.getReplication(),

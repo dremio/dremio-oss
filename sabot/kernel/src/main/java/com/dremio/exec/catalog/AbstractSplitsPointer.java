@@ -50,7 +50,10 @@ public abstract class AbstractSplitsPointer implements SplitsPointer {
 
   @Override
   public double getSplitRatio() {
-    return ((double) getSplitsCount())/getTotalSplitsCount();
+    final int totalSplitsCount = getTotalSplitsCount();
+    // if totalSplitsCount is 0, splitsCount should be 0 too, and so ratio would be 1.0 since
+    // same number of splits (making it consistent with isPruned())
+    return totalSplitsCount != 0 ? ((double) getSplitsCount())/getTotalSplitsCount() : 1.0;
   }
 
   @Override

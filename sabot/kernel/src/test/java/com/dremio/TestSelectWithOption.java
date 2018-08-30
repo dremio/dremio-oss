@@ -43,7 +43,7 @@ public class TestSelectWithOption extends BaseTestQuery {
 
   private String genCSVTable(String name, String... rows) throws IOException {
     File f = genCSVFile(name, rows);
-    return format("dfs.`${WORKING_PATH}/%s`", f.getPath());
+    return format("dfs.\"${WORKING_PATH}/%s\"", f.getPath());
   }
 
   private void testWithResult(String query, Object... expectedResult) throws Exception {
@@ -162,7 +162,7 @@ public class TestSelectWithOption extends BaseTestQuery {
         "@b@|@0@",
         "@b$@c@|@1@");
     // It seems that a parameter can not be called "escape"
-    testWithResult(format("select columns from table(%s(`escape` => '$', type => 'TeXT', fieldDelimiter => '|', quote => '@'))", quoteTableName),
+    testWithResult(format("select columns from table(%s(\"escape\" => '$', type => 'TeXT', fieldDelimiter => '|', quote => '@'))", quoteTableName),
         listOf("b", "0"),
         listOf("b$@c", "1") // shouldn't $ be removed here?
         );
@@ -310,7 +310,7 @@ public class TestSelectWithOption extends BaseTestQuery {
   public void testUse() throws Exception {
     File f = genCSVFile("testUse",
         "{\"columns\": [\"f\",\"g\"]}");
-    String jsonTableName = format("`${WORKING_PATH}/%s`", f.getPath());
+    String jsonTableName = format("\"${WORKING_PATH}/%s\"", f.getPath());
     // the extension is actually csv
     test("use dfs");
     try {

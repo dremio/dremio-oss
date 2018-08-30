@@ -20,7 +20,6 @@ import static org.apache.calcite.plan.RelOptUtil.conjunctions;
 import static org.apache.calcite.rex.RexUtil.composeConjunction;
 import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
 import static org.elasticsearch.index.query.QueryBuilders.existsQuery;
-import static org.elasticsearch.index.query.QueryBuilders.matchQuery;
 import static org.elasticsearch.index.query.QueryBuilders.queryStringQuery;
 import static org.elasticsearch.index.query.QueryBuilders.rangeQuery;
 import static org.elasticsearch.index.query.QueryBuilders.regexpQuery;
@@ -57,10 +56,12 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.MatchQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.RangeQueryBuilder;
 import org.elasticsearch.script.Script;
-import org.elasticsearch.script.ScriptService.ScriptType;
+import org.elasticsearch.script.ScriptType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,11 +76,13 @@ import com.dremio.lucene.queryparser.classic.QueryConverter;
 import com.dremio.plugins.elastic.ElasticStoragePluginConfig;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
+import com.dremio.plugins.elastic.mapping.FieldAnnotation;
 import com.dremio.plugins.elastic.planning.rels.ElasticIntermediateScanPrel;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -162,7 +165,7 @@ public class PredicateAnalyzer {
       try {
         analyze(scan, condition.e);
       } catch (ExpressionNotAnalyzableException e) {
-        logger.debug("Failed to pushdown condition: ", condition);
+        logger.debug("Failed to pushdown condition: {}", condition.e, e);
         residue.set(condition.i);
       }
     }
@@ -186,12 +189,15 @@ public class PredicateAnalyzer {
       ).accept(new NotLikeConverter(scan.getCluster().getRexBuilder()));
 
       try {
-        QueryExpression e = (QueryExpression) expression.accept(new Visitor(scan.getCluster().getRexBuilder()));
+        QueryExpression e = (QueryExpression) expression.accept(
+            new Visitor(scan.getCluster().getRexBuilder(), scan.getPluginId().getConnectionConf()));
 
         if (e != null && e.isPartial()) {
           e = CompoundQueryExpression.completeAnd(e, genScriptFilter(expression, scan.getPluginId(), null));
         }
-        logger.debug("Predicate: [{}] converted to: [\n{}]", expression, queryAsJson(e.builder()));
+        if(logger.isDebugEnabled()) {
+          logger.debug("Predicate: [{}] converted to: [\n{}]", expression, queryAsJson(e.builder()));
+        }
         return e != null ? e.builder() : null;
       } catch (Throwable e) {
         // For now, run the old expression conversion to convert a filter into a native elastic construct
@@ -244,9 +250,13 @@ public class PredicateAnalyzer {
           expression,
           config.usePainless,
           supportsV5Features,
-          config.scriptsEnabled);
-      return scriptQuery(script);
+          config.scriptsEnabled,
+          false, /* _source is not available in filter context */
+          config.allowPushdownOnNormalizedOrAnalyzedFields);
+      QueryBuilder builder = scriptQuery(script);
+      return builder;
     } catch (Throwable t) {
+      cause.addSuppressed(t);
       throw new ExpressionNotAnalyzableException(format(
           "Failed to fully convert predicate: [%s] into an elasticsearch filter", expression), cause);
     }
@@ -255,20 +265,22 @@ public class PredicateAnalyzer {
   public static Script getScript(String script, StoragePluginId pluginId) {
     if (pluginId.getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES)) {
       // when returning a painless script, let's make sure we cast to a valid output type.
-      return new Script(String.format("(def) (%s)", script), ScriptType.INLINE, "painless", null);
+      return new Script(ScriptType.INLINE, "painless", String.format("(def) (%s)", script), ImmutableMap.of());
     } else {
       // keeping this so plan matching tests will pass
-      return new Script(script, ScriptType.INLINE, "groovy", null);
+      return new Script(ScriptType.INLINE, "groovy", script, ImmutableMap.of());
     }
   }
 
   private static class Visitor extends RexVisitorImpl<Expression> {
 
     private final RexBuilder rexBuilder;
+    private final ElasticStoragePluginConfig config;
 
-    protected Visitor(RexBuilder rexBuilder) {
+    protected Visitor(RexBuilder rexBuilder, ElasticStoragePluginConfig config) {
       super(true);
       this.rexBuilder = rexBuilder;
+      this.config = config;
     }
 
     @Override
@@ -452,6 +464,13 @@ public class PredicateAnalyzer {
         throw new PredicateAnalyzerException(format("Unsupported operator: [%s]", call));
       }
       Expression a = call.getOperands().get(0).accept(this);
+
+      // Fields cannot be queried without being indexed
+      final NamedFieldExpression fieldExpression = (NamedFieldExpression) a;
+      if (fieldExpression.getAnnotation() != null && fieldExpression.getAnnotation().isNotIndexed()) {
+        throw new PredicateAnalyzerException("Cannot handle " + call.getKind() + " expression for field not indexed, " + call);
+      }
+
       // Elasticsearch does not want is null/is not null (exists query) for _id and _index, although it supports for all other metadata column
       isColumn(a, call, ElasticsearchConstants.ID, true);
       isColumn(a, call, ElasticsearchConstants.INDEX, true);
@@ -492,6 +511,20 @@ public class PredicateAnalyzer {
           default:
             throw new PredicateAnalyzerException("Cannot handle " + call.getKind() + " expression for _id field, " + call);
         }
+      }
+
+     // Fields cannot be queried without being indexed
+      final NamedFieldExpression fieldExpression = (NamedFieldExpression) pair.getKey();
+      if (fieldExpression.getAnnotation() != null && fieldExpression.getAnnotation().isNotIndexed()) {
+        throw new PredicateAnalyzerException("Cannot handle " + call.getKind() + " expression because indexing is disabled, " + call);
+      }
+
+      // Analyzed text fields and normalized keyword fields cannot be pushed down unless allowed in settings
+      if (!config.allowPushdownOnNormalizedOrAnalyzedFields &&
+          fieldExpression.getAnnotation() != null && fieldExpression.getType().isText() &&
+          (fieldExpression.getAnnotation().isAnalyzed() || fieldExpression.getAnnotation().isNormalized())) {
+        throw new PredicateAnalyzerException(
+            "Cannot handle " + call.getKind() + " expression because text or keyword field is analyzed or normalized, " + call);
       }
 
       switch (call.getKind()) {
@@ -876,7 +909,7 @@ public class PredicateAnalyzer {
 
     @Override
     public QueryExpression notExists() {
-      // Even though Lucene doesn't allow a stand alone mustNot boolean query, 
+      // Even though Lucene doesn't allow a stand alone mustNot boolean query,
       // Elasticsearch handles this problem transparently on its end
       builder = boolQuery().mustNot(existsQuery(getFieldReference()));
       return this;
@@ -922,6 +955,18 @@ public class PredicateAnalyzer {
           .mustNot(matchQuery(getFieldReference(), value));
       }
       return this;
+    }
+
+    /**
+     * Override matchquery from QueryBuilders to avoid fuzzy transpositions.
+     * @param name
+     * @param value
+     * @return
+     */
+    public MatchQueryBuilder matchQuery(String name, Object value) {
+      return QueryBuilders.matchQuery(name, value)
+          .maxExpansions(50000)
+          .fuzzyTranspositions(false);
     }
 
     @Override
@@ -1011,6 +1056,10 @@ public class PredicateAnalyzer {
 
     public CompleteType getType() {
       return schemaField.getCompleteType();
+    }
+
+    public FieldAnnotation getAnnotation() {
+      return schemaField.getAnnotation();
     }
   }
 

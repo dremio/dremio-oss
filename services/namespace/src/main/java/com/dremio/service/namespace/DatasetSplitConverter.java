@@ -43,7 +43,7 @@ public class DatasetSplitConverter implements DocumentConverter<DatasetSplitId, 
 
   @Override
   public void convert(DocumentWriter writer, DatasetSplitId key, DatasetSplit split) {
-    writer.write(SPLIT_ID, key.getSpiltId());
+    writer.write(SPLIT_ID, key.getSplitId());
     writer.write(DATASET_ID, key.getDatasetId());
     writer.write(SPLIT_IDENTIFIER, key.getSplitIdentifier());
     writer.write(SPLIT_VERSION, split.getSplitVersion());

@@ -16,27 +16,29 @@
 package com.dremio.plugins.elastic;
 
 import java.util.List;
+
 import javax.inject.Provider;
+import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
-import javax.validation.constraints.Size;
 
 import org.hibernate.validator.constraints.NotEmpty;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AuthenticationType;
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.Host;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.protostuff.Schema;
 import io.protostuff.Tag;
 import io.protostuff.runtime.RuntimeSchema;
 
-@SourceType("ELASTIC")
+@SourceType(value = "ELASTIC", label = "Elasticsearch")
 public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePluginConfig, ElasticsearchStoragePlugin> {
 
   private static final Schema<ElasticStoragePluginConfig> SCHEMA = RuntimeSchema.getSchema(ElasticStoragePluginConfig.class);
@@ -54,12 +56,11 @@ public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePlu
   //  optional bool usePainless = 11 [default = true];
   //  optional bool useWhitelist = 12 [default = false];
   //  optional int32 scrollSize = 13 [default = 4000];
-  //  optional bool allowGroupByOnNormalizedFields = 14 [default = false];
+  //  optional bool allowPushdownOnNormalizedOrAnalyzedFields = 14 [default = false];
 
   @NotEmpty
   @Tag(1)
-  @JsonProperty("hostList")
-  public List<Host> hosts; // default port should be 9200
+  public List<Host> hostList; // default port should be 9200
 
   @Tag(2)
   public String username;
@@ -72,52 +73,64 @@ public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePlu
   public AuthenticationType authenticationType = AuthenticationType.ANONYMOUS;
 
   @Tag(5)
+  @DisplayMetadata(label = "Use scripts for query pushdown")
   public boolean scriptsEnabled = true;
 
   @Tag(6)
+  @DisplayMetadata(label = "Show hidden indices that start with a dot (.)")
   public boolean showHiddenIndices = false;
 
   @Tag(7)
   @NotMetadataImpacting
+  @DisplayMetadata(label = "Encrypt connection")
   public boolean sslEnabled = false;
 
   @Tag(8)
+  @DisplayMetadata(label = "Show _id columns")
   public boolean showIdColumn = false;
 
   @Min(1)
   @Tag(9)
   @NotMetadataImpacting
-  public int readTimeoutMillis;
+  @DisplayMetadata(label = "Read timeout (milliseconds)")
+  public int readTimeoutMillis = 60000;
 
   @Min(1)
   @Tag(10)
   @NotMetadataImpacting
-  public int scrollTimeoutMillis;
+  @DisplayMetadata(label = "Scroll timeout (milliseconds)")
+  public int scrollTimeoutMillis = 300000;
 
   @Tag(11)
   @NotMetadataImpacting
+  @DisplayMetadata(label = "Use Painless scripting with Elasticsearch 5.0+")
   public boolean usePainless = true;
 
   @Tag(12)
+  @DisplayMetadata(label = "Managed Elasticsearch service")
   public boolean useWhitelist = false;
 
   @Tag(13)
-  @Size(min = 127, max = 65535)
+  @Min(127)
+  @Max(65535)
   @NotMetadataImpacting
+  @DisplayMetadata(label = "Scroll size")
   public int scrollSize = 4000;
 
   @Tag(14)
-  public boolean allowGroupByOnNormalizedFields = false;
+  @DisplayMetadata(label = "Use index/doc fields when pushing down aggregates and filters on analyzed and normalized fields (may produce unexpected results)")
+  public boolean allowPushdownOnNormalizedOrAnalyzedFields = false;
 
   @Tag(15)
   @NotMetadataImpacting
+  @JsonIgnore
   public boolean warnOnRowCountMismatch = false;
 
   public ElasticStoragePluginConfig() {
   }
 
   public ElasticStoragePluginConfig(
-      List<Host> hosts,
+      List<Host> hostList,
       String username,
       String password,
       AuthenticationType authenticationType,
@@ -130,9 +143,9 @@ public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePlu
       boolean usePainless,
       boolean useWhitelist,
       int scrollSize,
-      boolean allowGroupByOnNormalizedFields,
+      boolean allowPushdownOnNormalizedOrAnalyzedFields,
       boolean warnOnRowCountMismatch) {
-    this.hosts = hosts;
+    this.hostList = hostList;
     this.username = username;
     this.password = password;
     this.authenticationType = authenticationType;
@@ -145,7 +158,7 @@ public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePlu
     this.usePainless = usePainless;
     this.useWhitelist = useWhitelist;
     this.scrollSize = scrollSize;
-    this.allowGroupByOnNormalizedFields = allowGroupByOnNormalizedFields;
+    this.allowPushdownOnNormalizedOrAnalyzedFields = allowPushdownOnNormalizedOrAnalyzedFields;
     this.warnOnRowCountMismatch = warnOnRowCountMismatch;
   }
 

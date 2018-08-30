@@ -15,16 +15,13 @@
  */
 import { Component } from 'react';
 import PropTypes from 'prop-types';
-import Radium from 'radium';
-
-import { formLabel } from 'uiTheme/radium/typography';
+import classNames from 'classnames';
 import { PrevalidatedTextField } from 'components/Fields';
 import FieldWithError from 'components/Fields/FieldWithError';
 import Checkbox from 'components/Fields/Checkbox';
 import { applyValidators, isRequired } from 'utils/validation';
+import { base, text, row } from './NewFieldSection.less';
 
-
-@Radium
 export default class NewFieldSection extends Component {
 
   static getFields() {
@@ -41,7 +38,8 @@ export default class NewFieldSection extends Component {
     style: PropTypes.object,
     columnName: PropTypes.string,
     fields: PropTypes.object,
-    showDropSource: PropTypes.bool
+    showDropSource: PropTypes.bool,
+    className: PropTypes.string
   };
 
   static defaultProps = {
@@ -81,54 +79,35 @@ export default class NewFieldSection extends Component {
   }
 
   render() { // todo: loc
-    const { fields: { newFieldName, dropSourceField }, style, showDropSource } = this.props;
+    const {
+      fields: { newFieldName, dropSourceField },
+      style,
+      showDropSource,
+      className
+    } = this.props;
 
     // use a PrevalidatedTextField so that the value isn't sent as-typing -
     // only hitting the server on blur
     return (
-      <div style={[styles.base, style]}>
+      <div className={classNames(base, className)} style={style}>
         <FieldWithError
           {...newFieldName}
           errorPlacement='bottom'
-          label={la('New Field Name')}
-          labelStyle={styles.label}
-          style={formLabel}>
+          label={la('New Field Name')}>
           <PrevalidatedTextField
             {...newFieldName}
-            style={styles.text}/>
+            className={text}/>
         </FieldWithError>
         { showDropSource && <FieldWithError
           label={la('Options')}
-          {...dropSourceField}
-          labelStyle={styles.label}
-          style={formLabel}>
+          {...dropSourceField}>
           <Checkbox
             {...dropSourceField}
             onChange={this.handleCheckboxChange}
             label={`Drop Source Field (${this.getSourceColumnName()})`}
-            style={styles.checkbox}/>
+            className={row}/>
         </FieldWithError> }
       </div>
     );
   }
 }
-
-const styles = {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    marginLeft: 10,
-    marginBottom: 10,
-    paddingTop: 5
-  },
-  text: {
-    width: 200,
-    height: 28
-  },
-  label: {
-    marginBottom: 0
-  },
-  checkbox: {
-    marginTop: 1
-  }
-};

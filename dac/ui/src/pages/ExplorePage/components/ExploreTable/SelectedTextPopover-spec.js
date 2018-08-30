@@ -15,7 +15,7 @@
  */
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
-import SelectedTextPopover from './SelectedTextPopover';
+import { SelectedTextPopoverView as SelectedTextPopover } from './SelectedTextPopover';
 
 describe('SelectedTextPopover', () => {
   let minimalProps;

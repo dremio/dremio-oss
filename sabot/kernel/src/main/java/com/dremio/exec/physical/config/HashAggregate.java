@@ -67,7 +67,7 @@ public class HashAggregate extends AbstractSingle {
     return aggrExprs;
   }
 
-  public double getCardinality() {
+  public float getCardinality() {
     return cardinality;
   }
 

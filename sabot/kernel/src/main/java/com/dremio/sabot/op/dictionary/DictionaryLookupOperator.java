@@ -23,15 +23,15 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.arrow.vector.AllocationHelper;
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableBitVector;
-import org.apache.arrow.vector.NullableDateMilliVector;
-import org.apache.arrow.vector.NullableFloat4Vector;
-import org.apache.arrow.vector.NullableFloat8Vector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableTimeStampMilliVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.DateMilliVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -92,12 +92,12 @@ public class DictionaryLookupOperator implements SingleInputOperator {
     this.incoming = incoming;
     switch (incoming.getSchema().getSelectionVectorMode()) {
       case NONE:
-        this.outgoing = new VectorContainer(context.getAllocator());
+        this.outgoing = context.createOutputVectorContainer();
         break;
 
       case TWO_BYTE:
         this.hasSv2 = true;
-        this.outgoing = new VectorContainerWithSV(context.getAllocator(), incoming.getSelectionVector2().clone());
+        this.outgoing = context.createOutputVectorContainerWithSV(incoming.getSelectionVector2());
         break;
 
       case FOUR_BYTE:
@@ -155,7 +155,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
     }
   }
 
-  private void decodeInt(NullableIntVector input, NullableIntVector output, NullableIntVector dictionary) {
+  private void decodeInt(IntVector input, IntVector output, IntVector dictionary) {
     if (hasSv2) {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0, svIndex = sv2.getIndex(i); i < recordsConsumedCurrentBatch; ++i) {
@@ -170,7 +170,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
     }
   }
 
-  private void decodeBigInt(NullableIntVector input, NullableBigIntVector output, NullableBigIntVector dictionary) {
+  private void decodeBigInt(IntVector input, BigIntVector output, BigIntVector dictionary) {
     if (hasSv2) {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
@@ -186,7 +186,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
     }
   }
 
-  private void decodeFloat(NullableIntVector input, NullableFloat4Vector output, NullableFloat4Vector dictionary) {
+  private void decodeFloat(IntVector input, Float4Vector output, Float4Vector dictionary) {
     if (hasSv2) {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
@@ -202,7 +202,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
     }
   }
 
-  private void decodeDouble(NullableIntVector input, NullableFloat8Vector output, NullableFloat8Vector dictionary) {
+  private void decodeDouble(IntVector input, Float8Vector output, Float8Vector dictionary) {
     if (hasSv2) {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
@@ -218,7 +218,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
     }
   }
 
-  private void decodeBinary(NullableIntVector input, NullableVarBinaryVector output, NullableVarBinaryVector dictionary) {
+  private void decodeBinary(IntVector input, VarBinaryVector output, VarBinaryVector dictionary) {
     if (hasSv2) {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
@@ -234,7 +234,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
     }
   }
 
-  private void decodeVarChar(NullableIntVector input, NullableVarCharVector output, NullableVarBinaryVector dictionary) {
+  private void decodeVarChar(IntVector input, VarCharVector output, VarBinaryVector dictionary) {
     if (hasSv2) {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
@@ -261,7 +261,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
     }
   }
 
-  private void decodeBoolean(NullableIntVector input, NullableBitVector output) {
+  private void decodeBoolean(IntVector input, BitVector output) {
     if (hasSv2) {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
       for (int i = 0; i < recordsConsumedCurrentBatch; ++i) {
@@ -285,7 +285,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
     }
   }
 
-  private void decodeDate(NullableIntVector input, NullableDateMilliVector output, NullableIntVector dictionary) {
+  private void decodeDate(IntVector input, DateMilliVector output, IntVector dictionary) {
     // dates are stored as int32 in parquet dictionaries
     if (hasSv2) {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
@@ -310,7 +310,7 @@ public class DictionaryLookupOperator implements SingleInputOperator {
     }
   }
 
-  private void decodeTimestamp(NullableIntVector input, NullableTimeStampMilliVector output, NullableBigIntVector dictionary) {
+  private void decodeTimestamp(IntVector input, TimeStampMilliVector output, BigIntVector dictionary) {
     // dates are stored as int32 in parquet dictionaries
     if (hasSv2) {
       final SelectionVector2 sv2 = incoming.getSelectionVector2();
@@ -350,28 +350,28 @@ public class DictionaryLookupOperator implements SingleInputOperator {
       final ArrowType outputType = config.getDictionaryEncodedFields().get(fieldName).getArrowType();
       switch (MajorTypeHelper.getMinorTypeFromArrowMinorType(getMinorTypeForArrowType(outputType))) {
         case INT: {
-          final NullableIntVector input = (NullableIntVector) entry.getValue();
-          final NullableIntVector output = (NullableIntVector) allocationVectors.get(fieldName);
-          final NullableIntVector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableIntVector.class, 0).getValueVector();
+          final IntVector input = (IntVector) entry.getValue();
+          final IntVector output = (IntVector) allocationVectors.get(fieldName);
+          final IntVector dictionary = dictionaries.get(fieldName).getValueAccessorById(IntVector.class, 0).getValueVector();
           decodeInt(input, output, dictionary);
           output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
         case BIGINT: {
-          final NullableIntVector input = (NullableIntVector) entry.getValue();
-          final NullableBigIntVector output = (NullableBigIntVector) allocationVectors.get(fieldName);
-          final NullableBigIntVector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableBigIntVector.class, 0).getValueVector();
+          final IntVector input = (IntVector) entry.getValue();
+          final BigIntVector output = (BigIntVector) allocationVectors.get(fieldName);
+          final BigIntVector dictionary = dictionaries.get(fieldName).getValueAccessorById(BigIntVector.class, 0).getValueVector();
           decodeBigInt(input, output, dictionary);
           output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
         case VARBINARY:
-        case FIXEDBINARY: {
-          final NullableIntVector input = (NullableIntVector) entry.getValue();
-          final NullableVarBinaryVector output = (NullableVarBinaryVector) allocationVectors.get(fieldName);
-          final NullableVarBinaryVector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableVarBinaryVector.class, 0).getValueVector();
+        case FIXEDSIZEBINARY: {
+          final IntVector input = (IntVector) entry.getValue();
+          final VarBinaryVector output = (VarBinaryVector) allocationVectors.get(fieldName);
+          final VarBinaryVector dictionary = dictionaries.get(fieldName).getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
           decodeBinary(input, output, dictionary);
           output.setValueCount(recordsConsumedCurrentBatch);
         }
@@ -379,53 +379,53 @@ public class DictionaryLookupOperator implements SingleInputOperator {
 
         case VARCHAR:
         case VAR16CHAR: {
-          final NullableIntVector input = (NullableIntVector) entry.getValue();
-          final NullableVarCharVector output = (NullableVarCharVector) allocationVectors.get(fieldName);
-          final NullableVarBinaryVector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableVarBinaryVector.class, 0).getValueVector();
+          final IntVector input = (IntVector) entry.getValue();
+          final VarCharVector output = (VarCharVector) allocationVectors.get(fieldName);
+          final VarBinaryVector dictionary = dictionaries.get(fieldName).getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
           decodeVarChar(input, output, dictionary);
           output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
         case FLOAT4: {
-          final NullableIntVector input = (NullableIntVector) entry.getValue();
-          final NullableFloat4Vector output = (NullableFloat4Vector) allocationVectors.get(fieldName);
-          final NullableFloat4Vector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableFloat4Vector.class, 0).getValueVector();
+          final IntVector input = (IntVector) entry.getValue();
+          final Float4Vector output = (Float4Vector) allocationVectors.get(fieldName);
+          final Float4Vector dictionary = dictionaries.get(fieldName).getValueAccessorById(Float4Vector.class, 0).getValueVector();
           decodeFloat(input, output, dictionary);
           output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
         case FLOAT8: {
-          final NullableIntVector input = (NullableIntVector) entry.getValue();
-          final NullableFloat8Vector output = (NullableFloat8Vector) allocationVectors.get(fieldName);
-          final NullableFloat8Vector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableFloat8Vector.class, 0).getValueVector();
+          final IntVector input = (IntVector) entry.getValue();
+          final Float8Vector output = (Float8Vector) allocationVectors.get(fieldName);
+          final Float8Vector dictionary = dictionaries.get(fieldName).getValueAccessorById(Float8Vector.class, 0).getValueVector();
           decodeDouble(input, output, dictionary);
           output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
         case BIT: {
-          final NullableIntVector input = (NullableIntVector) entry.getValue();
-          final NullableBitVector output = (NullableBitVector) allocationVectors.get(fieldName);
+          final IntVector input = (IntVector) entry.getValue();
+          final BitVector output = (BitVector) allocationVectors.get(fieldName);
           decodeBoolean(input, output);
           output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
         case DATE: {
-          final NullableIntVector input = (NullableIntVector) entry.getValue();
-          final NullableDateMilliVector output = (NullableDateMilliVector) allocationVectors.get(fieldName);
-          final NullableIntVector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableIntVector.class, 0).getValueVector();
+          final IntVector input = (IntVector) entry.getValue();
+          final DateMilliVector output = (DateMilliVector) allocationVectors.get(fieldName);
+          final IntVector dictionary = dictionaries.get(fieldName).getValueAccessorById(IntVector.class, 0).getValueVector();
           decodeDate(input, output, dictionary);
           output.setValueCount(recordsConsumedCurrentBatch);
         }
         break;
 
         case TIMESTAMP: {
-          final NullableIntVector input = (NullableIntVector) entry.getValue();
-          final NullableTimeStampMilliVector output = (NullableTimeStampMilliVector) allocationVectors.get(fieldName);
-          final NullableBigIntVector dictionary = dictionaries.get(fieldName).getValueAccessorById(NullableBigIntVector.class, 0).getValueVector();
+          final IntVector input = (IntVector) entry.getValue();
+          final TimeStampMilliVector output = (TimeStampMilliVector) allocationVectors.get(fieldName);
+          final BigIntVector dictionary = dictionaries.get(fieldName).getValueAccessorById(BigIntVector.class, 0).getValueVector();
           decodeTimestamp(input, output, dictionary);
           output.setValueCount(recordsConsumedCurrentBatch);
         }

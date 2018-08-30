@@ -16,6 +16,7 @@
 import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import Radium from 'radium';
+import classNames from 'classnames';
 
 import PropTypes from 'prop-types';
 
@@ -32,7 +33,9 @@ class ExploreDragArea extends Component {
     isDragged: PropTypes.bool,
     dragContentStyle: PropTypes.object,
     children: PropTypes.node,
-    dataQa: PropTypes.string
+    dataQa: PropTypes.string,
+    className: PropTypes.string,
+    dragContentCls: PropTypes.string
   };
 
   componentDidUpdate(prevProps) {
@@ -54,21 +57,23 @@ class ExploreDragArea extends Component {
   }
 
   render() {
-    const { isDragged, dragType, onDrop, dragContentStyle, children, dataQa } = this.props;
+    const { isDragged, dragType, onDrop, dragContentStyle,
+      children, dataQa, className, dragContentCls } = this.props;
 
     const isEmpty = React.Children.count(children) === 0;
     const dragAreaStyle = getDragAreaStyle(isDragged, isEmpty);
     const columnStyle = !isEmpty ? columnWrap : {};
 
     return (
-      <div className='drag-area' data-qa={dataQa} style={areaWrap}>
+      <div className={classNames(['drag-area', className])} data-qa={dataQa} style={areaWrap}>
         <DragTarget
           dragType={dragType}
           canDropOnChild
           onDrop={onDrop}>
           <div ref={(wrapper) => {
             this.wrapper = wrapper;
-          }} style={[dragAreaStyle, dragContentStyle]}>
+          }}
+            className={dragContentCls} style={[dragAreaStyle, dragContentStyle]}>
             <div style={[columnStyle]}>
               {isEmpty ? this.renderEmpty() : children}
             </div>

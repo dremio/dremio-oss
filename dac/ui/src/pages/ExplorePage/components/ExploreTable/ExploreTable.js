@@ -20,6 +20,8 @@ import ReactDOM from 'react-dom';
 import shallowEqual from 'shallowequal';
 import $ from 'jquery';
 import Immutable from 'immutable';
+import { connect } from 'react-redux';
+import { getIsExplorePreviewMode } from 'reducers';
 import { Column, Table } from 'fixed-data-table-2';
 import { AutoSizer } from 'react-virtualized';
 import { injectIntl } from 'react-intl';
@@ -28,6 +30,7 @@ import { DEFAULT_ROW_HEIGHT, MIN_COLUMN_WIDTH } from 'uiTheme/radium/sizes';
 
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import ViewCheckContent from 'components/ViewCheckContent';
+import { withLocation } from 'containers/dremioLocation';
 import ExploreTableCell from './ExploreTableCell';
 import ColumnHeader from './ColumnHeader';
 
@@ -37,9 +40,13 @@ const TIME_BEFORE_SPINNER = 1500;
 export const RIGHT_TREE_OFFSET = 251;
 const SCROLL_BAR_WIDTH = 16;
 
+const mapStateToProps = state => ({
+  isPreviewMode: getIsExplorePreviewMode(state)
+});
+
 @injectIntl
 @Radium
-export default class ExploreTable extends PureComponent {
+export class ExploreTableView extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
     tableData: PropTypes.instanceOf(Immutable.Map),
@@ -64,11 +71,16 @@ export default class ExploreTable extends PureComponent {
     selectItemsOfList: PropTypes.func,
     isDumbTable: PropTypes.bool,
     getTableHeight: PropTypes.func,
-    location: PropTypes.object,
     height: PropTypes.number,
     isGrayed: PropTypes.bool,
     intl: PropTypes.object.isRequired,
-    shouldRenderInvisibles: PropTypes.bool // this is a dangerous/experimental option, it can interfere with other features (e.g. selection dropdown)
+    shouldRenderInvisibles: PropTypes.bool, // this is a dangerous/experimental option, it can interfere with other features (e.g. selection dropdown)
+
+    // withLcoation props
+    location: PropTypes.object,
+
+    // connect properties
+    isPreviewMode: PropTypes.bool
   };
 
   static getCellStyle(column) {
@@ -101,9 +113,9 @@ export default class ExploreTable extends PureComponent {
       console.error('Can\'t find wrapper element, size maybe wrong');
     }
 
-    const widthThatWillBeSet = ExploreTable.tableWidth(width, wrappers[0], widthScale, rightTreeVisible);
-    const heightThatWillBeSet = ExploreTable.tableHeight(height, wrappers[1], nodeOffsetTop);
-    const defaultColumnWidth = ExploreTable.getDefaultColumnWidth(widthThatWillBeSet, columns);
+    const widthThatWillBeSet = ExploreTableView.tableWidth(width, wrappers[0], widthScale, rightTreeVisible);
+    const heightThatWillBeSet = ExploreTableView.tableHeight(height, wrappers[1], nodeOffsetTop);
+    const defaultColumnWidth = ExploreTableView.getDefaultColumnWidth(widthThatWillBeSet, columns);
 
     return Immutable.Map({
       width: widthThatWillBeSet,
@@ -231,7 +243,7 @@ export default class ExploreTable extends PureComponent {
       height = this.props.getTableHeight(node);
     }
 
-    const size = ExploreTable.getTableSize({...this.props, height}, wrappers, columns, nodeOffsetTop);
+    const size = ExploreTableView.getTableSize({...this.props, height}, wrappers, columns, nodeOffsetTop);
     this.setState(state => {
       if (!state.size.equals(size)) {
         return {size};
@@ -275,8 +287,9 @@ export default class ExploreTable extends PureComponent {
     );
   }
 
-  renderCell(column) {
-    const cellStyle = ExploreTable.getCellStyle(column);
+  renderCell(column, renderInvisibleSymbols) {
+    const cellStyle = ExploreTableView.getCellStyle(column);
+
     return (
       <ExploreTableCell
         columnType={column.type}
@@ -291,8 +304,7 @@ export default class ExploreTable extends PureComponent {
         onCellTextSelect={this.props.onCellTextSelect}
         tableData={this.props.tableData}
         isDumbTable={this.props.isDumbTable}
-        location={this.props.location}
-        shouldRenderInvisibles={this.props.shouldRenderInvisibles}
+        shouldRenderInvisibles={renderInvisibleSymbols}
       />
     );
   }
@@ -300,8 +312,24 @@ export default class ExploreTable extends PureComponent {
   renderColumns() {
     const columns = this.state.columns.toJS();
     const filteredColumns = columns.filter((column) => !column.hidden);
+    const {
+      shouldRenderInvisibles,
+      location
+    } = this.props;
+
     return filteredColumns.map(column => {
       const cellWidth = column.width || this.state.size.get('defaultColumnWidth');
+      const {
+        state: {
+          columnName,
+          toType,
+          transformType
+        } = {}
+      } = location || {};
+      const isTransformMode = toType || transformType;
+
+      const renderInvisible = shouldRenderInvisibles
+       || (isTransformMode && isTransformMode && columnName === column.name);
       return (
         <Column
           key={column.name}
@@ -310,7 +338,7 @@ export default class ExploreTable extends PureComponent {
           isResizable
           allowCellsRecycling
           columnKey={column.index}
-          cell={this.renderCell(column)}
+          cell={this.renderCell(column, renderInvisible)}
         />
       );
     });
@@ -345,7 +373,7 @@ export default class ExploreTable extends PureComponent {
   render() {
     const columns = this.state.columns;
     const height = this.state.size.get('height');
-    const { exploreViewState, cardsViewState, pageType, intl } = this.props;
+    const { exploreViewState, cardsViewState, pageType, intl, isPreviewMode } = this.props;
     const showMessage = pageType === 'default';
     const viewState = pageType === 'default' || !(cardsViewState && cardsViewState.size)
       || exploreViewState.get('isInProgress') ? exploreViewState : cardsViewState;
@@ -361,7 +389,7 @@ export default class ExploreTable extends PureComponent {
           {this.props.isGrayed && <div data-qa='table-grayed-out' style={styles.grayed}/>}
           {this.renderTable()}
           <ViewCheckContent
-            message={intl.formatMessage({ id: 'Dataset.NoData' })}
+            message={intl.formatMessage({ id: isPreviewMode ? 'Dataset.NoPreviewData' : 'Dataset.NoData' })}
             viewState={viewState}
             dataIsNotAvailable={this.shouldShowNoData(viewState)}
             customStyle={{
@@ -375,6 +403,8 @@ export default class ExploreTable extends PureComponent {
     );
   }
 }
+
+export default connect(mapStateToProps)(withLocation(ExploreTableView));
 
 const styles = {
   grayed: {

@@ -88,6 +88,16 @@ enum LayoutType {
   EXTERNAL = 3;
 }
 
+// the type of reflection measure.
+enum MeasureType {
+  UNKNOWN = 0;
+  MIN = 1;
+  MAX = 2;
+  SUM = 3;
+  COUNT = 4;
+  APPROX_COUNT_DISTINCT = 5;
+}
+
 message RowType {
   // row type of the materialization
   repeated com.dremio.service.namespace.dataset.proto.ViewFieldType field = 1;

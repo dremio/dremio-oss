@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
 import { Radio, TextField, DateInput } from 'components/Fields';
 import { isDateType } from 'constants/DataTypes';
+import { rowOfInputsSpacing } from '@app/uiTheme/less/forms.less';
+import { sectionMargin } from '@app/uiTheme/less/layout.less';
 
 import CardFooter from './../CardFooter';
 
-@Radium
 export default class Exact extends Component {
   static getFields() {
     return ['replaceValues[]', 'replaceNull'];
@@ -56,7 +56,7 @@ export default class Exact extends Component {
     : <TextField
       type='number'
       disabled={replaceNull.value}
-      style={[styles.input, { marginLeft: 10, width: 300 }]}
+      style={styles.input}
       {...replaceValues}
       />;
   }
@@ -69,23 +69,21 @@ export default class Exact extends Component {
     });
     return (
       <div className='exact'>
-        <div style={styles.wrap}>
+        <div className={rowOfInputsSpacing}>
           <Radio
             radioValue='Value'
             onChange={this.handleRadioChange}
             label='Value:'
             name='Value:'
-            style={styles.check}
             checked={!replaceNull.value}/>
           {this.renderInput()}
           <Radio
             radioValue='Null'
             onChange={this.handleRadioChange}
             label='Null'
-            style={{ ...styles.check, marginLeft: -5 }}
             checked={replaceNull.value}/>
         </div>
-        <div style={styles.wrapFooter}>
+        <div className={sectionMargin}>
           <CardFooter card={data}/>
         </div>
       </div>
@@ -94,28 +92,13 @@ export default class Exact extends Component {
 }
 
 const styles = {
-  wrap: {
-    margin: '0 10px 0 5px',
-    height: 24,
-    display: 'flex'
-  },
-  wrapFooter: {
-    marginTop: 10,
-    marginLeft: 10,
-    position: 'relative'
-  },
   input: {
-    width: 230,
+    width: 300,
     height: 24,
     fontSize: 13,
     border: '1px solid #ccc',
     borderRadius: 3,
     outline: 'none',
-    float: 'left',
     padding: 2
-  },
-  check: {
-    float: 'left',
-    marginTop: 5
   }
 };

@@ -20,10 +20,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
@@ -56,21 +56,22 @@ public class WriterOperator implements SingleInputOperator {
   private State state = State.NEEDS_SETUP;
 
   private VectorContainer maskedContainer;
-  private NullableBigIntVector summaryVector;
-  private NullableVarCharVector fragmentIdVector;
-  private NullableVarCharVector pathVector;
-  private NullableVarBinaryVector metadataVector;
-  private NullableIntVector partitionNumberVector;
+  private BigIntVector summaryVector;
+  private BigIntVector fileSizeVector;
+  private VarCharVector fragmentIdVector;
+  private VarCharVector pathVector;
+  private VarBinaryVector metadataVector;
+  private IntVector partitionNumberVector;
 
   private PartitionWriteManager partitionManager;
 
   private WritePartition partition = null;
 
   private long writtenRecords = 0L;
-  private long writtenRecordLimit = 0L;
+  private long writtenRecordLimit;
   private boolean reachedOutputLimit = false;
 
-  public static enum Metric implements MetricDef {
+  public enum Metric implements MetricDef {
     BYTES_WRITTEN,    // Number of bytes written to the output file(s)
     OUTPUT_LIMITED;   // 1, if the output limit was reached; 0, if not
 
@@ -83,7 +84,7 @@ public class WriterOperator implements SingleInputOperator {
   public WriterOperator(OperatorContext context, WriterOptions options, RecordWriter recordWriter) throws OutOfMemoryException {
     this.context = context;
     this.stats = context.getStats();
-    this.output = VectorContainer.create(context.getAllocator(), RecordWriter.SCHEMA);
+    this.output = context.createOutputVectorContainer(RecordWriter.SCHEMA);
     this.options = options;
     final FragmentHandle handle = context.getFragmentHandle();
     this.fragmentUniqueId = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
@@ -107,6 +108,7 @@ public class WriterOperator implements SingleInputOperator {
     fragmentIdVector = output.addOrGet(RecordWriter.FRAGMENT);
     pathVector = output.addOrGet(RecordWriter.PATH);
     summaryVector = output.addOrGet(RecordWriter.RECORDS);
+    fileSizeVector = output.addOrGet(RecordWriter.FILESIZE);
     metadataVector = output.addOrGet(RecordWriter.METADATA);
     partitionNumberVector = output.addOrGet(RecordWriter.PARTITION);
     output.buildSchema();
@@ -191,6 +193,8 @@ public class WriterOperator implements SingleInputOperator {
         partitionNumberVector.setSafe(i, e.partitionNumber);
       }
 
+      fileSizeVector.setSafe(i, e.fileSize);
+
       i++;
     }
 
@@ -239,8 +243,8 @@ public class WriterOperator implements SingleInputOperator {
     private final List<OutputEntry> entries = new ArrayList<>();
 
     @Override
-    public void recordsWritten(long recordCount, String path, byte[] metadata, Integer partitionNumber) {
-      entries.add(new OutputEntry(recordCount, path, metadata, partitionNumber));
+    public void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber) {
+      entries.add(new OutputEntry(recordCount, fileSize, path, metadata, partitionNumber));
     }
 
   }
@@ -253,13 +257,14 @@ public class WriterOperator implements SingleInputOperator {
 
   private class OutputEntry {
     private final long recordCount;
+    private final long fileSize;
     private final String path;
     private final byte[] metadata;
     private final Integer partitionNumber;
 
-    public OutputEntry(long recordCount, String path, byte[] metadata, Integer partitionNumber) {
-      super();
+    OutputEntry(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber) {
       this.recordCount = recordCount;
+      this.fileSize = fileSize;
       this.path = path;
       this.metadata = metadata;
       this.partitionNumber = partitionNumber;

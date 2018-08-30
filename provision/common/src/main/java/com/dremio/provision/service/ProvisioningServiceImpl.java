@@ -65,8 +65,10 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
 
   private static final Logger logger = LoggerFactory.getLogger(ProvisioningServiceImpl.class);
   public static final String TABLE_NAME = "provisioning";
-  public static final int DEFAULT_HEAP_MEMORY = 4096;
-  public static final int MIN_MEMORY_REQUIRED = 8192;
+  public static final int DEFAULT_HEAP_MEMORY_MB = 4096;
+  public static final int LARGE_SYSTEMS_DEFAULT_HEAP_MEMORY_MB = 8192;
+  public static final int MIN_MEMORY_REQUIRED_MB = 8192;
+  public static final int LARGE_SYSTEMS_MIN_MEMORY_MB = 32768; // DX-10446
 
 
   private final Map<ClusterType, ProvisioningServiceDelegate> concreteServices = Maps.newHashMap();
@@ -130,9 +132,9 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     // just saves info to KVStore
     // children should do the rest
     if((clusterConfig.getClusterSpec().getMemoryMBOnHeap() + clusterConfig.getClusterSpec().getMemoryMBOffHeap()) <
-    MIN_MEMORY_REQUIRED) {
+    MIN_MEMORY_REQUIRED_MB) {
       throw new ProvisioningHandlingException("Minimum memory required should be greater or equal than: " +
-        MIN_MEMORY_REQUIRED + "MB");
+        MIN_MEMORY_REQUIRED_MB + "MB");
     }
 
     ClusterId clusterId = newRandomClusterId();

@@ -17,12 +17,13 @@ package com.dremio.sabot.op.sort.external;
 
 import java.io.IOException;
 
-import com.dremio.exec.ExecConstants;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.calcite.rel.RelFieldCollation.Direction;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.Order.Ordering;
@@ -30,18 +31,19 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.sig.MappingSet;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.ClassGenerator;
-import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
+import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.fn.FunctionGenerationHelper;
 import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.spi.SingleInputOperator;
+import com.google.common.base.Throwables;
 import com.sun.codemodel.JConditional;
 import com.sun.codemodel.JExpr;
 
@@ -136,27 +138,39 @@ public class ExternalSortOperator implements SingleInputOperator {
 
   @Override
   public VectorAccessible setup(VectorAccessible incoming) {
-    this.tracer = new ExternalSortTracer();
-    this.output =  VectorContainer.create(context.getAllocator(), incoming.getSchema());
-    this.batchsizeMultiplier = (int)context.getOptions().getOption(ExecConstants.EXTERNAL_SORT_BATCHSIZE_MULTIPLIER);
-    this.memoryRun = new MemoryRun(config, producer, context.getAllocator(), incoming.getSchema(), tracer, batchsizeMultiplier);
-    this.incoming = incoming;
-    state = State.CAN_CONSUME;
+    try(RollbackCloseable rollback = new RollbackCloseable()) {
+      this.tracer = new ExternalSortTracer();
+      this.output = context.createOutputVectorContainer(incoming.getSchema());
+      this.batchsizeMultiplier = (int) context.getOptions().getOption(ExecConstants.EXTERNAL_SORT_BATCHSIZE_MULTIPLIER);
 
-    // estimate how much memory the outgoing batch will take in memory
-    final OptionManager options = context.getOptions();
-    final int listSizeEstimate = (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
-    final int varFieldSizeEstimate = (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
-    final int estimatedRecordSize = incoming.getSchema().estimateRecordSize(listSizeEstimate, varFieldSizeEstimate);
-    final int targetBatchSizeInBytes = targetBatchSize * estimatedRecordSize;
-    final boolean compressSpilledBatch = context.getOptions().getOption(ExecConstants.EXTERNAL_SORT_COMPRESS_SPILL_FILES);
+      this.memoryRun = new MemoryRun(config, producer, context.getAllocator(), incoming.getSchema(), tracer, batchsizeMultiplier);
+      rollback.add(this.memoryRun);
 
-    this.diskRuns = new DiskRunManager(context.getConfig(), context.getOptions(), targetBatchSize, targetBatchSizeInBytes,
-        context.getFragmentHandle(), config.getOperatorId(), context.getClassProducer(), allocator,
-        config.getOrderings(), incoming.getSchema(), compressSpilledBatch, tracer);
+      this.incoming = incoming;
+      state = State.CAN_CONSUME;
 
-    tracer.setTargetBatchSize(targetBatchSize);
-    tracer.setTargetBatchSizeInBytes(targetBatchSizeInBytes);
+      // estimate how much memory the outgoing batch will take in memory
+      final OptionManager options = context.getOptions();
+      final int listSizeEstimate = (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
+      final int varFieldSizeEstimate = (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
+      final int estimatedRecordSize = incoming.getSchema().estimateRecordSize(listSizeEstimate, varFieldSizeEstimate);
+      final int targetBatchSizeInBytes = targetBatchSize * estimatedRecordSize;
+      final boolean compressSpilledBatch = context.getOptions().getOption(ExecConstants.EXTERNAL_SORT_COMPRESS_SPILL_FILES);
+
+      this.diskRuns = new DiskRunManager(context.getConfig(), context.getOptions(), targetBatchSize, targetBatchSizeInBytes,
+          context.getFragmentHandle(), config.getOperatorId(), context.getClassProducer(), allocator,
+          config.getOrderings(), incoming.getSchema(), compressSpilledBatch, tracer
+      );
+      rollback.add(this.diskRuns);
+
+      tracer.setTargetBatchSize(targetBatchSize);
+      tracer.setTargetBatchSizeInBytes(targetBatchSizeInBytes);
+
+      rollback.commit();
+    } catch(Exception e) {
+      Throwables.propagate(e);
+    }
+
     return output;
   }
 

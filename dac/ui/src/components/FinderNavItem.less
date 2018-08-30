@@ -15,69 +15,72 @@
  */
 @import "../components/colors.less";
 
-.finder-nav-item {
-  a.finder-nav-item-link {
-    height: 28px;
-    padding: 0 2px 0 10px;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-    display: block;
-    width: 100%;
+  .finder-nav-item {
+    a.finder-nav-item-link {
+      height: 28px;
+      padding: 0 2px 0 10px;
 
-    text-decoration: none;
-    color: @black;
-    cursor: pointer;
+      display: block;
+      width: 100%;
 
-    display: flex;
-    flex-direction: row;
-    align-items: center;
+      text-decoration: none;
+      color: @black;
+      cursor: pointer;
 
-    &:hover, &:focus {
-      .pin {
-        visibility: visible;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+
+      &:hover, &:focus {
+        .pin {
+          visibility: visible;
+        }
+      }
+      &.active, &:hover, &:focus {
+        background-color: #fff5dc;
       }
     }
-    &.active, &:hover, &:focus {
-      background-color: #fff5dc;
-    }
-  }
 
-  &.readonly{
-    opacity: 0.5;
-  }
+    &.readonly{
+      opacity: 0.5;
+    }
 
-  .pin{
-    cursor: pointer;
-    visibility: hidden;
-    &.active{
-      visibility: visible;
-      color: @active-icon-dark;
+    .pin{
+      cursor: pointer;
+      visibility: hidden;
+      &.active{
+        visibility: visible;
+        color: @active-icon-dark;
+      }
     }
-  }
 
-  .fa{
-    &.off{
-      color: @light-red;
+    .fa{
+      &.off{
+        color: @light-red;
+      }
+      &.on{
+        color: @light-green;
+      }
+      &.in-border{
+        font-size: 10px;
+        margin: 0 5px 0 0;
+        border: 1px solid #111;
+        color: #111;
+        display: flex;
+        justify-content: flex-end;
+        align-items: flex-end;
+        width: 14px;
+        height: 14px;
+        float: left;
+        border-radius: 2px;
+        line-height: 6px;
+      }
     }
-    &.on{
-      color: @light-green;
-    }
-    &.in-border{
-      font-size: 10px;
-      margin: 0 5px 0 0;
-      border: 1px solid #111;
-      color: #111;
-      display: flex;
-      justify-content: flex-end;
-      align-items: flex-end;
-      width: 14px;
-      height: 14px;
-      float: left;
-      border-radius: 2px;
-      line-height: 6px;
-    }
-  }
 
-  .count {
-    color: #c9c9c9;
+    .count {
+      color: #c9c9c9;
+    }
   }
 }

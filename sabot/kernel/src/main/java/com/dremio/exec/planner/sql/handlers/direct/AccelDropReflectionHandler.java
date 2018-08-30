@@ -43,7 +43,7 @@ public class AccelDropReflectionHandler extends SimpleDirectHandler {
     final SqlDropReflection dropReflection = SqlNodeUtil.unwrap(sqlNode, SqlDropReflection.class);
     TableWithPath table = SchemaUtilities.verify(catalog, dropReflection.getTblName());
     accel.dropLayout(table.getPath(), dropReflection.getLayoutId().toString());
-    return Collections.singletonList(SimpleCommandResult.successful("Layout dropped."));
+    return Collections.singletonList(SimpleCommandResult.successful("Reflection dropped."));
   }
 
 }

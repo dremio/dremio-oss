@@ -16,12 +16,17 @@
 package com.dremio.dac.server.admin.profile;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import com.dremio.exec.ops.OperatorMetricRegistry;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
+import com.dremio.exec.proto.UserBitShared.CoreOperatorTypeMetricsMap;
+import com.dremio.exec.proto.UserBitShared.MetricDef;
 import com.dremio.exec.proto.UserBitShared.MetricValue;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
@@ -38,13 +43,15 @@ public class OperatorWrapper {
   private final CoreOperatorType operatorType;
   private final String operatorName;
   private final int size;
+  private final CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap;
 
-  public OperatorWrapper(int major, List<ImmutablePair<OperatorProfile, Integer>> ops) {
+  public OperatorWrapper(int major, List<ImmutablePair<OperatorProfile, Integer>> ops, CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap) {
     Preconditions.checkArgument(ops.size() > 0);
     this.major = major;
     firstProfile = ops.get(0).getLeft();
     operatorType = CoreOperatorType.valueOf(firstProfile.getOperatorType());
     operatorName = operatorType == null ? "UNKNOWN_OPERATOR" : operatorType.toString();
+    this.coreOperatorTypeMetricsMap = Optional.ofNullable(coreOperatorTypeMetricsMap).orElse(OperatorMetricRegistry.getCoreOperatorTypeMetricsMap());
     this.ops = ops;
     size = ops.size();
   }
@@ -58,7 +65,7 @@ public class OperatorWrapper {
     return String.format("operator-%d-%d", major, ops.get(0).getLeft().getOperatorId());
   }
 
-  public static final String [] OPERATOR_COLUMNS = {"Thread", "Setup Time", "Process Time", "Wait Time",
+  public static final String[] OPERATOR_COLUMNS = {"Thread", "Setup Time", "Process Time", "Wait Time",
     "Max Batches", "Max Records", "Peak Memory"};
 
   public String getContent() {
@@ -137,36 +144,46 @@ public class OperatorWrapper {
     if (operatorType == null) {
       return "";
     }
-    final String[] metricNames = OperatorMetricRegistry.getMetricNames(operatorType.getNumber());
-    if (metricNames == null) {
+
+    Integer[] metricIds = OperatorMetricRegistry.getMetricIds(coreOperatorTypeMetricsMap, operatorType.getNumber());
+
+    if (metricIds.length == 0) {
       return "";
     }
 
-    final String[] metricsTableColumnNames = new String[metricNames.length + 1];
+    final String[] metricsTableColumnNames = new String[metricIds.length + 1];
     metricsTableColumnNames[0] = "Thread";
+    Map<Integer, Integer> metricIdToMetricTableColumnIndex = new HashMap<Integer, Integer>();
     int i = 1;
-    for (final String metricName : metricNames) {
-      metricsTableColumnNames[i++] = metricName;
+    for (final int metricId : metricIds) {
+      Optional<MetricDef> metric = OperatorMetricRegistry.getMetricById(coreOperatorTypeMetricsMap, operatorType.getNumber(), metricId);
+      assert metric.isPresent(); // Since metric id was retrieved from map, doing a reverse lookup shouldn't fail.
+      metricIdToMetricTableColumnIndex.put(metricId, i - 1);
+      metricsTableColumnNames[i++] = metric.get().getName();
     }
     final TableBuilder builder = new TableBuilder(metricsTableColumnNames);
     for (final ImmutablePair<OperatorProfile, Integer> ip : ops) {
       final OperatorProfile op = ip.getLeft();
 
       builder.appendCell(
-          new OperatorPathBuilder()
-              .setMajor(major)
-              .setMinor(ip.getRight())
-              .setOperator(op)
-              .build(),
-          null);
+        new OperatorPathBuilder()
+          .setMajor(major)
+          .setMinor(ip.getRight())
+          .setOperator(op)
+          .build(),
+        null);
 
-      final Number[] values = new Number[metricNames.length];
+
+      final Number[] values = new Number[metricIds.length];
       for (final MetricValue metric : op.getMetricList()) {
-        if (metric.hasLongValue()) {
-          values[metric.getMetricId()] = metric.getLongValue();
-        } else if (metric.hasDoubleValue()) {
-          values[metric.getMetricId()] = metric.getDoubleValue();
-        }
+        Optional<Integer> columnIndex = Optional.ofNullable(metricIdToMetricTableColumnIndex.get(metric.getMetricId()));
+        columnIndex.ifPresent(index -> {
+          if (metric.hasLongValue()) {
+            values[index] = metric.getLongValue();
+          } else if (metric.hasDoubleValue()) {
+            values[index] = metric.getDoubleValue();
+          }
+        });
       }
       for (final Number value : values) {
         if (value != null) {

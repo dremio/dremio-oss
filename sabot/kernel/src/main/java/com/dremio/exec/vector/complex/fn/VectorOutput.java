@@ -18,7 +18,7 @@ package com.dremio.exec.vector.complex.fn;
 import java.io.IOException;
 
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.BigIntWriter;
 import org.apache.arrow.vector.complex.writer.DateMilliWriter;
 import org.apache.arrow.vector.complex.writer.TimeMilliWriter;
@@ -249,14 +249,14 @@ abstract class VectorOutput {
 
   static class MapVectorOutput extends VectorOutput {
 
-    private MapWriter writer;
+    private StructWriter writer;
     private String fieldName;
 
     public MapVectorOutput(WorkingBuffer work) {
       super(work);
     }
 
-    public boolean run(MapWriter writer, String fieldName) throws IOException{
+    public boolean run(StructWriter writer, String fieldName) throws IOException{
       this.fieldName = fieldName;
       this.writer = writer;
       return innerRun();

@@ -36,6 +36,7 @@ import com.google.common.collect.Iterables;
 public class RexBiShuttle<P> implements RexBiVisitor<RexNode, P> {
   //~ Methods ----------------------------------------------------------------
 
+  @Override
   public RexNode visitOver(RexOver over, P arg) {
     boolean[] update = {false};
     List<RexNode> clonedOperands = visitList(over.operands, update, arg);
@@ -50,7 +51,8 @@ public class RexBiShuttle<P> implements RexBiVisitor<RexNode, P> {
           over.getType(),
           over.getAggOperator(),
           clonedOperands,
-          window);
+          window,
+          over.isDistinct());
     } else {
       return over;
     }
@@ -78,6 +80,7 @@ public class RexBiShuttle<P> implements RexBiVisitor<RexNode, P> {
     }
   }
 
+  @Override
   public RexNode visitSubQuery(RexSubQuery subQuery, P arg) {
     boolean[] update = {false};
     List<RexNode> clonedOperands = visitList(subQuery.operands, update, arg);
@@ -88,6 +91,7 @@ public class RexBiShuttle<P> implements RexBiVisitor<RexNode, P> {
     }
   }
 
+  @Override
   public RexNode visitCall(final RexCall call, P arg) {
     boolean[] update = {false};
     List<RexNode> clonedOperands = visitList(call.operands, update, arg);
@@ -185,10 +189,12 @@ public class RexBiShuttle<P> implements RexBiVisitor<RexNode, P> {
     return clonedOperands.build();
   }
 
+  @Override
   public RexNode visitCorrelVariable(RexCorrelVariable variable, P arg) {
     return variable;
   }
 
+  @Override
   public RexNode visitFieldAccess(RexFieldAccess fieldAccess, P arg) {
     RexNode before = fieldAccess.getReferenceExpr();
     RexNode after = before.accept(this, arg);
@@ -202,22 +208,37 @@ public class RexBiShuttle<P> implements RexBiVisitor<RexNode, P> {
     }
   }
 
+  @Override
   public RexNode visitInputRef(RexInputRef inputRef, P arg) {
     return inputRef;
   }
 
+  @Override
+  public RexNode visitTableInputRef(RexTableInputRef ref, P arg) {
+    return ref;
+  }
+
+  @Override
+  public RexNode visitPatternFieldRef(RexPatternFieldRef ref, P arg) {
+    return ref;
+  }
+
+  @Override
   public RexNode visitLocalRef(RexLocalRef localRef, P arg) {
     return localRef;
   }
 
+  @Override
   public RexNode visitLiteral(RexLiteral literal, P arg) {
     return literal;
   }
 
+  @Override
   public RexNode visitDynamicParam(RexDynamicParam dynamicParam, P arg) {
     return dynamicParam;
   }
 
+  @Override
   public RexNode visitRangeRef(RexRangeRef rangeRef, P arg) {
     return rangeRef;
   }
@@ -261,6 +282,7 @@ public class RexBiShuttle<P> implements RexBiVisitor<RexNode, P> {
    */
   public final Iterable<RexNode> apply(Iterable<? extends RexNode> iterable, final P arg) {
     return Iterables.transform(iterable, new Function<RexNode, RexNode>() {
+      @Override
       public RexNode apply(@Nullable RexNode t) {
         return t == null ? null : t.accept(RexBiShuttle.this, arg);
       }

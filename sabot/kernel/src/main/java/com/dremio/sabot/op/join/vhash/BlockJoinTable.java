@@ -55,6 +55,22 @@ public class BlockJoinTable implements JoinTable {
     this.tableTracing = false;
   }
 
+  /* Copy the keys of the records specified in keyOffsetAddr to destination memory
+   * keyOffsetAddr contains all the ordinals of keys
+   * count is the number of keys
+   * keyFixedAddr is the destination memory for fiexed keys
+   * keyVarAddr is the destination memory for variable keys
+   */
+  public void copyKeyToBuffer(final long keyOffsetAddr, final int count, final long keyFixedAddr, final long keyVarAddr) {
+    table.copyKeyToBuffer(keyOffsetAddr, count, keyFixedAddr, keyVarAddr);
+  }
+
+  // Get the length of the variable keys of the record specified by ordinal in hash table.
+  public int getVarKeyLength(int ordinal) {
+    return table.getVarKeyLength(ordinal);
+  }
+
+  @Override
   public long getProbePivotTime(TimeUnit unit){
     return probePivotWatch.elapsed(unit);
   }

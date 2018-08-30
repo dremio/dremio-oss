@@ -45,6 +45,8 @@ import org.apache.parquet.hadoop.CodecFactory.BytesDecompressor;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.util.CompatibilityUtil;
 
+import com.dremio.exec.store.parquet.InputStreamProvider;
+
 import io.netty.buffer.ByteBuf;
 
 public class ColumnChunkIncReadStore implements PageReadStore {
@@ -56,17 +58,16 @@ public class ColumnChunkIncReadStore implements PageReadStore {
   private FileSystem fs;
   private Path path;
   private long rowCount;
-  private List<FSDataInputStream> streams = new ArrayList<>();
-  private boolean useSingleStream;
+  private InputStreamProvider inputStreamProvider;
 
   public ColumnChunkIncReadStore(long rowCount, CodecFactory codecFactory, BufferAllocator allocator,
-      FileSystem fs, Path path, boolean useSingleStream) {
+      FileSystem fs, Path path, InputStreamProvider inputStreamProvider) {
     this.codecFactory = codecFactory;
     this.allocator = allocator;
     this.fs = fs;
     this.path = path;
     this.rowCount = rowCount;
-    this.useSingleStream = useSingleStream;
+    this.inputStreamProvider = inputStreamProvider;
   }
 
   public class SingleStreamColumnChunkIncPageReader extends ColumnChunkIncPageReader {
@@ -228,9 +229,6 @@ public class ColumnChunkIncReadStore implements PageReadStore {
               break;
           }
         }
-        if (!useSingleStream) {
-          in.close();
-        }
         return null;
       } catch (OutOfMemoryException e) {
         throw e; // throw as it is
@@ -304,28 +302,19 @@ public class ColumnChunkIncReadStore implements PageReadStore {
 
   public void addColumn(ColumnDescriptor descriptor, ColumnChunkMetaData metaData) throws IOException {
     final FSDataInputStream in;
-    if (useSingleStream) {
-      if (streams.isEmpty()) {
-        in = fs.open(path);
-        streams.add(in);
-      } else {
-        in = streams.get(0);
-      }
+    if (inputStreamProvider.singleStream()) {
+      in = inputStreamProvider.stream();
       in.seek(metaData.getStartingPos());
       columns.put(descriptor, new SingleStreamColumnChunkIncPageReader(metaData, descriptor, in));
     } else {
       // create new stream per column
-      in = fs.open(path);
-      streams.add(in);
+      in = inputStreamProvider.stream();
       in.seek(metaData.getStartingPos());
       columns.put(descriptor, new ColumnChunkIncPageReader(metaData, descriptor, in));
     }
   }
 
   public void close() throws IOException {
-    for (FSDataInputStream stream : streams) {
-      stream.close();
-    }
     for (ColumnChunkIncPageReader reader : columns.values()) {
       reader.close();
     }

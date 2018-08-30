@@ -13,28 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.formLabel() {
-  font-weight: 500;
-  font-size: 12px;
-  color: #333333;
-}
-
-.fontBody() {
-  font-size: 12px;
-  color: #333333;
-}
-
-.fixedWidthSmall() {
-  font-family: Menlo;
-  font-size: 11px;
-  color: #333333;
-}
-
-.fixedWidthDefault() {
-  font-family: Menlo;
-  font-size: 12px;
-  color: #333333;
-}
+ @import "~@app/uiTheme/less/color-schema.less";
+ @import "~@app/uiTheme/less/mixins.less";
 
 .form-label {
   .formLabel();
@@ -42,12 +22,12 @@
 
 .form-default {
   font-size: 12px;
-  color: #333333;
+  color: @font-color1;
 }
 
 .form-description {
   font-size: 12px;
-  color: #999999;
+  color: @font-color2;
 }
 
 .form-placeholder {
@@ -55,14 +35,14 @@
   font-size: 12px;
   &::placeholder {
     font-style: italic;
-    color: #999999;
+    color: @font-color2;
   }
 }
 
 .fixed-width-default {
   font-family: Menlo;
   font-size: 12px;
-  color: #333333;
+  color: @font-color1;
 }
 
 .fixed-width-small {
@@ -73,18 +53,21 @@
   font-family: Menlo;
   font-weight: 700;
   font-size: 11px;
-  color: #333333;
+  color: @font-color1;
 }
 
 .unavailable {
-  font-size: 12px;
-  color: #BBBBBB;
+  .unavailable-font();
+}
+
+.disabled {
+  opacity: 0.67;
 }
 
 .dataset-title {
   font-weight: 500;
   font-size: 13px;
-  color: #333333;
+  color: @font-color1;
 }
 
 .path-link {
@@ -94,17 +77,17 @@
 
 .path-end {
   font-size: 11px;
-  color: #333333;
+  color: @font-color1;
 }
 
 .key-label {
   font-size: 11px;
-  color: #999999;
+  color: @font-color2;
 }
 
 .key-value {
   font-size: 11px;
-  color: #333333;
+  color: @font-color1;
 }
 
 .metadata-white {

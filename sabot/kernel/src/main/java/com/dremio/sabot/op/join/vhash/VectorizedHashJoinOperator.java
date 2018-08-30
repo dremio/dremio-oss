@@ -22,8 +22,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import com.dremio.common.AutoCloseables;
@@ -60,7 +60,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedHashJoinOperator.class);
 
-  private static enum Mode {
+  public static enum Mode {
     UNKNOWN,
     VECTORIZED_GENERIC,
     VECTORIZED_BIGINT
@@ -85,10 +85,23 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
   // A structure that parallels the
   private final List<ArrowBuf> startIndices = new ArrayList<>();
+  // Array of bitvectors. Keeps track of keys on the build side that matched any key on the probe side
+  private final List<BitSet> keyMatchBitVectors = new ArrayList<>();
+  // Max index(ordinal) in hash table and start indices
+  private int maxHashTableIndex = -1;
 
   // List of BuildInfo structures. Used to maintain auxiliary information about the build batches
   // There is one of these for each incoming batch of records
   private final List<BuildInfo> buildInfoList = new ArrayList<>();
+  /* The keys of build batch will not be added to hyper container for VECTORIZED_GENERIC mode.
+   * probeIncomingKeys and buildOutputKeys are used to maintain all the keys in probe side and build side,
+   * And they will be used to build copier in VectorizedProbe, which will be used to copy the key vectors
+   * from probe side to build side in output for matched records.
+   * For VECTORIZED_BIGINT mode, we keep the key in hyper container, so we don't need to copy key vectors from
+   * probe side to build side in output for matched records.
+   */
+  private final List<FieldVector> probeIncomingKeys = new ArrayList<>();
+  private final List<FieldVector> buildOutputKeys = new ArrayList<>();
 
   private final List<FieldVector> buildOutputs = new ArrayList<>();
   private final List<FieldVector> probeOutputs = new ArrayList<>();
@@ -102,8 +115,15 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
   private VectorizedProbe probe;
   private JoinTable table;
+  // Used to pivot the keys in probe batch
   private PivotDef probePivot;
+  // Used to pivot the keys in hash table for build batch
   private PivotDef buildPivot;
+  /* Used to unpivot the keys during outputting the non matched records in build side
+   * Note that buildUnpivot is for output, but buildPivot is for incomming build batch
+   * Only for VECTORIZED_GENERIC
+   */
+  private PivotDef buildUnpivot;
   private NullComparator comparator;
 
   private VectorAccessible left;
@@ -111,8 +131,8 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   private int buildBatchIndex = 0;
   private State state = State.NEEDS_SETUP;
   private boolean finishedProbe = false;
-  private long outputRecords = 0;
   private boolean debugInsertion = false;
+  private long outputRecords = 0;
 
   public VectorizedHashJoinOperator(OperatorContext context, HashJoinPOP popConfig) throws OutOfMemoryException {
     this.context = context;
@@ -138,7 +158,26 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
     final List<FieldVectorPair> buildFields = new ArrayList<>();
     final List<FieldVectorPair> probeFields = new ArrayList<>();
+    /* The build side key fields in output, the pivoted keys will be unpivoted to the vectors of key fields for non matched records
+     * It's only for VECTORIZED_GENERIC because we don't maintain keys in hyper container.
+     * It's not for VECTORIZED_BIGINT because we keep key in hyper container for only one eight byte key case.
+     * It's different from buildFields because buildFields used to pivot for incomming batch, but buildOutputFields
+     * is used to unpivot for output
+     */
+    final List<FieldVectorPair> buildOutputFields = new ArrayList<>();
     final BitSet requiredBits = new BitSet();
+    // Used to indicate which field is key and will not be added to hyper container
+    // Only for VECTORIZED_GENERIC
+    final BitSet isKeyBits = new BitSet(right.getSchema().getFieldCount());
+    /* The probe side key fields, which will be used to copied to the build side key fields for output
+     * The key fields are not maintained in hyper container, so the probe side key field vectors
+     * will be copied to build side key field vectors for matched records.
+     * Only for VECTORIZED_GENERIC
+     */
+    final List<FieldVector> probeKeyFieldVectorList = new ArrayList<>();
+    for (int i = 0;i < right.getSchema().getFieldCount(); i++) {
+      probeKeyFieldVectorList.add(null);
+    }
 
     Mode mode = context.getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_HASHJOIN_SPECIFIC) ? Mode.VECTORIZED_BIGINT : Mode.VECTORIZED_GENERIC;
     int fieldIndex = 0;
@@ -146,11 +185,28 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     if(config.getConditions().size() != 1){
       mode = Mode.VECTORIZED_GENERIC;
     }
+
+    boolean isEqualForNullKey = false;
     for(JoinCondition c : config.getConditions()){
       final FieldVector build = getField(right, c.getRight());
       buildFields.add(new FieldVectorPair(build, build));
       final FieldVector probe = getField(left, c.getLeft());
       probeFields.add(new FieldVectorPair(probe, probe));
+
+      /* Collect the corresponding probe side field vectors for build side keys
+       * Only for VECTORIZED_GENERIC, we should do it because we don't know the final mode
+       */
+      int fieldId = getFieldId(outgoing, c.getRight());
+      probeKeyFieldVectorList.set(fieldId, probe);
+      /* The field is key in build side and its vectors will not be added to hyper container if mode is VECTORIZED_GENERIC
+       * Only for VECTORIZED_GENERIC, we should do it because we don't know the final mode
+       */
+      isKeyBits.set(fieldId);
+      /* Collect the build side keys in output, which will be used to create PivotDef for unpivot in projectBuildNonMatches
+       * Only for VECTORIZED_GENERIC, we should do it because we don't know the final mode
+       */
+      final FieldVector buildOutput = outgoing.getValueAccessorById(FieldVector.class, fieldId).getValueVector();
+      buildOutputFields.add(new FieldVectorPair(buildOutput, buildOutput));
 
       final Comparator joinComparator = JoinUtils.checkAndReturnSupportedJoinComparator(c);
       switch(joinComparator){
@@ -158,7 +214,8 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
         requiredBits.set(fieldIndex);
         break;
       case IS_NOT_DISTINCT_FROM:
-        mode = Mode.VECTORIZED_GENERIC;
+        // null keys are equal
+        isEqualForNullKey = true;
         break;
       case NONE:
         throw new UnsupportedOperationException();
@@ -168,15 +225,15 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       }
 
       switch(CompleteType.fromField(build.getField()).toMinorType()){
-      case BIGINT:
-      case DATE:
-      case FLOAT8:
-      case INTERVALDAY:
-      case TIMESTAMP:
-        break;
-      default:
-        mode = Mode.VECTORIZED_GENERIC;
-        break;
+        case BIGINT:
+        case DATE:
+        case FLOAT8:
+        case INTERVALDAY:
+        case TIMESTAMP:
+          break;
+        default:
+          mode = Mode.VECTORIZED_GENERIC;
+          break;
 
       }
       fieldIndex++;
@@ -184,14 +241,14 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
     for(VectorWrapper<?> w : right){
       final FieldVector v = (FieldVector) w.getValueVector();
-      if(v instanceof NullableVarBinaryVector || v instanceof NullableVarCharVector){
+      if(v instanceof VarBinaryVector || v instanceof VarCharVector){
         buildVectorsToValidate.add(v);
       }
     }
 
     for(VectorWrapper<?> w : left){
       final FieldVector v = (FieldVector) w.getValueVector();
-      if(v instanceof NullableVarBinaryVector || v instanceof NullableVarCharVector){
+      if(v instanceof VarBinaryVector || v instanceof VarCharVector){
         probeVectorsToValidate.add(v);
       }
     }
@@ -201,7 +258,18 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     for(VectorWrapper<?> w : outgoing){
       final FieldVector v = (FieldVector) w.getValueVector();
       if(i < right.getSchema().getFieldCount()){
-        buildOutputs.add(v);
+        if ((mode == Mode.VECTORIZED_GENERIC) && isKeyBits.get(i)) {
+          /* The corresponding field is key, so the fields in build side and probe side will
+           * be added to probeIncomingKeys and buildOutputKeys. They will be used to create
+           * copier to copy the keys from probe side to build side for output.
+           * The field in build side will not be added to buildOutputs because we will unpivot them to output.
+           * It's only for VECTORIZED_GENERIC because we don't need to unpivot for VECTORIZED_BIGINT.
+           */
+          probeIncomingKeys.add(probeKeyFieldVectorList.get(i));
+          buildOutputKeys.add(v);
+        } else {
+          buildOutputs.add(v);
+        }
       } else {
         probeOutputs.add(v);
       }
@@ -210,22 +278,32 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
     this.probePivot = PivotBuilder.getBlockDefinition(probeFields);
     this.buildPivot = PivotBuilder.getBlockDefinition(buildFields);
+
     this.comparator = new NullComparator(requiredBits, probePivot.getBitCount());
 
     Preconditions.checkArgument(probePivot.getBlockWidth() == buildPivot.getBlockWidth(), "Block width of build [%s] and probe pivots are not equal [%s].", buildPivot.getBlockWidth(), probePivot.getBlockWidth());
     Preconditions.checkArgument(probePivot.getBitCount() == buildPivot.getBitCount(), "Bit width of build [%s] and probe pivots are not equal [%s].", buildPivot.getBitCount(), probePivot.getBitCount());
 
-    hyperContainer = new ExpandableHyperContainer(context.getAllocator(), right.getSchema());
     this.mode = mode;
     switch(mode){
-    case VECTORIZED_BIGINT:
-      this.table = new EightByteInnerLeftProbeOff(context.getAllocator(), (int)context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), probePivot, buildPivot);
-      break;
-    case VECTORIZED_GENERIC:
-      this.table = new BlockJoinTable(buildPivot, probePivot, context.getAllocator(), comparator, (int)context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE);
-      break;
-    default:
-      throw new UnsupportedOperationException();
+      case VECTORIZED_BIGINT:
+        // For only one eight byte key, we keep key in hyper container, so we don't need to unpivot the key
+        this.buildUnpivot = null;
+        // Create the hyper container that all the fields, including key, will be added
+        hyperContainer = new ExpandableHyperContainer(context.getAllocator(), right.getSchema());
+        // Create eight byte key hash table to improve the performance for only one eight byte key
+        this.table = new EightByteInnerLeftProbeOff(context.getAllocator(), (int)context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), probePivot, buildPivot, isEqualForNullKey);
+        break;
+      case VECTORIZED_GENERIC:
+        // Create the PivotDef for unpivot in projectBuildNonMatches
+        this.buildUnpivot = PivotBuilder.getBlockDefinition(buildOutputFields);
+        // Create the hyper container with isKeyBits that indicates which field is key and will not be added to hyper container
+        hyperContainer = new ExpandableHyperContainer(context.getAllocator(), right.getSchema(), isKeyBits);
+        // Create generic hash table
+        this.table = new BlockJoinTable(buildPivot, probePivot, context.getAllocator(), comparator, (int)context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE);
+        break;
+      default:
+        throw new UnsupportedOperationException();
     }
 
     debugInsertion = context.getOptions().getOption(ExecConstants.DEBUG_HASHJOIN_INSERTION);
@@ -234,13 +312,24 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     return outgoing;
   }
 
-  private FieldVector getField(VectorAccessible accessible, LogicalExpression expr){
+  // Get ids for a field
+  private int[] getFieldIds(VectorAccessible accessible, LogicalExpression expr){
     final LogicalExpression materialized = context.getClassProducer().materialize(expr, accessible);
     if(!(materialized instanceof ValueVectorReadExpression)){
       throw new IllegalStateException("Only direct references allowed.");
     }
-    return accessible.getValueAccessorById(FieldVector.class, ((ValueVectorReadExpression) materialized).getFieldId().getFieldIds()).getValueVector();
+    return ((ValueVectorReadExpression) materialized).getFieldId().getFieldIds();
+  }
 
+  // Get the field vector of a field
+  private FieldVector getField(VectorAccessible accessible, LogicalExpression expr){
+    return accessible.getValueAccessorById(FieldVector.class, getFieldIds(accessible, expr)).getValueVector();
+
+  }
+
+  // Get the id of a field
+  private int getFieldId(VectorAccessible accessible, LogicalExpression expr){
+    return getFieldIds(accessible, expr)[0];
   }
 
   @Override
@@ -255,12 +344,13 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     final List<ArrowBuf> startIndices = this.startIndices;
     final List<BuildInfo> buildInfoList = this.buildInfoList;
 
-    BuildInfo info = new BuildInfo(newLinksBuffer(records), new BitSet(records), records);
+    BuildInfo info = new BuildInfo(newLinksBuffer(records), records);
     buildInfoList.add(info);
 
     // ensure we have enough start indices space.
     while(table.size() + records > startIndices.size() * HashTable.BATCH_SIZE){
       startIndices.add(newLinksBuffer(HashTable.BATCH_SIZE));
+      keyMatchBitVectors.add(new BitSet(HashTable.BATCH_SIZE));
     }
 
     try(ArrowBuf offsets = context.getAllocator().buffer(records * 4);
@@ -299,6 +389,10 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
       if(hashTableIndex == -1){
         continue;
+      }
+
+      if (hashTableIndex > maxHashTableIndex) {
+        maxHashTableIndex = hashTableIndex;
       }
       /* Use the global index returned by the hash table, to store
        * the current record index and batch index. This will be used
@@ -393,7 +487,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       stats.setLongStat(Metric.PROBE_COPY_NANOS, probe.getProbeCopyTime());
       stats.setLongStat(Metric.BUILD_COPY_NANOS, probe.getBuildCopyTime());
       stats.setLongStat(Metric.BUILD_COPY_NOMATCH_NANOS, probe.getBuildNonMatchCopyTime());
-      stats.setLongStat(Metric.UNMATCHED_BUILD_COUNT, probe.getUnmatchedBuildCount());
+      stats.setLongStat(Metric.UNMATCHED_BUILD_KEY_COUNT, probe.getUnmatchedBuildKeyCount());
       stats.setLongStat(Metric.UNMATCHED_PROBE_COUNT, probe.getUnmatchedProbeCount());
       stats.setLongStat(Metric.OUTPUT_RECORDS, outputRecords);
     }
@@ -403,7 +497,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   public void noMoreToConsumeRight() throws Exception {
     state.is(State.CAN_CONSUME_R);
 
-    if (table.size() == 0 && !(joinType == JoinRelType.LEFT || joinType == JoinRelType.FULL)) {
+    if ((table.size() == 0) && !(joinType == JoinRelType.LEFT || joinType == JoinRelType.FULL)) {
       // nothing needs to be read on the left side as right side is empty
       state = State.DONE;
       return;
@@ -415,11 +509,17 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
         left,
         probeOutputs,
         buildOutputs,
+        probeIncomingKeys,
+        buildOutputKeys,
+        mode,
         config.getJoinType(),
         buildInfoList,
         startIndices,
+        keyMatchBitVectors,
+        maxHashTableIndex,
         table,
         probePivot,
+        buildUnpivot,
         context.getTargetBatchSize(),
         comparator);
     state = State.CAN_CONSUME_L;
@@ -511,6 +611,8 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     autoCloseables.add(probe);
     autoCloseables.add(outgoing);
     autoCloseables.addAll(buildInfoList);
+    autoCloseables.addAll(probeIncomingKeys);
+    autoCloseables.addAll(buildOutputKeys);
     autoCloseables.addAll(startIndices);
     AutoCloseables.close(autoCloseables);
   }

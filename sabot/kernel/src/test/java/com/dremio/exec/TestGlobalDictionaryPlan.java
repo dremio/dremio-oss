@@ -15,6 +15,8 @@
  */
 package com.dremio.exec;
 
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -26,6 +28,7 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.PlanTestBase;
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.util.GlobalDictionaryBuilder;
 
 /**
@@ -36,6 +39,9 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
   @ClassRule
   public static TemporaryFolder folder = new TemporaryFolder();
 
+  private static BufferAllocator testRootAllocator;
+  private static BufferAllocator testAllocator;
+
   private static Path tableDirPath1;
   private static Path tableDirPath2;
   private static FileSystem fs;
@@ -43,25 +49,29 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
 
   @BeforeClass
   public static void setup() throws Exception {
-    testNoResult("alter session set `store.parquet.enable_dictionary_encoding_binary_type`=true");
-    testNoResult("CREATE TABLE dfs_test.globaldictionary AS SELECT * FROM cp.`globaldictionary.json`");
-    testNoResult("CREATE TABLE dfs_test.places AS SELECT * FROM cp.`places.json`");
+    testRootAllocator = RootAllocatorFactory.newRoot(config);
+    testAllocator = testRootAllocator.newChildAllocator("test-glb-dict", 0, testRootAllocator.getLimit());
+
+    testNoResult("alter session set \"store.parquet.enable_dictionary_encoding_binary_type\"=true");
+    testNoResult("CREATE TABLE dfs_test.globaldictionary AS SELECT * FROM cp.\"globaldictionary.json\"");
+    testNoResult("CREATE TABLE dfs_test.places AS SELECT * FROM cp.\"places.json\"");
     fs = FileSystem.getLocal(new Configuration());
 
     tableDirPath1 = new Path(getDfsTestTmpSchemaLocation() + "/globaldictionary");
-    GlobalDictionaryBuilder.createGlobalDictionaries(fs, tableDirPath1, getAllocator());
+    GlobalDictionaryBuilder.createGlobalDictionaries(fs, tableDirPath1, testAllocator);
 
     tableDirPath2 = new Path(getDfsTestTmpSchemaLocation() + "/places");
-    GlobalDictionaryBuilder.createGlobalDictionaries(fs, tableDirPath2, getAllocator());
+    GlobalDictionaryBuilder.createGlobalDictionaries(fs, tableDirPath2, testAllocator);
   }
 
   @AfterClass
   public static void cleanup() throws Exception {
     // set it to default
-    testNoResult("alter session set `store.parquet.enable_dictionary_encoding_binary_type`=false");
-    BaseTestQuery.testNoResult("alter session set `planner.enable_global_dictionary`=true");
+    testNoResult("alter session set \"store.parquet.enable_dictionary_encoding_binary_type\"=false");
+    BaseTestQuery.testNoResult("alter session set \"planner.enable_global_dictionary\"=true");
     fs.delete(tableDirPath1, true);
     fs.delete(tableDirPath2, true);
+    AutoCloseables.close(testAllocator, testRootAllocator);
   }
 
   @Test
@@ -117,7 +127,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
 
   @Test
   public void testGroupByWithFilter() throws Exception {
-    final String query = "select city, state from dfs_test.globaldictionary where state='TX' and `position`='STOR' group by city,state";
+    final String query = "select city, state from dfs_test.globaldictionary where state='TX' and \"position\"='STOR' group by city,state";
     disableGlobalDictionary();
     testPlanOneExcludedPattern(query, "DictionaryLookup");
     enableGlobalDictionary();
@@ -183,7 +193,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
 
   @Test
   public void testInnerJoinWithFilter() throws Exception {
-    final String query = "select * from dfs_test.globaldictionary t1 inner join dfs_test.places t2 on t1.state = t2.place where `position`='Store'";
+    final String query = "select * from dfs_test.globaldictionary t1 inner join dfs_test.places t2 on t1.state = t2.place where \"position\"='Store'";
     disableGlobalDictionary();
     testPlanOneExcludedPattern(query, "DictionaryLookup");
     enableGlobalDictionary();

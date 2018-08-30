@@ -32,7 +32,7 @@ public class TestIsDistinctFromFunctions extends PlanTestBase {
 
   @BeforeClass
   public static void setupOptions() throws Exception {
-    test(String.format("alter session set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
 
@@ -87,7 +87,7 @@ public class TestIsDistinctFromFunctions extends PlanTestBase {
   public void helper(String col1, String col2, String expCol) throws Exception {
     String query = String.format("SELECT " +
         "%s is distinct from %s as col, %s " +
-        "FROM cp.`functions/distinct_from.json`", col1, col2, expCol);
+        "FROM cp.\"functions/distinct_from.json\"", col1, col2, expCol);
 
     testPlanSubstrPatterns(query, new String[] { "IS DISTINCT FROM" }, null);
 
@@ -104,7 +104,7 @@ public class TestIsDistinctFromFunctions extends PlanTestBase {
 
     query = String.format("SELECT " +
         "%s is not distinct from %s as col, %s " +
-        "FROM cp.`functions/distinct_from.json`", col1, col2, expCol);
+        "FROM cp.\"functions/distinct_from.json\"", col1, col2, expCol);
 
     testPlanSubstrPatterns(query, new String[] { "IS NOT DISTINCT FROM" }, null);
 
@@ -122,6 +122,6 @@ public class TestIsDistinctFromFunctions extends PlanTestBase {
 
   @AfterClass
   public static void shutdownOptions() throws Exception {
-    test(String.format("alter session set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    test(String.format("alter session set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 }

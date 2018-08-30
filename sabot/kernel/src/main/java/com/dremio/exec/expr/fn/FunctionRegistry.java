@@ -34,6 +34,7 @@ import com.dremio.common.scanner.persistence.AnnotatedClassDescriptor;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionSyntax;
+import com.dremio.exec.expr.fn.hll.HyperLogLog;
 import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.SqlAggOperator;
 import com.dremio.exec.planner.sql.SqlDatePartOperator;
@@ -132,6 +133,7 @@ public class FunctionRegistry {
   }
 
   public void register(OperatorTable operatorTable) {
+    operatorTable.add("NDV", HyperLogLog.NDV);
     operatorTable.add("DATE_PART", SqlDatePartOperator.INSTANCE);
     operatorTable.add("FLATTEN", SqlFlattenOperator.INSTANCE);
     operatorTable.add("E", E_FUNCTION);

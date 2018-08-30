@@ -44,12 +44,6 @@ export const formSectionTitle = {
   marginBottom: 10
 };
 
-export const cardsWrap = {
-  paddingBottom: 10,
-  display: 'flex',
-  overflowX: 'auto'
-};
-
 export const inlineLabel = {
   ...formLabel,
   display: 'block',

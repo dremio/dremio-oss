@@ -39,7 +39,7 @@ public class TestExternalBucket {
     try(FileSystem fs = new S3FileSystem()){
       Configuration config = new Configuration();
       S3PluginConfig s3 = new S3PluginConfig();
-      s3.externalBuckets = ImmutableList.of("landsat-pds", "commoncrawl");
+      s3.externalBucketList = ImmutableList.of("landsat-pds", "commoncrawl");
       for(Property e : s3.getProperties()){
         config.set(e.name, e.value);
       }

@@ -1,0 +1,88 @@
+/*
+ * Copyright (C) 2017-2018 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+.flex-container {
+  display: flex;
+}
+
+.field-with-error {
+  composes: flex-column-container from '@app/uiTheme/less/layout.less';
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.text-field-wrapper {
+  display: flex;
+  flex: 1;
+}
+
+.text-field-body {
+  margin-bottom: 0;
+  width: 100%;
+}
+
+.text-area-body {
+  flex: 1;
+  width: 100%;
+}
+
+.tooltip-icon {
+  flex: 1;
+  align-self: center;
+}
+
+.radio-column-wrapper {
+  composes: flex-column-container from '@app/uiTheme/less/layout.less';
+}
+
+.radio-top-label {
+  font-weight: 500;
+  margin-bottom: -5px;
+}
+
+.radio-body {
+  font-weight: 500;
+}
+
+.radio-body-column {
+  line-height: normal;
+}
+
+.select-wrapper {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.select-body {
+  text-align: left;
+  width: 250px;
+  margin-bottom: 0;
+}
+
+.select-field-with-error {
+  display: inline-flex;
+  width: 115px;
+}
+
+.duration-label {
+  display: inline-flex;
+  align-items: left;
+  width: 115px;
+}
+
+.duration-body {
+  width: 250px;
+}

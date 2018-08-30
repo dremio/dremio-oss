@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugin</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>2.0.5-201806021755080191-767cfb5</version>
+    <version>2.1.4-201808302048550610_0981242</version>
   </parent>
 
   <artifactId>dremio-hive-plugin</artifactId>
@@ -51,6 +51,28 @@
     <dependency>
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-metastore</artifactId>
+      <exclusions>
+        <exclusion>
+          <artifactId>netty-all</artifactId>
+          <groupId>io.netty</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>log4j</artifactId>
+          <groupId>log4j</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>tephra-api</artifactId>
+          <groupId>co.cask.tephra</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>tephra-core</artifactId>
+          <groupId>co.cask.tephra</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>tephra-hbase-compat-1.0</artifactId>
+          <groupId>co.cask.tephra</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.hive</groupId>
@@ -292,17 +314,32 @@
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
+    <dependency> <!-- needed for Hive test data generator -->
+      <groupId>org.apache.hive</groupId>
+      <artifactId>hive-llap-client</artifactId>
+      <scope>test</scope>
+      <version>${hive.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-common</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-serde</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-hdfs</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-all</artifactId>
-        </exclusion>
-      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-hdfs</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
@@ -443,4 +480,84 @@
       </plugin>      
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>linux</id>
+      <activation>
+        <os><name>linux</name></os>
+      </activation>
+
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common-native</artifactId>
+          <classifier>linux</classifier>
+          <version>${hadoop.version}</version>
+          <scope>test</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-native-libraries</artifactId>
+          <classifier>linux</classifier>
+          <version>1.0.1</version>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
+
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>unpack</id>
+                <phase>initialize</phase>
+                <goals>
+                  <goal>unpack</goal>
+                </goals>
+                <configuration>
+                  <artifactItems>
+                    <artifactItem>
+                      <groupId>org.apache.hadoop</groupId>
+                      <artifactId>hadoop-common-native</artifactId>
+                      <classifier>linux</classifier>
+                      <version>${hadoop.version}</version>
+                      <outputDirectory>${project.build.directory}/native-libraries</outputDirectory>
+                    </artifactItem>
+
+                    <artifactItem>
+                      <groupId>org.apache.hadoop</groupId>
+                      <artifactId>hadoop-native-libraries</artifactId>
+                      <classifier>linux</classifier>
+                      <version>1.0.1</version>
+                      <outputDirectory>${project.build.directory}/native-libraries</outputDirectory>
+                    </artifactItem>
+                  </artifactItems>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <!-- java.library.path property can only be set using argLine -->
+              <argLine>
+                -Xms512M
+                -Xmx3G
+                -XX:MaxDirectMemorySize=5120M
+                -XX:+CMSClassUnloadingEnabled
+                -Djava.library.path=${project.build.directory}/native-libraries
+                ${surefire.extra.argLine}
+              </argLine>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+
+    </profile>
+  </profiles>
 </project>

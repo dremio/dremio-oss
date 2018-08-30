@@ -22,7 +22,8 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.SubScanWithProjection;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.parquet.FilterCondition;
+import com.dremio.exec.store.ScanFilter;
+import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -35,7 +36,7 @@ import io.protostuff.ByteString;
 public class HiveSubScan extends SubScanWithProjection {
 
   private final List<DatasetSplit> splits;
-  private final List<FilterCondition> conditions;
+  private final ScanFilter filter;
   private final StoragePluginId pluginId;
   private final ByteString extendedProperty;
   private final List<String> partitionColumns;
@@ -46,7 +47,7 @@ public class HiveSubScan extends SubScanWithProjection {
       @JsonProperty("userName") String userName,
       @JsonProperty("schema") BatchSchema schema,
       @JsonProperty("tableSchemaPath") List<String> tablePath,
-      @JsonProperty("conditions") List<FilterCondition> conditions,
+      @JsonProperty("filter") ScanFilter filter,
       @JsonProperty("pluginId") StoragePluginId pluginId,
       @JsonProperty("columns") List<SchemaPath> columns,
       @JsonProperty("extendedProperty") ByteString extendedProperty,
@@ -54,7 +55,7 @@ public class HiveSubScan extends SubScanWithProjection {
       ) {
     super(userName, schema, tablePath, columns);
     this.splits = splits;
-    this.conditions = conditions == null ? null : ImmutableList.copyOf(conditions);
+    this.filter = filter;
     this.pluginId = pluginId;
     this.extendedProperty = extendedProperty;
     this.partitionColumns = partitionColumns != null ? ImmutableList.copyOf(partitionColumns) : null;
@@ -64,8 +65,8 @@ public class HiveSubScan extends SubScanWithProjection {
     return pluginId;
   }
 
-  public List<FilterCondition> getConditions(){
-    return conditions;
+  public ScanFilter getFilter(){
+    return filter;
   }
 
   public List<DatasetSplit> getSplits() {

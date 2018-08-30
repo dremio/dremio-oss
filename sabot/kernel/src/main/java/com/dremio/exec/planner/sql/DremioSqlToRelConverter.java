@@ -22,7 +22,6 @@ import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
@@ -94,12 +93,6 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
   static class NoOpExpander implements RelOptTable.ViewExpander {
     @Override
     public RelRoot expandView(RelDataType rowType, String queryString, List<String> schemaPath, List<String> viewPath) {
-      throw new IllegalStateException("This expander should not be used.");
-    }
-
-    @Override
-    public RelRoot expandView(RelDataType rowType, String queryString, SchemaPlus rootSchema, List<String> schemaPath,
-        List<String> viewPath) {
       throw new IllegalStateException("This expander should not be used.");
     }
   }

@@ -30,7 +30,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
   public void testConcatWithMoreThanTwoArgs() throws Exception {
     final String query = "select concat(r_name, r_name, r_name, 'f') as col \n" +
-        "from cp.`tpch/region.parquet` limit 0";
+        "from cp.\"tpch/region.parquet\" limit 0";
 
     List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList();
     MajorType majorType = Types.required(MinorType.VARCHAR);
@@ -53,14 +53,14 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
               "   ntile(4) over(order by position_id) " +
               " from (select position_id, row_number() " +
               "       over(order by position_id) as rnum " +
-              "       from cp.`employee.json`)";
+              "       from cp.\"employee.json\")";
 
       final String view2 =
           "create view TestFunctionsWithTypeExpoQueries_testViewShield2 as \n" +
               "select row_number() over(order by position_id) as rnum, " +
               "    position_id, " +
               "    ntile(4) over(order by position_id) " +
-              " from cp.`employee.json`";
+              " from cp.\"employee.json\"";
 
       test(view1);
       test(view2);
@@ -78,9 +78,9 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
 
   @Test
   public void testLRBTrimOneArg() throws Exception {
-    final String query1 = "SELECT ltrim('dremio') as col FROM cp.`tpch/region.parquet` limit 0";
-    final String query2 = "SELECT rtrim('dremio') as col FROM cp.`tpch/region.parquet` limit 0";
-    final String query3 = "SELECT btrim('dremio') as col FROM cp.`tpch/region.parquet` limit 0";
+    final String query1 = "SELECT ltrim('dremio') as col FROM cp.\"tpch/region.parquet\" limit 0";
+    final String query2 = "SELECT rtrim('dremio') as col FROM cp.\"tpch/region.parquet\" limit 0";
+    final String query3 = "SELECT btrim('dremio') as col FROM cp.\"tpch/region.parquet\" limit 0";
 
     List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList();
     MajorType majorType = Types.required(MinorType.VARCHAR);
@@ -107,9 +107,9 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
 
   @Test
   public void testTrim() throws Exception {
-    final String query1 = "SELECT trim('dremio') as col FROM cp.`tpch/region.parquet` limit 0";
-    final String query2 = "SELECT trim('dremio') as col FROM cp.`tpch/region.parquet` limit 0";
-    final String query3 = "SELECT trim('dremio') as col FROM cp.`tpch/region.parquet` limit 0";
+    final String query1 = "SELECT trim('dremio') as col FROM cp.\"tpch/region.parquet\" limit 0";
+    final String query2 = "SELECT trim('dremio') as col FROM cp.\"tpch/region.parquet\" limit 0";
+    final String query3 = "SELECT trim('dremio') as col FROM cp.\"tpch/region.parquet\" limit 0";
 
     List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList();
     MajorType majorType = Types.required(MinorType.VARCHAR);
@@ -136,9 +136,9 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
 
   @Test
   public void testTrimOneArg() throws Exception {
-    final String query1 = "SELECT trim(leading 'dremio') as col FROM cp.`tpch/region.parquet` limit 0";
-    final String query2 = "SELECT trim(trailing 'dremio') as col FROM cp.`tpch/region.parquet` limit 0";
-    final String query3 = "SELECT trim(both 'dremio') as col FROM cp.`tpch/region.parquet` limit 0";
+    final String query1 = "SELECT trim(leading 'dremio') as col FROM cp.\"tpch/region.parquet\" limit 0";
+    final String query2 = "SELECT trim(trailing 'dremio') as col FROM cp.\"tpch/region.parquet\" limit 0";
+    final String query3 = "SELECT trim(both 'dremio') as col FROM cp.\"tpch/region.parquet\" limit 0";
 
     List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList();
     MajorType majorType = Types.required(MinorType.VARCHAR);
@@ -165,9 +165,9 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
 
   @Test
   public void testTrimTwoArg() throws Exception {
-    final String query1 = "SELECT trim(leading ' ' from 'dremio') as col FROM cp.`tpch/region.parquet` limit 0";
-    final String query2 = "SELECT trim(trailing ' ' from 'dremio') as col FROM cp.`tpch/region.parquet` limit 0";
-    final String query3 = "SELECT trim(both ' ' from 'dremio') as col FROM cp.`tpch/region.parquet` limit 0";
+    final String query1 = "SELECT trim(leading ' ' from 'dremio') as col FROM cp.\"tpch/region.parquet\" limit 0";
+    final String query2 = "SELECT trim(trailing ' ' from 'dremio') as col FROM cp.\"tpch/region.parquet\" limit 0";
+    final String query3 = "SELECT trim(both ' ' from 'dremio') as col FROM cp.\"tpch/region.parquet\" limit 0";
 
     List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList();
     MajorType majorType = Types.required(MinorType.VARCHAR);
@@ -194,7 +194,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
 
   @Test
   public void tesIsNull() throws Exception {
-    final String query = "select r_name is null as col from cp.`tpch/region.parquet` limit 0";
+    final String query = "select r_name is null as col from cp.\"tpch/region.parquet\" limit 0";
     List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList();
     MajorType majorType = Types.required(MinorType.BIT);
     expectedSchema.add(Pair.of(SchemaPath.getSimplePath("col"), majorType));
@@ -213,7 +213,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
   public void testExtractSecond() throws Exception {
     String query = "select extract(second from time '02:30:45.100') as col \n" +
-        "from cp.`tpch/region.parquet` \n" +
+        "from cp.\"tpch/region.parquet\" \n" +
         "limit 0";
 
     List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList();
@@ -230,7 +230,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
   public void testDate_Part() throws Exception {
     final String query = "select date_part('year', date '2008-2-23') as col \n" +
-        "from cp.`tpch/region.parquet` \n" +
+        "from cp.\"tpch/region.parquet\" \n" +
         "limit 0";
 
     List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList();
@@ -246,11 +246,11 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
 
   @Test
   public void testNegativeByInterpreter() throws Exception {
-    final String query = "select * from cp.`tpch/region.parquet` \n" +
+    final String query = "select * from cp.\"tpch/region.parquet\" \n" +
         "where r_regionkey = negative(-1)";
 
     // Validate the plan
-    final String[] expectedPlan = {"Filter.*condition=\\[=\\(.*, CAST\\(1\\):BIGINT\\)\\]\\)"};
+    final String[] expectedPlan = {"Filter.*condition=\\[=\\(CAST\\(\\$0\\):BIGINT, 1\\)\\]\\)"};
     final String[] excludedPlan = {};
     PlanTestBase.testPlanMatchingPatterns(query, expectedPlan, excludedPlan);
   }
@@ -259,7 +259,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   public void testSumRequiredType() throws Exception {
     final String query = "SELECT \n" +
         "SUM(CASE WHEN (CAST(n_regionkey AS INT) = 1) THEN 1 ELSE 0 END) AS col \n" +
-        "FROM cp.`tpch/nation.parquet` \n" +
+        "FROM cp.\"tpch/nation.parquet\" \n" +
         "GROUP BY CAST(n_regionkey AS INT) \n" +
         "limit 0";
 
@@ -277,7 +277,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
   public void testSQRTDecimalLiteral() throws Exception {
     final String query = "SELECT sqrt(5.1) as col \n" +
-        "from cp.`tpch/nation.parquet` \n" +
+        "from cp.\"tpch/nation.parquet\" \n" +
         "limit 0";
 
     List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList();
@@ -294,7 +294,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
   public void testSQRTIntegerLiteral() throws Exception {
     final String query = "SELECT sqrt(4) as col \n" +
-        "from cp.`tpch/nation.parquet` \n" +
+        "from cp.\"tpch/nation.parquet\" \n" +
         "limit 0";
 
     List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList();
@@ -311,7 +311,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
   public void testTimestampDiff() throws Exception {
     final String query = "select timestampdiff(SECOND, to_timestamp('2014-02-13 00:30:30','YYYY-MM-DD HH24:MI:SS'), to_timestamp('2014-02-13 00:30:30','YYYY-MM-DD HH24:MI:SS')) as col \n" +
-        "from cp.`tpch/region.parquet` \n" +
+        "from cp.\"tpch/region.parquet\" \n" +
         "limit 0";
 
     final List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList();
@@ -328,7 +328,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
   public void testEqualBetweenIntervalAndTimestampDiff() throws Exception {
     final String query = "select to_timestamp('2016-11-02 10:00:00','YYYY-MM-DD HH:MI:SS') + interval '10-11' year to month as col \n" +
-        "from cp.`tpch/region.parquet` \n" +
+        "from cp.\"tpch/region.parquet\" \n" +
         "where (to_timestamp('2016-11-02 10:00:00','YYYY-MM-DD HH:MI:SS') - to_timestamp('2016-01-01 10:00:00','YYYY-MM-DD HH:MI:SS') < interval '5 10:00:00' day to second) \n" +
         "limit 0";
 
@@ -346,10 +346,10 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
 
   @Test
   public void testAvgAndSUM() throws Exception {
-    final String query = "SELECT AVG(cast(r_regionkey as float)) AS `col1`, \n" +
-        "SUM(cast(r_regionkey as float)) AS `col2`, \n" +
-        "SUM(1) AS `col3` \n" +
-        "FROM cp.`tpch/region.parquet` \n" +
+    final String query = "SELECT AVG(cast(r_regionkey as float)) AS \"col1\", \n" +
+        "SUM(cast(r_regionkey as float)) AS \"col2\", \n" +
+        "SUM(1) AS \"col3\" \n" +
+        "FROM cp.\"tpch/region.parquet\" \n" +
         "GROUP BY CAST(r_regionkey AS INTEGER) \n" +
         "LIMIT 0";
 
@@ -375,7 +375,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   public void testAvgCountStar() throws Exception {
     final String query = "select avg(distinct cast(r_regionkey as bigint)) + avg(cast(r_regionkey as integer)) as col1, \n" +
         "sum(distinct cast(r_regionkey as bigint)) + 100 as col2, count(*) as col3 \n" +
-        "from cp.`tpch/region.parquet` alltypes_v \n" +
+        "from cp.\"tpch/region.parquet\" alltypes_v \n" +
         "where cast(r_regionkey as bigint) = 100000000000000000 \n" +
         "limit 0";
 
@@ -401,9 +401,9 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   public void testUDFInGroupBy() throws Exception {
     final String query = "select count(*) as col1, substr(lower(UPPER(cast(t3.full_name as varchar(100)))), 5, 2) as col2, \n" +
         "char_length(substr(lower(UPPER(cast(t3.full_name as varchar(100)))), 5, 2)) as col3 \n" +
-        "from cp.`tpch/region.parquet` t1 \n" +
-        "left outer join cp.`tpch/nation.parquet` t2 on cast(t1.r_regionkey as Integer) = cast(t2.n_nationkey as Integer) \n" +
-        "left outer join cp.`employee.json` t3 on cast(t1.r_regionkey as Integer) = cast(t3.employee_id as Integer) \n" +
+        "from cp.\"tpch/region.parquet\" t1 \n" +
+        "left outer join cp.\"tpch/nation.parquet\" t2 on cast(t1.r_regionkey as Integer) = cast(t2.n_nationkey as Integer) \n" +
+        "left outer join cp.\"employee.json\" t3 on cast(t1.r_regionkey as Integer) = cast(t3.employee_id as Integer) \n" +
         "group by substr(lower(UPPER(cast(t3.full_name as varchar(100)))), 5, 2), \n" +
         "char_length(substr(lower(UPPER(cast(t3.full_name as varchar(100)))), 5, 2)) \n" +
         "order by substr(lower(UPPER(cast(t3.full_name as varchar(100)))), 5, 2),\n" +
@@ -432,7 +432,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   public void testWindowSumAvg() throws Exception {
     final String query = "with query as ( \n" +
         "select sum(cast(employee_id as integer)) over w as col1, cast(avg(cast(employee_id as bigint)) over w as double precision) as col2, count(*) over w as col3 \n" +
-        "from cp.`employee.json` \n" +
+        "from cp.\"employee.json\" \n" +
         "window w as (partition by cast(full_name as varchar(10)) order by cast(full_name as varchar(10)) nulls first)) \n" +
         "select * \n" +
         "from query \n" +
@@ -459,23 +459,23 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
   public void testWindowRanking() throws Exception {
     final String queryCUME_DIST = "select CUME_DIST() over(order by n_nationkey) as col \n" +
-        "from cp.`tpch/nation.parquet` \n" +
+        "from cp.\"tpch/nation.parquet\" \n" +
         "limit 0";
 
     final String queryDENSE_RANK = "select DENSE_RANK() over(order by n_nationkey) as col \n" +
-        "from cp.`tpch/nation.parquet` \n" +
+        "from cp.\"tpch/nation.parquet\" \n" +
         "limit 0";
 
     final String queryPERCENT_RANK = "select PERCENT_RANK() over(order by n_nationkey) as col \n" +
-        "from cp.`tpch/nation.parquet` \n" +
+        "from cp.\"tpch/nation.parquet\" \n" +
         "limit 0";
 
     final String queryRANK = "select RANK() over(order by n_nationkey) as col \n" +
-        "from cp.`tpch/nation.parquet` \n" +
+        "from cp.\"tpch/nation.parquet\" \n" +
         "limit 0";
 
     final String queryROW_NUMBER = "select ROW_NUMBER() over(order by n_nationkey) as col \n" +
-        "from cp.`tpch/nation.parquet` \n" +
+        "from cp.\"tpch/nation.parquet\" \n" +
         "limit 0";
 
     final MajorType majorTypeDouble = Types.required(MinorType.FLOAT8);
@@ -531,7 +531,7 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
   public void testWindowNTILE() throws Exception {
     final String query = "select ntile(1) over(order by position_id) as col \n" +
-        "from cp.`employee.json` \n" +
+        "from cp.\"employee.json\" \n" +
         "limit 0";
 
     final MajorType majorType = Types.required(MinorType.BIGINT);
@@ -549,10 +549,10 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
   public void testLeadLag() throws Exception {
     final String queryLEAD = "select lead(cast(n_nationkey as BigInt)) over(order by n_nationkey) as col \n" +
-        "from cp.`tpch/nation.parquet` \n" +
+        "from cp.\"tpch/nation.parquet\" \n" +
         "limit 0";
     final String queryLAG = "select lag(cast(n_nationkey as BigInt)) over(order by n_nationkey) as col \n" +
-        "from cp.`tpch/nation.parquet` \n" +
+        "from cp.\"tpch/nation.parquet\" \n" +
         "limit 0";
 
     final MajorType majorType = Types.optional(MinorType.BIGINT);
@@ -576,11 +576,11 @@ public class TestFunctionsWithTypeExpoQueries extends BaseTestQuery {
   @Test
   public void testFirst_Last_Value() throws Exception {
     final String queryFirst = "select first_value(cast(position_id as integer)) over(order by position_id) as col \n" +
-        "from cp.`employee.json` \n" +
+        "from cp.\"employee.json\" \n" +
         "limit 0";
 
     final String queryLast = "select first_value(cast(position_id as integer)) over(order by position_id) as col \n" +
-        "from cp.`employee.json` \n" +
+        "from cp.\"employee.json\" \n" +
         "limit 0";
 
     final MajorType majorType = Types.optional(MinorType.INT);

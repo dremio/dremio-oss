@@ -16,12 +16,11 @@
 package com.dremio.exec.work.protector;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.work.AttemptId;
 import com.dremio.proto.model.attempts.AttemptReason;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.google.common.base.Preconditions;
 
 /**

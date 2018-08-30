@@ -40,6 +40,7 @@ import NotificationContainer from 'containers/Notification';
 import ConfirmationContainer from 'containers/Confirmation';
 import ProdErrorContainer from 'containers/ProdError';
 import DevErrorContainer from 'containers/DevError';
+import { LocationProvider } from 'containers/dremioLocation';
 import { formatMessage } from '../utils/locale';
 
 DocumentTitle.join = (tokens) => {
@@ -105,7 +106,7 @@ export class App extends Component {
 
   getChildContext() {
     return {
-      location: this.props.location,
+      location: this.props.location, // todo remove
       routeParams: this.props.params,
       username: this.props.user.userName,
       loggedInUser: this.props.user
@@ -191,19 +192,21 @@ export class App extends Component {
   render() {
     const { children } = this.props;
     return (
-      <div style={{height: '100%'}}>
-        <MuiThemeProvider muiTheme={getMuiTheme()}>
-          {children}
-        </MuiThemeProvider>
-        {
-          config.shouldEnableRSOD &&
-            <DevErrorContainer error={this.state.rsodError} onDismiss={this.handleDismissError}/>
-        }
-        <NotificationContainer/>
-        <ConfirmationContainer/>
-        <ProdErrorContainer/>
-        <ModalsContainer modals={{AboutModal}} style={{height: 0}}/>
-      </div>
+      <LocationProvider location={this.props.location}>
+        <div style={{height: '100%'}}>
+          <MuiThemeProvider muiTheme={getMuiTheme()}>
+            {children}
+          </MuiThemeProvider>
+          {
+            config.shouldEnableRSOD &&
+              <DevErrorContainer error={this.state.rsodError} onDismiss={this.handleDismissError}/>
+          }
+          <NotificationContainer/>
+          <ConfirmationContainer/>
+          <ProdErrorContainer/>
+          <ModalsContainer modals={{AboutModal}} style={{height: 0}}/>
+        </div>
+      </LocationProvider>
     );
   }
 }

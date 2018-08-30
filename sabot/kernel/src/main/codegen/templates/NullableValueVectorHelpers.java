@@ -44,7 +44,7 @@ import com.dremio.exec.proto.UserBitShared.NamePart;
 <#include "/@includes/vv_imports.ftl" />
 
 /**
- * Nullable${minor.class} implements a vector of values which could be null.  Elements in the vector
+ * ${minor.class} implements a vector of values which could be null.  Elements in the vector
  * are first checked against a fixed length vector of boolean values.  Then the element is retrieved
  * from the base class (if not null).
  *
@@ -54,9 +54,9 @@ import com.dremio.exec.proto.UserBitShared.NamePart;
 public final class ${className} extends BaseValueVectorHelper {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(${className}.class);
 
-  private Nullable${minor.class}Vector vector;
+  private ${minor.class}Vector vector;
 
-  public ${className} (Nullable${minor.class}Vector vector) {
+  public ${className} (${minor.class}Vector vector) {
     super(vector);
     this.vector = vector;
   }
@@ -190,6 +190,52 @@ public final class ${className} extends BaseValueVectorHelper {
     vector.validityBuffer = buffer.slice(0, actualLength);
     vector.validityBuffer.writerIndex(actualLength);
     vector.validityBuffer.retain(1);
+  }
+
+  public void loadData(SerializedField metadata, ArrowBuf buffer) {
+    /* clear the current buffers (if any) */
+    vector.clear();
+
+    /* get the metadata children */
+    final SerializedField bitsField = metadata.getChild(0);
+    final SerializedField valuesField = metadata.getChild(1);
+    final int valuesLength = buffer.capacity();
+
+
+    <#if type.major == "VarLen" >
+    vector.allocateNew(valuesLength, metadata.getValueCount());
+    <#else>
+    vector.allocateNew(metadata.getValueCount());
+    </#if>
+
+    /* set inner validity buffer */
+    setValidityBuffer(bitsField);
+
+    <#if type.major == "VarLen" >
+    /* load inner offset and value buffers */
+    vector.offsetBuffer.close();
+    vector.valueBuffer.close();
+    loadOffsetAndDataBuffer(valuesField, buffer.slice(0, valuesLength));
+    vector.setLastSet(metadata.getValueCount() - 1);
+    <#else>
+    /* load inner value buffer */
+    vector.valueBuffer.close();
+    loadDataBuffer(valuesField, buffer.slice(0, valuesLength));
+    </#if>
+  }
+
+  private void setValidityBuffer(SerializedField metadata) {
+    final int valueCount = metadata.getValueCount();
+    final int actualLength = metadata.getBufferLength();
+    final int expectedLength = getValidityBufferSizeFromCount(valueCount);
+      assert expectedLength == actualLength:
+      String.format("Expected to load %d bytes but actually set %d bytes in validity buffer",  expectedLength,
+      actualLength);
+
+    int index;
+    for (index = 0;index < valueCount;index ++)
+      BitVectorHelper.setValidityBitToOne(vector.validityBuffer, index);
+    vector.validityBuffer.writerIndex(actualLength);
   }
 
   <#if type.major == "VarLen">

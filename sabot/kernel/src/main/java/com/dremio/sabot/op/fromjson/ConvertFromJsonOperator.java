@@ -23,9 +23,9 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableVarCharVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.TransferPair;
@@ -81,7 +81,7 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
     state.is(State.NEEDS_SETUP);
     this.incoming = accessible;
-    this.outgoing = new VectorContainer(context.getAllocator());
+    this.outgoing = context.createOutputVectorContainer();
     outgoing.setInitialCapacity(context.getTargetBatchSize());
 
     final Map<String, ConversionColumn> cMap = new HashMap<>();
@@ -96,11 +96,11 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
       if(conversion != null){
         Field updatedField = conversion.asField(f.getName());
         ValueVector outgoingVector = outgoing.addOrGet(updatedField);
-        Preconditions.checkArgument(incomingVector instanceof NullableVarBinaryVector || incomingVector instanceof NullableVarCharVector, "Incoming field [%s] should have been either a varchar or varbinary.", Describer.describe(f));
-        if(incomingVector instanceof NullableVarBinaryVector){
-          converters.add(new BinaryConverter(conversion, (NullableVarBinaryVector) incomingVector, outgoingVector));
+        Preconditions.checkArgument(incomingVector instanceof VarBinaryVector || incomingVector instanceof VarCharVector, "Incoming field [%s] should have been either a varchar or varbinary.", Describer.describe(f));
+        if(incomingVector instanceof VarBinaryVector){
+          converters.add(new BinaryConverter(conversion, (VarBinaryVector) incomingVector, outgoingVector));
         } else {
-          converters.add(new CharConverter(conversion, (NullableVarCharVector) incomingVector, outgoingVector));
+          converters.add(new CharConverter(conversion, (VarCharVector) incomingVector, outgoingVector));
         }
 
       } else {
@@ -167,9 +167,9 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
     return state;
   }
 
-  private class BinaryConverter extends JsonConverter<NullableVarBinaryVector> {
+  private class BinaryConverter extends JsonConverter<VarBinaryVector> {
 
-    BinaryConverter(ConversionColumn column, NullableVarBinaryVector vector, ValueVector outgoingVector) {
+    BinaryConverter(ConversionColumn column, VarBinaryVector vector, ValueVector outgoingVector) {
       super(column, vector, outgoingVector);
     }
 
@@ -183,9 +183,9 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
 
   }
 
-  private class CharConverter extends JsonConverter<NullableVarCharVector> {
+  private class CharConverter extends JsonConverter<VarCharVector> {
 
-    CharConverter(ConversionColumn column, NullableVarCharVector vector, ValueVector outgoingVector) {
+    CharConverter(ConversionColumn column, VarCharVector vector, ValueVector outgoingVector) {
       super(column, vector, outgoingVector);
     }
 

@@ -213,7 +213,7 @@ class ExploreUtils {
       return null;
     }
 
-    const selectionText = selection.toString().trim();
+    const selectionText = selection.toString(); //DX-11088 we would like to enable spliting data by space. So we should not trim selection value.
     const oRange = selection.getRangeAt(0);
     if (oRange.endContainer === oRange.startContainer) {
       return {

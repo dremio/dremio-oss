@@ -21,11 +21,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
-import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.rpc.BaseRpcOutcomeListener;
 import com.dremio.exec.rpc.BasicClientWithConnection.ServerConnection;
 import com.dremio.exec.rpc.ConnectionThrottle;

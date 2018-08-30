@@ -1,6 +1,6 @@
 select
   ps.ps_partkey,
-  sum(ps.ps_supplycost * ps.ps_availqty) as `value`
+  sum(ps.ps_supplycost * ps.ps_availqty) as "value"
 from
   dfs_test.tpch_partsupp_gd ps,
   dfs_test.tpch_supplier_gd s,
@@ -24,4 +24,4 @@ group by
         and n.n_name = 'JAPAN'
     )
 order by
-  `value` desc;
+  "value" desc;

@@ -22,6 +22,7 @@ import PropTypes from 'prop-types';
 import Radium from 'radium';
 import { injectIntl } from 'react-intl';
 
+import AllSpacesViewMixin from 'dyn-load/pages/HomePage/subpages/AllSpaces/AllSpacesViewMixin';
 import { removeSpace } from 'actions/resources/spaces';
 import { showConfirmationDialog } from 'actions/confirmation';
 
@@ -42,6 +43,7 @@ import { tableStyles } from '../../tableStyles';
 @Radium
 @pureRender
 @injectIntl
+@AllSpacesViewMixin
 export class AllSpacesView extends Component {
   static propTypes = {
     spaces: PropTypes.object,

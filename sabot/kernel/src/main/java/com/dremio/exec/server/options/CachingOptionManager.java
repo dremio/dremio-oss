@@ -18,11 +18,15 @@ package com.dremio.exec.server.options;
 import java.util.Iterator;
 import java.util.concurrent.ExecutionException;
 
-import com.dremio.exec.server.options.OptionValue.OptionType;
-import com.dremio.exec.server.options.TypeValidators.BooleanValidator;
-import com.dremio.exec.server.options.TypeValidators.DoubleValidator;
-import com.dremio.exec.server.options.TypeValidators.LongValidator;
-import com.dremio.exec.server.options.TypeValidators.StringValidator;
+import com.dremio.options.OptionList;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidator;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
+import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.DoubleValidator;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.StringValidator;
 import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -38,6 +42,7 @@ public class CachingOptionManager implements OptionManager {
       .maximumSize(10000)
       .build(
           new CacheLoader<String, OptionValue>() {
+            @Override
             public OptionValue load(String key) {
               return delegate.getOption(key);
             }
@@ -79,22 +84,22 @@ public class CachingOptionManager implements OptionManager {
 
   @Override
   public boolean getOption(BooleanValidator validator) {
-    return getOption(validator.getOptionName()).bool_val;
+    return getOption(validator.getOptionName()).getBoolVal();
   }
 
   @Override
   public double getOption(DoubleValidator validator) {
-    return getOption(validator.getOptionName()).float_val;
+    return getOption(validator.getOptionName()).getFloatVal();
   }
 
   @Override
   public long getOption(LongValidator validator) {
-    return getOption(validator.getOptionName()).num_val;
+    return getOption(validator.getOptionName()).getNumVal();
   }
 
   @Override
   public String getOption(StringValidator validator) {
-    return getOption(validator.getOptionName()).string_val;
+    return getOption(validator.getOptionName()).getStringVal();
   }
 
   @Override

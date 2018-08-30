@@ -19,9 +19,10 @@ import './commonGlobalVariables';
 import { Component } from 'react';
 import en from 'locales/en.json';
 import 'url-search-params-polyfill';
+import mockCssModules from 'mock-css-modules';
 
 // Prevent compiling of .less
-require.extensions['.less'] = () => {};
+mockCssModules.register(['.less']); // needed for css module
 require.extensions['.css'] = () => {};
 require.extensions['.svg'] = () => {};
 
@@ -72,7 +73,8 @@ global.navigator = {
 global.localStorage = (() => {
   const store = {};
   const getItem = (key) => {
-    return store[key];
+    // check for globalApp to avoid console log from localStorageUtil
+    return (key === 'globalApp') ? 'null' : store[key];
   };
   const setItem = (key, value) => {
     store[key] = value;
@@ -120,6 +122,19 @@ class FakeComponent extends Component {
 const checkIntlId = id => {
   if (!en[id]) throw new Error(`Intl id "${id}" does not exist.`);
 };
+import config from '../webpack.config';
+
+const aliases = Object.entries(config.resolve.alias);
+const applyAliases = (module) => {
+  const cnt = aliases.length;
+  for (let i = 0; i < cnt; i++) {
+    const [key, path] =  aliases[i];
+    if (module.indexOf(key) === 0) {
+      return module.replace(key, path);
+    }
+  }
+  return module;
+};
 
 const Module = require('module');
 const originalRequire = Module.prototype.require;
@@ -166,8 +181,11 @@ Module.prototype.require = function(module) {
 
     return fileFakes;
   }
-
-  return originalRequire.apply(this, arguments);
+  module = applyAliases(module); // use webpack aliases for correct module resolving
+  if (module.indexOf('.less?modules') >= 0) { // we load less as css module, when ?module query is added. See webpack.config
+    return originalRequire.call(this, module.replace('?modules', ''));
+  }
+  return originalRequire.call(this, module);
 };
 
 // webpack usually does this:

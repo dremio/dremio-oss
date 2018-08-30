@@ -22,12 +22,12 @@ import PropTypes from 'prop-types';
 
 import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm';
 
-import { PALE_BLUE } from 'uiTheme/radium/colors';
 import { applyValidators, isRequired } from 'utils/validation';
 import exploreUtils from 'utils/explore/exploreUtils';
 import NewFieldSection from 'components/Forms/NewFieldSection';
 import AddFieldEditor from './components/AddFieldEditor';
 import DefaultWizardFooter from './../components/DefaultWizardFooter';
+import { content } from './CalculatedFieldContent.less';
 
 function validate(values) {
   return applyValidators(values, [isRequired('expression'), isRequired('newFieldName')]);
@@ -50,11 +50,10 @@ class CalculatedFieldContent extends Component {
     errors: PropTypes.object,
     dragType: PropTypes.string
   };
-
   render() {
     const { fields: { expression }, columnName, errors, valid } = this.props;
     return (
-      <div style={[style.base]} className='convert-case-content'>
+      <div className='convert-case-content'>
         <InnerComplexForm
           {...this.props}
           onSubmit={this.props.submit}>
@@ -63,8 +62,8 @@ class CalculatedFieldContent extends Component {
             {...expression}
             activeMode
             dragType={this.props.dragType}
-          />
-          <div style={style.inputWrapper}>
+            />
+          <div className={content}>
             <NewFieldSection columnName={columnName} fields={this.props.fields} showDropSource={Boolean(columnName)}/>
           </div>
           <DefaultWizardFooter
@@ -76,29 +75,6 @@ class CalculatedFieldContent extends Component {
     );
   }
 }
-const style = {
-  base: {
-    position: 'relative',
-    backgroundColor: PALE_BLUE
-  },
-  inputWrapper: {
-    display: 'flex',
-    alignItems: 'center'
-  },
-  label: {
-    marginBottom: 5
-  },
-  textField: {
-    marginLeft: 10,
-    padding: 5
-  },
-  text: {
-    width: 200
-  },
-  checkbox: {
-    marginTop: 1
-  }
-};
 
 const mapStateToProps = (state, props) => {
   const fieldsForColumn = props.columnName

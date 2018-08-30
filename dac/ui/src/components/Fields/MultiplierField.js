@@ -16,10 +16,12 @@
 import { Component } from 'react';
 
 import PropTypes from 'prop-types';
+import classNames from 'classnames';
 
 // use a PrevalidatedTextField as a buffer to that you can temporarily have invalid numbers while typing (e.g. empty-string)
 import PrevalidatedTextField from 'components/Fields/PrevalidatedTextField';
 import Select from 'components/Fields/Select';
+import { rowOfInputsSpacing } from '@app/uiTheme/less/forms.less';
 
 export default class MultiplierField extends Component {
 
@@ -30,6 +32,7 @@ export default class MultiplierField extends Component {
     disabled: PropTypes.bool, // todo: add a #readonly/readOnly(?) and switch existing uses of #disabled as appropriate)
     value: PropTypes.number,
     style: PropTypes.object,
+    className: PropTypes.object,
     unitMultipliers: PropTypes.instanceOf(Map).isRequired,
     min: PropTypes.number.isRequired // this UI only enforces the units displayed, your form should have its own validation (BE and/or FE)
   };
@@ -94,7 +97,8 @@ export default class MultiplierField extends Component {
   }
 
   render() {
-    return <span className='field' style={{...styles.base, ...this.props.style}}>
+    const { className, style } = this.props;
+    return <span className={classNames(['field', rowOfInputsSpacing, className])} style={{...styles.base, ...style}}>
       <PrevalidatedTextField
         type='number'
         value={stringifyWithoutExponent(this.getConvertedNumberForDisplay())}
@@ -110,7 +114,6 @@ export default class MultiplierField extends Component {
           value={this.getUnit()}
           disabled={this.props.disabled}
           onChange={this.handleSelectChange}
-          buttonStyle={{ textAlign: 'left' }}
           style={styles.select}
         />
       </span>
@@ -133,6 +136,7 @@ const styles = {
     width: 0 // override any preset width
   },
   select: {
-    width: 164
+    width: 164,
+    textAlign: 'left'
   }
 };

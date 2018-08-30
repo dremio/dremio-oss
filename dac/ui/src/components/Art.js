@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, PropTypes } from 'react';
+import { PropTypes, PureComponent } from 'react';
 
 import allBitmaps from 'glob-loader!art/bitmap.pattern';
 
@@ -46,7 +46,7 @@ export default class Art extends PureComponent {
     }
 
     if (!bitmapURL) {
-      return <SVG src={src} aria-label={alt} title={title} {...props} />;
+      return <SVG src={src} aria-label={alt} title={title} dataQa={src} {...props} />;
     }
 
     return <img src={bitmapURL} alt={alt} title={title} {...props} />;

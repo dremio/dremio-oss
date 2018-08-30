@@ -45,7 +45,7 @@ public final class DataTypeUtil {
     case VAR16CHAR:
     case VARCHAR:
       return DataType.TEXT;
-    case FIXEDBINARY:
+    case FIXEDSIZEBINARY:
     case VARBINARY:
       return DataType.BINARY;
     case BIT:
@@ -76,7 +76,7 @@ public final class DataTypeUtil {
       return DataType.DATETIME;
     case LIST:
       return DataType.LIST;
-    case MAP:
+    case STRUCT:
     case GENERIC_OBJECT:
       return DataType.MAP;
 //    case ???:

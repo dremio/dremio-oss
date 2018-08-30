@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "./../../../../uiTheme/less/typography";
 
-.sql-autocomplete {
-  min-height: 40px;
-  margin-left: 10px;
-  margin-right: 16px;
-  margin-top: 0;
-  border: 1px solid #c2c2c2;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+
+  .sql-autocomplete {
+    min-height: 40px;
+    margin-left: 10px;
+    margin-right: 16px;
+    margin-top: 0;
+    border: 1px solid #c2c2c2;
+  }
 }

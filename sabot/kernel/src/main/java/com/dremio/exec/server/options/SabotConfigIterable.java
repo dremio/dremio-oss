@@ -18,8 +18,10 @@ package com.dremio.exec.server.options;
 import java.util.Iterator;
 import java.util.Map.Entry;
 
+
 import com.dremio.common.config.SabotConfig;
-import com.dremio.exec.server.options.OptionValue.OptionType;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
 import com.typesafe.config.ConfigValue;
 
 public class SabotConfigIterable implements Iterable<OptionValue> {

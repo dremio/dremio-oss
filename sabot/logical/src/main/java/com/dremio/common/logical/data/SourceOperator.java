@@ -15,9 +15,8 @@
  */
 package com.dremio.common.logical.data;
 
+import java.util.Collections;
 import java.util.Iterator;
-
-import com.google.common.collect.Iterators;
 
 
 /**
@@ -27,7 +26,7 @@ public abstract class SourceOperator extends LogicalOperatorBase{
 
   @Override
   public Iterator<LogicalOperator> iterator() {
-      return Iterators.emptyIterator();
+      return Collections.emptyIterator();
   }
 
 }

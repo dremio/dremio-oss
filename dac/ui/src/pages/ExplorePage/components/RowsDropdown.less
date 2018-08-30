@@ -13,53 +13,56 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.rows-dropdown {
-  width: 160px;
-  padding-left: 0px;
-  justify-content: space-between;
-  display: flex;
-  color: gray;
-  cursor: pointer;
-  border: 1px solid #c2c2c2;
-  border-radius: 5px;
-  height: 26px;
-  align-items: center;
-  margin-left: 10px;
-  margin-right: 10px;
-  padding-top: 2px;
-  padding-bottom: 2px;
-  background-color: #fff;
-  position: relative;
-  color: #000;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .items-container {
-    position: absolute;
-    left: 0;
+  .rows-dropdown {
     width: 160px;
+    padding-left: 0px;
+    justify-content: space-between;
+    display: flex;
+    color: gray;
+    cursor: pointer;
     border: 1px solid #c2c2c2;
-    top: 30px;
-    z-index: 3;
-    background-color: #fff;
     border-radius: 5px;
-    box-shadow: 1px 1px 5px 0 rgba(0,0,0,0.15);
+    height: 26px;
+    align-items: center;
+    margin-left: 10px;
+    margin-right: 10px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    background-color: #fff;
+    position: relative;
+    color: #000;
 
-    .row-item {
-      text-align: left;
-      padding: 5px;
+    .items-container {
+      position: absolute;
+      left: 0;
+      width: 160px;
+      border: 1px solid #c2c2c2;
+      top: 30px;
+      z-index: 3;
+      background-color: #fff;
+      border-radius: 5px;
+      box-shadow: 1px 1px 5px 0 rgba(0,0,0,0.15);
 
-      &:hover {
-        background-color: gray;
-        opacity: 0.5;
-        color: #fff;
+      .row-item {
+        text-align: left;
+        padding: 5px;
+
+        &:hover {
+          background-color: gray;
+          opacity: 0.5;
+          color: #fff;
+        }
       }
     }
-  }
 
-  .text {
-    margin-left: 10px;
-  }
+    .text {
+      margin-left: 10px;
+    }
 
-  .fa-angle-down {
-    margin-right: 10px;
+    .fa-angle-down {
+      margin-right: 10px;
+    }
   }
 }

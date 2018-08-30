@@ -27,7 +27,19 @@ export default class TextArea extends Component {
 
   static propTypes = {
     error: PropTypes.string,
-    disabled: PropTypes.bool
+    disabled: PropTypes.bool,
+    style: PropTypes.object,
+    initialValue: PropTypes.any,
+    autofill: PropTypes.any,
+    onUpdate: PropTypes.any,
+    valid: PropTypes.any,
+    invalid: PropTypes.any,
+    dirty: PropTypes.any,
+    pristine: PropTypes.any,
+    active: PropTypes.any,
+    touched: PropTypes.any,
+    visited: PropTypes.any,
+    autofilled: PropTypes.any
   };
 
   constructor(props) {
@@ -35,12 +47,17 @@ export default class TextArea extends Component {
   }
 
   render() {
+    const {
+      initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled,
+      ...props
+    } = this.props;
     return (
-      <textarea {...this.props} className='field'
+      <textarea {...props} className='field'
         style={[
           forms.textArea,
           this.props.error && forms.textInputError,
-          this.props.disabled && forms.textInputDisabled
+          this.props.disabled && forms.textInputDisabled,
+          this.props.style && {...this.props.style}
         ]}
       />
     );

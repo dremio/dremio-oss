@@ -15,12 +15,13 @@
  */
 package com.dremio.exec.planner;
 
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.junit.Assert.assertThat;
+
 import java.util.List;
 import java.util.Map;
 
 import org.apache.arrow.vector.util.JsonStringArrayList;
-import com.google.common.collect.ImmutableMap;
-
 import org.apache.arrow.vector.util.Text;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -32,10 +33,8 @@ import com.dremio.PlanTestBase;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.exec.fn.interp.TestConstantFolding;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertThat;
 
 public class TestDirectoryExplorerUDFs extends PlanTestBase {
 
@@ -91,7 +90,7 @@ public class TestDirectoryExplorerUDFs extends PlanTestBase {
         .add("BIGFILE_2")
         .build();
 
-    String query = "select * from dfs_root.`" + path + "/*/*.csv` where dir0 = %s('dfs','" + path + "')";
+    String query = "select * from dfs_root.\"" + path + "/*/*.csv\" where dir0 = %s('dfs','" + path + "')";
     for (ConstantFoldingTestConfig config : tests) {
       // make all of the other folders unexpected patterns, except for the one expected in this case
       List<String> excludedPatterns = Lists.newArrayList();
@@ -125,12 +124,12 @@ public class TestDirectoryExplorerUDFs extends PlanTestBase {
   public void testIncorrectFunctionPlacement() throws Exception {
 
     Map<String, String> configMap = ImmutableMap.<String, String>builder()
-        .put("select %s('dfs_root','" + path + "') from dfs.`" + path + "/*/*.csv`", "Select List")
-        .put("select dir0 from dfs.`" + path + "/*/*.csv` order by %s('dfs_root','" + path + "')", "Order By")
-        .put("select max(dir0) from dfs.`" + path + "/*/*.csv` group by %s('dfs_root','" + path + "')", "Group By")
-        .put("select concat(concat(%s('dfs_root','" + path + "'),'someName'),'someName') from dfs.`" + path + "/*/*.csv`", "Select List")
-        .put("select dir0 from dfs.`" + path + "/*/*.csv` order by concat(%s('dfs_root','" + path + "'),'someName')", "Order By")
-        .put("select max(dir0) from dfs.`" + path + "/*/*.csv` group by concat(%s('dfs_root','" + path + "'),'someName')", "Group By")
+        .put("select %s('dfs_root','" + path + "') from dfs.\"" + path + "/*/*.csv\"", "Select List")
+        .put("select dir0 from dfs.\"" + path + "/*/*.csv\" order by %s('dfs_root','" + path + "')", "Order By")
+        .put("select max(dir0) from dfs.\"" + path + "/*/*.csv\" group by %s('dfs_root','" + path + "')", "Group By")
+        .put("select concat(concat(%s('dfs_root','" + path + "'),'someName'),'someName') from dfs.\"" + path + "/*/*.csv\"", "Select List")
+        .put("select dir0 from dfs.\"" + path + "/*/*.csv\" order by concat(%s('dfs_root','" + path + "'),'someName')", "Order By")
+        .put("select max(dir0) from dfs.\"" + path + "/*/*.csv\" group by concat(%s('dfs_root','" + path + "'),'someName')", "Group By")
         .build();
 
     for (Map.Entry<String, String> configEntry : configMap.entrySet()) {
@@ -148,8 +147,8 @@ public class TestDirectoryExplorerUDFs extends PlanTestBase {
   @Test
   public void testConstantFoldingOff() throws Exception {
     try {
-      test("set `planner.enable_constant_folding` = false;");
-      String query = "select * from dfs.`" + path + "/*/*.csv` where dir0 = %s('dfs_root','" + path + "')";
+      test("set \"planner.enable_constant_folding\" = false;");
+      String query = "select * from dfs.\"" + path + "/*/*.csv\" where dir0 = %s('dfs_root','" + path + "')";
       for (ConstantFoldingTestConfig config : tests) {
         try {
           test(String.format(query, config.funcName));
@@ -159,7 +158,7 @@ public class TestDirectoryExplorerUDFs extends PlanTestBase {
         }
       }
     } finally {
-      test("set `planner.enable_constant_folding` = true;");
+      test("set \"planner.enable_constant_folding\" = true;");
     }
   }
 }

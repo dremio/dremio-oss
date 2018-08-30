@@ -65,7 +65,7 @@ public class TypeInferenceUtils {
       .put(TypeProtos.MinorType.VARBINARY, SqlTypeName.VARBINARY)
       .put(TypeProtos.MinorType.INTERVALYEAR, SqlTypeName.INTERVAL_YEAR_MONTH)
       .put(TypeProtos.MinorType.INTERVALDAY, SqlTypeName.INTERVAL_DAY_SECOND)
-      .put(TypeProtos.MinorType.MAP, SqlTypeName.MAP)
+      .put(TypeProtos.MinorType.STRUCT, SqlTypeName.MAP)
       .put(TypeProtos.MinorType.LIST, SqlTypeName.ARRAY)
       .put(TypeProtos.MinorType.LATE, SqlTypeName.ANY)
 

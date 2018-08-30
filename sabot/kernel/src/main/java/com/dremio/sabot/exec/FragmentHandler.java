@@ -18,7 +18,7 @@ package com.dremio.sabot.exec;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
-import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.rpc.IncomingDataBatch;
 import com.google.common.base.Preconditions;

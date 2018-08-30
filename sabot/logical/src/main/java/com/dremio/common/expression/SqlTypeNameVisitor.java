@@ -15,12 +15,14 @@
  */
 package com.dremio.common.expression;
 
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeVisitor;
 import org.apache.arrow.vector.types.pojo.ArrowType.Binary;
 import org.apache.arrow.vector.types.pojo.ArrowType.Bool;
 import org.apache.arrow.vector.types.pojo.ArrowType.Date;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.ArrowType.FixedSizeList;
+import org.apache.arrow.vector.types.pojo.ArrowType.FixedSizeBinary;
 import org.apache.arrow.vector.types.pojo.ArrowType.FloatingPoint;
 import org.apache.arrow.vector.types.pojo.ArrowType.Int;
 import org.apache.arrow.vector.types.pojo.ArrowType.Interval;
@@ -130,5 +132,10 @@ public class SqlTypeNameVisitor implements ArrowTypeVisitor<String> {
   @Override
   public String visit(FixedSizeList paramList) {
     return "ARRAY";
+  }
+
+  @Override
+  public String visit(FixedSizeBinary paramList) {
+    return "BINARY";
   }
 }

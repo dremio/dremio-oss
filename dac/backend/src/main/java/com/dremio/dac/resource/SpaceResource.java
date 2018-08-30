@@ -107,7 +107,7 @@ public class SpaceResource {
 
   @DELETE
   @Produces(MediaType.APPLICATION_JSON)
-  public void deleteSpace(@QueryParam("version") Long version) throws NamespaceException, SpaceNotFoundException {
+  public void deleteSpace(@QueryParam("version") Long version) throws NamespaceException, SpaceNotFoundException, UserException {
     if (version == null) {
       throw new ClientErrorException("missing version parameter");
     }

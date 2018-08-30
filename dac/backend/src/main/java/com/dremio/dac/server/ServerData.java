@@ -78,14 +78,16 @@ public class ServerData {
     private final String supportEmailTo;
     private final String supportEmailSubjectForJobs;
     private final Boolean outsideCommunicationDisabled;
-
     private final Boolean subhourAccelerationPoliciesEnabled;
     private final Boolean lowerProvisioningSettingsEnabled;
-
     private final String tdsMimeType;
+    private final Boolean allowFileUploads;
     private final String whiteLabelUrl;
+    private final Boolean allowSpaceManagement;
 
-    public ClientSettings(String supportEmailTo, String supportEmailSubjectForJobs, Boolean outsideCommunicationDisabled, Boolean subhourAccelerationPoliciesEnabled, Boolean lowerProvisioningSettingsEnabled, String tdsMimeType, String whiteLabelUrl) {
+    public ClientSettings(String supportEmailTo, String supportEmailSubjectForJobs, Boolean outsideCommunicationDisabled, Boolean subhourAccelerationPoliciesEnabled, Boolean lowerProvisioningSettingsEnabled, String tdsMimeType, Boolean allowFileUploads,
+                          String whiteLabelUrl,
+                          Boolean allowSpaceManagement) {
       super();
       this.supportEmailTo = supportEmailTo;
       this.supportEmailSubjectForJobs = supportEmailSubjectForJobs;
@@ -93,7 +95,9 @@ public class ServerData {
       this.subhourAccelerationPoliciesEnabled = subhourAccelerationPoliciesEnabled;
       this.lowerProvisioningSettingsEnabled = lowerProvisioningSettingsEnabled;
       this.tdsMimeType = tdsMimeType;
+      this.allowFileUploads = allowFileUploads;
       this.whiteLabelUrl = whiteLabelUrl;
+      this.allowSpaceManagement = allowSpaceManagement;
     }
 
     public String getSupportEmailTo() {
@@ -120,8 +124,16 @@ public class ServerData {
       return tdsMimeType;
     }
 
+    public Boolean getAllowFileUploads() {
+      return allowFileUploads;
+    }
+
     public String getWhiteLabelUrl() {
       return whiteLabelUrl;
+    }
+
+    public Boolean getAllowSpaceManagement() {
+      return allowSpaceManagement;
     }
   }
 }

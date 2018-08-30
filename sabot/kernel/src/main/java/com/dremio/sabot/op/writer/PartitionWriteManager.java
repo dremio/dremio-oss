@@ -21,8 +21,6 @@ import java.util.List;
 import java.util.Set;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.NullableBitVector;
-import org.apache.arrow.vector.NullableIntVector;
 import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.expression.SchemaPath;
@@ -43,8 +41,8 @@ class PartitionWriteManager {
   public static final String NULL_PARTITION = "DREMIO_DEFAULT_NULL_PARTITION__";
   public static final String EMPTY_VALUE_PARTITION = "DREMIO_DEFAULT_EMPTY_VALUE_PARTITION__";
 
-  private final NullableBitVector changeVector;
-  private final NullableIntVector bucketNumber;
+  private final BitVector changeVector;
+  private final IntVector bucketNumber;
 
   private final List<ValueVector> partitions = new ArrayList<>();
 
@@ -59,7 +57,7 @@ class PartitionWriteManager {
     final TypedFieldId changeDetectionField = incoming.getValueVectorId(SchemaPath.getSimplePath(WriterPrel.PARTITION_COMPARATOR_FIELD));
     if (changeDetectionField != null) {
       maskedIds.add(changeDetectionField.getFieldIds()[0]);
-      changeVector = incoming.getValueAccessorById(NullableBitVector.class, changeDetectionField.getFieldIds()).getValueVector();
+      changeVector = incoming.getValueAccessorById(BitVector.class, changeDetectionField.getFieldIds()).getValueVector();
     } else {
       throw new IllegalArgumentException("Incoming schema didn't include change detection column even though writer was configured for partitioning.");
     }
@@ -68,7 +66,7 @@ class PartitionWriteManager {
       final TypedFieldId bucketNumberField = incoming.getValueVectorId(SchemaPath.getSimplePath(WriterPrel.BUCKET_NUMBER_FIELD));
       if (bucketNumberField != null) {
         maskedIds.add(bucketNumberField.getFieldIds()[0]);
-        bucketNumber = incoming.getValueAccessorById(NullableIntVector.class, bucketNumberField.getFieldIds()).getValueVector();
+        bucketNumber = incoming.getValueAccessorById(IntVector.class, bucketNumberField.getFieldIds()).getValueVector();
       } else {
         throw new IllegalArgumentException("Incoming schema didn't include partitions even though writer was configured for partitioning.");
       }

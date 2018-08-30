@@ -17,6 +17,7 @@ package com.dremio.exec.work.user;
 
 import java.util.List;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -28,13 +29,20 @@ public class SubstitutionSettings {
   private static final SubstitutionSettings EMPTY = new SubstitutionSettings(ImmutableList.<String>of());
 
   private List<String> exclusions;
+  private List<String> inclusions = ImmutableList.of();
 
   public SubstitutionSettings(List<String> exclusions) {
     this.exclusions = ImmutableList.copyOf(exclusions);
   }
 
   public void setExclusions(List<String> exclusions) {
+    Preconditions.checkArgument(inclusions.isEmpty());
     this.exclusions = ImmutableList.copyOf(exclusions);
+  }
+
+  public void setInclusions(List<String> inclusions) {
+    Preconditions.checkArgument(exclusions.isEmpty());
+    this.inclusions = inclusions;
   }
 
   public static SubstitutionSettings of() {
@@ -48,6 +56,14 @@ public class SubstitutionSettings {
    */
   public List<String> getExclusions() {
     return exclusions;
+  }
+
+  /**
+   * list of materialization identifiers that should be included for acceleration. If this is set, exclusions cannot be set.
+   * @return
+   */
+  public List<String> getInclusions() {
+    return inclusions;
   }
 
 }

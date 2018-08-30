@@ -18,15 +18,14 @@ package com.dremio.exec.store.easy.excel;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static javax.xml.stream.XMLStreamConstants.START_ELEMENT;
 
+import java.io.InputStream;
+
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
-import org.apache.directory.api.util.Strings;
-
 import com.google.common.base.Preconditions;
-
-import java.io.InputStream;
+import com.google.common.base.Strings;
 
 public class ExcelUtil {
   /**
@@ -56,7 +55,7 @@ public class ExcelUtil {
    * @return
    */
   static String getColumnName(final String cellRef) {
-    Preconditions.checkArgument(!Strings.isEmpty(cellRef), "Expected a non-empty cell reference value");
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(cellRef), "Expected a non-empty cell reference value");
     int loc = getRowNumberStartIndex(cellRef);
 
     return cellRef.substring(0, loc);

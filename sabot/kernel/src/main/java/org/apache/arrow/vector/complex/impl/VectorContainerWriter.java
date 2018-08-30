@@ -21,11 +21,14 @@ import javax.annotation.Nullable;
 
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.AbstractContainerVector;
+import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.CallBack;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
 
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -36,32 +39,34 @@ import com.google.common.collect.Lists;
 public class VectorContainerWriter extends AbstractFieldWriter implements ComplexWriter {
   //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorContainerWriter.class);
 
-  private final SingleMapWriter mapRoot;
-  private final SpecialMapVector mapVector;
+  private final SingleStructWriter structRoot;
+  private final SpecialStructVector structVector;
   private final OutputMutator mutator;
+  private BufferAllocator allocator;
 
   public VectorContainerWriter(OutputMutator mutator) {
     this.mutator = mutator;
-    mapVector = new SpecialMapVector(mutator.getCallBack());
-    mapRoot = new SingleMapWriter(mapVector);
+    this.allocator = new RootAllocator(Long.MAX_VALUE);
+    structVector = new SpecialStructVector(allocator, mutator.getCallBack());
+    structRoot = new SingleStructWriter(structVector);
   }
 
   @Override
   public Field getField() {
-    return mapVector.getField();
+    return structVector.getField();
   }
 
   @Override
   public int getValueCapacity() {
-    return mapRoot.getValueCapacity();
+    return structRoot.getValueCapacity();
   }
 
   public void setInitialCapacity(int initialCapacity) {
-    mapRoot.setInitialCapacity(initialCapacity);
+    structRoot.setInitialCapacity(initialCapacity);
   }
 
-  public MapVector getMapVector() {
-    return mapVector;
+  public NonNullableStructVector getStructVector() {
+    return structVector;
   }
 
   @Override
@@ -72,39 +77,39 @@ public class VectorContainerWriter extends AbstractFieldWriter implements Comple
   @Override
   public void close() throws Exception {
     clear();
-    mapRoot.close();
-    mapVector.close();
+    structRoot.close();
+    structVector.close();
   }
 
   @Override
   public void clear() {
-    mapRoot.clear();
+    structRoot.clear();
   }
 
-  public SingleMapWriter getWriter() {
-    return mapRoot;
+  public SingleStructWriter getWriter() {
+    return structRoot;
   }
 
   @Override
   public void setValueCount(int count) {
-    mapRoot.setValueCount(count);
+    structRoot.setValueCount(count);
   }
 
   @Override
   public void setPosition(int index) {
     super.setPosition(index);
-    mapRoot.setPosition(index);
+    structRoot.setPosition(index);
   }
 
   @Override
   public void allocate() {
-    mapRoot.allocate();
+    structRoot.allocate();
   }
 
-  private class SpecialMapVector extends MapVector {
+  private class SpecialStructVector extends NonNullableStructVector {
 
-    public SpecialMapVector(CallBack callback) {
-      super("", null, callback);
+    public SpecialStructVector(BufferAllocator allocator, CallBack callback) {
+      super("", allocator, callback);
     }
 
     @Override
@@ -141,8 +146,8 @@ public class VectorContainerWriter extends AbstractFieldWriter implements Comple
   }
 
   @Override
-  public MapWriter rootAsMap() {
-    return mapRoot;
+  public StructWriter rootAsStruct() {
+    return structRoot;
   }
 
   @Override

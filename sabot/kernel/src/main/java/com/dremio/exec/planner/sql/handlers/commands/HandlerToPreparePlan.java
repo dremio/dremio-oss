@@ -103,6 +103,10 @@ public class HandlerToPreparePlan implements CommandRunner<CreatePreparedStateme
     }
   }
 
+  @Override
+  public void close() throws Exception {
+    // no-op
+  }
 
   @Override
   public CreatePreparedStatementResp execute() {

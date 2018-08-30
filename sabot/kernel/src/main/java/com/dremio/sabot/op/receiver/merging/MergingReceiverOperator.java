@@ -97,7 +97,7 @@ public class MergingReceiverOperator implements ProducerOperator {
     this.streamProvider = streamProvider;
     this.stats = context.getStats();
     this.config = config;
-    this.outgoingContainer = VectorContainer.create(context.getAllocator(), config.getSchema(null));
+    this.outgoingContainer = context.createOutputVectorContainer(config.getSchema(null));
     this.stats.setLongStat(Metric.NUM_SENDERS, config.getNumSenders());
     this.nodes = new Node[config.getNumSenders()];
     RawFragmentBatchProvider[] fragProviders = streamProvider.getBuffers(config.getOppositeMajorFragmentId());

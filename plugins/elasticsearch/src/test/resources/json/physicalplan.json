@@ -52,7 +52,7 @@
         "enabled": true
       },
       "columns": [
-        "`review_count`"
+        "\"review_count\""
       ],
       "cost": 2.0
     },
@@ -63,8 +63,8 @@
       "keys": [],
       "exprs": [
         {
-          "ref": "`EXPR$0`",
-          "expr": "sum(`review_count`) "
+          "ref": "\"EXPR$0\"",
+          "expr": "sum(\"review_count\") "
         }
       ],
       "initialAllocation": 1000000,
@@ -76,8 +76,8 @@
       "@id": 1,
       "exprs": [
         {
-          "ref": "`EXPR$0`",
-          "expr": "`EXPR$0`"
+          "ref": "\"EXPR$0\"",
+          "expr": "\"EXPR$0\""
         }
       ],
       "child": 2,

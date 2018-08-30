@@ -42,7 +42,6 @@ import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -69,35 +68,14 @@ import org.bouncycastle.operator.bc.BcRSAContentSignerBuilder;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.elasticsearch.Version;
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
-import org.elasticsearch.action.admin.cluster.node.info.NodeInfo;
-import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
-import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsResponse;
-import org.elasticsearch.client.Requests;
-import org.elasticsearch.cluster.health.ClusterHealthStatus;
-import org.elasticsearch.cluster.metadata.MappingMetaData;
-import org.elasticsearch.common.Priority;
-import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.collect.Tuple;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.mapper.attachments.MapperAttachmentsPlugin;
-import org.elasticsearch.node.ElasticTestNode;
-import org.elasticsearch.node.Node;
-import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.script.groovy.GroovyPlugin;
-import org.elasticsearch.transport.TransportInfo;
-import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import com.dremio.exec.catalog.conf.AuthenticationType;
 import com.dremio.exec.catalog.conf.Host;
 import com.dremio.plugins.elastic.ElasticActions.IndexExists;
@@ -114,7 +92,6 @@ import com.dremio.plugins.elastic.util.ProxyServerFactory;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteSource;
-import com.google.common.io.Files;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -124,9 +101,9 @@ import com.google.gson.JsonParser;
  */
 public class ElasticsearchCluster implements Closeable {
 
-  public static final boolean USE_EXTERNAL_ES5 = false;
+  public static final boolean USE_EXTERNAL_ES5 = Boolean.getBoolean("dremio.elastic.external");
 
-  private static final String BULK_INDEX_STRING = "{ \"index\" : { \"_index\" : \"%s\", \"_type\" : \"%s\" } }";
+  private static final String BULK_INDEX_TEXT = "{ \"index\" : { \"_index\" : \"%s\", \"_type\" : \"%s\" } }";
 
   private static final JsonParser PARSER = new JsonParser();
   public static final int ELASTICSEARCH_PORT = 9200;
@@ -138,7 +115,6 @@ public class ElasticsearchCluster implements Closeable {
 
   private final Random random;
 
-  private Node[] nodes;
   private Server proxy;
   private boolean remote = false;
   private boolean deleteExisting = false;
@@ -155,113 +131,32 @@ public class ElasticsearchCluster implements Closeable {
   private Client client;
   private int scrollSize;
 
-  public ElasticsearchCluster(int size, int scrollSize, Random random, boolean scriptsEnabled, boolean showIDColumn, boolean publishHost, boolean sslEnabled) throws IOException {
-    this(size, scrollSize, random, scriptsEnabled, showIDColumn, publishHost, sslEnabled, null);
+  public ElasticsearchCluster(int scrollSize, Random random, boolean scriptsEnabled, boolean showIDColumn, boolean publishHost, boolean sslEnabled) throws IOException {
+    this(scrollSize, random, scriptsEnabled, showIDColumn, publishHost, sslEnabled, null);
   }
 
   /**
-   * Starts an embedded elasticsearch cluster.
    * @param sslEnabled only compatible with size == 1
    * @throws IOException
    */
-  public ElasticsearchCluster(int size, int scrollSize, Random random, boolean scriptsEnabled, boolean showIDColumn, boolean publishHost, boolean sslEnabled, Integer presetSSLPort) throws IOException {
-    if (size < 1) {
-      throw new IllegalArgumentException("Cluster size must be at least 1");
-    }
-    if (sslEnabled && size != 1) {
-      throw new IllegalArgumentException("only single node cluster supported for ssl. size = " + size);
-    }
+  public ElasticsearchCluster(int scrollSize, Random random, boolean scriptsEnabled, boolean showIDColumn, boolean publishHost, boolean sslEnabled, Integer presetSSLPort) throws IOException {
     this.scrollSize = scrollSize;
     this.random = random;
-    logger.info("--> Initializing elasticsearch cluster with {} nodes", size);
-    nodes = new Node[size];
     this.scriptsEnabled = scriptsEnabled;
     this.showIDColumn = showIDColumn;
     this.sslEnabled = sslEnabled;
-    if(!USE_EXTERNAL_ES5){
-      initServer(size, publishHost, presetSSLPort);
-    }
     initClient();
-
-    // wait for cluster to come up before returning.
-    green();
-  }
-
-  private void initServer(int size, Boolean publishHost, Integer presetSSLPort){
-    for (int i = 0; i < size; i++) {
-
-      File data = Files.createTempDir();
-      data.deleteOnExit();
-      File home = Files.createTempDir();
-      home.deleteOnExit();
-
-      String name = NODE_NAME_PREFIX + i;
-
-      Settings.Builder settingsBuilder = Settings.builder()
-              .put("node.name", name)
-              .put("path.home", home.getAbsolutePath())
-              .put("path.data", data.getAbsolutePath())
-              .put("cluster.routing.allocation.disk.threshold_enabled", false)
-              .put("node.local", true)
-              .put("node.data", true)
-              .put("cluster.name", CLUSTER_NAME)
-              .put("script.inline", scriptsEnabled)
-              .put("script.max_compilations_per_minute", 200)
-              .put("script.indexed", scriptsEnabled);
-
-      if (publishHost) {
-        settingsBuilder
-        .put("http.publish_host", "localhost")
-        .put("http.publish_port", ELASTICSEARCH_PORT);
-      }
-
-      if (sslEnabled) {
-        File keystoreFile = new File("target/tests/ssl/" + name + ".jks");
-        String password = "dummy";
-        genCertificate(keystoreFile, password);
-
-        sslPort = setupSSLProxy(keystoreFile, password, "127.0.0.1", ELASTICSEARCH_PORT, presetSSLPort);
-
-        // we must tell elastic to advertise the proxy instead
-        settingsBuilder
-          .put("http.publish_host", "localhost")
-          .put("http.publish_port", sslPort);
-      }
-
-      Settings settings = settingsBuilder.build();
-      ArrayList<Class<? extends Plugin>> plugins = new ArrayList<>(2);
-      plugins.add(MapperAttachmentsPlugin.class);
-      plugins.add(GroovyPlugin.class);
-      nodes[i] = new ElasticTestNode(settings, plugins); // nodeBuilder().settings(settings).node();
-      logger.info("--> Elasticsearch node [{} (cluster: {}, home: {}, data: {}] started", name, CLUSTER_NAME,
-              home.getAbsolutePath(), data.getAbsolutePath());
-    }
-
   }
 
   private void initClient() throws IOException {
-
-    final List<Host> hosts;
-    if(remote && nodes != null && nodes.length > 0 && nodes[0] != null){
-      NodesInfoResponse response =  nodes[0].client().admin().cluster().prepareNodesInfo().execute().actionGet();
-      TransportInfo info = response.getNodes()[0].getTransport();
-      InetSocketTransportAddress inet = (InetSocketTransportAddress) info.address().publishAddress();
-      hosts = ImmutableList.of(new Host(inet.address().getAddress().getHostAddress(), inet.address().getPort()));
-    } else {
-      int port = sslEnabled ? sslPort : ELASTICSEARCH_PORT;
-      hosts = ImmutableList.of(new Host("127.0.0.1", port));
-    }
+    int port = sslEnabled ? sslPort : ELASTICSEARCH_PORT;
+    List<Host> hosts = ImmutableList.of(new Host("127.0.0.1", port));
 
     this.pool = new ElasticConnectionPool(hosts, sslEnabled, null, null, 10000, false);
     pool.connect();
     connection = pool.getRandomConnection();
     webTarget = connection.getTarget();
   }
-
-  public org.elasticsearch.client.Client getElasticInternalClient(){
-    return nodes[0].client();
-  }
-
 
   private int setupSSLProxy(File keystoreFile, String password, String targetHost, int targetPort, Integer presetSSLPort) {
     proxy = ProxyServerFactory.of(format("http://%s:%d", targetHost, targetPort), presetSSLPort != null ? presetSSLPort : 0, keystoreFile, password);
@@ -314,6 +209,10 @@ public class ElasticsearchCluster implements Closeable {
     }
   }
 
+  public String mapping(String resource1, String resource2) {
+    return "";
+  }
+
   private static Certificate genSelfSignedCert(KeyPair keyPair, String signAlgo) throws CertificateException {
     X500Name issuer = new X500Name("CN=localhost, OU=test, O=Dremio, L=Mountain View, ST=CA, C=US");
     X500Name subject = issuer; // self signed
@@ -356,7 +255,7 @@ public class ElasticsearchCluster implements Closeable {
    * Creates a storage plugin config with values suitable for creating
    * connections to the embedded elasticsearch cluster.
    */
-  public ElasticStoragePluginConfig config() {
+  public ElasticStoragePluginConfig config(boolean allowPushdownAnalyzedOrNormalizedFields) {
 
     final int port = sslEnabled ? sslPort : ELASTICSEARCH_PORT;
 
@@ -374,10 +273,14 @@ public class ElasticsearchCluster implements Closeable {
         true, /* use painless */
         false, /* use whitelist */
         scrollSize,
-        false, /* allow group by on normalized fields */
+        allowPushdownAnalyzedOrNormalizedFields, /* allow group by on normalized fields */
         false /* warn on row count mismatch */
         );
     return config;
+  }
+
+  public ElasticStoragePluginConfig config() {
+    return config(false);
   }
 
   /**
@@ -388,62 +291,8 @@ public class ElasticsearchCluster implements Closeable {
    * will always be used.
     */
   public boolean newFeaturesEnabled() {
-    // Elastic Version class relies on hard-coded version IDs for comparison, to make this test run unmodifed
-    // when changing the depndency to a lower version, the 3 components are extracted from the version for comparison
-    // using Dremio's Version class.
-    if(USE_EXTERNAL_ES5){
-      return true;
-    }
-
-    if (new com.dremio.plugins.Version(version.major, version.minor, version.revision).compareTo(
-        ElasticConnectionPool.MIN_VERSION_TO_ENABLE_NEW_FEATURES) >= 0) {
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  /**
-   * Waits for cluster to attain green state.
-   */
-  public void green() {
-
-    if(!USE_EXTERNAL_ES5){
-      TimeValue timeout = TimeValue.timeValueSeconds(30);
-
-      final org.elasticsearch.client.Client c = nodes[0].client();
-      ClusterHealthResponse actionGet = c.admin().cluster()
-              .health(Requests.clusterHealthRequest()
-                  .timeout(timeout)
-                  .waitForGreenStatus()
-                  .waitForEvents(Priority.LANGUID)
-                  .waitForRelocatingShards(0)).actionGet();
-
-      if (actionGet.isTimedOut()) {
-        logger.info("--> timed out waiting for cluster green state.\n{}\n{}",
-                c.admin().cluster().prepareState().get().getState().prettyPrint(),
-                c.admin().cluster().preparePendingClusterTasks().get().prettyPrint());
-        fail("timed out waiting for cluster green state");
-      }
-
-      Assert.assertTrue(actionGet.getStatus().compareTo(ClusterHealthStatus.GREEN) == 0);
-
-      NodesInfoResponse actionInfoGet = c.admin().cluster().nodesInfo(Requests.nodesInfoRequest().all()).actionGet();
-      for (NodeInfo node : actionInfoGet) {
-        Version nodeVersion = node.getVersion();
-        if (version == null) {
-          version = nodeVersion;
-        } else {
-          if (!nodeVersion.equals(version)) {
-            logger.debug("Nodes in elasticsearch cluster have inconsistent versions.");
-          }
-        }
-        if (nodeVersion.before(version)) {
-          version = nodeVersion;
-        }
-      }
-    }
-
+    // only elastic 5+ now.
+    return true;
   }
 
   /**
@@ -457,23 +306,6 @@ public class ElasticsearchCluster implements Closeable {
     if(client != null){
       client.close();
     }
-    if(!USE_EXTERNAL_ES5){
-      logger.info("--> tearing down elasticsearch cluster");
-      if (nodes != null) {
-        for (Node node : nodes) {
-          node.close();
-        }
-      }
-      if (sslEnabled) {
-        try {
-          proxy.stop();
-        } catch (Exception e) {
-          throw new RuntimeException("Could not shutdown ssl proxy", e);
-        }
-      }
-      logger.info("--> elasticsearch cluster is shut down");
-
-    }
   }
 
     /* ***** Data Utilities ***** */
@@ -486,7 +318,7 @@ public class ElasticsearchCluster implements Closeable {
           ElasticsearchType.FLOAT,
           ElasticsearchType.DOUBLE,
           ElasticsearchType.BOOLEAN,
-          ElasticsearchType.STRING);
+          ElasticsearchType.TEXT);
 
   public static final EnumSet<ElasticsearchType> NESTED_TYPES = EnumSet.of(
           ElasticsearchType.NESTED,
@@ -543,7 +375,6 @@ public class ElasticsearchCluster implements Closeable {
     PutMapping putMapping = new PutMapping(schema, table).setMapping(_mapping);
 
     connection.execute(putMapping);
-    green();
   }
 
   public void load(String schema, String table, Path path) throws IOException, URISyntaxException {
@@ -555,7 +386,7 @@ public class ElasticsearchCluster implements Closeable {
     int i = 0;
     try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
       for (String line; (line = reader.readLine()) != null; ) {
-        bulk.add(String.format(BULK_INDEX_STRING, schema, table));
+        bulk.add(String.format(BULK_INDEX_TEXT, schema, table));
         bulk.add(line);
         i++;
       }
@@ -593,7 +424,7 @@ public class ElasticsearchCluster implements Closeable {
         }
       }
 
-      bulk.add(String.format(BULK_INDEX_STRING, schema, table));
+      bulk.add(String.format(BULK_INDEX_TEXT, schema, table));
       bulk.add(sb.toString());
     }
 
@@ -628,7 +459,6 @@ public class ElasticsearchCluster implements Closeable {
     json.endObject().endObject().endObject();
     putMapping.setMapping(json.string());
     connection.execute(putMapping);
-    green();
 
     int max = 0;
     for (ColumnData datum : data) {
@@ -658,7 +488,7 @@ public class ElasticsearchCluster implements Closeable {
         }
       }
 
-      bulk.add(String.format(BULK_INDEX_STRING, schema, table));
+      bulk.add(String.format(BULK_INDEX_TEXT, schema, table));
       bulk.add(json.endObject().string());
     }
 
@@ -668,7 +498,6 @@ public class ElasticsearchCluster implements Closeable {
     }
 
     // ensure that we wait for any new shards to be initialized.
-    green();
     logger.info("--> indexed [{}] test documents", data.length);
   }
 
@@ -721,7 +550,7 @@ public class ElasticsearchCluster implements Closeable {
         case FLOAT:
         case DOUBLE:
         case BOOLEAN:
-        case STRING:
+        case TEXT:
           String name = type.name().toLowerCase(Locale.ENGLISH);
           json.startObject(name + "_field");
           json.field("type", name);
@@ -729,25 +558,25 @@ public class ElasticsearchCluster implements Closeable {
           break;
         case NESTED:
           json.startObject("person").field("type", "nested").startObject("properties");
-          json.startObject("first_name").field("type", "string").endObject();
-          json.startObject("last_name").field("type", "string").endObject();
+          json.startObject("first_name").field("type", "text").endObject();
+          json.startObject("last_name").field("type", "text").endObject();
           json.startObject("ssn").field("type", "integer").endObject();
 
           json.startObject("address").field("type", "nested").startObject("properties");
-          json.startObject("street_line_1").field("type", "string").field("index", "not_analyzed")
+          json.startObject("street_line_1").field("type", "text").field("index", "false")
                   .endObject();
-          json.startObject("street_line_2").field("type", "string").field("index", "not_analyzed")
+          json.startObject("street_line_2").field("type", "text").field("index", "false")
                   .endObject();
-          json.startObject("city").field("type", "string").field("index", "not_analyzed").endObject();
-          json.startObject("state").field("type", "string").field("index", "not_analyzed").endObject();
+          json.startObject("city").field("type", "text").field("index", "false").endObject();
+          json.startObject("state").field("type", "text").field("index", "false").endObject();
           json.startObject("zipcode").field("type", "integer").endObject();
           json.startObject("coordinates").field("type", "geo_point").endObject();
           json.endObject();
           json.endObject();
 
           json.startObject("relative").field("type", "nested").startObject("properties");
-          json.startObject("first_name").field("type", "string").endObject();
-          json.startObject("last_name").field("type", "string").endObject();
+          json.startObject("first_name").field("type", "text").endObject();
+          json.startObject("last_name").field("type", "text").endObject();
           json.endObject();
           json.endObject();
           json.endObject();
@@ -756,8 +585,8 @@ public class ElasticsearchCluster implements Closeable {
           break;
         case OBJECT:
           json.startObject("person2").field("type", "object").startObject("properties");
-          json.startObject("first_name").field("type", "string").endObject();
-          json.startObject("last_name").field("type", "string").endObject();
+          json.startObject("first_name").field("type", "text").endObject();
+          json.startObject("last_name").field("type", "text").endObject();
           json.startObject("ssn").field("type", "integer").endObject();
           json.endObject().endObject();
           break;
@@ -773,7 +602,6 @@ public class ElasticsearchCluster implements Closeable {
 
     putMapping.setMapping(json.string());
     connection.execute(putMapping);
-    green();
   }
 
   private static int[] randomIntArray(int size, Random random) {
@@ -841,8 +669,6 @@ public class ElasticsearchCluster implements Closeable {
 
       createIndex.getResult(webTarget);
     }
-
-    green();
   }
 
   /**
@@ -854,7 +680,6 @@ public class ElasticsearchCluster implements Closeable {
       createAliases.addAlias(schema, alias);
     }
     createAliases.getResult(webTarget);
-    green();
   }
 
   public void aliasWithFilter(String alias, String filter, String... schemas) {
@@ -863,7 +688,6 @@ public class ElasticsearchCluster implements Closeable {
       createAliases.addAlias(schema, alias, filter);
     }
     createAliases.getResult(webTarget);
-    green();
   }
 
   public void alias(List<AliasActionDef> aliasActions) {
@@ -880,7 +704,6 @@ public class ElasticsearchCluster implements Closeable {
     }
 
     createAliases.getResult(webTarget);
-    green();
   }
 
   /**
@@ -928,7 +751,7 @@ public class ElasticsearchCluster implements Closeable {
 
     for (int i = 0; i < rows; i++) {
 
-      bulk.add(String.format(BULK_INDEX_STRING, schema, table));
+      bulk.add(String.format(BULK_INDEX_TEXT, schema, table));
       XContentBuilder json = XContentFactory.jsonBuilder().startObject();
       Tuple<Boolean, Integer> tuple;
 
@@ -1025,7 +848,7 @@ public class ElasticsearchCluster implements Closeable {
             }
 
             break;
-          case STRING:
+          case TEXT:
             tuple = arrayRandomness != null ? arrayRandomness.get(type) : null;
             if (tuple != null && tuple.v1()) {
               String[] strings = new String[tuple.v2()];
@@ -1141,7 +964,7 @@ public class ElasticsearchCluster implements Closeable {
   public SearchResults search(String schema, String table, QueryBuilder queryBuilder) throws IOException {
 
     byte[] response = connection.execute(new SearchBytes()
-        .setQuery(String.format("{\"query\": %s }", queryBuilder.buildAsBytes().toUtf8()))
+        .setQuery(String.format("{\"query\": %s }", queryBuilder.toString()))
         .setResource(String.format("%s/%s", schema, table))
         .setParameter("size", "1000")
         );
@@ -1158,41 +981,8 @@ public class ElasticsearchCluster implements Closeable {
     return search(schema, table, QueryBuilders.matchAllQuery());
   }
 
-  /**
-   * Gets the mappings for the given schema and table as a formatted json string.
-   */
-  public String mapping(String schema, String table) throws IOException {
-    if(USE_EXTERNAL_ES5){
-      return "";
-    }
-
-    GetMappingsResponse response = getElasticInternalClient().admin().indices().prepareGetMappings(schema).setTypes(table).execute().actionGet();
-
-    XContentBuilder builder = XContentFactory.jsonBuilder();
-    builder.prettyPrint().lfAtEnd();
-
-    builder.startObject();
-    ImmutableOpenMap<String, ImmutableOpenMap<String, MappingMetaData>> mappingsByIndex = response.getMappings();
-    if (mappingsByIndex.isEmpty()) {
-      return "";
-    }
-
-    for (ObjectObjectCursor<String, ImmutableOpenMap<String, MappingMetaData>> indexEntry : mappingsByIndex) {
-      if (indexEntry.value.isEmpty()) {
-        continue;
-      }
-      builder.startObject(indexEntry.key, XContentBuilder.FieldCaseConversion.NONE);
-      builder.startObject(new XContentBuilderString("mappings"));
-      for (ObjectObjectCursor<String, MappingMetaData> typeEntry : indexEntry.value) {
-        builder.field(typeEntry.key);
-        builder.map(typeEntry.value.sourceAsMap());
-      }
-      builder.endObject();
-      builder.endObject();
-    }
-
-    builder.endObject();
-    return builder.string();
+  public com.dremio.plugins.Version getMinVersionInCluster() {
+    return pool.getMinVersionInCluster();
   }
 
   /**
@@ -1201,7 +991,7 @@ public class ElasticsearchCluster implements Closeable {
    * @throws Exception
    */
   public static void main(String[] args) throws Exception {
-    ElasticsearchCluster c = new ElasticsearchCluster(1, 4000, new Random(), true, false, false, true, 4443);
+    ElasticsearchCluster c = new ElasticsearchCluster(4000, new Random(), true, false, false, true, 4443);
     System.out.println(c);
     ColumnData[] data = ElasticBaseTestQuery.getBusinessData();
     c.load("foo", "bar", data);

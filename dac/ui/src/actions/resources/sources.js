@@ -79,6 +79,7 @@ export function createSampleSource(sources, spaces, meta) {
     name,
     'accelerationRefreshPeriod': DataFreshnessSection.defaultFormValueRefreshInterval(),
     'accelerationGracePeriod': DataFreshnessSection.defaultFormValueGracePeriod(),
+    'accelerationNeverRefresh': true,
     'type': 'S3'
   };
   return (dispatch) => {

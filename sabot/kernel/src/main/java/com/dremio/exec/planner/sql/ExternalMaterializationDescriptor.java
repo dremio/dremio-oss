@@ -24,7 +24,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.util.ImpersonationUtil;
+import com.dremio.service.users.SystemUser;
 
 public class ExternalMaterializationDescriptor extends MaterializationDescriptor {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExternalMaterializationDescriptor.class);
@@ -35,15 +35,21 @@ public class ExternalMaterializationDescriptor extends MaterializationDescriptor
                                            long version,
                                            List<String> virtualDatasetPath,
                                            List<String> physicalDatasetPath) {
-    super(reflection, materializationId, version, Long.MAX_VALUE, null, physicalDatasetPath, 0D, 0, Collections.<String>emptyList(), IncrementalUpdateSettings.NON_INCREMENTAL, null);
+    super(reflection, materializationId, version, Long.MAX_VALUE, null, physicalDatasetPath, 0D, 0,
+        Collections.emptyList(), IncrementalUpdateSettings.NON_INCREMENTAL, null);
     this.virtualDatasetPath = virtualDatasetPath;
   }
 
+  @Override
   public DremioRelOptMaterialization getMaterializationFor(SqlConverter converter) {
     String queryPath = PathUtils.constructFullPath(virtualDatasetPath);
     String targetPath = PathUtils.constructFullPath(getPath());
-    RelNode queryRel = DremioSqlToRelConverter.expandView(ImpersonationUtil.getProcessUserName(), String.format("select * from %s", queryPath), null, converter).rel;
-    RelNode tableRel = DremioSqlToRelConverter.expandView(ImpersonationUtil.getProcessUserName(), String.format("select * from %s", targetPath), null, converter).rel;
+
+    final RelNode queryRel = DremioSqlToRelConverter.expandView(SystemUser.SYSTEM_USERNAME,
+        String.format("select * from %s", queryPath), null, converter).rel;
+    RelNode tableRel = DremioSqlToRelConverter.expandView(SystemUser.SYSTEM_USERNAME,
+        String.format("select * from %s", targetPath), null, converter).rel;
+
     if (!MoreRelOptUtil.areRowTypesEqual(queryRel.getRowType(), tableRel.getRowType(), true, false)) {
       throw UserException.validationError()
         .message("External reflection schema does not match Dataset schema")

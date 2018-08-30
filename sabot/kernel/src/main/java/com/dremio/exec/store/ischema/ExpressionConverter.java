@@ -19,6 +19,7 @@ import static com.dremio.service.namespace.DatasetIndexKeys.LOWER_CASE_SUFFIX;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -31,8 +32,10 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
+import org.apache.calcite.rex.RexPatternFieldRef;
 import org.apache.calcite.rex.RexRangeRef;
 import org.apache.calcite.rex.RexSubQuery;
+import org.apache.calcite.rex.RexTableInputRef;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitor;
 
@@ -231,6 +234,16 @@ public class ExpressionConverter {
 
     @Override
     public SearchQuery visitSubQuery(RexSubQuery subQuery) {
+      return null;
+    }
+
+    @Override
+    public SearchQuery visitPatternFieldRef(RexPatternFieldRef fieldRef) {
+      return null;
+    }
+
+    @Override
+    public SearchQuery visitTableInputRef(RexTableInputRef fieldRef) {
       return null;
     }
 

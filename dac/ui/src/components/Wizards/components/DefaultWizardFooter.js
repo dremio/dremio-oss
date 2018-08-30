@@ -67,7 +67,7 @@ export default class DefaultWizardFooter extends Component {
     const submitType = submitting && this.state.submitType;
 
     return (
-      <WizardFooter style={[styles.wizardParent, this.props.style]}>
+      <WizardFooter style={{...styles.wizardParent, ...this.props.style}}>
         <SimpleButton
           buttonStyle='primary'
           onClick={this.onButtonClick.bind(this, 'apply')}

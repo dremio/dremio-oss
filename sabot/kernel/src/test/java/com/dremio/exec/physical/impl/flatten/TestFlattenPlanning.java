@@ -26,7 +26,7 @@ public class TestFlattenPlanning extends PlanTestBase {
   public void testFlattenPlanningAvoidUnnecessaryProject() throws Exception {
     // Because of Java7 vs Java8 map ordering differences, we check for both cases
     // See DRILL-4331 for details
-    testPlanMatchingPatterns("select flatten(complex), rownum from cp.`/store/json/test_flatten_mappify2.json`",
+    testPlanMatchingPatterns("select flatten(complex), rownum from cp.\"/store/json/test_flatten_mappify2.json\"",
         new String[]{"\\QProject(EXPR$0=[$1], rownum=[$0])\\E|\\QProject(EXPR$0=[$0], rownum=[$1])\\E"},
         new String[]{"\\QProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$3=[$1])\\E|\\QProject(EXPR$0=[$1], EXPR$1=[$0], EXPR$3=[$0])\\E"});
   }
@@ -36,7 +36,7 @@ public class TestFlattenPlanning extends PlanTestBase {
     final String query =
         " select comp, rownum " +
         " from (select flatten(complex) comp, rownum " +
-        "      from cp.`/store/json/test_flatten_mappify2.json`) " +
+        "      from cp.\"/store/json/test_flatten_mappify2.json\") " +
         " where comp > 1 " +   // should not be pushed down
         "   and rownum = 100"; // should be pushed down.
 
@@ -50,7 +50,7 @@ public class TestFlattenPlanning extends PlanTestBase {
     final String query =
         " select comp, rownum " +
             " from (select flatten(complex) comp, rownum " +
-            "      from cp.`/store/json/test_flatten_mappify2.json`) " +
+            "      from cp.\"/store/json/test_flatten_mappify2.json\") " +
             " where comp > 1 " +   // should NOT be pushed down
             "   OR rownum = 100";  // should NOT be pushed down.
 
@@ -62,7 +62,7 @@ public class TestFlattenPlanning extends PlanTestBase {
   @Test
   public void dx8383_flatten_lost() throws Exception {
     final String vds = "create vds dfs_test.flatten1 as SELECT float_col, int_col, int_list_col, float_list_col, bool_list_col, flatten(str_list_col) AS str_list_col, str_list_list_col, order_list, user_map, int_text_col, float_text_col, time_text_col, timestamp_text_col, date_text_col, splittable_col, address, text_col, bool_col\n" +
-        "FROM cp.`flatten/all_types_dremio.json`";
+        "FROM cp.\"flatten/all_types_dremio.json\"";
     testNoResult(vds);
 
     final String onvds = "SELECT str_list_col, flatten(str_list_list_col[0]) AS A\n" +
@@ -77,7 +77,7 @@ public class TestFlattenPlanning extends PlanTestBase {
         + "  SELECT flatten(nested_0.tagList.data) AS data, nested_0.tagList.tagId AS tagid\n"
         + "  FROM (\n"
         + "    SELECT flatten(tagList) AS tagList\n"
-        + "    FROM cp.`/store/json/doubleflatten.json`) nested_0\n"
+        + "    FROM cp.\"/store/json/doubleflatten.json\") nested_0\n"
         + ") nested_1\n"
         + "WHERE tagId = 1";
     // make sure we don't timeout.
@@ -91,7 +91,7 @@ public class TestFlattenPlanning extends PlanTestBase {
         + "  SELECT flatten(nested_0.tagList.data) AS data, nested_0.tagList.tagId AS tagid\n"
         + "  FROM (\n"
         + "    SELECT flatten(tagList) AS tagList\n"
-        + "    FROM cp.`/store/json/doubleflatten.json`) nested_0\n"
+        + "    FROM cp.\"/store/json/doubleflatten.json\") nested_0\n"
         + ") nested_1\n"
         + "WHERE tagId = 1";
     // make sure filter is below first flatten.

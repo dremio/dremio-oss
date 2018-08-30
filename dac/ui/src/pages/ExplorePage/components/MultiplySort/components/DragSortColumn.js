@@ -17,10 +17,13 @@ import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
+import classNames from 'classnames';
 
 import Select from 'components/Fields/Select';
 import DragAreaColumn from 'components/DragComponents/DragAreaColumn';
+import { base, columnElement, /*icon as iconCls, customLabel,*/ select as selectCls } from './DragSortColumn.less';
 
+//todo reuse this component for DragMeasureColumn
 @Radium
 class DragSortColumn extends Component {
   static propTypes = {
@@ -51,46 +54,37 @@ class DragSortColumn extends Component {
   render() {
     const { field, index } = this.props;
     return (
-      <div className='drag-sort-column' style={[styles.base]}>
+      <div className={classNames(['drag-sort-column', base])}>
         <Select
           {...field.direction}
           dataQa='sortDirection'
-          style={styles.select}
+          className={selectCls}
           items={this.options}
           iconStyle={styles.iconStyle}
           customLabelStyle={styles.customLabelStyle}
         />
-        <DragAreaColumn
-          field={field.name}
-          isDragInProgress={this.props.isDragInProgress}
-          allColumns={this.props.allColumns}
-          index={index}
-          dragOrigin='sort'
-          onRemoveColumn={this.props.onRemoveColumn}
-          dragType={this.props.dragType}
-        />
+        <div className={columnElement}>
+          <DragAreaColumn
+            field={field.name}
+            isDragInProgress={this.props.isDragInProgress}
+            allColumns={this.props.allColumns}
+            index={index}
+            dragOrigin='sort'
+            onRemoveColumn={this.props.onRemoveColumn}
+            dragType={this.props.dragType}
+          />
+        </div>
       </div>
     );
   }
 }
 
 const styles = {
-  base: {
-    display: 'flex',
-    flexWrap: 'nowrap',
-    alignItems: 'center'
-  },
   iconStyle: {
     top: 0
   },
   customLabelStyle: {
     top: 13
-  },
-  select: {
-    width: 400,
-    height: 25,
-    marginLeft: 5,
-    marginTop: 4
   }
 };
 

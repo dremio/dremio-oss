@@ -15,7 +15,7 @@
  */
 package com.dremio.dac.api;
 
-import static com.dremio.exec.server.options.OptionValue.OptionType.SYSTEM;
+import static com.dremio.options.OptionValue.OptionType.SYSTEM;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_PERIODIC_WAKEUP_ONLY;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
@@ -47,8 +47,8 @@ import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
-import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.options.OptionValue;
 import com.dremio.service.accelerator.AccelerationTestUtil;
 import com.dremio.service.accelerator.ReflectionMonitor;
 import com.dremio.service.namespace.file.FileFormat;

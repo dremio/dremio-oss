@@ -48,14 +48,14 @@ public class TestRepeatedReaders extends BaseTestQuery {
   }
 
   private void createAndQuery(String datafile) throws Exception {
-    String query = String.format("select * from cp.`parquet/%s`", datafile);
+    String query = String.format("select * from cp.\"parquet/%s\"", datafile);
     String tableName = "test_repeated_readers_"+datafile;
 
     try {
-      test("create table dfs_test.`%s` as %s", tableName, query);
+      test("create table dfs_test.\"%s\" as %s", tableName, query);
 
       testBuilder()
-        .sqlQuery("select * from dfs_test.`%s` d", tableName)
+        .sqlQuery("select * from dfs_test.\"%s\" d", tableName)
         .ordered()
         .jsonBaselineFile("parquet/" + datafile)
         .go();
@@ -76,34 +76,34 @@ public class TestRepeatedReaders extends BaseTestQuery {
 
   @Test //DRILL-2292
   public void testNestedRepeatedListInsideRepeatedMap() throws Exception {
-    runSQL("alter session set `store.format` = 'json'");
+    runSQL("alter session set \"store.format\" = 'json'");
 
     try {
       createAndQuery("2292.rl_rm.json");
     } finally {
-      runSQL("alter session set `store.format` = 'parquet'");
+      runSQL("alter session set \"store.format\" = 'parquet'");
     }
   }
 
   @Test //DRILL-2292
   public void testNestedRepeatedMapInsideRepeatedList() throws Exception {
-    runSQL("alter session set `store.format` = 'json'");
+    runSQL("alter session set \"store.format\" = 'json'");
 
     try {
       createAndQuery("2292.rm_rl.json");
     } finally {
-      runSQL("alter session set `store.format` = 'parquet'");
+      runSQL("alter session set \"store.format\" = 'parquet'");
     }
   }
 
   @Test //DRILL-2292
   public void testNestedRepeatedListInsideRepeatedList() throws Exception {
-    runSQL("alter session set `store.format` = 'json'");
+    runSQL("alter session set \"store.format\" = 'json'");
 
     try {
       createAndQuery("2292.rl_rl.json");
     } finally {
-      runSQL("alter session set `store.format` = 'parquet'");
+      runSQL("alter session set \"store.format\" = 'parquet'");
     }
   }
 }

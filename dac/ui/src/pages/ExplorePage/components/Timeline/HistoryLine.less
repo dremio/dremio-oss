@@ -13,14 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.history-line {
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+    
+  .history-line {
 
-  .job-progress {
-    color: #fff;
-    margin-left: 10px;
-
-    .result {
+    .job-progress {
       color: #fff;
+      margin-left: 10px;
+
+      .result {
+        color: #fff;
+      }
     }
   }
 }

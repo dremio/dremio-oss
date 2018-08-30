@@ -196,6 +196,7 @@ public class DatasetsUtil {
 
     virtualDatasetUI.setDerivation(vvds.getDerivation());
     virtualDatasetUI.setSql(virtualDataset.getSql());
+    virtualDatasetUI.setContextList(virtualDataset.getContextList());
     virtualDatasetUI.setRecordSchema(datasetConfig.getRecordSchema());
 
     virtualDatasetUI.getState().setContextList(virtualDataset.getContextList());

@@ -28,10 +28,10 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.common.store.ViewCreatorFactory;
-import com.dremio.common.store.ViewCreatorFactory.ViewCreator;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.KVStoreProvider;
+import com.dremio.exec.catalog.ViewCreatorFactory;
+import com.dremio.exec.catalog.ViewCreatorFactory.ViewCreator;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.PhysicalPlanReader;
@@ -301,6 +301,10 @@ public class SabotContext implements AutoCloseable {
 
   public boolean isExecutor() {
     return roles.contains(Role.EXECUTOR);
+  }
+
+  public boolean isMaster() {
+    return roles.contains(Role.MASTER);
   }
 
   public ViewCreator getViewCreator(String userName) {

@@ -90,12 +90,17 @@ public class MaterializationList implements MaterializationProvider {
   @VisibleForTesting
   protected List<RelOptMaterialization> build(final MaterializationDescriptorProvider provider) {
     final Set<String> exclusions = Sets.newHashSet(session.getSubstitutionSettings().getExclusions());
+    final Set<String> inclusions = Sets.newHashSet(session.getSubstitutionSettings().getInclusions());
+    final boolean hasInclusions = !inclusions.isEmpty();
     final List<RelOptMaterialization> materializations = Lists.newArrayList();
     for (final MaterializationDescriptor descriptor : provider.get()) {
-      // skip if materialization is excluded
-      // exclusion list is passed by AcceleratorTask
-      if (exclusions.contains(descriptor.getLayoutId())) {
-        continue;
+
+      if(
+          (hasInclusions && !inclusions.contains(descriptor.getLayoutId()))
+          ||
+          exclusions.contains(descriptor.getLayoutId())
+         ) {
+          continue;
       }
 
       try {

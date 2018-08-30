@@ -19,7 +19,7 @@ import java.sql.Timestamp;
 import java.util.Iterator;
 
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
-import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.collect.ImmutableList;

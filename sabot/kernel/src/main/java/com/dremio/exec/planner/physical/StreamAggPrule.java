@@ -83,7 +83,7 @@ public class StreamAggPrule extends AggPruleBase {
                   aggregate.indicator,
                   aggregate.getGroupSet(),
                   aggregate.getGroupSets(),
-                  convertAggCallList(join, aggregate.getAggCallList()),
+                  aggregate.getAggCallList(),
                   OperatorPhase.PHASE_1of2);
 
               UnionExchangePrel exch =
@@ -139,7 +139,7 @@ public class StreamAggPrule extends AggPruleBase {
                   aggregate.indicator,
                   aggregate.getGroupSet(),
                   aggregate.getGroupSets(),
-                  convertAggCallList(aggregate, aggregate.getAggCallList()),
+                  aggregate.getAggCallList(),
                   OperatorPhase.PHASE_1of2);
 
               int numEndPoints = PrelUtil.getSettings(phase1Agg.getCluster()).numEndPoints();

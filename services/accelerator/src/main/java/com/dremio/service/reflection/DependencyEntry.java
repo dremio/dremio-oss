@@ -15,6 +15,7 @@
  */
 package com.dremio.service.reflection;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -29,6 +30,10 @@ import com.dremio.service.reflection.proto.ReflectionId;
 public abstract class DependencyEntry {
 
   public abstract DependencyType getType();
+
+  public List<String> getPath() {
+    return Collections.emptyList();
+  }
 
   public abstract String getId();
 

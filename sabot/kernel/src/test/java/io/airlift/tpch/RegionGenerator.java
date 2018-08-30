@@ -29,8 +29,8 @@
 package io.airlift.tpch;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.VarCharVector;
 
 import com.google.common.base.Charsets;
 
@@ -39,9 +39,9 @@ import io.airlift.tpch.GenerationDefinition.TpchTable;
 public class RegionGenerator extends TpchGenerator {
   private static final int COMMENT_AVERAGE_LENGTH = 72;
 
-  private final NullableBigIntVector regionKey;
-  private final NullableVarCharVector name;
-  private final NullableVarCharVector comment;
+  private final BigIntVector regionKey;
+  private final VarCharVector name;
+  private final VarCharVector comment;
 
   private final Distribution regions;
   private final RandomText commentRandom;

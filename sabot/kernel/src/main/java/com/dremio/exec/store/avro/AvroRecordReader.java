@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.arrow.vector.complex.impl.MapOrListWriterImpl;
+import org.apache.arrow.vector.complex.impl.StructOrListWriterImpl;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Type;
@@ -137,22 +137,22 @@ public class AvroRecordReader extends AbstractRecordReader {
 
     switch (type) {
       case RECORD:
-        process(container, schema, null, new MapOrListWriterImpl(writer.rootAsMap()), fieldSelection);
+        process(container, schema, null, new StructOrListWriterImpl(writer.rootAsStruct()), fieldSelection);
         break;
       default:
         throw new RuntimeException("Root object must be record type. Found: " + type);
     }
   }
 
-  private void process(final Object value, final Schema schema, final String fieldName, MapOrListWriterImpl writer, FieldSelection fieldSelection) {
+  private void process(final Object value, final Schema schema, final String fieldName, StructOrListWriterImpl writer, FieldSelection fieldSelection) {
     if (value == null) {
       return;
     }
     final Schema.Type type = schema.getType();
     switch (type) {
       case RECORD:
-        // list field of MapOrListWriter will be non null when we want to store array of maps/records.
-        MapOrListWriterImpl _writer = writer;
+        // list field of StructOrListWriter will be non null when we want to store array of maps/records.
+        StructOrListWriterImpl _writer = writer;
 
         for (final Schema.Field field : schema.getFields()) {
           if (fieldSelection.getChild(field.name()).isNeverValid()) {
@@ -163,7 +163,7 @@ public class AvroRecordReader extends AbstractRecordReader {
               field.schema().getTypes().get(0).getType() == Schema.Type.NULL &&
               field.schema().getTypes().get(1).getType() == Schema.Type.RECORD);
           if (isMap) {
-              _writer = (MapOrListWriterImpl) writer.map(field.name());
+              _writer = (StructOrListWriterImpl) writer.struct(field.name());
               _writer.start();
           }
 
@@ -180,9 +180,9 @@ public class AvroRecordReader extends AbstractRecordReader {
         Schema elementSchema = array.getSchema().getElementType();
         Type elementType = elementSchema.getType();
         if (elementType == Schema.Type.RECORD || elementType == Schema.Type.MAP){
-          writer = (MapOrListWriterImpl) writer.list(fieldName).listoftmap(fieldName);
+          writer = (StructOrListWriterImpl) writer.list(fieldName).listoftstruct(fieldName);
         } else {
-          writer = (MapOrListWriterImpl) writer.list(fieldName);
+          writer = (StructOrListWriterImpl) writer.list(fieldName);
         }
         writer.start();
         for (final Object o : array) {
@@ -201,7 +201,7 @@ public class AvroRecordReader extends AbstractRecordReader {
         @SuppressWarnings("unchecked")
         final HashMap<Object, Object> map = (HashMap<Object, Object>) value;
         Schema valueSchema = schema.getValueType();
-        writer = (MapOrListWriterImpl) writer.map(fieldName);
+        writer = (StructOrListWriterImpl) writer.struct(fieldName);
         writer.start();
         for (Entry<Object, Object> entry : map.entrySet()) {
           process(entry.getValue(), valueSchema, entry.getKey().toString(), writer, fieldSelection.getChild(entry.getKey().toString()));
@@ -215,7 +215,7 @@ public class AvroRecordReader extends AbstractRecordReader {
       default:
         assert fieldName != null;
 
-        if (writer.isMapWriter()) {
+        if (writer.isStructWriter()) {
           if (fieldSelection.isNeverValid()) {
             break;
           }
@@ -228,7 +228,7 @@ public class AvroRecordReader extends AbstractRecordReader {
   }
 
   private void processPrimitive(final Object value, final Schema.Type type, final String fieldName,
-                                final MapOrListWriterImpl writer) {
+                                final StructOrListWriterImpl writer) {
     if (value == null) {
       return;
     }

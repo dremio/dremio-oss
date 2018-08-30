@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>2.0.5-201806021755080191-767cfb5</version>
+    <version>2.1.4-201808302048550610_0981242</version>
   </parent>
 
   <artifactId>dremio-hive-exec-shaded</artifactId>
@@ -91,8 +91,24 @@
       <scope>compile</scope>
       <exclusions>
         <exclusion>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-slf4j-impl</artifactId>
+        </exclusion>
+        <exclusion>
           <artifactId>log4j</artifactId>
           <groupId>log4j</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>servlet-api</artifactId>
+          <groupId>javax.servlet</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>netty-all</artifactId>
+          <groupId>io.netty</groupId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-llap-tez</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -117,14 +133,7 @@
                        hive-exec pom may not have it -->
                   <include>org.apache.avro:avro</include>
                   <include>org.apache.commons:commons-lang3</include>
-                  <include>com.twitter:parquet-column</include>
-                  <include>com.twitter:parquet-hadoop</include>
                   <include>commons-codec:commons-codec</include>
-                  <include>com.twitter:parquet-format</include>
-                  <include>com.twitter:parquet-common</include>
-                  <include>com.twitter:parquet-jackson</include>
-                  <include>com.twitter:parquet-encoding</include>
-                  <include>com.twitter:parquet-generator</include>
                   <include>org.apache.calcite:calcite-core</include>
                   <include>org.apache.calcite:calcite-avatica</include>
                 </includes>
@@ -141,6 +150,8 @@
                     <!-- also expressed as a dependency -->
                     <exclude>org/apache/thrift/**</exclude>
                     <exclude>templates/**</exclude>
+                    <exclude>org/apache/hadoop/hive/llap/**</exclude>
+                    <exclude>org/apache/hadoop/hive/metastore/**</exclude>
                   </excludes>
                 </filter>
                 <filter>
@@ -164,8 +175,12 @@
                   <shadedPattern>hive.com.google.</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>parquet.</pattern>
-                  <shadedPattern>hive.parquet.</shadedPattern>
+                  <pattern>com.fasterxml.jackson.</pattern>
+                  <shadedPattern>hive.com.fasterxml.jackson.</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.parquet.</pattern>
+                  <shadedPattern>hive.org.apache.parquet.</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.commons.codec.</pattern>

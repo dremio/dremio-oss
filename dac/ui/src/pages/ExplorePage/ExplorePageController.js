@@ -25,6 +25,7 @@ import { getDataset, getHistory } from 'selectors/explore';
 import { performLoadDataset } from 'actions/explore/dataset/get';
 import { setCurrentSql } from 'actions/explore/view';
 import { resetViewState } from 'actions/resources';
+import { withDatasetChanges } from '@app/pages/ExplorePage/DatasetChanges';
 
 import {
   updateSqlPartSize
@@ -56,7 +57,6 @@ export class ExplorePageControllerComponent extends Component {
     location: PropTypes.object.isRequired,
     sqlState: PropTypes.bool.isRequired,
     sqlSize: PropTypes.number,
-    currentSql: PropTypes.string,
     route: PropTypes.object,
     history: PropTypes.instanceOf(Immutable.Map),
     rightTreeVisible: PropTypes.bool,
@@ -72,7 +72,9 @@ export class ExplorePageControllerComponent extends Component {
     resetViewState: PropTypes.func.isRequired,
     style: PropTypes.object,
     showConfirmationDialog: PropTypes.func,
-    router: PropTypes.object
+    router: PropTypes.object,
+    // provided by withDatasetChanges
+    getDatasetChangeDetails: PropTypes.func.isRequired
   };
 
   static defaultProps = {
@@ -190,19 +192,25 @@ export class ExplorePageControllerComponent extends Component {
   }
 
   shouldShowUnsavedChangesPopup(nextLocation) {
-    const { dataset, currentSql, location, history } = this.props;
+    const {
+      dataset,
+      location,
+      history,
+      getDatasetChangeDetails
+    } = this.props;
 
     if (this.discardUnsavedChangesConfirmed) {
       this.discardUnsavedChangesConfirmed = false;
       return false;
     }
 
+    const {
+      sqlChanged,
+      historyChanged
+    } = getDatasetChangeDetails();
+
     const {tipVersion: nextTipVersion, version: nextVersion} = nextLocation.query || {};
     const historyTipVersion = history && history.get('tipVersion');
-
-    // leaving modified sql?
-    // currentSql === undefined means sql is unchanged.
-    const sqlChanged = currentSql !== undefined && dataset.get('sql') !== currentSql;
 
     // Check if we are navigating within same history or this hook was called after saving dataset
     if (nextTipVersion && nextTipVersion === historyTipVersion) {
@@ -222,7 +230,7 @@ export class ExplorePageControllerComponent extends Component {
     if (sqlChanged) {
       return true;
     }
-    return history ? history.get('isEdited') : false;
+    return historyChanged;
   }
 
   didConfirmDiscardUnsavedChanges() {
@@ -265,7 +273,8 @@ export function getNewDataset(location) {
     isNewQuery: true,
     fullPath: ['tmp', 'UNTITLED'],
     displayFullPath: ['tmp', 'New Query'],
-    context: location.query && location.query.context ? splitFullPath(location.query.context) : [],
+    //have to decode a context parameter. This should be consistent with NewQueryButton.getNewQueryHref
+    context: location.query && location.query.context ? splitFullPath(location.query.context).map(decodeURIComponent) : [],
     sql: '',
     datasetType: 'VIRTUAL_DATASET',
     apiLinks: {
@@ -345,7 +354,6 @@ function mapStateToProps(state, ownProps) {
     // in New Query, force sql open, but don't change state in localStorage
     sqlState: state.explore.ui.get('sqlState') || isNewQuery,
     sqlSize: state.explore.ui.get('sqlSize'),
-    currentSql: state.explore.view.get('currentSql'),
     isResizeInProgress: state.explore.ui.get('isResizeInProgress'),
     initialDatasetVersion: state.explore.ui.get('initialDatasetVersion'),
     rightTreeVisible: state.ui.get('rightTreeVisible'),
@@ -364,4 +372,4 @@ export default connect(mapStateToProps, {
   setResizeProgressState,
   updateRightTreeVisibility,
   showConfirmationDialog
-})(ExplorePageController);
+})(withDatasetChanges(ExplorePageController));

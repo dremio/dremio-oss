@@ -56,7 +56,7 @@
  - GET /dataset/{cpath}/version/{version}   
    > `<=` [com.dremio.dac.explore.model.Dataset](#class-comdremiodacexploremodeldataset)   
 
- - POST /dataset/{cpath}/version/{version}/reapply   
+ - POST /dataset/{cpath}/version/{version}/editOriginalSql   
    > `=>`   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
 
@@ -396,6 +396,9 @@
  - GET /settings   
    > `<=` [com.dremio.dac.service.admin.SettingsResource$SettingsWrapperObject](#class-comdremiodacserviceadminsettingsresource$settingswrapperobject)   
 
+ - DELETE /settings/{id} (path params: id={String})   
+   > `<=` javax.ws.rs.core.Response   
+
  - GET /settings/{id} (path params: id={String})   
    > `<=` javax.ws.rs.core.Response   
 
@@ -525,6 +528,21 @@
    > `<=` [com.dremio.dac.model.spaces.Spaces](#class-comdremiodacmodelspacesspaces)   
 
 
+## Resource defined by class com.dremio.dac.resource.SQLResource
+
+ - POST /sql   
+   > `=>` [com.dremio.dac.explore.model.CreateFromSQL](#class-comdremiodacexploremodelcreatefromsql)   
+   > `<=` [com.dremio.dac.model.job.JobDataFragment](#class-comdremiodacmodeljobjobdatafragment)   
+
+ - POST /sql/analyze/suggest   
+   > `=>` [com.dremio.dac.explore.model.AnalyzeRequest](#class-comdremiodacexploremodelanalyzerequest)   
+   > `<=` [com.dremio.dac.explore.model.SuggestionResponse](#class-comdremiodacexploremodelsuggestionresponse)   
+
+ - POST /sql/analyze/validate   
+   > `=>` [com.dremio.dac.explore.model.AnalyzeRequest](#class-comdremiodacexploremodelanalyzerequest)   
+   > `<=` [com.dremio.dac.explore.model.ValidationResponse](#class-comdremiodacexploremodelvalidationresponse)   
+
+
 ## Resource defined by class com.dremio.dac.support.SupportResource
 
  - POST /support/{jobId} (path params: jobId={com.dremio.service.job.proto.JobId})   
@@ -576,15 +594,21 @@
    > `<=` [com.dremio.dac.model.usergroup.UsersUI](#class-comdremiodacmodelusergroupusersui)   
 
 
-## Resource defined by class com.dremio.dac.resource.SQLResource
-
- - POST sql   
-   > `=>` [com.dremio.dac.explore.model.CreateFromSQL](#class-comdremiodacexploremodelcreatefromsql)   
-   > `<=` [com.dremio.dac.model.job.JobDataFragment](#class-comdremiodacmodeljobjobdatafragment)   
-
-
 
 #V2 JobData
+## `class com.dremio.dac.explore.model.AnalyzeRequest`
+- Example:
+```
+{
+  context: [
+    "abc",
+    ...
+  ],
+  cursorPosition: 1,
+  sql: "abc",
+}
+```
+
 ## `class com.dremio.dac.explore.model.CleanDataCard`
 - Example:
 ```
@@ -674,6 +698,10 @@
         type: "abc",
         typeFamily: "abc",
       },
+      ...
+    ],
+    contextList: [
+      "abc",
       ...
     ],
     createdAt: 1,
@@ -1382,10 +1410,43 @@
 }
 ```
 
+## `class com.dremio.dac.explore.model.SuggestionResponse`
+- Example:
+```
+{
+  suggestions: [
+    {
+      name: "abc",
+      type: "abc",
+    },
+    ...
+  ],
+}
+```
+
 ## `class com.dremio.dac.explore.model.TransformBase`
 - Example:
 ```
 {
+}
+```
+
+## `class com.dremio.dac.explore.model.ValidationResponse`
+- Example:
+```
+{
+  errors: [
+    {
+      message: "abc",
+      range: {
+        endColumn: 1,
+        endLine: 1,
+        startColumn: 1,
+        startLine: 1,
+      },
+    },
+    ...
+  ],
 }
 ```
 
@@ -1507,6 +1568,10 @@
               type: "abc",
               typeFamily: "abc",
             },
+            ...
+          ],
+          contextList: [
+            "abc",
             ...
           ],
           createdAt: 1,
@@ -1816,7 +1881,11 @@
               ...
             ],
             measureFieldList: [
-              { /** LayoutFieldApiDescriptor **/
+              {
+                measureTypeList: [
+                  "UNKNOWN" | "MIN" | "MAX" | "SUM" | "COUNT" | "APPROX_COUNT_DISTINCT",
+                  ...
+                ],
                 name: "abc",
               },
               ...
@@ -1929,6 +1998,8 @@
     layoutVersion: 1,
     materializationId: "abc",
     reflectionId: "abc",
+    reflectionName: "abc",
+    reflectionType: "abc",
   },
   outputRecords: 1,
   paginationUrl: "abc",
@@ -2241,6 +2312,8 @@
         layoutVersion: 1,
         materializationId: "abc",
         reflectionId: "abc",
+        reflectionName: "abc",
+        reflectionType: "abc",
       },
       originalCost: 1.0,
       parentsList: [
@@ -2277,12 +2350,12 @@
                   ...
                 ],
                 majorType: {
-                  minorType: "LATE" | "MAP" | "TINYINT" | "SMALLINT" | "INT" | "BIGINT" | "DECIMAL9" | "DECIMAL18" | "DECIMAL28SPARSE" | "DECIMAL38SPARSE" | "MONEY" | "DATE" | "TIME" | "TIMETZ" | "TIMESTAMPTZ" | "TIMESTAMP" | "INTERVAL" | "FLOAT4" | "FLOAT8" | "BIT" | "FIXEDCHAR" | "FIXED16CHAR" | "FIXEDBINARY" | "VARCHAR" | "VAR16CHAR" | "VARBINARY" | "UINT1" | "UINT2" | "UINT4" | "UINT8" | "DECIMAL28DENSE" | "DECIMAL38DENSE" | "NULL" | "INTERVALYEAR" | "INTERVALDAY" | "LIST" | "GENERIC_OBJECT" | "UNION" | "DECIMAL",
+                  minorType: "LATE" | "STRUCT" | "TINYINT" | "SMALLINT" | "INT" | "BIGINT" | "DECIMAL9" | "DECIMAL18" | "DECIMAL28SPARSE" | "DECIMAL38SPARSE" | "MONEY" | "DATE" | "TIME" | "TIMETZ" | "TIMESTAMPTZ" | "TIMESTAMP" | "INTERVAL" | "FLOAT4" | "FLOAT8" | "BIT" | "FIXEDCHAR" | "FIXED16CHAR" | "FIXEDSIZEBINARY" | "VARCHAR" | "VAR16CHAR" | "VARBINARY" | "UINT1" | "UINT2" | "UINT4" | "UINT8" | "DECIMAL28DENSE" | "DECIMAL38DENSE" | "NULL" | "INTERVALYEAR" | "INTERVALDAY" | "LIST" | "GENERIC_OBJECT" | "UNION" | "DECIMAL",
                   mode: "OPTIONAL" | "REQUIRED" | "REPEATED",
                   precision: 1,
                   scale: 1,
                   subTypeList: [
-                    "LATE" | "MAP" | "TINYINT" | "SMALLINT" | "INT" | "BIGINT" | "DECIMAL9" | "DECIMAL18" | "DECIMAL28SPARSE" | "DECIMAL38SPARSE" | "MONEY" | "DATE" | "TIME" | "TIMETZ" | "TIMESTAMPTZ" | "TIMESTAMP" | "INTERVAL" | "FLOAT4" | "FLOAT8" | "BIT" | "FIXEDCHAR" | "FIXED16CHAR" | "FIXEDBINARY" | "VARCHAR" | "VAR16CHAR" | "VARBINARY" | "UINT1" | "UINT2" | "UINT4" | "UINT8" | "DECIMAL28DENSE" | "DECIMAL38DENSE" | "NULL" | "INTERVALYEAR" | "INTERVALDAY" | "LIST" | "GENERIC_OBJECT" | "UNION" | "DECIMAL",
+                    "LATE" | "STRUCT" | "TINYINT" | "SMALLINT" | "INT" | "BIGINT" | "DECIMAL9" | "DECIMAL18" | "DECIMAL28SPARSE" | "DECIMAL38SPARSE" | "MONEY" | "DATE" | "TIME" | "TIMETZ" | "TIMESTAMPTZ" | "TIMESTAMP" | "INTERVAL" | "FLOAT4" | "FLOAT8" | "BIT" | "FIXEDCHAR" | "FIXED16CHAR" | "FIXEDSIZEBINARY" | "VARCHAR" | "VAR16CHAR" | "VARBINARY" | "UINT1" | "UINT2" | "UINT4" | "UINT8" | "DECIMAL28DENSE" | "DECIMAL38DENSE" | "NULL" | "INTERVALYEAR" | "INTERVALDAY" | "LIST" | "GENERIC_OBJECT" | "UNION" | "DECIMAL",
                     ...
                   ],
                   timeZone: 1,
@@ -2446,6 +2519,8 @@
 ```
 {
   accelerationGracePeriod: 1,
+  accelerationNeverExpire: true | false,
+  accelerationNeverRefresh: true | false,
   accelerationRefreshPeriod: 1,
   config: {
   },
@@ -2466,6 +2541,10 @@
               type: "abc",
               typeFamily: "abc",
             },
+            ...
+          ],
+          contextList: [
+            "abc",
             ...
           ],
           createdAt: 1,
@@ -2762,6 +2841,8 @@
   sources: [
     {
       accelerationGracePeriod: 1,
+      accelerationNeverExpire: true | false,
+      accelerationNeverRefresh: true | false,
       accelerationRefreshPeriod: 1,
       config: {
       },
@@ -2782,6 +2863,10 @@
                   type: "abc",
                   typeFamily: "abc",
                 },
+                ...
+              ],
+              contextList: [
+                "abc",
                 ...
               ],
               createdAt: 1,
@@ -3097,6 +3182,10 @@
             },
             ...
           ],
+          contextList: [
+            "abc",
+            ...
+          ],
           createdAt: 1,
           derivation: "SQL" | "DERIVED_UNKNOWN" | "DERIVED_PHYSICAL" | "DERIVED_VIRTUAL" | "UNKNOWN",
           fieldOriginsList: [
@@ -3399,6 +3488,10 @@
             },
             ...
           ],
+          contextList: [
+            "abc",
+            ...
+          ],
           createdAt: 1,
           derivation: "SQL" | "DERIVED_UNKNOWN" | "DERIVED_PHYSICAL" | "DERIVED_VIRTUAL" | "UNKNOWN",
           fieldOriginsList: [
@@ -3689,6 +3782,10 @@
                   type: "abc",
                   typeFamily: "abc",
                 },
+                ...
+              ],
+              contextList: [
+                "abc",
                 ...
               ],
               createdAt: 1,
@@ -4451,10 +4548,13 @@ any
       },
       gracePeriod: 1,
       method: "FULL" | "INCREMENTAL",
+      neverExpire: true | false,
+      neverRefresh: true | false,
       refreshField: "abc",
       refreshPeriod: 1,
       version: 1,
     },
+    allowApproxStats: true | false,
     deprecatedDatasetSchema: { /** ByteString **/
       empty: true | false,
     },
@@ -4610,6 +4710,8 @@ any
 ```
 {
   accelerationGracePeriod: 1,
+  accelerationNeverExpire: true | false,
+  accelerationNeverRefresh: true | false,
   accelerationRefreshPeriod: 1,
   accelerationTTL: {
     duration: 1,

@@ -27,7 +27,6 @@ import Roles from 'dyn-load/pages/AdminPage/subpages/Roles';
 import Votes from 'dyn-load/pages/AdminPage/subpages/Votes';
 
 import AdminPageView from './AdminPageView';
-import './AdminPage.less';
 
 @pureRender
 class AdminPage extends Component {

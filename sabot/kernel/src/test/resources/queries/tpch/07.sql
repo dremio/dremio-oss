@@ -12,12 +12,12 @@ from
       extract(year from l.l_shipdate) as l_year,
       l.l_extendedprice * (1 - l.l_discount) as volume
     from
-      cp.`tpch/supplier.parquet` s,
-      cp.`tpch/lineitem.parquet` l,
-      cp.`tpch/orders.parquet` o,
-      cp.`tpch/customer.parquet` c,
-      cp.`tpch/nation.parquet` n1,
-      cp.`tpch/nation.parquet` n2
+      cp."tpch/supplier.parquet" s,
+      cp."tpch/lineitem.parquet" l,
+      cp."tpch/orders.parquet" o,
+      cp."tpch/customer.parquet" c,
+      cp."tpch/nation.parquet" n1,
+      cp."tpch/nation.parquet" n2
     where
       s.s_suppkey = l.l_suppkey
       and o.o_orderkey = l.l_orderkey

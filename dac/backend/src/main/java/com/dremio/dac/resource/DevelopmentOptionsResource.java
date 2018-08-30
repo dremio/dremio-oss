@@ -31,8 +31,8 @@ import com.dremio.dac.proto.model.acceleration.SystemSettingsApiDescriptor;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.options.OptionValue;
 import com.dremio.service.reflection.ReflectionOptions;
 import com.google.common.base.Preconditions;
 

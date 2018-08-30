@@ -22,7 +22,7 @@ import ExpandIcon from 'components/ExpandIcon';
 export default class JobErrorLog extends Component {
   static propTypes = {
     failureInfo: PropTypes.object.isRequired
-  }
+  };
 
   constructor(props) {
     super(props);
@@ -40,14 +40,20 @@ export default class JobErrorLog extends Component {
 
   render() {
     const { failureInfo } = this.props;
+    // if no info OR (no message and no errors) then return
+    if (!failureInfo ||
+      (!failureInfo.has('message') &&
+        (!failureInfo.has('errors') || !failureInfo.get('errors').size))) return null;
+
     const { expanded } = this.state;
     const expandedStyle = expanded ? { maxHeight: 'none' } : {};
 
-    let error = failureInfo.get('message');
-
+    let error;
     if (failureInfo.has('errors') && failureInfo.get('errors').size > 0) {
       // errors is a list, get the first
       error = failureInfo.get('errors').get(0).get('message');
+    } else {
+      error = failureInfo.get('message');
     }
 
     return (

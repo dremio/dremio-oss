@@ -37,14 +37,14 @@ public class ValidityVectorHelper extends BaseValueVectorHelper {
   public void load(SerializedField metadata, ArrowBuf buffer) {
     Preconditions.checkArgument(vector.name.equals(metadata.getNamePart().getName()), "The field %s doesn't match the provided metadata %s.", vector.name, metadata);
     final int valueCount = metadata.getValueCount();
-    final int expectedLength = vector.getSizeFromCount(valueCount);
+    final int expectedLength = vector.getValidityBufferSizeFromCount(valueCount);
     final int actualLength = metadata.getBufferLength();
     assert expectedLength == actualLength: "expected and actual buffer sizes do not match";
 
     vector.clear();
-    vector.data = buffer.slice(0, actualLength);
-    vector.data.writerIndex(actualLength);
-    vector.data.retain();
+    vector.valueBuffer = buffer.slice(0, actualLength);
+    vector.valueBuffer.writerIndex(actualLength);
+    vector.valueBuffer.retain();
     vector.valueCount = valueCount;
   }
 

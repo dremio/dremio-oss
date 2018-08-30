@@ -18,7 +18,6 @@ package com.dremio.exec.planner.logical;
 import static com.dremio.exec.expr.fn.impl.ConcatFunctions.CONCAT_MAX_ARGS;
 
 import java.math.BigDecimal;
-import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -43,10 +42,14 @@ import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.BitSets;
+import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
+import org.apache.calcite.util.TimeString;
+import org.apache.calcite.util.TimestampString;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
@@ -69,6 +72,8 @@ import com.dremio.common.types.Types;
 import com.dremio.exec.planner.StarColumnHelper;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.work.ExecErrorConstants;
+import com.google.common.collect.ImmutableList;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 /**
@@ -272,7 +277,23 @@ public class RexToExpr {
         }
 
         if (call.getOperator() == SqlStdOperatorTable.DATETIME_PLUS) {
-          return doFunction(call, "+");
+          final LogicalExpression dtPlus = doFunction(call, "+");
+
+          // If this was a date, and we added an interval, we need to
+          // return a date.
+          // TODO(DX-11952): Fix return types for datetime_plus to match
+          // the operator definition.
+          if (call.getOperands().get(0).getType().getSqlTypeName() == SqlTypeName.DATE) {
+            switch (call.getOperands().get(1).getType().getSqlTypeName()) {
+              case INTERVAL_YEAR_MONTH:
+              case INTERVAL_YEAR:
+              case INTERVAL_MONTH:
+              case INTERVAL_DAY:
+                return FunctionCallFactory.createCast(Types.required(MinorType.DATE), dtPlus);
+            }
+          }
+
+          return dtPlus;
         }
 
         if (call.getOperator() == SqlStdOperatorTable.DATETIME_MINUS) {
@@ -350,12 +371,18 @@ public class RexToExpr {
     }
 
     private LogicalExpression getCastFunction(RexCall call){
-      LogicalExpression arg = call.getOperands().get(0).accept(this);
+      Preconditions.checkArgument(call.getOperands().size() == 1);
+
+      final RexNode sourceExpression = call.getOperands().get(0);
+      LogicalExpression arg = sourceExpression.accept(this);
       MajorType castType = null;
 
-      switch(call.getType().getSqlTypeName().getName()){
-      case "VARCHAR":
-      case "CHAR":
+      final SqlTypeName argType = call.getOperands().get(0).getType().getSqlTypeName();
+
+      boolean isTargetNumber = false;
+      switch(call.getType().getSqlTypeName()) {
+      case VARCHAR:
+      case CHAR:
         castType = MajorType.newBuilder()
                 .setMinorType(MinorType.VARCHAR)
                 .setMode(DataMode.OPTIONAL)
@@ -363,12 +390,25 @@ public class RexToExpr {
                 .build();
         break;
 
-      case "INTEGER": castType = Types.required(MinorType.INT); break;
-      case "FLOAT": castType = Types.required(MinorType.FLOAT4); break;
-      case "DOUBLE": castType = Types.required(MinorType.FLOAT8); break;
-      case "DECIMAL":
+      case BIGINT:
+        castType = Types.required(MinorType.BIGINT);
+        isTargetNumber = true;
+        break;
+      case INTEGER:
+        castType = Types.required(MinorType.INT);
+        isTargetNumber = true;
+        break;
+      case FLOAT:
+        castType = Types.required(MinorType.FLOAT4);
+        isTargetNumber = true;
+        break;
+      case DOUBLE:
+        castType = Types.required(MinorType.FLOAT8);
+        isTargetNumber = true;
+        break;
+      case DECIMAL:
         if (context.getPlannerSettings().getOptions().
-            getOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY).bool_val == false ) {
+            getOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY).getBoolVal() == false ) {
           throw UserException
               .unsupportedError()
               .message(ExecErrorConstants.DECIMAL_DISABLE_ERR_MSG)
@@ -377,6 +417,7 @@ public class RexToExpr {
 
         int precision = call.getType().getPrecision();
         int scale = call.getType().getScale();
+        isTargetNumber = true;
 
         if (precision <= 38) {
           castType = MajorType.newBuilder()
@@ -390,36 +431,96 @@ public class RexToExpr {
         }
         break;
 
-        case "INTERVAL_YEAR":
-        case "INTERVAL_YEAR_MONTH":
-        case "INTERVAL_MONTH":
+        case INTERVAL_YEAR:
+          if (argType == SqlTypeName.BIGINT || argType == SqlTypeName.INTEGER) {
+            // Casting from numeric to interval, convert to months for storage in INTERVALYEAR
+            arg = FunctionCallFactory.createExpression("multiply", arg,
+              ValueExpressions.getBigInt(org.apache.arrow.vector.util.DateUtility.yearsToMonths));
+          }
           castType = Types.required(MinorType.INTERVALYEAR);
           break;
-        case "INTERVAL_DAY":
-        case "INTERVAL_DAY_HOUR":
-        case "INTERVAL_DAY_MINUTE":
-        case "INTERVAL_DAY_SECOND":
-        case "INTERVAL_HOUR":
-        case "INTERVAL_HOUR_MINUTE":
-        case "INTERVAL_HOUR_SECOND":
-        case "INTERVAL_MINUTE":
-        case "INTERVAL_MINUTE_SECOND":
-        case "INTERVAL_SECOND":
+        case INTERVAL_YEAR_MONTH:
+        case INTERVAL_MONTH:
+          castType = Types.required(MinorType.INTERVALYEAR);
+          break;
+        case INTERVAL_DAY:
+        case INTERVAL_HOUR:
+        case INTERVAL_MINUTE:
+        case INTERVAL_SECOND:
+          if (argType == SqlTypeName.BIGINT || argType == SqlTypeName.INTEGER) {
+            // Casting from numeric to interval, convert to miliseconds for storage in INTERVALDAY
+            long multiplier = 1;
+            switch(call.getType().getSqlTypeName()) {
+            case INTERVAL_DAY:
+              multiplier = org.apache.arrow.vector.util.DateUtility.daysToStandardMillis;
+              break;
+            case INTERVAL_HOUR:
+              multiplier = org.apache.arrow.vector.util.DateUtility.hoursToMillis;
+              break;
+            case INTERVAL_MINUTE:
+              multiplier = org.apache.arrow.vector.util.DateUtility.minutesToMillis;
+              break;
+            case INTERVAL_SECOND:
+              multiplier = org.apache.arrow.vector.util.DateUtility.secondsToMillis;
+              break;
+            }
+            arg = FunctionCallFactory.createExpression("multiply", arg,
+              ValueExpressions.getBigInt(multiplier));
+          }
           castType = Types.required(MinorType.INTERVALDAY);
           break;
-        case "BOOLEAN": castType = Types.required(MinorType.BIT); break;
-        case "BINARY": castType = MajorType.newBuilder()
+        case INTERVAL_DAY_HOUR:
+        case INTERVAL_DAY_MINUTE:
+        case INTERVAL_DAY_SECOND:
+        case INTERVAL_HOUR_MINUTE:
+        case INTERVAL_HOUR_SECOND:
+        case INTERVAL_MINUTE_SECOND:
+          castType = Types.required(MinorType.INTERVALDAY);
+          break;
+        case BOOLEAN: castType = Types.required(MinorType.BIT); break;
+        case BINARY: castType = MajorType.newBuilder()
                 .setMinorType(MinorType.VARBINARY)
                 .setMode(DataMode.OPTIONAL)
                 .setPrecision(call.getType().getPrecision())
                 .build();
           break;
-        case "TIMESTAMP":
+        case TIMESTAMP:
           castType = Types.required(MinorType.TIMESTAMP);
           break;
-        case "ANY": return arg; // Type will be same as argument.
+        case ANY: return arg; // Type will be same as argument.
         default: castType = Types.required(MinorType.valueOf(call.getType().getSqlTypeName().getName()));
       }
+
+      switch (sourceExpression.getType().getSqlTypeName().getFamily()) {
+        case INTERVAL_DAY_TIME:
+        case INTERVAL_YEAR_MONTH:
+          if (isTargetNumber) {
+            // Intervals need to be scaled according to their trailing field when they are
+            // cast to numbers. The cast function evaluates to milliseconds for
+            // IntervalDayHolders and months for IntervalYearHolders.
+            final LogicalExpression divider = ValueExpressions.getInt(
+              sourceExpression.getType().getSqlTypeName().getEndUnit().multiplier.intValue());
+
+            if (call.getType().getSqlTypeName() == SqlTypeName.INTEGER) {
+              // To avoid overflow errors when casting larger intervals to their smallest field,
+              // then scaling:
+              // 1. Promote the CAST to BIGINT
+              // 2. Do the division, and cast back
+              // 3. Cast the result back to the original target type.
+              final LogicalExpression castExpr = FunctionCallFactory.createCast(Types.required(MinorType.BIGINT), arg);
+              final List<LogicalExpression> args = ImmutableList.of(castExpr, divider);
+              final LogicalExpression divisionOp = FunctionCallFactory.createExpression("divide", args);
+              return FunctionCallFactory.createCast(Types.required(MinorType.INT), divisionOp);
+            }
+
+            // If we're casting intervals to bigint we can't promote to another type
+            // (interval to high precision numeric is not implemented).
+            final LogicalExpression castExpr = FunctionCallFactory.createCast(castType, arg);
+            final List<LogicalExpression> args = ImmutableList.of(castExpr, divider);
+            return FunctionCallFactory.createExpression("divide", args);
+          }
+      }
+
       return FunctionCallFactory.createCast(castType, arg);
     }
 
@@ -683,17 +784,17 @@ public class RexToExpr {
         if (isLiteralNull(literal)) {
           return createNullExpr(MinorType.DATE);
         }
-        return (ValueExpressions.getDate((GregorianCalendar)literal.getValue()));
+        return (ValueExpressions.getDate(literal.getValueAs(DateString.class)));
       case TIME:
         if (isLiteralNull(literal)) {
           return createNullExpr(MinorType.TIME);
         }
-        return (ValueExpressions.getTime((GregorianCalendar)literal.getValue()));
+        return (ValueExpressions.getTime(literal.getValueAs(TimeString.class)));
       case TIMESTAMP:
         if (isLiteralNull(literal)) {
           return createNullExpr(MinorType.TIMESTAMP);
         }
-        return (ValueExpressions.getTimeStamp((GregorianCalendar) literal.getValue()));
+        return (ValueExpressions.getTimeStamp(literal.getValueAs(TimestampString.class)));
       case INTERVAL_YEAR:
       case INTERVAL_YEAR_MONTH:
       case INTERVAL_MONTH:

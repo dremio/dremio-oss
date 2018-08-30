@@ -51,14 +51,6 @@ public class SampleMutator implements OutputMutator, AutoCloseable {
   private final BufferAllocator allocator;
   private final BufferManager bufferManager;
 
-  /**
-   * TODO: Stop using, uses root allocator rather than a specific one.
-   */
-  @Deprecated
-  public SampleMutator(SabotContext context) {
-    this(context.getAllocator());
-  }
-
   public SampleMutator(BufferAllocator allocator) {
     this.allocator = allocator;
     this.bufferManager = new BufferManagerImpl(allocator);

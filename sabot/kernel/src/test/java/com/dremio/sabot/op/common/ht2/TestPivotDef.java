@@ -18,11 +18,11 @@ package com.dremio.sabot.op.common.ht2;
 import static org.junit.Assert.*;
 
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableBitVector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableTimeMilliVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.TimeMilliVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.junit.Test;
 
 import com.dremio.sabot.BaseTestWithAllocator;
@@ -36,13 +36,13 @@ public class TestPivotDef extends BaseTestWithAllocator {
   @Test
   public void pivotDef(){
     try(
-        NullableIntVector col1 = new NullableIntVector("col1", allocator);
-        NullableIntVector col2 = new NullableIntVector("col2", allocator);
-        NullableBigIntVector col3 = new NullableBigIntVector("col3", allocator);
-        NullableTimeMilliVector col4 = new NullableTimeMilliVector("col4", allocator);
-        NullableVarCharVector col5 = new NullableVarCharVector("col5", allocator);
-        NullableVarCharVector col6 = new NullableVarCharVector("col6", allocator);
-        NullableBitVector col7 = new NullableBitVector("col7", allocator);
+        IntVector col1 = new IntVector("col1", allocator);
+        IntVector col2 = new IntVector("col2", allocator);
+        BigIntVector col3 = new BigIntVector("col3", allocator);
+        TimeMilliVector col4 = new TimeMilliVector("col4", allocator);
+        VarCharVector col5 = new VarCharVector("col5", allocator);
+        VarCharVector col6 = new VarCharVector("col6", allocator);
+        BitVector col7 = new BitVector("col7", allocator);
         ){
 
       PivotDef pivot = PivotBuilder.getBlockDefinition(FluentIterable

@@ -34,7 +34,7 @@ const BooleanSelect = (props) => {
 export default BooleanSelect;
 
 const styles = {
-  buttonStyle: {
+  style: { // todo move to less and apply mixin for select height
     height: 24,
     lineHeight: '24px'
   },

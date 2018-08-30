@@ -116,7 +116,7 @@ class Transformer {
    * @throws DatasetNotFoundException
    * @throws DatasetVersionNotFoundException
    */
-  public DatasetAndJob reapply(DatasetVersion newVersion, List<Transform> operations, QueryType queryType) throws NamespaceException, DatasetNotFoundException, DatasetVersionNotFoundException {
+  public DatasetAndJob editOriginalSql(DatasetVersion newVersion, List<Transform> operations, QueryType queryType) throws NamespaceException, DatasetNotFoundException, DatasetVersionNotFoundException {
 
     // apply transformations bottom up.
     Collections.reverse(operations);
@@ -138,7 +138,7 @@ class Transformer {
     final DatasetConfig headConfig = namespaceService.getDataset(headPath.toNamespaceKey());
     if(headConfig == null) {
       throw UserException.unsupportedError()
-        .message("The original dataset you are attempting to reapply your changes onto is no longer available.")
+        .message("The original dataset you are attempting to edit is no longer available.")
         .addContext("Original dataset", headPath.toParentPath())
         .build(logger);
 
@@ -147,29 +147,9 @@ class Transformer {
     //TODO: This should verify the save version matches
     VirtualDatasetUI headVersion = datasetService.getVersion(headPath, headConfig.getVirtualDataset().getVersion());
 
-    // if there are no operations after create, just return existing dataset.
-    if(operations.size() == 1) {
-      JobUI job = executor.runQuery(new SqlQuery(headVersion.getSql(), headVersion.getState().getContextList(), username()), queryType, headPath, headVersion.getVersion());
-      return new DatasetAndJob(job, headVersion);
-    }
 
-    // if the transform is a single operation (plus the create from), we just need to apply and execute.
-    if(operations.size() == 2){
-      return transformWithExecute(newVersion, headPath, headVersion, TransformBase.unwrap(operations.get(1)), queryType);
-    }
-
-    // otherwise, apply second through second to last. Then do execution on last.
-    final List<Transform> transformVersions = operations.subList(1, operations.size()-1);
-    final Transform finalTransform = operations.get(operations.size()-1);
-
-    VirtualDatasetUI previousDataset = headVersion;
-
-    // loop zero or more times to apply intermediate transformations.
-    for (Transform transform : transformVersions) {
-      previousDataset = transformWithExtract(DatasetVersion.newVersion(), headPath, previousDataset, TransformBase.unwrap(transform));
-    }
-
-    return transformWithExecute(newVersion, headPath, previousDataset, TransformBase.unwrap(finalTransform), queryType);
+    JobUI job = executor.runQuery(new SqlQuery(headVersion.getSql(), headVersion.getState().getContextList(), username()), queryType, headPath, headVersion.getVersion());
+    return new DatasetAndJob(job, headVersion);
   }
 
   /**
@@ -387,7 +367,7 @@ class Transformer {
         this.metadata = collector.getMetadata();
       } catch (UserException e) {
         // If the original query fails, let the user knows about
-        throw DatasetTool.toInvalidQueryException(e, query.getSql(), query.getContext());
+        throw DatasetTool.toInvalidQueryException(e, query.getSql(), query.getContext(), null);
       }
 
       // If above QueryExecutor finds the query in the job store, QueryMetadata will never be set.

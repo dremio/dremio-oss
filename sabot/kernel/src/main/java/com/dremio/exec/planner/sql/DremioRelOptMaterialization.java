@@ -59,10 +59,7 @@ public class DremioRelOptMaterialization extends org.apache.calcite.plan.RelOptM
                                      BatchSchema schema,
                                      long expirationTimestamp,
                                      boolean snowflake) {
-
-    // Create a RelOptMaterialization by manually specifying the RelOptTable.
-    // If the type casting has occurred, the RelOptTable will reside in the first input of the table rel.
-    super(tableRel, queryRel, tableRel.getTable() != null ? tableRel.getTable() : tableRel.getInput(0).getTable(), null);
+    super(tableRel, queryRel, null, null);
     this.incrementalUpdateSettings = Preconditions.checkNotNull(incrementalUpdateSettings);
     this.joinDependencyProperties = joinDependencyProperties;
     this.materializationId = Preconditions.checkNotNull(materializationId);

@@ -75,7 +75,7 @@ public class XlsRecordProcessor implements ExcelParser {
 
   private final InputStream workbookStream;
 
-  private final BaseWriter.MapWriter writer;
+  private final BaseWriter.StructWriter writer;
   private final RecordFactoryInputStream recordStream;
   private final FormatManager formatManager;
   private ArrowBuf managedBuf;
@@ -116,7 +116,7 @@ public class XlsRecordProcessor implements ExcelParser {
                             final VectorContainerWriter writer, final ArrowBuf managedBuf,
                             final HashSet<String> columnsToProject)
           throws IOException, SheetNotFoundException {
-    this.writer = writer.rootAsMap();
+    this.writer = writer.rootAsStruct();
     this.managedBuf = managedBuf;
 
     // following code reads and orders all of the workbook's sectors into a new byte array
@@ -377,7 +377,7 @@ public class XlsRecordProcessor implements ExcelParser {
   }
 
   /**
-   * writer next record into the MapWriter.
+   * writer next record into the StructWriter.
    *
    * @return State.END_OF_STREAM when no more record were found, State.READ_SUCCESSFUL otherwise
    */

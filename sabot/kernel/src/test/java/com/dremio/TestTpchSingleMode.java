@@ -21,7 +21,7 @@ import org.junit.Test;
 public class TestTpchSingleMode extends BaseTestQuery{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestTpchSingleMode.class);
 
-  private static final String SINGLE_MODE = "ALTER SESSION SET `planner.disable_exchanges` = true;";
+  private static final String SINGLE_MODE = "ALTER SESSION SET \"planner.disable_exchanges\" = true;";
 
 
   private void testSingleMode(String fileName) throws Exception{

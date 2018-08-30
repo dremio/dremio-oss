@@ -14,18 +14,21 @@
  * limitations under the License.
  */
 
-.node {
-  &:hover {
-    background-color: #FFF5DC;
-  }
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+    
+  .node {
+    &:hover {
+      background-color: #FFF5DC;
+    }
 
-  .node-text {
-     &:hover {
-      cursor: pointer;
+    .node-text {
+      &:hover {
+        cursor: pointer;
+      }
     }
   }
-}
 
-.active-node {
-    background-color: #FFF5DC;
+  .active-node {
+      background-color: #FFF5DC;
+  }
 }

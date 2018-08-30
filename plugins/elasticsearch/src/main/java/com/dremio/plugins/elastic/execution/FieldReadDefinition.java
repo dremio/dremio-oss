@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.expression.CompleteType;
@@ -127,7 +127,7 @@ public class FieldReadDefinition {
     }
   }
 
-  public void writeMap(MapWriter writer, JsonToken token, JsonParser parser) throws IOException {
+  public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
     if(parser.getValueAsString().length() != 0 || holder instanceof WriteHolders.VarCharWriteHolder || holder instanceof WriteHolders.VarBinaryWriteHolder) {
       holder.writeMap(writer, token, parser);
     }

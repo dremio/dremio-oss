@@ -56,9 +56,9 @@ import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.exec.planner.sql.parser.SqlRefreshReflection;
-import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
+import com.dremio.options.OptionManager;
 import com.dremio.service.job.proto.ScanPath;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -196,8 +196,9 @@ public class RefreshHandler implements SqlToPlanHandler {
       this.textPlan = convertToPrel.getValue();
       PhysicalOperator pop = PrelTransformer.convertToPop(config, prel);
       PhysicalPlan plan = PrelTransformer.convertToPlan(config, pop);
-      PrelTransformer.log(config, "Dremio Plan", plan, logger);
-
+      if (logger.isTraceEnabled()) {
+        PrelTransformer.log(config, "Dremio Plan", plan, logger);
+      }
       return plan;
 
     }catch(Exception ex){
@@ -326,12 +327,11 @@ public class RefreshHandler implements SqlToPlanHandler {
     @Override
     public RelNode transform(RelNode relNode) {
       final RelNode datasetPlan = removeUpdateColumn(relNode);
-      final boolean enableMinMax = optionManager.getOption(ExecConstants.ACCELERATION_ENABLE_MIN_MAX);
       final DatasetConfig dataset = namespace.findDatasetByUUID(goal.getDatasetId());
       if (dataset == null) {
         throw new IllegalStateException(String.format("reflection %s has no corresponding dataset", ReflectionUtils.getId(goal)));
       }
-      final ReflectionExpander expander = new ReflectionExpander(datasetPlan, dataset, enableMinMax);
+      final ReflectionExpander expander = new ReflectionExpander(datasetPlan, dataset);
       final RelNode plan = expander.expand(goal);
       final Normalizer normalizer = getNormalizerInstance(goal.getType());
       RelNode normalizedPlan = normalizer.normalize(plan);

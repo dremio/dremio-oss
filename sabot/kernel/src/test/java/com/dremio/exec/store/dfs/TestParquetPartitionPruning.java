@@ -27,7 +27,7 @@ public class TestParquetPartitionPruning extends PlanTestBase {
 
   @Test
   public void testPartitionPruningOnTimestamp() throws Exception {
-    String sql = "select ts from cp.`parquet/singlets.parquet` where ts = TIMESTAMP '2008-10-05 05:13:14.000'";
+    String sql = "select ts from cp.\"parquet/singlets.parquet\" where ts = TIMESTAMP '2008-10-05 05:13:14.000'";
     testBuilder()
       .sqlQuery(sql)
       .unOrdered()
@@ -38,7 +38,7 @@ public class TestParquetPartitionPruning extends PlanTestBase {
 
   @Test // DX-9408
   public void pruningBasedOnCurrentTimeStamp() throws Exception {
-    final String query = "SELECT ts FROM cp.`parquet/singlets.parquet` WHERE ts > CURRENT_TIMESTAMP";
+    final String query = "SELECT ts FROM cp.\"parquet/singlets.parquet\" WHERE ts > CURRENT_TIMESTAMP";
 
     testPlanMatchingPatterns(query, new String[]{"Empty"}, "Filter");
 
@@ -52,8 +52,8 @@ public class TestParquetPartitionPruning extends PlanTestBase {
 
   @Test // DX-9034
   public void pruningEverythingAcrossUnion() throws Exception {
-    String sql = "select ts from cp.`parquet/singlets.parquet` where ts = TIMESTAMP '1908-10-05 05:13:14.000'" +
-        "UNION ALL select ts from cp.`parquet/singlets.parquet` where ts = TIMESTAMP '1908-10-05 05:13:14.000'";
+    String sql = "select ts from cp.\"parquet/singlets.parquet\" where ts = TIMESTAMP '1908-10-05 05:13:14.000'" +
+        "UNION ALL select ts from cp.\"parquet/singlets.parquet\" where ts = TIMESTAMP '1908-10-05 05:13:14.000'";
 
     testPlanMatchingPatterns(sql, new String[]{"Empty"}, "Filter");
 
@@ -114,7 +114,7 @@ public class TestParquetPartitionPruning extends PlanTestBase {
     try(AutoCloseable ac = withSystemOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE, true)) {
       // Create a parquet file containing just null and non-null values for decimal parititon column
       test("CREATE TABLE dfs_test.decimalPartitions HASH PARTITION BY (b) AS " +
-          "SELECT * FROM cp.`parquet/parquet_with_decimals.parquet`");
+          "SELECT * FROM cp.\"parquet/parquet_with_decimals.parquet\"");
 
       final String q1 = "SELECT a, b FROM dfs_test.decimalPartitions WHERE b != 7564.23423";
       testPlanMatchingPatterns(q1, new String[]{"columns=\\[`a`, `b`\\]", "splits=\\[1\\]"}, "Filter");

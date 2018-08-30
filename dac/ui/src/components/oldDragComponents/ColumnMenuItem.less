@@ -13,14 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.draggable-icon {
-  display: none;
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  visibility: hidden;
-}
-.draggable-row:hover .draggable-icon {
-  visibility: visible;
+
+ :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  .draggable-icon {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    visibility: hidden;
+  }
+  .draggable-row:hover .draggable-icon {
+    visibility: visible;
+  }
 }

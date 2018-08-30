@@ -22,9 +22,9 @@ import static com.dremio.sabot.Fixtures.tr;
 import java.nio.charset.Charset;
 import java.util.Map;
 
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableFloat8Vector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -65,7 +65,7 @@ public class TestDictionaryLookup extends BaseTestOperator {
 
       final Map<String, GlobalDictionaryFieldInfo> dictionaryFieldInfoMap = Maps.newHashMap();
       final Field field1 = new Field(SchemaPath.getSimplePath("c0").getAsUnescapedPath(), true, new ArrowType.Int(64, true), null);
-      final NullableBigIntVector longVector = dict1.addOrGet(field1);
+      final BigIntVector longVector = dict1.addOrGet(field1);
       longVector.allocateNew();
       longVector.setSafe(0, 10L);
       longVector.setSafe(1, 20L);
@@ -80,7 +80,7 @@ public class TestDictionaryLookup extends BaseTestOperator {
       dictionaryFieldInfoMap.put("c0", new GlobalDictionaryFieldInfo(0, "c0", null, field1.getType(), "local"));
 
       final Field field2 = new Field(SchemaPath.getSimplePath("c1").getAsUnescapedPath(), true, new ArrowType.Binary(), null);
-      final NullableVarBinaryVector binaryVector = dict2.addOrGet(field2);
+      final VarBinaryVector binaryVector = dict2.addOrGet(field2);
       binaryVector.allocateNew();
       binaryVector.setSafe(0, "abc".getBytes(UTF8), 0, 3);
       binaryVector.setSafe(1, "bcd".getBytes(UTF8), 0, 3);
@@ -93,7 +93,7 @@ public class TestDictionaryLookup extends BaseTestOperator {
       dictionaryFieldInfoMap.put("c1", new GlobalDictionaryFieldInfo(0, "c1", null, field2.getType(), "local"));
 
       final Field field3 = new Field(SchemaPath.getSimplePath("c2").getAsUnescapedPath(), true, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), null);
-      final NullableFloat8Vector doubleVector = dict3.addOrGet(field3);
+      final Float8Vector doubleVector = dict3.addOrGet(field3);
       doubleVector.allocateNew();
       doubleVector.setSafe(0, 100.1);
       doubleVector.setSafe(1, 200.2);

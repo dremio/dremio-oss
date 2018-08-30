@@ -41,9 +41,6 @@ bin=`cd "$bin">/dev/null; pwd`
 export DREMIO_ENV_SCRIPT="dremio-env"
 . "$bin"/dremio-config
 
-export MAPR_IMPALA_RA_THROTTLE="true"
-export MAPR_MAX_RA_STREAMS="800"
-
 # get arguments
 startStopStatus=$1
 shift
@@ -95,9 +92,14 @@ dremio_internal_start() {
 
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS ${SERVER_GC_OPTS}"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.log.path=${logpath}"
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB:-4096}m"
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB:-8192}m"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB}m"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB}m"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${logpath}"
+    # netty options
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Dio.netty.maxDirectMemory=0"
+    # MapRFS specific options
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -DMAPR_IMPALA_RA_THROTTLE -DMAPR_MAX_RA_STREAMS=${MAPR_MAX_RA_STREAMS:-400}"
+    # User options
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_SERVER_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS"
 
     # Add to the command log file vital stats on our environment.

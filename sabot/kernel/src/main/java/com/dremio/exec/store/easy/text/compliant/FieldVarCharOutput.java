@@ -21,7 +21,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -41,11 +41,11 @@ class FieldVarCharOutput extends TextOutput {
   static final String COL_NAME = "columns";
 
   // array of output vector
-  private final NullableVarCharVector[] vectors;
+  private final VarCharVector[] vectors;
   // boolean array indicating which fields are selected (if star query entire array is set to true)
   private final boolean[] selectedFields;
   // current vector to which field will be added
-  private NullableVarCharVector currentVector;
+  private VarCharVector currentVector;
   // track which field is getting appended
   private int currentFieldIndex = -1;
   // track chars within field
@@ -104,12 +104,12 @@ class FieldVarCharOutput extends TextOutput {
       }
     }
 
-    this.vectors = new NullableVarCharVector[totalFields];
+    this.vectors = new VarCharVector[totalFields];
 
     for (int i = 0; i <= maxField; i++) {
       if (selectedFields[i]) {
         Field field = new Field(outputColumns.get(i), true, MinorType.VARCHAR.getType(), null);
-        this.vectors[i] = outputMutator.addField(field, NullableVarCharVector.class);
+        this.vectors[i] = outputMutator.addField(field, VarCharVector.class);
       }
     }
 

@@ -1,10 +1,11 @@
-.project
 .buildpath
-.classpath
 .checkstyle
+.classpath
+.idea/
+.project
+.mvn/wrapper/maven-wrapper.jar
 .profiler
 .settings/
-.idea/
 *~
 *.log
 *.lck
@@ -33,3 +34,5 @@ plugins/sample-data/dremio_hive_db/*
 plugins/hive/metastore_db/*
 .npmrc
 .externalToolBuilders*
+.vscode
+.indexing

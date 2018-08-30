@@ -196,7 +196,6 @@ const styles = {
     flexWrap: 'wrap',
     flexGrow: 1,
     backgroundColor: WHITE,
-    padding: 5,
     overflow: 'hidden'
   }
 };

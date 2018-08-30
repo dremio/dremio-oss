@@ -16,7 +16,6 @@
 import { shallow } from 'enzyme';
 import DragTarget from 'components/DragComponents/DragTarget';
 import DragSource from 'components/DragComponents/DragSource';
-import Divider from 'material-ui/Divider';
 import CellPopover from './CellPopover';
 
 describe('CellPopover', () => {
@@ -52,7 +51,7 @@ describe('CellPopover', () => {
     });
 
     it('should render Menu for Sort', () => {
-      wrapper.setProps({ currentCell: 'sort' });
+      wrapper.setProps({ currentCell: {labelCell: 'sort'} });
       expect(instance.renderSortMenu).to.have.been.called;
     });
   });
@@ -130,11 +129,10 @@ describe('CellPopover', () => {
         { name: { value: 'A' } },
         { name: { value: 'B' } }
       ],
-      currentCell: 'sort'
+      currentCell: {labelCell: 'sort'}
     });
 
     expect(wrapper.find(DragTarget)).to.have.length(2);
     expect(wrapper.find(DragSource)).to.have.length(2);
-    expect(wrapper.find(Divider)).to.have.length(1);
   });
 });

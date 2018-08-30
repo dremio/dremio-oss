@@ -23,8 +23,7 @@ import java.lang.Override;
   <#assign supported = typeMapping.supported!true>
   <#assign dremioMinorType = typeMapping.minor_type!minor.class?upper_case>
 <#if supported>
-<#list ["", "Nullable"] as mode>
-<#assign name = mode + minor.class?cap_first />
+<#assign name = minor.class?cap_first />
 <#assign javaType = (minor.javaType!type.javaType) />
 <#assign friendlyType = (minor.friendlyType!minor.boxedType!type.boxedType) />
 <#-- Class returned by ResultSet.getObject(...): -->
@@ -60,25 +59,13 @@ import org.joda.time.LocalDateTime;
  */
 @SuppressWarnings("unused")
 public class ${name}Accessor extends AbstractSqlAccessor {
- 
- <#if mode == "Nullable">
-  private static final MajorType TYPE = Types.optional(MinorType.${dremioMinorType});
- <#else>
-  private static final MajorType TYPE = Types.required(MinorType.${dremioMinorType});
- </#if>
 
-  <#if mode == "Nullable">
+  private static final MajorType TYPE = Types.optional(MinorType.${dremioMinorType});
+
   private final ${name}Vector ac;
-  <#else>
-  private final ${name}Vector.Accessor ac;
-  </#if>
 
   public ${name}Accessor(${name}Vector vector) {
-    <#if mode == "Nullable">
     this.ac = vector;
-    <#else>
-    this.ac = vector.getAccessor();
-    </#if>
   }
 
   @Override
@@ -88,11 +75,7 @@ public class ${name}Accessor extends AbstractSqlAccessor {
 
   @Override
   public boolean isNull(int index) {
-   <#if mode == "Nullable">
     return ac.isNull(index);
-   <#else>
-    return false;
-   </#if>
   }
 
  <#if minor.class != "VarChar" && minor.class != "TimeStampMilli"
@@ -108,11 +91,9 @@ public class ${name}Accessor extends AbstractSqlAccessor {
 
   @Override
   public Object getObject(int index) {
-   <#if mode == "Nullable">
     if (ac.isNull(index)) {
       return null;
     }
-   </#if>
     return ac.getObject(index);
   }
  </#if>
@@ -121,23 +102,19 @@ public class ${name}Accessor extends AbstractSqlAccessor {
 
   @Override
   public InputStream getStream(int index) {
-    <#if mode == "Nullable">
     if (ac.isNull(index)) {
       return null;
     }
-   </#if>
-    ${name}Holder h = new ${name}Holder();
+    Nullable${name}Holder h = new Nullable${name}Holder();
     ac.get(index, h);
     return new ByteBufInputStream(h.buffer.slice(h.start, h.end));
   }
 
   @Override
   public byte[] getBytes(int index) {
-   <#if mode == "Nullable">
     if (ac.isNull(index)) {
       return null;
     }
-   </#if>
     return ac.get(index);
   }
 
@@ -147,11 +124,9 @@ public class ${name}Accessor extends AbstractSqlAccessor {
 
   @Override
   public String getString(int index) {
-<#if mode == "Nullable">
     if (ac.isNull(index)) {
       return null;
     }
-</#if>
       return ac.getObject(index).toString();
     }
 <#break>
@@ -159,11 +134,9 @@ public class ${name}Accessor extends AbstractSqlAccessor {
 
     @Override
     public String getString(int index) {
-     <#if mode == "Nullable">
       if (ac.isNull(index)) {
         return null;
       }
-     </#if>
       byte [] b = ac.get(index);
       return DremioStringUtils.toBinaryString(b);
     }
@@ -178,31 +151,25 @@ public class ${name}Accessor extends AbstractSqlAccessor {
 
     @Override
     public String getObject(int index) {
-     <#if mode == "Nullable">
        if (ac.isNull(index)) {
          return null;
        }
-     </#if>
        return getString(index);
     }
 
     @Override
     public InputStreamReader getReader(int index) {
-     <#if mode == "Nullable">
       if (ac.isNull(index)) {
         return null;
       }
-     </#if>
       return new InputStreamReader(getStream(index), Charsets.UTF_8);
     }
 
     @Override
     public String getString(int index) {
-     <#if mode == "Nullable">
       if (ac.isNull(index)) {
         return null;
       }
-     </#if>
       return new String(getBytes(index), Charsets.UTF_8);
     }
       <#break>
@@ -211,21 +178,17 @@ public class ${name}Accessor extends AbstractSqlAccessor {
 
     @Override
     public InputStreamReader getReader(int index) {
-     <#if mode == "Nullable">
       if (ac.isNull(index)) {
         return null;
       }
-     </#if>
       return new InputStreamReader(getStream(index), Charsets.UTF_16);
     }
 
     @Override
     public String getString(int index) {
-     <#if mode == "Nullable">
       if (ac.isNull(index)) {
         return null;
       }
-     </#if>
       return new String(getBytes(index), Charsets.UTF_16);
     }
       <#break>
@@ -251,11 +214,9 @@ public class ${name}Accessor extends AbstractSqlAccessor {
 
   @Override
   public Timestamp getTimestamp(int index) {
-   <#if mode == "Nullable">
     if (ac.isNull(index)) {
       return null;
     }
-   </#if>
     return new Timestamp(ac.getObject(index).getMillis());
   }
 
@@ -269,32 +230,26 @@ public class ${name}Accessor extends AbstractSqlAccessor {
   <#if minor.class == "IntervalDay">
   @Override
   public Object getObject(int index) {
-  <#if mode == "Nullable">
         if (ac.isNull(index)) {
         return null;
         }
-  </#if>
         return DremioStringUtils.formatIntervalDay(ac.getObject(index));
   }
   <#else>
 @Override
 public Object getObject(int index) {
-<#if mode == "Nullable">
         if (ac.isNull(index)) {
         return null;
         }
-</#if>
         return DremioStringUtils.formatIntervalYear(ac.getObject(index));
         }
   </#if>
 
   @Override
   public String getString(int index) {
-   <#if mode == "Nullable">
     if (ac.isNull(index)) {
       return null;
     }
-   </#if>
     return String.valueOf(ac.getAsStringBuilder(index));
   }
 
@@ -302,11 +257,9 @@ public Object getObject(int index) {
 
   @Override
   public BigDecimal getBigDecimal(int index) {
-   <#if mode == "Nullable">
     if (ac.isNull(index)) {
       return null;
     }
-   </#if>
       return ac.getObject(index);
   }
   <#elseif minor.class == "DateMilli">
@@ -318,21 +271,17 @@ public Object getObject(int index) {
 
   @Override
   public Object getObject(int index) {
-   <#if mode == "Nullable">
     if (ac.isNull(index)) {
       return null;
     }
-   </#if>
     return getDate(index);
   }
 
   @Override
   public Date getDate(int index) {
-   <#if mode == "Nullable">
     if (ac.isNull(index)) {
       return null;
     }
-   </#if>
     org.joda.time.LocalDateTime date = new org.joda.time.LocalDateTime(ac.get(index), org.joda.time.DateTimeZone.UTC);
     return new Date(date.getYear() - 1900, date.getMonthOfYear() - 1, date.getDayOfMonth());
   }
@@ -346,21 +295,17 @@ public Object getObject(int index) {
 
   @Override
   public Object getObject(int index) {
-   <#if mode == "Nullable">
     if (ac.isNull(index)) {
       return null;
     }
-   </#if>
     return getTimestamp(index);
   }
 
   @Override
   public Timestamp getTimestamp(int index) {
-   <#if mode == "Nullable">
     if (ac.isNull(index)) {
       return null;
     }
-   </#if>
     org.joda.time.LocalDateTime date = new org.joda.time.LocalDateTime(ac.get(index), org.joda.time.DateTimeZone.UTC);
     return new Timestamp(date.getYear() - 1900,
                          date.getMonthOfYear() - 1,
@@ -385,16 +330,42 @@ public Object getObject(int index) {
 
   @Override
   public Time getTime(int index) {
-   <#if mode == "Nullable">
     if (ac.isNull(index)) {
       return null;
     }
-   </#if>
     org.joda.time.LocalDateTime time = new org.joda.time.LocalDateTime(ac.get(index), org.joda.time.DateTimeZone.UTC);
     return new TimePrintMillis(time);
   }
 
-  <#else>
+<#elseif minor.class == "TimeMilli">
+
+@Override
+public Class<?> getObjectClass() {
+  return Time.class;
+  }
+
+@Override
+public Object getObject(int index) {
+  return getTime(index);
+  }
+
+@Override
+public Time getTime(int index) {
+  if (ac.isNull(index)) {
+  return null;
+  }
+  org.joda.time.LocalDateTime time = new org.joda.time.LocalDateTime(ac.get(index), org.joda.time.DateTimeZone.UTC);
+  return new TimePrintMillis(time);
+  }
+
+<#elseif minor.class == "FixedSizeBinary">
+
+@Override
+public ${javaType} getBytes(int index) {
+  return ac.get(index);
+  }
+
+<#else>
 
   @Override
   public ${javaType} get${javaType?cap_first}(int index) {
@@ -405,11 +376,9 @@ public Object getObject(int index) {
 
   <#if minor.class == "Bit" >
   public boolean getBoolean(int index) {
-   <#if mode == "Nullable">
     if (ac.isNull(index)) {
       return false;
     }
-   </#if>
    return 1 == ac.get(index);
   }
  </#if>
@@ -419,7 +388,6 @@ public Object getObject(int index) {
 
 }
 
-</#list>
 </#if>
 </#list>
 </#list>

@@ -13,101 +13,104 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.day-part {
-  margin-top: 25px;
-  margin-left: 15px;
-  margin-right: 15px;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+    
+  .day-part {
+    margin-top: 25px;
+    margin-left: 15px;
+    margin-right: 15px;
 
-  .day-table {
-    width: 100%;
-  }
-
-  .name {
-    width: 230px;
-  }
-
-  .lastOpened {
-    width: 120px;
-  }
-
-  .actions {
-    width: 350px;
-    display: flex;
-    justify: flex-start;
-    align-items: center;
-    flex-wrap: no-wrap;
-  }
-
-  .copy-button{
-    color: #1191ff;
-    margin: 0 0 0 15px;
-    opacity: 0;
-  }
-
-  .day-thead {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-left: 15px;
-    font-size: 13px;
-    padding-top: 5px;
-    padding-bottom: 5px;
-
-    .th {
-      font-weight: 700;
+    .day-table {
+      width: 100%;
     }
-  }
 
-  .day-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-    padding-left: 15px;
-    font-size: 13px;
-    padding-top: 5px;
-    padding-bottom: 5px;
+    .name {
+      width: 230px;
+    }
 
-    .remove {
-      width: 145px;
-      padding-top: 2px;
-      justify-content: center;
+    .lastOpened {
+      width: 120px;
+    }
+
+    .actions {
+      width: 350px;
+      display: flex;
+      justify: flex-start;
       align-items: center;
-      margin-left: 0;
+      flex-wrap: no-wrap;
     }
 
-    button {
-      height: 23px;
-      margin-left: 6px;
-      margin-right: 5px;
+    .copy-button{
+      color: #1191ff;
+      margin: 0 0 0 15px;
+      opacity: 0;
     }
 
-    .open {
-      width: 90px;
-    }
+    .day-thead {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-left: 15px;
+      font-size: 13px;
+      padding-top: 5px;
+      padding-bottom: 5px;
 
-    .query {
-      width: 80px;
-    }
-
-    &:hover {
-      background-color: #E8F1F5;
-
-      .copy-button {
-        opacity: 1;
+      .th {
+        font-weight: 700;
       }
     }
-  }
 
-  .day-row:nth-child(2n) {
-    background-color: #F5F5F5;
-    &:hover {
-      background-color: #E8F1F5;
+    .day-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      padding-left: 15px;
+      font-size: 13px;
+      padding-top: 5px;
+      padding-bottom: 5px;
+
+      .remove {
+        width: 145px;
+        padding-top: 2px;
+        justify-content: center;
+        align-items: center;
+        margin-left: 0;
+      }
+
+      button {
+        height: 23px;
+        margin-left: 6px;
+        margin-right: 5px;
+      }
+
+      .open {
+        width: 90px;
+      }
+
+      .query {
+        width: 80px;
+      }
+
+      &:hover {
+        background-color: #E8F1F5;
+
+        .copy-button {
+          opacity: 1;
+        }
+      }
     }
-  }
 
-  .title {
-    text-transform: capitalize;
-    font-size: 18px;
+    .day-row:nth-child(2n) {
+      background-color: #F5F5F5;
+      &:hover {
+        background-color: #E8F1F5;
+      }
+    }
+
+    .title {
+      text-transform: capitalize;
+      font-size: 18px;
+    }
   }
 }

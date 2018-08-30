@@ -22,7 +22,7 @@ import java.lang.management.MemoryUsage;
 import java.util.Iterator;
 import java.util.List;
 
-import com.dremio.common.config.SabotConfig;
+import com.dremio.common.VM;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -64,7 +64,7 @@ public class MemoryIterator implements Iterator<Object> {
 
 
     memoryInfo.direct_current = dbContext.getAllocator().getAllocatedMemory();
-    memoryInfo.direct_max = SabotConfig.getMaxDirectMemory();
+    memoryInfo.direct_max = VM.getMaxDirectMemory();
     return memoryInfo;
   }
 

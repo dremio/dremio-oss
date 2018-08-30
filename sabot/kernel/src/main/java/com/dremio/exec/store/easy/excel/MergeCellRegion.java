@@ -17,7 +17,7 @@ package com.dremio.exec.store.easy.excel;
 
 import static org.apache.poi.ss.util.CellReference.convertColStringToIndex;
 
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 
 import com.dremio.common.types.TypeProtos.MinorType;
 
@@ -54,8 +54,8 @@ class MergeCellRegion {
     return writer != null && value != null;
   }
 
-  void write(ArrowBuf arrowBuf, MapWriter mapWriter, String colName) {
-    writer.write(this, arrowBuf, mapWriter, colName);
+  void write(ArrowBuf arrowBuf, StructWriter structWriter, String colName) {
+    writer.write(this, arrowBuf, structWriter, colName);
   }
 
   void setValue(MinorType type, Object value) {
@@ -90,33 +90,33 @@ class MergeCellRegion {
   }
 
   interface ValueWriter {
-    void write(MergeCellRegion mcr, ArrowBuf arrowBuf, MapWriter writer, String colName);
+    void write(MergeCellRegion mcr, ArrowBuf arrowBuf, StructWriter writer, String colName);
   }
 
   class BitWriter implements ValueWriter {
     @Override
-    public void write(MergeCellRegion mcr, ArrowBuf arrowBuf, MapWriter writer, String colName) {
+    public void write(MergeCellRegion mcr, ArrowBuf arrowBuf, StructWriter writer, String colName) {
       writer.bit(colName).writeBit((Integer) mcr.value);
     }
   }
 
   class Float8Writer implements ValueWriter {
     @Override
-    public void write(MergeCellRegion mcr, ArrowBuf arrowBuf, MapWriter writer, String colName) {
+    public void write(MergeCellRegion mcr, ArrowBuf arrowBuf, StructWriter writer, String colName) {
       writer.float8(colName).writeFloat8((Double) mcr.value);
     }
   }
 
   class TimeStampMilliWriter implements ValueWriter {
     @Override
-    public void write(MergeCellRegion mcr, ArrowBuf arrowBuf, MapWriter writer, String colName) {
+    public void write(MergeCellRegion mcr, ArrowBuf arrowBuf, StructWriter writer, String colName) {
       writer.timeStampMilli(colName).writeTimeStampMilli((Long) mcr.value);
     }
   }
 
   class VarCharWriter implements ValueWriter {
     @Override
-    public void write(MergeCellRegion mcr, ArrowBuf arrowBuf, MapWriter writer, String colName) {
+    public void write(MergeCellRegion mcr, ArrowBuf arrowBuf, StructWriter writer, String colName) {
       byte[] b = (byte[]) mcr.value;
       arrowBuf = arrowBuf.reallocIfNeeded(b.length);
       arrowBuf.setBytes(0, b);

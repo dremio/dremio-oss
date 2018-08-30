@@ -98,7 +98,7 @@ public class HashAggOperator implements SingleInputOperator {
   public HashAggOperator(HashAggregate popConfig, OperatorContext context) throws ExecutionSetupException {
     this.stats = context.getStats();
     this.context = context;
-    this.outgoing = new VectorContainer(context.getAllocator());
+    this.outgoing = context.createOutputVectorContainer();
     this.popConfig = popConfig;
 
     final int numGrpByExprs = popConfig.getGroupByExprs().size();

@@ -39,7 +39,8 @@ export default function confirmation(state = initialState, action) {
       doNotAskAgainText,
       doNotAskAgainKey,
       showPrompt,
-      promptFieldProps
+      promptFieldProps,
+      dataQa
     } = action;
     // list all to be sure to reset everything
     return {
@@ -56,7 +57,8 @@ export default function confirmation(state = initialState, action) {
       doNotAskAgainText,
       doNotAskAgainKey,
       showPrompt,
-      promptFieldProps
+      promptFieldProps,
+      dataQa
     };
   }
   case ActionTypes.HIDE_CONFIRMATION_DIALOG:

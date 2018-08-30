@@ -112,6 +112,7 @@ message NodeQueryStatus {
   optional exec.shared.QueryId id = 1;
   optional NodeEndpoint endpoint = 2;
   repeated NodePhaseStatus phase_status = 3;
+  optional int64 max_memory_used = 4;
 }
 
 message NodePhaseStatus {

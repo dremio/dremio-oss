@@ -52,6 +52,10 @@
           |
           <REFRESH> <METADATA> {return new SqlRefreshTable(pos, tblName);}
           |
+          <ENABLE> <APPROXIMATE> <STATS> {return new SqlSetApprox(pos, tblName, SqlLiteral.createBoolean(true, pos));}
+          |
+          <DISABLE> <APPROXIMATE> <STATS> {return new SqlSetApprox(pos, tblName, SqlLiteral.createBoolean(false, pos));}
+          |
           {return SqlEnableRaw(pos, tblName);}
         )
     )
@@ -90,7 +94,7 @@ SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     <DIMENSIONS>
     dimensionList = ParseRequiredFieldListWithGranularity("Dimensions")
     <MEASURES>
-    measureList = ParseOptionalFieldList("Measures")
+    measureList = ParseRequiredFieldListWithMeasures("Measures")
     
     (   <DISTRIBUTE> <BY>
         distributionList = ParseRequiredFieldList("Distribution")
@@ -153,6 +157,63 @@ void SimpleIdentifierCommaListWithGranularity(List<SqlNode> list) :
     {list.add(new IdentifierWithGranularity(id, byDay, pos));}
     
     (<COMMA> SimpleIdentifierCommaListWithGranularity(list)) *
+}
+
+/** Parses a required field list and makes sure no field is a "*". */
+SqlNodeList ParseRequiredFieldListWithMeasures(String relType) :
+{
+    SqlNodeList fieldList = new SqlNodeList(getPos());
+}
+{
+    (<LPAREN>
+    (SimpleIdentifierCommaListWithMeasures(fieldList.getList()))?
+    <RPAREN>
+    )?
+    {
+        for(SqlNode node : fieldList)
+        {
+            if (((SqlIdentifier)node).isStar())
+                throw new ParseException(String.format("%s's field list has a '*', which is invalid.", relType));
+        }
+        return fieldList;
+    }
+}
+
+void SimpleIdentifierCommaListWithMeasures(List<SqlNode> list) :
+{
+
+    SqlIdentifier id;
+    SqlNodeList measures;
+    SqlParserPos pos;
+}
+{
+    id = SimpleIdentifier() {pos = getPos(); measures = new SqlNodeList(getPos());}
+    (
+    <LPAREN>
+    MeasureList(measures.getList())
+    <RPAREN>
+    )?
+    {list.add(new IdentifierWithMeasures(id, measures, getPos()));}
+    
+    (<COMMA> SimpleIdentifierCommaListWithMeasures(list)) *
+}
+
+void MeasureList(List<SqlNode> measures) :
+{}
+{
+        (
+        <MIN>  { measures.add(SqlLiteral.createSymbol(MeasureType.MIN, getPos()));}
+        |
+        <MAX>  { measures.add(SqlLiteral.createSymbol(MeasureType.MAX, getPos()));}
+        |
+        <COUNT>  { measures.add(SqlLiteral.createSymbol(MeasureType.COUNT, getPos()));}
+        |
+        <SUM>  { measures.add(SqlLiteral.createSymbol(MeasureType.SUM, getPos()));}
+        |
+        (<APPROXIMATE> | <APPROX>) <COUNT> <DISTINCT>  { measures.add(SqlLiteral.createSymbol(MeasureType.APPROX_COUNT_DISTINCT, getPos()));}
+        )
+        
+        (<COMMA> MeasureList(measures)) *
 }
 
 

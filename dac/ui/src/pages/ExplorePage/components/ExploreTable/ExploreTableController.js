@@ -333,7 +333,6 @@ export class ExploreTableController extends Component {
           hide={this.hideCellMore}
           openPopover={this.state.openPopover}
           selectAll={this.selectAll}
-          location={this.props.location}
         />
       )
       : null;
@@ -368,15 +367,14 @@ export class ExploreTableController extends Component {
           selectItemsOfList={this.selectItemsOfList}
           isDumbTable={this.props.isDumbTable}
           getTableHeight={this.props.getTableHeight}
-          location={this.props.location}
           isGrayed={this.state.isGrayed}
-          shouldRenderInvisibles={this.props.shouldRenderInvisibles}/>
+          shouldRenderInvisibles={this.props.shouldRenderInvisibles}
+          />
         {this.renderExploreCellLargeOverlay()}
         {this.state.activeTextSelect &&
           <DropdownForSelectedText
             dropPositions={Immutable.fromJS(this.state.activeTextSelect)}
             openPopover={this.state.openPopover}
-            location={this.props.location}
             hideDrop={this.hideDrop}/>}
         {this.props.children}
       </div>

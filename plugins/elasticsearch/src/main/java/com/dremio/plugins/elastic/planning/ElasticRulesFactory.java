@@ -23,7 +23,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.store.StoragePluginRulesFactory.StoragePluginTypeRulesFactory;
 import com.dremio.plugins.elastic.planning.rules.ElasticFilterRule;
 import com.dremio.plugins.elastic.planning.rules.ElasticLimitRule;

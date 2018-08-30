@@ -15,29 +15,42 @@
  */
 package com.dremio.exec.planner.sql.handlers.commands;
 
-import com.dremio.exec.ExecConstants;
+import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
+import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared.WorkloadClass;
+import com.dremio.resource.ResourceAllocator;
+import com.dremio.resource.ResourceSchedulingProperties;
+import com.dremio.resource.ResourceSet;
+import com.dremio.resource.basic.BasicResourceConstants;
+import com.dremio.resource.basic.QueueType;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.ListenableFuture;
 
 /**
  * Base class for Asynchronous queries.
  */
 public abstract class AsyncCommand<T> implements CommandRunner<T> {
 
-  public enum QueueType {
-    SMALL,
-    LARGE,
-    REFLECTION_SMALL,
-    REFLECTION_LARGE
-  }
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AsyncCommand.class);
 
   protected final QueryContext context;
 
   private QueueType queueType;
+  protected ResourceAllocator queryResourceManager;
+  protected AttemptObserver observer;
+  protected ResourceSet resourceSet;
 
-  public AsyncCommand(QueryContext context) {
+  public AsyncCommand(QueryContext context, ResourceAllocator queryResourceManager, AttemptObserver observer) {
     this.context = context;
+    this.queryResourceManager = queryResourceManager;
+    this.observer = observer;
   }
 
   @Override
@@ -46,7 +59,7 @@ public abstract class AsyncCommand<T> implements CommandRunner<T> {
   }
 
   protected void setQueueTypeFromPlan(PhysicalPlan plan) {
-    final long queueThreshold = context.getOptions().getOption(ExecConstants.QUEUE_THRESHOLD_SIZE);
+    final long queueThreshold = context.getOptions().getOption(BasicResourceConstants.QUEUE_THRESHOLD_SIZE);
     if (context.getQueryContextInfo().getPriority().getWorkloadClass().equals(WorkloadClass.BACKGROUND)) {
       setQueueType((plan.getCost() > queueThreshold) ? QueueType.REFLECTION_LARGE : QueueType.REFLECTION_SMALL);
     } else {
@@ -60,5 +73,40 @@ public abstract class AsyncCommand<T> implements CommandRunner<T> {
 
   public QueueType getQueueType() {
     return queueType;
+  }
+
+  /**
+   * To get resources needed based on Parallelization of the PhysicalPlan
+   * @param plan
+   * @return PlanningSet
+   * @throws Exception
+   */
+  protected PlanningSet allocateResourcesBasedOnPlan(PhysicalPlan plan) throws Exception {
+    final double planCost = plan.getCost();
+    setQueueTypeFromPlan(plan);
+    final Collection<CoordinationProtos.NodeEndpoint> activeEndpoints = context.getActiveEndpoints();
+    final PlanningSet planningSet = ExecutionPlanCreator.getParallelizationInfo(context, observer, plan,
+      activeEndpoints);
+    // map from major fragment to map of endpoint to number of occurrences of that endpoint
+    Map<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> endpoints =
+      ResourceAllocationUtils.getEndPoints(planningSet);
+    ResourceSchedulingProperties resourceSchedulingProperties = new ResourceSchedulingProperties();
+    resourceSchedulingProperties.setResourceData(endpoints);
+    resourceSchedulingProperties.setQueryCost(Double.valueOf(planCost));
+    // TODO set client type, workload type???
+
+    ListenableFuture<ResourceSet> resourcesFuture = queryResourceManager.allocate(context, resourceSchedulingProperties);
+    resourceSet = resourcesFuture.get(15, TimeUnit.SECONDS);
+    return planningSet;
+  }
+
+  @VisibleForTesting
+  ResourceSet getResources() {
+    return resourceSet;
+  }
+
+  @Override
+  public void close() throws Exception {
+    resourceSet.close();
   }
 }

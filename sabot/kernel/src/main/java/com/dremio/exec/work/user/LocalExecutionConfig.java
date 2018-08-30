@@ -15,16 +15,16 @@
  */
 package com.dremio.exec.work.user;
 
-import static com.dremio.exec.server.options.OptionValue.OptionType.QUERY;
-import static com.dremio.exec.server.options.OptionValue.createBoolean;
-import static com.dremio.exec.server.options.OptionValue.createLong;
-import static com.dremio.exec.server.options.OptionValue.createString;
+import static com.dremio.options.OptionValue.OptionType.QUERY;
+import static com.dremio.options.OptionValue.createBoolean;
+import static com.dremio.options.OptionValue.createLong;
+import static com.dremio.options.OptionValue.createString;
 
 import java.util.List;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 

@@ -28,7 +28,6 @@ import org.apache.curator.utils.CloseableExecutorService;
 import com.codahale.metrics.Gauge;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.ExtendedLatch;
-import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
@@ -37,10 +36,10 @@ import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
-import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.work.SafeExit;
 import com.dremio.exec.work.WorkStats;
@@ -137,6 +136,12 @@ public class FragmentWorkManager implements Service, SafeExit {
   }
 
   private class WorkStatsImpl implements WorkStats {
+
+    @Override
+    public Iterable<TaskPool.ThreadInfo> getSlicingThreads() {
+      return pool.getSlicingThreads();
+    }
+
     /**
      * @return number of running fragments / max width per node
      */

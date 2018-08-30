@@ -1,0 +1,68 @@
+/*
+ * Copyright (C) 2017-2018 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ @import "~@app/uiTheme/less/color-schema.less";
+ @import "~@app/uiTheme/less/variables.less";
+
+
+.base {
+  composes: section-margin horizontal-content-padding from '@app/uiTheme/less/layout.less';
+  display: flex;
+  height: 100%;
+  flex-wrap: wrap;
+}
+
+.header {
+  background-color: #f3f3f3;
+  height: 26px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+};
+
+@_first-column-width: 240px;
+
+.name {
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  height: 26px;
+  width: @_first-column-width + 1; // +1 from style.dragNameStyle
+  border-right: 1px solid @TABLE_BORDER;
+}
+
+
+.inner {
+  width: 100%;
+  background-color: #fff;
+  justify-content: space-between;
+  border: 1px solid @TABLE_BORDER;
+  display: flex;
+  @height: 180px;
+  max-height: @height;
+  min-height: @height;
+}
+
+
+.add-join {
+  color: #0096FF;
+  position: relative;
+  margin-left: @_first-column-width;
+  font-size: 13px;
+  cursor: pointer;
+  align-items: center;
+  height: 35px;
+  display: inline-flex;
+}

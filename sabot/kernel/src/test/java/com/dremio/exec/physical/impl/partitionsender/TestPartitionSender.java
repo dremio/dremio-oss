@@ -70,7 +70,7 @@ public class TestPartitionSender extends PlanTestBase {
 //    }
 //
 //    // Initialize test queries
-//    groupByQuery = String.format("SELECT dept_id, count(*) as numEmployees FROM dfs.`%s` GROUP BY dept_id", empTableLocation);
+//    groupByQuery = String.format("SELECT dept_id, count(*) as numEmployees FROM dfs.\"%s\" GROUP BY dept_id", empTableLocation);
 //  }
 //
 //  @AfterClass
@@ -99,7 +99,7 @@ public class TestPartitionSender extends PlanTestBase {
 //
 //    updateTestCluster(NODES_COUNT, null);
 //
-//    test("ALTER SESSION SET `planner.slice_target`=1");
+//    test("ALTER SESSION SET \"planner.slice_target\"=1");
 //    String plan = getPlanInString("EXPLAIN PLAN FOR " + groupByQuery, JSON_FORMAT);
 //    System.out.println("Plan: " + plan);
 //

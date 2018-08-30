@@ -207,7 +207,11 @@ export class AccelerationGrid extends Component {
             */}
             <PrevalidatedTextField {...this.props.layoutFields[columnIndex].name}
               placeholder={placeholderName}
-              style={{...styles.prevalidatedField, textDecoration: shouldDelete ? 'line-through' : null}} />
+              style={{...styles.prevalidatedField, textDecoration: shouldDelete ? 'line-through' : null}}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') e.preventDefault();
+              }}
+            />
             { <FontIcon type={shouldDelete ? 'Add' : 'Minus'}
               style={styles.layoutHeaderIcon}
               onClick={() => fields.shouldDelete.onChange(!shouldDelete)} />

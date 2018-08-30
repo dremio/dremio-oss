@@ -78,7 +78,7 @@ export default class FinderNavItem extends Component {
 
     return (
       <li className={itemClass} style={[disabled && styles.disabled, style]}>
-        <Link onlyActiveOnIndex to={links.self} activeClassName='active' className='finder-nav-item-link'>
+        <Link to={links.self} activeClassName='active' className='finder-nav-item-link'>
           <FontIcon
             type={typeIcon}
             theme={styles.iconStyle}/>

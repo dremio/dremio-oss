@@ -25,8 +25,8 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.sql.TestBaseViewSupport;
+import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
 import com.google.common.collect.ImmutableList;
 
@@ -43,7 +43,7 @@ public class TestViewSupportOnHiveTables extends TestBaseViewSupport {
   public static void generateHive() throws Exception{
     hiveTest = HiveTestDataGenerator.getInstance();
     hiveTest.addHiveTestPlugin(getSabotContext().getCatalogService());
-    test(String.format("alter session set `%s` = false", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+    test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
   }
 
   @Test
@@ -64,7 +64,7 @@ public class TestViewSupportOnHiveTables extends TestBaseViewSupport {
         TEMP_SCHEMA,
         null,
         "SELECT * FROM hive.kv",
-        "SELECT key, `value` FROM TEST_SCHEMA.TEST_VIEW_NAME LIMIT 1",
+        "SELECT key, \"value\" FROM TEST_SCHEMA.TEST_VIEW_NAME LIMIT 1",
         new String[] { "key", "value" },
         ImmutableList.of(new Object[] { 1, " key_1" })
     );
@@ -76,7 +76,7 @@ public class TestViewSupportOnHiveTables extends TestBaseViewSupport {
         TEMP_SCHEMA,
         null,
         "SELECT * FROM hive.kv",
-        "SELECT `value` FROM TEST_SCHEMA.TEST_VIEW_NAME LIMIT 1",
+        "SELECT \"value\" FROM TEST_SCHEMA.TEST_VIEW_NAME LIMIT 1",
         new String[] { "value" },
         ImmutableList.of(new Object[] { " key_1" })
     );
@@ -87,7 +87,7 @@ public class TestViewSupportOnHiveTables extends TestBaseViewSupport {
     testViewHelper(
         TEMP_SCHEMA,
         null,
-        "SELECT key, `value` FROM hive.kv",
+        "SELECT key, \"value\" FROM hive.kv",
         "SELECT * FROM TEST_SCHEMA.TEST_VIEW_NAME LIMIT 1",
         new String[] { "key", "value" },
         ImmutableList.of(new Object[] { 1, " key_1" })
@@ -99,8 +99,8 @@ public class TestViewSupportOnHiveTables extends TestBaseViewSupport {
     testViewHelper(
         TEMP_SCHEMA,
         null,
-        "SELECT key, `value` FROM hive.kv",
-        "SELECT key, `value` FROM TEST_SCHEMA.TEST_VIEW_NAME LIMIT 1",
+        "SELECT key, \"value\" FROM hive.kv",
+        "SELECT key, \"value\" FROM TEST_SCHEMA.TEST_VIEW_NAME LIMIT 1",
         new String[] { "key", "value" },
         ImmutableList.of(new Object[] { 1, " key_1" })
     );
@@ -110,11 +110,11 @@ public class TestViewSupportOnHiveTables extends TestBaseViewSupport {
   @Ignore("currently namespace doesn't store view/table type")
   public void testInfoSchemaWithHiveView() throws Exception {
     testBuilder()
-        .optionSettingQueriesForTestQuery("USE hive.`default`")
+        .optionSettingQueriesForTestQuery("USE hive.\"default\"")
         .sqlQuery("SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_NAME = 'hiveview'")
         .unOrdered()
         .baselineColumns("TABLE_CATALOG", "TABLE_SCHEMA", "TABLE_NAME", "VIEW_DEFINITION")
-        .baselineValues("DRILL", "hive.default", "hiveview", "SELECT `kv`.`key`, `kv`.`value` FROM `default`.`kv`")
+        .baselineValues("DRILL", "hive.default", "hiveview", "SELECT \"kv\".\"key\", \"kv\".\"value\" FROM \"default\".\"kv\"")
         .go();
   }
 

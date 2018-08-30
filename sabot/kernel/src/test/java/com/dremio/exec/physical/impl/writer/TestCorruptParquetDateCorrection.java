@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.LocalDateTime;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
@@ -133,14 +134,14 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
         for (String selection : new String[]{"*", "date_col"}) {
           // for sanity, try reading all partitions without a filter
           TestBuilder builder = testBuilder()
-              .sqlQuery("select " + selection + " from table(dfs.`" + testPath + "`" +
+              .sqlQuery("select " + selection + " from table(dfs.\"" + testPath + "\"" +
                   "(type => 'parquet', autoCorrectCorruptDates => false))")
               .unOrdered()
               .baselineColumns("date_col");
           addDateBaselineVals(builder);
           builder.go();
 
-          String query = "select " + selection + " from table(dfs.`" + testPath + "` " +
+          String query = "select " + selection + " from table(dfs.\"" + testPath + "\" " +
               "(type => 'parquet', autoCorrectCorruptDates => false))" + " where date_col = date '1970-01-01'";
           // verify that pruning is actually taking place
           testPlanMatchingPatterns(query, new String[]{"splits=\\[1"}, null);
@@ -163,7 +164,7 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
   public void testVarcharPartitionedReadWithCorruption() throws Exception {
     testBuilder()
         .sqlQuery("select date_col from " +
-            "dfs.`" + VARCHAR_PARTITIONED + "`" +
+            "dfs.\"" + VARCHAR_PARTITIONED + "\"" +
             "where length(varchar_col) = 12")
         .baselineColumns("date_col")
         .unOrdered()
@@ -176,14 +177,14 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
   public void testDatePartitionedReadWithCorruption() throws Exception {
     testBuilder()
         .sqlQuery("select date_col from " +
-            "dfs.`" + DATE_PARTITIONED + "`" +
+            "dfs.\"" + DATE_PARTITIONED + "\"" +
             "where date_col = '1999-04-08'")
         .baselineColumns("date_col")
         .unOrdered()
         .baselineValues(new LocalDateTime(1999, 4, 8, 0, 0))
         .go();
 
-    String sql = "select date_col from dfs.`" + DATE_PARTITIONED + "` where date_col > '1999-04-08'";
+    String sql = "select date_col from dfs.\"" + DATE_PARTITIONED + "\" where date_col > '1999-04-08'";
     testPlanMatchingPatterns(sql, new String[]{"splits=\\[6"}, null);
   }
 
@@ -191,8 +192,8 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
   public void testCorrectDatesAndExceptionWhileParsingCreatedBy() throws Exception {
     testBuilder()
         .sqlQuery("select date_col from " +
-            "dfs.`" + EXCEPTION_WHILE_PARSING_CREATED_BY_META +
-            "` where to_date(date_col, 'YYYY-MM-DD') < '1997-01-02'")
+            "dfs.\"" + EXCEPTION_WHILE_PARSING_CREATED_BY_META +
+            "\" where to_date(date_col, 'YYYY-MM-DD') < '1997-01-02'")
         .baselineColumns("date_col")
         .unOrdered()
         .baselineValues(new LocalDateTime(1996, 1, 29, 0, 0))
@@ -213,14 +214,14 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
       for (String selection : new String[]{"*", "date_col"}) {
         // for sanity, try reading all partitions without a filter
         TestBuilder builder = testBuilder()
-            .sqlQuery("select " + selection + " from table(dfs.`" + CORRUPTED_PARTITIONED_DATES_1_4_0_PATH + "`" +
+            .sqlQuery("select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_4_0_PATH + "\"" +
                 "(type => 'parquet', autoCorrectCorruptDates => false))")
             .unOrdered()
             .baselineColumns("date_col");
         addDateBaselineVals(builder);
         builder.go();
 
-        String query = "select " + selection + " from table(dfs.`" + CORRUPTED_PARTITIONED_DATES_1_4_0_PATH + "` " +
+        String query = "select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_4_0_PATH + "\" " +
             "(type => 'parquet', autoCorrectCorruptDates => false))" + " where date_col = date '1970-01-01'";
         // verify that pruning is actually taking place
         testPlanMatchingPatterns(query, new String[]{"splits=\\[1"}, null);
@@ -238,21 +239,23 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
     }
   }
 
+  // Temporarily disabled until calcite supports year with more than 4 digits
+  @Ignore("DX-11468")
   @Test
   public void testReadPartitionedOnCorruptedDates_UserDisabledCorrection() throws Exception {
     try {
       for (String selection : new String[]{"*", "date_col"}) {
         // for sanity, try reading all partitions without a filter
         TestBuilder builder = testBuilder()
-            .sqlQuery("select " + selection + " from table(dfs.`" + CORRUPTED_PARTITIONED_DATES_1_2_PATH + "`" +
+            .sqlQuery("select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_2_PATH + "\"" +
                 "(type => 'parquet', autoCorrectCorruptDates => false))")
             .unOrdered()
             .baselineColumns("date_col");
         addCorruptedDateBaselineVals(builder);
         builder.go();
 
-        String query = "select " + selection + " from table(dfs.`" + CORRUPTED_PARTITIONED_DATES_1_2_PATH + "` " +
-            "(type => 'parquet', autoCorrectCorruptDates => false))" + " where date_col = cast('15334-03-17' as date)";
+        String query = "select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_2_PATH + "\" " +
+            "(type => 'parquet', autoCorrectCorruptDates => false))" + " where date_col > cast('15334-03-17' as date)";
         // verify that pruning is actually taking place
         testPlanMatchingPatterns(query, new String[]{"splits=\\[1"}, null);
 
@@ -275,13 +278,13 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
       for (String selection : new String[]{"*", "date_col"}) {
         // for sanity, try reading all partitions without a filter
         TestBuilder builder = testBuilder()
-            .sqlQuery("select " + selection + " from dfs.`" + CORRUPTED_PARTITIONED_DATES_1_2_PATH + "`")
+            .sqlQuery("select " + selection + " from dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_2_PATH + "\"")
             .unOrdered()
             .baselineColumns("date_col");
         addDateBaselineVals(builder);
         builder.go();
 
-        String query = "select " + selection + " from dfs.`" + CORRUPTED_PARTITIONED_DATES_1_2_PATH + "`" +
+        String query = "select " + selection + " from dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_2_PATH + "\"" +
             " where date_col = date '1970-01-01'";
         // verify that pruning is actually taking place
         testPlanMatchingPatterns(query, new String[]{"splits=\\[1"}, null);
@@ -313,8 +316,8 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
   @Test
   public void testReadCorruptDatesWithNullFilledColumns() throws Exception {
     testBuilder()
-        .sqlQuery("select null_dates_1, null_dates_2, date_col from dfs.`" +
-            PARQUET_DATE_FILE_WITH_NULL_FILLED_COLS + "`")
+        .sqlQuery("select null_dates_1, null_dates_2, date_col from dfs.\"" +
+            PARQUET_DATE_FILE_WITH_NULL_FILLED_COLS + "\"")
         .unOrdered()
         .baselineColumns("null_dates_1", "null_dates_2", "date_col")
         .baselineValues(null, null, new LocalDateTime(1970, 1, 1, 0, 0))
@@ -373,7 +376,7 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
     // for bad values) to set the flag that the values are corrupt
     for (String selection : new String[] {"*", "date_col"}) {
       TestBuilder builder = testBuilder()
-          .sqlQuery("select " + selection + " from dfs.`" + MIXED_CORRUPTED_AND_CORRECTED_DATES_PATH + "`")
+          .sqlQuery("select " + selection + " from dfs.\"" + MIXED_CORRUPTED_AND_CORRECTED_DATES_PATH + "\"")
           .unOrdered()
           .baselineColumns("date_col");
       for (int i = 0; i < 4; i++) {
@@ -413,7 +416,7 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
     // for bad values) to set the flag that the values are corrupt
     for (String selection : new String[] {"*", "date_col"}) {
       TestBuilder builder = testBuilder()
-          .sqlQuery("select " + selection + " from table(dfs.`" + MIXED_CORRUPTED_AND_CORRECTED_DATES_PATH + "`" +
+          .sqlQuery("select " + selection + " from table(dfs.\"" + MIXED_CORRUPTED_AND_CORRECTED_DATES_PATH + "\"" +
               "(type => 'parquet', autoCorrectCorruptDates => false))")
           .unOrdered()
           .baselineColumns("date_col");

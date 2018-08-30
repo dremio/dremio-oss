@@ -158,7 +158,7 @@ public class EventBasedRecordWriter {
         return recordWriter.getNewNullConverter(fieldId, fieldName, reader);
       case UNION:
         return recordWriter.getNewUnionConverter(fieldId, fieldName, reader);
-      case MAP:
+      case STRUCT:
         return recordWriter.getNewMapConverter(fieldId, fieldName, reader);
       case LIST:
         return recordWriter.getNewListConverter(fieldId, fieldName, reader);

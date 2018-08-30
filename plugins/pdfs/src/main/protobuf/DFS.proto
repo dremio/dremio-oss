@@ -53,8 +53,8 @@ enum RpcType {
 
 message WriteDataRequest {
   required string path = 1;
-  required int64 lastUpdate = 2;
-  required int64 lastOffset = 3;
+  required int64 last_update = 2;
+  required int64 last_offset = 3;
 }
 
 message WriteDataResponse {
@@ -66,15 +66,28 @@ message GetFileStatusRequest {
 }
 
 message GetFileStatusResponse {
-  optional FileStatus status =  1;
+  optional FileStatus status = 1;
+}
+
+// Continuation handle to allow list status results streaming
+message ListStatusContinuationHandle {
+  optional string id = 1;
 }
 
 message ListStatusRequest {
-  required string path = 1;
+  // ignored if handle is set
+  optional string path = 1;
+  // if not set, return all results at once
+  // otherwise return as many as limit results and if server has more,
+  // it will provide a continuation handle to get the remaining results
+  // Make sure to read all results from the remote server!!!
+  optional int32 limit = 2; 
+  optional ListStatusContinuationHandle handle = 3;
 }
 
 message ListStatusResponse {
   repeated FileStatus statuses = 1;
+  optional ListStatusContinuationHandle handle = 2;
 }
 
 message GetFileDataRequest {

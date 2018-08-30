@@ -15,14 +15,17 @@
  */
 import { Component } from 'react';
 
-import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
-import { BLUE } from 'uiTheme/radium/colors';
-import { checkboxFocus, fieldDisabled } from 'uiTheme/radium/forms';
-import { formDefault } from 'uiTheme/radium/typography';
+import classNames from 'classnames';
+import {
+  base,
+  labelContent,
+  disabled as disabledCls,
+  dummy
+} from './Checkbox.less';
 
 export const checkboxPropTypes = {
   label: PropTypes.node,
@@ -31,12 +34,25 @@ export const checkboxPropTypes = {
   inputType: PropTypes.string,
   checked: PropTypes.bool,
   disabled: PropTypes.bool,
+  inverted: PropTypes.bool,
   renderDummyInput: PropTypes.func,
   dummyInputStyle: PropTypes.object,
-  style: PropTypes.object
+  style: PropTypes.object,
+  className: PropTypes.string,
+  initialValue: PropTypes.any,
+  autofill: PropTypes.any,
+  onUpdate: PropTypes.any,
+  valid: PropTypes.any,
+  invalid: PropTypes.any,
+  dirty: PropTypes.any,
+  pristine: PropTypes.any,
+  error: PropTypes.any,
+  active: PropTypes.any,
+  touched: PropTypes.any,
+  visited: PropTypes.any,
+  autofilled: PropTypes.any
 };
 
-@Radium
 @pureRender
 export default class Checkbox extends Component {
 
@@ -44,73 +60,37 @@ export default class Checkbox extends Component {
 
   static defaultProps = {
     inputType: 'checkbox'
-  }
+  };
 
   renderDummyCheckbox(isChecked, style) {
-    return <div style={[styles.dummy, style, isChecked ? styles.checked : null]}
+    return <div className={classNames(dummy, isChecked && 'checked')} style={style}
       data-qa={this.props.dataQa}>
       {isChecked ? '✔' : '\u00A0'}
     </div>;
   }
 
   render() {
-    // retrieve the focus state of the container and style the dummy appropriately.
-    const focus = Radium.getState(this.state, 'container', ':focus');
+    const {
+      style, label, dummyInputStyle,
+      inputType, labelBefore,
+      disabled, className, inverted, renderDummyInput,
+      initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled,
+      ...props
+    } = this.props;
+    const labelSpan = <span className={labelContent}>{label}</span>;
+    const dummyCheckState = (inverted) ? !props.checked : props.checked;
 
-    const {style, label, dummyInputStyle, inputType, labelBefore, ...props} = this.props;
-    const labelSpan = <span style={styles.labelContent}>{label}</span>;
-
-    const focusStyle = focus ? checkboxFocus : {};
-    const finalDummyInputStyle = {...dummyInputStyle, ...focusStyle};
-
+    // <input .../> should be before dummy input to '~' css selector work
     return (
-      <label className='field' key='container' style={[styles.label, props.disabled && styles.labelDisabled, style]}>
+      <label className={classNames(['field', base, disabled && disabledCls, className])} key='container' style={style}>
         {labelBefore && labelSpan}
-        {this.props.renderDummyInput ?
-          this.props.renderDummyInput(props.checked, finalDummyInputStyle) :
-          this.renderDummyCheckbox(props.checked, finalDummyInputStyle)
-        }
         <input type={inputType} style={{position: 'absolute', left: -10000}} {...props}/>
+        {renderDummyInput ?
+          renderDummyInput(props.checked, dummyInputStyle) :
+          this.renderDummyCheckbox(dummyCheckState, dummyInputStyle)
+        }
         {!labelBefore && labelSpan}
       </label>
     );
   }
 }
-
-const styles = {
-  label: {
-    ...formDefault,
-    cursor: 'pointer', // todo: use css to make all <label>s cursor:pointer?
-    display: 'inline-flex',
-    position: 'relative',
-    alignItems: 'center', // This looks off in FF<=50 (DX-8124) - but resolving messes up the latest versions of browsers
-    ':focus': {}  // need empty object so that radium listens to focus events
-  },
-  labelDisabled: { // todo: DRY with button
-    ...fieldDisabled,
-    cursor: 'default'
-    // todo: look into adding left/right padding - but need to do it for the not-disabled case too
-  },
-  dummy: {
-    flexShrink: 0,
-    textAlign: 'center',
-    fontSize: 9,
-    width: 14,
-    height: 14,
-    padding: 1,
-    margin: '0 5px',
-    border: '1px solid #bbb',
-    borderRadius: 1,
-    background: '#fff',
-    verticalAlign: 'text-bottom'
-  },
-  checked: {
-    border: `1px solid ${BLUE}`,
-    color: BLUE
-  },
-  labelContent: {
-    lineHeight: '24px',
-    display: 'flex',
-    minWidth: 0 // flex gives children min width auto. Override so parent label can control size.
-  }
-};

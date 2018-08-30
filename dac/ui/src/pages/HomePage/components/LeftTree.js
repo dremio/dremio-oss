@@ -15,12 +15,12 @@
  */
 import { Component } from 'react';
 import { connect } from 'react-redux';
-import Immutable from 'immutable';
 import classNames from 'classnames';
 import pureRender from 'pure-render-decorator';
 import {FormattedMessage, injectIntl} from 'react-intl';
 
 import PropTypes from 'prop-types';
+import { mixin, propTypes, mapStateToProps } from 'dyn-load/pages/HomePage/components/LeftTreeMixin';
 
 import FinderNav from 'components/FinderNav';
 import FinderNavItem from 'components/FinderNavItem';
@@ -41,6 +41,7 @@ import './LeftTree.less';
 @injectIntl
 @pureRender
 @Radium
+@mixin
 export class LeftTree extends Component {
   static contextTypes = {
     location: PropTypes.object,
@@ -48,17 +49,7 @@ export class LeftTree extends Component {
     router: PropTypes.object
   };
 
-  static propTypes = {
-    className: PropTypes.string,
-    spaces: PropTypes.instanceOf(Immutable.List).isRequired,
-    sources: PropTypes.instanceOf(Immutable.List).isRequired,
-    spacesViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
-    sourcesViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
-    toggleSpacePin: PropTypes.func,
-    toggleSourcePin: PropTypes.func,
-    createSampleSource: PropTypes.func.isRequired,
-    intl: PropTypes.object.isRequired
-  };
+  static propTypes = propTypes;
 
   state = {
     isAddingSampleSource: false
@@ -73,15 +64,15 @@ export class LeftTree extends Component {
       }
       this.setState({isAddingSampleSource: false});
     });
-  }
+  };
 
   getHomeObject() {
     return {
       name: this.context.loggedInUser.userName,
       links: {
-        self: '/'
+        self: '/home'
       },
-      resourcePath: '/',
+      resourcePath: '/home',
       iconClass: 'Home'
     };
   }
@@ -208,7 +199,7 @@ export class LeftTree extends Component {
   }
 }
 
-export default connect(null, {createSampleSource})(LeftTree);
+export default connect(mapStateToProps, {createSampleSource})(LeftTree);
 
 const styles = {
   leftTreeHolder: {

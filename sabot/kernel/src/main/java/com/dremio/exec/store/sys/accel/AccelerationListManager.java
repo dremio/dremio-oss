@@ -29,6 +29,7 @@ public interface AccelerationListManager extends Service {
   Iterable<ReflectionInfo> getReflections();
   Iterable<MaterializationInfo> getMaterializations();
   Iterable<RefreshInfo> getRefreshInfos();
+  Iterable<DependencyInfo> getReflectionDependencies();
 
   class ReflectionInfo {
     public final String reflection_id;
@@ -123,6 +124,51 @@ public interface AccelerationListManager extends Service {
         reflectionInfoProto.getMeasures(),
         reflectionInfoProto.getDisplayColumns(),
         reflectionInfoProto.getExternalReflection());
+    }
+  }
+
+  class DependencyInfo {
+
+    public final String reflection_id;
+    public final String dependency_id;
+    public final String dependency_type;
+    public final String dependency_path;
+
+    public DependencyInfo(String reflection_id, String dependency_id, String dependency_type, String dependency_path) {
+      this.reflection_id = reflection_id;
+      this.dependency_id = dependency_id;
+      this.dependency_type = dependency_type;
+      this.dependency_path = dependency_path;
+    }
+
+    public static DependencyInfo getDependencyInfo(ReflectionRPC.DependencyInfo dependencyInfoProto) {
+      return new DependencyInfo(dependencyInfoProto.getReflectionId(),
+        dependencyInfoProto.getDependencyId(),
+        dependencyInfoProto.getDependencyType(),
+        dependencyInfoProto.getDependencyPath());
+    }
+
+    public ReflectionRPC.DependencyInfo toProto() {
+      ReflectionRPC.DependencyInfo.Builder protoDependencyInfo =
+        ReflectionRPC.DependencyInfo.newBuilder();
+
+      if (reflection_id != null) {
+        protoDependencyInfo.setReflectionId(reflection_id);
+      }
+
+      if (dependency_id != null) {
+        protoDependencyInfo.setDependencyId(dependency_id);
+      }
+
+      if (dependency_type != null) {
+        protoDependencyInfo.setDependencyType(dependency_type);
+      }
+
+      if (dependency_path != null) {
+        protoDependencyInfo.setDependencyPath(dependency_path);
+      }
+
+      return protoDependencyInfo.build();
     }
   }
 

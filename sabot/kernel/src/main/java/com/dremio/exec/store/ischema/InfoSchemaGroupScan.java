@@ -38,7 +38,6 @@ import com.dremio.exec.store.schedule.SimpleCompleteWork;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
 
 /**
  * InfoSchema group scan.
@@ -154,7 +153,7 @@ public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<Simpl
 
   @Override
   public Iterator<PhysicalOperator> iterator() {
-    return Iterators.emptyIterator();
+    return Collections.emptyIterator();
   }
 
   @Override

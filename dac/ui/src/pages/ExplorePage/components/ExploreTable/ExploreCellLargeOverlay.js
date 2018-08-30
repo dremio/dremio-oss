@@ -30,11 +30,12 @@ import exploreUtils from 'utils/explore/exploreUtils';
 import FontIcon from 'components/Icon/FontIcon';
 import dataFormatUtils from 'utils/dataFormatUtils';
 import ViewStateWrapper from 'components/ViewStateWrapper';
+import { withLocation } from 'containers/dremioLocation';
 import CellPopover from './CellPopover';
 import './ExploreCellLargeOverlay.less';
 
 @Radium
-export default class ExploreCellLargeOverlay extends Component {
+export class ExploreCellLargeOverlayView extends Component {
   static propTypes = {
     // If type of column is List or map, cellValue should be an object.
     // In other cases it should be a string
@@ -291,6 +292,8 @@ export default class ExploreCellLargeOverlay extends Component {
     );
   }
 }
+
+export default withLocation(ExploreCellLargeOverlayView);
 
 const styles = {
   pointer: {

@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet;
 
 import static com.dremio.exec.ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
 import java.io.IOException;
@@ -29,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.ParquetFileReader;
@@ -39,6 +41,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.MinorType;
 import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -72,7 +75,6 @@ import com.dremio.service.namespace.file.proto.FileUpdateKey;
 import com.dremio.service.namespace.file.proto.ParquetDatasetSplitXAttr;
 import com.dremio.service.namespace.file.proto.ParquetDatasetXAttr;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -119,7 +121,7 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
     try (
       BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
       OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), sampleAllocator, context.getOptionManager(), 1000);
-      SampleMutator mutator = new SampleMutator(context)
+      SampleMutator mutator = new SampleMutator(sampleAllocator)
     ){
       final Optional<FileStatus> firstFileO = selection.getFirstFile();
       if(!firstFileO.isPresent()) {
@@ -129,19 +131,29 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
       final ParquetMetadata footer = ParquetFileReader.readFooter(fsPlugin.getFsConf(), firstFile, ParquetMetadataConverter.NO_FILTER);
       final ParquetReaderUtility.DateCorruptionStatus dateStatus = ParquetReaderUtility.detectCorruptDates(footer, GroupScan.ALL_COLUMNS,
         ((ParquetFormatPlugin)formatPlugin).getConfig().autoCorrectCorruptDates);
-
       final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
-          .readInt96AsTimeStamp(operatorContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).bool_val)
+          .readInt96AsTimeStamp( operatorContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
           .dateCorruptionStatus(dateStatus)
           .build();
 
-      final ImplicitFilesystemColumnFinder finder = new  ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS);
+      boolean isAccelerator = fsPlugin.getId().getName().equals("__accelerator");
 
-      try(RecordReader reader =
-            new AdditionalColumnsRecordReader(
-              new ParquetRowiseReader(operatorContext, footer, 0, firstFile.getPath().toString(), GroupScan.ALL_COLUMNS, fs, schemaHelper, true),
+      final ImplicitFilesystemColumnFinder finder = new  ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS, isAccelerator);
+
+      try(InputStreamProvider streamProvider = new InputStreamProvider(fs, firstFile.getPath(), false);
+          RecordReader reader = new AdditionalColumnsRecordReader(
+            new ParquetRowiseReader(operatorContext,
+                footer,
+                0,
+                firstFile.getPath().toString(),
+                GroupScan.ALL_COLUMNS,
+                fs,
+                schemaHelper,
+                streamProvider
+              ),
               finder.getImplicitFieldsForSample(selection)
-            )) {
+            )
+      ) {
 
         reader.setup(mutator);
 
@@ -231,17 +243,21 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
       }
       split.setAffinitiesList(affinities);
 
-      // set partition column values
+      // Create a list of (partition name, partition value) pairs. Order of these pairs should be same a table
+      // partition column list. Also if a partition value doesn't exist for a file, use null as the partition value
       final LinkedHashMap<String, PartitionValue> partitionValues = new LinkedHashMap<>();
-      // get single valued column partition
-      for (Map.Entry<SchemaPath, Object> entry: parquetGroupScanUtils.getPartitionValueMap().get(rowGroupInfo.getStatus()).entrySet()) {
-        final SchemaPath columnSchemaPath = entry.getKey();
-        Preconditions.checkNotNull(parquetGroupScanUtils.getColumnTypeMap());
-        MajorType type = parquetGroupScanUtils.getColumnTypeMap().get(columnSchemaPath);
-        if(type != null){
-          final MinorType minorType = MinorType.valueOf(parquetGroupScanUtils.getColumnTypeMap().get(columnSchemaPath).getMinorType().getNumber());
-          partitionValues.put(columnSchemaPath.getAsUnescapedPath(), MetadataUtils.toPartitionValue(columnSchemaPath, entry.getValue(), minorType).setType(PartitionValueType.VISIBLE));
+      final Map<SchemaPath, MajorType> typeMap = checkNotNull(parquetGroupScanUtils.getColumnTypeMap());
+      final Map<SchemaPath, Object> pValues =  parquetGroupScanUtils.getPartitionValueMap().get(rowGroupInfo.getStatus());
+      for(SchemaPath pCol : parquetGroupScanUtils.getPartitionColumns()) {
+        final MajorType pColType = typeMap.get(pCol);
+        final MinorType minorType = MinorType.valueOf(pColType.getMinorType().getNumber());
+        final Object pVal;
+        if (pValues != null && pValues.containsKey(pCol)) {
+          pVal = pValues.get(pCol);
+        } else {
+          pVal = null;
         }
+        partitionValues.put(pCol.getAsUnescapedPath(), MetadataUtils.toPartitionValue(pCol, pVal, minorType).setType(PartitionValueType.VISIBLE));
       }
 
       if (!"__accelerator".equals(fsPlugin.getName())) {
@@ -256,7 +272,6 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
               value = new PartitionValue().setColumn(p.getName()).setLongValue((Long) p.getValue()).setType(PartitionValueType.IMPLICIT);
             } else {
               throw new UnsupportedOperationException(String.format("Unable to handle value %s of type %s.", obj, obj.getClass().getName()));
-
             }
             partitionValues.put(p.getName(), value);
             allImplicitColumns.add(p.getName());
@@ -272,6 +287,10 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
           .setCount(entry.getValue()));
       }
 
+      Long length = null;
+      if (fsPlugin.getContext().getOptionManager().getOption(ExecConstants.PARQUET_CACHED_ENTITY_SET_FILE_SIZE)) {
+        length = rowGroupInfo.getStatus().getLen();
+      }
       // set xattr
       split.setExtendedProperty(ByteString.copyFrom(ParquetDatasetXAttrSerDe.PARQUET_DATASET_SPLIT_XATTR_SERIALIZER.serialize(
         new ParquetDatasetSplitXAttr()
@@ -280,7 +299,8 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
           .setRowGroupIndex(rowGroupInfo.getRowGroupIndex())
           .setUpdateKey(new FileSystemCachedEntity()
               .setPath(pathString)
-              .setLastModificationTime(rowGroupInfo.getStatus().getModificationTime()))
+              .setLastModificationTime(rowGroupInfo.getStatus().getModificationTime())
+              .setLength(length))
           .setColumnValueCountsList(columnValueCounts)
           .setLength(rowGroupInfo.getLength()))));
 

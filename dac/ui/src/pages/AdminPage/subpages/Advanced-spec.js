@@ -16,8 +16,8 @@
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 
-import {Advanced} from './Advanced';
-import {LABELS} from './settingsConfig';
+import { Advanced } from './Advanced';
+import { LABELS } from './settingsConfig';
 
 describe('Advanced', () => {
 
@@ -30,13 +30,13 @@ describe('Advanced', () => {
 
     minimalProps = { // todo: find a way to auto-gen this based on propTypes def
       getAllSettings: sinon.stub().returns(Promise.resolve()),
+      resetSetting: sinon.stub().returns(Promise.resolve()),
       addNotification: sinon.stub().returns(Promise.resolve()),
 
       viewState: new Immutable.Map(),
 
       settings: new Immutable.Map(),
       setChildDirtyState: sinon.spy()
-
     };
     commonProps = {
       ...minimalProps,
@@ -243,6 +243,25 @@ describe('Advanced', () => {
 
       expect(evt.target.reset).to.have.been.called;
       expect(minimalProps.addNotification).to.have.been.called;
+    });
+  });
+
+  describe('#resetSetting', () => {
+    it('should call the correct methods)', (done) => {
+      const instance = shallow(<Advanced {...minimalProps} />).instance();
+
+      instance.setState(function(state) {
+        return {
+          tempShown: state.tempShown.add('foo')
+        };
+      });
+
+      instance.resetSetting('foo').then(() => {
+        expect(instance.props.resetSetting).to.have.been.called;
+        expect(instance.props.getAllSettings).to.have.been.called;
+        expect(Array.from(instance.state.tempShown)).to.eql([]);
+        done();
+      });
     });
   });
 });

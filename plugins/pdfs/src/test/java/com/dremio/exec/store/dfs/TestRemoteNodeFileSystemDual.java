@@ -87,7 +87,7 @@ public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
   public void basicClientReadWrite() throws Exception {
     Path basePath = new Path(temporaryFolder.newFolder().getAbsolutePath());
     Path path = ((PathCanonicalizer) clientFS).canonicalizePath(new Path(basePath, "testfile.bytes"));
-    final byte[] randomBytesMoreThanBuffer = new byte[RemoteNodeFileSystem.REMOTE_WRITE_BUFFER_SIZE * 3];
+    final byte[] randomBytesMoreThanBuffer = new byte[RemoteNodeFileSystem.REMOTE_WRITE_BUFFER_SIZE_DEFAULT * 3];
     Random r = new Random();
     r.nextBytes(randomBytesMoreThanBuffer);
 

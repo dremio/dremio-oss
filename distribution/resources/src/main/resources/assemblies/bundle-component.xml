@@ -23,7 +23,6 @@
       <unpack>false</unpack>
       <useProjectArtifact>false</useProjectArtifact>
       <includes>
-        <include>com.dremio.distribution:dremio-daemon-bundle:jar:bundled</include>
         <include>com.dremio.provision:dremio-shimloader:jar</include>
       </includes>
       <scope>runtime</scope>

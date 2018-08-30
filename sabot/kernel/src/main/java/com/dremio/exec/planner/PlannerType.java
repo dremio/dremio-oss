@@ -21,17 +21,17 @@ import com.google.common.base.Preconditions;
 
 public enum PlannerType {
   /**
-   * Aribrary heuristic, rules don't combine
+   * Arbitrary heuristic, rules don't combine
    */
   HEP(true, false, HepMatchOrder.ARBITRARY),
 
   /**
-   * Bottom Up heuristic, rules don't combine
+   * Bottom Up heuristic, rules run in combination
    */
-  HEP_BOTTOM_UP(true, false, HepMatchOrder.BOTTOM_UP),
+  HEP_BOTTOM_UP(true, true, HepMatchOrder.BOTTOM_UP),
 
   /**
-   * Arbitrary Heuristic, rules run in combination.
+   * Arbitrary heuristic, rules run in combination.
    */
   HEP_AC(true, true, HepMatchOrder.ARBITRARY),
 

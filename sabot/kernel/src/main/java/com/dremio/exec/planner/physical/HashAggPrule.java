@@ -33,7 +33,6 @@ import org.slf4j.Logger;
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.AggPrelBase.OperatorPhase;
-import com.dremio.exec.planner.physical.AggPrelBase.SqlHllAggFunction;
 import com.google.common.collect.ImmutableList;
 
 public class HashAggPrule extends AggPruleBase {
@@ -123,7 +122,7 @@ public class HashAggPrule extends AggPruleBase {
           aggregate.indicator,
           aggregate.getGroupSet(),
           aggregate.getGroupSets(),
-          convertAggCallList(aggregate, aggregate.getAggCallList()),
+          aggregate.getAggCallList(),
           OperatorPhase.PHASE_1of2);
 
       HashToRandomExchangePrel exch =

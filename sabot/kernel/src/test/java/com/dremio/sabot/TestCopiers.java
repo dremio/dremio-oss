@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot;
 
+import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.AllocationReservation;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
@@ -152,6 +153,11 @@ public class TestCopiers extends BaseTestOperator {
     @Override
     public BufferAllocator newChildAllocator(String s, long l, long l1) {
       return actual.newChildAllocator(s, l, l1);
+    }
+
+    @Override
+    public BufferAllocator newChildAllocator(String s, AllocationListener listener, long l, long l1) {
+      return actual.newChildAllocator(s, listener, l, l1);
     }
 
     @Override

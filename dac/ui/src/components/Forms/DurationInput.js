@@ -91,7 +91,6 @@ export default class DurationInput extends Component {
         <Select
           {...unit}
           items={this.periodOptions}
-          buttonStyle={{ textAlign: 'left' }}
           style={styles.select}
           disabled={disabled}
         />
@@ -102,7 +101,8 @@ export default class DurationInput extends Component {
 
 const styles = {
   select: {
-    width: 164
+    width: 164,
+    textAlign: 'left'
   },
   numberInput: {
     width: 42

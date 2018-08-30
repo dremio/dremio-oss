@@ -34,7 +34,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.google.common.collect.Lists;
 
@@ -78,10 +78,10 @@ public class SpillManager implements AutoCloseable {
       this.healthCheckInterval = optionManager.getOption(ExecConstants.SPILL_DISK_SPACE_CHECK_INTERVAL);
       this.healthCheckSpills = optionManager.getOption(ExecConstants.SPILL_DISK_SPACE_CHECK_SPILLS);
     } else {
-      this.minDiskSpacePercentage = ExecConstants.SPILL_DISK_SPACE_LIMIT_PERCENTAGE.getDefault().float_val;
-      this.minDiskSpace = ExecConstants.SPILL_DISK_SPACE_LIMIT_BYTES.getDefault().num_val;
-      this.healthCheckInterval = ExecConstants.SPILL_DISK_SPACE_CHECK_INTERVAL.getDefault().num_val;
-      this.healthCheckSpills = ExecConstants.SPILL_DISK_SPACE_CHECK_SPILLS.getDefault().num_val;
+      this.minDiskSpacePercentage = ExecConstants.SPILL_DISK_SPACE_LIMIT_PERCENTAGE.getDefault().getFloatVal();
+      this.minDiskSpace = ExecConstants.SPILL_DISK_SPACE_LIMIT_BYTES.getDefault().getNumVal();
+      this.healthCheckInterval = ExecConstants.SPILL_DISK_SPACE_CHECK_INTERVAL.getDefault().getNumVal();
+      this.healthCheckSpills = ExecConstants.SPILL_DISK_SPACE_CHECK_SPILLS.getDefault().getNumVal();
     }
 
     this.allSpillDirectories = Lists.newArrayListWithCapacity(directories.size());

@@ -29,15 +29,15 @@ import org.hibernate.validator.constraints.NotEmpty;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 
 import io.protostuff.Tag;
 
-@SourceType("HBASE")
+@SourceType(value = "HBASE", label = "HBase")
 public class HBaseConf extends ConnectionConf<HBaseConf, HBaseStoragePlugin> {
 
   private transient Configuration hbaseConf;
@@ -49,22 +49,24 @@ public class HBaseConf extends ConnectionConf<HBaseConf, HBaseStoragePlugin> {
 
   @NotEmpty
   @Tag(1)
+  @DisplayMetadata(label = "Zookeeper Quorum")
   public String zkQuorum;
 
   @Min(1)
   @Max(65535)
   @Tag(2)
+  @DisplayMetadata(label = "Port")
   public int port = 2181;
 
   /**
    * Enable region size calculation stats.
    */
   @Tag(3)
+  @DisplayMetadata(label = "Region size calculation")
   public boolean isSizeCalcEnabled = true;
 
-  @JsonProperty("propertyList")
   @Tag(4)
-  public List<Property> properties = new ArrayList<>();
+  public List<Property> propertyList = new ArrayList<>();
 
   @Override
   public HBaseStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
@@ -78,8 +80,8 @@ public class HBaseConf extends ConnectionConf<HBaseConf, HBaseStoragePlugin> {
       hbaseConf.set("hbase.zookeeper.quorum", zkQuorum);
       hbaseConf.set("hbase.zookeeper.property.clientPort", Integer.toString(port));
 
-      if (properties != null) {
-        for (Property p : properties) {
+      if (propertyList != null) {
+        for (Property p : propertyList) {
           hbaseConf.set(p.name, p.value);
         }
       }
@@ -98,13 +100,13 @@ public class HBaseConf extends ConnectionConf<HBaseConf, HBaseStoragePlugin> {
 
   @VisibleForTesting
   public void setZookeeperPort(int zookeeperPort) {
-    this.properties.add(new Property(HBaseConstants.HBASE_ZOOKEEPER_PORT, String.valueOf(zookeeperPort)));
+    this.propertyList.add(new Property(HBaseConstants.HBASE_ZOOKEEPER_PORT, String.valueOf(zookeeperPort)));
     getHBaseConf().setInt(HBaseConstants.HBASE_ZOOKEEPER_PORT, zookeeperPort);
   }
 
   @VisibleForTesting
   public void setZookeeper(String zookeeper) {
-    this.properties.add(new Property(HBaseConstants.HBASE_ZOOKEEPER_QUORUM, zookeeper));
+    this.propertyList.add(new Property(HBaseConstants.HBASE_ZOOKEEPER_QUORUM, zookeeper));
     getHBaseConf().set(HBaseConstants.HBASE_ZOOKEEPER_QUORUM, zookeeper);
   }
 

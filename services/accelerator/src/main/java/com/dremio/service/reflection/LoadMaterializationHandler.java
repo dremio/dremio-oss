@@ -36,6 +36,7 @@ import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
+import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -55,6 +56,24 @@ public class LoadMaterializationHandler extends SimpleDirectHandler {
     this.context = Preconditions.checkNotNull(context, "query context required");
   }
 
+  private static List<String> normalizeComponents(final List<String> components) {
+    if (components.size() != 1 && components.size() != 2) {
+      return null;
+    }
+
+    if (components.size() == 2) {
+      return components;
+    }
+
+    // there is one component, let's see if we can split it (using only slash paths instead of dotted paths).
+    final String[] pieces = components.get(0).split("/");
+    if(pieces.length != 2) {
+      return null;
+    }
+
+    return ImmutableList.of(pieces[0], pieces[1]);
+  }
+
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlLoadMaterialization load = SqlNodeUtil.unwrap(sqlNode, SqlLoadMaterialization.class);
@@ -66,16 +85,24 @@ public class LoadMaterializationHandler extends SimpleDirectHandler {
     final ReflectionService service = Preconditions.checkNotNull(context.getAccelerationManager().unwrap(ReflectionService.class),
       "Couldn't unwrap ReflectionService");
 
-    final MaterializationId materializationId = new MaterializationId(load.getMaterializationId());
+    final List<String> components = normalizeComponents(load.getMaterializationPath());
+    if (components == null) {
+      throw SqlExceptionHelper.parseError("Invalid materialization path.", sql, load.getParserPosition()).build(logger);
+    }
+
+    final ReflectionId reflectionId = new ReflectionId(components.get(0));
+    final Optional<ReflectionGoal> goalOptional = service.getGoal(reflectionId);
+    if (!goalOptional.isPresent()) {
+      throw SqlExceptionHelper.parseError("Unknown reflection id.", sql, load.getParserPosition()).build(logger);
+    }
+    final ReflectionGoal goal = goalOptional.get();
+
+    final MaterializationId materializationId = new MaterializationId(components.get(1));
     final Optional<Materialization> materializationOpt = service.getMaterialization(materializationId);
     if (!materializationOpt.isPresent()) {
-      throw SqlExceptionHelper.parseError("Unknown materialization id.", sql, load.getMaterializationIdPos()).build(logger);
+      throw SqlExceptionHelper.parseError("Unknown materialization id.", sql, load.getParserPosition()).build(logger);
     }
     final Materialization materialization = materializationOpt.get();
-
-    Optional<ReflectionGoal> goalOpt = service.getGoal(materialization.getReflectionId());
-    Preconditions.checkState(goalOpt.isPresent(), "Goal not present for materialization %s", ReflectionUtils.getId(materialization));
-    final ReflectionGoal goal = goalOpt.get();
 
     // if the user already made changes to the reflection goal, let's stop right here
     Preconditions.checkState(Objects.equals(goal.getVersion(), materialization.getReflectionGoalVersion()),

@@ -64,8 +64,13 @@ while [ $# -gt 1 ]; do
   fi
 done
 
-# Defaults to local configuration if configuration is not set
-DREMIO_CONF_DIR="${DREMIO_CONF_DIR:-${DREMIO_HOME}/conf}"
+if [ -z "$DREMIO_CONF_DIR" ]; then
+  # Defaults to local configuration if configuration is not set
+  DREMIO_CONF_DIR="${DREMIO_HOME}/conf"
+elif [ ! -d "${DREMIO_CONF_DIR}" -o ! -x "${DREMIO_CONF_DIR}" ]; then
+  echo "Dremio conf directory $DREMIO_CONF_DIR does not exist, is not a directory or is not accessible."
+  exit 1
+fi
 
 # Source ${DREMIO_ENV_SCRIPT} for any user configured values
 if [ -f "${DREMIO_CONF_DIR}/${DREMIO_ENV_SCRIPT}" ]; then
@@ -211,6 +216,28 @@ if $is_cygwin; then
   fi
 fi
 
+export DREMIO_HOME # needed for the HOCON commands below
+
+# Set proper memory values based on user configured values
+if [[ -n $DREMIO_MAX_MEMORY_SIZE_MB ]]
+then
+  DEFAULT_MAX_HEAP_MEMORY_EXECUTOR_MB=4096
+  if [ 32768 -le $DREMIO_MAX_MEMORY_SIZE_MB ]; then
+    DEFAULT_MAX_HEAP_MEMORY_EXECUTOR_MB=8192
+  fi
+  ROLES=`$JAVA -cp "$DREMIO_CLASSPATH" -Ddremio.log.path=${DREMIO_LOG_DIR} com.dremio.dac.daemon.GetRolesCommand`
+  if ( echo $ROLES | grep -q "executor" ); then
+    DREMIO_MAX_HEAP_MEMORY_SIZE_MB=${DREMIO_MAX_HEAP_MEMORY_SIZE_MB:-$DEFAULT_MAX_HEAP_MEMORY_EXECUTOR_MB}
+    DREMIO_MAX_DIRECT_MEMORY_SIZE_MB=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB:-$((DREMIO_MAX_MEMORY_SIZE_MB-DREMIO_MAX_HEAP_MEMORY_SIZE_MB))}
+  else
+    DREMIO_MAX_DIRECT_MEMORY_SIZE_MB=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB:-2048}
+    DREMIO_MAX_HEAP_MEMORY_SIZE_MB=${DREMIO_MAX_HEAP_MEMORY_SIZE_MB:-$((DREMIO_MAX_MEMORY_SIZE_MB-DREMIO_MAX_DIRECT_MEMORY_SIZE_MB))}
+  fi
+else
+  DREMIO_MAX_HEAP_MEMORY_SIZE_MB=${DREMIO_MAX_HEAP_MEMORY_SIZE_MB:-4096}
+  DREMIO_MAX_DIRECT_MEMORY_SIZE_MB=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB:-8192}
+fi
+
 # make sure allocator chunks are done as mmap'd memory (and reduce arena overhead)
 # Newer versions of glibc use an arena memory allocator that causes virtual
 # memory usage to explode. Tune the variable down to prevent vmem explosion.
@@ -225,8 +252,9 @@ export JAVA_VERSION_STRING
 export JAVA_MAJOR_VERSION
 export HADOOP_HOME
 export is_cygwin
-export DREMIO_HOME
 export DREMIO_JAVA_OPTS
 export DREMIO_CONF_DIR
 export DREMIO_LOG_DIR
 export DREMIO_CLASSPATH
+export DREMIO_MAX_HEAP_MEMORY_SIZE_MB
+export DREMIO_MAX_DIRECT_MEMORY_SIZE_MB

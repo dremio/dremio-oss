@@ -21,7 +21,6 @@ import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -61,6 +60,7 @@ import com.dremio.exec.store.ischema.InfoSchemaConf;
 import com.dremio.exec.util.DebugCheck;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.coordinator.DistributedSemaphore.DistributedLease;
+import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -350,7 +350,7 @@ public class CatalogServiceImpl implements CatalogService {
   }
 
   // used only internally
-  private boolean createSourceIfMissing(SourceConfig config) {
+  private boolean createSourceIfMissing(SourceConfig config, NamespaceAttribute... attributes) {
     Preconditions.checkArgument(config.getVersion() == null);
     try {
       return createSourceIfMissingWithThrow(config);
@@ -371,14 +371,14 @@ public class CatalogServiceImpl implements CatalogService {
     return false;
   }
 
-  private void createSource(SourceConfig config, String userName) {
+  private void createSource(SourceConfig config, String userName, NamespaceAttribute... attributes) {
     Preconditions.checkArgument(config.getVersion() == null);
-    createOrUpdateSource(config, false, userName);
+    createOrUpdateSource(config, false, userName, attributes);
   }
 
-  private void updateSource(SourceConfig config, String userName) {
+  private void updateSource(SourceConfig config, String userName, NamespaceAttribute... attributes) {
     Preconditions.checkArgument(config.getVersion() != null);
-    createOrUpdateSource(config, false, userName);
+    createOrUpdateSource(config, false, userName, attributes);
   }
 
   @VisibleForTesting
@@ -551,7 +551,7 @@ public class CatalogServiceImpl implements CatalogService {
    *
    * @param config
    */
-  private void createOrUpdateSource(SourceConfig config, boolean ignoreIfExists, String userName) {
+  private void createOrUpdateSource(SourceConfig config, boolean ignoreIfExists, String userName, NamespaceAttribute... attributes) {
     logger.debug("Adding or updating source [{}].", config.getName());
 
     NamespaceService namespaceService = context.get().getNamespaceService(userName);
@@ -568,15 +568,18 @@ public class CatalogServiceImpl implements CatalogService {
       try {
         SourceConfig existingConfig = namespaceService.getSource(config.getKey());
 
-        if(ignoreIfExists) {
+        if (ignoreIfExists) {
           return;
         }
 
-        if(!Objects.equals(config.getVersion(), existingConfig.getVersion())) {
-          throw new ConcurrentModificationException("Source was already created.");
-        }
-      }catch (NamespaceNotFoundException ex) {
-        if(config.getVersion() != null) {
+        // add back any secrets
+        final ConnectionConf<?, ?> connectionConf = config.getConnectionConf(plugins.getReader());
+        connectionConf.applySecretsFrom(plugins.getReader().getConnectionConf(existingConfig));
+        config.setConfig(connectionConf.toBytesString());
+
+        namespaceService.canSourceConfigBeSaved(config, existingConfig, attributes);
+      } catch (NamespaceNotFoundException ex) {
+        if (config.getVersion() != null) {
           throw new ConcurrentModificationException("Source was already created.");
         }
       }
@@ -648,7 +651,7 @@ public class CatalogServiceImpl implements CatalogService {
 
         // Now let's create the plugin in the system namespace.
         // This increments the version in the config object as well.
-        namespaceService.addOrUpdateSource(config.getKey(), config);
+        namespaceService.addOrUpdateSource(config.getKey(), config, attributes);
 
       } finally {
         if(pluginLock != null) {
@@ -680,7 +683,7 @@ public class CatalogServiceImpl implements CatalogService {
     } catch (ConcurrentModificationException ex) {
       throw UserException.concurrentModificationError(ex).message("Failure creating/updating source [%s].", config.getName()).build(logger);
     } catch (Exception ex) {
-      throw UserException.validationError(ex).message("Failure creating/updating source [%s].", config.getName()).build(logger);
+      throw UserException.validationError(ex).message("Failure creating/updating source [%s].", config.getName()).addContext(ex.getMessage()).build(logger);
     }
   }
 
@@ -743,6 +746,9 @@ public class CatalogServiceImpl implements CatalogService {
             // restart loop to include synchronize or simple delete.
             continue;
           }
+
+          // We need to cancel the metadata refresh task before trying to acquire the plugin writeLock or delete the plugin
+          plugin.cancelMetadataRefreshTask();
 
           try (AutoCloseable pluginLock = plugin.writeLock()) {
             if(!plugin.matches(config)) {
@@ -942,12 +948,12 @@ public class CatalogServiceImpl implements CatalogService {
       return CatalogServiceImpl.this.getSource(name);
     }
 
-    public void createSource(SourceConfig sourceConfig) {
-      CatalogServiceImpl.this.createSource(sourceConfig, userName);
+    public void createSource(SourceConfig sourceConfig, NamespaceAttribute... attributes) {
+      CatalogServiceImpl.this.createSource(sourceConfig, userName, attributes);
     }
 
-    public void updateSource(SourceConfig sourceConfig) {
-      CatalogServiceImpl.this.updateSource(sourceConfig, userName);
+    public void updateSource(SourceConfig sourceConfig, NamespaceAttribute... attributes) {
+      CatalogServiceImpl.this.updateSource(sourceConfig, userName, attributes);
     }
 
     public void deleteSource(SourceConfig sourceConfig) {

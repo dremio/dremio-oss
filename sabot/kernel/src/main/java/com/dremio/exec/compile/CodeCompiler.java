@@ -19,12 +19,12 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.ClassTransformationException;
 import com.dremio.exec.expr.CodeGenerator;
-import com.dremio.exec.server.options.OptionManager;
-import com.google.common.annotations.VisibleForTesting;
+import com.dremio.options.OptionManager;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;

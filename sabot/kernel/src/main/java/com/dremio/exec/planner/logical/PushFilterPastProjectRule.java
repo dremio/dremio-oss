@@ -30,20 +30,25 @@ import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexOver;
+import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitor;
 import org.apache.calcite.rex.RexVisitorImpl;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
 
+import com.dremio.exec.planner.sql.SqlFlattenOperator;
 import com.google.common.collect.Lists;
 
 public class PushFilterPastProjectRule extends RelOptRule {
 
   public final static RelOptRule INSTANCE = new PushFilterPastProjectRule(
       FilterRel.class, ProjectRel.class, RelNode.class, DremioRelFactories.LOGICAL_PROPAGATE_BUILDER);
+
   public final static RelOptRule CALCITE_INSTANCE = new PushFilterPastProjectRule(
       LogicalFilter.class, LogicalProject.class, RelNode.class, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
@@ -52,53 +57,64 @@ public class PushFilterPastProjectRule extends RelOptRule {
 
   private final boolean checkChild;
 
-  private RexCall findItemOrFlatten(
-      final RexNode node,
-      final List<RexNode> projExprs) {
+  /**
+   * Determine if the expression qualifies for push down.
+   *
+   * @param filterExpr filter expression
+   * @param projExprs project expressions
+   * @return true iff the expression qualifies
+   */
+  private boolean qualifies(final RexNode filterExpr, final List<RexNode> projExprs) {
+
+    // block uses "throw Util.FoundOne" to terminate expression tree search
     try {
-      RexVisitor<Void> visitor =
+      // 1. filter-window transpose is not valid since input row count changes
+      for (RexNode projExpr : projExprs) {
+        projExpr.accept(new WindowFunctionFinder());
+      }
+
+      // 2. filter-project transpose is not valid if:
+      // 2.a. filter has a ITEM or FLATTEN operator
+      // 2.b. filter references a field in project that has ITEM, FLATTEN or sub-query
+      final RexVisitor<Void> filterVisitor =
           new RexVisitorImpl<Void>(true) {
-        @Override
-        public Void visitCall(RexCall call) {
-          if ("item".equals(call.getOperator().getName().toLowerCase()) ||
-            "flatten".equals(call.getOperator().getName().toLowerCase())) {
-            throw new Util.FoundOne(call); /* throw exception to interrupt tree walk (this is similar to
-                                              other utility methods in RexUtil.java */
-          }
-          return super.visitCall(call);
-        }
-
-        @Override
-        public Void visitInputRef(RexInputRef inputRef) {
-          final int index = inputRef.getIndex();
-          RexNode n = projExprs.get(index);
-          if (n instanceof RexCall) {
-            RexCall r = (RexCall) n;
-            if ("item".equals(r.getOperator().getName().toLowerCase()) ||
-                "flatten".equals(r.getOperator().getName().toLowerCase())) {
-              throw new Util.FoundOne(r);
+            @Override
+            public Void visitCall(RexCall call) {
+              if (SqlStdOperatorTable.ITEM.equals(call.getOperator()) ||
+                  SqlFlattenOperator.INSTANCE.equals(call.getOperator())) {
+                throw new Util.FoundOne(call);
+              }
+              return super.visitCall(call);
             }
-          }
 
-          return super.visitInputRef(inputRef);
-        }
-      };
-      node.accept(visitor);
-      return null;
+            @Override
+            public Void visitInputRef(RexInputRef inputRef) {
+              final int index = inputRef.getIndex();
+              final RexNode projExpr = projExprs.get(index);
+
+              projExpr.accept(new UnsupportedProjectExprFinder());
+
+              return super.visitInputRef(inputRef);
+            }
+          };
+
+      filterExpr.accept(filterVisitor);
+      return true;
     } catch (Util.FoundOne e) {
       Util.swallow(e, null);
-      return (RexCall) e.getNode();
+      return false;
     }
   }
 
   /**
    * Push filter past project.  Only push filter past project if the projects underneath are collapsed into
    * a single project.  Don't create a long chain of projects!
-   * @param filterClass
-   * @param projectClass
-   * @param relBuilderFactory
+   *
+   * @param filterClass filter class
+   * @param projectClass project class
+   * @param relBuilderFactory rel builder factory
    */
-  protected PushFilterPastProjectRule(
+  private PushFilterPastProjectRule(
       Class<? extends Filter> filterClass,
       Class<? extends Project> projectClass,
       Class<? extends RelNode> childClass,
@@ -138,7 +154,7 @@ public class PushFilterPastProjectRule extends RelOptRule {
 
 
     for (final RexNode pred : predList) {
-      if (findItemOrFlatten(pred, projRel.getProjects()) == null) {
+      if (qualifies(pred, projRel.getProjects())) {
         qualifiedPredList.add(pred);
       } else {
         unqualifiedPredList.add(pred);
@@ -177,4 +193,34 @@ public class PushFilterPastProjectRule extends RelOptRule {
     }
   }
 
+  private static class WindowFunctionFinder extends RexVisitorImpl<Void> {
+    WindowFunctionFinder() {
+      super(true);
+    }
+
+    @Override
+    public Void visitOver(RexOver over) {
+      throw new Util.FoundOne(over);
+    }
+  }
+
+  private static class UnsupportedProjectExprFinder extends RexVisitorImpl<Void> {
+    UnsupportedProjectExprFinder() {
+      super(true);
+    }
+
+    @Override
+    public Void visitCall(RexCall call) {
+      if (SqlStdOperatorTable.ITEM.equals(call.getOperator()) ||
+          SqlFlattenOperator.INSTANCE.equals(call.getOperator())) {
+        throw new Util.FoundOne(call);
+      }
+      return super.visitCall(call);
+    }
+
+    @Override
+    public Void visitSubQuery(RexSubQuery subQuery) {
+      throw new Util.FoundOne(subQuery);
+    }
+  }
 }

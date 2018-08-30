@@ -82,16 +82,17 @@ public abstract class JSONOutputRecordWriter extends AbstractRowBasedRecordWrite
   <#case "TimeSec">
   <#case "TimeMicro">
   <#case "TimeNano">
+  <#case "FixedSizeBinary">
     <#assign typeName = "unsupported">
     <#break>
-    
+
   <#case "DateMilli">
     <#assign typeName = "Date">
     <#break>
-  <#case "TimeMilli"> 
+  <#case "TimeMilli">
     <#assign typeName = "Time">
     <#break>
-    
+
   <#case "Decimal9">
   <#case "Decimal18">
   <#case "Decimal28Sparse">

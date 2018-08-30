@@ -30,6 +30,7 @@ describe('SqlAutoComplete', () => {
   let wrapper;
   let instance;
   let editor;
+  let sqlEditor;
   beforeEach(() => {
     commonProps = {
       onChange: sinon.spy(),
@@ -42,7 +43,8 @@ describe('SqlAutoComplete', () => {
       sqlSize: 300,
       datasetsPanel: false,
       funcHelpPanel: false,
-      changeQueryContext: sinon.spy()
+      changeQueryContext: sinon.spy(),
+      autoCompleteEnabled: true
     };
     context = {
       router: {push: sinon.spy()},
@@ -57,12 +59,14 @@ describe('SqlAutoComplete', () => {
       getSelections: sinon.stub().returns([fakeRange1, fakeRange2]),
       executeEdits: sinon.stub(),
       pushUndoStop: sinon.stub(),
-      focus: sinon.stub(),
       getTargetAtClientPoint(x, y) {
         return {range: {startLineNumber: 1, startColumn: x, endLineNumber: 1, endColumn: y}};
       }
     };
     instance.getMonacoEditorInstance = () => editor;
+    instance.sqlEditor = sqlEditor = { // mock sqlEditor ref
+      focus: sinon.stub()
+    };
   });
 
   it('renders DragTarget wrapper, .sql-autocomplete, CodeMirror component', () => {
@@ -106,14 +110,14 @@ describe('SqlAutoComplete', () => {
       instance.insertAtRanges('foo');
       expect(editor.executeEdits).to.have.been.calledWith('dremio', [{ identifier: 'dremio-inject', range: fakeRange1, text: 'foo' }, { identifier: 'dremio-inject', range: fakeRange2, text: 'foo' }]);
       expect(editor.pushUndoStop).to.have.been.called;
-      expect(editor.focus).to.have.been.called;
+      expect(sqlEditor.focus).to.have.been.called;
     });
 
     it('passing ranges', () => {
       instance.insertAtRanges('foo', [fakeRange2, fakeRange1]);
       expect(editor.executeEdits).to.have.been.calledWith('dremio', [{ identifier: 'dremio-inject', range: fakeRange2, text: 'foo' }, { identifier: 'dremio-inject', range: fakeRange1, text: 'foo' }]);
       expect(editor.pushUndoStop).to.have.been.called;
-      expect(editor.focus).to.have.been.called;
+      expect(sqlEditor.focus).to.have.been.called;
     });
   });
 

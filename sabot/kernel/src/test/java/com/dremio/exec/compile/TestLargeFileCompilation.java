@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.compile;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Rule;
@@ -25,6 +27,7 @@ import com.dremio.BaseTestQuery;
 import com.dremio.TestBuilder;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
+import com.google.common.base.Joiner;
 
 public class TestLargeFileCompilation extends BaseTestQuery {
   @Rule public final TestRule TIMEOUT = TestTools.getTimeoutRule(150, TimeUnit.SECONDS); // 150secs
@@ -60,7 +63,7 @@ public class TestLargeFileCompilation extends BaseTestQuery {
     for (int i = 0; i < NUM_GROUPBY_COULMNS; i++) {
       sb.append("employee_id+").append(i).append(" as c").append(i).append(", ");
     }
-    sb.append("full_name\nfrom cp.`employee.json`)\ngroup by\n\t");
+    sb.append("full_name\nfrom cp.\"employee.json\")\ngroup by\n\t");
     for (int i = 0; i < NUM_GROUPBY_COULMNS; i++) {
       sb.append("c").append(i).append(", ");
     }
@@ -72,7 +75,7 @@ public class TestLargeFileCompilation extends BaseTestQuery {
     for (int i = 0; i < NUM_PROJECT_COULMNS; i++) {
       sb.append("employee_id+").append(i).append(" as col").append(i).append(", ");
     }
-    sb.append("full_name\nfrom cp.`employee.json`\n\n\t");
+    sb.append("full_name\nfrom cp.\"employee.json\"\n\n\t");
     LARGE_QUERY_SELECT_LIST = sb.append("full_name").toString();
   }
 
@@ -81,7 +84,7 @@ public class TestLargeFileCompilation extends BaseTestQuery {
     for (int i = 0; i < NUM_PROJECT_COULMNS; i++) {
       sb.append("employee_id+").append(i).append(" as col").append(i).append(", ");
     }
-    sb.append("full_name\nfrom cp.`employee.json`\norder by\n\t");
+    sb.append("full_name\nfrom cp.\"employee.json\"\norder by\n\t");
     for (int i = 0; i < NUM_ORDERBY_COULMNS; i++) {
       sb.append(" col").append(i).append(", ");
     }
@@ -91,7 +94,7 @@ public class TestLargeFileCompilation extends BaseTestQuery {
 
   static {
     StringBuilder sb = new StringBuilder("select *\n")
-      .append("from cp.`employee.json`\n")
+      .append("from cp.\"employee.json\"\n")
       .append("where");
     for (int i = 0; i < NUM_FILTER_COULMNS; i++) {
       sb.append(" employee_id+").append(i).append(" < employee_id ").append(i%2==0?"OR":"AND");
@@ -104,52 +107,52 @@ public class TestLargeFileCompilation extends BaseTestQuery {
     for (int i = 0; i < NUM_PROJECT_COULMNS; i++) {
       sb.append("employee_id+").append(i).append(" as col").append(i).append(", ");
     }
-    LARGE_QUERY_WRITER = sb.append("full_name\nfrom cp.`employee.json` limit 1)").toString();
+    LARGE_QUERY_WRITER = sb.append("full_name\nfrom cp.\"employee.json\" limit 1)").toString();
   }
 
   @Test
   public void testTEXT_WRITER() throws Exception {
-    testNoResult("alter session set `%s`='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
+    testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
     testNoResult("use dfs_test");
-    testNoResult("alter session set `%s`='csv'", ExecConstants.OUTPUT_FORMAT_OPTION);
+    testNoResult("alter session set \"%s\"='csv'", ExecConstants.OUTPUT_FORMAT_OPTION);
     testNoResult(LARGE_QUERY_WRITER, "wide_table_csv");
   }
 
   @Test
   public void testPARQUET_WRITER() throws Exception {
-    testNoResult("alter session set `%s`='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
+    testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
     testNoResult("use dfs_test");
-    testNoResult("alter session set `%s`='parquet'", ExecConstants.OUTPUT_FORMAT_OPTION);
+    testNoResult("alter session set \"%s\"='parquet'", ExecConstants.OUTPUT_FORMAT_OPTION);
     testNoResult(ITERATION_COUNT, LARGE_QUERY_WRITER, "wide_table_parquet");
   }
 
   @Test
   public void testGROUP_BY() throws Exception {
-    testNoResult("alter session set `%s`='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
+    testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
     testNoResult(ITERATION_COUNT, LARGE_QUERY_GROUP_BY);
   }
 
   @Test
   public void testEXTERNAL_SORT() throws Exception {
-    testNoResult("alter session set `%s`='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
+    testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
     testNoResult(ITERATION_COUNT, LARGE_QUERY_ORDER_BY);
   }
 
   @Test
   public void testTOP_N_SORT() throws Exception {
-    testNoResult("alter session set `%s`='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
+    testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
     testNoResult(ITERATION_COUNT, LARGE_QUERY_ORDER_BY_WITH_LIMIT);
   }
 
   @Test
   public void testFILTER() throws Exception {
-    testNoResult("alter session set `%s`='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
+    testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
     testNoResult(ITERATION_COUNT, LARGE_QUERY_FILTER);
   }
 
   @Test
   public void testProject() throws Exception {
-    testNoResult("alter session set `%s`='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
+    testNoResult("alter session set \"%s\"='JDK'", ClassCompilerSelector.JAVA_COMPILER_OPTION);
     testNoResult(ITERATION_COUNT, LARGE_QUERY_SELECT_LIST);
   }
 
@@ -179,7 +182,7 @@ public class TestLargeFileCompilation extends BaseTestQuery {
       "         WHEN ( l.l_orderkey = 21 ) THEN 'twenty one' \n" +
       "         ELSE NULL \n" +
       "       end AS calculation \n" +
-      "FROM   cp.`tpch/lineitem.parquet` l\n" +
+      "FROM   cp.\"tpch/lineitem.parquet\" l\n" +
       "WHERE  ( ( ( CASE \n" +
       "               WHEN ( l.l_orderkey = 1 ) THEN  'one' \n" +
       "               WHEN ( l.l_orderkey = 2 ) THEN  'two' \n" +
@@ -253,6 +256,20 @@ public class TestLargeFileCompilation extends BaseTestQuery {
       "                            end ) IS NULL ) THEN 0 \n" +
       "                   ELSE 1 \n" +
       "                 end ) = 1 ) )\n";
+    test(sql);
+  }
+
+  @Test
+  public void manyRegExp() throws Exception {
+    List<String> s = new ArrayList<>();
+    for (int i = 0; i < 500; i++) {
+      s.add(String.format("regexp_matches(n_comment, '%d')", i));
+    }
+
+    String where = Joiner.on(" and\n").join(s);
+
+    String sql = String.format("select * from cp.\"tpch/nation.parquet\" where %s", where);
+
     test(sql);
   }
 }

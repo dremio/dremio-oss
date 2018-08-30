@@ -24,6 +24,7 @@ import Tooltip from 'components/Tooltip';
 import HoverHelp from 'components/HoverHelp';
 
 import forms from 'uiTheme/radium/forms';
+import classNames from 'classnames';
 
 @Radium
 export default class FieldWithError extends Component {
@@ -39,18 +40,25 @@ export default class FieldWithError extends Component {
     errorPlacement: PropTypes.string,
     style: PropTypes.object,
     labelStyle: PropTypes.object,
+    labelClass: PropTypes.string,
     children: PropTypes.node.isRequired,
     name: PropTypes.string,
-    hoverHelpText: PropTypes.string
+    hoverHelpText: PropTypes.string,
+    className: PropTypes.string
   };
 
   render() {
-    const {style, children, touched, error, errorPlacement, name} = this.props;
+    const {style, children, touched, error, errorPlacement, name, className} = this.props;
 
     const showError = Boolean(touched && error);
 
     return (
-      <div className='field-with-error field' data-qa={name} style={{...style, position:'relative'}}>
+      <div
+        className={classNames({
+          'field-with-error field': true,
+          [className]: !!className
+        })}
+        data-qa={name} style={{...style, position:'relative'}}>
         {this.renderLabel()}
         {React.cloneElement(React.Children.only(children), {ref: 'target'})}
         <Overlay
@@ -65,22 +73,21 @@ export default class FieldWithError extends Component {
   }
 
   renderLabel() {
-    const {label, hoverHelpText} = this.props;
+    const {label, hoverHelpText, labelClass} = this.props;
 
-    const hoverHelp = hoverHelpText ? <HoverHelp content={hoverHelpText} tooltipInnerStyle={styles.hoverTip} /> : null;
+    const hoverHelp = hoverHelpText ? <HoverHelp content={hoverHelpText} /> : null;
 
     // todo: <label> is not correctly associated with the input here (i.e. it is broken and doing nothing)
     // todo: hoverHelp should not be inside the <label>
-    return label && <label style={[forms.label, styles.label, this.props.labelStyle]}>{label}{hoverHelp}</label>;
+    return label && <label
+      className={classNames({
+        [labelClass]: !!labelClass
+      })}
+      style={[forms.label, styles.label, this.props.labelStyle]}>{label}{hoverHelp}</label>;
   }
 }
 
 const styles = {
-  hoverTip: {
-    textAlign: 'left',
-    width: 300,
-    whiteSpace: 'pre-line'
-  },
   label: {
     display: 'flex',
     alignItems: 'center'

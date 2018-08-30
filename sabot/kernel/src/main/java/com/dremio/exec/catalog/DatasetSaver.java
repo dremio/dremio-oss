@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.dremio.service.namespace.DatasetHelper;
+import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -59,21 +60,21 @@ public class DatasetSaver {
     systemUserNamespaceService.addOrUpdateDataset(key, shallow);
   }
 
-  void completeSave(SourceTableDefinition accessor, DatasetConfig oldConfig){
+  void completeSave(SourceTableDefinition accessor, DatasetConfig oldConfig, NamespaceAttribute... attributes){
     try {
       DatasetConfig newConfig = accessor.getDataset();
       if (oldConfig != null) {
         NamespaceUtils.copyFromOldConfig(oldConfig, newConfig);
       }
-      completeSave(newConfig, accessor.getSplits());
+      completeSave(newConfig, accessor.getSplits(), attributes);
     }catch(Exception ex){
       logger.warn("Failure while retrieving and saving dataset {}.", accessor.getName(), ex);
     }
   }
 
-  DatasetConfig completeSave(DatasetConfig newConfig, List<DatasetSplit> splits) throws NamespaceException{
+  DatasetConfig completeSave(DatasetConfig newConfig, List<DatasetSplit> splits, NamespaceAttribute... attributes) throws NamespaceException{
     NamespaceKey key = new NamespaceKey(newConfig.getFullPathList());
-    systemUserNamespaceService.addOrUpdateDataset(key, newConfig, splits);
+    systemUserNamespaceService.addOrUpdateDataset(key, newConfig, splits, attributes);
     updateListener.metadataUpdated(key);
     return newConfig;
   }

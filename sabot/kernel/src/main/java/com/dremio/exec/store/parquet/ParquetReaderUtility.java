@@ -40,7 +40,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.exec.work.ExecErrorConstants;
 
@@ -95,7 +95,7 @@ public class ParquetReaderUtility {
   }
 
   public static void checkDecimalTypeEnabled(OptionManager options) {
-    if (options.getOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY).bool_val == false) {
+    if (options.getOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY).getBoolVal() == false) {
       throw UserException.unsupportedError()
         .message(ExecErrorConstants.DECIMAL_DISABLE_ERR_MSG)
         .build(logger);

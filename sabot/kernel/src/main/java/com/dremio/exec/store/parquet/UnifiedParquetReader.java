@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.SimpleIntVector;
@@ -43,12 +44,10 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.parquet.ParquetReaderUtility.DateCorruptionStatus;
 import com.dremio.exec.store.parquet.columnreaders.DeprecatedParquetVectorizedReader;
 import com.dremio.exec.store.parquet2.ParquetRowiseReader;
 import com.dremio.exec.util.ColumnUtils;
@@ -59,7 +58,9 @@ import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator.Metric;
 import com.dremio.service.namespace.file.proto.ParquetDatasetSplitXAttr;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
 
 public class UnifiedParquetReader implements RecordReader {
 
@@ -71,27 +72,29 @@ public class UnifiedParquetReader implements RecordReader {
   private final SchemaDerivationHelper schemaHelper;
   private final boolean vectorize;
   private final boolean enableDetailedTracing;
+  private final BatchSchema tableSchema;
   private final List<SchemaPath> realFields;
   private final FileSystem fs;
   private final GlobalDictionaries dictionaries;
   private final CodecFactory codecFactory;
   private final ParquetReaderFactory readerFactory;
   private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap;
-  private final List<FilterCondition> filterConditions;
+  private final List<ParquetFilterCondition> filterConditions;
 
   private List<RecordReader> delegates = new ArrayList<>();
   private final List<SchemaPath> nonVectorizableReaderColumns = new ArrayList<>();
   private final List<SchemaPath> vectorizableReaderColumns = new ArrayList<>();
   private final Map<String, ValueVector> vectorizedMap = new HashMap<>();
   private final Map<String, ValueVector> nonVectorizedMap = new HashMap<>();
-  private boolean useSingleStream;
+  private InputStreamProvider inputStreamProvider;
 
   public UnifiedParquetReader(
       OperatorContext context,
       ParquetReaderFactory readerFactory,
+      BatchSchema tableSchema,
       List<SchemaPath> realFields,
       Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
-      List<FilterCondition> filterConditions,
+      List<ParquetFilterCondition> filterConditions,
       ParquetDatasetSplitXAttr readEntry,
       FileSystem fs,
       ParquetMetadata footer,
@@ -99,7 +102,8 @@ public class UnifiedParquetReader implements RecordReader {
       CodecFactory codecFactory,
       SchemaDerivationHelper schemaHelper,
       boolean vectorize,
-      boolean enableDetailedTracing) {
+      boolean enableDetailedTracing,
+      InputStreamProvider inputStreamProvider) {
     super();
     this.context = context;
     this.readerFactory = readerFactory;
@@ -109,11 +113,12 @@ public class UnifiedParquetReader implements RecordReader {
     this.footer = footer;
     this.readEntry = readEntry;
     this.vectorize = vectorize;
+    this.tableSchema = tableSchema;
     this.realFields = realFields;
     this.dictionaries = dictionaries;
     this.codecFactory = codecFactory;
     this.enableDetailedTracing = enableDetailedTracing;
-    this.useSingleStream = context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM);
+    this.inputStreamProvider = inputStreamProvider;
     this.schemaHelper = schemaHelper;
   }
 
@@ -123,9 +128,7 @@ public class UnifiedParquetReader implements RecordReader {
 
     splitColumns(footer, vectorizableReaderColumns, nonVectorizableReaderColumns);
 
-    if ((vectorizableReaderColumns.size() + nonVectorizableReaderColumns.size()) >= context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD)) {
-      useSingleStream = true;
-    }
+
 
     final ExecutionPath execPath = getExecutionPath();
     delegates = execPath.getReaders(this);
@@ -293,8 +296,24 @@ public class UnifiedParquetReader implements RecordReader {
 
   private Collection<SchemaPath> getResolvedColumns(List<ColumnChunkMetaData> metadata){
     if(!ColumnUtils.isStarQuery(realFields)){
-      // before we return check case sensitivity
-      return realFields;
+      // Return all selected columns + any additional columns that are not present in the table schema (for schema
+      // learning purpose)
+      List<SchemaPath> columnsToRead = Lists.newArrayList(realFields);
+      Set<String> columnsTableDef = Sets.newHashSet();
+      Set<String> columnsTableDefLowercase = Sets.newHashSet();
+      tableSchema.forEach(f -> columnsTableDef.add(f.getName()));
+      tableSchema.forEach(f -> columnsTableDefLowercase.add(f.getName().toLowerCase()));
+      for (ColumnChunkMetaData c : metadata) {
+        final String columnInParquetFile = c.getPath().iterator().next();
+        // Column names in parquet are case sensitive, in Dremio they are case insensitive
+        // First try to find the column with exact case. If not found try the case insensitive comparision.
+        if (!columnsTableDef.contains(columnInParquetFile) &&
+            !columnsTableDefLowercase.contains(columnInParquetFile.toLowerCase())) {
+          columnsToRead.add(SchemaPath.getSimplePath(columnInParquetFile));
+        }
+      }
+
+      return columnsToRead;
     }
 
     List<SchemaPath> paths = new ArrayList<>();
@@ -375,7 +394,7 @@ public class UnifiedParquetReader implements RecordReader {
             unifiedReader.realFields,
             unifiedReader.fs,
             unifiedReader.schemaHelper,
-            unifiedReader.useSingleStream
+            unifiedReader.inputStreamProvider
           )
         ));
         return returnList;
@@ -399,7 +418,6 @@ public class UnifiedParquetReader implements RecordReader {
               unifiedReader.readerFactory.newReader(
                   unifiedReader.context,
                   unifiedReader.vectorizableReaderColumns,
-                  unifiedReader.fs,
                   unifiedReader.readEntry.getPath(),
                   unifiedReader.codecFactory,
                   unifiedReader.filterConditions,
@@ -408,7 +426,7 @@ public class UnifiedParquetReader implements RecordReader {
                   unifiedReader.readEntry.getRowGroupIndex(),
                   deltas,
                   unifiedReader.schemaHelper,
-                  unifiedReader.useSingleStream
+                  unifiedReader.inputStreamProvider
               )
           );
         }
@@ -423,7 +441,7 @@ public class UnifiedParquetReader implements RecordReader {
               unifiedReader.fs,
               unifiedReader.schemaHelper,
               deltas,
-              unifiedReader.useSingleStream
+              unifiedReader.inputStreamProvider
             )
           );
         }

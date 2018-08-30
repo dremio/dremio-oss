@@ -30,14 +30,14 @@ import java.io.PrintStream;
 public class TestCTAS extends PlanTestBase {
   @Test // DRILL-2589
   public void withDuplicateColumnsInDef1() throws Exception {
-    ctasErrorTestHelper("CREATE TABLE %s.%s AS SELECT region_id, region_id FROM cp.`region.json`",
+    ctasErrorTestHelper("CREATE TABLE %s.%s AS SELECT region_id, region_id FROM cp.\"region.json\"",
         String.format("Duplicate column name [%s]", "region_id")
     );
   }
 
   @Test // DRILL-2589
   public void withDuplicateColumnsInDef2() throws Exception {
-    ctasErrorTestHelper("CREATE TABLE %s.%s AS SELECT region_id, sales_city, sales_city FROM cp.`region.json`",
+    ctasErrorTestHelper("CREATE TABLE %s.%s AS SELECT region_id, sales_city, sales_city FROM cp.\"region.json\"",
         String.format("Duplicate column name [%s]", "sales_city")
     );
   }
@@ -46,7 +46,7 @@ public class TestCTAS extends PlanTestBase {
   public void withDuplicateColumnsInDef3() throws Exception {
     ctasErrorTestHelper(
         "CREATE TABLE %s.%s(regionid, regionid) " +
-            "AS SELECT region_id, sales_city FROM cp.`region.json`",
+            "AS SELECT region_id, sales_city FROM cp.\"region.json\"",
         String.format("Duplicate column name [%s]", "regionid")
     );
   }
@@ -55,7 +55,7 @@ public class TestCTAS extends PlanTestBase {
   public void withDuplicateColumnsInDef4() throws Exception {
     ctasErrorTestHelper(
         "CREATE TABLE %s.%s(regionid, salescity, salescity) " +
-            "AS SELECT region_id, sales_city, sales_city FROM cp.`region.json`",
+            "AS SELECT region_id, sales_city, sales_city FROM cp.\"region.json\"",
         String.format("Duplicate column name [%s]", "salescity")
     );
   }
@@ -64,7 +64,7 @@ public class TestCTAS extends PlanTestBase {
   public void withDuplicateColumnsInDef5() throws Exception {
     ctasErrorTestHelper(
         "CREATE TABLE %s.%s(regionid, salescity, SalesCity) " +
-            "AS SELECT region_id, sales_city, sales_city FROM cp.`region.json`",
+            "AS SELECT region_id, sales_city, sales_city FROM cp.\"region.json\"",
         String.format("Duplicate column name [%s]", "SalesCity")
     );
   }
@@ -73,7 +73,7 @@ public class TestCTAS extends PlanTestBase {
   public void whenInEqualColumnCountInTableDefVsInTableQuery() throws Exception {
     ctasErrorTestHelper(
         "CREATE TABLE %s.%s(regionid, salescity) " +
-            "AS SELECT region_id, sales_city, sales_region FROM cp.`region.json`",
+            "AS SELECT region_id, sales_city, sales_region FROM cp.\"region.json\"",
         "table's field list and the table's query field list have different counts."
     );
   }
@@ -83,7 +83,7 @@ public class TestCTAS extends PlanTestBase {
   public void whenTableQueryColumnHasStarAndTableFiledListIsSpecified() throws Exception {
     ctasErrorTestHelper(
         "CREATE TABLE %s.%s(regionid, salescity) " +
-            "AS SELECT region_id, * FROM cp.`region.json`",
+            "AS SELECT region_id, * FROM cp.\"region.json\"",
         "table's query field list has a '*', which is invalid when table's field list is specified."
     );
   }
@@ -94,7 +94,7 @@ public class TestCTAS extends PlanTestBase {
 
     try {
       final String ctasQuery =
-          String.format("CREATE TABLE %s.%s AS SELECT * from cp.`region.json`", TEMP_SCHEMA, newTblName);
+          String.format("CREATE TABLE %s.%s AS SELECT * from cp.\"region.json\"", TEMP_SCHEMA, newTblName);
 
       test(ctasQuery);
 
@@ -110,10 +110,10 @@ public class TestCTAS extends PlanTestBase {
     final String newTblName = "createTableWhenAViewWithSameNameAlreadyExists";
 
     try {
-      test(String.format("CREATE VIEW %s.%s AS SELECT * from cp.`region.json`", TEMP_SCHEMA, newTblName));
+      test(String.format("CREATE VIEW %s.%s AS SELECT * from cp.\"region.json\"", TEMP_SCHEMA, newTblName));
 
       final String ctasQuery =
-          String.format("CREATE TABLE %s.%s AS SELECT * FROM cp.`employee.json`", TEMP_SCHEMA, newTblName);
+          String.format("CREATE TABLE %s.%s AS SELECT * FROM cp.\"employee.json\"", TEMP_SCHEMA, newTblName);
 
       errorMsgTestHelper(ctasQuery,
           String.format("A table or view with given name [%s.%s] already exists",
@@ -126,7 +126,7 @@ public class TestCTAS extends PlanTestBase {
   @Test
   public void ctasPartitionWithEmptyList() throws Exception {
     final String newTblName = "ctasPartitionWithEmptyList";
-    final String ctasQuery = String.format("CREATE TABLE %s.%s PARTITION BY AS SELECT * from cp.`region.json`", TEMP_SCHEMA, newTblName);
+    final String ctasQuery = String.format("CREATE TABLE %s.%s PARTITION BY AS SELECT * from cp.\"region.json\"", TEMP_SCHEMA, newTblName);
 
     try {
       errorTypeTestHelper(ctasQuery, ErrorType.PARSE);
@@ -141,13 +141,13 @@ public class TestCTAS extends PlanTestBase {
 
     try {
       final String ctasQuery = String.format("CREATE TABLE %s.%s (cnt, rkey) PARTITION BY (cnt) " +
-          "AS SELECT count(*), n_regionkey from cp.`tpch/nation.parquet` group by n_regionkey",
+          "AS SELECT count(*), n_regionkey from cp.\"tpch/nation.parquet\" group by n_regionkey",
           TEMP_SCHEMA, newTblName);
 
       test(ctasQuery);
 
       final String selectFromCreatedTable = String.format(" select cnt, rkey from %s.%s", TEMP_SCHEMA, newTblName);
-      final String baselineQuery = "select count(*) as cnt, n_regionkey as rkey from cp.`tpch/nation.parquet` group by n_regionkey";
+      final String baselineQuery = "select count(*) as cnt, n_regionkey as rkey from cp.\"tpch/nation.parquet\" group by n_regionkey";
       testBuilder()
           .sqlQuery(selectFromCreatedTable)
           .unOrdered()
@@ -165,7 +165,7 @@ public class TestCTAS extends PlanTestBase {
     final String newView = "partitionByCtasColListView";
     try {
       final String viewCreate = String.format("create or replace view %s.%s (col_int, col_varchar)  " +
-          "AS select cast(n_nationkey as int), cast(n_name as varchar(30)) from cp.`tpch/nation.parquet`",
+          "AS select cast(n_nationkey as int), cast(n_name as varchar(30)) from cp.\"tpch/nation.parquet\"",
           TEMP_SCHEMA, newView);
 
       final String ctasQuery = String.format("CREATE TABLE %s.%s PARTITION BY (col_int) AS SELECT * from %s.%s",
@@ -175,7 +175,7 @@ public class TestCTAS extends PlanTestBase {
       test(ctasQuery);
 
       final String baselineQuery = "select cast(n_nationkey as int) as col_int, cast(n_name as varchar(30)) as col_varchar " +
-        "from cp.`tpch/nation.parquet`";
+        "from cp.\"tpch/nation.parquet\"";
       final String selectFromCreatedTable = String.format("select col_int, col_varchar from %s.%s", TEMP_SCHEMA, newTblName);
       testBuilder()
           .sqlQuery(selectFromCreatedTable)
@@ -197,13 +197,13 @@ public class TestCTAS extends PlanTestBase {
 
     try {
       final String ctasQuery = String.format("CREATE TABLE %s.%s   " +
-          "AS SELECT n_nationkey, n_name, n_comment from cp.`tpch/nation.parquet` order by n_nationkey",
+          "AS SELECT n_nationkey, n_name, n_comment from cp.\"tpch/nation.parquet\" order by n_nationkey",
           TEMP_SCHEMA, newTblName);
 
       test(ctasQuery);
 
       final String selectFromCreatedTable = String.format(" select n_nationkey, n_name, n_comment from %s.%s", TEMP_SCHEMA, newTblName);
-      final String baselineQuery = "select n_nationkey, n_name, n_comment from cp.`tpch/nation.parquet` order by n_nationkey";
+      final String baselineQuery = "select n_nationkey, n_name, n_comment from cp.\"tpch/nation.parquet\" order by n_nationkey";
 
       testBuilder()
           .sqlQuery(selectFromCreatedTable)
@@ -222,7 +222,7 @@ public class TestCTAS extends PlanTestBase {
 
     try {
       final String ctasQuery = String.format("CREATE TABLE %s.%s   " +
-          "partition by (n_regionkey) AS SELECT n_nationkey, n_regionkey from cp.`tpch/nation.parquet` order by n_nationkey limit 1",
+          "partition by (n_regionkey) AS SELECT n_nationkey, n_regionkey from cp.\"tpch/nation.parquet\" order by n_nationkey limit 1",
           TEMP_SCHEMA, newTblName);
 
       test(ctasQuery);

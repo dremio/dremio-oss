@@ -30,17 +30,18 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.LogicalPlanImplementor;
 import com.dremio.exec.planner.logical.Rel;
+import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.RelOptNamespaceTable;
-import com.dremio.exec.store.parquet.FilterCondition;
-import com.dremio.exec.store.parquet.FilterConditions;
+import com.dremio.exec.store.parquet.ParquetScanFilter;
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 
 /**
  * ScanDrel for filesystem stores filter conditions.
  */
 public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableScan, PruneableScan {
-  private final List<FilterCondition> conditions;
+  private final ParquetScanFilter filter;
 
   public FilesystemScanDrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
                             TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment) {
@@ -49,29 +50,29 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
 
 
   private FilesystemScanDrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                            TableMetadata dataset, List<SchemaPath> projectedColumns, List<FilterCondition> conditions, double observedRowcountAdjustment) {
+                            TableMetadata dataset, List<SchemaPath> projectedColumns, ParquetScanFilter filter, double observedRowcountAdjustment) {
     super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
-    this.conditions = conditions;
+    this.filter = filter;
   }
 
   // Clone with new conditions
-  private FilesystemScanDrel(FilesystemScanDrel that, List<FilterCondition> conditions) {
+  private FilesystemScanDrel(FilesystemScanDrel that, ParquetScanFilter filter) {
     super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(), that.getTableMetadata(), that.getProjectedColumns(), that.getObservedRowcountAdjustment());
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
-    this.conditions = conditions;
+    this.filter = filter;
   }
 
   // Clone with new dataset pointer
   private FilesystemScanDrel(FilesystemScanDrel that, TableMetadata newDatasetPointer) {
     super(that.getCluster(), that.getTraitSet(), new RelOptNamespaceTable(newDatasetPointer, that.getCluster()), that.getPluginId(), newDatasetPointer, that.getProjectedColumns(), that.getObservedRowcountAdjustment());
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
-    this.conditions = that.getConditions();
+    this.filter = that.getFilter();
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new FilesystemScanDrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, projectedColumns, conditions, observedRowcountAdjustment);
+    return new FilesystemScanDrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, projectedColumns, filter, observedRowcountAdjustment);
   }
 
   @Override
@@ -79,25 +80,27 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
     throw new UnsupportedOperationException();
   }
 
-  public FilesystemScanDrel applyConditions(List<FilterCondition> conditions) {
-    return new FilesystemScanDrel(this, conditions);
+  @Override
+  public FilesystemScanDrel applyFilter(ScanFilter scanFilter) {
+    Preconditions.checkArgument(scanFilter instanceof ParquetScanFilter);
+    return new FilesystemScanDrel(this, (ParquetScanFilter) scanFilter);
   }
 
   public FilesystemScanDrel applyDatasetPointer(TableMetadata newDatasetPointer) {
     return new FilesystemScanDrel(this, newDatasetPointer);
   }
 
-  public List<FilterCondition> getConditions() {
-    return conditions;
+  public ParquetScanFilter getFilter() {
+    return filter;
   }
 
   @Override
   public double getCostAdjustmentFactor(){
-    return FilterConditions.getCostAdjustment(conditions);
+    return filter != null ? filter.getCostAdjustment() : super.getCostAdjustmentFactor();
   }
 
   protected double getFilterReduction(){
-    if(conditions != null && !conditions.isEmpty()){
+    if(filter != null){
       return 0.15d;
     }else {
       return 1d;
@@ -112,8 +115,8 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     pw = super.explainTerms(pw);
-    if(conditions != null && !conditions.isEmpty()){
-      return pw.item("filters",  conditions);
+    if(filter != null){
+      return pw.item("filters", filter);
     }
     return pw;
   }
@@ -124,12 +127,12 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
       return false;
     }
     FilesystemScanDrel castOther = (FilesystemScanDrel) other;
-    return Objects.equal(conditions, castOther.conditions) && super.equals(other);
+    return Objects.equal(filter, castOther.filter) && super.equals(other);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(super.hashCode(), conditions);
+    return Objects.hashCode(super.hashCode(), filter);
   }
 
 }

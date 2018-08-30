@@ -300,6 +300,9 @@ message QueryProfile {
   optional string full_schema = 28;
   optional string non_default_options_JSON = 29; // non-default (option, value) tuplets in json format
   repeated DatasetProfile dataset_profile = 30;
+  repeated NodeQueryProfile node_profile = 31;
+  optional string dremio_version = 32;
+  optional CoreOperatorTypeMetricsMap operator_type_metrics_map = 33;
 }
 
 message AccelerationProfile {
@@ -323,6 +326,7 @@ message DatasetProfile {
   optional DatasetType type = 2 [default = PDS];
   optional bytes batch_schema = 3;
   optional string sql = 4;
+  optional bool allow_approx_stats = 5;
 }
 
 enum ReflectionType {
@@ -331,13 +335,18 @@ enum ReflectionType {
   EXTERNAL = 3;
 }
 
+message MeasureColumn {
+  optional string name = 1;
+  repeated string measure_type = 2;
+}
+
 message LayoutMaterializedViewProfile {
   optional string layout_id = 1;
   optional string materialization_id = 2;
   optional int64 materialization_expiration_timestamp = 3;
   optional string plan = 5;
   repeated string dimensions = 6;
-  repeated string measures = 7;
+  repeated string measures = 7 [deprecated = true];
   repeated string sorted_columns = 8;
   repeated string partitioned_columns = 9;
   repeated string distribution_columns = 10;
@@ -353,6 +362,7 @@ message LayoutMaterializedViewProfile {
   optional string optimized_plan = 20;
   optional ReflectionType type = 21;
   optional bool snowflake = 22;
+  repeated MeasureColumn measure_columns = 23;
 }
 
 message SubstitutionProfile {
@@ -434,6 +444,11 @@ message NodePhaseProfile {
   optional int64 max_memory_used = 2;
 }
 
+message NodeQueryProfile {
+  optional NodeEndpoint endpoint = 1;
+  optional int64 max_memory_used = 2;
+}
+
 message MetricValue {
   optional int32 metric_id = 1;
   optional int64 long_value = 2;
@@ -502,4 +517,19 @@ enum CoreOperatorType {
   DICTIONARY_LOOKUP = 48;
   WRITER_COMMITTER = 49;
   ROUND_ROBIN_SENDER = 50;
+}
+message MetricDef {
+  optional int32 id = 1;
+  optional string name = 2;
+}
+
+message MetricsDef {
+  // underlying data structure is list of metric defination with index as metric id and value MetricDef
+  repeated MetricDef metric_def = 1;
+}
+
+// Since current version of protobuf that we use does not support usage of map, using listOfList<MetricDef> as map<operatorId, map<metricid, metricDef>>
+message CoreOperatorTypeMetricsMap {
+  // underlying data structure is list with index as operator type and value as MetricsDef
+  repeated MetricsDef metrics_def = 1;
 }

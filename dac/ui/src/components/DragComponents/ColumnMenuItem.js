@@ -18,16 +18,16 @@ import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
+import classNames  from 'classnames';
 
 import EllipsedText from 'components/EllipsedText';
 import FontIcon from 'components/Icon/FontIcon';
 import { unavailable } from 'uiTheme/radium/typography';
-import { ACTIVE_DRAG_AREA, BORDER_ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
 import { typeToIconType } from 'constants/DataTypes';
 import { constructFullPath } from 'utils/pathUtils';
 
 import DragSource from './DragSource';
-import './ColumnMenuItem.less';
+import { base, content, disabled as disabledCls } from './ColumnMenuItem.less';
 
 @pureRender
 @Radium
@@ -44,7 +44,8 @@ export default class ColumnMenuItem extends Component {
     nativeDragData: PropTypes.object,
     preventDrag: PropTypes.bool,
     name: PropTypes.string,
-    fieldType: PropTypes.string
+    fieldType: PropTypes.string,
+    className: PropTypes.string
   }
   static defaultProps = {
     fullPath: Immutable.List()
@@ -63,31 +64,18 @@ export default class ColumnMenuItem extends Component {
   }
 
   render() {
-    const { item, disabled, preventDrag, fieldType } = this.props;
+    const { item, disabled, preventDrag, fieldType, className } = this.props;
     const font = disabled
       ? unavailable
       : {};
-    const disabledHoverStyle = preventDrag || disabled
-      ? {
-        cursor: 'default',
-        ':hover': {
-          backgroundColor: 'transparent',
-          boxShadow: 'none)',
-          borderLeft: '1px solid transparent',
-          borderRight: '1px solid transparent',
-          borderTop: '1px solid transparent',
-          borderBottom: '1px solid transparent'
-        }
-      }
-      : {};
+    const markAsDisabled = preventDrag || disabled;
     const isGroupBy = this.props.dragType === 'groupBy';
     // full paths are not yet supported by dremio in SELECT clauses, so force this to always be the simple name for now
     const idForDrag = true || // eslint-disable-line no-constant-condition
       isGroupBy ? item.get('name') : constructFullPath(this.props.fullPath.concat(item.get('name')));
     return (
       <div
-        className='inner-join-left-menu-item'
-        style={[styles.base]}
+        className={classNames(['inner-join-left-menu-item', base, className])}
         onMouseDown={this.checkThatDragAvailable}
       >
         <DragSource
@@ -101,8 +89,7 @@ export default class ColumnMenuItem extends Component {
           isFromAnother
           id={idForDrag}>
           <div
-            style={[styles.content, disabledHoverStyle]}
-            className='draggable-row'
+            className={classNames(['draggable-row', content, markAsDisabled && disabledCls])}
             data-qa={`inner-join-field-${item.get('name')}-${fieldType}`}
           >
             <FontIcon type={typeToIconType[item.get('type')]} theme={styles.type}/>
@@ -119,33 +106,6 @@ export default class ColumnMenuItem extends Component {
 }
 
 const styles = {
-  base: {
-    display: 'flex',
-    width: '100%',
-    minHeight: 25
-  },
-  content: {
-    position: 'relative',
-    display: 'flex',
-    width: '100%',
-    borderLeft: '1px solid transparent',
-    borderRight: '1px solid transparent',
-    borderTop: '1px solid transparent',
-    borderBottom: '1px solid transparent',
-    marginTop: 2,
-    marginBottom: 2,
-    cursor: 'move',
-    height: 25,
-    alignItems: 'center',
-    ':hover': {
-      backgroundColor: ACTIVE_DRAG_AREA,
-      boxShadow: '0px 0px 4px 0px rgba(0,0,0,0.10)',
-      borderLeft: `1px solid ${BORDER_ACTIVE_DRAG_AREA}`,
-      borderRight: `1px solid ${BORDER_ACTIVE_DRAG_AREA}`,
-      borderTop: `1px solid ${BORDER_ACTIVE_DRAG_AREA}`,
-      borderBottom: `1px solid ${BORDER_ACTIVE_DRAG_AREA}`
-    }
-  },
   type: {
     'Icon': {
       width: 24,

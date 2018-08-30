@@ -30,13 +30,13 @@ public class TestLogicalExprSerDe extends BaseTestQuery {
   @BeforeClass
   public static void setSliceCount() throws Exception {
     // Set the slice count to low, so that query is divided into multiple fragments with exchanges.
-    test("ALTER SESSION SET `planner.slice_target`=1;");
+    test("ALTER SESSION SET \"planner.slice_target\"=1;");
   }
 
   @Test // DRILL-2606
   public void castToBit() throws Exception {
     testBuilder()
-        .sqlQuery("SELECT CAST(CAST('true' as VARCHAR(20)) AS BOOLEAN) c1 FROM cp.`region.json` ORDER BY `region_id` LIMIT 1")
+        .sqlQuery("SELECT CAST(CAST('true' as VARCHAR(20)) AS BOOLEAN) c1 FROM cp.\"region.json\" ORDER BY \"region_id\" LIMIT 1")
         .unOrdered()
         .baselineColumns("c1")
         .baselineValues(true)
@@ -48,6 +48,6 @@ public class TestLogicalExprSerDe extends BaseTestQuery {
   @AfterClass
   public static void resetSliceCount() throws Exception {
     // Set the slice count to low, so that query is divided into multiple fragments with exchanges.
-    test(String.format("ALTER SESSION SET `planner.slice_target`=%d;", ExecConstants.SLICE_TARGET_DEFAULT));
+    test(String.format("ALTER SESSION SET \"planner.slice_target\"=%d;", ExecConstants.SLICE_TARGET_DEFAULT));
   }
 }

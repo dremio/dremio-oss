@@ -15,16 +15,14 @@
  */
 package com.dremio.service.reflection;
 
-import static com.dremio.common.utils.SqlUtils.quoteIdentifier;
 import static com.dremio.common.utils.SqlUtils.quotedCompound;
 import static com.dremio.service.reflection.ReflectionUtils.computeDatasetHash;
 import static com.dremio.service.reflection.ReflectionUtils.hasMissingPartitions;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
-import java.util.Collections;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
 import javax.inject.Provider;
 
 import com.dremio.datastore.KVStoreProvider;
@@ -33,6 +31,7 @@ import com.dremio.exec.proto.ReflectionRPC;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
+import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -45,9 +44,7 @@ import com.dremio.service.reflection.ReflectionStatus.REFRESH_STATUS;
 import com.dremio.service.reflection.proto.DataPartition;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
-import com.dremio.service.reflection.proto.ReflectionDimensionField;
 import com.dremio.service.reflection.proto.ReflectionEntry;
-import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionId;
@@ -66,7 +63,6 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 /**
@@ -129,31 +125,18 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     validator = new ReflectionValidator(namespaceService, catalogService);
   }
 
-  private static final Function<ReflectionField,String> REFLECTION_FIELD_STRING_FUNCTION = new Function<ReflectionField, String>() {
-    @Nullable
-    @Override
-    public String apply(@Nullable ReflectionField field) {
-      if (field == null) {
-        return null;
-      }
-      return quoteIdentifier(field.getName());
-    }
-  };
-
-  private static final Function<ReflectionDimensionField,String> REFLECTION_DIM_FIELD_STRING_FUNCTION = new Function<ReflectionDimensionField, String>() {
-    @Nullable
-    @Override
-    public String apply(@Nullable ReflectionDimensionField field) {
-      if (field == null) {
-        return null;
-      }
-      return quoteIdentifier(field.getName());
-    }
-  };
-
+  /**
+   * Returns the status of a reflection
+   *
+   * @param id the reflection id
+   * @return The ReflectionStatus representing the status
+   * @throws IllegalArgumentException if the reflection could not be found
+   * @throws IllegalStateException if the reflection was deleted
+   */
   @Override
   public ReflectionStatus getReflectionStatus(ReflectionId id) {
-    final ReflectionGoal goal = Preconditions.checkNotNull(goalsStore.get(id), "Reflection %s not found", id.getId());
+    final ReflectionGoal goal = goalsStore.get(id);
+    Preconditions.checkArgument(goal != null, "Reflection %s not found", id.getId());
 
     // should never be called on a deleted reflection
     Preconditions.checkState(goal.getState() != ReflectionGoalState.DELETED,
@@ -172,7 +155,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     final DatasetConfig config = Preconditions.checkNotNull(namespaceService.get().findDatasetByUUID(goal.getDatasetId()),
       "Dataset not present for reflection %s", id.getId());
     final AccelerationSettings settings = reflectionSettings.getReflectionSettings(new NamespaceKey(config.getFullPathList()));
-    final boolean hasManualRefresh = settings.getRefreshPeriod() == 0;
+    final boolean hasManualRefresh = settings.getNeverRefresh();
 
     final Optional<ReflectionEntry> entryOptional = Optional.fromNullable(entriesStore.get(id));
     if (!entryOptional.isPresent()) {
@@ -255,12 +238,6 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     if (targetDataset == null) {
       return ExternalReflectionStatus.STATUS.INVALID;
     }
-    // check that we are able still able to get a MaterializationDescriptor
-    try {
-      Preconditions.checkNotNull(ReflectionUtils.getMaterializationDescriptor(reflection, namespaceService.get()));
-    } catch (Exception e) {
-      return ExternalReflectionStatus.STATUS.INVALID;
-    }
 
     // now check if the query and target datasets didn't change
     try {
@@ -274,13 +251,31 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
       return ExternalReflectionStatus.STATUS.OUT_OF_SYNC;
     }
 
+    // check that we are still able to get a MaterializationDescriptor
+    try {
+      if (ReflectionUtils.getMaterializationDescriptor(reflection, namespaceService.get()) == null) {
+        return ExternalReflectionStatus.STATUS.INVALID;
+      }
+    } catch(NamespaceException e) {
+      logger.debug("Could not find dataset for reflection {}", reflection.getId(), e);
+      return ExternalReflectionStatus.STATUS.INVALID;
+    }
+
     return ExternalReflectionStatus.STATUS.OK;
   }
 
+  /**
+   * Returns the status of an external reflection
+   *
+   * @param id The id of the reflection
+   * @return The ExternalReflectionStatus representing the status of the reflection
+   * @throws IllegalArgumentException if the reflection could not be found
+   */
   @Override
   public ExternalReflectionStatus getExternalReflectionStatus(ReflectionId id) {
-    final ExternalReflection reflection = Preconditions.checkNotNull(externalReflectionStore.get(id.getId()),
-      "Reflection %s not found", id.getId());
+    final ExternalReflection reflection = externalReflectionStore.get(id.getId());
+    Preconditions.checkArgument(reflection != null,"Reflection %s not found", id.getId());
+
     return new ExternalReflectionStatus(computeStatus(reflection));
   }
 
@@ -308,12 +303,12 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
             combinedStatus,
             numFailures,
             dataset,
-            JOINER.join(Lists.transform(Optional.fromNullable(goal.getDetails().getSortFieldList()).or(Collections.<ReflectionField>emptyList()), REFLECTION_FIELD_STRING_FUNCTION)),
-            JOINER.join(Lists.transform(Optional.fromNullable(goal.getDetails().getPartitionFieldList()).or(Collections.<ReflectionField>emptyList()), REFLECTION_FIELD_STRING_FUNCTION)),
-            JOINER.join(Lists.transform(Optional.fromNullable(goal.getDetails().getDistributionFieldList()).or(Collections.<ReflectionField>emptyList()), REFLECTION_FIELD_STRING_FUNCTION)),
-            JOINER.join(Lists.transform(Optional.fromNullable(goal.getDetails().getDimensionFieldList()).or(Collections.<ReflectionDimensionField>emptyList()), REFLECTION_DIM_FIELD_STRING_FUNCTION)),
-            JOINER.join(Lists.transform(Optional.fromNullable(goal.getDetails().getMeasureFieldList()).or(Collections.<ReflectionField>emptyList()), REFLECTION_FIELD_STRING_FUNCTION)),
-            JOINER.join(Lists.transform(Optional.fromNullable(goal.getDetails().getDisplayFieldList()).or(Collections.<ReflectionField>emptyList()), REFLECTION_FIELD_STRING_FUNCTION)),
+            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getSortFieldList()).stream().map(t -> t.getName()).collect(Collectors.toList())),
+            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getPartitionFieldList()).stream().map(t -> t.getName()).collect(Collectors.toList())),
+            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDistributionFieldList()).stream().map(t -> t.getName()).collect(Collectors.toList())),
+            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDimensionFieldList()).stream().map(t -> t.getName()).collect(Collectors.toList())),
+            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getMeasureFieldList()).stream().map(t -> t.getName()).collect(Collectors.toList())),
+            JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDisplayFieldList()).stream().map(t -> t.getName()).collect(Collectors.toList())),
             null
           );
         }
@@ -333,8 +328,8 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
           }
           String datasetPath = quotedCompound(dataset.getFullPathList());
           String targetDatasetPath = quotedCompound(targetDataset.getFullPathList());
-          final Optional<ReflectionStatus> statusOptional = getNoThrowStatus(new ReflectionId(externalReflection.getId()));
-          final String status = statusOptional.isPresent() ? statusOptional.get().getCombinedStatus().toString() : "UNKNOWN";
+          final Optional<ExternalReflectionStatus> statusOptional = getNoThrowStatusForExternal(new ReflectionId(externalReflection.getId()));
+          final String status = statusOptional.isPresent() ? statusOptional.get().getConfigStatus().toString() : "UNKNOWN";
           return new AccelerationListManager.ReflectionInfo(
             externalReflection.getId(),
             externalReflection.getName(),
@@ -445,11 +440,20 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
   private Optional<ReflectionStatus> getNoThrowStatus(ReflectionId id) {
     try {
       return Optional.of(getReflectionStatus(id));
-    } catch (Exception e) {
+    } catch (IllegalArgumentException | IllegalStateException e) {
       logger.warn("Couldn't compute status for reflection {}", id, e);
     }
 
     return Optional.absent();
   }
 
+  private Optional<ExternalReflectionStatus> getNoThrowStatusForExternal(ReflectionId externalReflectionId) {
+    try {
+      return Optional.of(getExternalReflectionStatus(externalReflectionId));
+    } catch (IllegalArgumentException e) {
+      logger.warn("Couldn't compute status for reflection {}", externalReflectionId, e);
+    }
+
+    return Optional.absent();
+  }
 }

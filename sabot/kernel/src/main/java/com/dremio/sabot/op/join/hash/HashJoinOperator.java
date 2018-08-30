@@ -98,6 +98,10 @@ public class HashJoinOperator implements DualInputOperator {
 
   // A structure that parallels the
   private final List<ArrowBuf> startIndices = new ArrayList<>();
+  // Array of bitvectors. Keeps track of keys on the build side that matched any key on the probe side
+  private final List<BitSet> keyMatchBitVectors = new ArrayList<>();
+  // Max index in hash table
+  private int maxHashTableIndex = -1;
 
   // List of BuildInfo structures. Used to maintain auxiliary information about the build batches
   // There is one of these for each incoming batch of records
@@ -135,8 +139,7 @@ public class HashJoinOperator implements DualInputOperator {
       comparators.add(JoinUtils.checkAndReturnSupportedJoinComparator(cond));
     }
     this.comparators = ImmutableList.copyOf(comparators);
-    this.outgoing = new VectorContainer(context.getAllocator());
-
+    this.outgoing = context.createOutputVectorContainer();
   }
 
   @Override
@@ -284,6 +287,7 @@ public class HashJoinOperator implements DualInputOperator {
     @Override
     public void batchAdded() {
       startIndices.add(newLinksBuffer(HashTable.BATCH_SIZE));
+      keyMatchBitVectors.add(new BitSet(HashTable.BATCH_SIZE));
     }
   }
 
@@ -342,6 +346,8 @@ public class HashJoinOperator implements DualInputOperator {
         joinType,
         buildInfoList,
         startIndices,
+        keyMatchBitVectors,
+        maxHashTableIndex,
         context.getTargetBatchSize()
         );
     return hj;
@@ -349,11 +355,15 @@ public class HashJoinOperator implements DualInputOperator {
 
   private void addNewBatch(int recordCount) throws SchemaChangeException {
     // Add a node to the list of BuildInfo's
-    BuildInfo info = new BuildInfo(newLinksBuffer(recordCount), new BitSet(recordCount), recordCount);
+    BuildInfo info = new BuildInfo(newLinksBuffer(recordCount), recordCount);
     buildInfoList.add(info);
   }
 
   private void setCurrentIndex(final int hashTableIndex, final int buildBatch, final int incomingRecordIndex) throws SchemaChangeException {
+
+    if (hashTableIndex > maxHashTableIndex) {
+      maxHashTableIndex = hashTableIndex;
+    }
 
     /* set the current record batch index and the index
      * within the batch at the specified keyIndex. The keyIndex

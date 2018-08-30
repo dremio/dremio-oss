@@ -35,6 +35,7 @@ import org.apache.hadoop.hive.shims.Utils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.thrift.TException;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -109,7 +110,17 @@ public class HiveClient implements AutoCloseable {
       Utils.setTokenStr(proxyUGI, delegationToken, "DremioDelegationTokenForHiveMetaStoreServer");
       proxyUserHiveConf.set("hive.metastore.token.signature", "DremioDelegationTokenForHiveMetaStoreServer");
     } catch (Exception e) {
-      throw new RuntimeException("Couldn't generate Hive metastore delegation token for user " + proxyUGI.getUserName());
+      final String processUsername = ImpersonationUtil.getProcessUserUGI().getShortUserName();
+      throw UserException.permissionError(e)
+          .message("Failed to generate Hive metastore delegation token for user %s. " +
+              "Check Hadoop services (including metastore) have correct proxy user impersonation settings (%s, %s) " +
+                  "and services are restarted after applying those settings.",
+              proxyUGI.getUserName(),
+              String.format("hadoop.proxyuser.%s.hosts", processUsername),
+              String.format("hadoop.proxyuser.%s.groups", processUsername)
+          )
+          .addContext("Proxy user", proxyUGI.getUserName())
+          .build(logger);
     }
   }
 

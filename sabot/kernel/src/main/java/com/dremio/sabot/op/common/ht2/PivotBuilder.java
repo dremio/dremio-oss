@@ -26,10 +26,9 @@ import com.google.common.collect.ImmutableList;
 
 public class PivotBuilder {
 
-  public static final int INDEX_WIDTH = 4;
-  public static final int VAR_OFFSET = 4;
-  public static final int VARLEN_SIZE = 4;
-  private static final int BITS_TO_4BYTE_WORDS = 5;
+  private static final int BITS_TO_FOUR_BYTES = 5;
+  private static final int FOUR_BYTES_TO_BYTES = 2;
+  public static final int BIT_OFFSET_MASK = 31;
 
   public static PivotDef getBlockDefinition(FieldVectorPair... fieldVectors) {
     return getBlockDefinition(FluentIterable.of(fieldVectors).toList());
@@ -45,7 +44,12 @@ public class PivotBuilder {
       CompleteType type = CompleteType.fromField(v.getIncoming().getField());
       switch(type.toMinorType()){
       case BIT:
-        defs.add(new VectorPivotDef(FieldType.BIT, bitOffset >>> BITS_TO_4BYTE_WORDS, bitOffset, bitOffset + 1, v));
+        // Would be too complicated to deal with the case where the valid bit is in one 4byte word, and the value is in the next 4byte word
+        // The validity and value will be updated once in pivotBit method
+        if ((bitOffset % (1 << BITS_TO_FOUR_BYTES)) == ((1 << BITS_TO_FOUR_BYTES) - 1)) {
+          bitOffset++;
+        }
+        defs.add(new VectorPivotDef(FieldType.BIT, (bitOffset >>> BITS_TO_FOUR_BYTES) << FOUR_BYTES_TO_BYTES, bitOffset & BIT_OFFSET_MASK, (bitOffset + 1) & BIT_OFFSET_MASK, v));
         bitOffset+= 2;
         break;
 
@@ -55,7 +59,7 @@ public class PivotBuilder {
       case TIMESTAMP:
       case FLOAT8:
       case INTERVALDAY:
-        defs.add(new VectorPivotDef(FieldType.EIGHT_BYTE, bitOffset >>> BITS_TO_4BYTE_WORDS, bitOffset, fixedOffset, v));
+        defs.add(new VectorPivotDef(FieldType.EIGHT_BYTE, (bitOffset >>> BITS_TO_FOUR_BYTES) << FOUR_BYTES_TO_BYTES, bitOffset & BIT_OFFSET_MASK, fixedOffset, v));
         bitOffset++;
         fixedOffset += 8;
         break;
@@ -65,14 +69,14 @@ public class PivotBuilder {
       case INTERVALYEAR:
       case TIME:
       case INT:
-        defs.add(new VectorPivotDef(FieldType.FOUR_BYTE, bitOffset >>> BITS_TO_4BYTE_WORDS, bitOffset, fixedOffset, v));
+        defs.add(new VectorPivotDef(FieldType.FOUR_BYTE, (bitOffset >>> BITS_TO_FOUR_BYTES) << FOUR_BYTES_TO_BYTES, bitOffset & BIT_OFFSET_MASK, fixedOffset, v));
         bitOffset++;
         fixedOffset += 4;
         break;
 
       // 16 byte
       case DECIMAL:
-        defs.add(new VectorPivotDef(FieldType.SIXTEEN_BYTE, bitOffset >>> BITS_TO_4BYTE_WORDS, bitOffset, fixedOffset, v));
+        defs.add(new VectorPivotDef(FieldType.SIXTEEN_BYTE, (bitOffset >>> BITS_TO_FOUR_BYTES) << FOUR_BYTES_TO_BYTES, bitOffset & BIT_OFFSET_MASK, fixedOffset, v));
         bitOffset++;
         fixedOffset += 16;
         break;
@@ -80,7 +84,7 @@ public class PivotBuilder {
       // variable
       case VARBINARY:
       case VARCHAR:
-        defs.add(new VectorPivotDef(FieldType.VARIABLE, bitOffset >>> BITS_TO_4BYTE_WORDS, bitOffset, variableOffset, v));
+        defs.add(new VectorPivotDef(FieldType.VARIABLE, (bitOffset >>> BITS_TO_FOUR_BYTES) << FOUR_BYTES_TO_BYTES, bitOffset & BIT_OFFSET_MASK, variableOffset, v));
         bitOffset++;
         variableOffset++;
         break;

@@ -30,20 +30,19 @@ import com.dremio.common.DeferredException;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
-import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.record.NamespaceUpdater;
 import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.server.options.FragmentOptionManager;
-import com.dremio.exec.server.options.OptionList;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.server.options.OptionValue;
+import com.dremio.options.OptionList;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.testing.ExecutionControls;
@@ -221,6 +220,7 @@ public class FragmentExecutorBuilder {
           funcRegistry,
           tunnelProvider,
           flushable,
+          fragmentOptions,
           stats,
           ticket,
           sources,

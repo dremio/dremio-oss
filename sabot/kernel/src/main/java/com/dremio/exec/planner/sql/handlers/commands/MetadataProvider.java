@@ -20,7 +20,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.SearchTypes.SearchQuery;
@@ -57,7 +56,6 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -80,7 +78,6 @@ public class MetadataProvider {
     protected final String username;
     protected final String catalogName;
     protected final InfoSchemaTable table;
-    protected final MetadataProviderConditionBuilder builder;
 
     protected MetadataCommand(
         final UserSession session,
@@ -92,7 +89,6 @@ public class MetadataProvider {
       this.username = session.getCredentials().getUserName();
       this.catalogName = session.getCatalogName();
       this.table = table;
-      this.builder = new MetadataProviderConditionBuilder();
     }
 
     @Override
@@ -108,6 +104,11 @@ public class MetadataProvider {
     @Override
     public String getDescription() {
       return "metadata; direct";
+    }
+
+    @Override
+    public void close() throws Exception {
+      // no-op
     }
   }
 
@@ -154,9 +155,8 @@ public class MetadataProvider {
     public GetCatalogsResp execute() throws Exception {
       final GetCatalogsResp.Builder respBuilder = GetCatalogsResp.newBuilder();
 
-      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter()
-          ? builder.getLikePredicate(req.getCatalogNameFilter())
-          : Predicates.<String>alwaysTrue();
+      final Predicate<String> catalogNamePred = MetadataProviderConditions
+          .getLikePredicate(req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null);
       final Iterable<Catalog> records =
           FluentIterable.<Catalog>from(table.<Catalog>asIterable(catalogName, username, datasetListing, null))
               .filter(new Predicate<Catalog>() {
@@ -232,11 +232,10 @@ public class MetadataProvider {
     public GetSchemasResp execute() throws Exception {
       final GetSchemasResp.Builder respBuilder = GetSchemasResp.newBuilder();
 
-      final SearchQuery filter = builder.createFilter(req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null, null);
+      final SearchQuery filter = MetadataProviderConditions.createFilter(req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null, null);
 
-      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter()
-          ? builder.getLikePredicate(req.getCatalogNameFilter())
-          : Predicates.<String>alwaysTrue();
+      final Predicate<String> catalogNamePred = MetadataProviderConditions
+          .getLikePredicate(req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null);
       final Iterable<Schema> records =
           FluentIterable.<Schema>from(table.<Schema>asIterable(catalogName, username, datasetListing, filter))
               .filter(new Predicate<Schema>() {
@@ -317,13 +316,10 @@ public class MetadataProvider {
     public GetTablesResp execute() throws Exception {
       final GetTablesResp.Builder respBuilder = GetTablesResp.newBuilder();
 
-      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter()
-          ? builder.getLikePredicate(req.getCatalogNameFilter())
-          : Predicates.<String>alwaysTrue();
-      final Predicate<String> tableTypeFilter = req.getTableTypeFilterCount() > 0
-          ? builder.getTableTypePredicate(req.getTableTypeFilterList())
-          : Predicates.<String>alwaysTrue();
-      final SearchQuery filter = builder.createFilter(req.hasSchemaNameFilter()
+      final Predicate<String> catalogNamePred = MetadataProviderConditions
+          .getLikePredicate(req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null);
+      final Predicate<String> tableTypeFilter = MetadataProviderConditions.getTableTypePredicate(req.getTableTypeFilterList());
+      final SearchQuery filter = MetadataProviderConditions.createFilter(req.hasSchemaNameFilter()
           ? req.getSchemaNameFilter()
           : null,
           req.hasTableNameFilter() ? req.getTableNameFilter() : null);
@@ -407,15 +403,12 @@ public class MetadataProvider {
     public GetColumnsResp execute() throws Exception {
       final GetColumnsResp.Builder respBuilder = GetColumnsResp.newBuilder();
 
-      final Predicate<String> catalogNamePred = req.hasCatalogNameFilter()
-          ? builder.getLikePredicate(req.getCatalogNameFilter())
-          : Predicates.<String>alwaysTrue();
-      final Predicate<String> columnNameFilter = req.hasColumnNameFilter()
-          ? builder.getLikePredicate(req.getColumnNameFilter())
-          : Predicates.<String>alwaysTrue();
-      final SearchQuery filter = builder.createFilter(req.hasSchemaNameFilter()
-          ? req.getSchemaNameFilter()
-          : null,
+      final Predicate<String> catalogNamePred = MetadataProviderConditions
+          .getLikePredicate(req.hasCatalogNameFilter() ? req.getCatalogNameFilter() : null);
+      final Predicate<String> columnNameFilter = MetadataProviderConditions
+          .getLikePredicate(req.hasColumnNameFilter() ? req.getColumnNameFilter() : null);
+      final SearchQuery filter = MetadataProviderConditions.createFilter(
+          req.hasSchemaNameFilter() ? req.getSchemaNameFilter() : null,
           req.hasTableNameFilter() ? req.getTableNameFilter() : null);
 
       final Iterable<Column> originalColumns = table.<Column>asIterable(catalogName, username, datasetListing, filter);

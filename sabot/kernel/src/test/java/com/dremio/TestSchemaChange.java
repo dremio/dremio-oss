@@ -30,20 +30,20 @@ public class TestSchemaChange extends BaseTestQuery {
 
   @Test
   public void testMultiFilesWithDifferentSchema() throws Exception {
-    test("ALTER SYSTEM SET `" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "` = true");
+    test("ALTER SYSTEM SET \"" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "\" = true");
     try {
-      final String query = String.format("select * from dfs_root.`%s/schemachange/multi/` order by id", TEST_RES_PATH);
+      final String query = String.format("select * from dfs_root.\"%s/schemachange/multi/\" order by id", TEST_RES_PATH);
       test(query);
     } finally {
-      test("ALTER SYSTEM RESET `" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "`");
+      test("ALTER SYSTEM RESET \"" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "\"");
     }
   }
 
   @Test
   public void testNewNestedColumn() throws Exception {
-    test("ALTER SYSTEM SET `" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "` = true");
+    test("ALTER SYSTEM SET \"" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "\" = true");
     try {
-      final String query = String.format("select a from dfs_root.`%s/schemachange/nested/` order by id", TEST_RES_PATH);
+      final String query = String.format("select a from dfs_root.\"%s/schemachange/nested/\" order by id", TEST_RES_PATH);
       testBuilder()
         .sqlQuery(query)
         .ordered()
@@ -52,15 +52,15 @@ public class TestSchemaChange extends BaseTestQuery {
         .baselineValues(mapOf("b", mapOf("c2", 2L)))
         .go();
     } finally {
-      test("ALTER SYSTEM RESET `" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "`");
+      test("ALTER SYSTEM RESET \"" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "\"");
     }
   }
 
   @Test
   public void keepLearningSchemaAcrossFiles() throws Exception {
-    test("ALTER SYSTEM SET `" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "` = true");
+    test("ALTER SYSTEM SET \"" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "\" = true");
     try {
-      final String query = String.format("select * from dfs_root.`%s/schemachange/differentschemas/`", TEST_RES_PATH);
+      final String query = String.format("select * from dfs_root.\"%s/schemachange/differentschemas/\"", TEST_RES_PATH);
       try {
         testBuilder()
           .sqlQuery(query)
@@ -81,7 +81,7 @@ public class TestSchemaChange extends BaseTestQuery {
         .build()
         .run();
     } finally {
-      test("ALTER SYSTEM RESET `" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "`");
+      test("ALTER SYSTEM RESET \"" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "\"");
     }
   }
 }

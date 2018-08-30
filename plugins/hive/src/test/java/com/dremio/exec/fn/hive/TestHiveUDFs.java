@@ -20,10 +20,10 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 
-import org.apache.arrow.vector.NullableFloat4Vector;
-import org.apache.arrow.vector.NullableFloat8Vector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
@@ -51,19 +51,19 @@ public class TestHiveUDFs extends BaseTestQuery {
       }
       // Output columns and types
       //  1. str1 : VarChar
-      //  2. upperStr1 : NullableVarChar
-      //  3. concat : NullableVarChar
+      //  2. upperStr1 : VarChar
+      //  3. concat : VarChar
       //  4. flt1 : Float4
-      //  5. format_number : NullableFloat8
-      //  6. nullableStr1 : NullableVarChar
-      //  7. upperNullableStr1 : NullableVarChar
-      NullableVarCharVector str1V = (NullableVarCharVector) batchLoader.getValueAccessorById(NullableVarCharVector.class, 0).getValueVector();
-      NullableVarCharVector upperStr1V = (NullableVarCharVector) batchLoader.getValueAccessorById(NullableVarCharVector.class, 1).getValueVector();
-      NullableVarCharVector concatV = (NullableVarCharVector) batchLoader.getValueAccessorById(NullableVarCharVector.class, 2).getValueVector();
-      NullableFloat4Vector flt1V = (NullableFloat4Vector) batchLoader.getValueAccessorById(NullableFloat4Vector.class, 3).getValueVector();
-      NullableVarCharVector format_numberV = (NullableVarCharVector) batchLoader.getValueAccessorById(NullableVarCharVector.class, 4).getValueVector();
-      NullableVarCharVector nullableStr1V = (NullableVarCharVector) batchLoader.getValueAccessorById(NullableVarCharVector.class, 5).getValueVector();
-      NullableVarCharVector upperNullableStr1V = (NullableVarCharVector) batchLoader.getValueAccessorById(NullableVarCharVector.class, 6).getValueVector();
+      //  5. format_number : Float8
+      //  6. nullableStr1 : VarChar
+      //  7. upperStr1 : VarChar
+      VarCharVector str1V = (VarCharVector) batchLoader.getValueAccessorById(VarCharVector.class, 0).getValueVector();
+      VarCharVector upperStr1V = (VarCharVector) batchLoader.getValueAccessorById(VarCharVector.class, 1).getValueVector();
+      VarCharVector concatV = (VarCharVector) batchLoader.getValueAccessorById(VarCharVector.class, 2).getValueVector();
+      Float4Vector flt1V = (Float4Vector) batchLoader.getValueAccessorById(Float4Vector.class, 3).getValueVector();
+      VarCharVector format_numberV = (VarCharVector) batchLoader.getValueAccessorById(VarCharVector.class, 4).getValueVector();
+      VarCharVector nullableStr1V = (VarCharVector) batchLoader.getValueAccessorById(VarCharVector.class, 5).getValueVector();
+      VarCharVector upperNullableStr1V = (VarCharVector) batchLoader.getValueAccessorById(VarCharVector.class, 6).getValueVector();
 
       for (int i=0; i<batchLoader.getRecordCount(); i++) {
         if (str1V.isNull(i)) {
@@ -125,11 +125,11 @@ public class TestHiveUDFs extends BaseTestQuery {
       // 3. str1Ascii : Int
       // 4. flt1 : Float4
       // 5. pow : Float8
-      NullableVarCharVector str1V = (NullableVarCharVector) batchLoader.getValueAccessorById(NullableVarCharVector.class, 0).getValueVector();
-      NullableIntVector str1LengthV = (NullableIntVector) batchLoader.getValueAccessorById(NullableIntVector.class, 1).getValueVector();
-      NullableIntVector str1AsciiV = (NullableIntVector) batchLoader.getValueAccessorById(NullableIntVector.class, 2).getValueVector();
-      NullableFloat4Vector flt1V = (NullableFloat4Vector) batchLoader.getValueAccessorById(NullableFloat4Vector.class, 3).getValueVector();
-      NullableFloat8Vector powV = (NullableFloat8Vector) batchLoader.getValueAccessorById(NullableFloat8Vector.class, 4).getValueVector();
+      VarCharVector str1V = (VarCharVector) batchLoader.getValueAccessorById(VarCharVector.class, 0).getValueVector();
+      IntVector str1LengthV = (IntVector) batchLoader.getValueAccessorById(IntVector.class, 1).getValueVector();
+      IntVector str1AsciiV = (IntVector) batchLoader.getValueAccessorById(IntVector.class, 2).getValueVector();
+      Float4Vector flt1V = (Float4Vector) batchLoader.getValueAccessorById(Float4Vector.class, 3).getValueVector();
+      Float8Vector powV = (Float8Vector) batchLoader.getValueAccessorById(Float8Vector.class, 4).getValueVector();
 
       for (int i=0; i<batchLoader.getRecordCount(); i++) {
         if (str1V.isNull(i)) {

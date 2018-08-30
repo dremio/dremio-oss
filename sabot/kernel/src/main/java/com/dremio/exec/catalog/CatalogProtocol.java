@@ -26,7 +26,6 @@ import org.apache.arrow.memory.BufferAllocator;
 import com.dremio.common.SerializedExecutor;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.concurrent.Runnables;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl.CatalogChangeListener;
 import com.dremio.exec.proto.CatalogRPC.RpcType;
 import com.dremio.exec.proto.CatalogRPC.SourceWrapper;
@@ -35,6 +34,7 @@ import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcConfig;
+import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.sabot.rpc.Protocols;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -135,7 +135,7 @@ class CatalogProtocol implements FabricProtocol, AutoCloseable {
   private static RpcConfig getMapping(SabotConfig config) {
     return RpcConfig.newBuilder()
         .name("CatalogProtocol")
-        .timeout(config.getInt(ExecConstants.BIT_RPC_TIMEOUT))
+        .timeout(config.getInt(RpcConstants.BIT_RPC_TIMEOUT))
         .add(RpcType.REQ_SOURCE_CONFIG, SourceWrapper.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_DEL_SOURCE, SourceWrapper.class, RpcType.ACK, Ack.class)
         .build();

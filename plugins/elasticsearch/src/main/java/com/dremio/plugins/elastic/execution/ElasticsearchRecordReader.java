@@ -25,8 +25,8 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.core.Response;
 
-import org.apache.arrow.vector.complex.MapVector;
-import org.apache.arrow.vector.complex.impl.SingleMapReaderImpl;
+import org.apache.arrow.vector.complex.NonNullableStructVector;
+import org.apache.arrow.vector.complex.impl.SingleStructReaderImpl;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -84,7 +84,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
 
   private static final boolean PRINT_OUTPUT = false;
   private static final Logger logger = LoggerFactory.getLogger(ElasticsearchRecordReader.class);
-  public static final String MATCH_ALL_QUERY = QueryBuilders.matchAllQuery().buildAsBytes().toUtf8();
+  public static final String MATCH_ALL_QUERY = QueryBuilders.matchAllQuery().buildAsBytes().utf8ToString();
   public static final String MATCH_ALL_REQUEST = String.format("{\"query\": %s }", MATCH_ALL_QUERY);
   private static final int STREAM_COUNT_BREAK_MULTIPLIER = 3;
   private static final String TIMED_OUT = "\"timed_out\": true";
@@ -400,7 +400,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       }
 
       if(count > 0){
-        print(complexWriter.getMapVector(), count);
+        print(complexWriter.getStructVector(), count);
       }
     } catch (Exception e) {
       throw Throwables.propagate(e);
@@ -408,18 +408,18 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
     jsonReader.ensureAtLeastOneField(complexWriter);
     complexWriter.setValueCount(count);
     try{
-      print(complexWriter.getMapVector(), count);
+      print(complexWriter.getStructVector(), count);
     }catch(Exception ex){
       throw Throwables.propagate(ex);
     }
     return count;
   }
 
-  private void print(MapVector mapVector, int count) throws JsonGenerationException, IOException{
+  private void print(NonNullableStructVector structVector, int count) throws JsonGenerationException, IOException{
     if(PRINT_OUTPUT){
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       JsonWriter jsonWriter = new JsonWriter(baos, true, false);
-      FieldReader reader = new SingleMapReaderImpl(mapVector);
+      FieldReader reader = new SingleStructReaderImpl(structVector);
       for(int index = 0; index < count; index++){
         reader.setPosition(index);
         jsonWriter.write(reader);

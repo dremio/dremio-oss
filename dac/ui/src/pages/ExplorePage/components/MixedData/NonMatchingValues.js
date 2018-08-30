@@ -20,8 +20,11 @@ import PropTypes from 'prop-types';
 
 import FieldValues from 'components/Fields/FieldValues';
 import { SECONDARY_BORDER, WHITE } from 'uiTheme/radium/colors';
-import { formSectionTitle } from 'uiTheme/radium/exploreTransform';
 import './Progress.less';
+import {
+  title,
+  rowMargin
+} from '@app/uiTheme/less/forms.less';
 
 @Radium
 export default class NonMatchingValues extends Component {
@@ -41,8 +44,8 @@ export default class NonMatchingValues extends Component {
     }
     return (
       <div className='clean-data-area'>
-        <div style={formSectionTitle}>Available Non-matching Values</div>
-        <div style={styles.values}>
+        <div className={title}>Available Non-matching Values</div>
+        <div className={rowMargin} style={styles.values}>
           <FieldValues options={values}/>
         </div>
       </div>
@@ -55,7 +58,6 @@ const styles = {
     maxWidth: 600,
     height: 215,
     position: 'relative',
-    marginTop: 5,
     padding: 5,
     border: `1px solid ${SECONDARY_BORDER}`,
     overflowY: 'scroll',

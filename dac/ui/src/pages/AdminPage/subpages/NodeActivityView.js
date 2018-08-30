@@ -58,17 +58,30 @@ class NodeActivityView extends Component {
   }
 
   getTableColumns() {
-    return [
-      la('Node'),
-      la('IP Address'),
-      la('Port'),
-      la('CPU'),
-      la('Memory')
-    ];
+    return [{
+      label: la('Node'),
+      flexGrow: 1
+    },
+    {
+      label: la('IP Address'),
+      flexGrow: 1
+    },
+    {
+      label: la('Port'),
+      width: 100
+    },
+    {
+      label: la('CPU'),
+      width: 100
+    },
+    {
+      label: la('Memory'),
+      width: 140
+    }].map(column => ({ key: column.label, ...column }));
   }
 
   getTableData() { // todo: styling: col alignment and spacing (esp. numbers)
-    const [name, ip, port, cpu, memory] = this.getTableColumns();
+    const [name, ip, port, cpu, memory] = this.getTableColumns().map(column => column.label);
     return this.props.sourceNodesList.get('nodes').map( (node) => {
       return {
         data: {

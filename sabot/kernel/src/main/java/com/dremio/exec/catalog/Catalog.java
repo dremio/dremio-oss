@@ -28,6 +28,7 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.ischema.tables.TablesTable;
+import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -175,10 +176,11 @@ public interface Catalog {
    * @param source source where dataset is to be created/updated
    * @param datasetPath dataset full path
    * @param datasetConfig minimum configuration needed to define a dataset (format settings)
+   * @param attributes optional namespace attributes
    * @return true if dataset is created/updated
    * @throws NamespaceException
    */
-  boolean createOrUpdateDataset(NamespaceService userNamespaceService, NamespaceKey source, NamespaceKey datasetPath, DatasetConfig datasetConfig) throws NamespaceException;
+  boolean createOrUpdateDataset(NamespaceService userNamespaceService, NamespaceKey source, NamespaceKey datasetPath, DatasetConfig datasetConfig, NamespaceAttribute... attributes) throws NamespaceException;
 
   /**
    * Get a source based on the provided name. If the source doesn't exist, synchronize with the
@@ -196,18 +198,19 @@ public interface Catalog {
    * exception. Additionally, if "store.plugin.check_state" is enabled, a plugin that starts but
    * then reveals a bad state, will also result in exception.
    *
-   * @param config
-   *          Configuration for the source.
+   * @param config Configuration for the source.
+   * @param attributes Optional namespace attributes to pass to namespace entity creation
    */
-  void createSource(SourceConfig config);
+  void createSource(SourceConfig config, NamespaceAttribute... attributes);
 
   /**
    * Update an existing source with the given config. The config version must be the same as the
    * currently active source. If it isn't, this call will fail with an exception.
    *
    * @param config Configuration for the source.
+   * @param attributes Optional namespace attributes to pass to namespace entity creation
    */
-  void updateSource(SourceConfig config);
+  void updateSource(SourceConfig config, NamespaceAttribute... attributes);
 
   /**
    * Delete a source with the provided config. If the source doesn't exist or the config doesn't

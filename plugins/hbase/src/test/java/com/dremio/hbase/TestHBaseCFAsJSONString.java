@@ -47,9 +47,9 @@ public class TestHBaseCFAsJSONString extends BaseHBaseTest {
 
   @Test
   public void testColumnFamiliesAsJSONString() throws Exception {
-    test("ALTER SESSION SET `exec.errors.verbose` = true");
+    test("ALTER SESSION SET \"exec.errors.verbose\" = true");
     setColumnWidths(new int[] {112, 12});
-    List<QueryDataBatch> resultList = runHBaseSQLlWithResults("SELECT f, f2 FROM hbase.`[TABLE_NAME]` tableName LIMIT 1");
+    List<QueryDataBatch> resultList = runHBaseSQLlWithResults("SELECT f, f2 FROM hbase.\"[TABLE_NAME]\" tableName LIMIT 1");
     printResult(resultList);
   }
 

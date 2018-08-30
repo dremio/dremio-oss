@@ -452,7 +452,7 @@ public class TestCatalogServiceImpl {
 
   private static final String MOCK_UP = "mockup";
 
-  @SourceType(MOCK_UP)
+  @SourceType(value = MOCK_UP, configurable = false)
   public static class MockUpConfig extends ConnectionConf<MockUpConfig, MockUpPlugin> {
 
     @Override

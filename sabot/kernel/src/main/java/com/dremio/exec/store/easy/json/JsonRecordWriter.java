@@ -64,6 +64,8 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
   private FileSystemWrapper fs = null;
   private FSDataOutputStream stream = null;
 
+  private long fileSize = 0;
+
   private final JsonFactory factory = new JsonFactory();
 
   public JsonRecordWriter(OperatorContext context, EasyWriter writer, JSONFormatConfig formatConfig){
@@ -253,15 +255,19 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
             public void close() throws IOException {
               if(gen != null){
                 gen.flush();
+                if (stream != null) {
+                  fileSize = stream.getPos();
+                }
               }
             }},
           stream
           );
       stream = null;
       if(gen != null){
-        listener.recordsWritten(recordCount, fileName.toString(), null, partition.getBucketNumber());
+        listener.recordsWritten(recordCount, fileSize, fileName.toString(), null, partition.getBucketNumber());
       }
       recordCount = 0;
+      fileSize = 0;
     }
   }
 }

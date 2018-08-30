@@ -52,7 +52,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionList;
+import com.dremio.options.OptionList;
 import com.dremio.exec.util.Utilities;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -161,8 +161,8 @@ public class TestLocalExchange extends PlanTestBase {
     }
 
     // Initialize test queries
-    groupByQuery = String.format("SELECT dept_id, count(*) as numEmployees FROM dfs.`%s` GROUP BY dept_id", empTableLocation);
-    joinQuery = String.format("SELECT e.emp_name, d.dept_name FROM dfs.`%s` e JOIN dfs.`%s` d ON e.dept_id = d.dept_id",
+    groupByQuery = String.format("SELECT dept_id, count(*) as numEmployees FROM dfs.\"%s\" GROUP BY dept_id", empTableLocation);
+    joinQuery = String.format("SELECT e.emp_name, d.dept_name FROM dfs.\"%s\" e JOIN dfs.\"%s\" d ON e.dept_id = d.dept_id",
         empTableLocation, deptTableLocation);
 
     // Generate and store output data for test queries. Used when verifying the output of queries ran using different
@@ -191,22 +191,22 @@ public class TestLocalExchange extends PlanTestBase {
 
   public static void setupHelper(boolean isMuxOn, boolean isDeMuxOn) throws Exception {
     // set slice count to 1, so that we can have more parallelization for testing
-    test("ALTER SESSION SET `planner.slice_target`=1");
+    test("ALTER SESSION SET \"planner.slice_target\"=1");
     // disable the broadcast join to produce plans with HashToRandomExchanges.
-    test("ALTER SESSION SET `planner.enable_broadcast_join`=false");
-    test("ALTER SESSION SET `planner.enable_mux_exchange`=" + isMuxOn);
-    test("ALTER SESSION SET `planner.enable_demux_exchange`=" + isDeMuxOn);
+    test("ALTER SESSION SET \"planner.enable_broadcast_join\"=false");
+    test("ALTER SESSION SET \"planner.enable_mux_exchange\"=" + isMuxOn);
+    test("ALTER SESSION SET \"planner.enable_demux_exchange\"=" + isDeMuxOn);
   }
 
   @Test
   public void testGroupByMultiFields() throws Exception {
     // Test multifield hash generation
 
-    test("ALTER SESSION SET `planner.slice_target`=1");
-    test("ALTER SESSION SET `planner.enable_mux_exchange`=" + true);
-    test("ALTER SESSION SET `planner.enable_demux_exchange`=" + false);
+    test("ALTER SESSION SET \"planner.slice_target\"=1");
+    test("ALTER SESSION SET \"planner.enable_mux_exchange\"=" + true);
+    test("ALTER SESSION SET \"planner.enable_demux_exchange\"=" + false);
 
-    final String groupByMultipleQuery = String.format("SELECT dept_id, mng_id, some_id, count(*) as numEmployees FROM dfs.`%s` e GROUP BY dept_id, mng_id, some_id", empTableLocation);
+    final String groupByMultipleQuery = String.format("SELECT dept_id, mng_id, some_id, count(*) as numEmployees FROM dfs.\"%s\" e GROUP BY dept_id, mng_id, some_id", empTableLocation);
     final String[] groupByMultipleQueryBaselineColumns = new String[] { "dept_id", "mng_id", "some_id", "numEmployees" };
 
     final int numOccurrances = NUM_EMPLOYEES/NUM_DEPTS;
@@ -268,19 +268,19 @@ public class TestLocalExchange extends PlanTestBase {
     testJoinHelper(true, true);
   }
 
-  private static void testGroupByHelper(boolean isMuxOn, boolean isDeMuxOn) throws Exception {
+  private void testGroupByHelper(boolean isMuxOn, boolean isDeMuxOn) throws Exception {
     testHelper(isMuxOn, isDeMuxOn, groupByQuery,
         isMuxOn ? 1 : 0, isDeMuxOn ? 1 : 0,
         groupByQueryBaselineColumns, groupByQueryBaselineValues);
   }
 
-  public static void testJoinHelper(boolean isMuxOn, boolean isDeMuxOn) throws Exception {
+  public void testJoinHelper(boolean isMuxOn, boolean isDeMuxOn) throws Exception {
     testHelper(isMuxOn, isDeMuxOn, joinQuery,
         isMuxOn ? 2 : 0, isDeMuxOn ? 2 : 0,
         joinQueryBaselineColumns, joinQueryBaselineValues);
   }
 
-  private static void testHelper(boolean isMuxOn, boolean isDeMuxOn, String query,
+  private void testHelper(boolean isMuxOn, boolean isDeMuxOn, String query,
       int expectedNumMuxes, int expectedNumDeMuxes, String[] baselineColumns, List<Object[]> baselineValues)
       throws Exception {
     setupHelper(isMuxOn, isDeMuxOn);

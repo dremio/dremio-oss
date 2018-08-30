@@ -23,7 +23,6 @@ import static com.dremio.provision.yarn.DacDaemonYarnApplication.YARN_CPU;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.YARN_MEMORY_OFF_HEAP;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.YARN_RUNNABLE_NAME;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
@@ -38,16 +37,15 @@ import org.apache.twill.api.TwillController;
 import org.apache.twill.api.TwillPreparer;
 import org.apache.twill.api.TwillRunnerService;
 import org.apache.twill.api.logging.LogEntry;
-import org.apache.twill.ext.BundledJarRunner;
 import org.apache.twill.yarn.YarnTwillRunnerService;
 import org.slf4j.Logger;
 
+import com.dremio.common.VM;
 import com.dremio.config.DremioConfig;
 import com.dremio.provision.ClusterId;
 import com.dremio.provision.Property;
 import com.dremio.provision.PropertyType;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -103,19 +101,13 @@ public class YarnController {
   }
 
   protected TwillPreparer createPreparer(YarnConfiguration yarnConfiguration, List<Property> propertyList) {
-    BundledJarRunner.Arguments discoveryArgs = new BundledJarRunner.Arguments.Builder()
-      .setJarFileName(YARN_BUNDLED_JAR_NAME)
-      .setLibFolder("/lib")
-      .setMainClassName("com.dremio.dac.daemon.DremioDaemon")
-      .setMainArgs(new String[] {})
-      .createArguments();
+    AppBundleRunnable.Arguments discoveryArgs = new AppBundleRunnable.Arguments(
+        YARN_BUNDLED_JAR_NAME,
+        "com.dremio.dac.daemon.YarnDaemon",
+        new String[] {});
 
     DacDaemonYarnApplication dacDaemonApp = new DacDaemonYarnApplication(dremioConfig, yarnConfiguration,
       new DacDaemonYarnApplication.Environment());
-    File jarFile = new File(dacDaemonApp.getYarnBundledJarName());
-
-    Preconditions.checkState(jarFile.exists());
-    Preconditions.checkState(jarFile.canRead());
 
     TwillRunnerService twillRunner = startTwillRunner(yarnConfiguration);
 
@@ -125,10 +117,6 @@ public class YarnController {
     envVars.put("MALLOC_TRIM_THRESHOLD_", "131072");
     envVars.put("MALLOC_TOP_PAD_", "131072");
     envVars.put("MALLOC_MMAP_MAX_", "65536");
-
-    // maprfs specific env vars to enable read ahead throttling
-    envVars.put("MAPR_IMPALA_RA_THROTTLE", Optional.fromNullable(System.getenv("MAPR_IMPALA_RA_THROTTLE")).or("true"));
-    envVars.put("MAPR_MAX_RA_STREAMS", Optional.fromNullable(System.getenv("MAPR_MAX_RA_STREAMS")).or("200"));
 
     try {
       String userName = UserGroupInformation.getCurrentUser().getUserName();
@@ -197,10 +185,10 @@ public class YarnController {
     basicJVMOptions.put(DremioConfig.DIST_WRITE_PATH_STRING, yarnConfiguration.get(DremioConfig.DIST_WRITE_PATH_STRING,
       dremioConfig.getString(DremioConfig.DIST_WRITE_PATH_STRING)));
     basicJVMOptions.put("dremio.classpath.scanning.cache.enabled", "false");
-    basicJVMOptions.put("logback.configurationFile", "logback.xml");
     basicJVMOptions.put(DremioConfig.DEBUG_AUTOPORT_BOOL, "true");
-    basicJVMOptions.put("services.coordinator.enabled", "false");
-    basicJVMOptions.put(DremioConfig.EXECUTOR_CPU, yarnConfiguration.get(YARN_CPU));
+    basicJVMOptions.put(DremioConfig.ENABLE_COORDINATOR_BOOL, "false");
+    basicJVMOptions.put(DremioConfig.ENABLE_EXECUTOR_BOOL, "true");
+    basicJVMOptions.put(VM.DREMIO_CPU_AVAILABLE_PROPERTY, yarnConfiguration.get(YARN_CPU));
 
     final String kerberosPrincipal = dremioConfig.getString(DremioConfig.KERBEROS_PRINCIPAL);
     if (!Strings.isNullOrEmpty(kerberosPrincipal)) {
@@ -250,7 +238,6 @@ public class YarnController {
 
     return basicJVMOptionsB.toString();
   }
-
 
   static class HadoopClassExcluder extends ClassAcceptor {
     @Override

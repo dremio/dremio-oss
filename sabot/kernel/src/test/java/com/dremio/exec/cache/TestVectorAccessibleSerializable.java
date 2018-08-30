@@ -33,12 +33,12 @@ import java.util.concurrent.TimeUnit;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.arrow.vector.AllocationHelper;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableFloat8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.complex.NullableMapVector;
-import org.apache.arrow.vector.complex.impl.NullableMapWriter;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.complex.impl.NullableStructWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.hadoop.conf.Configuration;
@@ -79,9 +79,9 @@ public class TestVectorAccessibleSerializable extends ExecTest {
       bit.run();
       final SabotContext context = bit.getContext();
 
-      try (final NullableIntVector intVector = new NullableIntVector("int", context.getAllocator());
-           final NullableVarBinaryVector binVector =
-              new NullableVarBinaryVector("binary", context.getAllocator())) {
+      try (final IntVector intVector = new IntVector("int", allocator);
+           final VarBinaryVector binVector =
+              new VarBinaryVector("binary", allocator)) {
         AllocationHelper.allocate(intVector, 4, 4);
         AllocationHelper.allocate(binVector, 4, 5);
         vectorList.add(intVector);
@@ -102,12 +102,12 @@ public class TestVectorAccessibleSerializable extends ExecTest {
         container.addCollection(vectorList);
         container.setRecordCount(4);
         WritableBatch batch = WritableBatch.getBatchNoHVWrap(container.getRecordCount(), container, false);
-        VectorAccessibleSerializable wrap = new VectorAccessibleSerializable(batch, context.getAllocator());
+        VectorAccessibleSerializable wrap = new VectorAccessibleSerializable(batch, allocator);
 
         Configuration conf = new Configuration();
         conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
 
-        final VectorAccessibleSerializable newWrap = new VectorAccessibleSerializable(context.getAllocator());
+        final VectorAccessibleSerializable newWrap = new VectorAccessibleSerializable(allocator);
         try (final FileSystem fs = FileSystem.get(conf)) {
           final File tempDir = Files.createTempDir();
           tempDir.deleteOnExit();
@@ -166,9 +166,9 @@ public class TestVectorAccessibleSerializable extends ExecTest {
           CompleteType.BIT.asList().toField("bits")
       ).toField("map").getFieldType();
 
-      try (final NullableIntVector intVector = new NullableIntVector("int", context.getAllocator());
-           final NullableFloat8Vector float8Vector = new NullableFloat8Vector("float8", context.getAllocator());
-           final NullableMapVector mapVector = new NullableMapVector("map", context.getAllocator(), mapType, null);
+      try (final IntVector intVector = new IntVector("int", allocator);
+           final Float8Vector float8Vector = new Float8Vector("float8", allocator);
+           final StructVector mapVector = new StructVector("map", allocator, mapType, null);
            final ArrowBuf tempBuf = allocator.buffer(2048)) {
         AllocationHelper.allocateNew(intVector, records);
         AllocationHelper.allocateNew(float8Vector, records);
@@ -179,7 +179,7 @@ public class TestVectorAccessibleSerializable extends ExecTest {
 
         int intBaseValue = 100;
         double doubleBaseValue = 100.375;
-        NullableMapWriter mapWriter = mapVector.getWriter();
+        NullableStructWriter mapWriter = mapVector.getWriter();
         for (int i = 0; i < records; i++) {
           intVector.set(i, intBaseValue + i);
           float8Vector.set(i, doubleBaseValue + (double)i);
@@ -229,12 +229,12 @@ public class TestVectorAccessibleSerializable extends ExecTest {
     container.addCollection(vectorList);
     container.setRecordCount(records);
     WritableBatch batch = WritableBatch.getBatchNoHVWrap(container.getRecordCount(), container, false);
-    VectorAccessibleSerializable wrap = new VectorAccessibleSerializable(batch, null, context.getAllocator(), compression);
+    VectorAccessibleSerializable wrap = new VectorAccessibleSerializable(batch, null, allocator, compression);
 
     Configuration conf = new Configuration();
     conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
 
-    final VectorAccessibleSerializable newWrap = new VectorAccessibleSerializable(context.getAllocator(), true, context.getAllocator());
+    final VectorAccessibleSerializable newWrap = new VectorAccessibleSerializable(allocator, true, allocator);
     try (final FileSystem fs = FileSystem.get(conf)) {
       final File tempDir = Files.createTempDir();
       tempDir.deleteOnExit();
@@ -275,70 +275,68 @@ public class TestVectorAccessibleSerializable extends ExecTest {
 
   @Test
   public void testReadIntoArrowBuf() throws Exception {
-    try(final BufferAllocator allocator = RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG)) {
-      final byte[] copyBuffer = new byte[64*1024];
-      try (final ArrowBuf buffer = allocator.buffer(256)) {
-        final InputStream inputStream = mock(InputStream.class);
-        when(inputStream.read(any(byte[].class))).thenReturn(0);
-        readIntoArrowBuf(inputStream, buffer, 0, copyBuffer);
-        assertEquals(0, buffer.writerIndex());
-      }
+    final byte[] copyBuffer = new byte[64*1024];
+    try (final ArrowBuf buffer = allocator.buffer(256)) {
+      final InputStream inputStream = mock(InputStream.class);
+      when(inputStream.read(any(byte[].class))).thenReturn(0);
+      readIntoArrowBuf(inputStream, buffer, 0, copyBuffer);
+      assertEquals(0, buffer.writerIndex());
+    }
 
-      try (final ArrowBuf buffer = allocator.buffer(256)) {
-        final InputStream inputStream = mock(InputStream.class);
-        when(inputStream.read(any(byte[].class), any(int.class), any(int.class))).thenAnswer(new Answer() {
-          @Override
-          public Integer answer(InvocationOnMock invocation) throws Throwable {
-            byte[] byteBuf = invocation.getArgumentAt(0, byte[].class);
-            int start = invocation.getArgumentAt(1, int.class);
-            int length = invocation.getArgumentAt(2, int.class);
-            for(int i = start; i < Math.min(length, byteBuf.length); i++) {
-              byteBuf[i] = (byte)i;
-            }
-            return Math.min(length, byteBuf.length);
+    try (final ArrowBuf buffer = allocator.buffer(256)) {
+      final InputStream inputStream = mock(InputStream.class);
+      when(inputStream.read(any(byte[].class), any(int.class), any(int.class))).thenAnswer(new Answer() {
+        @Override
+        public Integer answer(InvocationOnMock invocation) throws Throwable {
+          byte[] byteBuf = invocation.getArgumentAt(0, byte[].class);
+          int start = invocation.getArgumentAt(1, int.class);
+          int length = invocation.getArgumentAt(2, int.class);
+          for(int i = start; i < Math.min(length, byteBuf.length); i++) {
+            byteBuf[i] = (byte)i;
           }
-        });
-        readIntoArrowBuf(inputStream, buffer, 256, copyBuffer);
-        assertEquals(256, buffer.writerIndex());
-        for(int i=0; i<256; i++) {
-          assertEquals((byte)i, buffer.getByte(i));
+          return Math.min(length, byteBuf.length);
         }
+      });
+      readIntoArrowBuf(inputStream, buffer, 256, copyBuffer);
+      assertEquals(256, buffer.writerIndex());
+      for(int i=0; i<256; i++) {
+        assertEquals((byte)i, buffer.getByte(i));
       }
+    }
 
-      try (final ArrowBuf buffer = allocator.buffer(256)) {
-        final InputStream inputStream = mock(InputStream.class);
-        when(inputStream.read(any(byte[].class), any(int.class), any(int.class))).thenAnswer(new Answer() {
-          @Override
-          public Integer answer(InvocationOnMock invocation) throws Throwable {
-            byte[] byteBuf = invocation.getArgumentAt(0, byte[].class);
-            int start = invocation.getArgumentAt(1, int.class);
-            int length = invocation.getArgumentAt(2, int.class);
-            int i=start;
-            int toFill = Math.min(byteBuf.length, 20);
-            toFill = Math.min(toFill, length);
-            while(i<toFill) {
-              byteBuf[i] = (byte)i;
-              i++;
-            }
-            return i;
+    try (final ArrowBuf buffer = allocator.buffer(256)) {
+      final InputStream inputStream = mock(InputStream.class);
+      when(inputStream.read(any(byte[].class), any(int.class), any(int.class))).thenAnswer(new Answer() {
+        @Override
+        public Integer answer(InvocationOnMock invocation) throws Throwable {
+          byte[] byteBuf = invocation.getArgumentAt(0, byte[].class);
+          int start = invocation.getArgumentAt(1, int.class);
+          int length = invocation.getArgumentAt(2, int.class);
+          int i=start;
+          int toFill = Math.min(byteBuf.length, 20);
+          toFill = Math.min(toFill, length);
+          while(i<toFill) {
+            byteBuf[i] = (byte)i;
+            i++;
           }
-        });
-        readIntoArrowBuf(inputStream, buffer, 256, copyBuffer);
-        assertEquals(256, buffer.writerIndex());
-        for(int i=0; i<256; i++) {
-          assertEquals((byte)(i%20), buffer.getByte(i));
+          return i;
         }
+      });
+      readIntoArrowBuf(inputStream, buffer, 256, copyBuffer);
+      assertEquals(256, buffer.writerIndex());
+      for(int i=0; i<256; i++) {
+        assertEquals((byte)(i%20), buffer.getByte(i));
       }
+    }
 
-      try (final ArrowBuf buffer = allocator.buffer(256)) {
-        final InputStream inputStream = mock(InputStream.class);
-        when(inputStream.read(any(byte[].class), any(int.class), any(int.class))).thenReturn(-1);
-        try {
-          readIntoArrowBuf(inputStream, buffer, 256, copyBuffer);
-          fail("Expected above call to fail");
-        } catch (EOFException ex) {
-          /* expected*/
-        }
+    try (final ArrowBuf buffer = allocator.buffer(256)) {
+      final InputStream inputStream = mock(InputStream.class);
+      when(inputStream.read(any(byte[].class), any(int.class), any(int.class))).thenReturn(-1);
+      try {
+        readIntoArrowBuf(inputStream, buffer, 256, copyBuffer);
+        fail("Expected above call to fail");
+      } catch (EOFException ex) {
+        /* expected*/
       }
     }
   }

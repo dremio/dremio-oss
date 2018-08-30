@@ -17,6 +17,7 @@ package com.dremio.exec.expr;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.AllocationReservation;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
@@ -104,6 +105,11 @@ public class FakeAllocator implements BufferAllocator {
 
   @Override
   public BufferAllocator newChildAllocator(String arg0, long arg1, long arg2) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public BufferAllocator newChildAllocator(String arg0, AllocationListener listener, long arg1, long arg2) {
     throw new UnsupportedOperationException();
   }
 

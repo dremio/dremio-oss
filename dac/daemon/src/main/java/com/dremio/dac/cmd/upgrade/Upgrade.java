@@ -20,6 +20,7 @@ import static com.dremio.dac.util.ClusterVersionUtils.fromClusterVersion;
 import static com.dremio.dac.util.ClusterVersionUtils.toClusterVersion;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.inject.Provider;
@@ -51,20 +52,27 @@ import com.google.common.collect.Ordering;
  * If no version is found, the tool assumes it's 1.0.6 as there is no way to identify versions prior to that anyway
  */
 public class Upgrade {
+  public static final UpgradeStats NO_UPGRADE = new UpgradeStats();
+
   /**
    * The list of registered upgrade tasks
    */
   public static final List<UpgradeTask> TASKS = ImmutableList.of(
-      new ReIndexStores(),
+      new DatasetConfigUpgrade(),
+      new ReIndexAllStores(),
+      new MigrateAccelerationMeasures(),
       new SetDatasetExpiry(),
       new SetAccelerationRefreshGrace(),
       new MarkOldMaterializationsAsDeprecated(),
       new MoveFromAccelerationsToReflections(),
-      new ReIndexDatasets(),
       new DeleteInternalSources(),
       new MoveFromAccelerationSettingsToReflectionSettings(),
       new ConvertJoinInfo(),
-      new CompressHiveTableAttrs()
+      new CompressHiveTableAttrs(),
+      new DeleteHistoryOfRenamedDatasets(),
+      new DeleteHive121BasedInputSplits(),
+      new MinimizeJobResultsMetadata(),
+      new UpdateExternalReflectionHash()
   );
 
   /**
@@ -102,6 +110,18 @@ public class Upgrade {
     }
   }));
 
+  private final DACConfig dacConfig;
+  private final boolean verbose;
+
+  public Upgrade(DACConfig dacConfig, boolean verbose) {
+    this.dacConfig = dacConfig;
+    this.verbose = verbose;
+  }
+
+  public DACConfig getDacConfig() {
+    return dacConfig;
+  }
+
   private static Version retrieveStoreVersion(ClusterIdentity identity) {
     final Version storeVersion = fromClusterVersion(identity.getVersion());
     return storeVersion != null ? storeVersion : UpgradeTask.VERSION_106;
@@ -116,7 +136,7 @@ public class Upgrade {
     }
   }
 
-  private static void ensureUpgradeSupported(Version storeVersion) {
+  protected void ensureUpgradeSupported(Version storeVersion) {
     // make sure we are not trying to downgrade
     Preconditions.checkState(UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) <= 0,
       "Downgrading from version %s to %s is not supported", storeVersion, VERSION);
@@ -125,25 +145,34 @@ public class Upgrade {
       "Cannot run upgrade tool on versions below %s", TASKS_SMALLEST_MIN_VERSION.getVersion());
   }
 
-  public static UpgradeStats upgrade(DACConfig dacConfig) throws Exception {
+  public UpgradeStats run() throws Exception {
     final String dbDir = dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING);
     final File dbFile = new File(dbDir);
 
     if (!dbFile.exists()) {
       System.out.println("No database found. Skipping upgrade");
-      return new UpgradeStats();
+      return NO_UPGRADE;
+    }
+
+    String[] listFiles = dbFile.list();
+    // An empty array means no file in the directory, so do not try to upgrade
+    // A null value means dbFile is not a directory. Let the upgrade task handle it.
+    if (listFiles != null && listFiles.length == 0) {
+      System.out.println("No database found. Skipping upgrade");
+      return NO_UPGRADE;
     }
 
     final SabotConfig sabotConfig = dacConfig.getConfig().getSabotConfig();
     final ScanResult classpathScan = ClassPathScanner.fromPrescan(sabotConfig);
+
     try (final KVStoreProvider storeProvider = new LocalKVStoreProvider(classpathScan, dbDir, false, true)) {
       storeProvider.start();
 
-      return upgrade(sabotConfig, classpathScan, storeProvider);
+      return run(sabotConfig, classpathScan, storeProvider);
     }
   }
 
-  public static UpgradeStats upgrade(final SabotConfig sabotConfig, final ScanResult classpathScan,
+  public UpgradeStats run(final SabotConfig sabotConfig, final ScanResult classpathScan,
       final KVStoreProvider storeProvider) throws Exception {
     final KVStore<String, ClusterIdentity> supportStore = storeProvider.getStore(SupportStoreCreator.class);
     final ClusterIdentity identity = Preconditions.checkNotNull(supportStore.get(SupportService.CLUSTER_ID), "No Cluster Identity found");
@@ -152,34 +181,49 @@ public class Upgrade {
     System.out.println("KVStore version is " + kvStoreVersion.getVersion());
     ensureUpgradeSupported(kvStoreVersion);
 
-    final LogicalPlanPersistence lpPersistence = new LogicalPlanPersistence(sabotConfig, classpathScan);
-    final ConnectionReader connectionReader = new ConnectionReader(classpathScan);
-
-    final UpgradeContext context = new UpgradeContext(new Provider<KVStoreProvider>() {
-      @Override
-      public KVStoreProvider get() {
-        return storeProvider;
+    List<UpgradeTask> tasksToRun = new ArrayList<>();
+    for(UpgradeTask task: TASKS) {
+      if (kvStoreVersion.compareTo(task.getMaxVersion()) >= 0) {
+        if (verbose) {
+          System.out.println("Skipping " + task);
+        }
+        continue;
       }
-    }, lpPersistence, connectionReader);
-    for (UpgradeTask task : TASKS) {
-      if (kvStoreVersion.compareTo(task.getMaxVersion()) < 0) {
+      tasksToRun.add(task);
+    }
+
+    final UpgradeStats result;
+    if (tasksToRun.isEmpty()) {
+      result = NO_UPGRADE;
+    } else {
+      final LogicalPlanPersistence lpPersistence = new LogicalPlanPersistence(sabotConfig, classpathScan);
+      final ConnectionReader connectionReader = new ConnectionReader(classpathScan);
+
+      final UpgradeContext context = new UpgradeContext(new Provider<KVStoreProvider>() {
+        @Override
+        public KVStoreProvider get() {
+          return storeProvider;
+        }
+      }, lpPersistence, connectionReader);
+
+      for (UpgradeTask task : tasksToRun) {
         System.out.println(task);
         task.upgrade(context);
-      } else {
-        System.out.println("Skipping " + task);
       }
-      // let exceptions propagate to main()
+
+      result = context.getUpgradeStats();
     }
 
     updateStoreVersion(supportStore, identity);
 
-    return context.getUpgradeStats();
+    return result;
   }
 
   public static void main(String[] args) {
     final DACConfig dacConfig = DACConfig.newConfig();
     try {
-      UpgradeStats upgradeStats = upgrade(dacConfig);
+      Upgrade upgrade = new Upgrade(dacConfig, true);
+      UpgradeStats upgradeStats = upgrade.run();
       System.out.println(upgradeStats);
     } catch (Exception e) {
       e.printStackTrace();

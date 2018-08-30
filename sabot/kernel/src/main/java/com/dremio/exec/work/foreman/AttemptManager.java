@@ -17,20 +17,20 @@ package com.dremio.exec.work.foreman;
 
 import java.util.Date;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 import org.codehaus.jackson.map.ObjectMapper;
 
 import com.dremio.common.CatastrophicFailure;
 import com.dremio.common.EventProcessor;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.handlers.commands.AsyncCommand;
-import com.dremio.exec.planner.sql.handlers.commands.AsyncCommand.QueueType;
 import com.dremio.exec.planner.sql.handlers.commands.CommandCreator;
 import com.dremio.exec.planner.sql.handlers.commands.CommandRunner;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
@@ -43,14 +43,12 @@ import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
-import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.work.AttemptId;
@@ -58,11 +56,11 @@ import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.exec.work.user.OptionProvider;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
+import com.dremio.options.OptionManager;
+import com.dremio.resource.ResourceAllocator;
+import com.dremio.resource.basic.BasicResourceConstants;
 import com.dremio.service.Pointer;
 import com.dremio.service.coordinator.ClusterCoordinator;
-import com.dremio.service.coordinator.DistributedSemaphore;
-import com.dremio.service.coordinator.DistributedSemaphore.DistributedLease;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 
@@ -102,17 +100,16 @@ public class AttemptManager implements Runnable {
   private final Cache<Long, PreparedPlan> plans;
   private volatile QueryState state;
 
-  private volatile DistributedLease lease; // used to limit the number of concurrent queries
-
   private final StateSwitch stateSwitch = new StateSwitch();
   private final AttemptResult foremanResult = new AttemptResult();
   private final boolean queuingEnabled;
-  private final boolean reflectionQueuingEnabled;
   private Object extraResultData;
   private final CoordToExecTunnelCreator tunnelCreator;
   private final AttemptObservers observers;
   private final Pointer<QueryId> prepareId;
   private String commandDescription = "<unknown>";
+  private final ResourceAllocator queryResourceManager;
+  private CommandRunner<?> command;
 
   /**
    * Constructor. Sets up the AttemptManager, but does not initiate any execution.
@@ -128,7 +125,8 @@ public class AttemptManager implements Runnable {
     final OptionProvider options,
     final CoordToExecTunnelCreator tunnelCreator,
     final Cache<Long, PreparedPlan> plans,
-    final QueryContext queryContext
+    final QueryContext queryContext,
+    final ResourceAllocator queryResourceManager
   ) {
     this.attemptId = attemptId;
     this.queryId = attemptId.toQueryId();
@@ -136,6 +134,7 @@ public class AttemptManager implements Runnable {
     this.queryRequest = queryRequest;
     this.sabotContext = context;
     this.tunnelCreator = tunnelCreator;
+    this.queryResourceManager = queryResourceManager;
     this.plans = plans;
     this.prepareId = new Pointer<>();
 
@@ -151,8 +150,7 @@ public class AttemptManager implements Runnable {
       observers, optionManager.getOption(PlannerSettings.VERBOSE_PROFILE),
       optionManager.getOption(PlannerSettings.INCLUDE_DATASET_PROFILE), this.queryContext.getCatalog());
 
-    this.queuingEnabled = optionManager.getOption(ExecConstants.ENABLE_QUEUE);
-    this.reflectionQueuingEnabled = optionManager.getOption(ExecConstants.REFLECTION_ENABLE_QUEUE);
+    this.queuingEnabled = optionManager.getOption(BasicResourceConstants.ENABLE_QUEUE);
 
     final QueryState initialState = queuingEnabled ? QueryState.ENQUEUED : QueryState.STARTING;
     recordNewState(initialState);
@@ -284,14 +282,13 @@ public class AttemptManager implements Runnable {
       observers.queryStarted(queryRequest, queryContext.getSession().getCredentials().getUserName());
 
       CommandCreator creator = newCommandCreator(queryContext, observers, prepareId);
-      CommandRunner<?> command = creator.toCommand();
+      command = creator.toCommand();
       logger.debug("Using command: {}.", command);
 
       switch(command.getCommandType()){
       case ASYNC_QUERY:
         Preconditions.checkState(command instanceof AsyncCommand, "Asynchronous query must be an AsyncCommand");
         command.plan();
-        acquireQuerySemaphoreIfNecessary(((AsyncCommand<?>) command).getQueueType());
         if(queuingEnabled){
           moveToState(QueryState.STARTING, null);
         }
@@ -377,21 +374,7 @@ public class AttemptManager implements Runnable {
 
   protected CommandCreator newCommandCreator(QueryContext queryContext, AttemptObserver observer, Pointer<QueryId> prepareId) {
     return new CommandCreator(this.sabotContext, queryContext, tunnelCreator, queryRequest,
-      observer, plans, prepareId, attemptId.getAttemptNum());
-  }
-
-  private void releaseLease() {
-    while (lease != null) {
-      try {
-        lease.close();
-        lease = null;
-      } catch (final InterruptedException e) {
-        // if we end up here, the while loop will try again
-      } catch (final Exception e) {
-        logger.warn("Failure while releasing lease.", e);
-        break;
-      }
-    }
+      observer, plans, prepareId, attemptId.getAttemptNum(), queryResourceManager);
   }
 
 //  private void log(final PhysicalPlan plan) {
@@ -582,7 +565,10 @@ public class AttemptManager implements Runnable {
       }
 
       try {
-        releaseLease();
+        command.close();
+      } catch (final Exception e) {
+        addException(e);
+        logger.error("Unable to release resources for query: {}", queryId);
       } finally {
         isClosed = true;
       }
@@ -730,72 +716,4 @@ public class AttemptManager implements Runnable {
     state = newState;
   }
 
-  private void acquireQuerySemaphoreIfNecessary(QueueType queueType) throws ForemanSetupException {
-    if(!queuingEnabled){
-      return;
-    }
-
-    // switch back to regular queues if the reflection queuing is disabled
-    QueueType adjustedQueueType = queueType;
-    if (!reflectionQueuingEnabled) {
-      if (queueType == QueueType.REFLECTION_LARGE) {
-        adjustedQueueType = QueueType.LARGE;
-      } else if (queueType == QueueType.REFLECTION_SMALL){
-        adjustedQueueType = QueueType.SMALL;
-      }
-    }
-
-    final OptionManager optionManager = queryContext.getOptions();
-
-    long queueTimeout = optionManager.getOption(ExecConstants.QUEUE_TIMEOUT);
-    final String queueName;
-
-    try {
-      @SuppressWarnings("resource")
-      final ClusterCoordinator clusterCoordinator = sabotContext.getClusterCoordinator();
-      final DistributedSemaphore distributedSemaphore;
-
-      // get the appropriate semaphore
-      switch (adjustedQueueType) {
-      case LARGE:
-        final int largeQueue = (int) optionManager.getOption(ExecConstants.LARGE_QUEUE_SIZE);
-        distributedSemaphore = clusterCoordinator.getSemaphore("query.large", largeQueue);
-        queueName = "large";
-        break;
-      case SMALL:
-        final int smallQueue = (int) optionManager.getOption(ExecConstants.SMALL_QUEUE_SIZE);
-        distributedSemaphore = clusterCoordinator.getSemaphore("query.small", smallQueue);
-        queueName = "small";
-        break;
-      case REFLECTION_LARGE:
-        final int reflectionLargeQueue = (int) optionManager.getOption(ExecConstants.REFLECTION_LARGE_QUEUE_SIZE);
-        distributedSemaphore = clusterCoordinator.getSemaphore("reflection.query.large", reflectionLargeQueue);
-        queueName = "reflection_large";
-        queueTimeout = optionManager.getOption(ExecConstants.REFLECTION_QUEUE_TIMEOUT);
-        break;
-      case REFLECTION_SMALL:
-        final int reflectionSmallQueue = (int) optionManager.getOption(ExecConstants.REFLECTION_SMALL_QUEUE_SIZE);
-        distributedSemaphore = clusterCoordinator.getSemaphore("reflection.query.small", reflectionSmallQueue);
-        queueName = "reflection_small";
-        queueTimeout = optionManager.getOption(ExecConstants.REFLECTION_QUEUE_TIMEOUT);
-        break;
-      default:
-        throw new ForemanSetupException("Unsupported Queue type: " + adjustedQueueType);
-      }
-      lease = distributedSemaphore.acquire(queueTimeout, TimeUnit.MILLISECONDS);
-    } catch (final Exception e) {
-      throw new ForemanSetupException("Unable to acquire slot for query.", e);
-    }
-
-    if (lease == null) {
-      throw UserException
-          .resourceError()
-          .message(
-              "Unable to acquire queue resources for query within timeout.  Timeout for %s queue was set at %d seconds.",
-              queueName, queueTimeout / 1000)
-          .build(logger);
-    }
-
-  }
-
-}
+ }

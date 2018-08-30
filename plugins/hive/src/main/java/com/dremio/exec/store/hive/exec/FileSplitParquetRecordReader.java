@@ -33,13 +33,14 @@ import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.store.parquet.FilterCondition;
+import com.dremio.exec.store.parquet.InputStreamProvider;
+import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
-import com.dremio.exec.store.parquet.ParquetReaderUtility.DateCorruptionStatus;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
@@ -57,9 +58,9 @@ import com.google.common.collect.Lists;
 public class FileSplitParquetRecordReader implements RecordReader {
 
   private final OperatorContext oContext;
+  private final BatchSchema tableSchema;
   private final List<SchemaPath> columnsToRead;
-  private final List<SchemaPath> groupScanColumns;
-  private final List<FilterCondition> conditions;
+  private final List<ParquetFilterCondition> conditions;
   private final FileSplit fileSplit;
   private final ParquetMetadata footer;
   private final JobConf jobConf;
@@ -75,9 +76,9 @@ public class FileSplitParquetRecordReader implements RecordReader {
   public FileSplitParquetRecordReader(
       final OperatorContext oContext,
       final ParquetReaderFactory readerFactory,
+      final BatchSchema tableSchema,
       final List<SchemaPath> columnsToRead,
-      final List<SchemaPath> groupScanColumns,
-      final List<FilterCondition> conditions,
+      final List<ParquetFilterCondition> conditions,
       final FileSplit fileSplit,
       final ParquetMetadata footer,
       final JobConf jobConf,
@@ -86,8 +87,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
       final boolean enableDetailedTracing
   ) {
     this.oContext = oContext;
+    this.tableSchema = tableSchema;
     this.columnsToRead = columnsToRead;
-    this.groupScanColumns = groupScanColumns;
     this.conditions = conditions;
     this.fileSplit = fileSplit;
     this.footer = footer;
@@ -123,13 +124,25 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
         final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
             .readInt96AsTimeStamp(true)
-            .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, groupScanColumns, true))
+            .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, columnsToRead, true))
             .noSchemaLearning(outputSchema)
             .build();
+
+        boolean useSingleStream =
+          // option is set for single stream
+          oContext.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM) ||
+            // number of columns is above threshold
+            columnsToRead.size() >= oContext.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD) ||
+            // split size is below multi stream size limit and the limit is enabled
+            (oContext.getOptions().getOption(ExecConstants.PARQUET_MULTI_STREAM_SIZE_LIMIT_ENABLE) &&
+              fileSplit.getLength() < oContext.getOptions().getOption(ExecConstants.PARQUET_MULTI_STREAM_SIZE_LIMIT));
+
+        InputStreamProvider inputStreamProvider = new InputStreamProvider(fs, new Path(split.getPath()), useSingleStream);
 
         final UnifiedParquetReader innerReader = new UnifiedParquetReader(
             oContext,
             readerFactory,
+            tableSchema,
             columnsToRead,
             null,
             conditions,
@@ -140,7 +153,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
             CodecFactory.createDirectCodecFactory(jobConf, new ParquetDirectByteBufferAllocator(oContext.getAllocator()), 0),
             schemaHelper,
             vectorize,
-            enableDetailedTracing
+            enableDetailedTracing,
+          inputStreamProvider
         );
 
         innerReader.setup(output);

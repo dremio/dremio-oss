@@ -13,58 +13,60 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#admin-nodeActivity {
- 
-  .name-node{
-    height:20px;
-    width: 20px;
-    border-radius: 100%;
-    margin-right: 180px;
-   
-    .name{
-      padding-left: 30px;
-      color: #0096FF;
-      cursor: pointer;
-    }
-  }
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  #admin-nodeActivity {
   
-  .ip{
-    font-weight: bold;
-    margin-right: 120px;
-  }
- 
-
-  .cpu{
-    height: 40px;
-    width: 40px;
-    border-radius: 100%;
-    padding: 10px 0 0 2px;
-    margin-top: 5px;
-  }
-  
-  .memory{
-    height: 40px;
-    width: 40px;
-    border-radius: 100%;
-    padding: 10px 0 0 2px;
-    margin-top: 5px;
-  }  
+    .name-node{
+      height:20px;
+      width: 20px;
+      border-radius: 100%;
+      margin-right: 180px;
     
-  .cpu-value, .memory-value{
-    color: white;
-    padding-left: 5px;
-    font-weight: bold;
-  }
+      .name{
+        padding-left: 30px;
+        color: #0096FF;
+        cursor: pointer;
+      }
+    }
+    
+    .ip{
+      font-weight: bold;
+      margin-right: 120px;
+    }
+  
 
-  .red{
-    background-color: #FF4F6C;
-  }
- 
-  .green{
-    background-color: #46AF41; 
-  }
- 
-  .yellow{
-    background-color: #FFC014;  
+    .cpu{
+      height: 40px;
+      width: 40px;
+      border-radius: 100%;
+      padding: 10px 0 0 2px;
+      margin-top: 5px;
+    }
+    
+    .memory{
+      height: 40px;
+      width: 40px;
+      border-radius: 100%;
+      padding: 10px 0 0 2px;
+      margin-top: 5px;
+    }  
+      
+    .cpu-value, .memory-value{
+      color: white;
+      padding-left: 5px;
+      font-weight: bold;
+    }
+
+    .red{
+      background-color: #FF4F6C;
+    }
+  
+    .green{
+      background-color: #46AF41; 
+    }
+  
+    .yellow{
+      background-color: #FFC014;  
+    }
   }
 }

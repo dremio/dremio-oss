@@ -69,7 +69,7 @@ public class TestFileSystemWrapper {
     stats.startProcessing();
 
     try {
-      dfs = new FileSystemWrapper(conf, stats);
+      dfs = new FileSystemWrapper(conf, stats, null);
       is = dfs.open(new Path(tempFilePath));
 
       byte[] buf = new byte[8000];
@@ -104,7 +104,7 @@ public class TestFileSystemWrapper {
     stats.startProcessing();
 
     try {
-      dfs = new FileSystemWrapper(conf, stats);
+      dfs = new FileSystemWrapper(conf, stats, null);
       os = dfs.create(new Path(tempFolder.getRoot().getPath(), "dremioFSWriteTest.txt"));
 
       byte[] buf = new byte[8192];

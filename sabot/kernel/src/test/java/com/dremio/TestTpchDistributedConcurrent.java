@@ -78,7 +78,7 @@ public class TestTpchDistributedConcurrent extends BaseTestQuery {
   private final static int CONCURRENT_QUERIES = 15;
 
   private final static Random random = new Random(0xdeadbeef);
-  private final static String alterSession = "alter session set `planner.slice_target` = 10";
+  private final static String alterSession = "alter session set \"planner.slice_target\" = 10";
 
   private int remainingQueries = TOTAL_QUERIES - CONCURRENT_QUERIES;
   private final Semaphore completionSemaphore = new Semaphore(0);

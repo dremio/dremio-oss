@@ -16,7 +16,6 @@
 
 package com.dremio.exec.physical.impl.join;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
@@ -28,40 +27,40 @@ public class TestNestedLoopJoin extends PlanTestBase {
   private static final String WORKING_PATH = TestTools.getWorkingPath();
   private static final String TEST_RES_PATH = WORKING_PATH + "/src/test/resources";
 
-  private static final String NLJ = "Alter session set `planner.enable_hashjoin` = false; " +
-      "alter session set `planner.enable_mergejoin` = false; " +
-      "alter session set `planner.enable_nljoin_for_scalar_only` = false; ";
-  private static final String SINGLE_NLJ = "alter session set `planner.disable_exchanges` = true; " + NLJ;
-  private static final String DISABLE_HJ = "alter session set `planner.enable_hashjoin` = false";
-  private static final String ENABLE_HJ = "alter session set `planner.enable_hashjoin` = true";
-  private static final String DISABLE_MJ = "alter session set `planner.enable_mergejoin` = false";
-  private static final String ENABLE_MJ = "alter session set `planner.enable_mergejoin` = true";
-  private static final String DISABLE_NLJ_SCALAR = "alter session set `planner.enable_nljoin_for_scalar_only` = false";
-  private static final String ENABLE_NLJ_SCALAR = "alter session set `planner.enable_nljoin_for_scalar_only` = true";
+  private static final String NLJ = "alter session set \"planner.enable_hashjoin\" = false; " +
+      "alter session set \"planner.enable_mergejoin\" = false; " +
+      "alter session set \"planner.enable_nljoin_for_scalar_only\" = false; ";
+  private static final String SINGLE_NLJ = "alter session set \"planner.disable_exchanges\" = true; " + NLJ;
+  private static final String DISABLE_HJ = "alter session set \"planner.enable_hashjoin\" = false";
+  private static final String ENABLE_HJ = "alter session set \"planner.enable_hashjoin\" = true";
+  private static final String DISABLE_MJ = "alter session set \"planner.enable_mergejoin\" = false";
+  private static final String ENABLE_MJ = "alter session set \"planner.enable_mergejoin\" = true";
+  private static final String DISABLE_NLJ_SCALAR = "alter session set \"planner.enable_nljoin_for_scalar_only\" = false";
+  private static final String ENABLE_NLJ_SCALAR = "alter session set \"planner.enable_nljoin_for_scalar_only\" = true";
 
   // Test queries used by planning and execution tests
-  private static final String testNlJoinExists_1 = "select r_regionkey from cp.`tpch/region.parquet` "
-      + " where exists (select n_regionkey from cp.`tpch/nation.parquet` "
+  private static final String testNlJoinExists_1 = "select r_regionkey from cp.\"tpch/region.parquet\" "
+      + " where exists (select n_regionkey from cp.\"tpch/nation.parquet\" "
       + " where n_nationkey < 10)";
 
-  private static final String testNlJoinNotIn_1 = "select r_regionkey from cp.`tpch/region.parquet` "
-      + " where r_regionkey not in (select n_regionkey from cp.`tpch/nation.parquet` "
+  private static final String testNlJoinNotIn_1 = "select r_regionkey from cp.\"tpch/region.parquet\" "
+      + " where r_regionkey not in (select n_regionkey from cp.\"tpch/nation.parquet\" "
       + "                            where n_nationkey < 4)";
 
   // not-in subquery produces empty set
-  private static final String testNlJoinNotIn_2 = "select r_regionkey from cp.`tpch/region.parquet` "
-      + " where r_regionkey not in (select n_regionkey from cp.`tpch/nation.parquet` "
+  private static final String testNlJoinNotIn_2 = "select r_regionkey from cp.\"tpch/region.parquet\" "
+      + " where r_regionkey not in (select n_regionkey from cp.\"tpch/nation.parquet\" "
       + "                            where 1=0)";
 
-  private static final String testNlJoinInequality_1 = "select r_regionkey from cp.`tpch/region.parquet` "
-      + " where r_regionkey > (select min(n_regionkey) from cp.`tpch/nation.parquet` "
+  private static final String testNlJoinInequality_1 = "select r_regionkey from cp.\"tpch/region.parquet\" "
+      + " where r_regionkey > (select min(n_regionkey) from cp.\"tpch/nation.parquet\" "
       + "                        where n_nationkey < 4)";
 
-  private static final String testNlJoinInequality_2 = "select r.r_regionkey, n.n_nationkey from cp.`tpch/nation.parquet` n "
-      + " inner join cp.`tpch/region.parquet` r on n.n_regionkey < r.r_regionkey where n.n_nationkey < 3";
+  private static final String testNlJoinInequality_2 = "select r.r_regionkey, n.n_nationkey from cp.\"tpch/nation.parquet\" n "
+      + " inner join cp.\"tpch/region.parquet\" r on n.n_regionkey < r.r_regionkey where n.n_nationkey < 3";
 
-  private static final String testNlJoinInequality_3 = "select r_regionkey from cp.`tpch/region.parquet` "
-      + " where r_regionkey > (select min(n_regionkey) * 2 from cp.`tpch/nation.parquet` )";
+  private static final String testNlJoinInequality_3 = "select r_regionkey from cp.\"tpch/region.parquet\" "
+      + " where r_regionkey > (select min(n_regionkey) * 2 from cp.\"tpch/nation.parquet\" )";
 
 
   @Test
@@ -96,15 +95,15 @@ public class TestNestedLoopJoin extends PlanTestBase {
   @Test
   public void testNlJoinAggrs_1_planning() throws Exception {
     String query = "select total1, total2 from "
-       + "(select sum(l_quantity) as total1 from cp.`tpch/lineitem.parquet` where l_suppkey between 100 and 200), "
-       + "(select sum(l_quantity) as total2 from cp.`tpch/lineitem.parquet` where l_suppkey between 200 and 300)  ";
+       + "(select sum(l_quantity) as total1 from cp.\"tpch/lineitem.parquet\" where l_suppkey between 100 and 200), "
+       + "(select sum(l_quantity) as total2 from cp.\"tpch/lineitem.parquet\" where l_suppkey between 200 and 300)  ";
     testPlanMatchingPatterns(query, new String[]{nlpattern}, new String[]{});
   }
 
   @Test // equality join and scalar right input, hj and mj disabled
   public void testNlJoinEqualityScalar_1_planning() throws Exception {
-    String query = "select r_regionkey from cp.`tpch/region.parquet` "
-        + " where r_regionkey = (select min(n_regionkey) from cp.`tpch/nation.parquet` "
+    String query = "select r_regionkey from cp.\"tpch/region.parquet\" "
+        + " where r_regionkey = (select min(n_regionkey) from cp.\"tpch/nation.parquet\" "
         + "                        where n_nationkey < 10)";
     test(DISABLE_HJ);
     test(DISABLE_MJ);
@@ -115,21 +114,21 @@ public class TestNestedLoopJoin extends PlanTestBase {
 
   @Test // equality join and scalar right input, hj and mj disabled, enforce exchanges
   public void testNlJoinEqualityScalar_2_planning() throws Exception {
-    String query = "select r_regionkey from cp.`tpch/region.parquet` "
-        + " where r_regionkey = (select min(n_regionkey) from cp.`tpch/nation.parquet` "
+    String query = "select r_regionkey from cp.\"tpch/region.parquet\" "
+        + " where r_regionkey = (select min(n_regionkey) from cp.\"tpch/nation.parquet\" "
         + "                        where n_nationkey < 10)";
-    test("alter session set `planner.slice_target` = 1");
+    test("alter session set \"planner.slice_target\" = 1");
     test(DISABLE_HJ);
     test(DISABLE_MJ);
     testPlanMatchingPatterns(query, new String[]{nlpattern, "BroadcastExchange"}, new String[]{});
     test(ENABLE_HJ);
     test(ENABLE_MJ);
-    test("alter session set `planner.slice_target` = 100000");
+    test("alter session set \"planner.slice_target\" = 100000");
   }
 
   @Test // equality join and non-scalar right input, hj and mj disabled
   public void testNlJoinEqualityNonScalar_1_planning() throws Exception {
-    String query = "select r.r_regionkey from cp.`tpch/region.parquet` r inner join cp.`tpch/nation.parquet` n"
+    String query = "select r.r_regionkey from cp.\"tpch/region.parquet\" r inner join cp.\"tpch/nation.parquet\" n"
         + " on r.r_regionkey = n.n_regionkey where n.n_nationkey < 10";
     test(DISABLE_HJ);
     test(DISABLE_MJ);
@@ -142,10 +141,10 @@ public class TestNestedLoopJoin extends PlanTestBase {
 
   @Test // equality join and non-scalar right input, hj and mj disabled, enforce exchanges
   public void testNlJoinEqualityNonScalar_2_planning() throws Exception {
-    String query = String.format("select n.n_nationkey from cp.`tpch/nation.parquet` n, "
-        + " dfs_root.`%s/multilevel/parquet` o "
+    String query = String.format("select n.n_nationkey from cp.\"tpch/nation.parquet\" n, "
+        + " dfs_root.\"%s/multilevel/parquet\" o "
         + " where n.n_regionkey = o.o_orderkey and o.o_custkey < 5", TEST_RES_PATH);
-    test("alter session set `planner.slice_target` = 1");
+    test("alter session set \"planner.slice_target\" = 1");
     test(DISABLE_HJ);
     test(DISABLE_MJ);
     test(DISABLE_NLJ_SCALAR);
@@ -153,7 +152,7 @@ public class TestNestedLoopJoin extends PlanTestBase {
     test(ENABLE_HJ);
     test(ENABLE_MJ);
     test(ENABLE_NLJ_SCALAR);
-    test("alter session set `planner.slice_target` = 100000");
+    test("alter session set \"planner.slice_target\" = 100000");
   }
 
   // EXECUTION TESTS
@@ -208,8 +207,8 @@ public class TestNestedLoopJoin extends PlanTestBase {
 
     // We have a false filter causing empty left batch
     String query = "select count(*) col from (select a.last_name " +
-        "from cp.`employee.json` a " +
-        "where exists (select n_name from cp.`tpch/nation.parquet` b) AND 1 = 0)";
+        "from cp.\"employee.json\" a " +
+        "where exists (select n_name from cp.\"tpch/nation.parquet\" b) AND 1 = 0)";
 
     testBuilder()
         .sqlQuery(query)
@@ -221,7 +220,7 @@ public class TestNestedLoopJoin extends PlanTestBase {
     // Below tests use NLJ in a general case (non-scalar subqueries, followed by filter) with empty batches
     query = "select count(*) col from " +
         "(select t1.department_id " +
-        "from cp.`employee.json` t1 inner join cp.`department.json` t2 " +
+        "from cp.\"employee.json\" t1 inner join cp.\"department.json\" t2 " +
         "on t1.department_id = t2.department_id where t1.department_id = -1)";
 
     testBuilder()
@@ -233,7 +232,7 @@ public class TestNestedLoopJoin extends PlanTestBase {
 
     query = "select count(*) col from " +
         "(select t1.department_id " +
-        "from cp.`employee.json` t1 inner join cp.`department.json` t2 " +
+        "from cp.\"employee.json\" t1 inner join cp.\"department.json\" t2 " +
         "on t1.department_id = t2.department_id where t2.department_id = -1)";
 
 

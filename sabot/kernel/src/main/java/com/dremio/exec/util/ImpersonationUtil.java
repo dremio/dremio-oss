@@ -19,6 +19,7 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.io.IOException;
 import java.security.PrivilegedExceptionAction;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -195,19 +196,19 @@ public class ImpersonationUtil {
    * @return
    */
   public static FileSystemWrapper createFileSystem(String proxyUserName, Configuration fsConf) {
-    return createFileSystem(createProxyUgi(proxyUserName), fsConf, (OperatorStats)null);
+    return createFileSystem(createProxyUgi(proxyUserName), fsConf, null, null);
   }
 
   /** Helper method to create FileSystemWrapper */
   public static FileSystemWrapper createFileSystem(UserGroupInformation proxyUserUgi, final Configuration fsConf,
-      final OperatorStats stats) {
+      final OperatorStats stats, final List<String> connectionUniqueProps) {
     FileSystemWrapper fs;
     try {
       fs = proxyUserUgi.doAs(new PrivilegedExceptionAction<FileSystemWrapper>() {
         @Override
         public FileSystemWrapper run() throws Exception {
           logger.trace("Creating FileSystemWrapper for proxy user: " + UserGroupInformation.getCurrentUser());
-          return new FileSystemWrapper(fsConf, stats);
+          return new FileSystemWrapper(fsConf, stats, connectionUniqueProps);
         }
       });
     } catch (InterruptedException | IOException e) {

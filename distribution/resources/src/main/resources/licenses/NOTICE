@@ -9,6 +9,12 @@ notices and/or trademarks:
 
 # List of contributors  Red Hat Inc. Akira Kawauchi Davide D'Alto Dhanji R. Prasanna Emmanuel Bernard Gavin King Gerhard Petracek Guillaume Smet Gunnar Morling Hardy Ferentschik Hendrik Ebbers Kevin Pollet Sebastian Thomschke
 
+AWS SDK for AWS KMS Copyright 2010-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.  This product includes software developed by Amazon Technologies, Inc (http://www.amazon.com/).
+
+AWS SDK for AWS S3 Copyright 2010-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.  This product includes software developed by Amazon Technologies, Inc (http://www.amazon.com/).
+
+AWS SDK for Java - Core Copyright 2010-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.  This product includes software developed by Amazon Technologies, Inc (http://www.amazon.com/).
+
 AWS SDK for Java Copyright 2010-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.  This product includes software developed by Amazon Technologies, Inc (http://www.amazon.com/).
 
 Adam Stawicki Alaa Nassef Andrey Derevyanko Andrey Rodionov Benson Margulies Brent Douglas Carlos Vara Dag Hovland Davide Marchignoli Carlo de Wolf Chris Beckey Christian Ivan Denis Tiago Doug Lea Emmanuel Bernard Efthymis Sarbanis Federico Federico Mancini Gavin King George Gastaldi Gerhard Petracek Guillaume Husta Guillaume Smet Gunnar Morling Hardy Ferentschik Henno Vermeulen Jan-Willem Willebrands Jason T. Greene Julien May Julien Furgerot Juraci Krohling Justin Nauman Kathryn Killebrew Kevin Pollet Khalid Alqinyah Lee KyoungIl Leonardo Loch Zanivan Lucas Pouzac Lukas Niemeier Mark Hobson Marko Bekhta Mert C?alis?kan Paolo Perrotta Pete Muir Sanne Grinovero Sebastian Bayerl Shane Bryzak Shelly McGowan Steve Ebersole Strong Liu Victor Rezende dos Santos Willi Schönborn Yoann Rodière
@@ -133,6 +139,8 @@ Copyright (c) 2012 Barnesandnoble.com, llc, Donavon West, and Domenic Denicola
 
 Copyright (c) 2012 Einar Otto Stangvik &lt;einaros@gmail.com&gt;
 
+Copyright (c) 2012, Javolution (http://javolution.org/) All rights reserved.  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met: 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer. 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 Copyright (c) 2012-2014 Andris Reinman
 
 Copyright (c) 2012-2017 James Coglan
@@ -164,10 +172,6 @@ Copyright (c) 2014 Call-Em-All
 Copyright (c) 2014 Dan Abramov
 
 Copyright (c) 2014 Forbes Lindesay
-
-Copyright (c) 2014 Griffin Smith and other contributors
-
-Copyright (c) 2014 Matt Robenolt and other contributors All rights reserved.
 
 Copyright (c) 2014 Param Aggarwal
 
@@ -295,11 +299,15 @@ Copyright (c) 2016-present Leon Shi
 
 Copyright (c) 2017 Alberto Leal <mailforalberto@gmail.com> (github.com/dashed)
 
-Copyright (c) 2017 Jed Watson
+Copyright (c) 2018 Sentry (https://sentry.io) and individual contributors. All rights reserved.
 
 Copyright (c) JS Foundation and other contributors
 
 Copyright (c) Microsoft Open Technologies, Inc.  All rights reserved. Microsoft Open Technologies would like to thank its contributors, a list of whom are at http://rx.codeplex.com/wikipage?title=Contributors.
+
+Copyright 1999-2005 The Apache Software Foundation
+
+Copyright 2000-2016 JetBrains s.r.o.
 
 Copyright 2003-2005, Ernst de Haan <wfe.dehaan@gmail.com> All rights reserved.
 
@@ -311,8 +319,6 @@ Copyright 2008 Google Inc.
 
 Copyright 2009 Stefan Groschupf
 
-Copyright 2009-2010 Ning, Inc.
-
 Copyright 2009–2014 Contributors. All rights reserved.
 
 Copyright 2010 Cedric Beust cedric@beust.com
@@ -320,8 +326,6 @@ Copyright 2010 Cedric Beust cedric@beust.com
 Copyright 2010-2013 Coda Hale and Yammer, Inc.
 
 Copyright 2010-2013, Carrot Search s.c., Boznicza 11/56, Poznan, Poland
-
-Copyright 2011 Clearspring Technologies Copyright 2016 AddThis
 
 Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/> Based on Underscore.js, copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors <http://underscorejs.org/>
 
@@ -341,15 +345,17 @@ Copyright 2014, Google Inc. All rights reserved.  Redistribution and use in sour
 
 Copyright 2014-2016 Benjamin Tan <https://demoneaux.github.io/> Copyright 2011-2013 John-David Dalton <http://allyoucanleet.com/>
 
+Copyright 2014-2018 Chronicle Software Ltd
+
 Copyright 2015, Dustin Diaz (the Original Author) All rights reserved.
 
 Copyright 2016, Google Inc. All rights reserved. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:     * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.     * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the  distribution.     * Neither the name of Google Inc. nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Copyright JS Foundation and other contributors <https://js.foundation/>
 
-Copyright jQuery Foundation and other contributors <https://jquery.org/>
+Copyright JS Foundation and other contributors, https://js.foundation/
 
-Copyright jQuery Foundation and other contributors, https://jquery.org/
+Copyright jQuery Foundation and other contributors <https://jquery.org/>
 
 Copyright © 2001-2009 The Apache Software Foundation.
 

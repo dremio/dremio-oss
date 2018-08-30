@@ -280,7 +280,12 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       if(indexing == null){
         this.indexing = type == Type.TEXT || type == Type.STRING ? Indexing.ANALYZED : Indexing.NOT_ANALYZED;
       }else {
-        this.indexing = indexing;
+        if (type == Type.TEXT && indexing == Indexing.NOT_ANALYZED) {
+          // TEXT is analyzed as long as it is indexed
+          this.indexing = Indexing.ANALYZED;
+        } else {
+          this.indexing = indexing;
+        }
       }
 
       this.normalized = normalizer != null;
@@ -300,6 +305,10 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       }
       this.children = asList(children);
 
+    }
+
+    public void setTypeUnknown() {
+      this.type = Type.UNKNOWN;
     }
 
     public ElasticField merge(ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index){
@@ -617,9 +626,9 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
   }
 
   public static enum Indexing {
-    @JsonProperty("not_analyzed") NOT_ANALYZED(true, "not_analyzed", "false"),
-    @JsonProperty("analyzed") ANALYZED(false, "yes", "analyzed", "true"),
-    @JsonProperty("no") NOT_INDEXED(false, "no", "not_indexed");
+    @JsonProperty("true") NOT_ANALYZED(true, "not_analyzed", "true"),
+    @JsonProperty("true") ANALYZED(true, "analyzed"),
+    @JsonProperty("false") NOT_INDEXED(false, "no", "not_indexed", "false");
 
     public final boolean supportsAggregation;
     private final List<String> names;

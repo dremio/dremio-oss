@@ -13,65 +13,68 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.job-progress {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .spinner-part {
+  .job-progress {
     display: flex;
+    justify-content: center;
     align-items: center;
-    padding-right: 5px;
 
-    .fa-spinner {
-      font-size: 24px;
-      color: gray;
-      margin-right: 7px;
-    }
-  }
-
-  .progress-part {
-    min-width: 230px;
-    font-size: 13px;
-    position: relative;
-    margin-top: 3px;
-
-    .progress-view-jobs {
-      margin-left: 5px;
-      color: #0096FF;
-      cursor: pointer;
-    }
-
-    .end-items, .all-items {
+    .spinner-part {
+      display: flex;
+      align-items: center;
       padding-right: 5px;
+
+      .fa-spinner {
+        font-size: 24px;
+        color: gray;
+        margin-right: 7px;
+      }
     }
 
-    .all-items {
-      padding-left: 5px;
-    }
-
-    .result {
+    .progress-part {
+      min-width: 230px;
       font-size: 13px;
-      color: #000;
       position: relative;
-      display: inline-block;
-      margin-bottom: 2px;
+      margin-top: 3px;
+
+      .progress-view-jobs {
+        margin-left: 5px;
+        color: #0096FF;
+        cursor: pointer;
+      }
+
+      .end-items, .all-items {
+        padding-right: 5px;
+      }
+
+      .all-items {
+        padding-left: 5px;
+      }
+
+      .result {
+        font-size: 13px;
+        color: #000;
+        position: relative;
+        display: inline-block;
+        margin-bottom: 2px;
+      }
+
+      .progress-line {
+        height: 2px;
+        background-color: #DADADA;
+      }
+
+      .current-progress {
+        height: 4px;
+        display: block;
+        background-color: #0096FF;
+        width: 100px;
+        position: relative;
+        margin-top: -3px;
+      }
     }
 
-    .progress-line {
-      height: 2px;
-      background-color: #DADADA;
-    }
 
-    .current-progress {
-      height: 4px;
-      display: block;
-      background-color: #0096FF;
-      width: 100px;
-      position: relative;
-      margin-top: -3px;
-    }
   }
-
-
 }

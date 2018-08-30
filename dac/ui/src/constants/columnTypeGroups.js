@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 import {
+  BIGINT,
   BINARY,
-  TEXT,
-  INTEGER,
-  FLOAT,
-  DECIMAL,
   BOOLEAN,
   DATE,
-  TIME,
   DATETIME,
+  DECIMAL,
+  FLOAT,
+  INTEGER,
   LIST,
   MAP,
-  MIXED
+  MIXED,
+  TEXT,
+  TIME
 } from 'constants/DataTypes';
 
 // todo: why is this missing some items from constants/DataTypes.js?
@@ -41,7 +42,8 @@ export const ALL_TYPES = [
   LIST,
   MAP,
   BOOLEAN,
-  MIXED
+  MIXED,
+  BIGINT
 ];
 
 export const KEEP_ONLY_TYPES = [
@@ -158,6 +160,5 @@ export const DATE_TYPES = [
 
 // changes to this require changes to user-facing text in AccelerationUpdatesForm
 export const INCREMENTAL_TYPES = [
-  ...NUMBER_TYPES,
-  ...DATE_TYPES
+  BIGINT
 ];

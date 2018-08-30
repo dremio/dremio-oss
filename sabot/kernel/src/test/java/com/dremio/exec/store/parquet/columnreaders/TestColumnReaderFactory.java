@@ -27,12 +27,12 @@ public class TestColumnReaderFactory extends BaseTestQuery {
   // enable decimal data type
   @BeforeClass
   public static void enableDecimalDataType() throws Exception {
-    test(String.format("alter system set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    test(String.format("alter system set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
   @AfterClass
   public static void disableDecimalDataType() throws Exception {
-    test(String.format("alter system set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    test(String.format("alter system set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
   /**
@@ -47,7 +47,7 @@ public class TestColumnReaderFactory extends BaseTestQuery {
     // timestampt_req: INT64/TIMESTAMP_MILLIS/REQUIRED
 
     // query parquet file. We shouldn't get any exception
-    testNoResult("SELECT * FROM cp.`parquet/time_dictionary.parquet`");
+    testNoResult("SELECT * FROM cp.\"parquet/time_dictionary.parquet\"");
   }
 
   /**
@@ -62,7 +62,7 @@ public class TestColumnReaderFactory extends BaseTestQuery {
     // timestampt_req: INT64/TIMESTAMP_MILLIS/REQUIRED
 
     // query parquet file. We shouldn't get any exception
-    testNoResult("SELECT * FROM cp.`parquet/time_nodictionary.parquet`");
+    testNoResult("SELECT * FROM cp.\"parquet/time_nodictionary.parquet\"");
   }
 
   /**
@@ -78,7 +78,7 @@ public class TestColumnReaderFactory extends BaseTestQuery {
     // d18_req: INT64/DECIMAL18/REQUIRED
 
     // query parquet file. We shouldn't get any exception
-    testNoResult("SELECT * FROM cp.`parquet/decimal_dictionary.parquet`");
+    testNoResult("SELECT * FROM cp.\"parquet/decimal_dictionary.parquet\"");
   }
 
   /**
@@ -94,7 +94,7 @@ public class TestColumnReaderFactory extends BaseTestQuery {
     // d18_req: INT64/DECIMAL18/REQUIRED
 
     // query parquet file. We shouldn't get any exception
-    testNoResult("SELECT * FROM cp.`parquet/decimal_nodictionary.parquet`");
+    testNoResult("SELECT * FROM cp.\"parquet/decimal_nodictionary.parquet\"");
   }
 
   /**
@@ -102,7 +102,7 @@ public class TestColumnReaderFactory extends BaseTestQuery {
    */
   @Test
   public void testBigIntWithDictionary() throws Exception {
-    String query = "select sum(ts) as total from cp.`parquet/bigIntDictionary.parquet`";
+    String query = "select sum(ts) as total from cp.\"parquet/bigIntDictionary.parquet\"";
 
     testBuilder()
     .sqlQuery(query)

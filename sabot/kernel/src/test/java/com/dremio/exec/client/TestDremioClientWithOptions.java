@@ -34,10 +34,10 @@ public class TestDremioClientWithOptions extends BaseTestQuery {
     updateClientToSupportFullyQualifiedProject();
 
     final String query = "SELECT " +
-        "cp.`tpch/lineitem.parquet`.l_orderkey, " +
-        "cp.`tpch/lineitem.parquet`.l_extendedprice " +
-        "FROM cp.`tpch/lineitem.parquet` " +
-        "ORDER BY cp.`tpch/lineitem.parquet`.l_orderkey " +
+        "cp.\"tpch/lineitem.parquet\".l_orderkey, " +
+        "cp.\"tpch/lineitem.parquet\".l_extendedprice " +
+        "FROM cp.\"tpch/lineitem.parquet\" " +
+        "ORDER BY cp.\"tpch/lineitem.parquet\".l_orderkey " +
         "LIMIT 2";
 
     testBuilder()
@@ -55,7 +55,7 @@ public class TestDremioClientWithOptions extends BaseTestQuery {
     // create a dataset with complex field component projections and querying the dataset from clients such as tableau.
     test("CREATE VIEW dfs_test.complexView AS " +
         "SELECT t.a.arrayval as c1, t.a.arrayval[0].val1[0] as c2 " +
-        "FROM cp.`nested/nested_3.json` as t LIMIT 1");
+        "FROM cp.\"nested/nested_3.json\" as t LIMIT 1");
 
     updateClientToSupportFullyQualifiedProject();
     final String query = "SELECT dfs_test.complexView.c1, dfs_test.complexView.c2 FROM dfs_test.complexView";

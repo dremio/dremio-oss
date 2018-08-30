@@ -17,26 +17,20 @@ package com.dremio.service.reflection.handlers;
 
 import static com.dremio.service.accelerator.AccelerationUtils.selfOrEmpty;
 import static com.dremio.service.reflection.ReflectionUtils.getId;
-import static com.dremio.service.reflection.ReflectionUtils.getMaterializationPath;
 
 import java.util.List;
-import java.util.UUID;
 
 import org.apache.calcite.rel.RelNode;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.sql.MaterializationExpander;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.util.ImpersonationUtil;
+import com.dremio.exec.store.RecordWriter;
 import com.dremio.service.job.proto.Acceleration.Substitution;
 import com.dremio.service.job.proto.ExtraInfo;
 import com.dremio.service.job.proto.JobAttempt;
+import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
-import com.dremio.service.job.proto.JobStats;
 import com.dremio.service.job.proto.JoinAnalysis;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobData;
@@ -50,6 +44,7 @@ import com.dremio.service.reflection.DependencyManager;
 import com.dremio.service.reflection.DependencyUtils;
 import com.dremio.service.reflection.ExtractedDependencies;
 import com.dremio.service.reflection.ReflectionServiceImpl.ExpansionHelper;
+import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.RefreshHandler;
 import com.dremio.service.reflection.proto.DataPartition;
 import com.dremio.service.reflection.proto.JobDetails;
@@ -60,7 +55,6 @@ import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.proto.RefreshDecision;
-import com.dremio.service.reflection.proto.RefreshId;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -79,7 +73,6 @@ import io.protostuff.ByteString;
 public class RefreshDoneHandler {
   protected static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RefreshDoneHandler.class);
 
-  private final FileSystemPlugin accelerationPlugin;
   private final DependencyManager dependencyManager;
   private final NamespaceService namespaceService;
   private final MaterializationStore materializationStore;
@@ -93,7 +86,6 @@ public class RefreshDoneHandler {
       ReflectionEntry entry,
       Materialization materialization,
       Job job,
-      FileSystemPlugin accelerationPlugin,
       NamespaceService namespaceService,
       MaterializationStore materializationStore,
       DependencyManager dependencyManager,
@@ -101,7 +93,6 @@ public class RefreshDoneHandler {
     this.reflection = Preconditions.checkNotNull(entry, "reflection entry required");
     this.materialization = Preconditions.checkNotNull(materialization, "materialization required");
     this.job = Preconditions.checkNotNull(job, "job required");
-    this.accelerationPlugin = Preconditions.checkNotNull(accelerationPlugin, "acceleration storage plugin required");
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
     this.dependencyManager = Preconditions.checkNotNull(dependencyManager, "dependencies required");
     this.materializationStore = materializationStore;
@@ -128,7 +119,7 @@ public class RefreshDoneHandler {
 
     failIfNotEnoughRefreshesAvailable(decision);
 
-    final JobDetails details = computeJobDetails();
+    final JobDetails details = ReflectionUtils.computeJobDetails(job.getJobAttempt());
     final boolean dataWritten = Optional.fromNullable(details.getOutputRecords()).or(0L) > 0;
     if (dataWritten) {
       createAndSaveRefresh(details, decision);
@@ -224,60 +215,15 @@ public class RefreshDoneHandler {
   }
 
   private void createAndSaveRefresh(final JobDetails details, final RefreshDecision decision) {
-    Preconditions.checkState(details.getOutputRecords() > 0,
-      "cannot create a refresh when the materialization didn't write any data");
-
-    final JobInfo jobInfo = job.getJobAttempt().getInfo();
-
     final boolean isFull = decision.getAccelerationSettings().getMethod() == RefreshMethod.FULL;
-    final long updateId = isFull ? -1L : getUpdateId();
-
-    // collect up partitions.
-    final List<DataPartition> partitions = jobInfo.getPartitionsList() == null ? ImmutableList.<DataPartition>of() : FluentIterable.from(jobInfo.getPartitionsList()).transform(new Function<String, DataPartition>() {
-      @Override
-      public DataPartition apply(String partition) {
-        return new DataPartition(partition);
-      }
-    }).toList();
-
-    final MaterializationMetrics metrics = new MaterializationMetrics()
-      .setFootprint(computeFootprint(StringUtils.join(Iterables.skip(getMaterializationPath(materialization), 1), "/")))
-      .setOriginalCost(jobInfo.getOriginalCost());
-
-    final Refresh refresh = new Refresh()
-      .setId(new RefreshId(UUID.randomUUID().toString()))
-      .setReflectionId(reflection.getId())
-      .setPartitionList(partitions)
-      .setMetrics(metrics)
-      .setCreatedAt(System.currentTimeMillis())
-      .setSeriesId(decision.getSeriesId())
-      .setUpdateId(updateId)
-      .setSeriesOrdinal(decision.getSeriesOrdinal())
-      .setPath(StringUtils.join(Iterables.skip(getMaterializationPath(materialization), 1), "/"))
-      .setJob(details);
+    final long updateId = isFull ? -1L : getUpdateId(job.getJobId(), job.getData());
+    final MaterializationMetrics metrics = ReflectionUtils.computeMetrics(job);
+    final List<DataPartition> dataPartitions = ReflectionUtils.computeDataPartitions(job.getJobAttempt().getInfo());
+    final Refresh refresh = ReflectionUtils.createRefresh(materialization, decision.getSeriesId(),
+      decision.getSeriesOrdinal(), updateId, details, metrics, dataPartitions);
 
     logger.trace("Refresh created: {}", refresh);
     materializationStore.save(refresh);
-  }
-
-  private JobDetails computeJobDetails() {
-    final JobAttempt jobAttempt = job.getJobAttempt();
-    final JobInfo info = jobAttempt.getInfo();
-
-    final JobDetails details = new JobDetails()
-      .setJobId(info.getJobId().getId())
-      .setJobStart(info.getStartTime())
-      .setJobEnd(info.getFinishTime());
-
-    final JobStats stats = jobAttempt.getStats();
-    if (stats != null) {
-      details
-        .setInputBytes(stats.getInputBytes())
-        .setInputRecords(stats.getInputRecords())
-        .setOutputBytes(stats.getOutputBytes())
-        .setOutputRecords(stats.getOutputRecords());
-    }
-    return details;
   }
 
   private List<DataPartition> getDataPartitions() {
@@ -285,7 +231,7 @@ public class RefreshDoneHandler {
       .transformAndConcat(new Function<Refresh, Iterable<DataPartition>>() {
         @Override
         public Iterable<DataPartition> apply(Refresh input) {
-          return input.getPartitionList() != null ? input.getPartitionList() : ImmutableList.<DataPartition>of();
+          return input.getPartitionList() != null ? input.getPartitionList() : ImmutableList.of();
         }
       }).toSet());
   }
@@ -317,25 +263,26 @@ public class RefreshDoneHandler {
     return joinAnalysis;
   }
 
-  private long getUpdateId() {
-    // compute next updateId
-    final JobData completeJobData = job.getData();
-
+  /**
+   * @return next updateId
+   */
+  private static long getUpdateId(final JobId jobId, final JobData jobData) {
+    final int fetchLimit = 1000;
     long maxValue = Long.MIN_VALUE;
 
     int offset = 0;
-    JobDataFragment data = completeJobData.range(offset, 1000);
+    JobDataFragment data = jobData.range(offset, fetchLimit);
     while (data.getReturnedRowCount() > 0) {
       for (int i = 0; i < data.getReturnedRowCount(); i++) {
-        byte[] b = (byte[]) data.extractValue("Metadata", i);
+        byte[] b = (byte[]) data.extractValue(RecordWriter.METADATA_COLUMN, i);
         if(b == null) {
-          throw new IllegalStateException("Didn't find metadata output for job " + job.getJobId().getId());
+          throw new IllegalStateException("Didn't find metadata output for job " + jobId.getId());
         }
         long val = Long.parseLong(new String(b));
         maxValue = Math.max(maxValue, val);
       }
       offset += data.getReturnedRowCount();
-      data = completeJobData.range(offset, 1000);
+      data = jobData.range(offset, fetchLimit);
     }
 
     return maxValue;
@@ -366,21 +313,6 @@ public class RefreshDoneHandler {
         .message("Couldn't compute expiration for materialization %s", materialization.getId().getId())
         .build(logger);
     }
-  }
-
-  private long computeFootprint(final String materializationPath) {
-    final Path accelerationStoreLocation = accelerationPlugin.getConfig().getPath();
-    final FileSystemWrapper dfs = accelerationPlugin.getFS(ImpersonationUtil.getProcessUserName());
-
-    try {
-      // TODO : DX-7814 -> Use a Generic method to calculate the space of a materialized table
-      return dfs.getContentSummary(new Path(accelerationStoreLocation, materializationPath)).getSpaceConsumed();
-    } catch (Throwable e) {
-      logger.warn("Error while obtaining footprint info for materialization {}/{}",
-        getId(reflection), materialization.getId().getId(), e);
-    }
-
-    return 0;
   }
 
 }

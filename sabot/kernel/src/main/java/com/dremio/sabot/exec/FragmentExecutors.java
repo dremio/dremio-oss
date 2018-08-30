@@ -21,6 +21,9 @@ import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.annotation.Nullable;
+
+
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.dremio.common.AutoCloseables;
@@ -29,9 +32,9 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
-import com.dremio.exec.proto.helper.QueryIdHelper;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.metrics.Metrics;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.FragmentWorkManager.ExitCallback;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.rpc.IncomingDataBatch;
@@ -45,8 +48,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterators;
-
-import javax.annotation.Nullable;
 
 /**
  * A type of map used to help manage fragments.

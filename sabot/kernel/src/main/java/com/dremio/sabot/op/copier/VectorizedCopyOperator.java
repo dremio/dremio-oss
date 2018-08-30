@@ -61,7 +61,7 @@ public class VectorizedCopyOperator implements SingleInputOperator {
     Preconditions.checkArgument(incoming.getSchema().getSelectionVectorMode() != SelectionVectorMode.FOUR_BYTE);
     this.straightCopy = incoming.getSchema() == null || incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.NONE;
     this.incoming = incoming;
-    this.output = VectorContainer.create(context.getAllocator(), incoming.getSchema());
+    this.output = context.createOutputVectorContainer(incoming.getSchema());
     this.output.buildSchema(SelectionVectorMode.NONE);
     this.sv2 = straightCopy ? null : incoming.getSelectionVector2();
 

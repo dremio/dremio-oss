@@ -17,7 +17,7 @@ import { Component } from 'react';
 
 import PropTypes from 'prop-types';
 
-import { formBody } from 'uiTheme/radium/forms';
+import { formBody } from 'uiTheme/less/forms.less';
 
 export default class FormBody extends Component {
   static propTypes = {
@@ -26,7 +26,7 @@ export default class FormBody extends Component {
     dataQa: PropTypes.string
   };
   render() {
-    return (<div style={{...formBody, ...this.props.style}} data-qa={this.props.dataQa}>
+    return (<div className={formBody} style={this.props.style} data-qa={this.props.dataQa}>
       {this.props.children}
     </div>);
   }

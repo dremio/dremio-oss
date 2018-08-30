@@ -27,7 +27,7 @@ import com.dremio.exec.ExecConstants;
 public class TestTextWriter extends PlanTestBase {
   @Before
   public void setupOptions() throws Exception {
-    testNoResult("ALTER SESSION SET `%s` = true", ExecConstants.ENABLE_VERBOSE_ERRORS.getOptionName());
+    testNoResult("ALTER SESSION SET \"%s\" = true", ExecConstants.ENABLE_VERBOSE_ERRORS.getOptionName());
   }
 
   @After

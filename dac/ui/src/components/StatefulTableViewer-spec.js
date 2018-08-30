@@ -30,7 +30,14 @@ describe('StatefulTableViewer', () => {
     };
     commonProps = {
       ...minimalProps,
-      columns: ['col1', 'col2']
+      columns: [{
+        key: 'col1',
+        label: 'col1'
+      },
+      {
+        key: 'col2',
+        label: 'col2'
+      }]
     };
   });
   it('should render with minimal props without exploding', () => {
@@ -94,7 +101,7 @@ describe('StatefulTableViewer', () => {
       const props = {
         ...commonProps,
         viewState: Immutable.fromJS({ isInProgress: false }),
-        tableData: Immutable.fromJS([{data: { col1: 'v1', col2: 'v2'}}])
+        tableData: Immutable.List([{data: { col1: 'v1', col2: 'v2'}}])
       };
       const wrapper = shallow(<StatefulTableViewer {...props}/>, { context });
       expect(wrapper.find('TableViewer')).to.have.length(1);
@@ -114,7 +121,7 @@ describe('StatefulTableViewer', () => {
       const props = {
         ...commonProps,
         viewState: Immutable.fromJS({ error: {message: 'foo'} }),
-        tableData: Immutable.fromJS([{data: { col1: 'v1', col2: 'v2'}}])
+        tableData: Immutable.List([{data: { col1: 'v1', col2: 'v2'}}])
       };
       const wrapper = shallow(<StatefulTableViewer {...props}/>, { context });
       expect(wrapper.childAt(0).is(ViewStateWrapper)).to.be.true;

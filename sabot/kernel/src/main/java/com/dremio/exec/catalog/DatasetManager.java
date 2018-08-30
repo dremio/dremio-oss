@@ -33,6 +33,7 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.Views;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.service.namespace.DatasetHelper;
+import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceIndexKeys;
 import com.dremio.service.namespace.NamespaceKey;
@@ -341,9 +342,9 @@ class DatasetManager {
       datasetConfig.getType() == DatasetType.PHYSICAL_DATASET_HOME_FOLDER;
   }
 
-  public boolean createOrUpdateDataset(NamespaceService userNamespaceService, ManagedStoragePlugin plugin, NamespaceKey source, final NamespaceKey datasetPath, final DatasetConfig datasetConfig) throws NamespaceException {
+  public boolean createOrUpdateDataset(NamespaceService userNamespaceService, ManagedStoragePlugin plugin, NamespaceKey source, final NamespaceKey datasetPath, final DatasetConfig datasetConfig, NamespaceAttribute... attributes) throws NamespaceException {
     if (!isFSBasedDataset(datasetConfig)) {
-      return userNamespaceService.tryCreatePhysicalDataset(datasetPath, datasetConfig);
+      return userNamespaceService.tryCreatePhysicalDataset(datasetPath, datasetConfig, attributes);
     }
     DatasetConfig oldDatasetConfig = null;
     try {
@@ -354,7 +355,7 @@ class DatasetManager {
 
     // if format settings did not change fall back to namespace based update
     if (oldDatasetConfig != null && oldDatasetConfig.getPhysicalDataset().getFormatSettings().equals(datasetConfig.getPhysicalDataset().getFormatSettings())) {
-      return userNamespaceService.tryCreatePhysicalDataset(datasetPath, datasetConfig);
+      return userNamespaceService.tryCreatePhysicalDataset(datasetPath, datasetConfig, attributes);
     }
 
     try {
@@ -366,17 +367,17 @@ class DatasetManager {
             .addAll(PathUtils.toPathComponents(datasetConfig.getPhysicalDataset().getFormatSettings().getLocation())).build()),
           datasetConfig, false);
         if (datasetAccessor == null) {
-          return userNamespaceService.tryCreatePhysicalDataset(datasetPath, datasetConfig);
+          return userNamespaceService.tryCreatePhysicalDataset(datasetPath, datasetConfig, attributes);
         }
         saveInHomeSpace(userNamespaceService, datasetAccessor, datasetConfig);
       } else {
         final SourceTableDefinition datasetAccessor = plugin.getTable(datasetPath, datasetConfig, false);
         if (datasetAccessor == null) {
           // setting format setting on empty folders?
-          return userNamespaceService.tryCreatePhysicalDataset(datasetPath, datasetConfig);
+          return userNamespaceService.tryCreatePhysicalDataset(datasetPath, datasetConfig, attributes);
         }
 
-        plugin.getSaver().completeSave(datasetAccessor, oldDatasetConfig);
+        plugin.getSaver().completeSave(datasetAccessor, oldDatasetConfig, attributes);
       }
     } catch (Exception e) {
       Throwables.propagateIfPossible(e, NamespaceException.class);

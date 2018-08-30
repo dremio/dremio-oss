@@ -39,7 +39,7 @@ public class TestCompareExcelAndTextPlugins extends BaseTestQuery {
               "extractHeader => true, " +
               "hasMergedCells => true)" +
           ") ",
-      "dfs.`/Users/venki/test_data/excel/simple_70k.xlsx`");
+      "dfs.\"/Users/venki/test_data/excel/simple_70k.xlsx\"");
 
   private static final String T_SIMPLE = String.format(
       "SELECT * FROM " +
@@ -48,28 +48,28 @@ public class TestCompareExcelAndTextPlugins extends BaseTestQuery {
               "fieldDelimiter => ',', " +
               "extractHeader => true)" +
           ") ",
-      "dfs.`/Users/venki/test_data/excel/simple_70k.csv`");
+      "dfs.\"/Users/venki/test_data/excel/simple_70k.csv\"");
 
   private static final String E_GROUPBY = String.format(
-      "SELECT `Number`, count(*) AS cnt FROM " +
+      "SELECT \"Number\", count(*) AS cnt FROM " +
           "TABLE(%s (" +
               "type => 'excel', " +
               "sheet => 'Sheet1', " +
               "extractHeader => true, " +
               "hasMergedCells => true)" +
           ") " +
-          "GROUP BY `Number`",
-      "dfs.`/Users/venki/test_data/excel/simple_70k.xlsx`");
+          "GROUP BY \"Number\"",
+      "dfs.\"/Users/venki/test_data/excel/simple_70k.xlsx\"");
 
   private static final String T_GROUPBY = String.format(
-      "SELECT `Number`, count(*) AS cnt FROM " +
+      "SELECT \"Number\", count(*) AS cnt FROM " +
           "TABLE(%s (" +
               "type => 'text', " +
               "fieldDelimiter => ',', " +
               "extractHeader => true)" +
           ") " +
-          "GROUP BY `Number`",
-      "dfs.`/Users/venki/test_data/excel/simple_70k.csv`");
+          "GROUP BY \"Number\"",
+      "dfs.\"/Users/venki/test_data/excel/simple_70k.csv\"");
 
   private static final String E_ORDERBY = String.format(
       "SELECT * FROM " +
@@ -78,8 +78,8 @@ public class TestCompareExcelAndTextPlugins extends BaseTestQuery {
               "sheet => 'Sheet1', " +
               "extractHeader => true, " +
               "hasMergedCells => true)" +
-          ") ORDER BY `Number` ",
-      "dfs.`/Users/venki/test_data/excel/simple_70k.xlsx`");
+          ") ORDER BY \"Number\" ",
+      "dfs.\"/Users/venki/test_data/excel/simple_70k.xlsx\"");
 
   private static final String T_ORDERBY = String.format(
       "SELECT * FROM " +
@@ -87,8 +87,8 @@ public class TestCompareExcelAndTextPlugins extends BaseTestQuery {
               "type => 'text', " +
               "fieldDelimiter => ',', " +
               "extractHeader => true)" +
-          ") ORDER BY `Number` ",
-      "dfs.`/Users/venki/test_data/excel/simple_70k.csv`");
+          ") ORDER BY \"Number\" ",
+      "dfs.\"/Users/venki/test_data/excel/simple_70k.csv\"");
 
   private static final String E_JOIN = String.format(
       "SELECT * FROM " +
@@ -105,10 +105,10 @@ public class TestCompareExcelAndTextPlugins extends BaseTestQuery {
               "extractHeader => true, " +
               "hasMergedCells => true)" +
           ") e13k " +
-          "ON e70k.`Number` = e13k.`Number` " +
+          "ON e70k.\"Number\" = e13k.\"Number\" " +
           "LIMIT 10",
-      "dfs.`/Users/venki/test_data/excel/simple_70k.xlsx`",
-      "dfs.`/Users/venki/test_data/excel/simple_15k.xlsx`");
+      "dfs.\"/Users/venki/test_data/excel/simple_70k.xlsx\"",
+      "dfs.\"/Users/venki/test_data/excel/simple_15k.xlsx\"");
 
   private static final String T_JOIN = String.format(
       "SELECT * FROM " +
@@ -123,10 +123,10 @@ public class TestCompareExcelAndTextPlugins extends BaseTestQuery {
               "fieldDelimiter => ',', " +
               "extractHeader => true)" +
           ") e13k " +
-          "ON e70k.`Number` = e13k.`Number` " +
+          "ON e70k.\"Number\" = e13k.\"Number\" " +
           "LIMIT 10",
-      "dfs.`/Users/venki/test_data/excel/simple_70k.csv`",
-      "dfs.`/Users/venki/test_data/excel/simple_15k.csv`");
+      "dfs.\"/Users/venki/test_data/excel/simple_70k.csv\"",
+      "dfs.\"/Users/venki/test_data/excel/simple_15k.csv\"");
 
   private static final String E_WITH_PICTURE_CHART = String.format(
       "SELECT * FROM " +
@@ -136,7 +136,7 @@ public class TestCompareExcelAndTextPlugins extends BaseTestQuery {
           "extractHeader => false, " +
           "hasMergedCells => false)" +
           ") ",
-      "dfs.`/Users/venki/test_data/excel/with-pic-chart.xlsx`");
+      "dfs.\"/Users/venki/test_data/excel/with-pic-chart.xlsx\"");
 
   @Test
   public void simpleExcel() throws Exception {
@@ -220,6 +220,6 @@ public class TestCompareExcelAndTextPlugins extends BaseTestQuery {
   }
 
   private static String countQuery(final String query) {
-    return String.format("SELECT count(`Number`) FROM (%s)", query);
+    return String.format("SELECT count(\"Number\") FROM (%s)", query);
   }
 }

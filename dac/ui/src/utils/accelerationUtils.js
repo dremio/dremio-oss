@@ -15,7 +15,9 @@
  */
 import deepEqual from 'deep-equal';
 import uuid from 'uuid';
-import {getUniqueName} from 'utils/pathUtils';
+import { getUniqueName } from 'utils/pathUtils';
+import { allMeasureTypes, cellTypesWithNoSum } from 'constants/AccelerationConstants';
+import { ANY } from 'constants/DataTypes';
 
 export const createReflectionFormValues = (opts, siblingNames = []) => {
 
@@ -127,4 +129,47 @@ export const forceChangesForDatasetChange = (reflection, dataset) => {
   // future: handle change field to invalid type (as-is; left to validation system to force a fix)
 
   return {reflection, lostFields};
+};
+
+export const findAllMeasureTypes = (fieldType) => {
+  if (!fieldType) return null;
+
+  const allTypes = Object.values(allMeasureTypes); //['MIN', 'MAX', 'SUM', 'COUNT', 'APPROX_COUNT_DISTINCT'];
+
+  if (cellTypesWithNoSum.includes(fieldType)) {
+    //filter creates a copy vs. splice, which would mutate allTypes
+    return allTypes.filter(v => v !== allMeasureTypes.SUM);
+  }
+
+  return allTypes;
+};
+
+export const getDefaultMeasureTypes = (fieldType) => {
+  const cellMeasureTypes = findAllMeasureTypes(fieldType);
+  if (cellMeasureTypes.includes(allMeasureTypes.SUM)) {
+    return [allMeasureTypes.SUM, allMeasureTypes.COUNT];
+  }
+
+  return [allMeasureTypes.COUNT];
+};
+
+// fixup any null or empty measureTypeLists
+export const fixupReflection = (reflection, dataset) => {
+  if (reflection.type === 'AGGREGATION' && reflection.measureFields && reflection.measureFields.length > 0) {
+    for (const measureField of reflection.measureFields) {
+      if (!measureField.measureTypeList) {
+        measureField.measureTypeList = getDefaultMeasureTypes(getTypeForField(dataset, measureField.name));
+      }
+    }
+  }
+};
+
+export const getTypeForField = (dataset, fieldName) => {
+  if (!dataset.has('fields')) {
+    return ANY;
+  }
+
+  return dataset.get('fields').find((elm) => {
+    return elm.get('name') === fieldName;
+  }).getIn(['type', 'name']);
 };

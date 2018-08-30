@@ -20,10 +20,10 @@ import java.util.Iterator;
 import java.util.List;
 
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.server.options.OptionValue;
-import com.dremio.exec.server.options.OptionValue.Kind;
-import com.dremio.exec.server.options.OptionValue.OptionType;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.Kind;
+import com.dremio.options.OptionValue.OptionType;
 import com.dremio.exec.server.options.SabotConfigIterable;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.collect.Iterators;
@@ -69,18 +69,18 @@ public class OptionIterator implements Iterator<Object> {
   public OptionValueWrapper next() {
     final OptionValue value = mergedOptions.next();
     final Status status;
-    if (value.type == OptionType.BOOT) {
+    if (value.getType() == OptionType.BOOT) {
       status = Status.BOOT;
     } else {
-      final OptionValue def = fragmentOptions.getValidator(value.name).getDefault();
+      final OptionValue def = fragmentOptions.getValidator(value.getName()).getDefault();
       if (value.equalsIgnoreType(def)) {
         status = Status.DEFAULT;
         } else {
         status = Status.CHANGED;
         }
       }
-    return new OptionValueWrapper(value.name, value.kind, value.type, value.num_val, value.string_val,
-        value.bool_val, value.float_val, status);
+    return new OptionValueWrapper(value.getName(), value.getKind(), value.getType(), value.getNumVal(), value.getStringVal(),
+        value.getBoolVal(), value.getFloatVal(), status);
   }
 
   public static enum Status {

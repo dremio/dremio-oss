@@ -20,8 +20,8 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.Random;
 
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.junit.Test;
 
 import com.dremio.sabot.BaseTestWithAllocator;
@@ -33,7 +33,7 @@ import io.netty.buffer.ArrowBuf;
 
 public class TestVarBinaryPivot extends BaseTestWithAllocator {
 
-  static void populate(NullableVarCharVector vector, String[] values){
+  static void populate(VarCharVector vector, String[] values){
     populate(vector, FluentIterable.of(values).transform(new Function<String, byte[]>(){
       @Override
       public byte[] apply(String input) {
@@ -44,7 +44,7 @@ public class TestVarBinaryPivot extends BaseTestWithAllocator {
       }}).toArray(byte[].class));
   }
 
-  static void populate(NullableVarCharVector vector, byte[][] values){
+  static void populate(VarCharVector vector, byte[][] values){
     vector.allocateNew();
     Random r = new Random();
     for(int i =0; i < values.length; i++){
@@ -62,7 +62,7 @@ public class TestVarBinaryPivot extends BaseTestWithAllocator {
     vector.setValueCount(values.length);
   }
 
-  static void populate(NullableVarBinaryVector vector, byte[][] values){
+  static void populate(VarBinaryVector vector, byte[][] values){
     vector.allocateNew();
     Random r = new Random();
     for(int i =0; i < values.length; i++){
@@ -151,8 +151,8 @@ public class TestVarBinaryPivot extends BaseTestWithAllocator {
     final byte[][] vectB = {null, b("you fool"), null, b("Cinderella"), b("Story")};
 
     try(
-        NullableVarBinaryVector col1 = new NullableVarBinaryVector("col1", allocator);
-        NullableVarBinaryVector col2 = new NullableVarBinaryVector("col2", allocator);){
+        VarBinaryVector col1 = new VarBinaryVector("col1", allocator);
+        VarBinaryVector col2 = new VarBinaryVector("col2", allocator);){
       PivotDef pivot = PivotBuilder.getBlockDefinition(
           new FieldVectorPair(col1, col1),
           new FieldVectorPair(col2, col2));

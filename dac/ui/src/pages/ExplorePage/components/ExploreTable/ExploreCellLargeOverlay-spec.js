@@ -16,7 +16,7 @@
 import { shallow } from 'enzyme';
 import ReactDOM from 'react-dom';
 import exploreUtils from 'utils/explore/exploreUtils';
-import ExploreCellLargeOverlay from './ExploreCellLargeOverlay';
+import { ExploreCellLargeOverlayView as ExploreCellLargeOverlay } from './ExploreCellLargeOverlay';
 
 describe('ExploreCellLargeOverlay', () => {
   let minimalProps;
@@ -41,7 +41,7 @@ describe('ExploreCellLargeOverlay', () => {
   });
 
   it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<ExploreCellLargeOverlay {...minimalProps}/>);
+    const wrapper = shallow(<ExploreCellLargeOverlay {...minimalProps}/>, { context });
     expect(wrapper).to.have.length(1);
   });
 

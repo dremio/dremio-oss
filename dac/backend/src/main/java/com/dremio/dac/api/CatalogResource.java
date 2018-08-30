@@ -17,6 +17,9 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.BadRequestException;
@@ -31,6 +34,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.PathSegment;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.dac.annotations.APIResource;
@@ -132,5 +136,23 @@ public class CatalogResource {
     } catch (UnsupportedOperationException e) {
       throw new BadRequestException(e.getMessage());
     }
+  }
+
+  @GET
+  @Path("/by-path/{segment:.*}")
+  public CatalogEntity getCatalogItemByPath(@PathParam("segment") List<PathSegment> segments) throws NamespaceException, BadRequestException {
+    List<String> pathList = new ArrayList<>();
+
+    for (PathSegment segment : segments) {
+      pathList.add(segment.getPath());
+    }
+
+    Optional<CatalogEntity> entity = catalogServiceHelper.getCatalogEntityByPath(pathList);
+
+    if (!entity.isPresent()) {
+      throw new NotFoundException(String.format("Could not find entity with path [%s]", pathList));
+    }
+
+    return entity.get();
   }
 }

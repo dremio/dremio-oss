@@ -18,7 +18,7 @@ package com.dremio.sabot.exec.rpc;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.sabot.threads.SendingMonitor;
 
 /**

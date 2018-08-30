@@ -16,8 +16,6 @@
 package com.dremio.exec.server;
 
 
-import static com.dremio.config.DremioConfig.EXECUTOR_CPU;
-
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -28,10 +26,11 @@ import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.VM;
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.store.ViewCreatorFactory;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.options.SystemOptionManager;
@@ -189,8 +188,8 @@ public class ContextService implements Service, Provider<SabotContext> {
         .setUserPort(userport)
         .setFabricPort(fabric.getPort())
         .setStartTime(System.currentTimeMillis())
-        .setMaxDirectMemory(SabotConfig.getMaxDirectMemory())
-        .setAvailableCores(Integer.getInteger(EXECUTOR_CPU, Runtime.getRuntime().availableProcessors()))
+        .setMaxDirectMemory(VM.getMaxDirectMemory())
+        .setAvailableCores(VM.availableProcessors())
         .setRoles(ClusterCoordinator.Role.toEndpointRoles(roles));
 
     String containerId = System.getenv("CONTAINER_ID");

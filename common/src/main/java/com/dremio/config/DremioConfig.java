@@ -97,6 +97,13 @@ public class DremioConfig extends NestedConfig {
   public static final String ZOOKEEPER_QUORUM = "zookeeper";
   public static final String ZK_CLIENT_SESSION_TIMEOUT = "zk.client.session.timeout";
 
+
+  // Provisioning options
+  public static final String YARN_JVM_OPTIONS = "provisioning.yarn.jvmoptions";
+  public static final String YARN_CLASSPATH = "provisioning.yarn.classpath";
+  public static final String YARN_APP_CLASSPATH = "provisioning.yarn.app.classpath";
+  public static final String YARN_APP_CLASSPATH_PREFIX = "provisioning.yarn.app.classpath-prefix";
+
   /**
    * Path where debug options are located
    */
@@ -104,10 +111,6 @@ public class DremioConfig extends NestedConfig {
 
   // to enable remote debugging of the DremioDaemon running in YARN container
   public static final String DEBUG_YARN_ENABLED = "debug.yarnremote.enabled";
-  public static final String YARN_HEAP_SIZE = "provisioning.yarn.heapsize";
-  public static final String YARN_JVM_OPTIONS = "provisioning.yarn.jvmoptions";
-  public static final String YARN_APP_CLASSPATH = "provisioning.yarn.classpath";
-  public static final String EXECUTOR_CPU = "dremio.executor.cores";
   public static final String DEBUG_ENABLED_BOOL = "debug.enabled";
   public static final String DEBUG_PREPOPULATE_BOOL = "debug.prepopulate";
   public static final String DEBUG_AUTOPORT_BOOL = "debug.autoPort";
@@ -231,9 +234,7 @@ public class DremioConfig extends NestedConfig {
         continue;
       }
       Preconditions.checkArgument(reference == null, "Attempted to load more than one reference configuration.");
-
       reference = ConfigFactory.parseResources(classLoader, REFERENCE_CONFIG);
-
     }
 
     Preconditions.checkNotNull(reference, "Unable to find the reference configuration.");

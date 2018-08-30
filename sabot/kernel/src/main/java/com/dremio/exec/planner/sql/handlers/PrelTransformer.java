@@ -112,11 +112,11 @@ import com.dremio.exec.planner.sql.MaterializationList;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.FindNonJdbcConventionRexSubQuery;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.RelsWithRexSubQueryTransformer;
 import com.dremio.exec.planner.sql.parser.UnsupportedOperatorsVisitor;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonConverter;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -227,8 +227,15 @@ public class PrelTransformer {
       }
 
       // Do Join Planning.
-      final RelNode convertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING, intermediateNode, intermediateNode.getTraitSet(), true);
-
+      final RelNode convertedRelNode;
+      if (config.getContext().getPlannerSettings().isJoinOptimizationEnabled()) {
+        final RelNode preConvertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_MULTI_JOIN, intermediateNode, intermediateNode.getTraitSet(), true);
+        convertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_OPTIMIZATION, preConvertedRelNode, preConvertedRelNode.getTraitSet(), true);
+      } else {
+        // If skipping join planning, make sure to at least notify observers
+        convertedRelNode = intermediateNode;
+        config.getObserver().planRelTransform(PlannerPhase.JOIN_PLANNING_MULTI_JOIN, null, intermediateNode, convertedRelNode, 0);
+      }
       FlattenRelFinder flattenFinder = new FlattenRelFinder();
       final RelNode flattendPushed;
       if (flattenFinder.run(convertedRelNode)) {
@@ -434,7 +441,7 @@ public class PrelTransformer {
       );
       boolean completed = false;
       try {
-        output = program.run(planner, input, toTraits);
+        output = program.run(planner, input, toTraits, ImmutableList.of(), ImmutableList.of());
         completed = true;
       } finally {
         substitutions.setEnabled(false);

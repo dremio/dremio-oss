@@ -22,7 +22,6 @@ import { APP_BOOT } from 'actions/app';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 import intercomUtils from 'utils/intercomUtils';
 import socket from 'utils/socket';
-
 import developmentOptions from 'dyn-load/reducers/developmentOptions';
 
 import explore from './explore/index';
@@ -95,3 +94,6 @@ export default function rootReducer(state, action) {
   const result = appReducers(nextState, action);
   return result;
 }
+
+export const getIsExplorePreviewMode = state => state.explore.view.get('isPreviewMode');
+export const getUser = state => state.account.get('user');

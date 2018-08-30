@@ -25,18 +25,18 @@ import com.dremio.common.exceptions.UserException;
 
 public class TestDropTable extends PlanTestBase {
 
-  private static final String CREATE_SIMPLE_TABLE = "create table %s as select 1 from cp.`employee.json`";
-  private static final String CREATE_SIMPLE_VIEW = "create view %s as select 1 from cp.`employee.json`";
+  private static final String CREATE_SIMPLE_TABLE = "create table %s as select 1 from cp.\"employee.json\"";
+  private static final String CREATE_SIMPLE_VIEW = "create view %s as select 1 from cp.\"employee.json\"";
   private static final String DROP_TABLE = "drop table %s";
   private static final String DROP_TABLE_IF_EXISTS = "drop table if exists %s";
   private static final String DROP_VIEW_IF_EXISTS = "drop view if exists %s";
-  private static final String BACK_TICK = "`";
+  private static final String DOUBLE_QUOTE = "\"";
   private static final String REFRESH = "alter table %s refresh metadata";
 
   @Test
   public void testDropJsonTable() throws Exception {
     test("use dfs_test");
-    test("alter session set `store.format` = 'json'");
+    test("alter session set \"store.format\" = 'json'");
 
     final String tableName = "simple_json";
     // create a json table
@@ -76,7 +76,7 @@ public class TestDropTable extends PlanTestBase {
   public void testDropTextTable() throws Exception {
     test("use dfs_test");
 
-    test("alter session set `store.format` = 'csv'");
+    test("alter session set \"store.format\" = 'csv'");
     final String csvTable = "simple_csv";
 
     // create a csv table
@@ -93,7 +93,7 @@ public class TestDropTable extends PlanTestBase {
         .baselineValues(true, String.format("Table [dfs_test.%s] dropped", csvTable))
         .go();
 
-    test("alter session set `store.format` = 'psv'");
+    test("alter session set \"store.format\" = 'psv'");
     final String psvTable = "simple_psv";
 
     // create a psv table
@@ -108,7 +108,7 @@ public class TestDropTable extends PlanTestBase {
         .baselineValues(true, String.format("Table [dfs_test.%s] dropped", psvTable))
         .go();
 
-    test("alter session set `store.format` = 'tsv'");
+    test("alter session set \"store.format\" = 'tsv'");
     final String tsvTable = "simple_tsv";
 
     // create a tsv table
@@ -135,9 +135,9 @@ public class TestDropTable extends PlanTestBase {
     testNoResult(REFRESH, tableName);
 
     // create a json table within the same directory
-    test("alter session set `store.format` = 'json'");
+    test("alter session set \"store.format\" = 'json'");
     final String nestedJsonTable = tableName + Path.SEPARATOR + "json_table";
-    test(String.format(CREATE_SIMPLE_TABLE, BACK_TICK + nestedJsonTable + BACK_TICK));
+    test(String.format(CREATE_SIMPLE_TABLE, DOUBLE_QUOTE + nestedJsonTable + DOUBLE_QUOTE));
 
     boolean dropFailed = false;
     // this should fail, because the directory contains non-homogenous files
@@ -152,10 +152,10 @@ public class TestDropTable extends PlanTestBase {
 
     // drop the individual json table
     testBuilder()
-        .sqlQuery(String.format(DROP_TABLE, BACK_TICK + nestedJsonTable + BACK_TICK))
+        .sqlQuery(String.format(DROP_TABLE, DOUBLE_QUOTE + nestedJsonTable + DOUBLE_QUOTE))
         .unOrdered()
         .baselineColumns("ok", "summary")
-        .baselineValues(true, String.format("Table [dfs_test.`%s`] dropped", nestedJsonTable))
+        .baselineValues(true, String.format("Table [dfs_test.\"%s\"] dropped", nestedJsonTable))
         .go();
 
     // Now drop should succeed
@@ -226,5 +226,25 @@ public class TestDropTable extends PlanTestBase {
     test("DROP TABLE dfs_test.testDropNonExistentTable");
     errorMsgTestHelper("DROP TABLE dfs_test.testDropNonExistentTable", "VALIDATION ERROR: Table [dfs_test.testDropNonExistentTable] not found");
     test("DROP TABLE IF EXISTS dfs_test.testDropNonExistentTable");
+  }
+
+  @Test
+  public void withNestedTablePath() throws Exception {
+    test("use dfs_test");
+    final String tableName = "\"nested/table/path\"";
+
+    // create a parquet table
+    test(String.format(CREATE_SIMPLE_TABLE, tableName));
+
+    testNoResult(REFRESH, tableName);
+
+    // drop the table
+    final String dropSql = String.format(DROP_TABLE, tableName);
+    testBuilder()
+        .sqlQuery(dropSql)
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(true, String.format("Table [dfs_test.%s] dropped", tableName))
+        .go();
   }
 }

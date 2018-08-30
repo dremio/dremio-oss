@@ -220,7 +220,7 @@ public class UnionFunctions {
 
     public void eval() {
       if (in.isSet == 1) {
-        if (in.reader.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.MAP) {
+        if (in.reader.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.STRUCT) {
           throw errorContext.error()
               .message("The input is not a MAP type")
               .build();
@@ -244,7 +244,7 @@ public class UnionFunctions {
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 1) {
-        out.value = in.getMinorType() == org.apache.arrow.vector.types.Types.MinorType.MAP ? 1 : 0;
+        out.value = in.getMinorType() == org.apache.arrow.vector.types.Types.MinorType.STRUCT ? 1 : 0;
       } else {
         out.value = 0;
       }

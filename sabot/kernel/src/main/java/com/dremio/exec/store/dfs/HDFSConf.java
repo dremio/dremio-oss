@@ -23,20 +23,20 @@ import org.apache.hadoop.fs.Path;
 import org.hibernate.validator.constraints.NotBlank;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.protostuff.Tag;
 
 @SourceType("HDFS")
 public class HDFSConf extends FileSystemConf<HDFSConf, FileSystemPlugin> {
   public enum ShortCircuitFlag {
-    @Tag(1) SYSTEM,
-    @Tag(2) ENABLED,
-    @Tag(3) DISABLED;
+    @Tag(1) @DisplayMetadata(label = "HDFS Default") SYSTEM,
+    @Tag(2) @DisplayMetadata(label = "Enabled") ENABLED,
+    @Tag(3) @DisplayMetadata(label = "Disabled") DISABLED;
   }
 
   //  optional string hostname = 1;
@@ -49,27 +49,32 @@ public class HDFSConf extends FileSystemConf<HDFSConf, FileSystemPlugin> {
 
   @NotBlank
   @Tag(1)
+  @DisplayMetadata(label = "NameNode Host")
   public String hostname;
 
   @Tag(2)
-  public int port = 9000;
+  @DisplayMetadata(label = "Port")
+  public int port = 8020;
 
   @Tag(3)
+  @DisplayMetadata(label = "Enable impersonation")
   public boolean enableImpersonation;
 
-  @JsonProperty("propertyList")
   @Tag(4)
-  public List<Property> properties;
+  public List<Property> propertyList;
 
   @Tag(5)
+  @DisplayMetadata(label = "Root Path")
   public String rootPath = "/";
 
   @Tag(6)
   @NotMetadataImpacting
+  @DisplayMetadata(label = "Short-Circuit Local Reads")
   public ShortCircuitFlag shortCircuitFlag = ShortCircuitFlag.SYSTEM;
 
   @Tag(7)
   @NotMetadataImpacting
+  @DisplayMetadata(label = "Socket Path")
   public String shortCircuitSocketPath;
 
   @Override
@@ -84,7 +89,7 @@ public class HDFSConf extends FileSystemConf<HDFSConf, FileSystemPlugin> {
 
   @Override
   public List<Property> getProperties() {
-    return properties;
+    return propertyList;
   }
 
   @Override

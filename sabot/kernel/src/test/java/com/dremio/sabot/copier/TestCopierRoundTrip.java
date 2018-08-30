@@ -20,9 +20,9 @@ import static org.junit.Assert.assertEquals;
 import java.util.List;
 
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.junit.Test;
 
 import com.dremio.exec.record.selection.SelectionVector2;
@@ -45,8 +45,8 @@ public class TestCopierRoundTrip extends BaseTestWithAllocator {
   public void intRoundtrip(){
     final int count = 1024;
     try(
-        NullableIntVector in = new NullableIntVector("in", allocator);
-        NullableIntVector out = new NullableIntVector("out", allocator);
+        IntVector in = new IntVector("in", allocator);
+        IntVector out = new IntVector("out", allocator);
         ){
 
       in.allocateNew(count);
@@ -86,8 +86,8 @@ public class TestCopierRoundTrip extends BaseTestWithAllocator {
   public void bigintRoundtrip(){
     final int count = 1024;
     try(
-        NullableBigIntVector in = new NullableBigIntVector("in", allocator);
-        NullableBigIntVector out = new NullableBigIntVector("out", allocator);
+        BigIntVector in = new BigIntVector("in", allocator);
+        BigIntVector out = new BigIntVector("out", allocator);
         ){
 
       in.allocateNew(count);
@@ -127,8 +127,8 @@ public class TestCopierRoundTrip extends BaseTestWithAllocator {
   public void varcharRoundtrip(){
     final int count = 1024;
     try(
-        NullableVarCharVector in = new NullableVarCharVector("in", allocator);
-        NullableVarCharVector out = new NullableVarCharVector("out", allocator);
+        VarCharVector in = new VarCharVector("in", allocator);
+        VarCharVector out = new VarCharVector("out", allocator);
         ){
 
       in.allocateNew(count * 8, count);

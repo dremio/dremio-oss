@@ -23,7 +23,7 @@ import java.util.List;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
@@ -101,11 +101,11 @@ public class JsonReader extends BaseJsonProcessor {
 
   @Override
   public void ensureAtLeastOneField(ComplexWriter writer) {
-    List<BaseWriter.MapWriter> writerList = Lists.newArrayList();
+    List<BaseWriter.StructWriter> writerList = Lists.newArrayList();
     List<PathSegment> fieldPathList = Lists.newArrayList();
     BitSet emptyStatus = new BitSet(columns.size());
 
-    if (writer.rootAsMap().getField() != null && !writer.rootAsMap().isEmptyMap()) {
+    if (writer.rootAsStruct().getField() != null && !writer.rootAsStruct().isEmptyStruct()) {
       return;
     }
 
@@ -113,14 +113,14 @@ public class JsonReader extends BaseJsonProcessor {
     for (int i = 0; i < columns.size(); i++) {
       SchemaPath sp = columns.get(i);
       PathSegment fieldPath = sp.getRootSegment();
-      BaseWriter.MapWriter fieldWriter = writer.rootAsMap();
+      BaseWriter.StructWriter fieldWriter = writer.rootAsStruct();
       while (fieldPath.getChild() != null && ! fieldPath.getChild().isArray()) {
-        fieldWriter = fieldWriter.map(fieldPath.getNameSegment().getPath());
+        fieldWriter = fieldWriter.struct(fieldPath.getNameSegment().getPath());
         fieldPath = fieldPath.getChild();
       }
       writerList.add(fieldWriter);
       fieldPathList.add(fieldPath);
-      if (fieldWriter.isEmptyMap()) {
+      if (fieldWriter.isEmptyStruct()) {
         emptyStatus.set(i, true);
       }
       if (i == 0 && !allTextMode) {
@@ -141,7 +141,7 @@ public class JsonReader extends BaseJsonProcessor {
     // shared by multiple fields whereas we want to keep track of all fields independently,
     // so we rely on the emptyStatus.
     for (int j = 0; j < fieldPathList.size(); j++) {
-      BaseWriter.MapWriter fieldWriter = writerList.get(j);
+      BaseWriter.StructWriter fieldWriter = writerList.get(j);
       PathSegment fieldPath = fieldPathList.get(j);
       if (emptyStatus.get(j)) {
         if (allTextMode) {
@@ -226,7 +226,7 @@ public class JsonReader extends BaseJsonProcessor {
   private ReadState writeToVector(ComplexWriter writer, JsonToken t) throws IOException {
     switch (t) {
     case START_OBJECT:
-      writeDataSwitch(writer.rootAsMap());
+      writeDataSwitch(writer.rootAsStruct());
       break;
     case START_ARRAY:
       if(inOuterList){
@@ -242,7 +242,7 @@ public class JsonReader extends BaseJsonProcessor {
         t = parser.nextToken();
         if(t == JsonToken.START_OBJECT){
           inOuterList = true;
-          writeDataSwitch(writer.rootAsMap());
+          writeDataSwitch(writer.rootAsStruct());
         }else{
           throw
             getExceptionWithContext(
@@ -284,7 +284,7 @@ public class JsonReader extends BaseJsonProcessor {
 
   }
 
-  private void writeDataSwitch(MapWriter w) throws IOException {
+  private void writeDataSwitch(BaseWriter.StructWriter w) throws IOException {
     if (this.allTextMode) {
       writeDataAllText(w, this.selection, true);
     } else {
@@ -294,7 +294,7 @@ public class JsonReader extends BaseJsonProcessor {
 
   private void writeDataSwitch(ListWriter w) throws IOException {
     if (this.allTextMode) {
-      writeDataAllText(w);
+      writeDataAllText(w, this.selection);
     } else {
       writeData(w, this.selection);
     }
@@ -322,7 +322,7 @@ public class JsonReader extends BaseJsonProcessor {
    *          should start with the next token and ignore the current one.
    * @throws IOException
    */
-  private void writeData(MapWriter map, FieldSelection selection, boolean moveForward) throws IOException {
+  private void writeData(BaseWriter.StructWriter map, FieldSelection selection, boolean moveForward) throws IOException {
     //
     map.start();
     try {
@@ -357,7 +357,7 @@ public class JsonReader extends BaseJsonProcessor {
           break;
         case START_OBJECT:
           if (!writeMapDataIfTyped(map, fieldName)) {
-            writeData(map.map(fieldName), childSelection, false);
+            writeData(map.struct(fieldName), childSelection, false);
           }
           break;
         case END_OBJECT:
@@ -403,7 +403,7 @@ public class JsonReader extends BaseJsonProcessor {
 
   }
 
-  private void writeDataAllText(MapWriter map, FieldSelection selection, boolean moveForward) throws IOException {
+  private void writeDataAllText(BaseWriter.StructWriter map, FieldSelection selection, boolean moveForward) throws IOException {
     //
     map.start();
     try {
@@ -436,11 +436,11 @@ public class JsonReader extends BaseJsonProcessor {
 
         switch (parser.nextToken()) {
         case START_ARRAY:
-          writeDataAllText(map.list(fieldName));
+          writeDataAllText(map.list(fieldName), childSelection);
           break;
         case START_OBJECT:
           if (!writeMapDataIfTyped(map, fieldName)) {
-            writeDataAllText(map.map(fieldName), childSelection, false);
+            writeDataAllText(map.struct(fieldName), childSelection, false);
           }
           break;
         case END_OBJECT:
@@ -466,10 +466,9 @@ public class JsonReader extends BaseJsonProcessor {
               .build(logger);
         }
       }
-    } finally{
+    } finally {
       map.end();
     }
-
   }
 
   /**
@@ -479,7 +478,7 @@ public class JsonReader extends BaseJsonProcessor {
    * @return
    * @throws IOException
    */
-  private boolean writeMapDataIfTyped(MapWriter writer, String fieldName) throws IOException {
+  private boolean writeMapDataIfTyped(BaseWriter.StructWriter writer, String fieldName) throws IOException {
     if (extended) {
       return mapOutput.run(writer, fieldName);
     } else {
@@ -503,7 +502,7 @@ public class JsonReader extends BaseJsonProcessor {
     }
   }
 
-  private void handleString(JsonParser parser, MapWriter writer, String fieldName) throws IOException {
+  private void handleString(JsonParser parser, BaseWriter.StructWriter writer, String fieldName) throws IOException {
     final int size = workingBuffer.prepareVarCharHolder(parser.getText());
     writer.varChar(fieldName).writeVarChar(0, size, workingBuffer.getBuf());
     dataSizeReadSoFar += size;
@@ -525,7 +524,7 @@ public class JsonReader extends BaseJsonProcessor {
         break;
       case START_OBJECT:
         if (!writeListDataIfTyped(list)) {
-          writeData(list.map(), selection, false);
+          writeData(list.struct(), selection, false);
         }
         break;
       case END_ARRAY:
@@ -577,17 +576,17 @@ public class JsonReader extends BaseJsonProcessor {
 
   }
 
-  private void writeDataAllText(ListWriter list) throws IOException {
+  private void writeDataAllText(ListWriter list, FieldSelection selection) throws IOException {
     list.startList();
     outside: while (true) {
 
       switch (parser.nextToken()) {
       case START_ARRAY:
-        writeDataAllText(list.list());
+        writeDataAllText(list.list(), selection);
         break;
       case START_OBJECT:
         if (!writeListDataIfTyped(list)) {
-          writeDataAllText(list.map(), FieldSelection.ALL_VALID, false);
+          writeDataAllText(list.struct(), selection, false);
         }
         break;
       case END_ARRAY:

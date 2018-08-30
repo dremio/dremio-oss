@@ -25,7 +25,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.NullableIntVector;
+import org.apache.arrow.vector.IntVector;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.junit.Test;
 
@@ -164,7 +164,220 @@ public abstract class BaseTestJoin extends BaseTestOperator {
         DEFAULT_BATCH, expected);
   }
 
+  @Test
+  public void noNullEquivalenceWithNullsLeftForString() throws Exception{
+    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.LEFT);
+    final Table noNulls = t(
+      th("id2", "name2", "id1", "name1"),
+      tr(4l, "a1", 1l, "a1"),
+      tr(Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR, 2l, "a2"),
+      tr(Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR, 3l, Fixtures.NULL_VARCHAR)
+    );
+    nullKeysForString(noNullsInfo, noNulls);
+  }
 
+  @Test
+  public void noNullEquivalenceWithNullsRightForString() throws Exception{
+    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.RIGHT);
+    final Table noNulls = t(
+      th("id2", "name2", "id1", "name1"),
+      tr(4l, "a1", 1l, "a1"),
+      tr(5l, "a3", Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR),
+      tr(6l, Fixtures.NULL_VARCHAR, Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR)
+    );
+    nullKeysForString(noNullsInfo, noNulls);
+  }
+
+  private void nullKeysForString(JoinInfo info, Table expected) throws Exception {
+    final Table left = t(
+      th("id1", "name1"),
+      tr(1l, "a1"),
+      tr(2l, "a2"),
+      tr(3l, Fixtures.NULL_VARCHAR)
+    );
+
+    final Table right = t(
+      th("id2", "name2"),
+      tr(4l, "a1"),
+      tr(5l, "a3"),
+      tr(6l, Fixtures.NULL_VARCHAR)
+    );
+    validateDual(
+      info.operator, info.clazz,
+      left.toGenerator(getTestAllocator()),
+      right.toGenerator(getTestAllocator()),
+      DEFAULT_BATCH, expected);
+  }
+
+  @Test
+  public void isNotDistinctWithZeroKey() throws Exception{
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("IS_NOT_DISTINCT_FROM", f("id1"), f("id2"))), JoinRelType.INNER);
+    final Table expected = t(
+      th("id2", "name2", "id1", "name1"),
+      tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, "a1"),
+      tr(Fixtures.NULL_BIGINT, "b3", Fixtures.NULL_BIGINT, "a1"),
+      tr(0l, "b2", 0l, "a2"),
+      tr(0l, "b4", 0l, "a2")
+    );
+    nullWithZeroKey(includeZeroKeyInfo, expected);
+  }
+
+  @Test
+  public void noNullEquivalenceWithZeroKey() throws Exception{
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER);
+    final Table expected = t(
+      th("id2", "name2", "id1", "name1"),
+      tr(0l, "b2", 0l, "a2"),
+      tr(0l, "b4", 0l, "a2")
+    );
+    nullWithZeroKey(includeZeroKeyInfo, expected);
+  }
+
+  @Test
+  public void noNullEquivalenceWithZeroKeyLeft() throws Exception{
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.LEFT);
+    final Table expected = t(
+      th("id2", "name2", "id1", "name1"),
+      tr(Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR, Fixtures.NULL_BIGINT, "a1"),
+      tr(0l, "b2", 0l, "a2"),
+      tr(0l, "b4", 0l, "a2")
+    );
+    nullWithZeroKey(includeZeroKeyInfo, expected);
+  }
+
+  @Test
+  public void noNullEquivalenceWithZeroKeyRight() throws Exception{
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.RIGHT);
+    final Table expected = t(
+      th("id2", "name2", "id1", "name1"),
+      tr(0l, "b2", 0l, "a2"),
+      tr(0l, "b4", 0l, "a2"),
+      tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR),
+      tr(Fixtures.NULL_BIGINT, "b3", Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR)
+    );
+    nullWithZeroKey(includeZeroKeyInfo, expected);
+  }
+
+  private void nullWithZeroKey(JoinInfo info, Table expected) throws Exception {
+    final Table left = t(
+      th("id1", "name1"),
+      tr(Fixtures.NULL_BIGINT, "a1"),
+      tr(0l, "a2")
+    );
+
+    final Table right = t(
+      th("id2", "name2"),
+      tr(Fixtures.NULL_BIGINT, "b1"),
+      tr(0l, "b2"),
+      tr(Fixtures.NULL_BIGINT, "b3"),
+      tr(0l, "b4")
+    );
+    validateDual(
+      info.operator, info.clazz,
+      left.toGenerator(getTestAllocator()),
+      right.toGenerator(getTestAllocator()),
+      DEFAULT_BATCH, expected);
+  }
+
+  @Test
+  public void freeValueInHashTable() throws Exception{
+    long freeValue = Long.MIN_VALUE + 474747l;
+    JoinInfo freeValueInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER);
+    final Table expected = t(
+      th("id2", "name2", "id1", "name1"),
+      tr(0l, "b2", 0l, "a2"),
+      tr(freeValue, "b3", freeValue, "a3")
+    );
+
+    final Table left = t(
+      th("id1", "name1"),
+      tr(Fixtures.NULL_BIGINT, "a1"),
+      tr(0l, "a2"),
+      tr(freeValue, "a3")
+    );
+
+    final Table right = t(
+      th("id2", "name2"),
+      tr(Fixtures.NULL_BIGINT, "b1"),
+      tr(0l, "b2"),
+      tr(freeValue, "b3"),
+      tr(4l, "b4")
+    );
+    validateDual(
+      freeValueInfo.operator, freeValueInfo.clazz,
+      left.toGenerator(getTestAllocator()),
+      right.toGenerator(getTestAllocator()),
+      DEFAULT_BATCH, expected);
+  }
+
+  @Test
+  public void isNotDistinctBitKeys() throws Exception{
+    JoinInfo includeNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("IS_NOT_DISTINCT_FROM", f("bool1"), f("bool2"))), JoinRelType.INNER);
+    final Table expected = t(
+      th("bool2", "name2", "bool1", "name1"),
+      tr(true, "b1", true, "a1"),
+      tr(false, "b2", false, "a2"),
+      tr(Fixtures.NULL_BOOLEAN, "b3", Fixtures.NULL_BOOLEAN, "a3")
+    );
+
+    nullBitKeys(includeNullsInfo, expected);
+  }
+
+  @Test
+  public void noNullEquivalenceBitKeys() throws Exception{
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.INNER);
+    final Table expected = t(
+      th("bool2", "name2", "bool1", "name1"),
+      tr(true, "b1", true, "a1"),
+      tr(false, "b2", false, "a2")
+    );
+    nullBitKeys(includeZeroKeyInfo, expected);
+  }
+
+  @Test
+  public void noNullEquivalenceBitKeysLeft() throws Exception{
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.LEFT);
+    final Table expected = t(
+      th("bool2", "name2", "bool1", "name1"),
+      tr(true, "b1", true, "a1"),
+      tr(false, "b2", false, "a2"),
+      tr(Fixtures.NULL_BOOLEAN, Fixtures.NULL_VARCHAR, Fixtures.NULL_BOOLEAN, "a3")
+    );
+    nullBitKeys(includeZeroKeyInfo, expected);
+  }
+
+  @Test
+  public void noNullEquivalenceBitKeysRight() throws Exception{
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.RIGHT);
+    final Table expected = t(
+      th("bool2", "name2", "bool1", "name1"),
+      tr(true, "b1", true, "a1"),
+      tr(false, "b2", false, "a2"),
+      tr(Fixtures.NULL_BOOLEAN, "b3", Fixtures.NULL_BOOLEAN, Fixtures.NULL_VARCHAR)
+    );
+    nullBitKeys(includeZeroKeyInfo, expected);
+  }
+
+  private void nullBitKeys(JoinInfo info, Table expected) throws Exception {
+    final Table left = t(
+      th("bool1", "name1"),
+      tr(true, "a1"),
+      tr(false, "a2"),
+      tr(Fixtures.NULL_BOOLEAN, "a3")
+    );
+
+    final Table right = t(
+      th("bool2", "name2"),
+      tr(true, "b1"),
+      tr(false, "b2"),
+      tr(Fixtures.NULL_BOOLEAN, "b3")
+    );
+    validateDual(
+      info.operator, info.clazz,
+      left.toGenerator(getTestAllocator()),
+      right.toGenerator(getTestAllocator()),
+      DEFAULT_BATCH, expected);
+  }
 
   @Test
   public void regionNationInner() throws Exception {
@@ -348,8 +561,6 @@ public abstract class BaseTestJoin extends BaseTestOperator {
         DEFAULT_BATCH, expected);
   }
 
-
-
   @Test
   public void nationRegionPartialKeyOuterSmall() throws Exception {
     JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.FULL);
@@ -390,11 +601,117 @@ public abstract class BaseTestJoin extends BaseTestOperator {
         3, expected);
   }
 
+  @Test
+  public void manyKeys() throws Exception {
+    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("col1_1"), f("col2_1")),
+      new JoinCondition("EQUALS", f("col1_2"), f("col2_2")),
+      new JoinCondition("EQUALS", f("col1_3"), f("col2_3")),
+      new JoinCondition("EQUALS", f("col1_4"), f("col2_4")),
+      new JoinCondition("EQUALS", f("col1_5"), f("col2_5")),
+      new JoinCondition("EQUALS", f("col1_6"), f("col2_6")),
+      new JoinCondition("EQUALS", f("col1_7"), f("col2_7")),
+      new JoinCondition("EQUALS", f("col1_8"), f("col2_8")),
+      new JoinCondition("EQUALS", f("col1_9"), f("col2_9")),
+      new JoinCondition("EQUALS", f("col1_10"), f("col2_10")),
+      new JoinCondition("EQUALS", f("col1_11"), f("col2_11")),
+      new JoinCondition("EQUALS", f("col1_12"), f("col2_12")),
+      new JoinCondition("EQUALS", f("col1_13"), f("col2_13")),
+      new JoinCondition("EQUALS", f("col1_14"), f("col2_14")),
+      new JoinCondition("EQUALS", f("col1_15"), f("col2_15")),
+      new JoinCondition("EQUALS", f("col1_16"), f("col2_16")),
+      new JoinCondition("EQUALS", f("col1_17"), f("col2_17")),
+      new JoinCondition("EQUALS", f("col1_18"), f("col2_18")),
+      new JoinCondition("EQUALS", f("col1_19"), f("col2_19")),
+      new JoinCondition("EQUALS", f("col1_20"), f("col2_20")),
+      new JoinCondition("EQUALS", f("col1_21"), f("col2_21")),
+      new JoinCondition("EQUALS", f("col1_22"), f("col2_22")),
+      new JoinCondition("EQUALS", f("col1_23"), f("col2_23")),
+      new JoinCondition("EQUALS", f("col1_24"), f("col2_24")),
+      new JoinCondition("EQUALS", f("col1_25"), f("col2_25")),
+      new JoinCondition("EQUALS", f("col1_26"), f("col2_26")),
+      new JoinCondition("EQUALS", f("col1_27"), f("col2_27")),
+      new JoinCondition("EQUALS", f("col1_28"), f("col2_28")),
+      new JoinCondition("EQUALS", f("col1_29"), f("col2_29")),
+      new JoinCondition("EQUALS", f("col1_30"), f("col2_30")),
+      new JoinCondition("EQUALS", f("col1_30"), f("col2_30")),
+      new JoinCondition("EQUALS", f("col1_31"), f("col2_31")),
+      new JoinCondition("EQUALS", f("col1_32"), f("col2_32")),
+      new JoinCondition("EQUALS", f("col1_33"), f("col2_33"))
+      ), JoinRelType.INNER);
+
+    final Table expected = t(
+      th("col2_1", "col2_2", "col2_3", "col2_4", "col2_5", "col2_6", "col2_7", "col2_8", "col2_9", "col2_10",
+        "col2_11", "col2_12", "col2_13", "col2_14", "col2_15", "col2_16", "col2_17", "col2_18", "col2_19", "col2_20",
+        "col2_21", "col2_22", "col2_23", "col2_24", "col2_25", "col2_26", "col2_27", "col2_28", "col2_29", "col2_30",
+        "col2_31", "col2_32", "col2_33", "col2_34",
+        "col1_1", "col1_2", "col1_3", "col1_4", "col1_5", "col1_6", "col1_7", "col1_8", "col1_9", "col1_10",
+        "col1_11", "col1_12", "col1_13", "col1_14", "col1_15", "col1_16", "col1_17", "col1_18", "col1_19", "col1_20",
+        "col1_21", "col1_22", "col1_23", "col1_24", "col1_25", "col1_26", "col1_27", "col1_28", "col1_29", "col1_30",
+        "col1_31", "col1_32", "col1_33", "col1_34"
+
+        ),
+      tr(1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
+        11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
+        21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
+        31l, 32l, 33l, 34l,
+        1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
+        11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
+        21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
+        31l, 32l, 33l, 34l
+      ),
+      tr(1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
+        11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
+        21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
+        31l, 32l, 33l, 100l,
+        1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
+        11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
+        21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
+        31l, 32l, 33l, 34l
+      )
+    );
+
+    final Table left = t(
+      th("col1_1", "col1_2", "col1_3", "col1_4", "col1_5", "col1_6", "col1_7", "col1_8", "col1_9", "col1_10",
+        "col1_11", "col1_12", "col1_13", "col1_14", "col1_15", "col1_16", "col1_17", "col1_18", "col1_19", "col1_20",
+        "col1_21", "col1_22", "col1_23", "col1_24", "col1_25", "col1_26", "col1_27", "col1_28", "col1_29", "col1_30",
+        "col1_31", "col1_32", "col1_33", "col1_34"
+        ),
+      tr(1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
+        11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
+        21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
+        31l, 32l, 33l, 34l
+      )
+    );
+
+    final Table right = t(
+      th("col2_1", "col2_2", "col2_3", "col2_4", "col2_5", "col2_6", "col2_7", "col2_8", "col2_9", "col2_10",
+        "col2_11", "col2_12", "col2_13", "col2_14", "col2_15", "col2_16", "col2_17", "col2_18", "col2_19", "col2_20",
+        "col2_21", "col2_22", "col2_23", "col2_24", "col2_25", "col2_26", "col2_27", "col2_28", "col2_29", "col2_30",
+        "col2_31", "col2_32", "col2_33", "col2_34"
+      ),
+      tr(1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
+        11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
+        21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
+        31l, 32l, 33l, 34l
+      ),
+      tr(1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
+        11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
+        21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
+        31l, 32l, 33l, 100l
+      )
+    );
+    validateDual(
+      info.operator, info.clazz,
+      left.toGenerator(getTestAllocator()),
+      right.toGenerator(getTestAllocator()),
+      DEFAULT_BATCH, expected);
+  }
+
   private static final class ManyColumnsGenerator implements Generator {
     private final int columns;
     private final int rows;
     private final VectorContainer result;
-    private final List<NullableIntVector> vectors;
+    private final List<IntVector> vectors;
 
     private int offset = 0;
 
@@ -403,9 +720,9 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       this.rows = rows;
       result = new VectorContainer(allocator);
 
-      ImmutableList.Builder<NullableIntVector> vectorsBuilder = ImmutableList.builder();
+      ImmutableList.Builder<IntVector> vectorsBuilder = ImmutableList.builder();
       for(int i = 0; i<columns; i++) {
-        NullableIntVector vector = result.addOrGet(String.format("%s_%d", prefix, i + 1), Types.optional(MinorType.INT), NullableIntVector.class);
+        IntVector vector = result.addOrGet(String.format("%s_%d", prefix, i + 1), Types.optional(MinorType.INT), IntVector.class);
         vectorsBuilder.add(vector);
       }
       this.vectors = vectorsBuilder.build();
@@ -423,7 +740,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       result.allocateNew();
       for(int i = 0; i<count; i++) {
         int col = 0;
-        for(NullableIntVector vector: vectors) {
+        for(IntVector vector: vectors) {
           vector.setSafe(i, (offset + i) * columns + col);
           col++;
         }

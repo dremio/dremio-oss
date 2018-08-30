@@ -60,12 +60,11 @@ public class HiveAuthorizationHelper {
     try {
       final HiveConf hiveConfCopy = new HiveConf(hiveConf);
       hiveConfCopy.set("user.name", user);
+      hiveConfCopy.set("proxy.user.name", user);
 
       final HiveAuthenticationProvider authenticator = HiveUtils.getAuthenticator(hiveConfCopy,
           HiveConf.ConfVars.HIVE_AUTHENTICATOR_MANAGER);
       SessionState ss = new SessionState(hiveConfCopy, user);
-      SessionState.start(ss);
-
       authenticator.setSessionState(ss);
 
       HiveAuthorizerFactory authorizerFactory =

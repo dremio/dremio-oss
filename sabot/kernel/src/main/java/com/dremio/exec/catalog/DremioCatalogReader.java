@@ -16,6 +16,7 @@
 package com.dremio.exec.catalog;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.calcite.adapter.java.JavaTypeFactory;
@@ -45,6 +46,10 @@ import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlMoniker;
+import org.apache.calcite.sql.validate.SqlMonikerImpl;
+import org.apache.calcite.sql.validate.SqlMonikerType;
+import org.apache.calcite.sql.validate.SqlNameMatcher;
+import org.apache.calcite.sql.validate.SqlNameMatchers;
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.calcite.sql.validate.SqlUserDefinedTableFunction;
@@ -52,6 +57,7 @@ import org.apache.calcite.sql.validate.SqlUserDefinedTableMacro;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.util.Util;
 
+import com.dremio.exec.store.ischema.tables.TablesTable.Table;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
@@ -67,11 +73,20 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   protected final Catalog catalog;
   protected final JavaTypeFactory typeFactory;
 
+  private final List<List<String>> schemaPaths;
+
   public DremioCatalogReader(
       Catalog catalog,
       RelDataTypeFactory typeFactory) {
     this.catalog = catalog;
     this.typeFactory = (JavaTypeFactory) typeFactory;
+
+    ImmutableList.Builder<List<String>> schemaPaths = ImmutableList.builder();
+    if (catalog.getDefaultSchema() != null) {
+      schemaPaths.add(ImmutableList.copyOf(catalog.getDefaultSchema().getPathComponents()));
+    }
+    schemaPaths.add(ImmutableList.of());
+    this.schemaPaths = schemaPaths.build();
   }
 
   @Override
@@ -88,18 +103,39 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     return null;
   }
 
+
   public Catalog getCatalog() {
     return catalog;
   }
 
+  /**
+   * Given fully qualified schema name, return schema object names.
+   * When paramList is empty, the contents of root schema should be returned.
+   */
   @Override
   public List<SqlMoniker> getAllSchemaObjectNames(List<String> paramList) {
-    return ImmutableList.of();
+    final List<SqlMoniker> result = new ArrayList<>();
+
+    for (String currSchema : catalog.listSchemas(new NamespaceKey(paramList))) {
+
+      // If paramList is not empty, we only want the datasets held by this schema,
+      // Therefore don't add the schema to the results.
+      if (paramList.isEmpty()) {
+        result.add(new SqlMonikerImpl(currSchema, SqlMonikerType.SCHEMA));
+      }
+
+      // Get dataset names for each schema.
+      for (Table dataset : catalog.listDatasets(new NamespaceKey(currSchema))) {
+        result.add(new SqlMonikerImpl(Arrays.asList(dataset.TABLE_SCHEMA, dataset.TABLE_NAME), SqlMonikerType.TABLE));
+      }
+    }
+
+    return result;
   }
 
   @Override
-  public List<String> getSchemaName() {
-    return catalog.getDefaultSchema().getPathComponents();
+  public List<List<String>> getSchemaPaths() {
+    return schemaPaths;
   }
 
   @Override
@@ -120,6 +156,11 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   @Override
   public boolean isCaseSensitive() {
     return false;
+  }
+
+  @Override
+  public SqlNameMatcher nameMatcher() {
+    return SqlNameMatchers.withCaseSensitive(false);
   }
 
   @Override
@@ -181,6 +222,7 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     }
     final Predicate<Integer> optional =
         new Predicate<Integer>() {
+          @Override
           public boolean apply(Integer input) {
             return function.getParameters().get(input).isOptional();
           }
@@ -194,7 +236,7 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     } else if (function instanceof AggregateFunction) {
       return new SqlUserDefinedAggFunction(name,
           infer((AggregateFunction) function), InferTypes.explicit(argTypes),
-          typeChecker, (AggregateFunction) function);
+          typeChecker, (AggregateFunction) function, false, false, typeFactory);
     } else if (function instanceof TableMacro) {
       return new SqlUserDefinedTableMacro(name, ReturnTypes.CURSOR,
           InferTypes.explicit(argTypes), typeChecker, paramTypes,
@@ -210,6 +252,7 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
 
   private SqlReturnTypeInference infer(final ScalarFunction function) {
     return new SqlReturnTypeInference() {
+      @Override
       public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
         final RelDataType type = function.getReturnType(typeFactory);
         return toSql(type);
@@ -218,6 +261,7 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   }
   private SqlReturnTypeInference infer(final AggregateFunction function) {
     return new SqlReturnTypeInference() {
+      @Override
       public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
         final RelDataType type = function.getReturnType(typeFactory);
         return toSql(type);
@@ -228,6 +272,7 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   private List<RelDataType> toSql(List<RelDataType> types) {
     return Lists.transform(types,
         new com.google.common.base.Function<RelDataType, RelDataType>() {
+          @Override
           public RelDataType apply(RelDataType type) {
             return toSql(type);
           }
@@ -244,4 +289,12 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     return typeFactory.toSql(type);
   }
 
+
+  @Override
+  public <C> C unwrap(Class<C> aClass) {
+    if (aClass.isInstance(this)) {
+      return aClass.cast(this);
+    }
+    return null;
+  }
 }

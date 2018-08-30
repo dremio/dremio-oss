@@ -21,7 +21,7 @@ import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
 export default class AccelerationSection extends Component {
   static propTypes = {
     fields: PropTypes.object
-  }
+  };
 
   static getFields() {
     return DataFreshnessSection.getFields();

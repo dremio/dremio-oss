@@ -53,9 +53,10 @@ import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.work.foreman.ExecutionPlan;
+import com.dremio.options.OptionValue;
+import com.dremio.resource.basic.QueueType;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.DirectProvider;
 
@@ -84,12 +85,12 @@ public class Limit0LogicalToPhysicalTest extends BaseTestQuery {
   @Test
   public void ExchangesKeepTest() throws Exception {
 
-    final String yelpTable = TEMP_SCHEMA + ".`yelp`";
+    final String yelpTable = TEMP_SCHEMA + ".\"yelp\"";
     final String sql = "SELECT nested_0.review_id AS review_id, nested_0.user_id AS user_id, nested_0.votes AS votes," +
       " nested_0.stars AS stars, join_business.business_id AS business_id0, join_business.neighborhoods AS neighborhoods, join_business.city AS city, join_business.latitude AS latitude, join_business.review_count AS review_count, join_business.full_address AS full_address, join_business.stars AS stars0, join_business.categories AS categories, join_business.state AS state, join_business.longitude AS longitude\n" +
       "FROM (\n" +
       "  SELECT review_id, user_id, votes, stars, business_id\n" +
-      "  FROM cp.`yelp_review.json` where 1 = 0\n" +
+      "  FROM cp.\"yelp_review.json\" where 1 = 0\n" +
       ") nested_0\n" +
       " FULL JOIN " + yelpTable + " AS join_business ON nested_0.business_id = join_business.business_id";
 
@@ -149,8 +150,8 @@ public class Limit0LogicalToPhysicalTest extends BaseTestQuery {
       CoordinationProtos.NodeEndpoint.getDefaultInstance(),
       DirectProvider.wrap(Mockito.mock(CatalogService.class)), context);
 
-    ExecutionPlan exec = ExecutionPlanCreator.getExecutionPlan(queryContext, pPlanReader, observer, plan, AsyncCommand.QueueType
-      .SMALL);
+    ExecutionPlan exec = ExecutionPlanCreator.getExecutionPlan(queryContext, pPlanReader, observer, plan,
+      QueueType.SMALL);
     List<CoordExecRPC.PlanFragment> fragments  = exec.getFragments();
 
     int scanFrags = 0;

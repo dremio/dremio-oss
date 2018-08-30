@@ -45,7 +45,7 @@ public class LimitOperator implements SingleInputOperator {
 
   public LimitOperator(OperatorContext context, Limit popConfig){
     this.context = context;
-    this.outgoing = new VectorContainer(context.getAllocator());
+    this.outgoing = context.createOutputVectorContainer();
 
     recordsToSkip = popConfig.getFirst();
     noEndLimit = popConfig.getLast() == null;

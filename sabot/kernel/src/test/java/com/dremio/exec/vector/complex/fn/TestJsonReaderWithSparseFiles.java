@@ -77,7 +77,7 @@ public class TestJsonReaderWithSparseFiles extends BaseTestQuery {
 
   protected void query(final String query, final Function<RecordBatchLoader> testBody) throws Exception {
     final List<QueryDataBatch> batches = testSqlWithResults(query);
-    final RecordBatchLoader loader = new RecordBatchLoader(client.getAllocator());
+    final RecordBatchLoader loader = new RecordBatchLoader(client.getRecordAllocator());
     try {
       // first batch at index 0 is empty and used for fast schema return. Load the second one for the tests
       final QueryDataBatch batch = batches.get(0);
@@ -93,7 +93,7 @@ public class TestJsonReaderWithSparseFiles extends BaseTestQuery {
 
   @Test
   public void testIfCanReadSparseRecords() throws Exception {
-    final String sql = "select * from cp.`vector/complex/fn/sparse.json`";
+    final String sql = "select * from cp.\"vector/complex/fn/sparse.json\"";
     //XXX: make sure value order matches vector order
     final Object[][] values = new Object[][] {
         {null, null},
@@ -106,7 +106,7 @@ public class TestJsonReaderWithSparseFiles extends BaseTestQuery {
 
   @Test
   public void testIfCanReadSparseNestedRecordsWithoutRaisingException() throws Exception {
-    final String sql = "select * from cp.`vector/complex/fn/nested-with-nulls.json`";
+    final String sql = "select * from cp.\"vector/complex/fn/nested-with-nulls.json\"";
     //XXX: make sure value order matches vector order
     final Object[][] values = new Object[][] {
         {"[{},{},{},{\"name\":\"doe\"},{}]"},
@@ -120,7 +120,7 @@ public class TestJsonReaderWithSparseFiles extends BaseTestQuery {
   @Test
   @Ignore
   public void testIfCanQuerySingleRecordWithEmpties() throws Exception {
-    final String sql = "select * from cp.`vector/complex/fn/single-record-with-empties.json`";
+    final String sql = "select * from cp.\"vector/complex/fn/single-record-with-empties.json\"";
     //XXX: make sure value order matches vector order
     final Object[][] values = new Object[][] {
         {"[{},{}]"},

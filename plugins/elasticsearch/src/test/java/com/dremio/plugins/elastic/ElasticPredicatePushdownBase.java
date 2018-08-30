@@ -109,7 +109,7 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
     String value = randomValue(type);
     String field = fieldName(type);
 
-    if (type == ElasticsearchType.STRING) {
+    if (type == ElasticsearchType.TEXT) {
       value = "'" + value + "'";
     }
 
@@ -121,8 +121,8 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
 
   private String fieldName(ElasticsearchType type) {
     switch (type) {
-    case STRING:
-      return "string_field";
+    case TEXT:
+      return "text_field";
     case INTEGER:
       return "integer_field";
     case LONG:
@@ -141,7 +141,7 @@ public class ElasticPredicatePushdownBase extends ElasticBaseTestQuery {
 
   private String randomValue(ElasticsearchType type) {
     switch (type) {
-    case STRING:
+    case TEXT:
       StringBuilder randomAsciiBuilder = new StringBuilder();
       for (int i = 0; i < 11; i++) {
         randomAsciiBuilder.append((char)(random.nextInt(26) + 'a'));

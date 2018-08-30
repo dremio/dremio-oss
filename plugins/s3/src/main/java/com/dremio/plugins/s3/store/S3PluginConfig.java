@@ -32,13 +32,13 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
 
 import io.protostuff.Tag;
@@ -46,7 +46,7 @@ import io.protostuff.Tag;
 /**
  * Connection Configuration for S3.
  */
-@SourceType("S3")
+@SourceType(value = "S3", label = "Amazon S3")
 public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlugin> {
 
   private static final Logger logger = LoggerFactory.getLogger(S3PluginConfig.class);
@@ -64,22 +64,24 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   //  repeated Property property = 5;
 
   @Tag(1)
+  @DisplayMetadata(label = "AWS Access Key")
   public String accessKey;
 
   @Tag(2)
   @Secret
+  @DisplayMetadata(label = "AWS Access Secret")
   public String accessSecret;
 
   @Tag(3)
+  @DisplayMetadata(label = "Encrypt connection")
   public boolean secure;
 
-  @JsonProperty("externalBucketList")
   @Tag(4)
-  public List<String> externalBuckets;
+  @DisplayMetadata(label = "External Buckets")
+  public List<String> externalBucketList;
 
-  @JsonProperty("propertyList")
   @Tag(5)
-  public List<Property> properties;
+  public List<Property> propertyList;
 
   @Override
   public S3StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
@@ -127,14 +129,14 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
       finalProperties.add(new Property("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider"));
     }
 
-    if (properties != null && !properties.isEmpty()) {
-      finalProperties.addAll(properties);
+    if (propertyList != null && !propertyList.isEmpty()) {
+      finalProperties.addAll(propertyList);
     }
 
 
     finalProperties.add(new Property(SECURE_CONNECTIONS, String.valueOf(secure)));
-    if(externalBuckets != null && !externalBuckets.isEmpty()){
-      finalProperties.add(new Property(EXTERNAL_BUCKETS, Joiner.on(",").join(externalBuckets)));
+    if(externalBucketList != null && !externalBucketList.isEmpty()){
+      finalProperties.add(new Property(EXTERNAL_BUCKETS, Joiner.on(",").join(externalBucketList)));
     }else {
       if(accessKey == null){
         throw UserException.validationError()

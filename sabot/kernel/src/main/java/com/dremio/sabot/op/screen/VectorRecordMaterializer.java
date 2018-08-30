@@ -17,6 +17,7 @@ package com.dremio.sabot.op.screen;
 
 import org.apache.arrow.memory.BufferAllocator;
 
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.record.VectorAccessible;

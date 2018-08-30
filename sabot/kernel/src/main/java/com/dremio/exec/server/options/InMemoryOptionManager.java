@@ -17,7 +17,10 @@ package com.dremio.exec.server.options;
 
 import java.util.Map;
 
-import com.dremio.exec.server.options.OptionValue.OptionType;
+
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
 
 /**
  * {@link OptionManager} that hold options in memory rather than in a persistent store. Option stored in
@@ -41,8 +44,8 @@ public abstract class InMemoryOptionManager extends FallbackOptionManager {
 
   @Override
   boolean setLocalOption(final OptionValue value) {
-    if (supportsOptionType(value.type)) {
-      options.put(value.name, value);
+    if (supportsOptionType(value.getType())) {
+      options.put(value.getName(), value);
       return true;
     } else {
       return false;

@@ -32,6 +32,7 @@ enum MaterializationState {
     CANCELED = 4; // refresh job canceled
     DEPRECATED = 5; // ready to be deleted
     DELETED = 6; // deletion processed
+    COMPACTED = 7; // terminal state, this materialization has been compacted
 }
 
 message ReflectionId {
@@ -64,6 +65,16 @@ enum DimensionGranularity {
 enum PartitionDistributionStrategy {
   CONSOLIDATED = 1;
   STRIPED = 2;
+}
+
+// the type of reflection measure.
+enum MeasureType {
+  UNKNOWN = 0;
+  MIN = 1;
+  MAX = 2;
+  SUM = 3;
+  COUNT = 4;
+  APPROX_COUNT_DISTINCT = 5;
 }
 
 // failure details

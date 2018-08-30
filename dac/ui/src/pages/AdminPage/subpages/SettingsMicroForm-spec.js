@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow, mount } from 'enzyme';
+import { mount, shallow } from 'enzyme';
 import Immutable from 'immutable';
 import { minimalFormProps } from 'testUtil';
 
-import {SettingsMicroForm} from './SettingsMicroForm';
-import {LABELS} from './settingsConfig';
+import { SettingsMicroForm } from './SettingsMicroForm';
+import { LABELS } from './settingsConfig';
 
 describe('SettingsMicroForm', () => {
 
@@ -73,6 +73,16 @@ describe('SettingsMicroForm', () => {
     it('when field is dirty', () => {
       const wrapper = shallow(<SettingsMicroForm {...commonProps} fields={dirtyFields} />);
       expect(wrapper.find('SimpleButton').props().style.visibility).to.be.equal('visible');
+    });
+
+    it('with reset', () => {
+      const resetSetting = () => {};
+      const wrapper = shallow(<SettingsMicroForm {...commonProps} resetSetting={resetSetting} />);
+      expect(wrapper.find('SimpleButton').length).to.be.equal(2);
+
+      const saveButton = wrapper.find('SimpleButton').at(0);
+      expect(saveButton.props().style.visibility).to.be.equal('hidden');
+      expect(saveButton.props().style.display).to.be.equal('none');
     });
   });
 

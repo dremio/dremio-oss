@@ -169,8 +169,8 @@ public class LuceneSearchIndex implements AutoCloseable {
 
       writer = new IndexWriter(directory, writerConfig);
       writer.commit();
-      searcherManager = new SearcherManager(writer, true, null);
-      reader = DirectoryReader.open(writer, true);
+      searcherManager = new SearcherManager(writer, true, true, null);
+      reader = DirectoryReader.open(writer, true, true);
 
       committerThread = new CommitterThread();
     } catch(IOException ex){

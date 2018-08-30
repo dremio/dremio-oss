@@ -31,6 +31,8 @@ public interface AccelerationManager {
   void replanlayout(String layoutId);
   <T> T unwrap(Class<T> clazz);
 
+  ExcludedReflectionsProvider getExcludedReflectionsProvider();
+
   AccelerationDetailsPopulator newPopulator();
 
   AccelerationManager NO_OP = new AccelerationManager() {
@@ -62,6 +64,11 @@ public interface AccelerationManager {
     @Override
     public void replanlayout(String layoutId) {
       throw new UnsupportedOperationException("AccelerationManager.replanlayout() called on a non-coordinator node");
+    }
+
+    @Override
+    public ExcludedReflectionsProvider getExcludedReflectionsProvider() {
+      throw new UnsupportedOperationException("AccelerationManager.getExcludedReflectionsProvider() called on a non-coordinator node");
     }
 
     @Override

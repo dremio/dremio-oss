@@ -23,8 +23,8 @@ import java.util.List;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.arrow.vector.GenerateSampleData;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.types.Types.MinorType;
@@ -47,10 +47,9 @@ public class TestLoad extends ExecTest {
 
   @Test
   public void testLoadValueVector() throws Exception {
-    final BufferAllocator allocator = RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG);
-    final ValueVector fixedV = new NullableIntVector("ints", allocator);
-    final ValueVector varlenV = new NullableVarCharVector("chars", allocator);
-    final ValueVector nullableVarlenV = new NullableVarCharVector("chars", allocator);
+    final ValueVector fixedV = new IntVector("ints", allocator);
+    final ValueVector varlenV = new VarCharVector("chars", allocator);
+    final ValueVector nullableVarlenV = new VarCharVector("chars", allocator);
 
     final List<ValueVector> vectors = Lists.newArrayList(fixedV, varlenV, nullableVarlenV);
     for (final ValueVector v : vectors) {
@@ -115,6 +114,7 @@ public class TestLoad extends ExecTest {
       }
     }
     assertEquals(100, recordCount);
+    byteBuf.release();
     batchLoader.clear();
     writableBatch.clear();
   }

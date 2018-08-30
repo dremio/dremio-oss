@@ -20,10 +20,9 @@ import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.Objects;
 
-import org.apache.htrace.fasterxml.jackson.annotation.JsonCreator;
-
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.store.StoragePluginConfig;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableMap;

@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
@@ -29,9 +30,12 @@ import com.dremio.exec.expr.ClassProducerImpl;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.server.NodeDebugContextProvider;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.testing.ExecutionControls;
+import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.dremio.service.namespace.NamespaceService;
 import com.google.common.annotations.VisibleForTesting;
 
@@ -44,6 +48,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   private final SabotConfig config;
   private final FragmentHandle handle;
   private final BufferAllocator allocator;
+  private final BufferAllocator fragmentOutputAllocator;
   private final ExecutionControls executionControls;
   private boolean closed = false;
   private final PhysicalOperator popConfig;
@@ -62,6 +67,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       FragmentHandle handle,
       PhysicalOperator popConfig,
       BufferAllocator allocator,
+      BufferAllocator fragmentOutputAllocator,
       CodeCompiler compiler,
       OperatorStats stats,
       ExecutionControls executionControls,
@@ -75,6 +81,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     this.config = config;
     this.handle = handle;
     this.allocator = allocator;
+    this.fragmentOutputAllocator = fragmentOutputAllocator;
     this.popConfig = popConfig;
     this.manager = new BufferManagerImpl(allocator);
     this.stats = stats;
@@ -93,7 +100,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       OptionManager optionManager,
       int targetBatchSize
       ) {
-    this(config, null, null, allocator, null, null, null, null, null, null,
+    this(config, null, null, allocator, allocator, null, null, null, null, null, null,
       optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize);
   }
 
@@ -137,6 +144,30 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       throw new UnsupportedOperationException("Operator context does not have an allocator");
     }
     return allocator;
+  }
+
+  @Override
+  public VectorContainer createOutputVectorContainer() {
+    return new VectorContainer(fragmentOutputAllocator);
+  }
+
+  @Override
+  public VectorContainer createOutputVectorContainer(Schema schema) {
+    return VectorContainer.create(fragmentOutputAllocator, schema);
+  }
+
+  @Override
+  public VectorContainerWithSV createOutputVectorContainerWithSV() {
+    return new VectorContainerWithSV(fragmentOutputAllocator, new SelectionVector2(fragmentOutputAllocator));
+  }
+
+  @Override
+  public VectorContainerWithSV createOutputVectorContainerWithSV(SelectionVector2 incomingSv) {
+    return new VectorContainerWithSV(fragmentOutputAllocator, incomingSv.clone());
+  }
+
+  private BufferAllocator getFragmentOutputAllocator() {
+    return fragmentOutputAllocator;
   }
 
   public boolean isClosed() {

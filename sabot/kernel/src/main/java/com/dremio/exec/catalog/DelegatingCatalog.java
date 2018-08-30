@@ -28,6 +28,7 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.ischema.tables.TablesTable;
+import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -168,8 +169,8 @@ public class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public boolean createOrUpdateDataset(NamespaceService userNamespaceService, NamespaceKey source, NamespaceKey datasetPath, DatasetConfig datasetConfig) throws NamespaceException {
-    return delegate.createOrUpdateDataset(userNamespaceService, source, datasetPath, datasetConfig);
+  public boolean createOrUpdateDataset(NamespaceService userNamespaceService, NamespaceKey source, NamespaceKey datasetPath, DatasetConfig datasetConfig, NamespaceAttribute... attributes) throws NamespaceException {
+    return delegate.createOrUpdateDataset(userNamespaceService, source, datasetPath, datasetConfig, attributes);
   }
 
   @Override
@@ -178,13 +179,13 @@ public class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public void createSource(SourceConfig config) {
-    delegate.createSource(config);
+  public void createSource(SourceConfig config, NamespaceAttribute... attributes) {
+    delegate.createSource(config, attributes);
   }
 
   @Override
-  public void updateSource(SourceConfig config) {
-    delegate.updateSource(config);
+  public void updateSource(SourceConfig config,  NamespaceAttribute... attributes) {
+    delegate.updateSource(config, attributes);
   }
 
   @Override

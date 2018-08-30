@@ -27,6 +27,7 @@ import com.dremio.service.accelerator.proto.LayoutContainer;
 import com.dremio.service.accelerator.proto.LayoutDetails;
 import com.dremio.service.accelerator.proto.LayoutDimensionField;
 import com.dremio.service.accelerator.proto.LayoutField;
+import com.dremio.service.accelerator.proto.LayoutMeasureField;
 import com.dremio.service.accelerator.proto.LayoutType;
 import com.dremio.service.accelerator.store.AccelerationEntryStore;
 import com.dremio.service.accelerator.store.AccelerationStore;
@@ -35,6 +36,7 @@ import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.proto.DimensionGranularity;
+import com.dremio.service.reflection.proto.MeasureType;
 import com.dremio.service.reflection.proto.PartitionDistributionStrategy;
 import com.dremio.service.reflection.proto.ReflectionDetails;
 import com.dremio.service.reflection.proto.ReflectionDimensionField;
@@ -42,8 +44,10 @@ import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionId;
+import com.dremio.service.reflection.proto.ReflectionMeasureField;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
 /**
@@ -149,12 +153,21 @@ public class MoveFromAccelerationsToReflections extends UpgradeTask {
       }
     }
 
+    List<ReflectionMeasureField> measureFields = new ArrayList<>();
+    if (details.getMeasureFieldList() != null) {
+      for (LayoutMeasureField field : details.getMeasureFieldList()) {
+        ReflectionMeasureField meas = new ReflectionMeasureField(field.getName());
+        meas.setMeasureTypeList(ImmutableList.of(MeasureType.COUNT, MeasureType.SUM));
+        measureFields.add(meas);
+      }
+    }
+
     reflectionDetails.setDimensionFieldList(dimensionFields);
     reflectionDetails.setPartitionFieldList(getFields(details.getPartitionFieldList()));
     reflectionDetails.setSortFieldList(getFields(details.getSortFieldList()));
     reflectionDetails.setDistributionFieldList(getFields(details.getDistributionFieldList()));
     reflectionDetails.setDisplayFieldList(getFields(details.getDisplayFieldList()));
-    reflectionDetails.setMeasureFieldList(getFields(details.getMeasureFieldList()));
+    reflectionDetails.setMeasureFieldList(measureFields);
 
     if (details.getPartitionDistributionStrategy() == com.dremio.service.accelerator.proto.PartitionDistributionStrategy.CONSOLIDATED) {
       reflectionDetails.setPartitionDistributionStrategy(PartitionDistributionStrategy.CONSOLIDATED);

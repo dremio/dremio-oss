@@ -37,9 +37,9 @@ public class TestOptions extends BaseTestQuery{
   public void testOptions() throws Exception{
     test(
         "select * from sys.options;" +
-        "ALTER SYSTEM set `planner.disable_exchanges` = true;" +
+        "ALTER SYSTEM set \"planner.disable_exchanges\" = true;" +
         "select * from sys.options;" +
-        "ALTER SESSION set `planner.disable_exchanges` = true;" +
+        "ALTER SESSION set \"planner.disable_exchanges\" = true;" +
         "select * from sys.options;"
     );
   }
@@ -52,7 +52,7 @@ public class TestOptions extends BaseTestQuery{
 
   @Test // DRILL-3122
   public void checkChangedColumn() throws Exception {
-    test("ALTER session SET `%s` = %d;", SLICE_TARGET,
+    test("ALTER session SET \"%s\" = %d;", SLICE_TARGET,
       ExecConstants.SLICE_TARGET_DEFAULT);
     testBuilder()
         .sqlQuery("SELECT status FROM sys.options WHERE name = '%s' AND type = 'SESSION'", SLICE_TARGET)
@@ -74,7 +74,7 @@ public class TestOptions extends BaseTestQuery{
       .run();
 
     // change option
-    test("SET `%s` = %d;", SLICE_TARGET, 10);
+    test("SET \"%s\" = %d;", SLICE_TARGET, 10);
     // check changed
     test("SELECT status, type, name FROM sys.options WHERE type = 'SESSION';");
     testBuilder()
@@ -86,7 +86,7 @@ public class TestOptions extends BaseTestQuery{
       .run();
 
     // reset option
-    test("RESET `%s`;", SLICE_TARGET);
+    test("RESET \"%s\";", SLICE_TARGET);
     // check reverted
     testBuilder()
       .sqlQuery("SELECT status FROM sys.options WHERE name = '%s' AND type = 'SESSION'", SLICE_TARGET)
@@ -108,7 +108,7 @@ public class TestOptions extends BaseTestQuery{
       .run();
 
     // change option
-    test("ALTER system SET `%s` = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
+    test("ALTER system SET \"%s\" = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
     // check changed
     testBuilder()
       .sqlQuery("SELECT bool_val FROM sys.options WHERE name = '%s' AND type = 'SYSTEM'", ENABLE_VERBOSE_ERRORS_KEY)
@@ -119,7 +119,7 @@ public class TestOptions extends BaseTestQuery{
       .run();
 
     // reset option
-    test("ALTER system RESET `%s`;", ENABLE_VERBOSE_ERRORS_KEY);
+    test("ALTER system RESET \"%s\";", ENABLE_VERBOSE_ERRORS_KEY);
     // check reverted
     testBuilder()
       .sqlQuery("SELECT status FROM sys.options WHERE name = '%s' AND type = 'SYSTEM'", ENABLE_VERBOSE_ERRORS_KEY)
@@ -133,7 +133,7 @@ public class TestOptions extends BaseTestQuery{
   @Test
   public void resetAllSessionOptions() throws Exception {
     // change options
-    test("SET `%s` = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
+    test("SET \"%s\" = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
     // check changed
     testBuilder()
       .sqlQuery("SELECT bool_val FROM sys.options WHERE type = 'SESSION' AND name = '%s'", ENABLE_VERBOSE_ERRORS_KEY)
@@ -157,8 +157,8 @@ public class TestOptions extends BaseTestQuery{
   @Test
   public void changeSessionAndSystemButRevertSession() throws Exception {
     // change options
-    test("ALTER SESSION SET `%s` = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
-    test("ALTER SYSTEM SET `%s` = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
+    test("ALTER SESSION SET \"%s\" = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
+    test("ALTER SYSTEM SET \"%s\" = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
     // check changed
     testBuilder()
       .sqlQuery("SELECT bool_val FROM sys.options WHERE type = 'SESSION' AND name = '%s'", ENABLE_VERBOSE_ERRORS_KEY)
@@ -177,7 +177,7 @@ public class TestOptions extends BaseTestQuery{
       .run();
 
     // reset session option
-    test("RESET `%s`;", ENABLE_VERBOSE_ERRORS_KEY);
+    test("RESET \"%s\";", ENABLE_VERBOSE_ERRORS_KEY);
     // check reverted
     testBuilder()
       .sqlQuery("SELECT status FROM sys.options WHERE name = '%s' AND type = 'SESSION'", ENABLE_VERBOSE_ERRORS_KEY)
@@ -194,14 +194,14 @@ public class TestOptions extends BaseTestQuery{
       .build()
       .run();
     // reset system option
-    test("ALTER SYSTEM RESET `%s`;", ENABLE_VERBOSE_ERRORS_KEY);
+    test("ALTER SYSTEM RESET \"%s\";", ENABLE_VERBOSE_ERRORS_KEY);
   }
 
   @Test
   public void changeSessionAndNotSystem() throws Exception {
     // change options
-    test("ALTER SESSION SET `%s` = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
-    test("ALTER SYSTEM SET `%s` = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
+    test("ALTER SESSION SET \"%s\" = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
+    test("ALTER SYSTEM SET \"%s\" = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
     // check changed
     testBuilder()
       .sqlQuery("SELECT bool_val FROM sys.options WHERE type = 'SESSION' AND name = '%s'", ENABLE_VERBOSE_ERRORS_KEY)
@@ -241,8 +241,8 @@ public class TestOptions extends BaseTestQuery{
   @Test
   public void changeSystemAndNotSession() throws Exception {
     // change options
-    test("ALTER SESSION SET `%s` = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
-    test("ALTER SYSTEM SET `%s` = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
+    test("ALTER SESSION SET \"%s\" = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
+    test("ALTER SYSTEM SET \"%s\" = %b;", ENABLE_VERBOSE_ERRORS_KEY, true);
     // check changed
     testBuilder()
       .sqlQuery("SELECT bool_val FROM sys.options WHERE type = 'SESSION' AND name = '%s'", ENABLE_VERBOSE_ERRORS_KEY)
@@ -261,7 +261,7 @@ public class TestOptions extends BaseTestQuery{
       .run();
 
     // reset option
-    test("ALTER system RESET `%s`;", ENABLE_VERBOSE_ERRORS_KEY);
+    test("ALTER system RESET \"%s\";", ENABLE_VERBOSE_ERRORS_KEY);
     // check reverted
     testBuilder()
       .sqlQuery("SELECT status FROM sys.options WHERE name = '%s' AND type = 'SYSTEM'", ENABLE_VERBOSE_ERRORS_KEY)
@@ -284,6 +284,6 @@ public class TestOptions extends BaseTestQuery{
   public void unsupportedLiteralValidation() throws Exception {
     thrownException.expect(new UserExceptionMatcher(VALIDATION,
       "Dremio doesn't support assigning literals of type"));
-    test("ALTER session SET `%s` = DATE '1995-01-01';", ENABLE_VERBOSE_ERRORS_KEY);
+    test("ALTER session SET \"%s\" = DATE '1995-01-01';", ENABLE_VERBOSE_ERRORS_KEY);
   }
 }

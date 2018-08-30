@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.page-content {
-  padding: 0;
-  display: flex;
-  flex: 1 1 auto;
-  height: 100%;
-  overflow: auto;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+
+  .page-content {
+    padding: 0;
+    display: flex;
+    flex: 1 1 auto;
+    height: 100%;
+    overflow: auto;
+  }
 }

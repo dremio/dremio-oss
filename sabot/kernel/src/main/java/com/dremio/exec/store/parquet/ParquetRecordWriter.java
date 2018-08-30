@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.parquet;
 
+import static com.dremio.common.arrow.DremioArrowSchema.DREMIO_ARROW_SCHEMA_2_1;
 import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.Math.max;
@@ -33,9 +34,9 @@ import javax.annotation.Nullable;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.UnionVectorHelper;
-import org.apache.arrow.vector.complex.impl.SingleMapReaderImpl;
+import org.apache.arrow.vector.complex.impl.SingleStructReaderImpl;
 import org.apache.arrow.vector.complex.impl.UnionReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.NullableTimeStampMilliHolder;
@@ -45,6 +46,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.parquet.NoExceptionAutoCloseables;
 import org.apache.parquet.column.ColumnWriteStore;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.ParquetProperties.WriterVersion;
@@ -106,8 +108,6 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       return ordinal();
     }
   }
-
-  public static final String DREMIO_ARROW_SCHEMA = "dremio.arrow.schema";
 
   private static final int MINIMUM_RECORD_COUNT_FOR_CHECK = 100;
   private static final int MAXIMUM_RECORD_COUNT_FOR_CHECK = 10000;
@@ -251,7 +251,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     recordCountForNextMemCheck = min(max(MINIMUM_RECORD_COUNT_FOR_CHECK, recordCountForNextMemCheck / 2), MAXIMUM_RECORD_COUNT_FOR_CHECK);
 
     String json = new Schema(batchSchema).toJson();
-    extraMetaData.put(DREMIO_ARROW_SCHEMA, json);
+    extraMetaData.put(DREMIO_ARROW_SCHEMA_2_1, json);
     List<Type> types = Lists.newArrayList();
     for (Field field : batchSchema) {
       if (field.getName().equalsIgnoreCase(WriterPrel.PARTITION_COMPARATOR_FIELD)) {
@@ -293,7 +293,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private Type getType(Field field) {
     MinorType minorType = getMajorTypeForField(field).getMinorType();
     switch(minorType) {
-      case MAP: {
+      case STRUCT: {
         List<Type> types = Lists.newArrayList();
         for (Field childField : field.getChildren()) {
           Type childType = getType(childField);
@@ -384,7 +384,8 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       // we are writing one single block per file
       parquetFileWriter.end(extraMetaData);
       byte[] metadata = this.trackingConverter == null ? null : trackingConverter.getMetadata();
-      listener.recordsWritten(recordsWritten, path.toString(), metadata /** TODO: add parquet footer **/, partition.getBucketNumber());
+      final long fileSize = parquetFileWriter.getPos();
+      listener.recordsWritten(recordsWritten, fileSize, path.toString(), metadata /** TODO: add parquet footer **/, partition.getBucketNumber());
       parquetFileWriter = null;
 
       updateStats(memSize, recordCount);
@@ -530,8 +531,8 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   @Override
   public FieldConverter getNewUnionConverter(int fieldId, String fieldName, FieldReader reader) {
     UnionReader unionReader = (UnionReader)reader;
-    MapVector internalMap = new UnionVectorHelper(unionReader.data).getInternalMap();
-    SingleMapReaderImpl mapReader = new SingleMapReaderImpl(internalMap);
+    NonNullableStructVector internalMap = new UnionVectorHelper(unionReader.data).getInternalMap();
+    SingleStructReaderImpl mapReader = new SingleStructReaderImpl(internalMap);
     return getNewMapConverter(fieldId, fieldName, mapReader);
   }
 
@@ -675,18 +676,21 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(new AutoCloseable() {
-      @Override
-      public void close() throws Exception {
-        flushAndClose();
+    try {
+      flushAndClose();
+    } finally {
+      try {
+        NoExceptionAutoCloseables.close(store, pageStore, parquetFileWriter);
+      } finally {
+        AutoCloseables.close(new AutoCloseable() {
+            @Override
+            public void close() throws Exception {
+              codecFactory.release();
+            }
+          },
+          codecAllocator, columnEncoderAllocator);
       }
-    }, new AutoCloseable() {
-      @Override
-      public void close() throws Exception {
-        codecFactory.release();
-      }
-    },
-    codecAllocator, columnEncoderAllocator);
+    }
   }
 
   @Override

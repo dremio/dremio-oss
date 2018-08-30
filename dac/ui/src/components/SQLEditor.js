@@ -20,18 +20,41 @@ import Immutable from 'immutable';
 import * as SQLLanguage from 'monaco-editor/dev/vs/basic-languages/src/sql';
 
 import {RESERVED_WORDS} from 'utils/pathUtils';
-
-import './SQLEditor.css';
+import { SQLAutoCompleteProvider } from './SQLAutoCompleteProvider';
+import './SQLEditor.less';
 
 let haveLoaded = false;
 let SnippetController;
+const language = 'dremio-sql';
+
+
+const staticPropTypes = {
+  height: PropTypes.number.isRequired, // pass-thru
+  defaultValue: PropTypes.string, // pass-thru
+  onChange: PropTypes.func,
+  errors: PropTypes.instanceOf(Immutable.List),
+  readOnly: PropTypes.bool,
+  fitHeightToContent: PropTypes.bool,
+  maxHeight: PropTypes.number, // is only applicable for fitHeightToContent case
+  contextMenu: PropTypes.bool,
+  autoCompleteEnabled: PropTypes.bool,
+  sqlContext: PropTypes.instanceOf(Immutable.List)
+};
+
+const checkHeightAndFitHeightToContentFlags = (props, propName, componentName) => {
+  if (props.fitHeightToContent) {
+    if (props.height !== undefined) {
+      return new Error('Height must not be provided if fitHeightToContent property set to true');
+    }
+  } else {
+    return PropTypes.checkPropTypes(staticPropTypes, props, propName, componentName); // reuse stnadard prop types check
+  }
+};
 
 export default class SQLEditor extends PureComponent {
   static propTypes = {
-    height: PropTypes.number.isRequired, // pass-thru
-    defaultValue: PropTypes.string, // pass-thru
-    onChange: PropTypes.func,
-    errors: PropTypes.instanceOf(Immutable.List)
+    ...staticPropTypes,
+    height: checkHeightAndFitHeightToContentFlags // pass-thru
 
     // all others pass thru
   }
@@ -39,7 +62,10 @@ export default class SQLEditor extends PureComponent {
   reseting = false;
   monacoEditorComponent = null;
   monaco = null;
+  editor = null;
   previousDecorations = [];
+  autoCompleteResources = []; // will store onDidTypeListener and auto completion provider for dispose purposes
+  _focusOnMount = false;
 
   state = {
     language: 'sql'
@@ -49,6 +75,8 @@ export default class SQLEditor extends PureComponent {
     if (this.props.defaultValue !== undefined) {
       this.resetValue();
     }
+
+    this.fitHeightToContent();
   }
 
   // do this in componentDidUpdate so it only happens once mounted.
@@ -59,6 +87,17 @@ export default class SQLEditor extends PureComponent {
     if (this.props.errors !== prevProps.errors) {
       this.applyDecorations();
     }
+    if (this.props.fitHeightToContent && this.props.value !== prevProps.value) {
+      this.fitHeightToContent();
+    }
+
+    if (this.props.autoCompleteEnabled !== prevProps.autoCompleteEnabled) {
+      this.setAutocompletion(this.props.autoCompleteEnabled);
+    }
+  }
+
+  componentWillUnmount() {
+    this.removeAutoCompletion();
   }
 
   handleChange = (...args) => {
@@ -77,8 +116,19 @@ export default class SQLEditor extends PureComponent {
     try {
       this.monacoEditorComponent.editor.setValue(this.props.defaultValue || '');
       this.applyDecorations();
+      this.focus();
     } finally {
       this.reseting = false;
+    }
+  }
+
+  focus() {
+    const editor = this.monacoEditorComponent.editor;
+    if (editor) {
+      editor.focus();
+      this._focusOnMount = false;
+    } else {
+      this._focusOnMount = true;
     }
   }
 
@@ -111,12 +161,24 @@ export default class SQLEditor extends PureComponent {
         );
       }
 
+      // idea was taken from setModelMarkers (see https://github.com/Microsoft/monaco-editor/issues/255
+      // and https://github.com/Microsoft/monaco-typescript/blob/master/src/languageFeatures.ts#L140)
+      // however it is not possible to set stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+      // for markers. That is why I copied styles, that are generated for markers decoration and applied them here
+      // I marked copied styles by comment // [marker-decoration-source]
       return {
         range,
         options: {
           hoverMessage: error.message, // todo: loc
-          inlineClassName: 'dremio-error-decoration',
-          stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges
+          linesDecorationsClassName: 'dremio-error-line',
+          stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+          className: 'redsquiggly', // [marker-decoration-source]
+          overviewRuler: { // [marker-decoration-source]
+            color: 'rgba(255,18,18,0.7)', // [marker-decoration-source] // if change this value, also change @monaco-error variable in color-schema.scss
+            darkColor: 'rgba(255,18,18,0.7)', // [marker-decoration-source]
+            hcColor: 'rgba(255,50,50,1)', // [marker-decoration-source]
+            position: monaco.editor.OverviewRulerLane.Right // [marker-decoration-source]
+          }
         }
       };
     });
@@ -124,11 +186,72 @@ export default class SQLEditor extends PureComponent {
     this.previousDecorations = this.monacoEditorComponent.editor.deltaDecorations(this.previousDecorations, decorations);
   }
 
+  fitHeightToContent() {
+    const {
+      fitHeightToContent,
+      maxHeight
+    } = this.props;
+
+    if (!fitHeightToContent) return;
+
+    const editor = this.monacoEditorComponent && this.monacoEditorComponent.editor;
+
+    if (!editor) return;
+
+    let height = this._getContentHeight(editor);
+
+    if (maxHeight && maxHeight < height) {
+      height = maxHeight;
+    }
+
+    editor.layout({ height });
+  }
+
+  _getContentHeight(editor) {
+    const configuration = editor.getConfiguration();
+
+    const lineHeight = configuration.lineHeight;
+    // we need take in account row wrapping. The solution was found here
+    // https://github.com/Microsoft/monaco-editor/issues/947#issuecomment-403756024
+    const lineCount = editor.viewModel.getLineCount();
+    const contentHeight = lineHeight * lineCount;
+
+    const horizontalScrollbarHeight = configuration.layoutInfo.horizontalScrollbarHeight;
+
+    const editorHeight = contentHeight + horizontalScrollbarHeight;
+    const defaultHeight = lineHeight * (this.minHeight || 0) + horizontalScrollbarHeight;
+    return Math.max(defaultHeight, editorHeight);
+  }
+
+  setAutocompletion(enabled) {
+    this.removeAutoCompletion();
+    const editor = this.editor;
+
+    if (!enabled || !editor) return;
+
+    this.autoCompleteResources.push(this.monaco.languages
+      .registerCompletionItemProvider(language, SQLAutoCompleteProvider(this.monaco, this.getSqlContext)));
+
+    this.autoCompleteResources.push(this.editor.onDidType(text => {
+      if (!/\s/.test(text)) { // call autocomplete only for not whitespace string
+        editor.trigger('dremio autocomplete request', 'editor.action.triggerSuggest', {});
+      }
+    }));
+  }
+
+  getSqlContext = () => this.props.sqlContext ? this.props.sqlContext.toJS() : [];
+
+  removeAutoCompletion() {
+    if (this.autoCompleteResources) {
+      this.autoCompleteResources.forEach(resource => {
+        resource.dispose();
+      });
+    }
+    this.autoCompleteResources = [];
+  }
+
   editorDidMount = (editor, monaco) => {
     this.monaco = monaco;
-
-    const language = 'dremio-sql';
-
     editor.getDomNode()._monacoEditor = editor; // for e2e tests
 
     // if this is our first time using monaco it will lazy load
@@ -160,9 +283,17 @@ export default class SQLEditor extends PureComponent {
     window.dremioEditor = editor;
     window.monaco = monaco;
 
+    this.editor = editor;
     this.applyDecorations();
+    this.setAutocompletion(this.props.autoCompleteEnabled);
+
+    this.fitHeightToContent();
 
     this.setState({language});
+
+    if (this._focusOnMount) {
+      this.focus();
+    }
   }
 
   insertSnippet() {
@@ -170,7 +301,13 @@ export default class SQLEditor extends PureComponent {
   }
 
   render() {
-    const {onChange, errors, ...monacoProps} = this.props;
+    const {
+      onChange,
+      errors,
+      readOnly,
+      contextMenu,
+      fitHeightToContent, // here to not pass it in monaco editor, as it does not support it
+       ...monacoProps} = this.props;
 
     return <MonacoEditor
       {...monacoProps}
@@ -186,9 +323,13 @@ export default class SQLEditor extends PureComponent {
         scrollBeyondLastLine: false,
         scrollbar: {vertical: 'visible', useShadows: false},
         automaticLayout: true,
+        lineDecorationsWidth: 12,
         minimap: {
           enabled: false
-        }
+        },
+        suggestLineHeight: 25,
+        readOnly,
+        contextmenu: contextMenu // a case is important here
       }}
       requireConfig={{url: '/vs/loader.js', paths: {vs: '/vs'}}}
     />;

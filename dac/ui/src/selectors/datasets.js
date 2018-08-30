@@ -16,7 +16,6 @@
 import { createSelector } from 'reselect';
 import Immutable from 'immutable';
 
-import { getResourceId } from 'utils/pathUtils';
 import { HOME_SPACE_NAME, RECENT_SPACE_NAME } from 'constants/Constants';
 
 import { getSortedSources, getSortedSpaces, denormalizeFile } from 'selectors/resources';
@@ -49,26 +48,6 @@ function _getResource(state, props) {
   return hash[props.pageType] || hash.home;
 }
 
-function _getResourceKey(props) {
-  const hash = {
-    source: 'source',
-    space: 'space',
-    home: 'home',
-    recent: 'recent'
-  };
-  return hash[props.pageType] || hash.home;
-}
-
-function _getPathToData(props) {
-  const key = _getResourceKey(props);
-  const resourceId = getResourceId(key, props.routeParams.resourceId);
-  const keyHash = {
-    recent: 'space',
-    home: 'space'
-  };
-  return [keyHash[key] || key, resourceId];
-}
-
 function _getDatasetConfigs(state, props) {
   const resource = _getResource(state, props);
   return resource.get('datasetConfigs') || Immutable.Map();
@@ -77,13 +56,6 @@ function _getDatasetConfigs(state, props) {
 function _getAllDatasets(state, props) {
   const resource = _getResource(state, props);
   return resource.get('datasets') || Immutable.Map();
-}
-
-function _getPhysicalsDatasets(state, props) {
-  const resource = state.resources.entities;
-  const datasetPath = _getPathToData(props).concat(['physicalDatasets']);
-  const datasetsNames = resource.getIn(datasetPath);
-  return ( datasetsNames || Immutable.Map() ).map(name => resource.getIn(['physicalDataset', name]));
 }
 
 function _getDataListToShow(state, props, name) {
@@ -219,13 +191,6 @@ export const getDatasets = createSelector(
   [ getDatasetsList ],
   datasets => {
     return datasets;
-  }
-);
-
-export const getPhysicalsDatasets = createSelector(
-  [ _getPhysicalsDatasets ],
-  physicalDatasets => {
-    return physicalDatasets;
   }
 );
 

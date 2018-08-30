@@ -15,22 +15,14 @@
  */
 package com.dremio.service.reflection.handlers;
 
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
-
 import java.util.UUID;
 
-import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.service.job.proto.JobId;
-import com.dremio.service.job.proto.MaterializationSummary;
-import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
-import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.SqlQuery;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.reflection.ReflectionManager.WakeUpCallback;
+import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.WakeUpManagerWhenJobDone;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
@@ -39,7 +31,6 @@ import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 
 /**
  * called when a materialization job is started
@@ -83,23 +74,8 @@ public class RefreshStartHandler {
 
     final String sql = String.format("REFRESH REFLECTION '%s' AS '%s'", reflectionId.getId(), materialization.getId().getId());
 
-    final SqlQuery query = new SqlQuery(sql, SYSTEM_USERNAME);
-    NamespaceKey datasetPathList = new NamespaceKey(namespaceService.findDatasetByUUID(entry.getDatasetId()).getFullPathList());
-    DatasetVersion datasetVersion = new DatasetVersion(entry.getDatasetVersion());
-    MaterializationSummary materializationSummary = new MaterializationSummary()
-      .setDatasetId(entry.getDatasetId())
-      .setReflectionId(entry.getId().getId())
-      .setLayoutVersion(entry.getVersion().intValue())
-      .setMaterializationId(id.getId());
-
-    final Job job = jobsService.submitJob(
-      JobRequest.newMaterializationJobBuilder(materializationSummary,
-        new SubstitutionSettings(ImmutableList.<String>of()))
-        .setSqlQuery(query)
-        .setQueryType(QueryType.ACCELERATOR_CREATE)
-        .setDatasetPath(datasetPathList)
-        .setDatasetVersion(datasetVersion)
-        .build(), new WakeUpManagerWhenJobDone(wakeUpCallback, "materialization job"));
+    final Job job = ReflectionUtils.submitRefreshJob(jobsService, namespaceService, entry, materialization, sql,
+      new WakeUpManagerWhenJobDone(wakeUpCallback, "materialization job done"));
 
     logger.debug("starting materialization job {}", job.getJobId().getId());
 

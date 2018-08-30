@@ -204,7 +204,6 @@ export default class CellPopover extends Component {
           <SelectedTextPopover
             copySelection={this.copySelection}
             visibleItems={this.props.availibleActions}
-            location={this.props.location}
             anchor={this.state.anchor}
             hideDrop={this.hideDrop}
             columnType={this.props.cellPopover.get('columnType')}

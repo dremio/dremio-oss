@@ -38,10 +38,12 @@ import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.metastore.api.Order;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.io.RCFileInputFormat;
+import org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat;
+import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
 import org.apache.hadoop.hive.ql.metadata.HiveUtils;
@@ -88,7 +90,6 @@ import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.dataset.proto.ScanStats;
 import com.dremio.service.namespace.dataset.proto.ScanStatsType;
 import com.dremio.service.namespace.proto.EntityId;
-import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.FluentIterable;
@@ -105,8 +106,6 @@ class DatasetBuilder implements SourceTableDefinition {
 
   private static final String EMPTY_STRING = "";
 
-  public static final double RECORD_SIZE = 1024;
-
   private final HiveClient client;
   private final NamespaceKey datasetPath;
   private final String user;
@@ -120,9 +119,12 @@ class DatasetBuilder implements SourceTableDefinition {
   private boolean built = false;
   private List<DatasetSplit> splits = new ArrayList<>();
   private final boolean ignoreAuthzErrors;
+  private final StatsEstimationParameters statsParams;
 
 
-  private DatasetBuilder(HiveClient client, String user, NamespaceKey datasetPath, boolean ignoreAuthzErrors, HiveConf hiveConf, String dbName, String tableName, Table table, DatasetConfig oldConfig){
+  private DatasetBuilder(HiveClient client, String user, NamespaceKey datasetPath, boolean ignoreAuthzErrors,
+      StatsEstimationParameters statsParams, HiveConf hiveConf, String dbName, String tableName, Table table,
+      DatasetConfig oldConfig){
     if(oldConfig == null){
       datasetConfig = new DatasetConfig()
           .setPhysicalDataset(new PhysicalDataset())
@@ -140,6 +142,39 @@ class DatasetBuilder implements SourceTableDefinition {
     this.dbName = dbName;
     this.tableName = tableName;
     this.ignoreAuthzErrors = ignoreAuthzErrors;
+    this.statsParams = statsParams;
+  }
+
+  /**
+   * Set of parameters controlling the process of estimating records in a hive table/partition
+   */
+  static class StatsEstimationParameters {
+    private final boolean useMetastoreStats;
+    private final int listSizeEstimate;
+    private final int varFieldSizeEstimate;
+
+    /**
+     * @param useMetastoreStats Whether to use stats in metastore or estimate based on filesize/filetype/record size
+     * @param listSizeEstimate Estimated number of elements in a list data type columns
+     * @param varFieldSizeEstimate Estimated size of variable width columns
+     */
+    StatsEstimationParameters(final boolean useMetastoreStats, final int listSizeEstimate, final int varFieldSizeEstimate) {
+      this.useMetastoreStats = useMetastoreStats;
+      this.listSizeEstimate = listSizeEstimate;
+      this.varFieldSizeEstimate = varFieldSizeEstimate;
+    }
+
+    public boolean useMetastoreStats() {
+      return useMetastoreStats;
+    }
+
+    public int getListSizeEstimate() {
+      return listSizeEstimate;
+    }
+
+    public int getVarFieldSizeEstimate() {
+      return varFieldSizeEstimate;
+    }
   }
 
   /**
@@ -151,6 +186,7 @@ class DatasetBuilder implements SourceTableDefinition {
       NamespaceKey datasetPath,
       boolean isCanonicalDatasetPath,
       boolean ignoreAuthzErrors,
+      StatsEstimationParameters statsParams,
       HiveConf hiveConf,
       DatasetConfig oldConfig) throws TException {
     final List<String> noSourceSchemaPath =
@@ -192,7 +228,8 @@ class DatasetBuilder implements SourceTableDefinition {
     }
 
     final List<String> canonicalDatasetPath = Lists.newArrayList(datasetPath.getRoot(), canonicalDbName, canonicalTableName);
-    return new DatasetBuilder(client, user, new NamespaceKey(canonicalDatasetPath), ignoreAuthzErrors, hiveConf, canonicalDbName, canonicalTableName, table, oldConfig);
+    return new DatasetBuilder(client, user, new NamespaceKey(canonicalDatasetPath), ignoreAuthzErrors, statsParams,
+        hiveConf, canonicalDbName, canonicalTableName, table, oldConfig);
   }
 
   @Override
@@ -247,7 +284,6 @@ class DatasetBuilder implements SourceTableDefinition {
 
     final BatchSchema batchSchema = BatchSchema.newBuilder().addFields(fields).build();
 
-
     HiveTableXattr.Builder tableExtended = HiveTableXattr.newBuilder().addAllTableProperty(fromProperties(tableProperties));
 
     if(table.getSd().getInputFormat() != null){
@@ -272,18 +308,16 @@ class DatasetBuilder implements SourceTableDefinition {
       .setReadDefinition(new ReadDefinition()
         .setPartitionColumnsList(partitionColumns)
         .setSortColumnsList(FluentIterable.from(table.getSd().getSortCols())
-          .transform(new Function<Order, String>() {
-            @Override
-            public String apply(Order order) {
-              return order.getCol();
-            }
-          }).toList())
+          .transform(order -> order.getCol()).toList())
         .setLastRefreshDate(System.currentTimeMillis())
         .setExtendedProperty(ByteString.copyFrom(tableExtended.build().toByteArray()))
         .setReadSignature(null)
       );
 
-    buildSplits(tableExtended, dbName, tableName);
+    final int estimatedRecordSize =
+        batchSchema.estimateRecordSize(statsParams.getListSizeEstimate(), statsParams.getVarFieldSizeEstimate());
+
+    buildSplits(tableExtended, dbName, tableName, estimatedRecordSize);
     HiveReaderProtoUtil.encodePropertiesAsDictionary(tableExtended);
     // reset the extended properties since buildSplits() may change them.
     datasetConfig.getReadDefinition().setExtendedProperty(ByteString.copyFrom(tableExtended.build().toByteArray()));
@@ -362,10 +396,13 @@ class DatasetBuilder implements SourceTableDefinition {
     private final HiveStats totalStats;
     private final Partition partition;
     private final int partitionId;
+    private final int estimatedRecordSize;
 
-    public HiveSplitsGenerator(JobConf job, InputFormat<?, ?> format, HiveStats totalStats, Partition partition, int partitionId) {
+    public HiveSplitsGenerator(JobConf job, InputFormat<?, ?> format, final int estimatedRecordSize,
+        HiveStats totalStats, Partition partition, int partitionId) {
       this.job = job;
       this.format = format;
+      this.estimatedRecordSize = estimatedRecordSize;
       this.totalStats = totalStats;
       this.partition = partition;
       this.partitionId = partitionId;
@@ -374,7 +411,7 @@ class DatasetBuilder implements SourceTableDefinition {
     @Override
     protected HiveSplitWork runInner() throws Exception {
       List<DatasetSplit> splits = Lists.newArrayList();
-      double totalEstimatedRecords = 0;
+      long totalEstimatedRecords = 0;
 
       InputSplit[] inputSplits = format.getSplits(job, 1);
       double totalSize = 0;
@@ -391,27 +428,27 @@ class DatasetBuilder implements SourceTableDefinition {
 
         DatasetSplit split = new DatasetSplit();
 
-        String splitKey = partition == null ? table.getSd().getInputFormat() + id : partition.getSd().getLocation() + id;
+        String splitKey =
+            partition == null ? table.getSd().getLocation() + "__" + id : partition.getSd().getLocation() + "__" + id;
         split.setSplitKey(splitKey);
         final long length = inputSplit.getLength();
         split.setSize(length);
         split.setPartitionValuesList(getPartitions(table, partition));
-        split.setAffinitiesList(FluentIterable.of(inputSplit.getLocations()).transform(new Function<String, Affinity>(){
-          @Override
-          public Affinity apply(String input) {
-            return new Affinity().setHost(input).setFactor((double) length);
-          }}).toList());
+        split.setAffinitiesList(FluentIterable.of(
+            inputSplit.getLocations()).transform((input) -> new Affinity().setHost(input).setFactor((double) length)
+        ).toList());
 
-        // if the estimated rows is known, multiply it times the portion of the total data in this split to get the split estimated rows.
-        double splitEstimatedRecords = Math.ceil(totalStats.isValid() ? (inputSplit.getLength()/totalSize * totalStats.getNumRows()) : inputSplit.getLength() / RECORD_SIZE);
+
+        long splitEstimatedRecords = findRowCountInSplit(statsParams, totalStats, inputSplit.getLength()/totalSize,
+            inputSplit.getLength(), format, estimatedRecordSize);
         totalEstimatedRecords += splitEstimatedRecords;
-        split.setRowCount((long) splitEstimatedRecords);
+        split.setRowCount(splitEstimatedRecords);
 
         split.setExtendedProperty(ByteString.copyFrom(splitAttr.build().toByteArray()));
         splits.add(split);
         id++;
       }
-      return new HiveSplitWork(splits, new HiveStats((long) totalEstimatedRecords, (long) totalSize));
+      return new HiveSplitWork(splits, new HiveStats(totalEstimatedRecords, (long) totalSize));
     }
 
     @Override
@@ -424,7 +461,8 @@ class DatasetBuilder implements SourceTableDefinition {
     }
   }
 
-  private void buildSplits(HiveTableXattr.Builder tableExtended, String dbName, String tableName) throws Exception {
+  private void buildSplits(final HiveTableXattr.Builder tableExtended, final String dbName, final String tableName,
+      final int estimatedRecordSize) throws Exception {
     ReadDefinition metadata = datasetConfig.getReadDefinition();
     final HiveStats metastoreStats = getStatsFromProps(tableProperties);
     setFormat(table, tableExtended);
@@ -432,7 +470,7 @@ class DatasetBuilder implements SourceTableDefinition {
     boolean allowParquetNative = true;
     HiveStats observedStats = new HiveStats(0,0);
 
-    Stopwatch spiltStart = Stopwatch.createStarted();
+    Stopwatch splitStart = Stopwatch.createStarted();
     if (metadata.getPartitionColumnsList().isEmpty()) {
       final JobConf job = new JobConf(hiveConf);
       addConfToJob(job, tableProperties);
@@ -443,7 +481,7 @@ class DatasetBuilder implements SourceTableDefinition {
 
       if(addInputPath(table.getSd(), job)){
         // only generate splits if there is an input path.
-        HiveSplitWork hiveSplitWork = new HiveSplitsGenerator(job, format, metastoreStats, null, 0).runInner();
+        HiveSplitWork hiveSplitWork = new HiveSplitsGenerator(job, format, estimatedRecordSize, metastoreStats, null, 0).runInner();
         splits.addAll(hiveSplitWork.getSplits());
         observedStats.add(hiveSplitWork.getHiveStats());
       }
@@ -487,7 +525,7 @@ class DatasetBuilder implements SourceTableDefinition {
         final InputFormat<?, ?> format = job.getInputFormat();
         final HiveStats totalPartitionStats = getStatsFromProps(partitionProperties);
         if (addInputPath(partition.getSd(), job)) {
-          splitsGenerators.add(new HiveSplitsGenerator(job, format, totalPartitionStats, partition, partitionId));
+          splitsGenerators.add(new HiveSplitsGenerator(job, format, estimatedRecordSize, totalPartitionStats, partition, partitionId));
         }
         if (format instanceof FileInputFormat) {
           final FileSystemPartitionUpdateKey updateKey = getFSBasedUpdateKey(partition.getSd().getLocation(), job, isRecursive(partitionProperties), partitionId);
@@ -530,7 +568,7 @@ class DatasetBuilder implements SourceTableDefinition {
       tableExtended.setReaderType(ReaderType.BASIC);
     }
 
-    HiveStats actualStats = metastoreStats.isValid() ? metastoreStats : observedStats;
+    HiveStats actualStats = statsParams.useMetastoreStats() && metastoreStats.isValid() ? metastoreStats : observedStats;
     metadata.setScanStats(new ScanStats()
         .setRecordCount(actualStats.getNumRows())
         .setDiskCost((float) actualStats.getSizeInBytes())
@@ -538,8 +576,51 @@ class DatasetBuilder implements SourceTableDefinition {
         .setType(ScanStatsType.NO_EXACT_ROW_COUNT)
         .setScanFactor(allowParquetNative ? ScanCostFactor.PARQUET.getFactor() : ScanCostFactor.OTHER.getFactor())
         );
-    spiltStart.stop();
-    logger.debug("Computing splits for table {} took {} ms", datasetPath, spiltStart.elapsed(TimeUnit.MILLISECONDS));
+    splitStart.stop();
+    logger.debug("Computing splits for table {} took {} ms", datasetPath, splitStart.elapsed(TimeUnit.MILLISECONDS));
+  }
+
+  /**
+   * Find the rowcount based on stats in Hive metastore or estimate using filesize/filetype/recordSize/split size
+   * @param statsParams parameters controling the stats calculations
+   * @param statsFromMetastore
+   * @param sizeRatio Ration of this split contributing to all stats in given <i>statsFromMetastore</i>
+   * @param splitSizeInBytes
+   * @param format
+   * @param estimatedRecordSize
+   * @return
+   */
+  private long findRowCountInSplit(StatsEstimationParameters statsParams, HiveStats statsFromMetastore,
+      final double sizeRatio, final long splitSizeInBytes, InputFormat<?, ?> format, final int estimatedRecordSize) {
+
+    final Class<? extends InputFormat<?, ?>> inputFormat =
+        format == null ? null : ((Class<? extends InputFormat<?, ?>>) format.getClass());
+
+    double compressionFactor = 1.0;
+    if (MapredParquetInputFormat.class.equals(inputFormat)) {
+      compressionFactor = 30;
+    } else if (OrcInputFormat.class.equals(inputFormat)) {
+      compressionFactor = 30f;
+    } else if (AvroContainerInputFormat.class.equals(inputFormat)) {
+      compressionFactor = 10f;
+    } else if (RCFileInputFormat.class.equals(inputFormat)) {
+      compressionFactor = 10f;
+    }
+
+    final long estimatedRowCount = (long) Math.ceil(splitSizeInBytes * compressionFactor / estimatedRecordSize);
+
+    // Metastore stats are for complete partition. Multiply it by the size ratio of this split
+    final long metastoreRowCount = (long) Math.ceil(sizeRatio * statsFromMetastore.getNumRows());
+
+    logger.trace("Hive stats estimation: compression factor {}, recordSize {}, estimated {}, from metastore {}",
+        compressionFactor, estimatedRecordSize, estimatedRowCount, metastoreRowCount);
+
+    if (statsParams.useMetastoreStats() && statsFromMetastore.isValid()) {
+      return metastoreRowCount;
+    }
+
+    // return the maximum of estimate and metastore count
+    return Math.max(estimatedRowCount, metastoreRowCount);
   }
 
   private PartitionProp getPartitionProperty(Partition partition, List<Prop> props) {
@@ -715,7 +796,7 @@ class DatasetBuilder implements SourceTableDefinition {
                 .message("Dremio only supports decimals up to 38 digits in precision. This Hive table has a partition value with scale of %d digits.", decimalTypeInfo.getPrecision())
                 .build(logger);
             }
-            HiveDecimal decimal = HiveDecimalUtils.enforcePrecisionScale(HiveDecimal.create(value), decimalTypeInfo.precision(), decimalTypeInfo.scale());
+            HiveDecimal decimal = HiveDecimalUtils.enforcePrecisionScale(HiveDecimal.create(value), decimalTypeInfo);
             final BigDecimal original = decimal.bigDecimalValue();
             // we can't just use unscaledValue() since BigDecimal doesn't store trailing zeroes and we need to ensure decoding includes the correct scale.
             final BigInteger unscaled = original.movePointRight(decimalTypeInfo.scale()).unscaledValue();
@@ -759,12 +840,13 @@ class DatasetBuilder implements SourceTableDefinition {
    *
    * @param job {@link JobConf} instance.
    * @param properties New config properties
-   * @param hiveConf HiveConf of Hive storage plugin
    */
   public static void addConfToJob(final JobConf job, final Properties properties) {
     for (Object obj : properties.keySet()) {
       job.set((String) obj, (String) properties.get(obj));
     }
+
+    HiveUtilities.addACIDPropertiesIfNeeded(job);
   }
 
   public static Class<? extends InputFormat<?, ?>> getInputFormatClass(final JobConf job, final Table table, final Partition partition) throws Exception {

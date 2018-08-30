@@ -23,11 +23,12 @@ import Menu from 'components/Menus/Menu';
 import MenuItemLink from 'components/Menus/MenuItemLink';
 import MenuItem from 'components/Menus/MenuItem';
 import Divider from 'material-ui/Divider';
+import { withLocation } from 'containers/dremioLocation';
 
 // todo: loc
 
 @Radium
-export default class SelectedTextPopover extends Component {
+export class SelectedTextPopoverView extends Component {
   static propTypes = {
     hideDrop: PropTypes.func,
     copySelection: PropTypes.func,
@@ -182,3 +183,5 @@ export default class SelectedTextPopover extends Component {
     );
   }
 }
+
+export default withLocation(SelectedTextPopoverView);

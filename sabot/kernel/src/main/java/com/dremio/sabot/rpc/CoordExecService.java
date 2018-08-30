@@ -24,7 +24,6 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.codahale.metrics.Gauge;
 import com.dremio.common.config.SabotConfig;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
@@ -212,7 +211,7 @@ public class CoordExecService implements Service {
   private static RpcConfig getMapping(SabotConfig config) {
     return RpcConfig.newBuilder()
         .name("CoordToExec")
-        .timeout(config.getInt(ExecConstants.BIT_RPC_TIMEOUT))
+        .timeout(config.getInt(RpcConstants.BIT_RPC_TIMEOUT))
         .add(RpcType.REQ_START_FRAGMENTS, InitializeFragments.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_CANCEL_FRAGMENTS, FragmentHandle.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_FRAGMENT_STATUS, FragmentStatus.class, RpcType.ACK, Ack.class)

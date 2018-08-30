@@ -6,10 +6,10 @@
                     "name": {
                         "properties": {
                             "first_name": {
-                                "type": "string"
+                                "type": "text"
                             },
                             "last_name": {
-                                "type": "string"
+                                "type": "text"
                             }
                         }
                     },
@@ -19,7 +19,7 @@
                 }
             },
             "message": {
-                "type": "string"
+                "type": "text"
             }
         }
     }

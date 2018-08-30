@@ -226,6 +226,17 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
             readIntoArrowBuf(input, buf, rawDataLength, tmpBuffer);
           }
           vector = TypeHelper.getNewVector(field, allocator);
+          /*
+           * Even though vector container is rollbackable, we don't add
+           * anything to vector container until later when all the vectors
+           * have been successfully allocated and that implies complete
+           * I/O was successfully done. However, if we fail in the middle of
+           * read where some calls to readFromArrowBuf() have already completed,
+           * we still need to release memory for those successfully allocated
+           * vectors. The finally block below will take care only of the current buffer
+           * that we allocated just before the read call that failed.
+           */
+          rollback.add(vector);
           TypeHelper.load(vector, metaData, buf);
         } finally {
           if (buf != null) {

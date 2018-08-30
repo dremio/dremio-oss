@@ -20,7 +20,7 @@ import java.io.IOException;
 import javax.xml.bind.DatatypeConverter;
 
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.BigIntWriter;
 import org.apache.arrow.vector.complex.writer.BitWriter;
 import org.apache.arrow.vector.complex.writer.DateMilliWriter;
@@ -48,7 +48,7 @@ class WriteHolders {
 
   interface WriteHolder {
     void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException;
-    void writeMap(MapWriter writer, JsonToken token, JsonParser parser) throws IOException;
+    void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException;
   }
 
   static class InvalidWriteHolder implements WriteHolder {
@@ -59,7 +59,7 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(MapWriter writer, JsonToken token, JsonParser parser) throws IOException {
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
       throw new IllegalStateException();
     }
 
@@ -74,7 +74,7 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(MapWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
       write(writer.bit(name), token, parser);
     }
 
@@ -109,7 +109,7 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(MapWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
       write(writer.integer(name), token, parser);
     }
 
@@ -145,7 +145,7 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(MapWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
       write(writer.bigInt(name), token, parser);
     }
 
@@ -182,7 +182,7 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(MapWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
       write(writer.float4(name), token, parser);
     }
 
@@ -209,7 +209,7 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(MapWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
       write(writer.float8(name), token, parser);
     }
 
@@ -239,7 +239,7 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(MapWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
       write(writer.dateMilli(name), token, parser);
     }
 
@@ -265,7 +265,7 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(MapWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
       write(writer.timeMilli(name), token, parser);
     }
 
@@ -290,7 +290,7 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(MapWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
       write(writer.varChar(name), token, parser);
     }
 
@@ -315,7 +315,7 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(MapWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
       write(writer.varBinary(name), token, parser);
     }
 
@@ -343,7 +343,7 @@ class WriteHolders {
     }
 
     @Override
-    public void writeMap(MapWriter writer, JsonToken token, JsonParser parser) throws IOException{
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException{
       write(writer.timeStampMilli(name), token, parser);
     }
 

@@ -23,7 +23,6 @@ import com.dremio.PlanTestBase;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.foreman.UnsupportedFunctionException;
@@ -41,7 +40,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   @Test // DRILL-3196
   public void testSinglePartition() throws Exception {
     final String query = "select sum(n_nationKey) over(partition by n_nationKey) as col1, count(*) over(partition by n_nationKey) as col2 \n" +
-        "from cp.`tpch/nation.parquet`";
+        "from cp.\"tpch/nation.parquet\"";
 
     // Validate the plan
     final String[] expectedPlan = {"Window.*partition \\{0\\} order by \\[\\].*\\[COUNT\\(\\$0\\), \\$SUM0\\(\\$0\\), COUNT\\(\\)",
@@ -85,7 +84,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   @Test // DRILL-3196
   public void testSinglePartitionDefinedInWindowList() throws Exception {
     final String query = "select sum(n_nationKey) over w as col \n" +
-        "from cp.`tpch/nation.parquet` \n" +
+        "from cp.\"tpch/nation.parquet\" \n" +
         "window w as (partition by n_nationKey order by n_nationKey)";
 
     // Validate the plan
@@ -131,7 +130,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   public void testWindowFunctionWithDistinct() throws Exception {
     try {
       final String query = "explain plan for select n_regionkey, count(distinct n_nationkey) over(partition by n_regionkey) \n" +
-          "from cp.`tpch/nation.parquet`";
+          "from cp.\"tpch/nation.parquet\"";
 
       test(query);
     } catch(UserException ex) {
@@ -144,7 +143,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   public void testWindowFrame() throws Exception {
     try {
       final String query = "select n_regionkey, sum(n_regionkey) over(partition by n_regionkey order by n_regionkey rows between 1 preceding and 1 following ) \n" +
-          "from cp.`tpch/nation.parquet` t \n" +
+          "from cp.\"tpch/nation.parquet\" t \n" +
           "order by n_regionkey";
 
       test(query);
@@ -158,7 +157,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   public void testWindowWithAlias() throws Exception {
     try {
       String query = "explain plan for SELECT sum(n_nationkey) OVER (PARTITION BY n_name ORDER BY n_name ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) as col2 \n" +
-          "from cp.`tpch/nation.parquet`";
+          "from cp.\"tpch/nation.parquet\"";
 
       test(query);
     } catch(UserException ex) {
@@ -172,7 +171,7 @@ public class TestWindowFunctions extends BaseTestQuery {
     try {
       final String query = "select sum(n_nationKey) over(partition by n_nationKey \n" +
           "rows between unbounded preceding and unbounded following disallow partial) \n" +
-          "from cp.`tpch/nation.parquet` \n" +
+          "from cp.\"tpch/nation.parquet\" \n" +
           "order by n_nationKey";
 
       test(query);
@@ -186,7 +185,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   public void testWindowInWindow() throws Exception {
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION));
     String query = "select rank() over(order by row_number() over(order by n_nationkey)) \n" +
-        "from cp.`tpch/nation.parquet`";
+        "from cp.\"tpch/nation.parquet\"";
 
     test(query);
   }
@@ -195,7 +194,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   public void testMissingOverWithWindowClause() throws Exception {
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION));
     String query = "select rank(), cume_dist() over w \n" +
-        "from cp.`tpch/nation.parquet` \n" +
+        "from cp.\"tpch/nation.parquet\" \n" +
         "window w as (partition by n_name order by n_nationkey)";
 
     test(query);
@@ -204,7 +203,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   @Test // DRILL-3601
   public void testLeadMissingOver() throws Exception {
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION));
-    String query = "select lead(n_nationkey) from cp.`tpch/nation.parquet`";
+    String query = "select lead(n_nationkey) from cp.\"tpch/nation.parquet\"";
 
     test(query);
   }
@@ -212,7 +211,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   @Test // DRILL-3649
   public void testMissingOverWithConstant() throws Exception {
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION));
-    String query = "select NTILE(1) from cp.`tpch/nation.parquet`";
+    String query = "select NTILE(1) from cp.\"tpch/nation.parquet\"";
 
     test(query);
   }
@@ -221,7 +220,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   public void testWindowGroupBy() throws Exception {
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION));
     String query = "explain plan for SELECT max(n_nationkey) OVER (), n_name as col2 \n" +
-        "from cp.`tpch/nation.parquet` \n" +
+        "from cp.\"tpch/nation.parquet\" \n" +
         "group by n_name";
 
     test(query);
@@ -232,7 +231,7 @@ public class TestWindowFunctions extends BaseTestQuery {
     try {
       thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION));
       String createView = "create view testWindowGroupByOnView(a, b) as \n" +
-          "select n_nationkey, n_name from cp.`tpch/nation.parquet`";
+          "select n_nationkey, n_name from cp.\"tpch/nation.parquet\"";
       String query = "explain plan for SELECT max(a) OVER (), b as col2 \n" +
           "from testWindowGroupByOnView \n" +
           "group by b";
@@ -248,17 +247,17 @@ public class TestWindowFunctions extends BaseTestQuery {
   @Test // DRILL-3188
   public void testWindowFrameEquivalentToDefault() throws Exception {
     final String query1 = "select sum(n_nationKey) over(partition by n_nationKey order by n_nationKey) as col\n" +
-        "from cp.`tpch/nation.parquet` t \n" +
+        "from cp.\"tpch/nation.parquet\" t \n" +
         "order by n_nationKey";
 
     final String query2 = "select sum(n_nationKey) over(partition by n_nationKey order by n_nationKey \n" +
         "range between unbounded preceding and current row) as col \n" +
-        "from cp.`tpch/nation.parquet` t \n" +
+        "from cp.\"tpch/nation.parquet\" t \n" +
         "order by n_nationKey";
 
     final String query3 = "select sum(n_nationKey) over(partition by n_nationKey \n" +
         "rows BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) as col \n" +
-        "from cp.`tpch/nation.parquet` t \n" +
+        "from cp.\"tpch/nation.parquet\" t \n" +
         "order by n_nationKey";
 
     // Validate the plan
@@ -377,7 +376,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   @Test // DRILL-3204
   public void testWindowWithJoin() throws Exception {
     final String query = "select sum(t1.r_regionKey) over(partition by t1.r_regionKey) as col \n" +
-        "from cp.`tpch/region.parquet` t1, cp.`tpch/nation.parquet` t2 \n" +
+        "from cp.\"tpch/region.parquet\" t1, cp.\"tpch/nation.parquet\" t2 \n" +
         "where t1.r_regionKey = t2.n_nationKey \n" +
         "group by t1.r_regionKey";
 
@@ -403,7 +402,7 @@ public class TestWindowFunctions extends BaseTestQuery {
 
   @Test // DRILL-3298
   public void testCountEmptyPartitionByWithExchange() throws Exception {
-    String query = String.format("select count(*) over (order by o_orderpriority) as cnt from dfs.`%s/multilevel/parquet` where o_custkey < 100", TEST_RES_PATH);
+    String query = String.format("select count(*) over (order by o_orderpriority) as cnt from dfs.\"%s/multilevel/parquet\" where o_custkey < 100", TEST_RES_PATH);
     try {
       // Validate the plan
       final String[] expectedPlan = {"Window.*partition \\{\\} order by \\[0\\].*COUNT\\(\\)",
@@ -415,7 +414,7 @@ public class TestWindowFunctions extends BaseTestQuery {
           .sqlQuery(query)
           .ordered()
           .baselineColumns("cnt")
-          .optionSettingQueriesForTestQuery("alter session set `planner.slice_target` = 1")
+          .optionSettingQueriesForTestQuery("alter session set \"planner.slice_target\" = 1")
           .baselineValues(1l)
           .baselineValues(4l)
           .baselineValues(4l)
@@ -423,7 +422,7 @@ public class TestWindowFunctions extends BaseTestQuery {
           .build()
           .run();
     } finally {
-      test("alter session set `planner.slice_target` = " + ExecConstants.SLICE_TARGET_DEFAULT);
+      test("alter session set \"planner.slice_target\" = " + ExecConstants.SLICE_TARGET_DEFAULT);
     }
   }
 
@@ -434,7 +433,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   @Test
   public void testAvgVarianceWindowFunctions() throws Exception {
     final String avgQuery = "select avg(n_nationkey) over (partition by n_nationkey) col1 " +
-        "from cp.`tpch/nation.parquet` " +
+        "from cp.\"tpch/nation.parquet\" " +
         "where n_nationkey = 1";
 
     // Validate the plan
@@ -451,11 +450,11 @@ public class TestWindowFunctions extends BaseTestQuery {
         .go();
 
     final String varianceQuery = "select var_pop(n_nationkey) over (partition by n_nationkey) col1 " +
-        "from cp.`tpch/nation.parquet` " +
+        "from cp.\"tpch/nation.parquet\" " +
         "where n_nationkey = 1";
 
     // Validate the plan
-    final String[] expectedPlan2 = {"Window.*partition \\{1\\} order by \\[\\].*COUNT\\(\\$0\\), \\$SUM0\\(\\$0\\), COUNT\\(\\$1\\), \\$SUM0\\(\\$1\\)",
+    final String[] expectedPlan2 = {"Window.*partition \\{0\\} order by \\[\\].*COUNT\\(\\$1\\), \\$SUM0\\(\\$1\\)",
         "Scan.*columns=\\[`n_nationkey`\\]"};
     final String[] excludedPatterns2 = {"Scan.*columns=\\[`\\*`\\]"};
     PlanTestBase.testPlanMatchingPatterns(varianceQuery, expectedPlan2, excludedPatterns2);
@@ -471,7 +470,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   @Test
   public void testWindowFunctionWithKnownType() throws Exception {
     final String query = "select sum(cast(col_int as int)) over (partition by col_varchar) as col1 " +
-        "from cp.`jsoninput/large_int.json` limit 1";
+        "from cp.\"jsoninput/large_int.json\" limit 1";
 
     // Validate the plan
     final String[] expectedPlan1 = {"Window.*partition \\{0\\} order by \\[\\].*COUNT\\(\\$1\\), \\$SUM0\\(\\$1\\)",
@@ -487,7 +486,7 @@ public class TestWindowFunctions extends BaseTestQuery {
         .go();
 
     final String avgQuery = "select avg(cast(col_int as double)) over (partition by col_varchar) as col1 " +
-        "from cp.`jsoninput/large_int.json` limit 1";
+        "from cp.\"jsoninput/large_int.json\" limit 1";
 
     // Validate the plan
     final String[] expectedPlan2 = {"Window.*partition \\{0\\} order by \\[\\].*COUNT\\(\\$1\\), \\$SUM0\\(\\$1\\)",
@@ -507,7 +506,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   public void testCompoundIdentifierInWindowDefinition() throws Exception {
     String root = FileUtils.getResourceAsFile("/multilevel/csv/1994/Q1/orders_94_q1.csv").toURI().toString();
     String query = String.format("SELECT count(*) OVER w as col1, count(*) OVER w as col2 \n" +
-        "FROM dfs_test.`%s` \n" +
+        "FROM dfs_test.\"%s\" \n" +
         "WINDOW w AS (PARTITION BY columns[1] ORDER BY columns[0] DESC)", root);
 
     // Validate the plan
@@ -538,7 +537,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   @Test
   public void testRankWithGroupBy() throws Exception {
     final String query = "select dense_rank() over (order by l_suppkey) as rank1 " +
-        " from cp.`tpch/lineitem.parquet` group by l_partkey, l_suppkey order by 1 desc limit 1";
+        " from cp.\"tpch/lineitem.parquet\" group by l_partkey, l_suppkey order by 1 desc limit 1";
 
     // Validate the plan
     final String[] expectedPlan = {"Window.*partition \\{\\} order by \\[0\\].*DENSE_RANK\\(\\)",
@@ -557,7 +556,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   @Test // DRILL-3404
   @Ignore
   public void testWindowSumAggIsNotNull() throws Exception {
-    String query = String.format("select count(*) cnt from (select sum ( c1 ) over ( partition by c2 order by c1 asc nulls first ) w_sum from dfs.`%s/window/table_with_nulls.parquet` ) sub_query where w_sum is not null", TEST_RES_PATH);
+    String query = String.format("select count(*) cnt from (select sum ( c1 ) over ( partition by c2 order by c1 asc nulls first ) w_sum from dfs.\"%s/window/table_with_nulls.parquet\" ) sub_query where w_sum is not null", TEST_RES_PATH);
 
     // Validate the plan
     final String[] expectedPlan = {"Window.*partition \\{1\\} order by \\[0 ASC-nulls-first\\].*COUNT\\(\\$0\\), \\$SUM0\\(\\$0\\)",
@@ -576,7 +575,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   @Test // DRILL-3292
   public void testWindowConstants() throws Exception {
     String query = "select rank() over w fn, sum(2) over w sumINTEGER, sum(employee_id) over w sumEmpId, sum(0.5) over w sumFLOAT \n" +
-        "from cp.`employee.json` \n" +
+        "from cp.\"employee.json\" \n" +
         "where position_id = 2 \n" +
         "window w as(partition by position_id order by employee_id)";
 
@@ -606,7 +605,7 @@ public class TestWindowFunctions extends BaseTestQuery {
     String query = String.format("select count(*) over(partition by b1 order by c1) as count1, \n" +
         "sum(a1)  over(partition by b1 order by c1) as sum1, \n" +
         "count(*) over(partition by a1 order by c1) as count2 \n" +
-        "from dfs_test.`%s`", root);
+        "from dfs_test.\"%s\"", root);
 
     // Validate the plan
     final String[] expectedPlan = {"Window.*partition \\{0\\} order by \\[2\\].*COUNT\\(\\)",
@@ -639,7 +638,7 @@ public class TestWindowFunctions extends BaseTestQuery {
     String query = String.format("select count(*) over(partition by b1 order by c1) as count1, \n" +
         "count(*) over(partition by a1 order by c1) as count2, \n" +
         "sum(a1)  over(partition by b1 order by c1) as sum1 \n" +
-        "from dfs_test.`%s`", root);
+        "from dfs_test.\"%s\"", root);
 
     // Validate the plan
     final String[] expectedPlan = {"Window.*partition \\{0\\} order by \\[2\\].*COUNT\\(\\)",
@@ -670,10 +669,10 @@ public class TestWindowFunctions extends BaseTestQuery {
   public void testWithAndWithoutPartitions() throws Exception {
     String root = FileUtils.getResourceAsFile("/store/text/data/t.json").toURI().toString();
     String query = String.format("select sum(a1) over(partition by b1, c1) as s1, sum(a1) over() as s2 \n" +
-        "from dfs_test.`%s` \n" +
+        "from dfs_test.\"%s\" \n" +
         "order by a1", root);
 
-    test("alter session set `planner.slice_target` = 1");
+    test("alter session set \"planner.slice_target\" = 1");
     try {
       // Validate the plan
       final String[] expectedPlan = {"Window\\(window#0=\\[window\\(partition \\{\\}.*\n" +
@@ -698,7 +697,7 @@ public class TestWindowFunctions extends BaseTestQuery {
           .build()
           .run();
     } finally {
-      test("alter session set `planner.slice_target` = " + ExecConstants.SLICE_TARGET_DEFAULT);
+      test("alter session set \"planner.slice_target\" = " + ExecConstants.SLICE_TARGET_DEFAULT);
     }
   }
 
@@ -707,7 +706,7 @@ public class TestWindowFunctions extends BaseTestQuery {
     String root = FileUtils.getResourceAsFile("/store/text/data/t.json").toURI().toString();
     String query = String.format(
         "select sum(1) over(partition by b1 order by a1) as sum1, sum(1) over(partition by a1) as sum2, rank() over(order by b1) as rank1, rank() over(order by 1) as rank2 \n" +
-        "from dfs_test.`%s` \n" +
+        "from dfs_test.\"%s\" \n" +
         "order by 1, 2, 3, 4", root);
 
     // Validate the plan
@@ -739,7 +738,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   public void testExpressionInWindowFunction() throws Exception {
     String root = FileUtils.getResourceAsFile("/store/text/data/t.json").toURI().toString();
     String query = String.format("select a1, b1, sum(b1) over (partition by a1) as c1, sum(a1 + b1) over (partition by a1) as c2\n" +
-        "from dfs_test.`%s`", root);
+        "from dfs_test.\"%s\"", root);
 
     // Validate the plan
     final String[] expectedPlan = {"Window\\(window#0=\\[window\\(partition \\{0\\} order by \\[\\].*\\[COUNT\\(\\$1\\), \\$SUM0\\(\\$1\\), COUNT\\(\\$2\\), \\$SUM0\\(\\$2\\)\\]"};
@@ -767,7 +766,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   public void testProjectPushPastWindow() throws Exception {
     String query = "select sum(n_nationkey) over(partition by 1 order by 1) as col1, \n" +
             "count(n_nationkey) over(partition by 1 order by 1) as col2 \n" +
-            "from cp.`tpch/nation.parquet` \n" +
+            "from cp.\"tpch/nation.parquet\" \n" +
             "limit 5";
 
     // Validate the plan
@@ -795,14 +794,14 @@ public class TestWindowFunctions extends BaseTestQuery {
         "        lead(n_regionkey) OVER ( PARTITION BY n_regionkey ORDER BY n_nationkey) lead_c2 " +
         " FROM (SELECT n_nationkey ,n_regionkey, " +
         "          ntile(3) over(PARTITION BY n_regionkey ORDER BY n_nationkey) " +
-        "       FROM cp.`tpch/nation.parquet`) " +
+        "       FROM cp.\"tpch/nation.parquet\") " +
         " order by n_regionkey, n_nationkey";
     test(query);
 
     final String baselineQuery =
         "select n_nationkey , n_regionkey , " +
         "       lead(n_regionkey) OVER ( PARTITION BY n_regionkey ORDER BY n_nationkey) lead_c2 " +
-        "FROM cp.`tpch/nation.parquet`   " +
+        "FROM cp.\"tpch/nation.parquet\"   " +
         "order by n_regionkey, n_nationkey";
 
     testBuilder()
@@ -822,26 +821,26 @@ public class TestWindowFunctions extends BaseTestQuery {
         "        lead(n_regionkey) OVER ( PARTITION BY n_regionkey ORDER BY n_nationkey) lead_c2 " +
         " FROM (SELECT n_nationkey ,n_regionkey, " +
         "          ntile(3) over(PARTITION BY n_regionkey ORDER BY n_nationkey) " +
-        "       FROM cp.`tpch/nation.parquet`) " +
+        "       FROM cp.\"tpch/nation.parquet\") " +
         " order by n_regionkey, n_nationkey";
     test(query);
 
     final String baselineQuery =
         "select n_nationkey , n_regionkey , " +
         "       lead(n_regionkey) OVER ( PARTITION BY n_regionkey ORDER BY n_nationkey) lead_c2 " +
-        "FROM cp.`tpch/nation.parquet`   " +
+        "FROM cp.\"tpch/nation.parquet\"   " +
         "order by n_regionkey, n_nationkey";
 
     try{
       testBuilder()
           .sqlQuery(query)
           .ordered()
-          .optionSettingQueriesForTestQuery("alter session set `planner.slice_target` = 1")
+          .optionSettingQueriesForTestQuery("alter session set \"planner.slice_target\" = 1")
           .sqlBaselineQuery(baselineQuery)
           .build()
           .run();
     } finally {
-      test("alter session set `planner.slice_target` = " + ExecConstants.SLICE_TARGET_DEFAULT);
+      test("alter session set \"planner.slice_target\" = " + ExecConstants.SLICE_TARGET_DEFAULT);
     }
   }
 
@@ -853,13 +852,13 @@ public class TestWindowFunctions extends BaseTestQuery {
          "   ntile(4) over(order by position_id) " +
          " from (select position_id, row_number() " +
          "       over(order by position_id) as rnum " +
-         "       from cp.`employee.json`)";
+         "       from cp.\"employee.json\")";
 
     final String baselineQuery2 =
         " select row_number() over(order by position_id) as rnum, " +
         "    position_id, " +
         "    ntile(4) over(order by position_id) " +
-        " from cp.`employee.json`";
+        " from cp.\"employee.json\"";
 
     testBuilder()
         .sqlQuery(query2)
@@ -876,7 +875,7 @@ public class TestWindowFunctions extends BaseTestQuery {
         "stddev_pop(employee_id) over (partition by 1) c2, " +
         "var_samp(employee_id) over (partition by 1) c3, " +
         "var_pop(employee_id) over (partition by 1) c4 from " +
-        "cp.`employee.json` limit 1";
+        "cp.\"employee.json\" limit 1";
 
     testBuilder()
         .sqlQuery(sqlWindowFunctionQuery)
@@ -891,7 +890,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   public void testStatisticalWindowAvgFunction() throws Exception {
     final String sqlWindowFunctionQuery = "select " +
         "avg(employee_id) over (partition by 1) c1 from " +
-        "cp.`employee.json` limit 1";
+        "cp.\"employee.json\" limit 1";
 
     testBuilder()
         .sqlQuery(sqlWindowFunctionQuery)
@@ -908,7 +907,7 @@ public class TestWindowFunctions extends BaseTestQuery {
 
     final String query = "select sum(min(l_extendedprice))" +
         " over (partition by l_suppkey order by l_suppkey) as totprice" +
-        " from cp.`tpch/lineitem.parquet` where l_suppkey <= 10 group by l_suppkey order by 1 desc";
+        " from cp.\"tpch/lineitem.parquet\" where l_suppkey <= 10 group by l_suppkey order by 1 desc";
 
     // Validate the plan
     final String[] expectedPlan = {"Window.*partition \\{0\\} order by \\[0\\].*\\$SUM0\\(\\$1\\).*",
@@ -938,7 +937,7 @@ public class TestWindowFunctions extends BaseTestQuery {
   public void testNestedAggregates1() throws Exception {
     try {
       String query = "select sum(min(l_extendedprice)) over (partition by l_suppkey)\n"
-              + " from cp.`tpch/lineitem.parquet` where l_suppkey <= 10";
+              + " from cp.\"tpch/lineitem.parquet\" where l_suppkey <= 10";
       test(query);
     } catch(UserException ex) {
       assert(ex.getMessage().contains("Expression 'l_suppkey' is not being grouped"));
@@ -946,7 +945,7 @@ public class TestWindowFunctions extends BaseTestQuery {
 
     try {
       String query = "select sum(min(l_extendedprice)) over (partition by l_suppkey) as totprice\n"
-          + " from cp.`tpch/lineitem.parquet` where l_suppkey <= 10";
+          + " from cp.\"tpch/lineitem.parquet\" where l_suppkey <= 10";
       test(query);
     } catch(UserException ex) {
       assert(ex.getMessage().contains("Expression 'l_suppkey' is not being grouped"));
@@ -954,16 +953,16 @@ public class TestWindowFunctions extends BaseTestQuery {
 
     try {
       String query = "select sum(min(l_extendedprice)) over w1 as totprice\n"
-          + " from cp.`tpch/lineitem.parquet` where l_suppkey <= 10\n"
+          + " from cp.\"tpch/lineitem.parquet\" where l_suppkey <= 10\n"
           + " window w1 as (partition by l_suppkey)";
       test(query);
     } catch(UserException ex) {
-      assert(ex.getMessage().contains("Expression 'tpch/lineitem.parquet.l_suppkey' is not being grouped"));
+      assert(ex.getMessage().contains("Expression 'l_suppkey' is not being grouped"));
     }
 
     try {
       String query = "select sum(min(l_extendedprice)) over (partition by l_partkey)\n"
-              + " from cp.`tpch/lineitem.parquet` where l_suppkey <= 10 group by l_suppkey";
+              + " from cp.\"tpch/lineitem.parquet\" where l_suppkey <= 10 group by l_suppkey";
       test(query);
     } catch(UserException ex) {
       assert(ex.getMessage().contains("Expression 'l_partkey' is not being grouped"));
@@ -971,7 +970,7 @@ public class TestWindowFunctions extends BaseTestQuery {
 
     try {
       String query = "select sum(min(l_extendedprice)) over (partition by l_partkey) as totprice\n"
-          + " from cp.`tpch/lineitem.parquet` where l_suppkey <= 10 group by l_suppkey";
+          + " from cp.\"tpch/lineitem.parquet\" where l_suppkey <= 10 group by l_suppkey";
       test(query);
     } catch(UserException ex) {
       assert(ex.getMessage().contains("Expression 'l_partkey' is not being grouped"));
@@ -979,11 +978,11 @@ public class TestWindowFunctions extends BaseTestQuery {
 
     try {
       String query = "select sum(min(l_extendedprice)) over w2 as totprice\n"
-          + " from cp.`tpch/lineitem.parquet` where l_suppkey <= 10 group by l_suppkey\n"
+          + " from cp.\"tpch/lineitem.parquet\" where l_suppkey <= 10 group by l_suppkey\n"
           + " window w2 as (partition by l_partkey)";
       test(query);
     } catch(UserException ex) {
-      assert(ex.getMessage().contains("Expression 'tpch/lineitem.parquet.l_partkey' is not being grouped"));
+      assert(ex.getMessage().contains("Expression 'l_partkey' is not being grouped"));
     }
   }
 }

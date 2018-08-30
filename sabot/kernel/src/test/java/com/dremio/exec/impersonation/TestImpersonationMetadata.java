@@ -105,17 +105,17 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
 
     // create tables as user2
     updateClient(user2);
-    test(String.format("use `%s.user2_workspace1`", MINIDFS_STORAGE_PLUGIN_NAME));
+    test(String.format("use \"%s.user2_workspace1\"", MINIDFS_STORAGE_PLUGIN_NAME));
     // create a table that can be dropped by another user in a different group
-    test("create table parquet_table_775 as select * from cp.`employee.json`");
+    test("create table parquet_table_775 as select * from cp.\"employee.json\"");
 
     // create a table that cannot be dropped by another user
-    test(String.format("use `%s.user2_workspace2`", MINIDFS_STORAGE_PLUGIN_NAME));
-    test("create table parquet_table_700 as select * from cp.`employee.json`");
+    test(String.format("use \"%s.user2_workspace2\"", MINIDFS_STORAGE_PLUGIN_NAME));
+    test("create table parquet_table_700 as select * from cp.\"employee.json\"");
 
     // Drop tables as user1
     updateClient(user1);
-    test(String.format("use `%s.user2_workspace1`", MINIDFS_STORAGE_PLUGIN_NAME));
+    test(String.format("use \"%s.user2_workspace1\"", MINIDFS_STORAGE_PLUGIN_NAME));
     testBuilder()
         .sqlQuery("drop table parquet_table_775")
         .unOrdered()
@@ -123,7 +123,7 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
         .baselineValues(true, String.format("Table [%s] dropped", "parquet_table_775"))
         .go();
 
-    test(String.format("use `%s.user2_workspace2`", MINIDFS_STORAGE_PLUGIN_NAME));
+    test(String.format("use \"%s.user2_workspace2\"", MINIDFS_STORAGE_PLUGIN_NAME));
     boolean dropFailed = false;
     try {
       test("drop table parquet_table_700");
@@ -141,7 +141,7 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
     // Process user start the mini dfs, he has read/write permissions by default
     final String viewName = String.format("%s.dremioTestGrp0_700.testView", MINIDFS_STORAGE_PLUGIN_NAME);
     try {
-      test("CREATE VIEW " + viewName + " AS SELECT * FROM cp.`region.json`");
+      test("CREATE VIEW " + viewName + " AS SELECT * FROM cp.\"region.json\"");
       test("SELECT * FROM " + viewName + " LIMIT 2");
     } finally {
       test("DROP VIEW " + viewName);
@@ -239,7 +239,7 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
     testCreateViewTestHelper(user2, viewSchema, "view1");
   }
 
-  private static void testCreateViewTestHelper(String user, String viewSchema,
+  private void testCreateViewTestHelper(String user, String viewSchema,
       String viewName) throws Exception {
     try {
       updateClient(user);
@@ -247,7 +247,7 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
       test("USE " + viewSchema);
 
       test("CREATE VIEW " + viewName + " AS SELECT " +
-          "c_custkey, c_nationkey FROM cp.`tpch/customer.parquet` ORDER BY c_custkey;");
+          "c_custkey, c_nationkey FROM cp.\"tpch/customer.parquet\" ORDER BY c_custkey;");
 
 //      testBuilder()
 //          .sqlQuery("SHOW TABLES")
@@ -281,7 +281,7 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
     test("USE " + viewSchema);
 
     final String query = "CREATE VIEW " + viewName + " AS SELECT " +
-        "c_custkey, c_nationkey FROM cp.`tpch/customer.parquet` ORDER BY c_custkey;";
+        "c_custkey, c_nationkey FROM cp.\"tpch/customer.parquet\" ORDER BY c_custkey;";
     final String expErrorMsg = "PERMISSION ERROR: Permission denied: user=dremioTestUser2, access=WRITE, inode=\"/dremioTestGrp0_755/";
     errorMsgTestHelper(query, expErrorMsg);
 
@@ -314,7 +314,7 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
     testCreateTableTestHelper(user2, tableWS, "table1");
   }
 
-  private static void testCreateTableTestHelper(String user, String tableWS,
+  private void testCreateTableTestHelper(String user, String tableWS,
       String tableName) throws Exception {
     try {
       updateClient(user);
@@ -322,7 +322,7 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
       test("USE " + Joiner.on(".").join(MINIDFS_STORAGE_PLUGIN_NAME, tableWS));
 
       test("CREATE TABLE " + tableName + " AS SELECT " +
-          "c_custkey, c_nationkey FROM cp.`tpch/customer.parquet` ORDER BY c_custkey;");
+          "c_custkey, c_nationkey FROM cp.\"tpch/customer.parquet\" ORDER BY c_custkey;");
 
       test("SHOW FILES");
 
@@ -356,7 +356,7 @@ public class TestImpersonationMetadata extends BaseTestImpersonation {
       test("USE " + Joiner.on(".").join(MINIDFS_STORAGE_PLUGIN_NAME, tableWS));
 
       test("CREATE TABLE " + tableName + " AS SELECT " +
-          "c_custkey, c_nationkey FROM cp.`tpch/customer.parquet` ORDER BY c_custkey;");
+          "c_custkey, c_nationkey FROM cp.\"tpch/customer.parquet\" ORDER BY c_custkey;");
     } catch(UserRemoteException e) {
       ex = e;
     }

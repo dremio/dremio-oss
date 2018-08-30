@@ -23,10 +23,15 @@ describe('ExplorePageController', () => {
   let minimalProps;
 
   let nextLocations;
+  let datasetChangeDetails;
 
   beforeEach(() => {
     const location = {
       pathname: '/space/resource/name'
+    };
+    datasetChangeDetails = {
+      sqlChanged: false,
+      historyChanged: false
     };
     minimalProps = {
       sqlState: true,
@@ -41,7 +46,8 @@ describe('ExplorePageController', () => {
       location,
       pageType: 'default',
       dataset: getNewDataset({query: {context: '@dremio'}}),
-      needsLoad: false
+      needsLoad: false,
+      getDatasetChangeDetails: () => datasetChangeDetails
     };
     commonProps = {
       ...minimalProps,
@@ -55,7 +61,6 @@ describe('ExplorePageController', () => {
         displayFullPath: ['displaySpace', 'displayTable']
       }),
       initialDatasetVersion: '11',
-      currentSql: '23',
       history: Immutable.Map({tipVersion: '11'}),
       router: {
         push: sinon.spy(),
@@ -281,7 +286,7 @@ describe('ExplorePageController', () => {
 
     it('should return false when already confirmed', () => {
       const nextLocation = nextLocations.home;
-      wrapper.setProps({currentSql: '123'});
+      datasetChangeDetails.sqlChanged = true;
       expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.true;
       instance.discardUnsavedChangesConfirmed = true;
       expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.false;
@@ -290,8 +295,12 @@ describe('ExplorePageController', () => {
     describe('when tipVersion is unchanged (navigating history, or changing pageType)', () => {
       it('should return true only if sql changed', () => {
         const nextLocation = nextLocations.backInHistory;
+        datasetChangeDetails = {
+          sqlChanged: false,
+          historyChanged: true
+        };
         expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.false;
-        wrapper.setProps({currentSql: '123'});
+        datasetChangeDetails.sqlChanged = true;
         expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.true;
       });
 
@@ -306,7 +315,7 @@ describe('ExplorePageController', () => {
       describe('and sql is changed', () => {
         it('should return true only if _areLocationsSameDataset is false', () => {
           const nextLocation = nextLocations.afterTransform;
-          wrapper.setProps({currentSql: '123'});
+          datasetChangeDetails.sqlChanged = true;
           sinon.stub(instance, '_areLocationsSameDataset').returns(true);
           expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.false;
           instance._areLocationsSameDataset.returns(false);
@@ -318,13 +327,26 @@ describe('ExplorePageController', () => {
         it('should return true only if history.isEdited', () => {
           const nextLocation = nextLocations.afterTransform;
           sinon.stub(instance, '_areLocationsSameDataset').returns(false);
-          wrapper.setProps({history: undefined});
           expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.false;
-          wrapper.setProps({history: Immutable.Map({tipVersion: '123', isEdited: false})});
-          expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.false;
-          wrapper.setProps({history: Immutable.Map({tipVersion: '123', isEdited: true})});
+          datasetChangeDetails.historyChanged = true;
           expect(instance.shouldShowUnsavedChangesPopup(nextLocation)).to.be.true;
         });
+      });
+
+      it('getNewDataset: Query context is decoded correctly', () => { // DX-12354
+        // test data is taken from the bug // DX-12354
+        const space = '"   tomer 12# $"';
+        const folder = '"_ nested $"';
+        const contextInput = `${space}.${folder}`;
+        const location = {
+          query: {
+            context: encodeURIComponent(contextInput) // url parameter should be encoded. See NewQueryButton.getNewQueryHref
+          }
+        };
+
+        const contextResult = getNewDataset(location).get('context').toJS();
+
+        expect(contextResult).to.deep.eql([space, folder]);
       });
     });
   });

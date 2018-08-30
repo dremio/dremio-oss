@@ -34,7 +34,7 @@ public class TestWindowFrame extends BaseTestQuery {
   public void testMultipleFramers() throws Exception {
     final String window = " OVER(PARTITION BY position_id ORDER by sub)";
     test("SELECT COUNT(*)"+window+", SUM(salary)"+window+", ROW_NUMBER()"+window+", RANK()"+window+" " +
-      "FROM dfs.`"+TEST_RES_PATH+"/window/b1.p1`"
+      "FROM dfs.\""+TEST_RES_PATH+"/window/b1.p1\""
     );
   }
 
@@ -50,7 +50,7 @@ public class TestWindowFrame extends BaseTestQuery {
 
   @Test
   public void testAggregateRowsUnboundedAndCurrentRow() throws Exception {
-    final String table = "dfs.`"+TEST_RES_PATH+"/window/b4.p4`";
+    final String table = "dfs.\""+TEST_RES_PATH+"/window/b4.p4\"";
     testBuilder()
       .sqlQuery(getFile("window/aggregate_rows_unbounded_current.sql"), table)
       .ordered()
@@ -61,7 +61,7 @@ public class TestWindowFrame extends BaseTestQuery {
 
   @Test
   public void testLastValueRowsUnboundedAndCurrentRow() throws Exception {
-    final String table = "dfs.`"+TEST_RES_PATH+"/window/b4.p4`";
+    final String table = "dfs.\""+TEST_RES_PATH+"/window/b4.p4\"";
     testBuilder()
       .sqlQuery(getFile("window/last_value_rows_unbounded_current.sql"), table)
       .unOrdered()
@@ -72,7 +72,7 @@ public class TestWindowFrame extends BaseTestQuery {
 
   @Test
   public void testAggregateRangeCurrentAndCurrent() throws Exception {
-    final String table = "dfs.`"+TEST_RES_PATH+"/window/b4.p4`";
+    final String table = "dfs.\""+TEST_RES_PATH+"/window/b4.p4\"";
     testBuilder()
       .sqlQuery(getFile("window/aggregate_range_current_current.sql"), table)
       .unOrdered()
@@ -83,7 +83,7 @@ public class TestWindowFrame extends BaseTestQuery {
 
   @Test
   public void testFirstValueRangeCurrentAndCurrent() throws Exception {
-    final String table = "dfs.`"+TEST_RES_PATH+"/window/b4.p4`";
+    final String table = "dfs.\""+TEST_RES_PATH+"/window/b4.p4\"";
     testBuilder()
       .sqlQuery(getFile("window/first_value_range_current_current.sql"), table)
       .unOrdered()
@@ -94,12 +94,12 @@ public class TestWindowFrame extends BaseTestQuery {
 
   @Test // DRILL-1862
   public void testEmptyPartitionBy() throws Exception {
-    test("SELECT employee_id, position_id, salary, SUM(salary) OVER(ORDER BY position_id) FROM cp.`employee.json` LIMIT 10");
+    test("SELECT employee_id, position_id, salary, SUM(salary) OVER(ORDER BY position_id) FROM cp.\"employee.json\" LIMIT 10");
   }
 
   @Test // DRILL-3172
   public void testEmptyOverClause() throws Exception {
-    test("SELECT employee_id, position_id, salary, SUM(salary) OVER() FROM cp.`employee.json` LIMIT 10");
+    test("SELECT employee_id, position_id, salary, SUM(salary) OVER() FROM cp.\"employee.json\" LIMIT 10");
   }
 
   @Test // DRILL-3218
@@ -243,13 +243,13 @@ public class TestWindowFrame extends BaseTestQuery {
 
   @Test
   public void test3654Fix() throws Exception {
-    test("SELECT FIRST_VALUE(col8) OVER(PARTITION BY col7 ORDER BY col8) FROM dfs.`%s/window/3648.parquet`", TEST_RES_PATH);
+    test("SELECT FIRST_VALUE(col8) OVER(PARTITION BY col7 ORDER BY col8) FROM dfs.\"%s/window/3648.parquet\"", TEST_RES_PATH);
   }
 
   @Test
   public void test3643Fix() throws Exception {
     try {
-      test("SELECT NTILE(0) OVER(PARTITION BY col7 ORDER BY col8) FROM dfs.`%s/window/3648.parquet`", TEST_RES_PATH);
+      test("SELECT NTILE(0) OVER(PARTITION BY col7 ORDER BY col8) FROM dfs.\"%s/window/3648.parquet\"", TEST_RES_PATH);
       fail("Query should have failed");
     } catch (UserRemoteException e) {
       assertEquals(ErrorType.FUNCTION, e.getErrorType());
@@ -258,7 +258,7 @@ public class TestWindowFrame extends BaseTestQuery {
 
   @Test
   public void test3668Fix() throws Exception {
-    //testNoResult("set `store.parquet.vectorize` = false");
+    //testNoResult("set \"store.parquet.vectorize\" = false");
     testBuilder()
       .sqlQuery(getFile("window/3668.sql"), TEST_RES_PATH)
       .ordered()
@@ -270,7 +270,7 @@ public class TestWindowFrame extends BaseTestQuery {
   @Test
   public void testLeadParams() throws Exception {
     // make sure we only support default arguments for LEAD/LAG functions
-    final String query = "SELECT %s OVER(PARTITION BY col7 ORDER BY col8) FROM dfs.`%s/window/3648.parquet`";
+    final String query = "SELECT %s OVER(PARTITION BY col7 ORDER BY col8) FROM dfs.\"%s/window/3648.parquet\"";
 
     test(query, "LEAD(col8, 1)", TEST_RES_PATH);
     test(query, "LAG(col8, 1)", TEST_RES_PATH);
@@ -326,12 +326,12 @@ public class TestWindowFrame extends BaseTestQuery {
 
   @Test
   public void test4457() throws Exception {
-    runSQL("CREATE TABLE dfs_test.`4457` AS " +
+    runSQL("CREATE TABLE dfs_test.\"4457\" AS " +
       "SELECT columns[0] AS c0, NULLIF(columns[1], 'null') AS c1 " +
-      "FROM cp.`/window/4457.csv`");
+      "FROM cp.\"/window/4457.csv\"");
 
     testBuilder()
-      .sqlQuery("SELECT COALESCE(FIRST_VALUE(c1) OVER(ORDER BY c0 RANGE BETWEEN CURRENT ROW AND CURRENT ROW), 'EMPTY') AS fv FROM dfs_test.`4457`")
+      .sqlQuery("SELECT COALESCE(FIRST_VALUE(c1) OVER(ORDER BY c0 RANGE BETWEEN CURRENT ROW AND CURRENT ROW), 'EMPTY') AS fv FROM dfs_test.\"4457\"")
       .ordered()
       .baselineColumns("fv")
       .baselineValues("a")

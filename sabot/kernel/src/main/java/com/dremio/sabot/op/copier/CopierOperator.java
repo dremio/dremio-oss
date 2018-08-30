@@ -73,7 +73,7 @@ public class CopierOperator implements SingleInputOperator {
       checkForStraightCopy = true;
     }
 
-    output = VectorContainer.create(context.getAllocator(), incoming.getSchema());
+    output = context.createOutputVectorContainer(incoming.getSchema());
     switch(incoming.getSchema().getSelectionVectorMode()){
     case NONE:
       this.copier = getStraightCopier();

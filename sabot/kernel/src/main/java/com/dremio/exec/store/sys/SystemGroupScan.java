@@ -40,7 +40,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
 
 /**
  * System group scan.
@@ -167,7 +166,7 @@ public class SystemGroupScan extends AbstractBase implements GroupScan<SimpleCom
 
   @Override
   public Iterator<PhysicalOperator> iterator() {
-    return Iterators.emptyIterator();
+    return Collections.emptyIterator();
   }
 
   @Override

@@ -125,6 +125,11 @@ public class ClassProducerImpl implements ClassProducer {
     }
 
     @Override
+    public BufferManager getBufferManager() {
+      return bufferManager;
+    }
+
+    @Override
     public PartitionExplorer getPartitionExplorer() {
       throw UserException.unsupportedError().message("The partition explorer interface can only be used " +
           "in functions that can be evaluated at planning time. Make sure that the %s configuration " +

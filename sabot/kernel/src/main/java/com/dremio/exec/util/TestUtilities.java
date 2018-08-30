@@ -165,6 +165,7 @@ public class TestUtilities {
       List<String> list = new ArrayList<>();
       list.add(NamespaceServiceImpl.DAC_NAMESPACE);
       list.add(NamespaceServiceImpl.DATASET_SPLITS);
+      list.add(CatalogServiceImpl.CATALOG_SOURCE_DATA_NAMESPACE);
       if(savedStores != null) {
         list.addAll(savedStores);
       }

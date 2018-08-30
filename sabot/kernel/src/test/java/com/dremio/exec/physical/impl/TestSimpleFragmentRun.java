@@ -21,7 +21,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 
-import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.arrow.vector.ValueVector;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -56,7 +55,7 @@ public class TestSimpleFragmentRun extends PopUnitTestBase {
     final List<QueryDataBatch> results = client.runQuery(QueryType.PHYSICAL, Files.toString(FileUtils.getResourceAsFile(path), Charsets.UTF_8));
 
     // look at records
-    final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getAllocator());
+    final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getRecordAllocator());
     int recordCount = 0;
     for (final QueryDataBatch batch : results) {
       final boolean schemaChanged = batchLoader.load(batch.getHeader().getDef(), batch.getData());
@@ -119,7 +118,7 @@ public class TestSimpleFragmentRun extends PopUnitTestBase {
       );
 
       // look at records
-      final RecordBatchLoader batchLoader = new RecordBatchLoader(RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG));
+      final RecordBatchLoader batchLoader = new RecordBatchLoader(allocator);
       int recordCount = 0;
 
       //int expectedBatchCount = 2;

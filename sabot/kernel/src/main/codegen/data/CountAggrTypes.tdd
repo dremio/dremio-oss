@@ -27,7 +27,8 @@
     "NullableIntervalDay",
     "NullableIntervalYear",
     "NullableVarChar",
-    "NullableVarBinary"
+    "NullableVarBinary",
+    "NullableDecimal"
   ]
 }
 

@@ -40,7 +40,7 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
   public static final String ZK_SASL_CLIENT_CONFIG = "zookeeper.sasl.clientconfig";
   public static final String ZK_SASL_PROVIDER = "zookeeper.saslprovider";
   public static final String SPILL_PATH = "paths.spilling";
-  public static final String APP_CLASSPATH_JARS = "default.classpath.jars";
+  public static final String CLASSPATH_JARS = "default.classpath.jars";
 
 
   private static Map<String, Boolean> yarnDefaultNames = ImmutableMap.of(
@@ -90,6 +90,15 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
     return distroConfigurator;
   }
 
+  private static ImmutableMap<String, String> createNettyDefaultProps() {
+    ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+
+    // netty property to use the JVM's accounting for direct allocations.
+    builder.put("io.netty.maxDirectMemory", "0");
+
+    return builder.build();
+  }
+
   /**
    * Class to keep base YARN defaults
    */
@@ -112,6 +121,7 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
     private EnumSet<DistroType> supportedTypes = EnumSet.of(
       DistroType.APACHE, DistroType.CDH,DistroType.HDP, DistroType.OTHER);
 
+    @Override
     public EnumSet<DistroType> getSupportedTypes() {
       return supportedTypes;
     }
@@ -123,7 +133,10 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
 
     @Override
     public Map<String, String> getAllDefaults() {
-      return baseYarnDefaultPropsSecurityOff;
+      return ImmutableMap.<String, String> builder()
+        .putAll(baseYarnDefaultPropsSecurityOff)
+        .putAll(createNettyDefaultProps())
+        .build();
     }
 
     @Override
@@ -139,7 +152,10 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
 
       @Override
       public Map<String, String> getAllDefaults() {
-        return baseYarnDefaultPropsSecurityOn;
+        return ImmutableMap.<String, String> builder()
+          .putAll(baseYarnDefaultPropsSecurityOn)
+          .putAll(createNettyDefaultProps())
+          .build();
       }
 
       @Override
@@ -159,39 +175,63 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
       + "," + File.separatorChar + "jars" + File.separatorChar
       + "3rdparty" + File.separatorChar + "maprfs-.*.jar";
 
-    private static Map<String, String> baseYarnDefaultPropsSecurityOn = new ImmutableMap.Builder<String, String>()
+
+    private static ImmutableMap<String, String> createMaprFSDefaultProps() {
+      ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+
+      // maprfs specific system properties to enable read ahead throttling
+      builder = copySystemProperty("MAPR_IMPALA_RA_THROTTLE", builder);
+      builder = copySystemProperty("MAPR_MAX_RA_STREAMS", builder);
+
+      return builder.build();
+    }
+
+    private static ImmutableMap.Builder<String, String> copySystemProperty(String name, ImmutableMap.Builder<String, String> target) {
+      String value = System.getProperty(name);
+      if (value != null) {
+        target.put(name, value);
+      }
+      return target;
+    }
+
+    private static final ImmutableMap<String, String> commonBaseYarnDefaultPropsShow = ImmutableMap.<String, String> builder()
       .put(JAVA_LOGIN, "/opt/mapr/conf/mapr.login.conf")
+      .put(SPILL_PATH, "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]")
+      .build();
+
+    private static final ImmutableMap<String, String> commonBaseYarnDefaultProps = ImmutableMap.<String, String> builder()
+      .putAll(commonBaseYarnDefaultPropsShow)
+      .putAll(createMaprFSDefaultProps())
+      .put(CLASSPATH_JARS, APP_CLASSPATH)
+      .build();
+
+    private static final Map<String, String> baseYarnDefaultPropsSecurityOn = ImmutableMap.<String, String> builder()
+      .putAll(commonBaseYarnDefaultProps)
       .put(ZK_SASL_CLIENT, "false")
       .put(ZK_SASL_CLIENT_CONFIG, "Client")
       .put(ZK_SASL_PROVIDER, "com.mapr.security.maprsasl.MaprSaslProvider")
-      .put(SPILL_PATH, "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]")
-      .put(APP_CLASSPATH_JARS, APP_CLASSPATH)
       .build();
 
-    private static Map<String, String> baseYarnDefaultPropsSecurityOff = new ImmutableMap.Builder<String, String>()
-      .put(JAVA_LOGIN, "/opt/mapr/conf/mapr.login.conf")
+    private static final Map<String, String> baseYarnDefaultPropsSecurityOff = ImmutableMap.<String, String> builder()
+      .putAll(commonBaseYarnDefaultProps)
       .put(ZK_SASL_CLIENT, "false")
       .put(ZK_SASL_CLIENT_CONFIG, "Client_simple")
       .put(ZK_SASL_PROVIDER, "com.mapr.security.simplesasl.SimpleSaslProvider")
-      .put(SPILL_PATH, "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]")
-      .put(APP_CLASSPATH_JARS, APP_CLASSPATH)
       .build();
 
-    private static Map<String, String> baseYarnDefaultPropsSecurityOnShow = ImmutableMap.of(
-      JAVA_LOGIN, "/opt/mapr/conf/mapr.login.conf",
-      ZK_SASL_CLIENT, "false",
-      ZK_SASL_CLIENT_CONFIG, "Client",
-      ZK_SASL_PROVIDER, "com.mapr.security.maprsasl.MaprSaslProvider",
-      SPILL_PATH, "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]"
-    );
+    private static final Map<String, String> baseYarnDefaultPropsSecurityOnShow = ImmutableMap.<String, String> builder()
+      .putAll(commonBaseYarnDefaultPropsShow)
+      .put(ZK_SASL_CLIENT, "false")
+      .put(ZK_SASL_CLIENT_CONFIG, "Client")
+      .put(ZK_SASL_PROVIDER, "com.mapr.security.maprsasl.MaprSaslProvider")
+      .build();
 
-    private static Map<String, String> baseYarnDefaultPropsSecurityOffShow = ImmutableMap.of(
-      JAVA_LOGIN, "/opt/mapr/conf/mapr.login.conf",
-      ZK_SASL_CLIENT, "false",
-      ZK_SASL_CLIENT_CONFIG, "Client_simple",
-      ZK_SASL_PROVIDER, "com.mapr.security.simplesasl.SimpleSaslProvider",
-      SPILL_PATH, "[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]"
-    );
+    private static final Map<String, String> baseYarnDefaultPropsSecurityOffShow = ImmutableMap.<String, String> builder()
+      .putAll(commonBaseYarnDefaultPropsShow)
+      .put(ZK_SASL_CLIENT, "false")
+      .put(ZK_SASL_CLIENT_CONFIG, "Client_simple")
+      .put(ZK_SASL_PROVIDER, "com.mapr.security.simplesasl.SimpleSaslProvider")
+      .build();
 
     @VisibleForTesting
     public static String getAppClassPath() {
@@ -200,6 +240,7 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
 
     private EnumSet<DistroType> supportedTypes = EnumSet.of(DistroType.MAPR);
 
+    @Override
     public EnumSet<DistroType> getSupportedTypes() {
       return supportedTypes;
     }
@@ -209,8 +250,12 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
       public boolean isSecure() {
         return true;
       }
+      @Override
       public Map<String, String> getAllDefaults() {
-        return baseYarnDefaultPropsSecurityOn;
+        return ImmutableMap.<String, String> builder()
+          .putAll(baseYarnDefaultPropsSecurityOn)
+          .putAll(createNettyDefaultProps())
+          .build();
       }
 
       @Override
@@ -224,8 +269,12 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
       return false;
     }
 
+    @Override
     public Map<String, String> getAllDefaults() {
-      return baseYarnDefaultPropsSecurityOff;
+      return ImmutableMap.<String, String> builder()
+          .putAll(baseYarnDefaultPropsSecurityOff)
+          .putAll(createNettyDefaultProps())
+          .build();
     }
 
     @Override

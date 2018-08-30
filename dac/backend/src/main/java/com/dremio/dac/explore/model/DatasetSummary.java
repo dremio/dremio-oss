@@ -116,6 +116,7 @@ public class DatasetSummary {
   }
 
   // links
+  // TODO make this consistent with DatasetUI.createLinks. In ideal case, both methods should use the same util method
   public Map<String, String> getLinks() {
     DatasetPath datasetPath = new DatasetPath(fullPath);
     Map<String, String> links = new HashMap<>();
@@ -124,7 +125,7 @@ public class DatasetSummary {
     links.put("query", datasetPath.getQueryUrlPath());
     links.put("jobs", this.getJobsUrl());
     if (datasetType == DatasetType.VIRTUAL_DATASET) {
-      links.put("edit", datasetPath.toUrlPath() + "?mode=edit&version=" + datasetVersion);
+      links.put("edit", datasetPath.getQueryUrlPath() + "?mode=edit&version=" + datasetVersion);
     }
     return links;
   }

@@ -40,9 +40,9 @@ public class TestDatasetSplitId {
     DatasetSplitId split2 = new DatasetSplitId(datasetConfig, new DatasetSplit().setSplitKey("s2"), 0L);
     DatasetSplitId split3 = new DatasetSplitId(datasetConfig, new DatasetSplit().setSplitKey("s3"), 0L);
 
-    assertEquals("ds1_0_s1", split1.getSpiltId());
-    assertEquals("ds1_0_s2", split2.getSpiltId());
-    assertEquals("ds1_0_s3", split3.getSpiltId());
+    assertEquals("ds1_0_s1", split1.getSplitId());
+    assertEquals("ds1_0_s2", split2.getSplitId());
+    assertEquals("ds1_0_s3", split3.getSplitId());
   }
 
   @Test

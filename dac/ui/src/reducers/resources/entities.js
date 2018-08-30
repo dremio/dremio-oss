@@ -16,6 +16,7 @@
 import Immutable from 'immutable';
 
 import entityTypes from 'dyn-load/reducers/resources/entityTypes';
+import { LOAD_ENTITIES_SUCCESS } from '@app/actions/resources';
 
 import * as entityReducers from './entityReducers';
 
@@ -57,42 +58,68 @@ const isActionWithEntities = (action) =>
   (!action.meta || !action.meta.ignoreEntities) &&
   action.payload && action.payload.get && action.payload.get('entities');
 
-export default function entitiesReducer(state = initialState, action) {
+const clearEntitiesByType = (state, types) => {
   let nextState = state;
 
-  if (action.meta && action.meta.entityRemovePaths) {
-    for (const path of action.meta.entityRemovePaths) {
-      nextState = nextState.deleteIn(path);
-    }
-  }
-
-  if (action.meta && action.meta.entityClears) {
-    for (const entityType of action.meta.entityClears) {
+  if (types) {
+    for (const entityType of types) {
       nextState = nextState.set(entityType, new Immutable.Map());
     }
   }
 
-  if (action.meta && action.meta.emptyEntityCache) {
-    // Remove folders when certain entities (like source or space) are removed to avoid caching outdated data
-    const root = action.meta.emptyEntityCache;
-    const newFolders = nextState.get('folder').filter((folder) => {
-      return folder.get('fullPathList').get(0) !== root;
-    });
+  return nextState;
+};
 
-    const newFiles = nextState.get('file').filter((file) => {
-      return file.get('fullPathList').get(0) !== root;
-    });
+export default function entitiesReducer(state = initialState, action) {
+  let nextState = state;
 
-    const newFileFormats = nextState.get('fileFormat').filter((fileFormat) => {
-      return fileFormat.get('fullPath').get(0) !== root;
-    });
+  // DX-10700 clear data that could be cached for other folders. New data would be applied below
+  if (action.type === LOAD_ENTITIES_SUCCESS) {
+    nextState = clearEntitiesByType(nextState, ['folder', 'file', 'fileFormat']);
+  }
 
-    nextState = nextState.set('folder', newFolders).set('file', newFiles).set('fileFormat', newFileFormats);
+  if (action.meta) {
+
+    //todo add description of setting bellow
+    const {
+      entityRemovePaths,
+      entityClears,
+      emptyEntityCache
+    } = action.meta;
+
+    if (entityRemovePaths) {
+      for (const path of entityRemovePaths) {
+        nextState = nextState.deleteIn(path);
+      }
+    }
+
+    nextState = clearEntitiesByType(nextState, entityClears);
+
+    clearEntitiesByType(entityClears);
+
+    if (emptyEntityCache) {
+      // Remove folders when certain entities (like source or space) are removed to avoid caching outdated data
+      const root = emptyEntityCache;
+      const newFolders = nextState.get('folder').filter((folder) => {
+        return folder.get('fullPathList').get(0) !== root;
+      });
+
+      const newFiles = nextState.get('file').filter((file) => {
+        return file.get('fullPathList').get(0) !== root;
+      });
+
+      const newFileFormats = nextState.get('fileFormat').filter((fileFormat) => {
+        return fileFormat.get('fullPath').get(0) !== root;
+      });
+
+      nextState = nextState.set('folder', newFolders).set('file', newFiles).set('fileFormat', newFileFormats);
+    }
   }
 
   nextState = isActionWithEntities(action)
     ? applyEntitiesToState(nextState, action)
     : nextState;
 
+  // why do we apply reducer to whole state not to prevState[key]???
   return Object.keys(entityReducers).reduce((prevState, key) => entityReducers[key](prevState, action), nextState);
 }

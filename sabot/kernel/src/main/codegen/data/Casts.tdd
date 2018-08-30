@@ -54,6 +54,7 @@
 
     {from: "DateMilli", to: "TimeStampMilli", major: "Date"},
     {from: "TimeStampMilli", to: "DateMilli", major: "Date", alias: "to_date"},
+    {from: "TimeMilli", to: "TimeStampMilli", major: "Date"},
 
     {from: "VarChar", to: "DateMilli", major: "VarCharDate", alias: "datetype"},
     {from: "VarChar", to: "TimeStampMilli", major: "VarCharDate", alias: "timestamptype"},
@@ -77,10 +78,18 @@
     {from: "IntervalYear", to: "BigInt", major: "IntervalYearExactNumeric"},
     {from: "NullableIntervalYear", to: "NullableInt", major: "IntervalYearExactNumeric"},
     {from: "NullableIntervalYear", to: "NullableBigInt", major: "IntervalYearExactNumeric"},
-    {from: "IntervalDay", to: "Int", major: "IntervalDayExactNumeric"},
     {from: "IntervalDay", to: "BigInt", major: "IntervalDayExactNumeric"},
     {from: "NullableIntervalDay", to: "NullableInt", major: "IntervalDayExactNumeric"},
     {from: "NullableIntervalDay", to: "NullableBigInt", major: "IntervalDayExactNumeric"},
+
+    {from: "Int", to:"IntervalYear", major: "ExactNumericIntervalYear"},
+    {from: "NullableInt", to:"NullableIntervalYear", major: "ExactNumericIntervalYear"},
+    {from: "Int", to:"IntervalDay", major: "ExactNumericIntervalDay"},
+    {from: "NullableInt", to:"NullableIntervalDay", major: "ExactNumericIntervalDay"},
+    {from: "BigInt", to:"IntervalYear", major: "ExactNumericIntervalYear"},
+    {from: "NullableBigInt", to:"NullableIntervalYear", major: "ExactNumericIntervalYear"},
+    {from: "BigInt", to:"IntervalDay", major: "ExactNumericIntervalDay"},
+    {from: "NullableBigInt", to:"NullableIntervalDay", major: "ExactNumericIntervalDay"},
 
     {from: "VarChar", to: "NullableInt", major: "EmptyString", javaType:"Integer", primeType:"int"},
     {from: "VarChar", to: "NullableBigInt", major: "EmptyString", javaType: "Long", primeType: "long"},

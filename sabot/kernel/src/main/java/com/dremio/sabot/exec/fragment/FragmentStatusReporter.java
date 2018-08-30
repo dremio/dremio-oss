@@ -22,7 +22,7 @@ import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
-import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.sabot.exec.context.FragmentStats;
 import com.dremio.sabot.exec.rpc.ExecToCoordTunnel;
 

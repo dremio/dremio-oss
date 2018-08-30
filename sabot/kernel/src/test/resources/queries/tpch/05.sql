@@ -4,12 +4,12 @@ select
   sum(l.l_extendedprice * (1 - l.l_discount)) as revenue
 
 from
-  cp.`tpch/customer.parquet` c,
-  cp.`tpch/orders.parquet` o,
-  cp.`tpch/lineitem.parquet` l,
-  cp.`tpch/supplier.parquet` s,
-  cp.`tpch/nation.parquet` n,
-  cp.`tpch/region.parquet` r
+  cp."tpch/customer.parquet" c,
+  cp."tpch/orders.parquet" o,
+  cp."tpch/lineitem.parquet" l,
+  cp."tpch/supplier.parquet" s,
+  cp."tpch/nation.parquet" n,
+  cp."tpch/region.parquet" r
 
 where
   c.c_custkey = o.o_custkey

@@ -30,9 +30,9 @@ import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.NullableBitVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ZeroVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.UnionVector;
@@ -44,6 +44,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.AfterClass;
@@ -112,8 +113,8 @@ public class TestArrowFileReader {
       Path basePath = new Path(dateGenFolder.getRoot().getPath());
 
       batchData = createBatch(0,
-          new NullableBitVector("colBit", ALLOCATOR),
-          new NullableVarCharVector("colVarChar", ALLOCATOR),
+          new BitVector("colBit", ALLOCATOR),
+          new VarCharVector("colVarChar", ALLOCATOR),
           testEmptyListVector(),
           testEmptyUnionVector());
       ArrowFileMetadata metadata = writeArrowFile(batchData);
@@ -366,8 +367,8 @@ public class TestArrowFileReader {
   }
 
   /** Helper method which creates a test bit vector */
-  private static NullableBitVector testBitVector() {
-    NullableBitVector colBitV = new NullableBitVector("colBit", ALLOCATOR);
+  private static BitVector testBitVector() {
+    BitVector colBitV = new BitVector("colBit", ALLOCATOR);
     colBitV.allocateNew(5);
     for(int i=0; i<TEST_BIT_VALUES.size(); i++) {
       if (TEST_BIT_VALUES.get(i) == null) {
@@ -381,8 +382,8 @@ public class TestArrowFileReader {
   }
 
   /** Helper method which creates a test varchar vector */
-  private static NullableVarCharVector testVarCharVector() {
-    NullableVarCharVector colVarCharV = new NullableVarCharVector("colVarChar", ALLOCATOR);
+  private static VarCharVector testVarCharVector() {
+    VarCharVector colVarCharV = new VarCharVector("colVarChar", ALLOCATOR);
     colVarCharV.allocateNew(500, 5);
     for(int i=0; i<TEST_VARCHAR_VALUES.size(); i++) {
       if (TEST_VARCHAR_VALUES.get(i) == null) {
@@ -418,7 +419,7 @@ public class TestArrowFileReader {
 
   /** Helper method to get the values in given range in colBit vector used in this test class. */
   private static List<Boolean> getBitValues(VectorContainer container, int start, int end) {
-    FieldReader reader = container.getValueAccessorById(NullableBitVector.class, 0).getValueVector().getReader();
+    FieldReader reader = container.getValueAccessorById(BitVector.class, 0).getValueVector().getReader();
 
     List<Boolean> values = Lists.newArrayList();
     for(int i=start; i<end; i++) {
@@ -435,7 +436,7 @@ public class TestArrowFileReader {
 
   /** Helper method to get the values in given range in colVarChar vector used in this test class. */
   private static List<String> getVarCharValues(VectorContainer container, int start, int end) {
-    FieldReader reader = container.getValueAccessorById(NullableVarCharVector.class, 1).getValueVector().getReader();
+    FieldReader reader = container.getValueAccessorById(VarCharVector.class, 1).getValueVector().getReader();
 
     List<String> values = Lists.newArrayList();
     for(int i=start; i<end; i++) {
@@ -509,6 +510,7 @@ public class TestArrowFileReader {
     OutputEntryListener outputEntryListener = Mockito.mock(OutputEntryListener.class);
     WriteStatsListener writeStatsListener = Mockito.mock(WriteStatsListener.class);
     ArgumentCaptor<Long> recordWrittenCaptor = ArgumentCaptor.forClass(long.class);
+    ArgumentCaptor<Long> fileSizeCaptor = ArgumentCaptor.forClass(long.class);
     ArgumentCaptor<String> pathCaptor = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
     ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
@@ -529,8 +531,14 @@ public class TestArrowFileReader {
 
     writer.close();
 
-    verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(), partitionCaptor.capture());
+    verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(), fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(), partitionCaptor.capture());
     verify(writeStatsListener, times(batches.length)).bytesWritten(bytesWrittenCaptor.capture());
+
+    Path path = new Path(dateGenFolder.getRoot().getPath());
+    FileSystem fs = path.getFileSystem(FS_CONF);
+    for (FileStatus file : fs.listStatus(path)) {
+      assertEquals(Long.valueOf(fileSizeCaptor.getValue()), Long.valueOf(file.getLen()));
+    }
 
     return ArrowFileReader.toBean(ArrowFileFormat.ArrowFileMetadata.parseFrom(metadataCaptor.getValue()));
   }

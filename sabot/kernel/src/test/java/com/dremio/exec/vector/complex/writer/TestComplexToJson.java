@@ -39,11 +39,11 @@ public class TestComplexToJson extends BaseTestQuery {
     RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
 
     setup();
-    results = testSqlWithResults("select * from dfs_root.`[WORKING_PATH]/src/test/resources/store/text/data/regions.csv`");
+    results = testSqlWithResults("select * from dfs_root.\"[WORKING_PATH]/src/test/resources/store/text/data/regions.csv\"");
     checkResult(loader, results);
 
     setup();
-    results = testSqlWithResults("select * from dfs_root.`[WORKING_PATH]/src/test/resources/store/text/data/regions.csv`");
+    results = testSqlWithResults("select * from dfs_root.\"[WORKING_PATH]/src/test/resources/store/text/data/regions.csv\"");
     checkResult(loader, results);
 
     client = parent_client;
@@ -57,11 +57,11 @@ public class TestComplexToJson extends BaseTestQuery {
     RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
 
     setup();
-    results = testSqlWithResults("select * from dfs_root.`[WORKING_PATH]/src/test/resources/store/text/data/jsonwriterbug.json`");
+    results = testSqlWithResults("select * from dfs_root.\"[WORKING_PATH]/src/test/resources/store/text/data/jsonwriterbug.json\"");
     checkResult(loader, results);
 
     setup();
-    results = testSqlWithResults("select * from dfs_root.`[WORKING_PATH]/src/test/resources/store/text/data/jsonwriterbug.json`");
+    results = testSqlWithResults("select * from dfs_root.\"[WORKING_PATH]/src/test/resources/store/text/data/jsonwriterbug.json\"");
     checkResult(loader, results);
 
     client = parent_client;

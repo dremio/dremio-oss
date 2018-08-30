@@ -24,24 +24,16 @@ public class BuildInfo implements AutoCloseable {
   // First 4 bytes are used to identify the batch and remaining 2 bytes for record within the batch.
   private ArrowBuf links;
 
-  // List of bitvectors. Keeps track of records on the build side that matched a record on the probe side
-  private BitSet keyMatchBitVector;
-
   // number of records in this batch
   int recordCount;
 
-  public BuildInfo(ArrowBuf links, BitSet keyMatchBitVector, int recordCount) {
+  public BuildInfo(ArrowBuf links, int recordCount) {
     this.links = links;
-    this.keyMatchBitVector = keyMatchBitVector;
     this.recordCount = recordCount;
   }
 
   public ArrowBuf getLinks() {
     return links;
-  }
-
-  public BitSet getKeyMatchBitVector() {
-    return keyMatchBitVector;
   }
 
   public int getRecordCount(){

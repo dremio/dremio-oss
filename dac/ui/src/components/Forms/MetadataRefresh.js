@@ -15,7 +15,7 @@
  */
 import { Component } from 'react';
 import PropTypes from 'prop-types';
-import { label, subSectionTitle, formRow } from 'uiTheme/radium/forms';
+import { label } from 'uiTheme/radium/forms';
 import { formDefault } from 'uiTheme/radium/typography';
 import { Select } from 'components/Fields';
 import HoverHelp from 'components/HoverHelp';
@@ -53,12 +53,8 @@ export default class MetadataRefresh extends Component {
 
   static propTypes = {
     fields: PropTypes.object,
-    hideObjectNames: PropTypes.bool,
+    showDatasetDiscovery: PropTypes.bool,
     showAuthorization: PropTypes.bool
-  };
-
-  static defaultProps = {
-    hideObjectNames: false
   };
 
   static defaultFormValues() {
@@ -130,17 +126,16 @@ export default class MetadataRefresh extends Component {
   ];
 
   render() {
-    const { fields: { metadataPolicy }, hideObjectNames, showAuthorization } = this.props;
+    const { fields: { metadataPolicy }, showDatasetDiscovery, showAuthorization } = this.props;
 
     // if INLINE, disable the datasetDefinitionRefreshAfterMillis field
     const disableFetchEvery = metadataPolicy.updateMode && metadataPolicy.updateMode.value === 'INLINE';
     return (
       <div className='metadata-refresh'>
-        <h3 style={subSectionTitle}>{la('Metadata Caching')}</h3>
-        {!hideObjectNames && <div style={formRow}>
+        {showDatasetDiscovery && <div style={styles.subSection}>
           <span style={styles.label}>
             {la('Dataset Discovery')}
-            <HoverHelp content={la(DISCOVERY_TOOLTIP)} tooltipInnerStyle={styles.hoverTip} />
+            <HoverHelp content={la(DISCOVERY_TOOLTIP)} />
           </span>
           <div style={styles.formSubRow}>
             <FieldWithError {...metadataPolicy.namesRefreshMillis} label={la('Fetch every')} labelStyle={styles.inputLabel} errorPlacement='right'>
@@ -151,10 +146,10 @@ export default class MetadataRefresh extends Component {
             </FieldWithError>
           </div>
         </div>}
-        <div style={formRow}> {/* todo: add a <table> or two to make look nice in other locs */}
+        <div style={styles.subSection}>
           <span style={styles.label}>
             {la('Dataset Details')}
-            <HoverHelp content={la(DETAILS_TOOLTIP)} tooltipInnerStyle={styles.hoverTip} />
+            <HoverHelp content={la(DETAILS_TOOLTIP)} />
           </span>
 
           <div style={styles.formSubRow}>
@@ -163,7 +158,6 @@ export default class MetadataRefresh extends Component {
                 <Select
                   {...metadataPolicy.updateMode}
                   items={this.refreshModeOptions}
-                  buttonStyle={{ textAlign: 'left' }}
                   style={styles.inRowSelect}/>
               </div>
             </FieldWithError>
@@ -188,10 +182,10 @@ export default class MetadataRefresh extends Component {
             </FieldWithError>
           </div>
         </div>
-        {showAuthorization && <div style={formRow}>
+        {showAuthorization && <div style={styles.subSection}>
           <span style={styles.label}>
             {la('Authorization')}
-            <HoverHelp content={la(AUTHORIZATION_TOOLTIP)} tooltipInnerStyle={styles.hoverTip}/>
+            <HoverHelp content={la(AUTHORIZATION_TOOLTIP)}/>
           </span>
           <div style={styles.formSubRow}>
             <FieldWithError {...metadataPolicy.authTTLMillis} label={la('Expire after')} labelStyle={styles.inputLabel} errorPlacement='right'>
@@ -208,27 +202,28 @@ export default class MetadataRefresh extends Component {
 }
 
 const styles = {
+  subSection: {
+    marginBottom: 15
+  },
   numberInput: {
     width: 42
   },
   inRowSelect: {
-    width: 250
-  },
-  hoverTip: {
-    textAlign: 'left',
-    width: 300,
-    whiteSpace: 'pre-line'
+    width: 250,
+    textAlign: 'left'
   },
   label: {
     ...label,
     display: 'inline-flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    marginBottom: 4
   },
   inputLabel: {
     ...formDefault,
     marginLeft: 10,
     marginRight: 10,
-    display: 'inline-flex'
+    display: 'inline-flex',
+    minWidth: 85
   },
   formSubRow: {
     display: 'flex',

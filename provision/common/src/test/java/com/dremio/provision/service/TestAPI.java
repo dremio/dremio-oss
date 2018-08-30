@@ -42,6 +42,7 @@ import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterConfig;
+import com.dremio.provision.ClusterCreateRequest;
 import com.dremio.provision.ClusterDesiredState;
 import com.dremio.provision.ClusterEnriched;
 import com.dremio.provision.ClusterId;
@@ -76,7 +77,7 @@ public class TestAPI {
       service = Mockito.spy(new ProvisioningServiceImpl(registry.provider(KVStoreProvider.class), Mockito.mock(NodeProvider.class),
         DremioTest.CLASSPATH_SCAN_RESULT));
       service.start();
-      resource = new ProvisioningResource(service, null);
+      resource = new ProvisioningResource(service);
   }
 
   @AfterClass
@@ -423,7 +424,7 @@ public class TestAPI {
     //request.setMemoryMB(9126);
     request.setDesiredState(ClusterDesiredState.RUNNING);
     List<Property> newList = new ArrayList<>(storedCluster.getClusterConfig().getSubPropertyList());
-    newList.add(new Property(DremioConfig.YARN_HEAP_SIZE, "2096"));
+    newList.add(new Property(ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY, "2096"));
     request.setSubPropertyList(newList);
     ClusterConfig config = resource.toClusterConfig(request);
     final Cluster modifiedCluster4 = service.toCluster(config, ClusterState.RUNNING, storedCluster);
@@ -447,7 +448,7 @@ public class TestAPI {
     request.setMemoryMB(9126);
     request.setDesiredState(ClusterDesiredState.RUNNING);
     List<Property> newList = new ArrayList<>(storedCluster.getClusterConfig().getSubPropertyList());
-    newList.add(new Property(DremioConfig.YARN_HEAP_SIZE, "2096"));
+    newList.add(new Property(ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY, "2096"));
     request.setSubPropertyList(newList);
     ClusterConfig config = resource.toClusterConfig(request);
     final Cluster modifiedCluster4 = service.toCluster(config, ClusterState.RUNNING, storedCluster);
@@ -455,6 +456,52 @@ public class TestAPI {
     assertTrue(2096 == modifiedCluster4.getClusterConfig().getClusterSpec().getMemoryMBOnHeap());
     assertTrue((9126-2096) == modifiedCluster4.getClusterConfig().getClusterSpec().getMemoryMBOffHeap());
     assertEquals(ProvisioningServiceImpl.Action.RESTART, action);
+  }
+
+  @Test
+  public void testMemoryLimitDefault() throws Exception {
+    ClusterCreateRequest clusterCreateRequest = new ClusterCreateRequest();
+    clusterCreateRequest.setMemoryMB(32767);
+    clusterCreateRequest.setClusterType(ClusterType.YARN);
+    clusterCreateRequest.setDynamicConfig(new DynamicConfig(2));
+    clusterCreateRequest.setVirtualCoreCount(2);
+    clusterCreateRequest.setDistroType(DistroType.MAPR).setIsSecure(true);
+
+    ClusterConfig clusterConfig = resource.getClusterConfig(clusterCreateRequest);
+    assertEquals( 4096, clusterConfig.getClusterSpec().getMemoryMBOnHeap().intValue());
+    assertEquals( (32767-4096), clusterConfig.getClusterSpec().getMemoryMBOffHeap().intValue());
+  }
+
+  @Test
+  public void testMemoryLimitLargeSystem() throws Exception {
+    ClusterCreateRequest clusterCreateRequest = new ClusterCreateRequest();
+    clusterCreateRequest.setMemoryMB(32768);
+    clusterCreateRequest.setClusterType(ClusterType.YARN);
+    clusterCreateRequest.setDynamicConfig(new DynamicConfig(2));
+    clusterCreateRequest.setVirtualCoreCount(2);
+    clusterCreateRequest.setDistroType(DistroType.MAPR).setIsSecure(true);
+
+    ClusterConfig clusterConfig = resource.getClusterConfig(clusterCreateRequest);
+    assertEquals( 8192, clusterConfig.getClusterSpec().getMemoryMBOnHeap().intValue());
+    assertEquals( (32768-8192), clusterConfig.getClusterSpec().getMemoryMBOffHeap().intValue());
+  }
+
+  @Test
+  public void testMemoryLimitOverWrite() throws Exception {
+    ClusterCreateRequest clusterCreateRequest = new ClusterCreateRequest();
+    clusterCreateRequest.setMemoryMB(32768);
+    clusterCreateRequest.setClusterType(ClusterType.YARN);
+    clusterCreateRequest.setDynamicConfig(new DynamicConfig(2));
+    clusterCreateRequest.setVirtualCoreCount(2);
+    clusterCreateRequest.setDistroType(DistroType.MAPR).setIsSecure(true);
+
+    List<Property> newList = new ArrayList<>();
+    newList.add(new Property(ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY, "2096"));
+    clusterCreateRequest.setSubPropertyList(newList);
+
+    ClusterConfig clusterConfig = resource.getClusterConfig(clusterCreateRequest);
+    assertEquals( 2096, clusterConfig.getClusterSpec().getMemoryMBOnHeap().intValue());
+    assertEquals( (32768-2096), clusterConfig.getClusterSpec().getMemoryMBOffHeap().intValue());
   }
 
 

@@ -42,7 +42,7 @@ public class TestInfoSchema extends BaseTestQuery {
     test("select * from INFORMATION_SCHEMA.SCHEMATA");
     test("select * from INFORMATION_SCHEMA.CATALOGS");
     test("select * from INFORMATION_SCHEMA.VIEWS");
-    test("select * from INFORMATION_SCHEMA.`TABLES`");
+    test("select * from INFORMATION_SCHEMA.\"TABLES\"");
     test("select * from INFORMATION_SCHEMA.COLUMNS");
   }
 
@@ -161,7 +161,7 @@ public class TestInfoSchema extends BaseTestQuery {
   @Test
   public void describeTableWithSchema() throws Exception{
     testBuilder()
-        .sqlQuery("DESCRIBE INFORMATION_SCHEMA.`TABLES`")
+        .sqlQuery("DESCRIBE INFORMATION_SCHEMA.\"TABLES\"")
         .unOrdered()
         .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE")
         .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES")
@@ -176,10 +176,10 @@ public class TestInfoSchema extends BaseTestQuery {
   public void describeWhenSameTableNameExistsInMultipleSchemas() throws Exception{
     try {
       test("USE dfs_test.tmp");
-      test("CREATE OR REPLACE VIEW `TABLES` AS SELECT full_name FROM cp.`employee.json`");
+      test("CREATE OR REPLACE VIEW \"TABLES\" AS SELECT full_name FROM cp.\"employee.json\"");
 
       testBuilder()
-          .sqlQuery("DESCRIBE `TABLES`")
+          .sqlQuery("DESCRIBE \"TABLES\"")
           .unOrdered()
           .optionSettingQueriesForTestQuery("USE dfs_test.tmp")
           .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE")
@@ -187,7 +187,7 @@ public class TestInfoSchema extends BaseTestQuery {
           .go();
 
       testBuilder()
-          .sqlQuery("DESCRIBE INFORMATION_SCHEMA.`TABLES`")
+          .sqlQuery("DESCRIBE INFORMATION_SCHEMA.\"TABLES\"")
           .unOrdered()
           .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE")
           .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES")
@@ -196,14 +196,14 @@ public class TestInfoSchema extends BaseTestQuery {
           .baselineValues("TABLE_TYPE", "CHARACTER VARYING", "YES")
           .go();
     } finally {
-      test("DROP VIEW dfs_test.tmp.`TABLES`");
+      test("DROP VIEW dfs_test.tmp.\"TABLES\"");
     }
   }
 
   @Test
   public void describeTableWithColumnName() throws Exception{
     testBuilder()
-        .sqlQuery("DESCRIBE `TABLES` TABLE_CATALOG")
+        .sqlQuery("DESCRIBE \"TABLES\" TABLE_CATALOG")
         .unOrdered()
         .optionSettingQueriesForTestQuery("USE INFORMATION_SCHEMA")
         .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE")
@@ -214,7 +214,7 @@ public class TestInfoSchema extends BaseTestQuery {
   @Test
   public void describeTableWithSchemaAndColumnName() throws Exception{
     testBuilder()
-        .sqlQuery("DESCRIBE INFORMATION_SCHEMA.`TABLES` TABLE_CATALOG")
+        .sqlQuery("DESCRIBE INFORMATION_SCHEMA.\"TABLES\" TABLE_CATALOG")
         .unOrdered()
         .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE")
         .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES")
@@ -250,7 +250,7 @@ public class TestInfoSchema extends BaseTestQuery {
   @Test
   public void defaultSchemaDfs() throws Exception{
     testBuilder()
-        .sqlQuery("SELECT R_REGIONKEY FROM `[WORKING_PATH]/../../sample-data/region.parquet` LIMIT 1")
+        .sqlQuery("SELECT R_REGIONKEY FROM \"[WORKING_PATH]/../../sample-data/region.parquet\" LIMIT 1")
         .unOrdered()
         .optionSettingQueriesForTestQuery("USE dfs")
         .baselineColumns("R_REGIONKEY")
@@ -261,7 +261,7 @@ public class TestInfoSchema extends BaseTestQuery {
   @Test
   public void defaultSchemaClasspath() throws Exception{
     testBuilder()
-        .sqlQuery("SELECT full_name FROM `employee.json` LIMIT 1")
+        .sqlQuery("SELECT full_name FROM \"employee.json\" LIMIT 1")
         .unOrdered()
         .optionSettingQueriesForTestQuery("USE cp")
         .baselineColumns("full_name")
@@ -273,7 +273,7 @@ public class TestInfoSchema extends BaseTestQuery {
   @Test
   public void queryFromNonDefaultSchema() throws Exception{
     testBuilder()
-        .sqlQuery("SELECT full_name FROM cp.`employee.json` LIMIT 1")
+        .sqlQuery("SELECT full_name FROM cp.\"employee.json\" LIMIT 1")
         .unOrdered()
         .optionSettingQueriesForTestQuery("USE dfs_test")
         .baselineColumns("full_name")
@@ -311,7 +311,7 @@ public class TestInfoSchema extends BaseTestQuery {
   @Ignore("Sensitive to tmp directory changes during execution.")
   @Test
   public void showFilesWithDefaultSchema() throws Exception{
-    test("USE dfs_test.`default`");
-    test("SHOW FILES FROM `tmp`");
+    test("USE dfs_test.\"default\"");
+    test("SHOW FILES FROM \"tmp\"");
   }
 }

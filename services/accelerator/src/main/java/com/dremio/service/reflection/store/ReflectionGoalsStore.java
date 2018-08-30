@@ -57,7 +57,7 @@ import com.google.common.collect.FluentIterable;
  * stores the reflection goals
  */
 public class ReflectionGoalsStore {
-  private static final String TABLE_NAME = "reflection_goals";
+  public static final String TABLE_NAME = "reflection_goals";
 
   private static final Function<Map.Entry<ReflectionId, ReflectionGoal>, ReflectionGoal> GET_VALUE =
     new Function<Map.Entry<ReflectionId, ReflectionGoal>, ReflectionGoal>() {

@@ -47,7 +47,7 @@ public abstract class AbstractRecordReader implements RecordReader {
   public AbstractRecordReader(final OperatorContext context, final List<SchemaPath> columns) {
     this.context = context;
     if (context == null) {
-      this.numRowsPerBatch = ExecConstants.TARGET_BATCH_RECORDS_MAX.getDefault().num_val;
+      this.numRowsPerBatch = ExecConstants.TARGET_BATCH_RECORDS_MAX.getDefault().getNumVal();
     } else {
       this.numRowsPerBatch = context.getTargetBatchSize();
     }
@@ -55,9 +55,9 @@ public abstract class AbstractRecordReader implements RecordReader {
     if (context == null
       || context.getOptions() == null
       || context.getOptions().getOption(ExecConstants.OPERATOR_TARGET_BATCH_BYTES) == null) {
-      this.numBytesPerBatch = ExecConstants.OPERATOR_TARGET_BATCH_BYTES_VALIDATOR.getDefault().num_val;
+      this.numBytesPerBatch = ExecConstants.OPERATOR_TARGET_BATCH_BYTES_VALIDATOR.getDefault().getNumVal();
     } else {
-      this.numBytesPerBatch = context.getOptions().getOption(ExecConstants.OPERATOR_TARGET_BATCH_BYTES).num_val;
+      this.numBytesPerBatch = context.getOptions().getOption(ExecConstants.OPERATOR_TARGET_BATCH_BYTES).getNumVal();
     }
 
     if (columns != null) {

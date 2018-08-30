@@ -54,3 +54,5 @@ export const sourceProperties = [
   {label: 'PostgreSQL', sourceType: POSTGRESQL, beta: true},
   {label: 'Azure Data Lake Store', sourceType: ADL, beta: true}
 ];
+
+export const SHARING_TAB_JSON_TEMPLATE = {};

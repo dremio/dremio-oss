@@ -17,11 +17,13 @@ package com.dremio.exec.store.dfs;
 
 import java.util.List;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.store.StoragePlugin;
+import com.google.common.collect.ImmutableList;
 
 public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends StoragePlugin> extends ConnectionConf<C, P>{
 
@@ -41,5 +43,14 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends S
    */
   public boolean createIfMissing() {
     return false;
+  }
+
+  /**
+   * List of properties that are unique to the {@link FileSystem} objects. This are in addition to the URI and user.
+   * Examples include ADLS password, S3 access key and secret etc.
+   * @return
+   */
+  public List<String> getConnectionUniqueProperties() {
+    return ImmutableList.of();
   }
 }

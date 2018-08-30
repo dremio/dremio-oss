@@ -16,6 +16,7 @@
 package com.dremio.sabot.op.join.vhash;
 
 import static com.dremio.sabot.op.common.hashtable.HashTable.BUILD_RECORD_LINK_SIZE;
+import static com.dremio.sabot.op.common.ht2.LBlockHashTable.ORDINAL_SIZE;
 
 import java.util.BitSet;
 import java.util.Collections;
@@ -31,7 +32,10 @@ import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.op.common.hashtable.HashTable;
+import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.PivotDef;
+import com.dremio.sabot.op.common.ht2.Unpivots;
+import com.dremio.sabot.op.common.ht2.VariableBlockVector;
 import com.dremio.sabot.op.copier.ConditionalFieldBufferCopier6;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
 import com.dremio.sabot.op.copier.FieldBufferCopier6;
@@ -44,22 +48,43 @@ import io.netty.util.internal.PlatformDependent;
 public class VectorizedProbe implements AutoCloseable {
 
   private static final int SHIFT_SIZE = 16;
+  private static final int BATCH_OFFSET_SIZE = 2;
+  private static final int BATCH_INDEX_SIZE = 4;
 
   public static final int SKIP = -1;
 
   private final BufferAllocator allocator;
   private final ArrowBuf[] links;
   private final ArrowBuf[] starts;
-  private final BitSet[] matches;
-  private final int[] matchMaxes;
+  // Array of bitvectors. Keeps track of keys on the build side that matched any key on the probe side
+  private final BitSet[] keyMatches;
+  // The index of last key in last StartIndices batch in hash table
+  private final int maxOffsetForLastBatch;
   private ArrowBuf projectProbeSv2;
+  /* Maintain all the offsets of the non matched records in output
+   * Used to set keys's validity of those records to 0 after copying keys from probe side to build side in output
+   */
+  private ArrowBuf projectNullKeyOffset;
+  // The memory address of arrow buffer in projectNullKeyOffset
+  private final long projectNullKeyOffsetAddr;
   private ArrowBuf projectBuildOffsetBuf;
   private final long projectBuildOffsetAddr;
+  private ArrowBuf projectBuildKeyOffsetBuf;
+  private final long projectBuildKeyOffsetAddr;
   private final long probeSv2Addr;
+
+  private VectorizedHashJoinOperator.Mode mode = VectorizedHashJoinOperator.Mode.UNKNOWN;
 
   private final JoinTable table;
   private final List<FieldBufferCopier> buildCopiers;
   private final List<FieldBufferCopier> probeCopiers;
+  /* Used to copy the key vectors from probe side to build side in output.
+   * For non matched records in probe side, the keys in build side will be indicated as SKIP and will be set to null.
+   * It's only for VECTORIZED_GENERIC.
+   * For VECTORIZED_BIGINT, we only have one eight byte key, and we keep it in the hyper container,
+   * so it's not needed to copy the key vector from probe side to build side in output.
+   */
+  private final List<FieldBufferCopier> keysCopiers;
   private final int targetRecordsPerBatch;
   private final boolean projectUnmatchedProbe;
   private final boolean projectUnmatchedBuild;
@@ -71,62 +96,127 @@ public class VectorizedProbe implements AutoCloseable {
 
   private ArrowBuf probed;
   private final PivotDef pivot;
-  private int remainderBuildSetIndex = -1;
-  private int remainderBuildElementIndex = -1;
+  /* Used to unpivot keys to output for non matched records in build side
+   * Only for VECTORIZED_GENERIC
+   */
+  private final PivotDef buildUnpivot;
+  /* The batch index of StartIndices in previous projectBuildNonMatches call
+   * It will be used to continue for next probe batch
+   */
+  private int remainderOrdinalBatchIndex = -1;
+  /* The offset of next key in StartIndices batch in previous projectBuildNonMatches call
+   * It will be used to continue for next probe batch
+   */
+  private int remainderOrdinalOffset = -1;
+  /* For each key in StartIndices, there are maybe many data records match its key.
+   * Before all those records are processed, the number of output records reach the limit of output batch,
+   * which means outputRecords >= targetRecordsPerBatch,
+   * and then we need to indicate which record is the first record that has not been processed.
+   * remainderLinkBatch is the next link batch that should be processed,
+   * and remainderLinkOffset is the offset of next record that should be processed.
+   */
+  private int remainderLinkBatch = -1;
+  private short remainderLinkOffset = -1;
   private int nextProbeIndex = 0;
-  private int remainderBuildBatchIndex = -1;
-  private int remainderBuildRecordIndex = -1;
-  private long unmatchedBuildCount = 0;
   private long unmatchedProbeCount = 0;
+  private long maxHashTableIndex = 0;
 
   public VectorizedProbe(
       BufferAllocator allocator,
       final ExpandableHyperContainer buildBatch,
       final VectorAccessible probeBatch,
+      // Contains all vectors in probe side output
       final List<FieldVector> probeOutputs,
+      /* Contains only carry over vectors in build side output for VECTORIZED_GENERIC
+       * Contains all field vectors in build side output for VECTORIZED_BIGINT
+       */
       final List<FieldVector> buildOutputs,
+      /* Contains the key field vectors in incoming probe side batch for VECTORIZED_GENERIC
+       * Only for VECTORIZED_GENERIC
+       */
+      final List<FieldVector> probeIncomingKeys,
+      /* Contains the key field vectors in build side output for VECTORIZED_GENERIC
+       * Only for VECTORIZED_GENERIC
+       */
+      final List<FieldVector> buildOutputKeys,
+      VectorizedHashJoinOperator.Mode mode,
       JoinRelType joinRelType,
       List<BuildInfo> buildInfos,
       List<ArrowBuf> startIndices,
+      List<BitSet> keyMatchBitVectors,
+      int maxHashTableIndex,
       JoinTable table,
+      // Used to pivot the keys in incoming build batch into hash table
       PivotDef pivot,
+      // Used to unpivot the keys in hash table to build side output
+      PivotDef buildUnpivot,
       int targetRecordsPerBatch,
       final NullComparator nullMask){
 
     this.nullMask = nullMask;
     this.pivot = pivot;
+    this.buildUnpivot = buildUnpivot;
     this.allocator = allocator;
     this.table = table;
     this.links = new ArrowBuf[buildInfos.size()];
-    this.matches = new BitSet[buildInfos.size()];
-    this.matchMaxes = new int[buildInfos.size()];
 
     for (int i =0; i < links.length; i++) {
       links[i] = buildInfos.get(i).getLinks();
-      matches[i] = buildInfos.get(i).getKeyMatchBitVector();
-      matchMaxes[i] = buildInfos.get(i).getRecordCount();
     }
 
     this.starts = new ArrowBuf[startIndices.size()];
+    this.keyMatches = new BitSet[keyMatchBitVectors.size()];
+
+    if (startIndices.size() > 0) {
+      this.maxOffsetForLastBatch = maxHashTableIndex - (startIndices.size() - 1) * HashTable.BATCH_SIZE;
+    } else {
+      this.maxOffsetForLastBatch = -1;
+    }
+    this.maxHashTableIndex = maxHashTableIndex;
     for (int i = 0; i < starts.length; i++) {
       starts[i] = startIndices.get(i);
+      keyMatches[i] = keyMatchBitVectors.get(i);
     }
 
     this.projectUnmatchedBuild = joinRelType == JoinRelType.RIGHT || joinRelType == JoinRelType.FULL;
     this.projectUnmatchedProbe = joinRelType == JoinRelType.LEFT || joinRelType == JoinRelType.FULL;
     this.targetRecordsPerBatch = targetRecordsPerBatch;
-    this.projectProbeSv2 = allocator.buffer(targetRecordsPerBatch * 2);
+    this.projectProbeSv2 = allocator.buffer(targetRecordsPerBatch * BATCH_OFFSET_SIZE);
     this.probeSv2Addr = projectProbeSv2.memoryAddress();
     // first 4 bytes (int) are for batch index and rest 2 bytes are offset within the batch
     this.projectBuildOffsetBuf = allocator.buffer(targetRecordsPerBatch * BUILD_RECORD_LINK_SIZE);
     this.projectBuildOffsetAddr = projectBuildOffsetBuf.memoryAddress();
+    this.projectBuildKeyOffsetBuf = allocator.buffer(targetRecordsPerBatch * ORDINAL_SIZE);
+    this.projectBuildKeyOffsetAddr = projectBuildKeyOffsetBuf.memoryAddress();
 
-    if(table.size() > 0){
+    this.mode = mode;
+
+    if (table.size() > 0) {
       this.buildCopiers = projectUnmatchedProbe  ?
-          ConditionalFieldBufferCopier6.getFourByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs) :
-          FieldBufferCopier6.getFourByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs);
-    }else {
+        ConditionalFieldBufferCopier6.getFourByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs) :
+        FieldBufferCopier6.getFourByteCopiers(VectorContainer.getHyperFieldVectors(buildBatch), buildOutputs);
+    } else {
       this.buildCopiers = Collections.emptyList();
+    }
+
+    /* For VECTORIZED_GENERIC, we don't keep the key vectors in hyper container,
+     * and then we need to copy keys from probe batch to build side in output for matched and non matched records,
+     * otherwise eight byte hash table is used, we keep the key vector in hyper container,
+     * and then we don't need to copy keys from probe batch to build side in output for matched and non matched records.
+     */
+    if (this.mode == VectorizedHashJoinOperator.Mode.VECTORIZED_GENERIC) {
+      // create copier for copying keys from probe batch to build side output
+      if (probeIncomingKeys.size() > 0) {
+        this.keysCopiers = FieldBufferCopier.getCopiers(probeIncomingKeys, buildOutputKeys);
+      } else {
+        this.keysCopiers = Collections.emptyList();
+      }
+
+      this.projectNullKeyOffset = allocator.buffer(targetRecordsPerBatch * BATCH_OFFSET_SIZE);
+      this.projectNullKeyOffsetAddr = projectNullKeyOffset.memoryAddress();
+    } else {
+      this.projectNullKeyOffsetAddr = 0;
+      this.keysCopiers = null;
     }
 
     this.probeCopiers = FieldBufferCopier.getCopiers(VectorContainer.getFieldVectors(probeBatch), probeOutputs);
@@ -136,13 +226,13 @@ public class VectorizedProbe implements AutoCloseable {
    * Find all the probe records that match the hash table.
    */
   private void findMatches(final int records){
-    if(probed == null || probed.capacity() < records * 4){
+    if(probed == null || probed.capacity() < records * ORDINAL_SIZE){
       if(probed != null){
         probed.release();
         probed = null;
       }
 
-      probed = allocator.buffer(records * 4);
+      probed = allocator.buffer(records * ORDINAL_SIZE);
     }
     long offsetAddr = probed.memoryAddress();
 
@@ -160,7 +250,7 @@ public class VectorizedProbe implements AutoCloseable {
   public int probeBatch(final int records) {
     final int targetRecordsPerBatch = this.targetRecordsPerBatch;
     final boolean projectUnmatchedProbe = this.projectUnmatchedProbe;
-    final BitSet[] matches = this.matches;
+    final BitSet[] keyMatches = this.keyMatches;
     final ArrowBuf[] starts = this.starts;
     final ArrowBuf[] links = this.links;
     long unmatchedProbeCount = this.unmatchedProbeCount;
@@ -169,8 +259,6 @@ public class VectorizedProbe implements AutoCloseable {
     final int probeMax = records;
     int outputRecords = 0;
     int currentProbeIndex = this.nextProbeIndex;
-    int currentBuildBatchIndex = this.remainderBuildBatchIndex;
-    int currentBuildRecordIndex = this.remainderBuildRecordIndex;
 
     if(currentProbeIndex == 0){
       // when this is a new batch, we need to pivot the incoming data and then find all the matches.
@@ -180,88 +268,140 @@ public class VectorizedProbe implements AutoCloseable {
     final long foundAddr = this.probed.memoryAddress();
     final long projectBuildOffsetAddr = this.projectBuildOffsetAddr;
     final long probeSv2Addr = this.probeSv2Addr;
+    int currentLinkBatch = this.remainderLinkBatch;
+    short currentLinkOffset = this.remainderLinkOffset;
 
     probeFind2Watch.start();
-    while (outputRecords < targetRecordsPerBatch && currentProbeIndex < probeMax) {
 
-      // If we don't have a batch index, we're done with the current probe record and need to get another.
-      if (currentBuildBatchIndex == -1) {
-        final int indexInBuild = PlatformDependent.getInt(foundAddr + currentProbeIndex * 4);
+    if (mode == VectorizedHashJoinOperator.Mode.VECTORIZED_GENERIC) {
+      final long projectNullKeyOffsetAddr = this.projectNullKeyOffsetAddr;
+      short nullKeyCount = 0;
 
+      while (outputRecords < targetRecordsPerBatch && currentProbeIndex < probeMax) {
+        final int indexInBuild = PlatformDependent.getInt(foundAddr + currentProbeIndex * ORDINAL_SIZE);
         if (indexInBuild == -1) { // not a matching key.
           if (projectUnmatchedProbe) {
-            PlatformDependent.putShort(probeSv2Addr + outputRecords * 2, (short) currentProbeIndex);
+            PlatformDependent.putShort(probeSv2Addr + outputRecords * BATCH_OFFSET_SIZE, (short) currentProbeIndex);
+            /* The build side keys of output should be null
+             * Maintain all the index of the output records that have a null key
+             * Used to set validity to 0 after copying keys from probe side to build side in output
+             */
+            PlatformDependent.putShort(projectNullKeyOffsetAddr + nullKeyCount * BATCH_OFFSET_SIZE, (short) outputRecords);
+            PlatformDependent.putInt(projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE, SKIP);
+            nullKeyCount ++;
+            outputRecords++;
+          }
+          unmatchedProbeCount++;
+          currentProbeIndex++;
+        } else { // matching key
+          if (currentLinkBatch == -1) {
+            /* The current probe record has a key that matches. Get the index
+             * of the first row in the build side that matches the current key
+             */
+            final long memStart = starts[indexInBuild >> SHIFT_SIZE].memoryAddress() +
+              ((indexInBuild) % HashTable.BATCH_SIZE) * BUILD_RECORD_LINK_SIZE;
+
+            currentLinkBatch = PlatformDependent.getInt(memStart);
+            currentLinkOffset = PlatformDependent.getShort(memStart + BATCH_INDEX_SIZE);
+
+            /* The key in the build side at indexInBuild has a matching key in the probe side.
+             * Set the bit corresponding to this index so if we are doing a FULL or RIGHT join
+             * we keep track of which keys and records we need to project at the end
+             */
+            keyMatches[indexInBuild >> SHIFT_SIZE].set(indexInBuild % HashTable.BATCH_SIZE);
+          }
+          while ((currentLinkBatch != -1) && (outputRecords < targetRecordsPerBatch)) {
+            PlatformDependent.putShort(probeSv2Addr + outputRecords * BATCH_OFFSET_SIZE, (short) currentProbeIndex);
+            final long projectBuildOffsetAddrStart = projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
+            PlatformDependent.putInt(projectBuildOffsetAddrStart, currentLinkBatch);
+            PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, currentLinkOffset);
+            outputRecords++;
+
+            long linkMemAddr = links[currentLinkBatch].memoryAddress() + currentLinkOffset * BUILD_RECORD_LINK_SIZE;
+            currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
+            currentLinkOffset = PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE);
+          }
+          if (currentLinkBatch != -1) {
+            /* Output batch is full, we should exit now,
+             * but more records for current key should be processed.
+             */
+            break;
+          }
+          currentProbeIndex++;
+        }
+      }
+      probeFind2Watch.stop();
+
+      projectProbe(probeSv2Addr, outputRecords);
+      projectBuild(projectBuildOffsetAddr, probeSv2Addr, outputRecords, projectNullKeyOffsetAddr, nullKeyCount);
+    } else {
+      while (outputRecords < targetRecordsPerBatch && currentProbeIndex < probeMax) {
+        final int indexInBuild = PlatformDependent.getInt(foundAddr + currentProbeIndex * ORDINAL_SIZE);
+        if (indexInBuild == -1) { // not a matching key.
+          if (projectUnmatchedProbe) {
+            PlatformDependent.putShort(probeSv2Addr + outputRecords * BATCH_OFFSET_SIZE, (short) currentProbeIndex);
             PlatformDependent.putInt(projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE, SKIP);
             outputRecords++;
           }
           unmatchedProbeCount++;
           currentProbeIndex++;
-          continue;
-
         } else { // matching key
-          /* The current probe record has a key that matches. Get the index
-           * of the first row in the build side that matches the current key
-           */
-          final long memStart = starts[indexInBuild >> SHIFT_SIZE].memoryAddress() +
+          if (currentLinkBatch == -1) {
+            /* The current probe record has a key that matches. Get the index
+             * of the first row in the build side that matches the current key
+             */
+            final long memStart = starts[indexInBuild >> SHIFT_SIZE].memoryAddress() +
               ((indexInBuild) % HashTable.BATCH_SIZE) * BUILD_RECORD_LINK_SIZE;
 
-          currentBuildBatchIndex = PlatformDependent.getInt(memStart);
-          currentBuildRecordIndex = Short.toUnsignedInt(PlatformDependent.getShort(memStart + 4));
+            currentLinkBatch = PlatformDependent.getInt(memStart);
+            currentLinkOffset = PlatformDependent.getShort(memStart + BATCH_INDEX_SIZE);
+
+            /* The key in the build side at indexInBuild has a matching key in the probe side.
+             * Set the bit corresponding to this index so if we are doing a FULL or RIGHT join
+             * we keep track of which keys and records we need to project at the end
+             */
+            keyMatches[indexInBuild >> SHIFT_SIZE].set(indexInBuild % HashTable.BATCH_SIZE);
+          }
+          while ((currentLinkBatch != -1) && (outputRecords < targetRecordsPerBatch)) {
+            PlatformDependent.putShort(probeSv2Addr + outputRecords * BATCH_OFFSET_SIZE, (short) currentProbeIndex);
+            final long projectBuildOffsetAddrStart = projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
+            PlatformDependent.putInt(projectBuildOffsetAddrStart, currentLinkBatch);
+            PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, currentLinkOffset);
+            outputRecords++;
+
+            long linkMemAddr = links[currentLinkBatch].memoryAddress() + currentLinkOffset * BUILD_RECORD_LINK_SIZE;
+            currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
+            currentLinkOffset = PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE);
+          }
+          if (currentLinkBatch != -1) {
+            /* Output batch is full, we should exit now,
+             * but more records for current key should be processed.
+             */
+            break;
+          }
+          currentProbeIndex++;
         }
       }
+      probeFind2Watch.stop();
 
-      /* Record in the build side at currentCompositeBuildIdx has a matching record in the probe
-       * side. Set the bit corresponding to this index so if we are doing a FULL or RIGHT
-       * join we keep track of which records we need to project at the end, or for all joins, we can
-       * record stats on how many unmatched records there were
-       */
-      matches[currentBuildBatchIndex].set(currentBuildRecordIndex);
-
-      PlatformDependent.putShort(probeSv2Addr + outputRecords * 2, (short) currentProbeIndex);
-      final long projectBuildOffsetAddrStart = projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
-      PlatformDependent.putInt(projectBuildOffsetAddrStart, currentBuildBatchIndex);
-      PlatformDependent.putShort(projectBuildOffsetAddrStart + 4, (short) currentBuildRecordIndex);
-      outputRecords++;
-
-      /* Projected single row from the build side with matching key but there
-       * may be more build rows with the same key. Check if that's the case
-       */
-      final long memStart = links[currentBuildBatchIndex].memoryAddress() +
-          currentBuildRecordIndex * BUILD_RECORD_LINK_SIZE;
-
-      currentBuildBatchIndex = PlatformDependent.getInt(memStart);
-      if (currentBuildBatchIndex == -1) {
-        /* We only had one row in the build side that matched the current key
-         * from the probe side. Drain the next row in the probe side.
-         */
-        currentProbeIndex++;
-      } else {
-        // read the rest of the index including offset in batch.
-        currentBuildRecordIndex = Short.toUnsignedInt(PlatformDependent.getShort(memStart + 4));
-      }
-
+      projectProbe(probeSv2Addr, outputRecords);
+      projectBuild(projectBuildOffsetAddr, outputRecords);
     }
-    probeFind2Watch.stop();
-
-    projectProbe(probeSv2Addr, outputRecords);
-    projectBuild(projectBuildOffsetAddr, outputRecords);
-
     if(outputRecords == targetRecordsPerBatch){ // batch was full
       if(currentProbeIndex < probeMax){
         // we have remaining records to process, need to save our position for when we return.
         this.nextProbeIndex = currentProbeIndex;
-        this.remainderBuildBatchIndex = currentBuildBatchIndex;
-        this.remainderBuildRecordIndex = currentBuildRecordIndex;
+        this.remainderLinkBatch = currentLinkBatch;
+        this.remainderLinkOffset = currentLinkOffset;
         this.unmatchedProbeCount = unmatchedProbeCount;
-
         return -outputRecords;
       }
     }
 
     // we need to clear the last saved position and tell the driver that we completed consuming the current batch.
     this.nextProbeIndex = 0;
-    this.remainderBuildBatchIndex = -1;
-    this.remainderBuildRecordIndex = -1;
+    this.remainderLinkBatch = -1;
+    this.remainderLinkOffset = -1;
     this.unmatchedProbeCount = unmatchedProbeCount;
     return outputRecords;
   }
@@ -277,64 +417,197 @@ public class VectorizedProbe implements AutoCloseable {
     final int targetRecordsPerBatch = this.targetRecordsPerBatch;
 
     int outputRecords = 0;
-    int remainderBuildSetIndex = this.remainderBuildSetIndex;
-    int nextClearIndex = remainderBuildElementIndex;
+    int remainderOrdinalBatchIndex = this.remainderOrdinalBatchIndex;
+    int currentClearOrdinalOffset = remainderOrdinalOffset;
+    int currentLinkBatch = remainderLinkBatch;
+    short currentLinkOffset = remainderLinkOffset;
+    int baseOrdinalBatchCount = remainderOrdinalBatchIndex * HashTable.BATCH_SIZE;
 
-    BitSet currentBitset = remainderBuildSetIndex < 0 ? null : matches[remainderBuildSetIndex];
+    BitSet currentBitset = remainderOrdinalBatchIndex < 0 ? null : keyMatches[remainderOrdinalBatchIndex];
 
     final long projectBuildOffsetAddr = this.projectBuildOffsetAddr;
-    // determine the next set of unmatched bits.
-    while(outputRecords < targetRecordsPerBatch) {
-      if(nextClearIndex == -1){
-        // we need to move to the next bit set since the current one has no more matches.
-        remainderBuildSetIndex++;
-        if (remainderBuildSetIndex < matches.length) {
 
-          currentBitset = matches[remainderBuildSetIndex];
-          nextClearIndex = 0;
-        } else {
-          // no bitsets left.
-          this.remainderBuildSetIndex = matches.length;
-          remainderBuildSetIndex = -1;
+    if (this.mode == VectorizedHashJoinOperator.Mode.VECTORIZED_GENERIC) {
+
+      // The total size of the variable keys that are non matched in build side
+      int totalVarSize = 0;
+      final long projectBuildKeyOffsetAddr = this.projectBuildKeyOffsetAddr;
+      BlockJoinTable table = (BlockJoinTable)this.table;
+
+      // determine the next set of unmatched bits.
+      while(outputRecords < targetRecordsPerBatch) {
+        if (currentClearOrdinalOffset == -1) {
+          // we need to move to the next bit set since the current one has no more matches.
+          remainderOrdinalBatchIndex++;
+          baseOrdinalBatchCount += HashTable.BATCH_SIZE;
+          if (remainderOrdinalBatchIndex < keyMatches.length) {
+
+            currentBitset = keyMatches[remainderOrdinalBatchIndex];
+            currentClearOrdinalOffset = 0;
+            currentLinkBatch = -1;
+            currentLinkOffset = -1;
+          } else {
+            // no bitsets left.
+            remainderOrdinalBatchIndex = -1;
+            currentLinkBatch = -1;
+            currentLinkOffset = -1;
+            break;
+          }
+        } else if ((remainderOrdinalBatchIndex == (keyMatches.length - 1)) && (currentClearOrdinalOffset > maxOffsetForLastBatch)) {
+          /* Current StartIndices is last batch and currentClearOrdinalOffset is greater than maxOffsetForLastBatch,
+           * so no bitsets left.
+           */
+          remainderOrdinalBatchIndex = -1;
+          currentClearOrdinalOffset = -1;
+          currentLinkBatch = -1;
+          currentLinkOffset = -1;
           break;
         }
-      }
 
-      nextClearIndex = currentBitset.nextClearBit(nextClearIndex);
-      if(nextClearIndex != -1){
-        // the clear bit is only valid if it is within the batch it corresponds to.
-        if(nextClearIndex >= matchMaxes[remainderBuildSetIndex]){
-          nextClearIndex = -1;
-        }else{
-          final long projectBuildOffsetAddrStart = projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
-          PlatformDependent.putInt(projectBuildOffsetAddrStart, remainderBuildSetIndex);
-          PlatformDependent.putShort(projectBuildOffsetAddrStart + 4, (short)(nextClearIndex & HashTable.BATCH_MASK));
-          outputRecords++;
-          nextClearIndex++;
+        currentClearOrdinalOffset = currentBitset.nextClearBit(currentClearOrdinalOffset);
+        if (currentClearOrdinalOffset != -1) {
+          if (currentClearOrdinalOffset >= HashTable.BATCH_SIZE) {
+            currentClearOrdinalOffset = -1;
+          } else {
+            if (currentLinkBatch == -1) {
+              // Go through all the data records in BuildInfo from beginning of StartIndices to collect the non matched data records
+              ArrowBuf startIndex = starts[remainderOrdinalBatchIndex];
+              long linkMemAddr = startIndex.memoryAddress() + currentClearOrdinalOffset * HashTable.BUILD_RECORD_LINK_SIZE;
+              currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
+              currentLinkOffset = PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE);
+            }
+            while ((currentLinkBatch != -1) && (outputRecords < targetRecordsPerBatch)) {
+              final long projectBuildOffsetAddrStart = projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
+              PlatformDependent.putInt(projectBuildOffsetAddrStart, currentLinkBatch);
+              PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, currentLinkOffset);
+              // Get the length of variable key and added it to totalSize
+              totalVarSize += table.getVarKeyLength(baseOrdinalBatchCount + currentClearOrdinalOffset);
+              // Maintain the ordinal of the key for unpivot later
+              PlatformDependent.putInt(projectBuildKeyOffsetAddr + outputRecords * ORDINAL_SIZE,baseOrdinalBatchCount + currentClearOrdinalOffset);
+              outputRecords++;
+
+              long linkMemAddr = links[currentLinkBatch].memoryAddress() + currentLinkOffset * BUILD_RECORD_LINK_SIZE;
+              currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
+              currentLinkOffset = PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE);
+            }
+            if (currentLinkBatch != -1) {
+              /* Output batch is full, we should exit now,
+               * but more records for current key should be processed.
+               */
+              break;
+            }
+            currentClearOrdinalOffset ++;
+          }
         }
       }
-    }
 
-    projectBuildNonMatchesWatch.stop();
+      projectBuildNonMatchesWatch.stop();
+
+      // Collect the keys for non matched records, and unpivot them to output
+      try (FixedBlockVector fbv = new FixedBlockVector(allocator, buildUnpivot.getBlockWidth());
+           VariableBlockVector var = new VariableBlockVector(allocator, buildUnpivot.getVariableCount());
+      ) {
+        fbv.ensureAvailableBlocks(outputRecords);
+        var.ensureAvailableDataSpace(totalVarSize);
+        final long keyFixedVectorAddr = fbv.getMemoryAddress();
+        final long keyVarVectorAddr = var.getMemoryAddress();
+        long offsetAddr = projectBuildKeyOffsetAddr;
+        int varOffset = 0;
+        int ordinal;
+        // Collect all the pivoted keys for non matched records
+        table.copyKeyToBuffer(projectBuildKeyOffsetAddr, outputRecords, keyFixedVectorAddr, keyVarVectorAddr);
+        // Unpivot the keys for build side into output
+        Unpivots.unpivot(buildUnpivot, fbv, var, outputRecords);
+      }
+    } else {
+      // For eight byte key, we keep key vector in hyper container, so we don't need to unpivot them
+
+      // determine the next set of unmatched bits.
+      while(outputRecords < targetRecordsPerBatch) {
+        if (currentClearOrdinalOffset == -1) {
+          // we need to move to the next bit set since the current one has no more matches.
+          remainderOrdinalBatchIndex++;
+          baseOrdinalBatchCount += HashTable.BATCH_SIZE;
+          if (remainderOrdinalBatchIndex < keyMatches.length) {
+
+            currentBitset = keyMatches[remainderOrdinalBatchIndex];
+            currentClearOrdinalOffset = 0;
+            currentLinkBatch = -1;
+            currentLinkOffset = -1;
+          } else {
+            // no bitsets left.
+            remainderOrdinalBatchIndex = -1;
+            currentLinkBatch = -1;
+            currentLinkOffset = -1;
+            break;
+          }
+        } else if ((remainderOrdinalBatchIndex == (keyMatches.length - 1)) && (currentClearOrdinalOffset > maxOffsetForLastBatch)) {
+          /* Current StartIndices is last batch and currentClearOrdinalOffset is greater than maxOffsetForLastBatch,
+           * so no bitsets left.
+           */
+          remainderOrdinalBatchIndex = -1;
+          currentClearOrdinalOffset = -1;
+          currentLinkBatch = -1;
+          currentLinkOffset = -1;
+          break;
+        }
+
+        currentClearOrdinalOffset = currentBitset.nextClearBit(currentClearOrdinalOffset);
+        if (currentClearOrdinalOffset != -1) {
+          if (currentClearOrdinalOffset >= HashTable.BATCH_SIZE) {
+            currentClearOrdinalOffset = -1;
+          } else {
+            if (currentLinkBatch == -1) {
+              // Go through all the data records in BuildInfo from beginning of StartIndices to collect the non matched data records
+              ArrowBuf startIndex = starts[remainderOrdinalBatchIndex];
+              long linkMemAddr = startIndex.memoryAddress() + currentClearOrdinalOffset * HashTable.BUILD_RECORD_LINK_SIZE;
+              currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
+              currentLinkOffset = PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE);
+            }
+            while ((currentLinkBatch != -1) && (outputRecords < targetRecordsPerBatch)) {
+              final long projectBuildOffsetAddrStart = projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
+              PlatformDependent.putInt(projectBuildOffsetAddrStart, currentLinkBatch);
+              PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, currentLinkOffset);
+              outputRecords++;
+
+              long linkMemAddr = links[currentLinkBatch].memoryAddress() + currentLinkOffset * BUILD_RECORD_LINK_SIZE;
+              currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
+              currentLinkOffset = PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE);
+            }
+            if (currentLinkBatch != -1) {
+              /* Output batch is full, we should exit now,
+               * but more records for current key should be processed.
+               */
+              break;
+            }
+            currentClearOrdinalOffset ++;
+          }
+        }
+      }
+
+      projectBuildNonMatchesWatch.stop();
+    }
 
     allocateOnlyProbe(outputRecords);
     projectBuild(projectBuildOffsetAddr, outputRecords);
 
-    this.remainderBuildSetIndex = remainderBuildSetIndex;
-    this.remainderBuildElementIndex = nextClearIndex;
-    if(remainderBuildElementIndex == -1){
+    this.remainderOrdinalBatchIndex = remainderOrdinalBatchIndex;
+    this.remainderOrdinalOffset = currentClearOrdinalOffset;
+    this.remainderLinkBatch = currentLinkBatch;
+    this.remainderLinkOffset = currentLinkOffset;
+    if (remainderOrdinalOffset == -1) {
       return outputRecords;
     } else {
       return -outputRecords;
     }
   }
 
-  public long getUnmatchedBuildCount() {
-    long unmatchedCount = 0;
-    for (int i = 0; i < matches.length; i++) {
-      unmatchedCount += (matchMaxes[i] - matches[i].cardinality());
+  public long getUnmatchedBuildKeyCount() {
+    long matchedCount = 0;
+    for (int i = 0; i < keyMatches.length; i++) {
+      matchedCount += keyMatches[i].cardinality();
     }
-    return unmatchedBuildCount;
+    return this.maxHashTableIndex + 1 - matchedCount;
   }
 
   private void allocateOnlyProbe(int records){
@@ -352,6 +625,31 @@ public class VectorizedProbe implements AutoCloseable {
     buildCopyWatch.start();
     for(FieldBufferCopier c : buildCopiers){
       c.copy(offsetAddr, count);
+    }
+    buildCopyWatch.stop();
+  }
+
+  /**
+   * Project the build data (including keys from the probe)
+   * @param offsetBuildAddr
+   * @param count
+   * @param nullKeyAddr
+   * @param nullKeyCount
+   */
+  private void projectBuild(final long offsetBuildAddr, final long offsetProbeAddr, final int count, final long nullKeyAddr, final int nullKeyCount){
+    buildCopyWatch.start();
+    // Copy the keys from probe batch to build side in output.
+    if (projectUnmatchedProbe) {
+      for (FieldBufferCopier c : keysCopiers) {
+        c.copy(offsetProbeAddr, count, nullKeyAddr, nullKeyCount);
+      }
+    } else {
+      for (FieldBufferCopier c : keysCopiers) {
+        c.copy(offsetProbeAddr, count);
+      }
+    }
+    for(FieldBufferCopier c : buildCopiers){
+      c.copy(offsetBuildAddr, count);
     }
     buildCopyWatch.stop();
   }
@@ -392,10 +690,12 @@ public class VectorizedProbe implements AutoCloseable {
   @Override
   public void close() throws Exception {
     try{
-      AutoCloseables.close(projectBuildOffsetBuf, projectProbeSv2, probed);
+      AutoCloseables.close(projectBuildOffsetBuf, projectProbeSv2, projectNullKeyOffset, projectBuildKeyOffsetBuf, probed);
     } finally {
       projectBuildOffsetBuf = null;
       projectProbeSv2 = null;
+      projectNullKeyOffset = null;
+      projectBuildKeyOffsetBuf = null;
       probed = null;
     }
   }

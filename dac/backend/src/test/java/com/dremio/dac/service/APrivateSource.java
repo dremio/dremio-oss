@@ -35,7 +35,7 @@ import io.protostuff.Tag;
 /**
  * Source for test purposes.
  */
-@SourceType("MYPRIVATE")
+@SourceType(value = "MYPRIVATE", configurable = false)
 public class APrivateSource extends FileSystemConf<APrivateSource, FileSystemPlugin>{
 
   @Tag(1)

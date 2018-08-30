@@ -29,16 +29,16 @@ public class TestAggNullable extends BaseTestQuery{
 
   private static void enableAggr(boolean ha, boolean sa) throws Exception {
 
-    test(String.format("alter session set `planner.enable_hashagg` = %s", ha ? "true":"false"));
-    test(String.format("alter session set `planner.enable_streamagg` = %s", sa ? "true":"false"));
-    test("alter session set `planner.slice_target` = 1");
+    test(String.format("alter session set \"planner.enable_hashagg\" = %s", ha ? "true":"false"));
+    test(String.format("alter session set \"planner.enable_streamagg\" = %s", sa ? "true":"false"));
+    test("alter session set \"planner.slice_target\" = 1");
   }
 
   @Test  // HashAgg on nullable columns
   public void testHashAggNullableColumns() throws Exception {
-    String query1 = String.format("select t2.b2 from dfs.`%s/jsoninput/nullable2.json` t2 " +
+    String query1 = String.format("select t2.b2 from dfs.\"%s/jsoninput/nullable2.json\" t2 " +
                     " group by t2.b2", TEST_RES_PATH);
-    String query2 = String.format("select t2.a2, t2.b2 from dfs.`%s/jsoninput/nullable2.json` t2 " +
+    String query2 = String.format("select t2.a2, t2.b2 from dfs.\"%s/jsoninput/nullable2.json\" t2 " +
         " group by t2.a2, t2.b2", TEST_RES_PATH);
 
     int actualRecordCount;
@@ -57,9 +57,9 @@ public class TestAggNullable extends BaseTestQuery{
 
   @Test  // StreamingAgg on nullable columns
   public void testStreamAggNullableColumns() throws Exception {
-    String query1 = String.format("select t2.b2 from dfs.`%s/jsoninput/nullable2.json` t2 " +
+    String query1 = String.format("select t2.b2 from dfs.\"%s/jsoninput/nullable2.json\" t2 " +
                     " group by t2.b2", TEST_RES_PATH);
-    String query2 = String.format("select t2.a2, t2.b2 from dfs_root.`%s/jsoninput/nullable2.json` t2 " +
+    String query2 = String.format("select t2.a2, t2.b2 from dfs_root.\"%s/jsoninput/nullable2.json\" t2 " +
         " group by t2.a2, t2.b2", TEST_RES_PATH);
 
     int actualRecordCount;

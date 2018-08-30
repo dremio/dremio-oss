@@ -6,8 +6,8 @@ select
     else 0
   end) / sum(l.l_extendedprice * (1 - l.l_discount)) as promo_revenue
 from
-  cp.`tpch/lineitem.parquet` l,
-  cp.`tpch/part.parquet` p
+  cp."tpch/lineitem.parquet" l,
+  cp."tpch/part.parquet" p
 where
   l.l_partkey = p.p_partkey
   and l.l_shipdate >= date '1994-08-01'

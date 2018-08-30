@@ -23,6 +23,7 @@ import javax.inject.Provider;
 import org.apache.hadoop.fs.Path;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
@@ -30,8 +31,9 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.SchemaMutability;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 import io.protostuff.Tag;
 
@@ -39,8 +41,15 @@ import io.protostuff.Tag;
  * Azure Data Lake (ADL)
  * https://hadoop.apache.org/docs/current/hadoop-azure-datalake/index.html
  */
-@SourceType("ADL")
+@SourceType(value = "ADL", label = "Azure Data Lake Store")
 public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, FileSystemPlugin> {
+
+  private static final List<String> UNIQUE_CONN_PROPS = ImmutableList.of(
+      "dfs.adls.oauth2.client.id",
+      "dfs.adls.oauth2.credential",
+      "dfs.adls.oauth2.refresh.url",
+      "dfs.adls.oauth2.refresh.token"
+  );
 
   /**
    * Type ADL Auth
@@ -56,34 +65,38 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, FileSys
     CLIENT_KEY
   }
 
-
   @Tag(1)
+  @JsonIgnore
   public ADLAuth mode = ADLAuth.CLIENT_KEY;
 
   @Tag(2)
+  @DisplayMetadata(label = "Data Lake Store Resource Name")
   public String accountName;
 
   // dfs.adls.oauth2.client.id
   @Tag(3)
+  @DisplayMetadata(label = "Application ID")
   public String clientId;
 
   // dfs.adls.oauth2.refresh.token
   @Tag(4)
   @Secret
+  @JsonIgnore
   public String refreshTokenSecret;
 
   // dfs.adl.oauth2.refresh.url
   @Tag(5)
+  @DisplayMetadata(label = "OAuth 2.0 Token Endpoint")
   public String clientKeyRefreshUrl;
 
   // dfs.adl.oauth2.credential
   @Tag(6)
   @Secret
+  @DisplayMetadata(label = "Access key value")
   public String clientKeyPassword;
 
-  @JsonProperty("propertyList")
   @Tag(7)
-  public List<Property> properties;
+  public List<Property> propertyList;
 
   @Override
   public FileSystemPlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
@@ -141,8 +154,8 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, FileSys
     }
 
     // Properties are added in order so make sure that any hand provided properties override settings done via specific config
-    if(this.properties != null) {
-      properties.addAll(this.properties);
+    if(this.propertyList != null) {
+      properties.addAll(this.propertyList);
     }
 
     return properties;
@@ -158,5 +171,8 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, FileSys
     return SchemaMutability.NONE;
   }
 
-
+  @Override
+  public List<String> getConnectionUniqueProperties() {
+    return UNIQUE_CONN_PROPS;
+  }
 }

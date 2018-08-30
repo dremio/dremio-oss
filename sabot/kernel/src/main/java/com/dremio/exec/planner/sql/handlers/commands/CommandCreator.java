@@ -19,6 +19,7 @@ import static com.dremio.exec.planner.physical.PlannerSettings.REUSE_PREPARE_HAN
 import static com.dremio.exec.planner.physical.PlannerSettings.STORE_QUERY_RESULTS;
 
 import org.apache.calcite.sql.SqlNode;
+
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioCatalogReader;
@@ -37,14 +38,15 @@ import com.dremio.exec.planner.sql.handlers.direct.DropTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.DropViewHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ExplainHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ForgetTableHandler;
+import com.dremio.exec.planner.sql.handlers.direct.RefreshSourceStatusHandler;
 import com.dremio.exec.planner.sql.handlers.direct.RefreshTableHandler;
+import com.dremio.exec.planner.sql.handlers.direct.SetApproxHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SetOptionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ShowSchemasHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ShowTablesHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
 import com.dremio.exec.planner.sql.handlers.direct.UseSchemaHandler;
-import com.dremio.exec.planner.sql.handlers.direct.RefreshSourceStatusHandler;
 import com.dremio.exec.planner.sql.handlers.query.CreateTableHandler;
 import com.dremio.exec.planner.sql.handlers.query.NormalHandler;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
@@ -53,11 +55,12 @@ import com.dremio.exec.planner.sql.parser.SqlAddExternalReflection;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection;
 import com.dremio.exec.planner.sql.parser.SqlDropReflection;
 import com.dremio.exec.planner.sql.parser.SqlForgetTable;
+import com.dremio.exec.planner.sql.parser.SqlRefreshSourceStatus;
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
+import com.dremio.exec.planner.sql.parser.SqlSetApprox;
 import com.dremio.exec.planner.sql.parser.SqlShowSchemas;
 import com.dremio.exec.planner.sql.parser.SqlShowTables;
 import com.dremio.exec.planner.sql.parser.SqlUseSchema;
-import com.dremio.exec.planner.sql.parser.SqlRefreshSourceStatus;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementReq;
@@ -68,7 +71,6 @@ import com.dremio.exec.proto.UserProtos.GetServerMetaReq;
 import com.dremio.exec.proto.UserProtos.GetTablesReq;
 import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.work.foreman.ForemanException;
@@ -76,6 +78,8 @@ import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
+import com.dremio.options.OptionValue;
+import com.dremio.resource.ResourceAllocator;
 import com.dremio.service.Pointer;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
@@ -90,6 +94,7 @@ public class CommandCreator {
 
   private final QueryContext context;
   private final CoordToExecTunnelCreator tunnelCreator;
+  private final ResourceAllocator queryResourceManager;
   private final UserRequest request;
   private final AttemptObserver observer;
   private final SabotContext dbContext;
@@ -98,14 +103,15 @@ public class CommandCreator {
   private final Pointer<QueryId> prepareId;
 
   public CommandCreator(
-      SabotContext dbContext,
-      QueryContext context,
-      CoordToExecTunnelCreator tunnelCreator,
-      UserRequest request,
-      AttemptObserver observer,
-      Cache<Long, PreparedPlan> plans,
-      Pointer<QueryId> prepareId,
-      int attemptNumber) {
+    SabotContext dbContext,
+    QueryContext context,
+    CoordToExecTunnelCreator tunnelCreator,
+    UserRequest request,
+    AttemptObserver observer,
+    Cache<Long, PreparedPlan> plans,
+    Pointer<QueryId> prepareId,
+    int attemptNumber,
+    ResourceAllocator queryResourceManager) {
     this.context = context;
     this.tunnelCreator = tunnelCreator;
     this.request = request;
@@ -114,6 +120,7 @@ public class CommandCreator {
     this.plans = plans;
     this.prepareId = prepareId;
     this.attemptNumber = attemptNumber;
+    this.queryResourceManager = queryResourceManager;
   }
 
   public CommandRunner<?> toCommand() throws ForemanException {
@@ -177,7 +184,7 @@ public class CommandCreator {
                             .getCredentials()
                             .getUserName()));
                 }
-                return new PrepareToExecution(plan, context, observer, dbContext.getPlanReader(), tunnelCreator);
+                return new PrepareToExecution(plan, context, observer, dbContext.getPlanReader(), tunnelCreator, queryResourceManager);
               }
             }
 
@@ -194,7 +201,8 @@ public class CommandCreator {
           return getSqlCommand(query.getPlan(), false);
 
         case PHYSICAL: // should be deprecated once tests are removed.
-          return new PhysicalPlanCommand(tunnelCreator, context, dbContext.getPlanReader(), observer, query.getPlanBytes());
+          return new PhysicalPlanCommand(tunnelCreator, context, dbContext.getPlanReader(), observer, query
+            .getPlanBytes(), queryResourceManager);
 
         default:
           throw new IllegalArgumentException(
@@ -240,6 +248,7 @@ public class CommandCreator {
       final DirectBuilder direct = new DirectBuilder(sql, sqlNode, isPrepare);
       final AsyncBuilder async = new AsyncBuilder(sql, sqlNode, isPrepare);
 
+      //TODO DX-10976 refactor all handlers to use similar Creator interfaces
       if(sqlNode instanceof SqlToPlanHandler.Creator) {
         SqlToPlanHandler.Creator creator = (SqlToPlanHandler.Creator) sqlNode;
         return async.create(creator.toPlanHandler(), config);
@@ -253,11 +262,10 @@ public class CommandCreator {
         return direct.create(new ExplainHandler(config));
 
       case SET_OPTION:
-        return direct.create(new SetOptionHandler(context.getOptions()));
+        return direct.create(new SetOptionHandler(context.getSession()));
 
       case DESCRIBE_TABLE:
         return direct.create(new DescribeTableHandler(reader));
-
 
       case CREATE_VIEW:
         return direct.create(new CreateViewHandler(config));
@@ -293,6 +301,8 @@ public class CommandCreator {
           return direct.create(new RefreshTableHandler(catalog));
         } else if (sqlNode instanceof SqlRefreshSourceStatus) {
           return direct.create(new RefreshSourceStatusHandler(catalog));
+        } else if (sqlNode instanceof SqlSetApprox) {
+          return direct.create(new SetApproxHandler(catalog, context.getNamespaceService()));
         }
 
         // fallthrough
@@ -323,7 +333,7 @@ public class CommandCreator {
       this.sql = sql;
 
       OptionValue value = context.getOptions().getOption(STORE_QUERY_RESULTS.getOptionName());
-      this.storeResults = value != null && value.bool_val;
+      this.storeResults = value != null && value.getBoolVal();
     }
 
     // handlers in handlers.direct package
@@ -355,7 +365,7 @@ public class CommandCreator {
         return new HandlerToPreparePlan(context, sqlNode, handler, plans, sql, observer, config);
       }
       return new HandlerToExec(tunnelCreator, context, dbContext.getPlanReader(), observer, sql, sqlNode,
-        handler, config);
+        handler, config, queryResourceManager);
     }
   }
 

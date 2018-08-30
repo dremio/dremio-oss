@@ -30,11 +30,11 @@ import java.util.regex.Pattern;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableFloat4Vector;
-import org.apache.arrow.vector.NullableFloat8Vector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -51,7 +51,7 @@ import org.apache.parquet.column.Dictionary;
 import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.io.api.Binary;
 
-import com.dremio.common.config.SabotConfig;
+import com.dremio.common.VM;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.cache.VectorAccessibleSerializable;
 import com.dremio.exec.record.BatchSchema;
@@ -386,7 +386,7 @@ public class GlobalDictionaryBuilder {
   private static VectorContainer buildIntegerGlobalDictionary(List<Dictionary> dictionaries, VectorContainer existingDict, ColumnDescriptor columnDescriptor, BufferAllocator bufferAllocator) {
     final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), true, new ArrowType.Int(32, true), null);
     final VectorContainer input = new VectorContainer(bufferAllocator);
-    final NullableIntVector intVector = input.addOrGet(field);
+    final IntVector intVector = input.addOrGet(field);
     intVector.allocateNew();
     final SortedSet<Integer> values = Sets.newTreeSet();
     for (Dictionary dictionary : dictionaries) {
@@ -395,7 +395,7 @@ public class GlobalDictionaryBuilder {
       }
     }
     if (existingDict != null) {
-      final NullableIntVector existingDictValues = existingDict.getValueAccessorById(NullableIntVector.class, 0).getValueVector();
+      final IntVector existingDictValues = existingDict.getValueAccessorById(IntVector.class, 0).getValueVector();
       for (int i = 0; i < existingDict.getRecordCount(); ++i) {
         values.add(existingDictValues.get(i));
       }
@@ -414,7 +414,7 @@ public class GlobalDictionaryBuilder {
   private static VectorContainer buildLongGlobalDictionary(List<Dictionary> dictionaries, VectorContainer existingDict, ColumnDescriptor columnDescriptor, BufferAllocator bufferAllocator) {
     final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), true, new ArrowType.Int(64, true), null);
     final VectorContainer input = new VectorContainer(bufferAllocator);
-    final NullableBigIntVector longVector = input.addOrGet(field);
+    final BigIntVector longVector = input.addOrGet(field);
     longVector.allocateNew();
     SortedSet<Long> values = Sets.newTreeSet();
     for (Dictionary dictionary : dictionaries) {
@@ -423,7 +423,7 @@ public class GlobalDictionaryBuilder {
       }
     }
     if (existingDict != null) {
-      final NullableBigIntVector existingDictValues = existingDict.getValueAccessorById(NullableBigIntVector.class, 0).getValueVector();
+      final BigIntVector existingDictValues = existingDict.getValueAccessorById(BigIntVector.class, 0).getValueVector();
       for (int i = 0; i < existingDict.getRecordCount(); ++i) {
         values.add(existingDictValues.get(i));
       }
@@ -442,7 +442,7 @@ public class GlobalDictionaryBuilder {
   private static VectorContainer buildDoubleGlobalDictionary(List<Dictionary> dictionaries, VectorContainer existingDict, ColumnDescriptor columnDescriptor, BufferAllocator bufferAllocator) {
     final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), true, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), null);
     final VectorContainer input = new VectorContainer(bufferAllocator);
-    final NullableFloat8Vector doubleVector = input.addOrGet(field);
+    final Float8Vector doubleVector = input.addOrGet(field);
     doubleVector.allocateNew();
     SortedSet<Double> values = Sets.newTreeSet();
     for (Dictionary dictionary : dictionaries) {
@@ -451,7 +451,7 @@ public class GlobalDictionaryBuilder {
       }
     }
     if (existingDict != null) {
-      final NullableFloat8Vector existingDictValues = existingDict.getValueAccessorById(NullableFloat8Vector.class, 0).getValueVector();
+      final Float8Vector existingDictValues = existingDict.getValueAccessorById(Float8Vector.class, 0).getValueVector();
       for (int i = 0; i < existingDict.getRecordCount(); ++i) {
         values.add(existingDictValues.get(i));
       }
@@ -470,7 +470,7 @@ public class GlobalDictionaryBuilder {
   private static VectorContainer buildFloatGlobalDictionary(List<Dictionary> dictionaries, VectorContainer existingDict, ColumnDescriptor columnDescriptor, BufferAllocator bufferAllocator) {
     final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), true, new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE), null);
     final VectorContainer input = new VectorContainer(bufferAllocator);
-    final NullableFloat4Vector floatVector = input.addOrGet(field);
+    final Float4Vector floatVector = input.addOrGet(field);
     floatVector.allocateNew();
     SortedSet<Float> values = Sets.newTreeSet();
     for (Dictionary dictionary : dictionaries) {
@@ -479,7 +479,7 @@ public class GlobalDictionaryBuilder {
       }
     }
     if (existingDict != null) {
-      final NullableFloat4Vector existingDictValues = existingDict.getValueAccessorById(NullableFloat4Vector.class, 0).getValueVector();
+      final Float4Vector existingDictValues = existingDict.getValueAccessorById(Float4Vector.class, 0).getValueVector();
       for (int i = 0; i < existingDict.getRecordCount(); ++i) {
         values.add(existingDictValues.get(i));
       }
@@ -498,7 +498,7 @@ public class GlobalDictionaryBuilder {
   private static VectorContainer buildBinaryGlobalDictionary(List<Dictionary> dictionaries, VectorContainer existingDict, ColumnDescriptor columnDescriptor, BufferAllocator bufferAllocator) {
     final Field field = new Field(SchemaPath.getCompoundPath(columnDescriptor.getPath()).getAsUnescapedPath(), true, new ArrowType.Binary(), null);
     final VectorContainer input = new VectorContainer(bufferAllocator);
-    final NullableVarBinaryVector binaryVector = input.addOrGet(field);
+    final VarBinaryVector binaryVector = input.addOrGet(field);
     binaryVector.allocateNew();
     final SortedSet<Binary> values = new TreeSet<>();
     for (Dictionary dictionary : dictionaries) {
@@ -507,7 +507,7 @@ public class GlobalDictionaryBuilder {
       }
     }
     if (existingDict != null) {
-      final NullableVarBinaryVector existingDictValues = existingDict.getValueAccessorById(NullableVarBinaryVector.class, 0).getValueVector();
+      final VarBinaryVector existingDictValues = existingDict.getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
       for (int i = 0; i < existingDict.getRecordCount(); ++i) {
         values.add(Binary.fromConstantByteArray(existingDictValues.get(i)));
       }
@@ -534,7 +534,7 @@ public class GlobalDictionaryBuilder {
   }
 
   public static void main(String []args) {
-    try (final BufferAllocator bufferAllocator = new RootAllocator(SabotConfig.getMaxDirectMemory())) {
+    try (final BufferAllocator bufferAllocator = new RootAllocator(VM.getMaxDirectMemory())) {
       final Path tableDir  = new Path(args[0]);
       final FileSystem fs = tableDir.getFileSystem(new Configuration());
       if (fs.exists(tableDir) && fs.isDirectory(tableDir)) {

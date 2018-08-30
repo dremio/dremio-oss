@@ -18,6 +18,7 @@ package com.dremio.exec.server;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+
 import org.apache.zookeeper.Environment;
 
 import com.dremio.common.StackTrace;
@@ -32,6 +33,7 @@ import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.exception.NodeStartupException;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
@@ -44,6 +46,8 @@ import com.dremio.exec.work.WorkStats;
 import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.exec.work.user.LocalQueryExecutor;
+import com.dremio.resource.ResourceAllocator;
+import com.dremio.resource.basic.BasicResourceAllocator;
 import com.dremio.sabot.exec.FragmentWorkManager;
 import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.rpc.CoordExecService;
@@ -140,7 +144,7 @@ public class SabotNode implements AutoCloseable {
         address,
         45678,
         allowPortHunting,
-        config.getInt(ExecConstants.BIT_RPC_TIMEOUT),
+        config.getInt(RpcConstants.BIT_RPC_TIMEOUT),
         config.getInt(ExecConstants.BIT_SERVER_RPC_THREADS),
         bootstrap.getExecutor(),
         bootstrap.getAllocator(),
@@ -203,6 +207,9 @@ public class SabotNode implements AutoCloseable {
         registry.provider(FabricService.class)
         ));
 
+    registry.bind(ResourceAllocator.class,
+      new BasicResourceAllocator(registry.provider(ClusterCoordinator.class)));
+
     registry.bindSelf(new ContextInformationFactory());
     registry.bindSelf(
         new FragmentWorkManager(bootstrap,
@@ -219,6 +226,7 @@ public class SabotNode implements AutoCloseable {
             registry.provider(ClusterCoordinator.class),
             registry.provider(FabricService.class),
             registry.provider(SabotContext.class),
+            registry.provider(ResourceAllocator.class),
             registry.getBindingCreator()
             )
         );

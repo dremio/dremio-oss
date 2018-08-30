@@ -29,6 +29,7 @@ import java.util.List;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -65,6 +66,7 @@ import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.file.File;
 import com.dremio.file.FilePath;
+import com.dremio.options.OptionValue;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
@@ -292,6 +294,24 @@ public class TestHomeFiles extends BaseTestServer {
   @Test
   public void testUploadXlsFile() throws Exception {
     testUploadExcelFile(true);
+  }
+
+  @Test
+  public void testUploadDisabled() throws Exception {
+    try {
+      // disable uploads
+      getSabotContext().getOptionManager().setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, UIOptions.ALLOW_FILE_UPLOADS.getOptionName(), false));
+
+      FormDataMultiPart form = new FormDataMultiPart();
+      FormDataBodyPart fileBody = new FormDataBodyPart("file", FileUtils.getResourceAsFile("/datasets/csv/pipe.csv"), MediaType.MULTIPART_FORM_DATA_TYPE);
+      form.bodyPart(fileBody);
+      form.bodyPart(new FormDataBodyPart("fileName", "pipe"));
+
+      expectStatus(Response.Status.FORBIDDEN, getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", "csv")).buildPost(Entity.entity(form, form.getMediaType())));
+    } finally {
+      // re-enable uploads
+      getSabotContext().getOptionManager().setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, UIOptions.ALLOW_FILE_UPLOADS.getOptionName(), true));
+    }
   }
 
   private void testUploadExcelFile(final boolean isXLS) throws Exception {

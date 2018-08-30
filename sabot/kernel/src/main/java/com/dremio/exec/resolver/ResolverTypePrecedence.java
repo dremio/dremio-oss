@@ -64,6 +64,7 @@ public class ResolverTypePrecedence {
     precMap.put(MinorType.INTERVALDAY, i+= 2);
     precMap.put(MinorType.INTERVALYEAR, i+= 2);
     precMap.put(MinorType.UNION, i += 2);
+    precMap.put(MinorType.FIXEDSIZEBINARY, i += 2);
     PRECEDENCE_MAP = ImmutableMap.copyOf(precMap);
     MAX_IMPLICIT_CAST_COST = i;
 

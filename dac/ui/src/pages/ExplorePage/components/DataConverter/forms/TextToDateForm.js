@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import Radium from 'radium';
+import PropTypes from 'prop-types';
 
 import Radio from 'components/Fields/Radio';
 import { FieldWithError, TextField } from 'components/Fields';
@@ -22,12 +22,13 @@ import NewFieldSection from 'components/Forms/NewFieldSection';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 
 import { formLabel } from 'uiTheme/radium/typography';
-import { LINE_START_CENTER } from 'uiTheme/radium/flexStyle';
 
 import { isRequired, applyValidators } from 'utils/validation';
+import { sectionTitle, inputForRadio, radioStacked, rowMargin } from '@app/uiTheme/less/forms.less';
 import TransformForm, {formWrapperProps} from '../../forms/TransformForm';
 import { transformProps } from './../../forms/TransformationPropTypes';
 import FORMATS from './DateFormatOptions';
+import { base, docArea, newField } from './TextToDateForm.less';
 
 const SECTIONS = [NewFieldSection];
 
@@ -37,9 +38,11 @@ function validate(values) {
   }
 }
 
-@Radium
 export class TextToDateForm extends Component {
-  static propTypes = transformProps;
+  static propTypes = {
+    ...transformProps,
+    hideNotMatchingOptions: PropTypes.bool
+  };
 
   constructor(props) {
     super(props);
@@ -48,7 +51,12 @@ export class TextToDateForm extends Component {
 
   submit(form, submitType) {
     const { format, customValue, toType, ...rest } = form;
-    const desiredType = rest.type.indexOf('ToDate') !== -1 ? {desiredType: toType} : null;
+
+    let desiredType = null;
+    if (rest.type && rest.type.indexOf('ToDate') !== -1) {
+      desiredType = { desiredType: toType };
+    }
+
     const data =  { ...rest, ...desiredType,  format: format !== 'CUSTOM' ? format : customValue };
     return this.props.submit(data, submitType);
   }
@@ -58,7 +66,7 @@ export class TextToDateForm extends Component {
   }
 
   render() {
-    const { fields, toType } = this.props;
+    const { fields, toType, hideNotMatchingOptions } = this.props;
 
     const formats = TextToDateForm.getFormats(toType);
 
@@ -66,37 +74,40 @@ export class TextToDateForm extends Component {
       <TransformForm
         {...formWrapperProps(this.props)}
         onFormSubmit={this.submit}>
-        <div style={styles.base}>
+        <div className={base}>
           <div>
             <div style={formLabel}>{la('Format')}</div>
-            {formats.values.map((format) =>
-              <Radio {...fields.format} style={styles.row} label={format} radioValue={format}/>)}
-            <div style={{...LINE_START_CENTER, ...styles.row}}>
-              <Radio {...fields.format} label={la('Custom:')} radioValue='CUSTOM'/>
-              <FieldWithError errorPlacement='right' {...fields.customValue} style={styles.input}>
-                <TextField {...fields.customValue} disabled={fields.format.value !== 'CUSTOM'} style={{ width: 300 }}/>
-              </FieldWithError>
-            </div>
-            <div style={{...formLabel, ...styles.row}}>{la('Action for Non-matching Values')}</div>
-            <div>
-              <Radio {...fields.actionForNonMatchingValue} style={styles.row} label={la('Replace values with null')}
-                radioValue='REPLACE_WITH_NULL'/>
-              <Radio {...fields.actionForNonMatchingValue} label={la('Delete records')} style={styles.row}
-                radioValue='DELETE_RECORDS'/>
-            </div>
-            <NewFieldSection style={{...styles.row, marginLeft: 0}} fields={fields}/>
+            {formats.values.map((format) => <Radio {...fields.format} label={format} radioValue={format} className={radioStacked} />)}
+            <Radio {...fields.format} label={la('Custom:')} radioValue='CUSTOM' className={radioStacked} />
+            <FieldWithError errorPlacement='right' {...fields.customValue} className={inputForRadio}>
+              <TextField {...fields.customValue} disabled={fields.format.value !== 'CUSTOM'} style={{ width: 300 }}/>
+            </FieldWithError>
+            {!hideNotMatchingOptions && (<div>
+              <div className={sectionTitle}>{la('Action for Non-matching Values')}</div>
+              <div>
+                <Radio {...fields.actionForNonMatchingValue} label={la('Replace values with null')}
+                  radioValue='REPLACE_WITH_NULL'
+                  className={radioStacked} />
+                <Radio {...fields.actionForNonMatchingValue} label={la('Delete records')}
+                  radioValue='DELETE_RECORDS'
+                  className={radioStacked}/>
+              </div>
+            </div>)}
+            <NewFieldSection fields={fields} className={newField}/>
           </div>
-          <div style={styles.docArea}>
+          <div className={docArea}>
             <div style={formLabel}>{la('Formatting Options')}</div>
 
-            {formats.examples.map((example) =>
-              <div style={styles.row}>{example.format}: {example.description}</div>
+            {formats.examples.map((example, index) =>
+              <div key={index} className={rowMargin}>{example.format}: {example.description}</div>
             )}
 
-            <a href='https://docs.dremio.com/working-with-datasets/data-curation.html?q=#working-with-dates'
-              style={styles.row} target='_blank'>
-              {la('Learn more…')}
-            </a>
+            <div className={rowMargin}>
+              <a href='https://docs.dremio.com/working-with-datasets/data-curation.html?q=#working-with-dates'
+                target='_blank'>
+                {la('Learn more…')}
+              </a>
+            </div>
           </div>
         </div>
       </TransformForm>
@@ -135,22 +146,3 @@ export default connectComplexForm({
   validate
 }, SECTIONS, mapStateToProps, null)(TextToDateForm);
 
-const styles = {
-  base: {
-    display: 'flex',
-    flexDirection: 'row',
-    margin: '10px 0 10px 10px'
-  },
-  input: {
-    marginLeft: 10
-  },
-  row: {
-    display: 'flex',
-    alignItems: 'center',
-    marginTop: 10
-  },
-  docArea: {
-    flex: 1,
-    marginLeft: 40
-  }
-};

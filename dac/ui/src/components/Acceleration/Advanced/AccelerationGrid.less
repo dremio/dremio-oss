@@ -13,54 +13,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.grid-acceleration {
-  padding: 10px;
-  border-left: 1px solid #e1e1e1;
-  border-right: 1px solid #e1e1e1;
-  border-bottom: 1px solid #e1e1e1;
-
-  .subCell {
-    cursor: pointer;
-    &:hover {
-      background-color: hsl(199, 80%, 92%);
-    }
-  }
-
-  .fixedDataTableRowLayout_main.public_fixedDataTableRow_main.fixedDataTableLayout_header.public_fixedDataTable_header
-    .fixedDataTableCellGroupLayout_cellGroupWrapper:nth-child(2) .fixedDataTableCellGroupLayout_cellGroup {
+ :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  .grid-acceleration {
+    padding: 10px;
+    border-left: 1px solid #e1e1e1;
+    border-right: 1px solid #e1e1e1;
     border-bottom: 1px solid #e1e1e1;
-  }
 
-  .fixedDataTableLayout_rowsContainer,
-  .public_fixedDataTable_header,
-  .public_fixedDataTable_header .public_fixedDataTableCell_main {
-    background: #fff; // hide the content sliding underneath
-  }
-
-  .fixedDataTableLayout_main.public_fixedDataTable_main {
-    margin-left: 0;
-    margin-right: 0;
-    border: 0;
-    // use !important because fixed-data-table classes already have z-index. we need this for custom style
-    z-index: 0 !important;
-
-    input::placeholder {
-      color:#bbc0c6 !important;
+    .subCell {
+      text-align: center;
+      cursor: pointer;
+      &:hover {
+        background-color: hsl(199, 80%, 92%);
+      }
     }
-  }
 
-  .fixedDataTableCellLayout_main {
-    background-color: white;
-    border-width: 0px;
-    border-right-style: none;
-  }
+    .fixedDataTableRowLayout_main.public_fixedDataTableRow_main.fixedDataTableLayout_header.public_fixedDataTable_header
+      .fixedDataTableCellGroupLayout_cellGroupWrapper:nth-child(2) .fixedDataTableCellGroupLayout_cellGroup {
+      border-bottom: 1px solid #e1e1e1;
+    }
 
-  .fixedDataTableLayout_hasBottomBorder {
-    border-bottom-style: none;
-    border-bottom-width: 0px;
-  }
+    .fixedDataTableLayout_rowsContainer,
+    .public_fixedDataTable_header,
+    .public_fixedDataTable_header .public_fixedDataTableCell_main {
+      background: #fff; // hide the content sliding underneath
+    }
 
-  .fixedDataTableRowLayout_fixedColumnsDivider {
-    border-width: 0px;
+    .fixedDataTableLayout_main.public_fixedDataTable_main {
+      margin-left: 0;
+      margin-right: 0;
+      border: 0;
+      // use !important because fixed-data-table classes already have z-index. we need this for custom style
+      z-index: 0 !important;
+
+      input::placeholder {
+        color:#bbc0c6 !important;
+      }
+    }
+
+    .fixedDataTableCellLayout_main {
+      background-color: white;
+      border-width: 0px;
+      border-right-style: none;
+    }
+
+    .fixedDataTableLayout_hasBottomBorder {
+      border-bottom-style: none;
+      border-bottom-width: 0px;
+    }
+
+    .fixedDataTableRowLayout_fixedColumnsDivider {
+      border-width: 0px;
+    }
   }
 }

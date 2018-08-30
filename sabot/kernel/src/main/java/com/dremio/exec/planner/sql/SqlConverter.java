@@ -51,7 +51,7 @@ import com.dremio.exec.planner.sql.SqlValidatorImpl.FlattenOpCounter;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.RelsWithRexSubQueryFlattener;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.base.Preconditions;
@@ -112,7 +112,7 @@ public class SqlConverter {
     validator.setIdentifierExpansion(true);
     this.materializations = new MaterializationList(this, session, materializationProvider);
     this.substitutions = AccelerationAwareSubstitutionProvider.of(factory.getSubstitutionProvider(materializations, this.settings.options));
-    this.planner = new DremioVolcanoPlanner(this);
+    this.planner = DremioVolcanoPlanner.of(this);
     this.cluster = RelOptCluster.create(planner, new DremioRexBuilder(typeFactory));
     this.cluster.setMetadataProvider(DefaultRelMetadataProvider.INSTANCE);
     this.viewExpansionContext = new ViewExpansionContext(catalog.getUser());
@@ -236,6 +236,7 @@ public class SqlConverter {
   public RelRoot toConvertibleRelRoot(final SqlNode validatedNode, boolean expand) {
 
     final OptionManager o = settings.getOptions();
+    final boolean useLegacyDecorrelator = o.getOption(PlannerSettings.USE_LEGACY_DECORRELATOR);
     final long inSubQueryThreshold =  o.getOption(ExecConstants.FAST_OR_ENABLE) ? o.getOption(ExecConstants.FAST_OR_MAX_THRESHOLD) : settings.getOptions().getOption(ExecConstants.PLANNER_IN_SUBQUERY_THRESHOLD);
     final SqlToRelConverter.Config config = SqlToRelConverter.configBuilder()
       .withInSubQueryThreshold((int) inSubQueryThreshold)
@@ -255,7 +256,7 @@ public class SqlConverter {
       // Then we did not expand all the subqueries, so go and flatten the subqueries as well.
       rel3 = rel2.accept(new RelsWithRexSubQueryFlattener(sqlToRelConverter));
     }
-    final RelNode rel4 = RelDecorrelator.decorrelateQuery(rel3);
+    final RelNode rel4 = RelDecorrelator.decorrelateQuery(rel3, useLegacyDecorrelator);
 
     if (logger.isDebugEnabled()) {
       logger.debug("ConvertQuery with expand = {}:\n{}", expand, RelOptUtil.toString(rel4, SqlExplainLevel.ALL_ATTRIBUTES));

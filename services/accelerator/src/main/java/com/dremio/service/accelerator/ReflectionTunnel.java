@@ -73,6 +73,23 @@ class ReflectionTunnel {
         .RefreshInfoResp.class);
     }
   }
+
+  public static class RequestDependencyInfos extends FutureBitCommand<ReflectionRPC.DependencyInfoResp, ProxyConnection> {
+    private final ReflectionRPC.DependencyInfoReq dependencyInfoRequest;
+
+    public RequestDependencyInfos(ReflectionRPC.DependencyInfoReq dependencyInfoRequest) {
+      super();
+      this.dependencyInfoRequest = dependencyInfoRequest;
+    }
+
+    @Override
+    public void doRpcCall(RpcOutcomeListener<ReflectionRPC.DependencyInfoResp> outcomeListener, ProxyConnection
+      connection) {
+      connection.send(outcomeListener, ReflectionRPC.RpcType.REQ_DEPENDENCY_INFO, dependencyInfoRequest, ReflectionRPC
+        .DependencyInfoResp.class);
+    }
+  }
+
   public RpcFuture<ReflectionRPC.ReflectionInfoResp> requestReflectionStatus() {
     ReflectionRPC.ReflectionInfoReq reflectionStatusRequest = ReflectionRPC.ReflectionInfoReq.newBuilder().build();
     ReflectionTunnel.RequestReflectionInfo b = new ReflectionTunnel.RequestReflectionInfo(reflectionStatusRequest);
@@ -87,4 +104,10 @@ class ReflectionTunnel {
     return b.getFuture();
   }
 
+  public RpcFuture<ReflectionRPC.DependencyInfoResp> requestDependencyInfos() {
+    ReflectionRPC.DependencyInfoReq dependencyInfosRequest = ReflectionRPC.DependencyInfoReq.newBuilder().build();
+    ReflectionTunnel.RequestDependencyInfos b = new ReflectionTunnel.RequestDependencyInfos(dependencyInfosRequest);
+    manager.runCommand(b);
+    return b.getFuture();
+  }
 }

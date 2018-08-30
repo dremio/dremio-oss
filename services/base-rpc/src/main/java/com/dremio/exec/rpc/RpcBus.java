@@ -58,7 +58,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
   final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
 
   private static final OutboundRpcMessage PONG = new OutboundRpcMessage(RpcMode.PONG, 0, 0, Acks.OK);
-  private static final boolean ENABLE_SEPARATE_THREADS = "true".equals(System.getProperty("dremio.enable_rpc_offload", "true"));
+  private static final boolean ENABLE_SEPARATE_THREADS = "true".equals(System.getProperty("dremio.enable_rpc_offload", "false"));
 
   public static final long RPC_DELAY_WARNING_THRESHOLD =
       Integer.parseInt(System.getProperty("dremio.exec.rpcDelayWarning", "500"));

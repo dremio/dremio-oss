@@ -22,9 +22,21 @@ import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import NewFieldSection from 'components/Forms/NewFieldSection';
 import {TextField, Select, Radio, Checkbox} from 'components/Fields';
 import { applyValidators, isRequired } from 'utils/validation';
+import { sectionMargin } from '@app/uiTheme/less/layout.less';
 
-import { formSectionTitle } from 'uiTheme/radium/exploreTransform';
-import { FLEX_COL_START, INLINE_NOWRAP_ROW_FLEX_START } from 'uiTheme/radium/flexStyle';
+import {
+  radioStacked,
+  title,
+  sectionTitle,
+  inputForRadio,
+  fieldsHorizontalSpacing,
+  columnsContainer,
+  rowMargin,
+  firstColumn,
+  secondColumn,
+  rowOfInputs
+} from '@app/uiTheme/less/forms.less';
+import classNames from 'classnames';
 import TransformForm, {formWrapperProps} from './../../forms/TransformForm';
 import { transformProps } from './../../forms/TransformationPropTypes';
 import NonMatchingValues from './../NonMatchingValues';
@@ -76,31 +88,31 @@ export class SingleTypeForm extends Component {
   renderNonMatchingActions() {
     const { actionForNonMatchingValue, defaultValue } = this.props.fields;
     return (
-      <div style={styles.actionsWrap}>
-        <span style={formSectionTitle}>{la('Action for Non-matching Values')}</span>
+      <div>
+        <div className={sectionTitle}>{la('Action for Non-matching Values')}</div>
         <Radio
           {...actionForNonMatchingValue}
           onChange={this.selectNonMatchingActions}
-          style={styles.radio}
+          className={radioStacked}
           label='Delete records'
           radioValue='DELETE_RECORDS'/>
         <Radio
           {...actionForNonMatchingValue}
           onChange={this.selectNonMatchingActions}
-          style={styles.radio}
+          className={radioStacked}
           label='Replace values with null'
           radioValue='REPLACE_WITH_NULL'/>
-        <div style={FLEX_COL_START}>
+        <div>
           <Radio
             {...actionForNonMatchingValue}
             onChange={this.selectNonMatchingActions}
-            style={styles.radio}
+            className={radioStacked}
             label='Replace values with:'
             radioValue='REPLACE_WITH_DEFAULT'/>
           <TextField
+            className={inputForRadio}
             disabled={actionForNonMatchingValue.value !== 'REPLACE_WITH_DEFAULT'}
-            {...defaultValue}
-            style={{marginLeft: 10}}/>
+            {...defaultValue} />
         </div>
       </div>
     );
@@ -116,24 +128,23 @@ export class SingleTypeForm extends Component {
         {...formWrapperProps(this.props)}
         onFormSubmit={submit}
         submitting={this.props.submitting}>
-        <div style={styles.base}>
-          <div>
-            <div style={styles.desiredTypeSection}>
-              <div style={formSectionTitle}>{la('Desired Type')}</div>
-              <div style={styles.desiredTypeWrap}>
-                <Select {...fields.desiredType} dataQa='desiredType' items={desiredTypeItems} />
+        <div className={columnsContainer}>
+          <div className={firstColumn}>
+            <div>
+              <div className={title}>{la('Desired Type')}</div>
+              <div className={classNames([rowOfInputs, rowMargin])}>
+                <Select {...fields.desiredType} dataQa='desiredType' items={desiredTypeItems} className={fieldsHorizontalSpacing} />
                 <Checkbox
                   {...fields.castWhenPossible}
-                  label={la('Cast when possible')}
-                  style={{marginLeft: 5}}/>
+                  label={la('Cast when possible')}/>
               </div>
             </div>
             {this.renderNonMatchingActions()}
-            <div style={styles.newFieldWrap}>
-              <NewFieldSection fields={fields}/>
+            <div>
+              <NewFieldSection fields={fields} className={sectionMargin} />
             </div>
           </div>
-          <div style={styles.nonMatchingWrap}>
+          <div className={secondColumn}>
             <NonMatchingValues nonMatchingCount={nonMatchingCount || 0 } values={availableNonMatching || []}/>
           </div>
         </div>
@@ -163,32 +174,3 @@ export default connectComplexForm({
   fields: ['typeMixed', 'actionForNonMatchingValue', 'desiredType', 'castWhenPossible', 'defaultValue'],
   validate
 }, SECTIONS, mapStateToProps, null)(SingleTypeForm);
-
-const styles = {
-  base: {
-    ...INLINE_NOWRAP_ROW_FLEX_START
-  },
-  desiredTypeSection: {
-    marginLeft: 10,
-    width: 450
-  },
-  desiredTypeWrap: {
-    display: 'flex',
-    alignItems: 'center',
-    marginBottom: 10
-  },
-  actionsWrap: {
-    ...FLEX_COL_START,
-    marginLeft: 10,
-    marginBottom: 10
-  },
-  nonMatchingWrap: {
-    marginLeft: 20
-  },
-  newFieldWrap: {
-    marginBottom: 10
-  },
-  radio: {
-    margin: '5px 0 5px 0'
-  }
-};

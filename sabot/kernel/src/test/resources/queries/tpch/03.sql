@@ -6,9 +6,9 @@ select
   o.o_shippriority
 
 from
-  cp.`tpch/customer.parquet` c,
-  cp.`tpch/orders.parquet` o,
-  cp.`tpch/lineitem.parquet` l
+  cp."tpch/customer.parquet" c,
+  cp."tpch/orders.parquet" o,
+  cp."tpch/lineitem.parquet" l
 
 where
   c.c_mktsegment = 'HOUSEHOLD'

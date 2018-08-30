@@ -190,7 +190,7 @@ describe('OverviewContent', () => {
       };
       wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(
-          wrapper.instance().isParentsAvailable()
+          wrapper.instance().isParentsBlockToBeShown()
       ).to.eql(false);
     });
 
@@ -205,7 +205,7 @@ describe('OverviewContent', () => {
       };
       wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(
-          wrapper.instance().isParentsAvailable()
+          wrapper.instance().isParentsBlockToBeShown()
       ).to.eql(true);
     });
 

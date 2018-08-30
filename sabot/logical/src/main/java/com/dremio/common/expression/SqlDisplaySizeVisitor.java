@@ -15,6 +15,7 @@
  */
 package com.dremio.common.expression;
 
+import org.apache.arrow.vector.types.pojo.ArrowType.FixedSizeBinary;
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeVisitor;
 import org.apache.arrow.vector.types.pojo.ArrowType.Binary;
 import org.apache.arrow.vector.types.pojo.ArrowType.Bool;
@@ -122,6 +123,11 @@ public class SqlDisplaySizeVisitor implements ArrowTypeVisitor<Integer>{
 
   @Override
   public Integer visit(FixedSizeList paramList) {
+    return 0;
+  }
+
+  @Override
+  public Integer visit(FixedSizeBinary paramList) {
     return 0;
   }
 

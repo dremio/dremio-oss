@@ -51,7 +51,7 @@ public class UnionAllOperator implements DualInputOperator {
   public UnionAllOperator(OperatorContext context, UnionAll config) {
     this.context = context;
     this.config = config;
-    outgoing = new VectorContainer(context.getAllocator());
+    outgoing = context.createOutputVectorContainer();
   }
 
   @Override

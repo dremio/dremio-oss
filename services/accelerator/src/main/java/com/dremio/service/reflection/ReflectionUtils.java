@@ -16,13 +16,19 @@
 package com.dremio.service.reflection;
 
 import static com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.UPDATE_COLUMN;
+import static com.dremio.service.accelerator.AccelerationUtils.selfOrEmpty;
 import static com.dremio.service.reflection.ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME;
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalProject;
@@ -31,6 +37,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
@@ -38,10 +45,27 @@ import com.dremio.exec.planner.acceleration.JoinDependencyProperties;
 import com.dremio.exec.planner.sql.ExternalMaterializationDescriptor;
 import com.dremio.exec.planner.sql.MaterializationDescriptor;
 import com.dremio.exec.planner.sql.MaterializationDescriptor.ReflectionInfo;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
+import com.dremio.exec.store.RecordWriter;
+import com.dremio.exec.work.user.SubstitutionSettings;
+import com.dremio.service.accelerator.AccelerationUtils;
+import com.dremio.service.job.proto.JobAttempt;
+import com.dremio.service.job.proto.JobInfo;
+import com.dremio.service.job.proto.JobStats;
+import com.dremio.service.job.proto.MaterializationSummary;
+import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobData;
+import com.dremio.service.jobs.JobDataFragment;
+import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.jobs.JobStatusListener;
+import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
@@ -49,23 +73,32 @@ import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.reflection.proto.DataPartition;
 import com.dremio.service.reflection.proto.ExternalReflection;
+import com.dremio.service.reflection.proto.JobDetails;
 import com.dremio.service.reflection.proto.Materialization;
+import com.dremio.service.reflection.proto.MaterializationMetrics;
 import com.dremio.service.reflection.proto.MaterializationState;
+import com.dremio.service.reflection.proto.MeasureType;
 import com.dremio.service.reflection.proto.ReflectionDetails;
 import com.dremio.service.reflection.proto.ReflectionDimensionField;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
+import com.dremio.service.reflection.proto.ReflectionMeasureField;
+import com.dremio.service.reflection.proto.Refresh;
+import com.dremio.service.reflection.proto.RefreshId;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 
 /**
  * Helper functions for Reflection management
@@ -104,6 +137,29 @@ public class ReflectionUtils {
       }
     }
     return hash;
+  }
+
+  public static Job submitRefreshJob(JobsService jobsService, NamespaceService namespaceService, ReflectionEntry entry,
+      Materialization materialization, String sql, JobStatusListener jobStatusListener) {
+    final SqlQuery query = new SqlQuery(sql, SYSTEM_USERNAME);
+    NamespaceKey datasetPathList = new NamespaceKey(namespaceService.findDatasetByUUID(entry.getDatasetId()).getFullPathList());
+    DatasetVersion datasetVersion = new DatasetVersion(entry.getDatasetVersion());
+    MaterializationSummary materializationSummary = new MaterializationSummary()
+      .setDatasetId(entry.getDatasetId())
+      .setReflectionId(entry.getId().getId())
+      .setLayoutVersion(entry.getVersion().intValue())
+      .setMaterializationId(materialization.getId().getId())
+      .setReflectionName(entry.getName())
+      .setReflectionType(entry.getType().toString());
+
+    return jobsService.submitJob(
+      JobRequest.newMaterializationJobBuilder(materializationSummary,
+        new SubstitutionSettings(ImmutableList.of()))
+        .setSqlQuery(query)
+        .setQueryType(QueryType.ACCELERATOR_CREATE)
+        .setDatasetPath(datasetPathList)
+        .setDatasetVersion(datasetVersion)
+        .build(), jobStatusListener);
   }
 
   public static List<String> getMaterializationPath(Materialization materialization) {
@@ -252,36 +308,37 @@ public class ReflectionUtils {
     String id = reflectionGoal.getId().getId();
     final ReflectionDetails details = reflectionGoal.getDetails();
     return new MaterializationDescriptor.ReflectionInfo(id,
-      reflectionGoal.getType() == com.dremio.service.reflection.proto.ReflectionType.RAW ? ReflectionType.RAW : ReflectionType.AGG,
-      reflectionGoal.getName(),
-      getNames(Optional.fromNullable(details.getSortFieldList()).or(Collections.<ReflectionField>emptyList())),
-      getNames(Optional.fromNullable(details.getPartitionFieldList()).or(Collections.<ReflectionField>emptyList())),
-      getNames(Optional.fromNullable(details.getDistributionFieldList()).or(Collections.<ReflectionField>emptyList())),
-      getDimensionNames(Optional.fromNullable(details.getDimensionFieldList()).or(Collections.<ReflectionDimensionField>emptyList())),
-      getNames(Optional.fromNullable(details.getMeasureFieldList()).or(Collections.<ReflectionField>emptyList())),
-      getNames(Optional.fromNullable(details.getDisplayFieldList()).or(Collections.<ReflectionField>emptyList()))
+        reflectionGoal.getType() == com.dremio.service.reflection.proto.ReflectionType.RAW ? ReflectionType.RAW : ReflectionType.AGG,
+        reflectionGoal.getName(),
+        s(details.getSortFieldList()).map(t -> t.getName()).collect(Collectors.toList()),
+        s(details.getPartitionFieldList()).map(t -> t.getName()).collect(Collectors.toList()),
+        s(details.getDistributionFieldList()).map(t -> t.getName()).collect(Collectors.toList()),
+        s(details.getDimensionFieldList()).map(t -> t.getName()).collect(Collectors.toList()),
+        s(details.getMeasureFieldList()).map(ReflectionUtils::toMeasureColumn).collect(Collectors.toList()),
+        s(details.getDisplayFieldList()).map(t -> t.getName()).collect(Collectors.toList())
     );
   }
 
-  private static List<String> getNames(List<ReflectionField> fields){
-    return FluentIterable.from(fields)
-      .transform(new Function<ReflectionField, String>(){
-        @Override
-        public String apply(ReflectionField field) {
-          return field.getName();
-        }
-      }).toList();
+  private static UserBitShared.MeasureColumn toMeasureColumn(ReflectionMeasureField field) {
+    List<String> fields =  AccelerationUtils.selfOrEmpty(field.getMeasureTypeList())
+      .stream()
+      .map(MeasureType::toString)
+      .collect(Collectors.toList());
+
+    UserBitShared.MeasureColumn measureColumn = UserBitShared.MeasureColumn.newBuilder().setName(field.getName())
+      .addAllMeasureType(fields).build();
+
+    return measureColumn;
   }
 
-  private static List<String> getDimensionNames(List<ReflectionDimensionField> fields){
-    return FluentIterable.from(fields)
-      .transform(new Function<ReflectionDimensionField, String>(){
-        @Override
-        public String apply(ReflectionDimensionField field) {
-          return field.getName();
-        }
-      }).toList();
+  private static <T> Stream<T> s(Collection<T> collection){
+    if(collection == null) {
+      return Stream.of();
+    }
+
+    return collection.stream();
   }
+
 
   public static void validateReflectionGoalWithoutSchema(ReflectionGoal goal) {
     Preconditions.checkArgument(goal.getDatasetId() != null, "datasetId required");
@@ -428,6 +485,31 @@ public class ReflectionUtils {
     return new LogicalProject(node.getCluster(), node.getTraitSet(), node, projects, rowTypeBuilder.build());
   }
 
+  static RelNode removeColumns(RelNode node, Predicate<RelDataTypeField> predicate) {
+    if (node.getTraitSet() == null) {
+      // for test purposes.
+      return node;
+    }
+
+    // identify all fields that match passed predicate
+    Set<RelDataTypeField> toRemove = FluentIterable.from(node.getRowType().getFieldList()).filter(predicate).toSet();
+
+    if (toRemove.isEmpty()) {
+      return node;
+    }
+
+    final RexBuilder rexBuilder = node.getCluster().getRexBuilder();
+    final RelDataTypeFactory.FieldInfoBuilder rowTypeBuilder = new RelDataTypeFactory.FieldInfoBuilder(node.getCluster().getTypeFactory());
+    final List<RexNode> projects = FluentIterable.from(node.getRowType().getFieldList())
+      .filter(Predicates.not(toRemove::contains))
+      .transform((RelDataTypeField field) -> {
+        rowTypeBuilder.add(field);
+        return (RexNode) rexBuilder.makeInputRef(field.getType(), field.getIndex());
+      }).toList();
+
+    return new LogicalProject(node.getCluster(), node.getTraitSet(), node, projects, rowTypeBuilder.build());
+  }
+
   public static List<ViewFieldType> removeUpdateColumn(final List<ViewFieldType> fields) {
     return FluentIterable.from(fields).filter(new Predicate<ViewFieldType>() {
       @Override
@@ -437,4 +519,78 @@ public class ReflectionUtils {
     }).toList();
   }
 
+  public static Refresh createRefresh(Materialization materialization, final long seriesId, final int seriesOrdinal,
+      final long updateId, JobDetails details, MaterializationMetrics metrics, List<DataPartition> dataPartitions) {
+    final String path = StringUtils.join(Iterables.skip(getMaterializationPath(materialization), 1), "/");
+
+    return new Refresh()
+      .setId(new RefreshId(UUID.randomUUID().toString()))
+      .setReflectionId(materialization.getReflectionId())
+      .setPartitionList(dataPartitions)
+      .setMetrics(metrics)
+      .setCreatedAt(System.currentTimeMillis())
+      .setSeriesId(seriesId)
+      .setUpdateId(updateId)
+      .setSeriesOrdinal(seriesOrdinal)
+      .setPath(path)
+      .setJob(details);
+  }
+
+  public static JobDetails computeJobDetails(final JobAttempt jobAttempt) {
+    final JobInfo info = jobAttempt.getInfo();
+
+    final JobDetails details = new JobDetails()
+      .setJobId(info.getJobId().getId())
+      .setJobStart(info.getStartTime())
+      .setJobEnd(info.getFinishTime());
+
+    final JobStats stats = jobAttempt.getStats();
+    if (stats != null) {
+      details
+        .setInputBytes(stats.getInputBytes())
+        .setInputRecords(stats.getInputRecords())
+        .setOutputBytes(stats.getOutputBytes())
+        .setOutputRecords(stats.getOutputRecords());
+    }
+    return details;
+  }
+
+  public static List<DataPartition> computeDataPartitions(JobInfo jobInfo) {
+    return FluentIterable
+      .from(selfOrEmpty(jobInfo.getPartitionsList()))
+      .transform(DataPartition::new)
+      .toList();
+  }
+
+  public static MaterializationMetrics computeMetrics(Job job) {
+    final int fetchSize = 1000;
+    final JobData completeJobData = job.getData();
+
+    // collect the size of all files
+    final List<Long> fileSizes = Lists.newArrayList();
+    int offset = 0;
+    long footprint = 0;
+    JobDataFragment data = completeJobData.range(offset, fetchSize);
+    while (data.getReturnedRowCount() > 0) {
+      for (int i = 0; i < data.getReturnedRowCount(); i++) {
+        final long fileSize = (Long) data.extractValue(RecordWriter.FILESIZE_COLUMN, i);
+        footprint += fileSize;
+        fileSizes.add(fileSize);
+      }
+
+      offset += data.getReturnedRowCount();
+      data = completeJobData.range(offset, fetchSize);
+    }
+
+    final int numFiles = fileSizes.size();
+    // alternative is to implement QuickSelect to compute the median in linear time
+    Collections.sort(fileSizes);
+    final long medianFileSize = fileSizes.get(numFiles / 2);
+
+    return new MaterializationMetrics()
+      .setFootprint(footprint)
+      .setOriginalCost(job.getJobAttempt().getInfo().getOriginalCost())
+      .setMedianFileSize(medianFileSize)
+      .setNumFiles(numFiles);
+  }
 }

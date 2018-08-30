@@ -40,6 +40,7 @@ import com.dremio.exec.planner.common.SampleRelBase;
 import com.dremio.exec.planner.physical.CustomPrel;
 import com.dremio.exec.planner.physical.DictionaryLookupPrel;
 import com.dremio.exec.planner.physical.ExchangePrel;
+import com.dremio.exec.planner.physical.SelectionVectorRemoverPrel;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP.ConversionColumn;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPrel;
 import com.google.common.base.Preconditions;
@@ -86,6 +87,10 @@ public class RelMdColumnOrigins extends org.apache.calcite.rel.metadata.RelMdCol
 
   public Set<RelColumnOrigin> getColumnOrigins(ExchangePrel exchangePrel, RelMetadataQuery mq, int iOutputColumn) {
     return mq.getColumnOrigins(exchangePrel.getInput(), iOutputColumn);
+  }
+
+  public Set<RelColumnOrigin> getColumnOrigins(SelectionVectorRemoverPrel selectionVectorRemoverPrel, RelMetadataQuery mq, int iOutputColumn) {
+    return mq.getColumnOrigins(selectionVectorRemoverPrel.getInput(), iOutputColumn);
   }
 
   @SuppressWarnings("unused") // Called through reflection

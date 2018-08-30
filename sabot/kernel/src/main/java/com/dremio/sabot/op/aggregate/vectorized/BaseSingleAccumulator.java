@@ -17,6 +17,7 @@ package com.dremio.sabot.op.aggregate.vectorized;
 
 import java.util.List;
 
+import com.google.common.base.Preconditions;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.util.TransferPair;
@@ -43,11 +44,13 @@ abstract class BaseSingleAccumulator implements Accumulator {
   private TransferPair[] pairs;
   long[] bitAddresses;
   long[] valueAddresses;
+  int batches;
 
   public BaseSingleAccumulator(FieldVector input, FieldVector output){
     this.input = input;
     this.output = output;
     initArrs(0);
+    batches = 0;
   }
 
   FieldVector getInput(){
@@ -91,8 +94,13 @@ abstract class BaseSingleAccumulator implements Accumulator {
       initialize(vector);
       pairs[i] = tp;
       accumulators[i] = vector;
-      bitAddresses[i] = vector.getFieldBuffers().get(0).memoryAddress();
-      valueAddresses[i] = vector.getFieldBuffers().get(1).memoryAddress();
+      bitAddresses[i] = vector.getValidityBufferAddress();
+      valueAddresses[i] = vector.getDataBufferAddress();
+      /* bump counter every time after successfully allocating and adding a batch,
+       * if we fail in the middle, we know the point till which the non-null accumulator vectors
+       * have been added.
+       */
+      ++batches;
     }
   }
 
@@ -109,7 +117,16 @@ abstract class BaseSingleAccumulator implements Accumulator {
   @SuppressWarnings("unchecked")
   @Override
   public void close() throws Exception {
-    AutoCloseables.close((Iterable<AutoCloseable>) (Object) FluentIterable.of(accumulators).toList());
+    final FieldVector[] accumulatorsToClose = new FieldVector[batches];
+    for (int i = 0; i < batches; i++) {
+      /* if we earlier failed to resize and hit OOM, we would have NULL(s)
+       * towards the end of accumulator array and we need to ignore all of
+       * them else the close() call will hit NPE. this is why we loop only
+       * until batches.
+       */
+      accumulatorsToClose[i] = accumulators[i];
+    }
+    AutoCloseables.close((Iterable<AutoCloseable>) (Object) FluentIterable.of(accumulatorsToClose).toList());
   }
 
   public static void writeWordwise(long addr, int length, long value) {
@@ -141,12 +158,41 @@ abstract class BaseSingleAccumulator implements Accumulator {
     }
   }
 
+  public static void fillInts(long addr, int length, int value) {
+    if (length == 0) {
+      return;
+    }
+
+    Preconditions.checkArgument((length & 3) == 0, "Error: length should be aligned at 4-byte boundary");
+    /* optimize by writing word at a time */
+    long valueAsLong = (((long)value) << 32) | (value & 0xFFFFFFFFL);
+    int nLong = length >>>3;
+    int remaining = length & 7;
+    for (int i = nLong; i > 0; i--) {
+      PlatformDependent.putLong(addr, valueAsLong);
+      addr += 8;
+    }
+    if (remaining > 0) {
+      /* assert is not necessary but just in case */
+      Preconditions.checkArgument(remaining == 4, "Error: detected incorrect remaining length");
+      PlatformDependent.putInt(addr, value);
+    }
+  }
+
   public static void setNullAndValue(FieldVector vector, long value){
     List<ArrowBuf> buffers = vector.getFieldBuffers();
     ArrowBuf bits = buffers.get(0);
     writeWordwise(bits.memoryAddress(), bits.capacity(), OFF);
     ArrowBuf values = buffers.get(1);
     writeWordwise(values.memoryAddress(), values.capacity(), value);
+  }
+
+  public static void setNullAndValue(FieldVector vector, int value){
+    List<ArrowBuf> buffers = vector.getFieldBuffers();
+    ArrowBuf bits = buffers.get(0);
+    writeWordwise(bits.memoryAddress(), bits.capacity(), OFF);
+    ArrowBuf values = buffers.get(1);
+    fillInts(values.memoryAddress(), values.capacity(), value);
   }
 
   public static void setNullAndZero(FieldVector vector){

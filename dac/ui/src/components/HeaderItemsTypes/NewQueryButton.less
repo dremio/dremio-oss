@@ -13,9 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.new-query-button {
+ :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  a:hover {
-    background: rgba(255, 255, 255, 0.1);
+  .new-query-button {
+
+    a:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
   }
 }

@@ -40,7 +40,7 @@ public class TestSort extends BaseTestQuery {
   @Test
   public void testSortWithComplexInput() throws Exception {
     testBuilder()
-        .sqlQuery("select (t.a) as col from cp.`jsoninput/repeatedmap_sort_bug.json` t order by t.b")
+        .sqlQuery("select (t.a) as col from cp.\"jsoninput/repeatedmap_sort_bug.json\" t order by t.b")
         .ordered()
         .baselineColumns("col")
         .baselineValues(repeated_map)
@@ -50,15 +50,15 @@ public class TestSort extends BaseTestQuery {
   @Test
   public void testSortWithRepeatedMapWithExchanges() throws Exception {
     testBuilder()
-        .sqlQuery("select (t.a) as col from cp.`jsoninput/repeatedmap_sort_bug.json` t order by t.b")
-        .optionSettingQueriesForTestQuery("alter session set `planner.slice_target` = 1")
+        .sqlQuery("select (t.a) as col from cp.\"jsoninput/repeatedmap_sort_bug.json\" t order by t.b")
+        .optionSettingQueriesForTestQuery("alter session set \"planner.slice_target\" = 1")
         .ordered()
         .baselineColumns("col")
         .baselineValues(repeated_map)
         .go();
 
     // reset the planner.slice_target
-    test("alter session set `planner.slice_target` = " + ExecConstants.SLICE_TARGET_DEFAULT);
+    test("alter session set \"planner.slice_target\" = " + ExecConstants.SLICE_TARGET_DEFAULT);
   }
 
   @Test
@@ -68,10 +68,10 @@ public class TestSort extends BaseTestQuery {
       test("CREATE TABLE dfs_test.test_sort PARTITION BY (l_modline, l_moddate) AS " +
         "SELECT l.*, l_shipdate - ((EXTRACT(DAY FROM l_shipdate) - 1) * INTERVAL '1' DAY) l_moddate, " +
         "MOD(l_linenumber,3) l_modline " +
-        "FROM cp.`tpch/lineitem.parquet` l ORDER BY l_moddate"
+        "FROM cp.\"tpch/lineitem.parquet\" l ORDER BY l_moddate"
       );
     } finally {
-      runSQL("ALTER SESSION RESET `" + ExecConstants.MAX_WIDTH_PER_NODE_KEY + "`");
+      runSQL("ALTER SESSION RESET \"" + ExecConstants.MAX_WIDTH_PER_NODE_KEY + "\"");
     }
   }
 }

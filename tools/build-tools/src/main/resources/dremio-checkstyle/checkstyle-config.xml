@@ -77,7 +77,7 @@
     <module name="FileContentsHolder"/>
     <module name="IllegalImport">
       <!-- For "org.apache.commons.lang.*" classes use the corresponding class from "org.apache.commons.lang3.*" -->
-      <property name="illegalPkgs" value="com.google.hive12,com.beust.jcommander.internal,jersey.repackaged,org.apache.commons.lang,hive,oadd,org.kududb.client.shaded,org.jboss.netty,org.apache.curator.shaded"/>
+      <property name="illegalPkgs" value="com.google.hive12,com.beust.jcommander.internal,jersey.repackaged,org.apache.commons.lang,hive,oadd,org.kududb.client.shaded,org.jboss.netty,org.apache.curator.shaded,org.apache.htrace.fasterxml,twill"/>
     </module>
 
     <module name="AvoidStarImport">
@@ -123,6 +123,12 @@
       <property name="format" value="extends RelShuttleImpl"/>
       <property name="ignoreComments" value="true"/>
       <property name="message" value="Please do not extend RelShuttleImpl, instead extend StatelessRelShuttleImpl"/>
+    </module>
+
+    <module name="RegexpSinglelineJava">
+      <property name="format" value=" Schema.fromJSON"/>
+      <property name="ignoreComments" value="true"/>
+      <property name="message" value="Please use DremioArrowSchema.fromJSON instead of Schema.fromJSON"/>
     </module>
 
     <!-- Modifier Checks -->

@@ -87,6 +87,8 @@ message VirtualDatasetUI {
   // This field is not serialized 
   optional bytes record_schema = 22; 
 
+  // sql context
+  repeated string context = 23;
 }
 
 enum Derivation {

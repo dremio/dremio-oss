@@ -45,7 +45,6 @@ public class DecimalTools {
     if(bytes.length < 16){
       byte[] newBytes = new byte[16];
       System.arraycopy(bytes, 0, newBytes, 16 - bytes.length, bytes.length);
-      System.out.println(bytes[0] & SIGN_MASK);
       byte replace = (bytes[0] & SIGN_MASK) == SIGN_MASK ? NEG : POS;
       for(int i = 0; i < newBytes.length - bytes.length; i++){
         newBytes[i] = replace;

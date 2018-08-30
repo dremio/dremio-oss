@@ -19,6 +19,7 @@ import java.util.List;
 
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection.NameAndGranularity;
+import com.dremio.exec.planner.sql.parser.SqlCreateReflection.NameAndMeasures;
 
 public class LayoutDefinition {
 
@@ -27,16 +28,22 @@ public class LayoutDefinition {
   private final Type type;
   private final List<String> display;
   private final List<NameAndGranularity> dimension;
-  private final List<String> measure;
+  private final List<NameAndMeasures> measure;
   private final List<String> sort;
   private final List<String> distribution;
   private final List<String> partition;
   private final PartitionDistributionStrategy partitionDistributionStrategy;
   private final String name;
 
-  public LayoutDefinition(String name, Type type, List<String> display, List<NameAndGranularity> dimension, List<String> measure,
-                          List<String> sort, List<String> distribution, List<String> partition,
-                          PartitionDistributionStrategy partitionDistributionStrategy) {
+  public LayoutDefinition(
+      String name, Type type,
+      List<String> display,
+      List<NameAndGranularity> dimension,
+      List<NameAndMeasures> measure,
+      List<String> sort,
+      List<String> distribution,
+      List<String> partition,
+      PartitionDistributionStrategy partitionDistributionStrategy) {
     super();
     this.name = name;
     this.type = type;
@@ -68,7 +75,7 @@ public class LayoutDefinition {
   }
 
 
-  public List<String> getMeasure() {
+  public List<NameAndMeasures> getMeasure() {
     return measure;
   }
 

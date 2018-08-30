@@ -86,7 +86,8 @@ public class ScanOperator implements ProducerOperator {
     COPY_MS,
     FILTER_MS,
     PARQUET_EXEC_PATH, // type of readers (vectorized, non-vectorized or combination used) in parquet
-    FILTER_EXISTS // Is there a filter pushed into scan?
+    FILTER_EXISTS, // Is there a filter pushed into scan?
+    PARQUET_BYTES_READ // Represents total number of actual bytes (uncompressed) read while parquet scan.
     ;
 
     @Override
@@ -143,7 +144,7 @@ public class ScanOperator implements ProducerOperator {
       stats.stopProcessing();
     }
 
-    this.outgoing = new VectorContainer(context.getAllocator());
+    this.outgoing = context.createOutputVectorContainer();
 
     final String readerUserName = StringUtils.isEmpty(config.getUserName()) ? ImpersonationUtil.getProcessUserName() : config.getUserName();
     this.readerUGI = ImpersonationUtil.createProxyUgi(readerUserName);

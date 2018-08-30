@@ -18,7 +18,7 @@ import PropTypes from 'prop-types';
 import ReactModal from 'react-modal';
 import ReactDOMServer from 'react-dom/server';
 
-import {smallModal, largeModal, smallestModal, modalBody} from 'uiTheme/radium/modal';
+import {smallModal, mediumModal, largeModal, smallestModal, modalBody} from 'uiTheme/radium/modal';
 
 import ModalHeader from './ModalHeader';
 import './Modals.less';
@@ -26,7 +26,7 @@ import './Modals.less';
 export default class Modal extends Component {
 
   static propTypes = {
-    size: PropTypes.oneOf(['small', 'large', 'smallest']).isRequired,
+    size: PropTypes.oneOf(['small', 'large', 'medium', 'smallest']).isRequired,
     isOpen: PropTypes.bool,
     hideCloseButton: PropTypes.bool,
     onClickCloseButton: PropTypes.func, // optional. defaults to props.hide
@@ -36,7 +36,8 @@ export default class Modal extends Component {
     modalHeight: PropTypes.string,
     className: PropTypes.string,
     classQa: PropTypes.string,
-    style: PropTypes.object
+    style: PropTypes.object,
+    dataQa: PropTypes.string
   };
 
   static defaultProps = {
@@ -47,7 +48,7 @@ export default class Modal extends Component {
 
   render() {
     const {
-      size, isOpen, title, hide, hideCloseButton, onClickCloseButton, className, children, style, classQa
+      size, isOpen, title, hide, hideCloseButton, onClickCloseButton, className, children, style, classQa, dataQa
     } = this.props;
     const content = {
       ...smallModal.content,
@@ -55,8 +56,9 @@ export default class Modal extends Component {
       ...style
     };
     const smallModalUpdated = { ...smallModal, content };
+    const mediumModalUpdated = { ...mediumModal, content: { ...mediumModal.content, ...style}};
     const largeModalUpdated = { ...largeModal, content: { ...largeModal.content, ...style}};
-    const styles = {small: smallModalUpdated, large: largeModalUpdated, smallest: smallestModal};
+    const styles = {small: smallModalUpdated, medium: mediumModalUpdated, large: largeModalUpdated, smallest: smallestModal};
 
     let stringTitle = title;
     if (typeof stringTitle === 'object') {
@@ -78,7 +80,7 @@ export default class Modal extends Component {
       >
         {stringTitle ?
           <ModalHeader title={stringTitle} hide={onClickCloseButton || hide} hideCloseButton={hideCloseButton}/> : null}
-        <div style={modalBody}>
+        <div style={modalBody} data-qa={dataQa}>
           {children}
         </div>
       </ReactModal>

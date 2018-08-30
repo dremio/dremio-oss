@@ -125,13 +125,13 @@ public class HiveTestDataGenerator {
       updated.add(new Property(prop.getKey(), prop.getValue()));
     }
 
-    for(Property p : conf.properties) {
+    for(Property p : conf.propertyList) {
       if(!configOverride.containsKey(p.name)) {
         updated.add(p);
       }
     }
 
-    conf.properties = updated;
+    conf.propertyList = updated;
     newSC.setConfig(conf.toBytesString());
     ((CatalogServiceImpl) pluginRegistry).getSystemUserCatalog().updateSource(newSC);
   }
@@ -167,6 +167,9 @@ public class HiveTestDataGenerator {
     conf.set(ConfVars.SCRATCHDIR.varname,  getTempDir("scratch_dir"));
     conf.set(ConfVars.LOCALSCRATCHDIR.varname, getTempDir("local_scratch_dir"));
     conf.set(ConfVars.DYNAMICPARTITIONINGMODE.varname, "nonstrict");
+    conf.set(ConfVars.METASTORE_SCHEMA_VERIFICATION.varname, "false");
+    conf.set(ConfVars.METASTORE_AUTO_CREATE_ALL.varname, "true");
+    conf.set(ConfVars.HIVE_CBO_ENABLED.varname, "false");
 
     return conf;
 
@@ -242,124 +245,13 @@ public class HiveTestDataGenerator {
       "stored as parquet location '" + file.getParent() + "'";
     executeQuery(hiveDriver, parquetUpperSchemaTable);
 
+    final String orcRegionTable = "create table orc_region stored as orc as SELECT * FROM parquet_region";
+    executeQuery(hiveDriver, orcRegionTable);
+
     // create a Hive table that has columns with data types which are supported for reading in Dremio.
-    testDataFile = generateAllTypesDataFile();
-    executeQuery(hiveDriver,
-        "CREATE TABLE IF NOT EXISTS readtest (" +
-        "  binary_field BINARY," +
-        "  boolean_field BOOLEAN," +
-        "  tinyint_field TINYINT," +
-        "  decimal0_field DECIMAL," +
-        "  decimal9_field DECIMAL(6, 2)," +
-        "  decimal18_field DECIMAL(15, 5)," +
-        "  decimal28_field DECIMAL(23, 1)," +
-        "  decimal38_field DECIMAL(30, 3)," +
-        "  double_field DOUBLE," +
-        "  float_field FLOAT," +
-        "  int_field INT," +
-        "  bigint_field BIGINT," +
-        "  smallint_field SMALLINT," +
-        "  string_field STRING," +
-        "  varchar_field VARCHAR(50)," +
-        "  timestamp_field TIMESTAMP," +
-        "  date_field DATE," +
-        "  char_field CHAR(10)" +
-        ") PARTITIONED BY (" +
-        // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
-        // "  binary_part BINARY," +
-        "  boolean_part BOOLEAN," +
-        "  tinyint_part TINYINT," +
-        "  decimal0_part DECIMAL," +
-        "  decimal9_part DECIMAL(6, 2)," +
-        "  decimal18_part DECIMAL(15, 5)," +
-        "  decimal28_part DECIMAL(23, 1)," +
-        "  decimal38_part DECIMAL(30, 3)," +
-        "  double_part DOUBLE," +
-        "  float_part FLOAT," +
-        "  int_part INT," +
-        "  bigint_part BIGINT," +
-        "  smallint_part SMALLINT," +
-        "  string_part STRING," +
-        "  varchar_part VARCHAR(50)," +
-        "  timestamp_part TIMESTAMP," +
-        "  date_part DATE," +
-        "  char_part CHAR(10)" +
-        ") ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' " +
-        "TBLPROPERTIES ('serialization.null.format'='') "
-    );
-
-    // Add a partition to table 'readtest'
-    executeQuery(hiveDriver,
-        "ALTER TABLE readtest ADD IF NOT EXISTS PARTITION ( " +
-        // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
-        // "  binary_part='binary', " +
-        "  boolean_part='true', " +
-        "  tinyint_part='64', " +
-        "  decimal0_part='36.9', " +
-        "  decimal9_part='36.9', " +
-        "  decimal18_part='3289379872.945645', " +
-        "  decimal28_part='39579334534534.35345', " +
-        "  decimal38_part='363945093845093890.9', " +
-        "  double_part='8.345', " +
-        "  float_part='4.67', " +
-        "  int_part='123456', " +
-        "  bigint_part='234235', " +
-        "  smallint_part='3455', " +
-        "  string_part='string', " +
-        "  varchar_part='varchar', " +
-        "  timestamp_part='2013-07-05 17:01:00', " +
-        "  date_part='2013-07-05', " +
-        "  char_part='char')"
-    );
-
-    // Add a second partition to table 'readtest' which contains the same values as the first partition except
-    // for tinyint_part partition column
-    executeQuery(hiveDriver,
-        "ALTER TABLE readtest ADD IF NOT EXISTS PARTITION ( " +
-            // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
-            // "  binary_part='binary', " +
-            "  boolean_part='true', " +
-            "  tinyint_part='65', " +
-            "  decimal0_part='36.9', " +
-            "  decimal9_part='36.9', " +
-            "  decimal18_part='3289379872.945645', " +
-            "  decimal28_part='39579334534534.35345', " +
-            "  decimal38_part='363945093845093890.9', " +
-            "  double_part='8.345', " +
-            "  float_part='4.67', " +
-            "  int_part='123456', " +
-            "  bigint_part='234235', " +
-            "  smallint_part='3455', " +
-            "  string_part='string', " +
-            "  varchar_part='varchar', " +
-            "  timestamp_part='2013-07-05 17:01:00', " +
-            "  date_part='2013-07-05', " +
-            "  char_part='char')"
-    );
-
-    // Load data into table 'readtest'
-    executeQuery(hiveDriver,
-        String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE default.readtest PARTITION (" +
-        // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
-        // "  binary_part='binary', " +
-        "  boolean_part='true', " +
-        "  tinyint_part='64', " +
-        "  decimal0_part='36.9', " +
-        "  decimal9_part='36.9', " +
-        "  decimal18_part='3289379872.945645', " +
-        "  decimal28_part='39579334534534.35345', " +
-        "  decimal38_part='363945093845093890.9', " +
-        "  double_part='8.345', " +
-        "  float_part='4.67', " +
-        "  int_part='123456', " +
-        "  bigint_part='234235', " +
-        "  smallint_part='3455', " +
-        "  string_part='string', " +
-        "  varchar_part='varchar', " +
-        "  timestamp_part='2013-07-05 17:01:00', " +
-        "  date_part='2013-07-05'," +
-        "  char_part='char'" +
-            ")", testDataFile));
+    createAllTypesTextTable(hiveDriver, "readtest");
+    createAllTypesTable(hiveDriver, "parquet", "readtest");
+    createAllTypesTable(hiveDriver, "orc", "readtest");
 
     // create a table that has all Hive types. This is to test how hive tables metadata is populated in
     // Dremio's INFORMATION_SCHEMA.
@@ -385,117 +277,6 @@ public class HiveTestDataGenerator {
         "charType CHAR(10))"
     );
 
-    /**
-     * Create a PARQUET table with all supported types.
-     */
-    executeQuery(hiveDriver,
-        "CREATE TABLE readtest_parquet (" +
-            "  binary_field BINARY, " +
-            "  boolean_field BOOLEAN, " +
-            "  tinyint_field TINYINT," +
-            "  decimal0_field DECIMAL," +
-            "  decimal9_field DECIMAL(6, 2)," +
-            "  decimal18_field DECIMAL(15, 5)," +
-            "  decimal28_field DECIMAL(23, 1)," +
-            "  decimal38_field DECIMAL(30, 3)," +
-            "  double_field DOUBLE," +
-            "  float_field FLOAT," +
-            "  int_field INT," +
-            "  bigint_field BIGINT," +
-            "  smallint_field SMALLINT," +
-            "  string_field STRING," +
-            "  varchar_field VARCHAR(50)," +
-            "  timestamp_field TIMESTAMP," +
-            "  char_field CHAR(10)" +
-            ") PARTITIONED BY (" +
-            // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
-            // "  binary_part BINARY," +
-            "  boolean_part BOOLEAN," +
-            "  tinyint_part TINYINT," +
-            "  decimal0_part DECIMAL," +
-            "  decimal9_part DECIMAL(6, 2)," +
-            "  decimal18_part DECIMAL(15, 5)," +
-            "  decimal28_part DECIMAL(23, 1)," +
-            "  decimal38_part DECIMAL(30, 3)," +
-            "  double_part DOUBLE," +
-            "  float_part FLOAT," +
-            "  int_part INT," +
-            "  bigint_part BIGINT," +
-            "  smallint_part SMALLINT," +
-            "  string_part STRING," +
-            "  varchar_part VARCHAR(50)," +
-            "  timestamp_part TIMESTAMP," +
-            "  date_part DATE," +
-            "  char_part CHAR(10)" +
-            ") STORED AS parquet "
-    );
-
-    executeQuery(hiveDriver, "INSERT OVERWRITE TABLE readtest_parquet " +
-        "PARTITION (" +
-        // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
-        // "  binary_part='binary', " +
-        "  boolean_part='true', " +
-        "  tinyint_part='64', " +
-        "  decimal0_part='36.9', " +
-        "  decimal9_part='36.9', " +
-        "  decimal18_part='3289379872.945645', " +
-        "  decimal28_part='39579334534534.35345', " +
-        "  decimal38_part='363945093845093890.9', " +
-        "  double_part='8.345', " +
-        "  float_part='4.67', " +
-        "  int_part='123456', " +
-        "  bigint_part='234235', " +
-        "  smallint_part='3455', " +
-        "  string_part='string', " +
-        "  varchar_part='varchar', " +
-        "  timestamp_part='2013-07-05 17:01:00', " +
-        "  date_part='2013-07-05', " +
-        "  char_part='char'" +
-        ") " +
-        " SELECT " +
-        "  binary_field," +
-        "  boolean_field," +
-        "  tinyint_field," +
-        "  decimal0_field," +
-        "  decimal9_field," +
-        "  decimal18_field," +
-        "  decimal28_field," +
-        "  decimal38_field," +
-        "  double_field," +
-        "  float_field," +
-        "  int_field," +
-        "  bigint_field," +
-        "  smallint_field," +
-        "  string_field," +
-        "  varchar_field," +
-        "  timestamp_field," +
-        "  char_field" +
-        " FROM readtest WHERE tinyint_part = 64");
-
-    // Add a second partition to table 'readtest_parquet' which contains the same values as the first partition except
-    // for tinyint_part partition column
-    executeQuery(hiveDriver,
-        "ALTER TABLE readtest_parquet ADD PARTITION ( " +
-            // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
-            // "  binary_part='binary', " +
-            "  boolean_part='true', " +
-            "  tinyint_part='65', " +
-            "  decimal0_part='36.9', " +
-            "  decimal9_part='36.9', " +
-            "  decimal18_part='3289379872.945645', " +
-            "  decimal28_part='39579334534534.35345', " +
-            "  decimal38_part='363945093845093890.9', " +
-            "  double_part='8.345', " +
-            "  float_part='4.67', " +
-            "  int_part='123456', " +
-            "  bigint_part='234235', " +
-            "  smallint_part='3455', " +
-            "  string_part='string', " +
-            "  varchar_part='varchar', " +
-            "  timestamp_part='2013-07-05 17:01:00', " +
-            "  date_part='2013-07-05', " +
-            "  char_part='char')"
-    );
     String dummy = generateTestDataFile(5000, "dummy");
     executeQuery(hiveDriver, "CREATE TABLE IF NOT EXISTS default.dummy(key INT, value STRING) " +
       "ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE");
@@ -664,6 +445,239 @@ public class HiveTestDataGenerator {
     printWriter.close();
 
     return file.getPath();
+  }
+
+  private void createAllTypesTextTable(final Driver hiveDriver, final String table) throws Exception {
+    String testDataFile = generateAllTypesDataFile();
+    executeQuery(hiveDriver,
+        "CREATE TABLE IF NOT EXISTS " + table + " (" +
+            "  binary_field BINARY," +
+            "  boolean_field BOOLEAN," +
+            "  tinyint_field TINYINT," +
+            "  decimal0_field DECIMAL," +
+            "  decimal9_field DECIMAL(6, 2)," +
+            "  decimal18_field DECIMAL(15, 5)," +
+            "  decimal28_field DECIMAL(23, 1)," +
+            "  decimal38_field DECIMAL(30, 3)," +
+            "  double_field DOUBLE," +
+            "  float_field FLOAT," +
+            "  int_field INT," +
+            "  bigint_field BIGINT," +
+            "  smallint_field SMALLINT," +
+            "  string_field STRING," +
+            "  varchar_field VARCHAR(50)," +
+            "  timestamp_field TIMESTAMP," +
+            "  date_field DATE," +
+            "  char_field CHAR(10)" +
+            ") PARTITIONED BY (" +
+            // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
+            // "  binary_part BINARY," +
+            "  boolean_part BOOLEAN," +
+            "  tinyint_part TINYINT," +
+            "  decimal0_part DECIMAL," +
+            "  decimal9_part DECIMAL(6, 2)," +
+            "  decimal18_part DECIMAL(15, 5)," +
+            "  decimal28_part DECIMAL(23, 1)," +
+            "  decimal38_part DECIMAL(30, 3)," +
+            "  double_part DOUBLE," +
+            "  float_part FLOAT," +
+            "  int_part INT," +
+            "  bigint_part BIGINT," +
+            "  smallint_part SMALLINT," +
+            "  string_part STRING," +
+            "  varchar_part VARCHAR(50)," +
+            "  timestamp_part TIMESTAMP," +
+            "  date_part DATE," +
+            "  char_part CHAR(10)" +
+            ") ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' " +
+            "TBLPROPERTIES ('serialization.null.format'='') "
+    );
+
+    // Add a partition to table 'readtest'
+    executeQuery(hiveDriver,
+        "ALTER TABLE " + table + " ADD IF NOT EXISTS PARTITION ( " +
+            // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
+            // "  binary_part='binary', " +
+            "  boolean_part='true', " +
+            "  tinyint_part='64', " +
+            "  decimal0_part='36.9', " +
+            "  decimal9_part='36.9', " +
+            "  decimal18_part='3289379872.945645', " +
+            "  decimal28_part='39579334534534.35345', " +
+            "  decimal38_part='363945093845093890.9', " +
+            "  double_part='8.345', " +
+            "  float_part='4.67', " +
+            "  int_part='123456', " +
+            "  bigint_part='234235', " +
+            "  smallint_part='3455', " +
+            "  string_part='string', " +
+            "  varchar_part='varchar', " +
+            "  timestamp_part='2013-07-05 17:01:00', " +
+            "  date_part='2013-07-05', " +
+            "  char_part='char')"
+    );
+
+    // Add a second partition to table 'readtest' which contains the same values as the first partition except
+    // for tinyint_part partition column
+    executeQuery(hiveDriver,
+        "ALTER TABLE " + table + " ADD IF NOT EXISTS PARTITION ( " +
+            // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
+            // "  binary_part='binary', " +
+            "  boolean_part='true', " +
+            "  tinyint_part='65', " +
+            "  decimal0_part='36.9', " +
+            "  decimal9_part='36.9', " +
+            "  decimal18_part='3289379872.945645', " +
+            "  decimal28_part='39579334534534.35345', " +
+            "  decimal38_part='363945093845093890.9', " +
+            "  double_part='8.345', " +
+            "  float_part='4.67', " +
+            "  int_part='123456', " +
+            "  bigint_part='234235', " +
+            "  smallint_part='3455', " +
+            "  string_part='string', " +
+            "  varchar_part='varchar', " +
+            "  timestamp_part='2013-07-05 17:01:00', " +
+            "  date_part='2013-07-05', " +
+            "  char_part='char')"
+    );
+
+    // Load data into table 'readtest'
+    executeQuery(hiveDriver,
+        String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE default." + table + " PARTITION (" +
+            // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
+            // "  binary_part='binary', " +
+            "  boolean_part='true', " +
+            "  tinyint_part='64', " +
+            "  decimal0_part='36.9', " +
+            "  decimal9_part='36.9', " +
+            "  decimal18_part='3289379872.945645', " +
+            "  decimal28_part='39579334534534.35345', " +
+            "  decimal38_part='363945093845093890.9', " +
+            "  double_part='8.345', " +
+            "  float_part='4.67', " +
+            "  int_part='123456', " +
+            "  bigint_part='234235', " +
+            "  smallint_part='3455', " +
+            "  string_part='string', " +
+            "  varchar_part='varchar', " +
+            "  timestamp_part='2013-07-05 17:01:00', " +
+            "  date_part='2013-07-05'," +
+            "  char_part='char'" +
+            ")", testDataFile));
+  }
+
+  private void createAllTypesTable(Driver hiveDriver, String format, String source) throws Exception {
+    executeQuery(hiveDriver,
+        "CREATE TABLE readtest_" + format + "(" +
+            "  binary_field BINARY, " +
+            "  boolean_field BOOLEAN, " +
+            "  tinyint_field TINYINT," +
+            "  decimal0_field DECIMAL," +
+            "  decimal9_field DECIMAL(6, 2)," +
+            "  decimal18_field DECIMAL(15, 5)," +
+            "  decimal28_field DECIMAL(23, 1)," +
+            "  decimal38_field DECIMAL(30, 3)," +
+            "  double_field DOUBLE," +
+            "  float_field FLOAT," +
+            "  int_field INT," +
+            "  bigint_field BIGINT," +
+            "  smallint_field SMALLINT," +
+            "  string_field STRING," +
+            "  varchar_field VARCHAR(50)," +
+            "  timestamp_field TIMESTAMP," +
+            "  date_field DATE," +
+            "  char_field CHAR(10)" +
+            ") PARTITIONED BY (" +
+            // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
+            // "  binary_part BINARY," +
+            "  boolean_part BOOLEAN," +
+            "  tinyint_part TINYINT," +
+            "  decimal0_part DECIMAL," +
+            "  decimal9_part DECIMAL(6, 2)," +
+            "  decimal18_part DECIMAL(15, 5)," +
+            "  decimal28_part DECIMAL(23, 1)," +
+            "  decimal38_part DECIMAL(30, 3)," +
+            "  double_part DOUBLE," +
+            "  float_part FLOAT," +
+            "  int_part INT," +
+            "  bigint_part BIGINT," +
+            "  smallint_part SMALLINT," +
+            "  string_part STRING," +
+            "  varchar_part VARCHAR(50)," +
+            "  timestamp_part TIMESTAMP," +
+            "  date_part DATE," +
+            "  char_part CHAR(10)" +
+            ") STORED AS " + format
+    );
+
+    executeQuery(hiveDriver, "INSERT OVERWRITE TABLE readtest_" + format +
+        " PARTITION (" +
+        // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
+        // "  binary_part='binary', " +
+        "  boolean_part='true', " +
+        "  tinyint_part='64', " +
+        "  decimal0_part='36.9', " +
+        "  decimal9_part='36.9', " +
+        "  decimal18_part='3289379872.945645', " +
+        "  decimal28_part='39579334534534.35345', " +
+        "  decimal38_part='363945093845093890.9', " +
+        "  double_part='8.345', " +
+        "  float_part='4.67', " +
+        "  int_part='123456', " +
+        "  bigint_part='234235', " +
+        "  smallint_part='3455', " +
+        "  string_part='string', " +
+        "  varchar_part='varchar', " +
+        "  timestamp_part='2013-07-05 17:01:00', " +
+        "  date_part='2013-07-05', " +
+        "  char_part='char'" +
+        ") " +
+        " SELECT " +
+        "  binary_field," +
+        "  boolean_field," +
+        "  tinyint_field," +
+        "  decimal0_field," +
+        "  decimal9_field," +
+        "  decimal18_field," +
+        "  decimal28_field," +
+        "  decimal38_field," +
+        "  double_field," +
+        "  float_field," +
+        "  int_field," +
+        "  bigint_field," +
+        "  smallint_field," +
+        "  string_field," +
+        "  varchar_field," +
+        "  timestamp_field," +
+        "  date_field," +
+        "  char_field" +
+        " FROM " + source + " WHERE tinyint_part = 64");
+
+    // Add a second partition to table 'readtest' which contains the same values as the first partition except
+    // for tinyint_part partition column
+    executeQuery(hiveDriver,
+        "ALTER TABLE readtest_" + format + " ADD PARTITION ( " +
+            // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
+            // "  binary_part='binary', " +
+            "  boolean_part='true', " +
+            "  tinyint_part='65', " +
+            "  decimal0_part='36.9', " +
+            "  decimal9_part='36.9', " +
+            "  decimal18_part='3289379872.945645', " +
+            "  decimal28_part='39579334534534.35345', " +
+            "  decimal38_part='363945093845093890.9', " +
+            "  double_part='8.345', " +
+            "  float_part='4.67', " +
+            "  int_part='123456', " +
+            "  bigint_part='234235', " +
+            "  smallint_part='3455', " +
+            "  string_part='string', " +
+            "  varchar_part='varchar', " +
+            "  timestamp_part='2013-07-05 17:01:00', " +
+            "  date_part='2013-07-05', " +
+            "  char_part='char')"
+    );
   }
 
   private String generateAllTypesDataFile() throws Exception {

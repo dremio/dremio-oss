@@ -15,6 +15,7 @@
  */
 import { Component } from 'react';
 import Immutable from 'immutable';
+import classNames from 'classnames';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
 
@@ -32,6 +33,13 @@ import { applyValidators, isRequiredIfAnotherPropertyEqual} from 'utils/validati
 import { formLabel } from 'uiTheme/radium/typography';
 import { isDateType, BOOLEAN } from 'constants/DataTypes';
 import BooleanSelect from './BooleanSelect';
+import {
+  base,
+  wrap,
+  replacementValue as replacementValueCls,
+  replacementType,
+  select as selectCls
+} from './ReplaceFooter.less';
 
 @PureRender
 @Radium
@@ -155,37 +163,35 @@ export default class ReplaceFooter extends Component {
     const columnType = transform.get('columnType');
     const selectHash = { // todo: loc
       Values: null,
-      Pattern: <Select style={style.select} items={this.patternOptions} {...replaceSelectionType}/>
+      Pattern: <Select className={selectCls} items={this.patternOptions} {...replaceSelectionType}/>
     };
     const select = selectHash[transform.get('method')] || null;
 
     return (
-      <div style={[style.base]} className='replace-footer'>
+      <div className={classNames('replace-footer', base)}>
         {this.renderFooterByType()}
-        <div style={style.wrap}>
-          {select && <span style={[{ marginLeft: 15, marginBottom: -10 }, formLabel]}>{la('Replace')}</span>}
-          <div style={style.replaceType}>{select}</div>
+        {select && <div className={wrap}>
+          <span style={formLabel}>{la('Replace')}</span>
+          <div className={replacementType}>{select}</div>
         </div>
-        <div style={style.wrap}>
-          <span style={[{ marginLeft: 15 }, formLabel]}>{la('Replacement value')}</span>
-          <div style={style.replaceType}>
+        }
+        <div className={wrap}>
+          <span style={formLabel}>{la('Replacement value')}</span>
+          <div className={replacementValueCls}>
             <Radio
               {...replaceType}
               radioValue='VALUE'
-              label='Value'
-              style={{ ...style.moveCenterStyle, marginLeft: 10 }}/>
+              label='Value' />
             <FieldWithError
               {...replacementValue}
               errorPlacement='bottom'
-              labelStyle={style.labelField}
               style={formLabel}>
               {this.renderReplaceValueInput(columnType, replacementValue)}
             </FieldWithError>
             <Radio
               {...replaceType}
               radioValue='NULL'
-              label='Null'
-              style={{...style.moveCenterStyle, marginLeft: -5 }}/>
+              label='Null'/>
           </div>
         </div>
         <NewFieldSection columnName={columnName} fields={this.props.fields} style={{ marginBottom: 0}}/>
@@ -195,61 +201,6 @@ export default class ReplaceFooter extends Component {
 }
 
 const style = {
-  base: {
-    maxHeight: 43,
-    marginTop: 10,
-    marginBottom: 10,
-    display: 'flex',
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    justifyContent: 'flex-start',
-    alignItems: 'center'
-  },
-  wrap: {
-    marginRight: 20,
-    marginLeft: -5,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start'
-  },
-  replaceType: {
-    display: 'flex',
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-end'
-  },
-  moveCenterStyle: {
-    marginBottom: 5
-  },
-  labelField: {
-    marginLeft: 5
-  },
-  text: {
-    width: 200,
-    height: 28,
-    marginLeft: 5
-  },
-  select: {
-    width: 150,
-    marginLeft: 10,
-    marginTop: 10
-  },
-  checkbox: {
-    width: 15,
-    height: 15
-  },
-  label: {
-    margin: 0,
-    position: 'relative',
-    top: 2,
-    left: 5
-  },
-  checkboxWrap: {
-    display: 'flex',
-    alignItems: 'center',
-    flexWrap: 'wrap'
-  },
   input: {
     width: 228,
     height: 29,

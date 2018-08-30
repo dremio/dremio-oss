@@ -13,85 +13,89 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "../../uiTheme/less/typography.less";
+@import "~@app/uiTheme/less/mixins.less"; // replacement of typography.less with mixins.less changes the output significantly
+//but the change is in better direction. Duplicated styles from typography are not loaded
 
-@gray: #aaa;
-#grid-page {
-  background-color: #f4f4f4;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .fixed-data-table .public_fixedDataTable_header, .fixed-data-table .public_fixedDataTable_hasBottomBorder {
-    border-color: #E8E8E8;
-  }
+  @gray: #aaa;
+  #grid-page {
+    background-color: #f4f4f4;
 
-  .fixedDataTableCellLayout_columnResizerContainer {
-    border-color: #E8E8E8;
-  }
+    .fixed-data-table .public_fixedDataTable_header, .fixed-data-table .public_fixedDataTable_hasBottomBorder {
+      border-color: #E8E8E8;
+    }
 
-  .move-right {
-    width: 100%;
-  }
+    .fixedDataTableCellLayout_columnResizerContainer {
+      border-color: #E8E8E8;
+    }
 
-  .tab-active {
-    width: 100%;
-    margin-right: 0;
-  }
+    .move-right {
+      width: 100%;
+    }
 
-  .hide-tab {
-    height: 30px;
-  }
+    .tab-active {
+      width: 100%;
+      margin-right: 0;
+    }
 
-  .settings-block {
-    width: 253px;
-    background-color: lightgray;
-    z-index: 99;
-  }
+    .hide-tab {
+      height: 30px;
+    }
+
+    .settings-block {
+      width: 253px;
+      background-color: lightgray;
+      z-index: 99;
+    }
 
 
-  .wrap{
-    display: flex;
-  }
+    .wrap{
+      display: flex;
+    }
 
-  .closed {
-    transform: translateX(300px);
-    transition: all .15s ease-out;
-    width: 0;
-  }
+    .closed {
+      transform: translateX(300px);
+      transition: all .15s ease-out;
+      width: 0;
+    }
 
-  .opened {
-    transform: translateX(0);
-    transition:all .15s ease-out;
-    display: block;
-  }
+    .opened {
+      transform: translateX(0);
+      transition:all .15s ease-out;
+      display: block;
+    }
 
-  .dropdown-for-actions {
-    z-index: 99;
-  }
+    .dropdown-for-actions {
+      z-index: 99;
+    }
 
-  .grid-wrap {
-    display: flex;
-    flex-grow: 1;
-  }
-  .table-control-wrap .selected-text {
-    background: #F2F2F2;
-    position: fixed;
-    left: 0;
-    top: 0;
-    z-index: 99;
-    line-height: 22px;
-    text-align: center;
-    padding: 0 20px 0 1px;
-    box-sizing: content-box;
-    .fixedWidthSmall();
-    .fa {
-      padding-top: 3px;
-      position: absolute;
-      right: 0;
+    .grid-wrap {
+      display: flex;
+      flex-grow: 1;
+    }
+    .table-control-wrap .selected-text {
+      background: #F2F2F2;
+      position: fixed;
+      left: 0;
       top: 0;
-      bottom: 0;
-      width: 18px;
-      font-size: 15px;
-      line-height: 15px;
-      color: @gray;
+      z-index: 99;
+      line-height: 22px;
+      text-align: center;
+      padding: 0 20px 0 1px;
+      box-sizing: content-box;
+      .fixedWidthSmall();
+      .fa {
+        padding-top: 3px;
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 18px;
+        font-size: 15px;
+        line-height: 15px;
+        color: @gray;
+      }
     }
   }
 }

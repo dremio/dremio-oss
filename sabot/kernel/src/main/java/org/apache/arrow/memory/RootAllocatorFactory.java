@@ -17,6 +17,7 @@ package org.apache.arrow.memory;
 
 import java.lang.reflect.Field;
 
+import com.dremio.common.VM;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.memory.DremioRootAllocator;
 
@@ -49,7 +50,7 @@ public class RootAllocatorFactory {
     final String previousProperty = System.getProperty(IO_NETTY_ALLOCATOR_USE_CACHE_FOR_ALL_THREADS_PROPERTY);
     try {
       System.setProperty(IO_NETTY_ALLOCATOR_USE_CACHE_FOR_ALL_THREADS_PROPERTY, "false");
-      return new DremioRootAllocator(Math.min(SabotConfig.getMaxDirectMemory(), config.getLong(TOP_LEVEL_MAX_ALLOC)));
+      return new DremioRootAllocator(Math.min(VM.getMaxDirectMemory(), config.getLong(TOP_LEVEL_MAX_ALLOC)));
     } finally {
       if (previousProperty == null) {
         System.getProperties().remove(IO_NETTY_ALLOCATOR_USE_CACHE_FOR_ALL_THREADS_PROPERTY);

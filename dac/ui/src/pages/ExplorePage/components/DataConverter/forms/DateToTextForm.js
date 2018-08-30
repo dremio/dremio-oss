@@ -13,20 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-
-import Radio from 'components/Fields/Radio';
-import { FieldWithError, TextField } from 'components/Fields';
 import NewFieldSection from 'components/Forms/NewFieldSection';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import { formLabel } from 'uiTheme/radium/typography';
-import { LINE_START_CENTER } from 'uiTheme/radium/flexStyle';
 
 import { isRequired, applyValidators } from 'utils/validation';
-import TransformForm, {formWrapperProps} from '../../forms/TransformForm';
-import { transformProps } from './../../forms/TransformationPropTypes';
-import FORMATS from './DateFormatOptions';
+import { TextToDateForm } from './TextToDateForm';
 
 // TODO: look into creating a base class this and TextToDateForm can inherit from.
 
@@ -38,70 +29,11 @@ function validate(values) {
   }
 }
 
-@Radium
-export class DateToTextForm extends Component {
-  static propTypes = transformProps;
-
-  constructor(props) {
-    super(props);
-    this.submit = this.submit.bind(this);
-  }
-
-  submit(form, submitType) {
-    const {format, customValue, ...rest} = form;
-    const data =  { ...rest, format: format !== 'CUSTOM' ? format : customValue };
-    return this.props.submit(data, submitType);
-  }
-
-  static getFormats(type) {
-    return FORMATS[type];
-  }
-
-  render() {
-    const { fields, fromType } = this.props;
-
-    const formats = DateToTextForm.getFormats(fromType);
-
-    return (
-      <TransformForm
-        {...formWrapperProps(this.props)}
-        onFormSubmit={this.submit}>
-        <div style={styles.base}>
-          <div>
-            <div style={formLabel}>{la('Format:')}</div>
-            {formats.values.map((format) =>
-              <Radio {...fields.format} style={styles.row} label={format} radioValue={format}/>)}
-            <div style={{...LINE_START_CENTER, ...styles.row}}>
-              <Radio {...fields.format} label={la('Custom:')} radioValue='CUSTOM'/>
-              <FieldWithError errorPlacement='right' {...fields.customValue} style={styles.input}>
-                <TextField {...fields.customValue} disabled={fields.format.value !== 'CUSTOM'} style={{ width: 300 }}/>
-              </FieldWithError>
-            </div>
-            <NewFieldSection style={{...styles.row, marginLeft: 0}} fields={fields}/>
-          </div>
-          <div style={styles.docArea}>
-            <div style={formLabel}>{la('Formatting Options')}</div>
-
-            {formats.examples.map((example) =>
-              <div style={styles.row}>{example.format}: {example.description}</div>
-            )}
-
-            <a href='https://docs.dremio.com/working-with-datasets/data-curation.html?q=#working-with-dates'
-              style={styles.row} target='_blank'>
-              {la('Learn more…')}
-            </a>
-          </div>
-        </div>
-      </TransformForm>
-    );
-  }
-}
-
 function mapStateToProps(state, props) {
   const { format, dropSourceField } = props.initialValues;
   const { fromType } = props;
 
-  const formats = DateToTextForm.getFormats(fromType);
+  const formats = TextToDateForm.getFormats(fromType);
 
   let initialFormat = format || formats.values[0];
   initialFormat = formats.values.indexOf(initialFormat) !== -1 ? initialFormat : 'CUSTOM';
@@ -109,6 +41,8 @@ function mapStateToProps(state, props) {
   const customValue = formats.values.indexOf(format) !== -1 ? '' : format;
 
   return {
+    toType: fromType,
+    hideNotMatchingOptions: true,
     initialValues: {
       format: initialFormat,
       customValue: customValue || '',
@@ -123,24 +57,4 @@ export default connectComplexForm({
   fields: ['customValue', 'format'],
   overwriteOnInitialValuesChange: false,
   validate
-}, SECTIONS, mapStateToProps, null)(DateToTextForm);
-
-const styles = {
-  base: {
-    display: 'flex',
-    flexDirection: 'row',
-    margin: '10px 0 10px 10px'
-  },
-  input: {
-    marginLeft: 10
-  },
-  row: {
-    display: 'flex',
-    alignItems: 'center',
-    marginTop: 10
-  },
-  docArea: {
-    flex: 1,
-    marginLeft: 40
-  }
-};
+}, SECTIONS, mapStateToProps, null)(TextToDateForm);

@@ -22,9 +22,9 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.AutoCloseables;
@@ -124,19 +124,19 @@ public abstract class TpchGenerator implements Generator {
     return vector;
   }
 
-  protected NullableBigIntVector int8(String name){
-    return addOrGet(name, Types.optional(MinorType.BIGINT), NullableBigIntVector.class);
+  protected BigIntVector int8(String name){
+    return addOrGet(name, Types.optional(MinorType.BIGINT), BigIntVector.class);
   }
 
-  protected NullableIntVector int4(String name){
-    return addOrGet(name, Types.optional(MinorType.INT), NullableIntVector.class);
+  protected IntVector int4(String name){
+    return addOrGet(name, Types.optional(MinorType.INT), IntVector.class);
   }
 
-  protected NullableVarCharVector varChar(String name){
-    return addOrGet(name, Types.optional(MinorType.VARCHAR), NullableVarCharVector.class);
+  protected VarCharVector varChar(String name){
+    return addOrGet(name, Types.optional(MinorType.VARCHAR), VarCharVector.class);
   }
 
-  protected void set(int index, NullableVarCharVector v, String value){
+  protected void set(int index, VarCharVector v, String value){
     byte[] bytesValue = value.getBytes(Charsets.UTF_8);
     v.setSafe(index, bytesValue, 0, bytesValue.length);
   }

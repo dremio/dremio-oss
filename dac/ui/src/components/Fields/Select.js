@@ -14,24 +14,20 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
-import {Popover, PopoverAnimationVertical} from 'material-ui/Popover';
+import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
 import FontIcon from 'components/Icon/FontIcon';
 import Menu from 'material-ui/Menu';
 import { formDefault } from 'uiTheme/radium/typography';
-import { fieldDisabled } from 'uiTheme/radium/forms';
-import { SECONDARY_BORDER } from 'uiTheme/radium/colors';
-import SelectItem, { CONTENT_WIDTH } from './SelectItem';
+import classNames from 'classnames';
+import SelectItem from './SelectItem';
+import { button, disabled as disabledCls, icon as iconCls, label as labelCls, list as listCls } from './Select.less';
 
 const MAX_HEIGHT = 250;
-const WIDTH = 200;
-const DROPDOWN_COLOR = '#ececec';
 
-@Radium
 @pureRender
 export default class Select extends Component {
   static propTypes = {
@@ -40,14 +36,16 @@ export default class Select extends Component {
     handle: PropTypes.func, // todo: safe to delete this? - don't see it used in this file (used by parent?)
     disabled: PropTypes.any, // todo: add a #readonly/readOnly(?) and switch existing uses of #disabled as appropriate)
     style: PropTypes.object,
+    className: PropTypes.string,
     iconStyle: PropTypes.object,
     listStyle: PropTypes.object,
     menuStyle: PropTypes.object,
-    buttonStyle: PropTypes.object,
     customLabelStyle: PropTypes.object,
     dataQa: PropTypes.string,
     onChange: PropTypes.func,
-    comparator: PropTypes.func
+    comparator: PropTypes.func,
+    itemRenderer: PropTypes.func, // function(item, label) {}
+    itemClass: PropTypes.string
   };
 
   static defaultProps = {
@@ -61,7 +59,7 @@ export default class Select extends Component {
     const current = this.props.items.find(item => {
       return this.props.comparator(value, this.valueForItem(item));
     });
-    return current ? this.labelForItem(current) : '';
+    return current ? this.labelForItem(current).label : '';
   }
 
   handleChange = (e, value) => {
@@ -75,7 +73,18 @@ export default class Select extends Component {
   }
 
   labelForItem(item) {
-    return getIfIn(item, 'label', () => this.valueForItem(item));
+    const {
+      itemRenderer
+    } = this.props;
+    const label = getIfIn(item, 'label', () => this.valueForItem(item));
+    const labelInfo = {
+      dataQA: typeof label === 'string' ? label : '',
+      label
+    };
+    if (itemRenderer) {
+      labelInfo.label = itemRenderer(item, label);
+    }
+    return labelInfo;
   }
 
   handleTouchTap = (event) => {
@@ -93,7 +102,7 @@ export default class Select extends Component {
   }
 
   renderItems(selectedValue) {
-    const { items } = this.props;
+    const { items, itemClass } = this.props;
     return items.map((item, index) => {
       const val = this.valueForItem(item);
       const selected = this.props.comparator(selectedValue, val);
@@ -104,34 +113,41 @@ export default class Select extends Component {
           selected={selected}
           value={val}
           disabled={item.disabled}
-          label={this.labelForItem(item)}/>
+          className={itemClass}
+          {...this.labelForItem(item)}/>
       );
     });
   }
 
   renderIcon() {
     const { iconStyle } = this.props;
-    return (<FontIcon type='Arrow-Down-Small' style={[styles.iconStyle, iconStyle]}/>);
+    return (<FontIcon type='Arrow-Down-Small' iconClass={iconCls} style={iconStyle}/>);
   }
 
   render() {
-    const { disabled, style, menuStyle, listStyle, buttonStyle, dataQa, customLabelStyle } = this.props;
+    const {
+      disabled,
+      style,
+      menuStyle,
+      listStyle,
+      dataQa,
+      customLabelStyle,
+      className
+    } = this.props;
     const defaultOption = this.props.items.length ? this.valueForItem(this.props.items[0]) : undefined;
     const selectedValue = getIfIn(this.props, 'value', () => defaultOption);
     const buttonLabel = this.getButtonLabel(selectedValue);
-    const baseStyle = [styles.base, style, disabled && fieldDisabled];
+
     // TODO: can't easily remove textOverflow in favor of <EllipsedText> because the content comes in externally
     return (
-      <div className='field'>
-        <div style={baseStyle} data-qa={dataQa}>
-          <button
-            onClick={this.handleTouchTap}
-            type='button'
-            style={[styles.button, buttonStyle]}>
-            <span style={[styles.label, customLabelStyle, formDefault]}>{buttonLabel}</span>
-            {this.renderIcon()}
-          </button>
-        </div>
+      <button
+        type='button'
+        data-qa={dataQa}
+        onClick={this.handleTouchTap}
+        className={classNames(['field', button, className, disabled && disabledCls])}
+        style={style}>
+        <span className={labelCls} style={{...customLabelStyle, ...formDefault}}>{buttonLabel}</span>
+        {this.renderIcon()}
         <Popover
           open={this.state.open}
           anchorEl={this.state.anchorEl}
@@ -145,53 +161,15 @@ export default class Select extends Component {
             data-qa='convertTo'
             onChange={this.handleChange}
             maxHeight={MAX_HEIGHT}
-            listStyle={{...styles.listStyle, ...listStyle}}>
+            className={listCls}
+            listStyle={{...listStyle}}>
             {this.renderItems(selectedValue)}
           </Menu>
         </Popover>
-      </div>
+      </button>
     );
   }
 }
-
-const styles = {
-  base: {
-    width: WIDTH
-  },
-  iconStyle: {
-    paddingTop: 2,
-    float: 'right',
-    height: '100%'
-  },
-  button: {
-    borderRadius: 2,
-    padding: '0 0 0 10px',
-    borderBottomWidth: 1,
-    borderRightWidth: 0,
-    borderLeftWidth: 0,
-    borderTopWidth: 0,
-    outline: 'none',
-    height: 28,
-    lineHeight: '28px',
-    width: '100%',
-    backgroundColor: DROPDOWN_COLOR,
-    borderStyle: 'solid',
-    borderColor: SECONDARY_BORDER
-  },
-  listStyle: {
-    width: WIDTH,
-    paddingTop: 5,
-    paddingBottom: 5
-  },
-  label: {
-    width: CONTENT_WIDTH,
-    whiteSpace: 'nowrap',
-    textOverflow: 'ellipsis',
-    overflow: 'hidden',
-    float: 'left'
-  }
-};
-
 
 // Allow Selects to have options which are falsy
 function getIfIn(obj, key, fallbackFcn) { // use fcn so no eval if not needed like ||

@@ -16,16 +16,13 @@
 package com.dremio.exec.planner.sql;
 
 import java.util.List;
-
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlIdentifier;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
-import com.dremio.exec.planner.sql.parser.SqlCreateReflection.NameAndGranularity;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Function;
@@ -39,7 +36,7 @@ public class SchemaUtilities {
     NamespaceKey path = catalog.resolveSingle(new NamespaceKey(identifier.names));
     DremioTable table = catalog.getTable(path);
     if(table == null) {
-      throw UserException.parseError().message("Unable to find table.").build(logger);
+      throw UserException.parseError().message("Unable to find table %s.", path).build(logger);
     }
 
     return new TableWithPath(table);
@@ -85,28 +82,7 @@ public class SchemaUtilities {
 
     }
 
-    public List<NameAndGranularity> qualifyColumnsWithGranularity(List<NameAndGranularity> strings){
-      final RelDataType type = table.getRowType(JavaTypeFactoryImpl.INSTANCE);
-      return FluentIterable.from(strings).transform(new Function<NameAndGranularity, NameAndGranularity>(){
-
-        @Override
-        public NameAndGranularity apply(NameAndGranularity input) {
-          RelDataTypeField field = type.getField(input.getName(), false, false);
-          if(field == null){
-            throw UserException.validationError()
-              .message("Unable to find field %s in table %s. Available fields were: %s.",
-                  input.getName(),
-                  SqlUtils.quotedCompound(path),
-                  FluentIterable.from(type.getFieldNames()).transform(SqlUtils.QUOTER).join(Joiner.on(", "))
-                ).build(logger);
-          }
-
-          return new NameAndGranularity(field.getName(), input.getGranularity());
-        }
-
-      }).toList();
-
-    }
 
   }
+
 }

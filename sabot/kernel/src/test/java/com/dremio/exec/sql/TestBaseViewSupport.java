@@ -15,12 +15,13 @@
  */
 package com.dremio.exec.sql;
 
-import com.dremio.BaseTestQuery;
-import com.dremio.TestBuilder;
-import com.google.common.base.Strings;
-
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import com.dremio.BaseTestQuery;
+import com.dremio.TestBuilder;
+import com.dremio.common.utils.SqlUtils;
+import com.google.common.base.Strings;
 
 /**
  * Base class for view tests. It has utility methods which can be used when writing tests for views on tables
@@ -34,14 +35,14 @@ public class TestBaseViewSupport extends BaseTestQuery {
    *
    * Current default schema "dfs_test"
    *
-   * CREATE VIEW tmp.viewName(f1, f2) AS SELECT * FROM cp.`region.json`
+   * CREATE VIEW tmp.viewName(f1, f2) AS SELECT * FROM cp.\"region.json\"
    *
    * For the above CREATE VIEW query, function parameters are:
    *   viewSchema = "tmp"
    *   viewName = "viewName"
    *   finalSchema = "dfs_test.tmp"
    *   viewFields = "(f1, f2)"
-   *   viewDef = "SELECT * FROM cp.`region.json`"
+   *   viewDef = "SELECT * FROM cp.\"region.json\""
    *
    * @param viewSchema Schema name to prefix when referring to the view.
    * @param viewName Name of the view.
@@ -52,10 +53,10 @@ public class TestBaseViewSupport extends BaseTestQuery {
    * @param viewDef Definition of the view.
    * @throws Exception
    */
-  protected static void createViewHelper(final String viewSchema, final String viewName,
+  protected void createViewHelper(final String viewSchema, final String viewName,
       final String finalSchema, final String viewFields, final String viewDef) throws Exception {
 
-    String viewFullName = "`" + viewName + "`";
+    String viewFullName = SqlUtils.quoteIdentifier(viewName);
     if (!Strings.isNullOrEmpty(viewSchema)) {
       viewFullName = viewSchema + "." + viewFullName;
     }
@@ -87,9 +88,9 @@ public class TestBaseViewSupport extends BaseTestQuery {
    * @param finalSchema
    * @throws Exception
    */
-  protected static void dropViewHelper(final String viewSchema, final String viewName, final String finalSchema) throws
+  protected void dropViewHelper(final String viewSchema, final String viewName, final String finalSchema) throws
       Exception{
-    String viewFullName = "`" + viewName + "`";
+    String viewFullName = SqlUtils.quoteIdentifier(viewName);
     if (!Strings.isNullOrEmpty(viewSchema)) {
       viewFullName = viewSchema + "." + viewFullName;
     }
@@ -120,9 +121,9 @@ public class TestBaseViewSupport extends BaseTestQuery {
    * @param ifViewExists Helps to check query result depending from the existing of the view.
    * @throws Exception
    */
-  protected static void dropViewIfExistsHelper(final String viewSchema, final String viewName, final String finalSchema, Boolean ifViewExists) throws
+  protected void dropViewIfExistsHelper(final String viewSchema, final String viewName, final String finalSchema, Boolean ifViewExists) throws
       Exception{
-    String viewFullName = "`" + viewName + "`";
+    String viewFullName = SqlUtils.quoteIdentifier(viewName);
     if (!Strings.isNullOrEmpty(viewSchema)) {
       viewFullName = viewSchema + "." + viewFullName;
     }
@@ -154,7 +155,7 @@ public class TestBaseViewSupport extends BaseTestQuery {
    * @param baselineValues
    * @throws Exception
    */
-  protected static void queryViewHelper(final String query, final String[] baselineColumns,
+  protected void queryViewHelper(final String query, final String[] baselineColumns,
       final List<Object[]> baselineValues) throws Exception {
     TestBuilder testBuilder = testBuilder()
         .sqlQuery(query)
@@ -190,16 +191,17 @@ public class TestBaseViewSupport extends BaseTestQuery {
    * @param expectedBaselineValues Expected row values from querying the view.
    * @throws Exception
    */
-  protected static void testViewHelper(final String finalSchema, final String viewFields, final String viewDef,
+  protected void testViewHelper(final String finalSchema, final String viewFields, final String viewDef,
       String queryOnView, final String[] expectedBaselineColumns, final List<Object[]> expectedBaselineValues)
       throws Exception {
     final String viewName = generateViewName();
+    String viewFullName = SqlUtils.quoteIdentifier(viewName);
 
     try {
       createViewHelper(finalSchema, viewName, finalSchema, viewFields, viewDef);
 
       queryOnView = queryOnView
-          .replace("TEST_VIEW_NAME", "`" + viewName + "`")
+          .replace("TEST_VIEW_NAME", viewFullName)
           .replace("TEST_SCHEMA", finalSchema);
 
       queryViewHelper(queryOnView, expectedBaselineColumns, expectedBaselineValues);

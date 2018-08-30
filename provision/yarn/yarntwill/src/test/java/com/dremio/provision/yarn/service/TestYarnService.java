@@ -21,6 +21,7 @@ import static org.apache.hadoop.yarn.conf.YarnConfiguration.RM_HOSTNAME;
 import static org.apache.twill.api.Configs.Keys.HEAP_RESERVED_MIN_RATIO;
 import static org.apache.twill.api.Configs.Keys.JAVA_RESERVED_MEMORY_MB;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -41,7 +42,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import javax.inject.Provider;
-
 
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.twill.api.ResourceReport;
@@ -199,6 +199,8 @@ public class TestYarnService {
 
   }
 
+  private static final String NETTY_MAX_DIRECT_MEMORY = "io.netty.maxDirectMemory";
+
   @Test
   public void testDistroMapRDefaults() throws Exception {
     assumeNonMaprProfile();
@@ -217,6 +219,7 @@ public class TestYarnService {
     assertEquals("com.mapr.security.maprsasl.MaprSaslProvider", myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
     assertEquals("[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]", myYarnConfig.get(YarnDefaultsConfigurator
       .SPILL_PATH));
+    assertEquals("0", myYarnConfig.get(NETTY_MAX_DIRECT_MEMORY));
 
     Cluster myClusterOff = createCluster();
     myClusterOff.getClusterConfig().setDistroType(DistroType.MAPR).setIsSecure(false);
@@ -229,6 +232,7 @@ public class TestYarnService {
     assertEquals("com.mapr.security.simplesasl.SimpleSaslProvider", myYarnConfigOff.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
     assertEquals("[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]", myYarnConfigOff.get(YarnDefaultsConfigurator
       .SPILL_PATH));
+    assertEquals("0", myYarnConfigOff.get(NETTY_MAX_DIRECT_MEMORY));
   }
 
   @Test
@@ -248,6 +252,7 @@ public class TestYarnService {
     assertNull(myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT_CONFIG));
     assertNull(myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
     assertEquals("[\"file:///tmp/dremio/spill\"]", myYarnConfig.get(YarnDefaultsConfigurator.SPILL_PATH));
+    assertEquals("0", myYarnConfig.get(NETTY_MAX_DIRECT_MEMORY));
 
     Cluster myClusterOff = createCluster();
     myClusterOff.getClusterConfig().setDistroType(DistroType.MAPR).setIsSecure(false);
@@ -259,6 +264,7 @@ public class TestYarnService {
     assertNull(myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT_CONFIG));
     assertNull(myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
     assertEquals("[\"file:///tmp/dremio/spill\"]", myYarnConfig.get(YarnDefaultsConfigurator.SPILL_PATH));
+    assertEquals("0", myYarnConfigOff.get(NETTY_MAX_DIRECT_MEMORY));
   }
 
   @Test
@@ -354,14 +360,14 @@ public class TestYarnService {
           Mockito.mock(NodeProvider.class),
           DremioTest.CLASSPATH_SCAN_RESULT));
       service.start();
-      ProvisioningResource resource = new ProvisioningResource(service, null);
+      ProvisioningResource resource = new ProvisioningResource(service);
       ClusterCreateRequest createRequest = new ClusterCreateRequest();
       createRequest.setClusterType(ClusterType.YARN);
       createRequest.setDynamicConfig(new DynamicConfig(2));
       createRequest.setVirtualCoreCount(2);
       createRequest.setMemoryMB(8192);
       List<Property> props = new ArrayList<>();
-      props.add(new Property(DremioConfig.YARN_HEAP_SIZE, "2048"));
+      props.add(new Property(ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY, "2048"));
       props.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
       props.add(new Property("yarn.resourcemanager.hostname", "resource-manager"));
 
@@ -753,6 +759,34 @@ public class TestYarnService {
   public void testURI() throws Exception {
     URI defaultURI = new URI("maprfs", "", "/", null, null);
     assertTrue("maprfs:///".equalsIgnoreCase(defaultURI.toString()));
+  }
+
+  @Test
+  public void testTimelineServiceIsDisabledByDefault(){
+    YarnController controller = Mockito.mock(YarnController.class);
+    YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
+    Cluster cluster = new Cluster();
+    cluster.setState(ClusterState.CREATED);
+    cluster.setId(new ClusterId(UUID.randomUUID().toString()));
+    ClusterConfig clusterConfig = new ClusterConfig();
+    clusterConfig.setClusterSpec(new ClusterSpec(2, 4096, 4096, 2));
+    List<Property> propertyList = new ArrayList<>();
+    clusterConfig.setSubPropertyList(propertyList);
+    RunId runId = RunIds.generate();
+    cluster.setClusterConfig(clusterConfig);
+    cluster.setRunId(new com.dremio.provision.RunId(runId.toString()));
+    YarnConfiguration yarnConfig = new YarnConfiguration();
+
+    // Test that it is false by default
+    yarnConfig.setBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED, true);
+    yarnService.updateYarnConfiguration(cluster, yarnConfig);
+    assertFalse(yarnConfig.getBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED, true));
+
+    // Test that it can be overwritten
+    yarnConfig.setBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED, false);
+    cluster.getClusterConfig().getSubPropertyList().add(new Property(YarnConfiguration.TIMELINE_SERVICE_ENABLED, "true"));
+    yarnService.updateYarnConfiguration(cluster, yarnConfig);
+    assertTrue(yarnConfig.getBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED, false));
   }
 
   private DefaultTwillRunResources createResource(int seed) {

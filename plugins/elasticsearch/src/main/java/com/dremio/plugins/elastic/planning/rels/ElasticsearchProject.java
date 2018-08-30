@@ -75,7 +75,8 @@ public class ElasticsearchProject extends ProjectRelBase implements Elasticsearc
     for (RexNode originalExpression : getProjects()) {
       try {
         final RexNode expr = SchemaField.convert(originalExpression, scan, disallowedSpecialTypes);
-        ProjectAnalyzer.getScript(expr, painlessAllowed, supportsV5Features, scriptsEnabled);
+        ProjectAnalyzer.getScript(expr, painlessAllowed, supportsV5Features, scriptsEnabled, true,
+            config.allowPushdownOnNormalizedOrAnalyzedFields);
       } catch (Exception e) {
         logger.debug("Exception while attempting pushdown.", e);
         return false;

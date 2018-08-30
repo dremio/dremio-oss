@@ -166,7 +166,7 @@ public class ScanBuilder {
       }
     }
     if (b != null) {
-      searchRequest.setQuery(PredicateAnalyzer.queryAsJson(b));
+      searchRequest.setQuery(b);
     } else {
       searchRequest.setQuery(QueryBuilders.matchAllQuery());
 

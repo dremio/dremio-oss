@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -33,6 +34,7 @@ import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
+import com.dremio.service.reflection.ReflectionValidator;
 import com.dremio.service.reflection.analysis.ReflectionAnalyzer.ColumnStats;
 import com.dremio.service.reflection.analysis.ReflectionAnalyzer.RField;
 import com.dremio.service.reflection.analysis.ReflectionAnalyzer.TableStats;
@@ -41,6 +43,7 @@ import com.dremio.service.reflection.proto.ReflectionDetails;
 import com.dremio.service.reflection.proto.ReflectionDimensionField;
 import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
+import com.dremio.service.reflection.proto.ReflectionMeasureField;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -224,7 +227,9 @@ public class ReflectionSuggester {
             public ReflectionDetails apply(final AggregationDescriptor input) {
               return new ReflectionDetails()
                 .setDimensionFieldList(toReflectionDimensionFields(input.getDimensions()))
-                .setMeasureFieldList(toReflectionFields(input.getMeasures()));
+                .setMeasureFieldList(input.getMeasures().stream().map(
+                    stats -> new ReflectionMeasureField(stats.getField().getName()).setMeasureTypeList(ReflectionValidator.getDefaultMeasures(stats.getField().getTypeFamily()))
+                    ).collect(Collectors.toList()));
             }
           })
           .toList();

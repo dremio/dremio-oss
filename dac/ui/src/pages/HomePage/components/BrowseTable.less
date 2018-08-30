@@ -13,247 +13,249 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '../../../components/colors.less';
-@import '../../../components/PullOutRightTree';
-@import '../../../uiTheme/less/typography.less';
+@import '~@app/components/colors.less';
+@import '~@app/uiTheme/less/mixins.less';
 
-.list-content {
-  min-width: 500px;
-  min-height: ~"calc(100vh - 65px)";
-  display: flex;
-  flex-grow: 0;
-  flex-shrink: 0;
-  justify-content: center;
-  width: 100%;
-  .ReactVirtualized__Table {
-    border-collapse: collapse;
-    *{
-      outline: 0;
-    }
-    .ReactVirtualized__Table__headerRow {
-      .formLabel();
-      text-transform: capitalize;
-      height: 40px;
-      vertical-align: bottom;
-      border-bottom: 1px solid rgba(0,0,0,.1);
-    }
-    .ReactVirtualized__Table__row {
-      .fontBody();
-      height: 30px;
-      .action-wrap .main-settings-btn{
-        opacity: 0;
-      }
-      &.odd {
-        background-color: #f9f9f9;
-      }
-      .copy-button{
-        opacity: 0;
-        margin: 0 0 0 5px;
-      }
-      &:hover{
-        .action-wrap .main-settings-btn{
-          opacity: 1;
-        }
-        background: #f3f3f3;
-        .copy-button{
-          opacity: 1;
-        }
-      }
-      .hovered {
-        background: #f3f3f3;
-        .copy-button{
-          opacity: 1;
-        }
-      }
-      .action-wrap .main-settings-btn.active{
-        opacity: 1;
-      }
-      .ReactVirtualized__Table__rowColumn {
-        &:last-child{
-          text-align: left;
-        }
-      }
-    }
-    .action-wrap {
-      justify-content: center;
-    }
-    td{
-      border: 0;
-      padding: 0;
-      vertical-align: middle;
-    }
-    .ReactVirtualized__Table__sortableHeaderColumn {
-      position: relative;
-      div::after{
-        margin: auto 0;
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        line-height: 2px;
-        content: '';
-        width: 24px;
-        height: 24px;
-      }
-      .sort-asc{
-        &::after{
-          background-image: url(../../../components/Icon/icons/Arrow-Down-Small.svg);
-        }
-      }
-      .sort-desc{
-        &::after{
-          background-image: url(../../../components/Icon/icons/Arrow-Down-Small.svg);
-          transform: rotate(180deg);
-        }
-      }
-    }
-  }
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .last-File {
-    cursor: pointer;
-  }
-
-  .row {
-    position: relative;
-    width: 100%;
-    height: 100%;
+  .list-content {
+    min-width: 500px;
+    min-height: ~"calc(100vh - 65px)";
     display: flex;
-    flex-direction: column;
-  }
-
-  .sharing-row{
-    color: @blue;
-  }
-
-  .browse-table-viewer-header {
-    overflow: hidden;
-    background: #e4f2f7;
-    padding: 0 10px;
-    height: 38px;
+    flex-grow: 0;
     flex-shrink: 0;
-
-    .main-settings-holder{
-      position: relative;
-      display: inline-block;
-      margin: 9px 0 8px;
-      .button-white:hover{
-        background: #C7DEE6 !important;
+    justify-content: center;
+    width: 100%;
+    .ReactVirtualized__Table {
+      border-collapse: collapse;
+      *{
+        outline: 0;
       }
-      .settings-button{
-        padding: 0;
-        border: 0;
-        background: transparent;
-        &.blue-btn{
-          background: @blue;
-          color: @white;
-          border: 1px solid @blue;
-          &:hover{
-            background: darken(@blue, 5%);
+      .ReactVirtualized__Table__headerRow {
+        .formLabel();
+        text-transform: capitalize;
+        height: 40px;
+        vertical-align: bottom;
+        border-bottom: 1px solid rgba(0,0,0,.1);
+      }
+      .ReactVirtualized__Table__row {
+        .fontBody();
+        height: 30px;
+        .action-wrap .main-settings-btn{
+          opacity: 0;
+        }
+        &.odd {
+          background-color: #f9f9f9;
+        }
+        .copy-button{
+          opacity: 0;
+          margin: 0 0 0 5px;
+        }
+        &:hover{
+          .action-wrap .main-settings-btn{
+            opacity: 1;
+          }
+          background: #f3f3f3;
+          .copy-button{
+            opacity: 1;
           }
         }
-        &.grey-btn{
-          background: @blue;
-          color: @white;
-          border: 1px solid @blue;
+        .hovered {
+          background: #f3f3f3;
+          .copy-button{
+            opacity: 1;
+          }
         }
-        &.active{
-          background: #ccc;
+        .action-wrap .main-settings-btn.active{
+          opacity: 1;
+        }
+        .ReactVirtualized__Table__rowColumn {
+          &:last-child{
+            text-align: left;
+          }
+        }
+      }
+      .action-wrap {
+        justify-content: center;
+      }
+      td{
+        border: 0;
+        padding: 0;
+        vertical-align: middle;
+      }
+      .ReactVirtualized__Table__sortableHeaderColumn {
+        position: relative;
+        div::after{
+          margin: auto 0;
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          line-height: 2px;
+          content: '';
+          width: 24px;
+          height: 24px;
+        }
+        .sort-asc{
+          &::after{
+            background-image: url(../../../components/Icon/icons/Arrow-Down-Small.svg);
+          }
+        }
+        .sort-desc{
+          &::after{
+            background-image: url(../../../components/Icon/icons/Arrow-Down-Small.svg);
+            transform: rotate(180deg);
+          }
         }
       }
     }
 
-    .btn{
-      .fa{
-        font-size: 15px;
-      }
+    .last-File {
+      cursor: pointer;
     }
-    .left-border{
+
+    .row {
       position: relative;
-      margin-left: 10px !important;
-      &::before{
-        content: "";
-        position: absolute;
-        left: -10px;
-        top: 0;
-        bottom: 0;
-        width: 1px;
-        background: @border-grey-light;
-      }
-    }
-  }
-  .folder-path{
-    cursor: pointer;
-    color: @grey;
-    .last-folder{
-      color: @blue;
-    }
-  }
-  .database-path{
-    cursor: pointer;
-    .last-folder{
-      color: @blue;
-    }
-  }
-  .table-path{
-    cursor: pointer;
-  }
-  .help-btn{
-    background: @white;
-    border: 1px solid darken(@white, 15%);
-    border-radius: 4px;
-    padding: 1px 5px 2px 5px;
-    cursor: pointer;
-    .fa{
-      font-size: 7px;
-      line-height: 7px;
-      color: #909090;
-      margin: 0 2px;
-      vertical-align: middle;
-    }
-    &:hover{
-      background: darken(@white, 5%);
-    }
-  }
-  .queries-row{
-    color: @blue;
-    cursor: pointer;
-  }
-
-  .request-access-holder{
-    background: @light-blue;
-    padding: 10px;
-    button{
-      width: auto;
-      padding: 5px 20px;
-    }
-    .fa{
-      font-size: 25px;
-    }
-    .request-access-inner{
-      font-size: 12px;
-      display: inline-block;
-      overflow: hidden;
-      vertical-align: top;
-      margin: 0 10px;
-      .title{
-        font-size: 13px;
-        font-weight: bold;
-        margin: 0 0 7px;
-      }
-    }
-  }
-  .empty-table {
-    .empty-message {
-      padding-top: 20%;
-      position: absolute;
-      height: 100%;
       width: 100%;
-      text-align: center;
-      font-size: 32px;
-      color: #CBCBCB;
-      background-color: #F8F8F8;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
     }
-    .table {
-      margin-bottom: 0;
+
+    .sharing-row{
+      color: @blue;
+    }
+
+    .browse-table-viewer-header {
+      overflow: hidden;
+      background: #e4f2f7;
+      padding: 0 10px;
+      height: 38px;
+      flex-shrink: 0;
+
+      .main-settings-holder{
+        position: relative;
+        display: inline-block;
+        margin: 9px 0 8px;
+        .button-white:hover{
+          background: #C7DEE6 !important;
+        }
+        .settings-button{
+          padding: 0;
+          border: 0;
+          background: transparent;
+          &.blue-btn{
+            background: @blue;
+            color: @white;
+            border: 1px solid @blue;
+            &:hover{
+              background: darken(@blue, 5%);
+            }
+          }
+          &.grey-btn{
+            background: @blue;
+            color: @white;
+            border: 1px solid @blue;
+          }
+          &.active{
+            background: #ccc;
+          }
+        }
+      }
+
+      .btn{
+        .fa{
+          font-size: 15px;
+        }
+      }
+      .left-border{
+        position: relative;
+        margin-left: 10px !important;
+        &::before{
+          content: "";
+          position: absolute;
+          left: -10px;
+          top: 0;
+          bottom: 0;
+          width: 1px;
+          background: @border-grey-light;
+        }
+      }
+    }
+    .folder-path{
+      cursor: pointer;
+      color: @grey;
+      .last-folder{
+        color: @blue;
+      }
+    }
+    .database-path{
+      cursor: pointer;
+      .last-folder{
+        color: @blue;
+      }
+    }
+    .table-path{
+      cursor: pointer;
+    }
+    .help-btn{
+      background: @white;
+      border: 1px solid darken(@white, 15%);
+      border-radius: 4px;
+      padding: 1px 5px 2px 5px;
+      cursor: pointer;
+      .fa{
+        font-size: 7px;
+        line-height: 7px;
+        color: #909090;
+        margin: 0 2px;
+        vertical-align: middle;
+      }
+      &:hover{
+        background: darken(@white, 5%);
+      }
+    }
+    .queries-row{
+      color: @blue;
+      cursor: pointer;
+    }
+
+    .request-access-holder{
+      background: @light-blue;
+      padding: 10px;
+      button{
+        width: auto;
+        padding: 5px 20px;
+      }
+      .fa{
+        font-size: 25px;
+      }
+      .request-access-inner{
+        font-size: 12px;
+        display: inline-block;
+        overflow: hidden;
+        vertical-align: top;
+        margin: 0 10px;
+        .title{
+          font-size: 13px;
+          font-weight: bold;
+          margin: 0 0 7px;
+        }
+      }
+    }
+    .empty-table {
+      .empty-message {
+        padding-top: 20%;
+        position: absolute;
+        height: 100%;
+        width: 100%;
+        text-align: center;
+        font-size: 32px;
+        color: #CBCBCB;
+        background-color: #F8F8F8;
+      }
+      .table {
+        margin-bottom: 0;
+      }
     }
   }
 }

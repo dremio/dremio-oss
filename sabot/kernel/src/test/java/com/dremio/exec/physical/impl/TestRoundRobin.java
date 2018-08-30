@@ -28,19 +28,19 @@ import com.dremio.exec.ExecConstants;
  */
 public class TestRoundRobin extends PlanTestBase {
 
-  private final String useRoundRobinSort = "alter session set `planner.enable_sort_round_robin` = true";
-  private final String useHashSort = "alter session set `planner.enable_sort_round_robin` = false";
+  private final String useRoundRobinSort = "alter session set \"planner.enable_sort_round_robin\" = true";
+  private final String useHashSort = "alter session set \"planner.enable_sort_round_robin\" = false";
 
-  private final String query = "select state, review_count, business_id from dfs.`${WORKING_PATH}/src/test/resources/yelp_business.json` order by state, review_count, business_id limit 1";
+  private final String query = "select state, review_count, business_id from dfs.\"${WORKING_PATH}/src/test/resources/yelp_business.json\" order by state, review_count, business_id limit 1";
 
   @Before
   public void setup() throws Exception{
-    testNoResult("alter session set `planner.slice_target` = 1");
+    testNoResult("alter session set \"planner.slice_target\" = 1");
   }
 
   @After
   public void done() throws Exception{
-    testNoResult("alter session set `planner.slice_target` = " + ExecConstants.SLICE_TARGET_DEFAULT);
+    testNoResult("alter session set \"planner.slice_target\" = " + ExecConstants.SLICE_TARGET_DEFAULT);
   }
 
   @Test
@@ -80,7 +80,7 @@ public class TestRoundRobin extends PlanTestBase {
   @Test
   public void testRoundRobinBiggerData() throws Exception {
     final String pmulti = FileUtils.getResourceAsFile("/multilevel/parquet").toURI().toString();
-    final String queryPmulti = "SELECT * FROM dfs_test.`" + pmulti + "` ORDER BY o_orderkey, o_custkey desc, o_orderdate";
+    final String queryPmulti = "SELECT * FROM dfs_test.\"" + pmulti + "\" ORDER BY o_orderkey, o_custkey desc, o_orderdate";
 
     try {
       testNoResult(useHashSort);

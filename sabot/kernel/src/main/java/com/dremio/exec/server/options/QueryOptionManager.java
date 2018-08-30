@@ -16,7 +16,10 @@
 package com.dremio.exec.server.options;
 
 import com.dremio.common.map.CaseInsensitiveMap;
-import com.dremio.exec.server.options.OptionValue.OptionType;
+import com.dremio.options.OptionList;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
 
 /**
  * {@link OptionManager} that holds options within {@link com.dremio.exec.ops.QueryContext}.

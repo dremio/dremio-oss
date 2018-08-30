@@ -28,7 +28,7 @@ import org.eclipse.jetty.servlet.DefaultServlet;
 
 import com.dremio.dac.daemon.ServerHealthMonitor;
 import com.dremio.dac.support.SupportService;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 
 /**
  * Servlet that hosts static assets but mapped to specific extensions. If the static assets are not available, falls

@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.NullableBigIntVector;
+import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.util.Text;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.page.DataPageV1;
@@ -111,13 +111,13 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   @Test
 
   public void testDictionaryError() throws Exception {
-    testFull(QueryType.SQL, "select L_RECEIPTDATE from dfs.`/tmp/lineitem_null_dict.parquet`", "", 1, 1, 100000, false);
+    testFull(QueryType.SQL, "select L_RECEIPTDATE from dfs.\"/tmp/lineitem_null_dict.parquet\"", "", 1, 1, 100000, false);
   }
 
   @Test
   public void testNullableAgg() throws Exception {
     final List<QueryDataBatch> result = testSqlWithResults(
-        "select sum(a) as total_sum from dfs.`/tmp/parquet_with_nulls_should_sum_100000_nulls_first.parquet`");
+        "select sum(a) as total_sum from dfs.\"/tmp/parquet_with_nulls_should_sum_100000_nulls_first.parquet\"");
     assertEquals("Only expected one batch with data, and then the empty finishing batch.", 2, result.size());
     final RecordBatchLoader loader = new RecordBatchLoader(getSabotContext().getAllocator());
 
@@ -125,7 +125,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
     loader.load(b.getHeader().getDef(), b.getData());
 
     final VectorWrapper vw = loader.getValueAccessorById(
-        NullableBigIntVector.class,
+        BigIntVector.class,
         loader.getValueVectorId(SchemaPath.getCompoundPath("total_sum")).getFieldIds()
     );
     assertEquals(4999950000l, vw.getValueVector().getObject(0));
@@ -136,7 +136,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   @Test
   public void testNullableFilter() throws Exception {
     final List<QueryDataBatch> result = testSqlWithResults(
-        "select count(wr_return_quantity) as row_count from dfs.`/tmp/web_returns` where wr_return_quantity = 1");
+        "select count(wr_return_quantity) as row_count from dfs.\"/tmp/web_returns\" where wr_return_quantity = 1");
     assertEquals("Only expected one batch with data, and then the empty finishing batch.", 2, result.size());
     final RecordBatchLoader loader = new RecordBatchLoader(getSabotContext().getAllocator());
 
@@ -165,41 +165,41 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   @Test
   public void testNonNullableDictionaries() throws Exception {
     testFull(QueryType.SQL,
-        "select * from dfs.`/tmp/dremiotest/non_nullable_dictionary.parquet`", "", 1, 1, 30000000, false);
+        "select * from dfs.\"/tmp/dremiotest/non_nullable_dictionary.parquet\"", "", 1, 1, 30000000, false);
   }
 
   @Test
   public void testNullableVarCharMemory() throws Exception {
     testFull(QueryType.SQL,
-        "select s_comment,s_suppkey from dfs.`/tmp/sf100_supplier.parquet`", "", 1, 1, 1000, false);
+        "select s_comment,s_suppkey from dfs.\"/tmp/sf100_supplier.parquet\"", "", 1, 1, 1000, false);
   }
 
   @Test
   public void testReadVoter() throws Exception {
-    testFull(QueryType.SQL, "select * from dfs.`/tmp/voter.parquet`", "", 1, 1, 1000, false);
+    testFull(QueryType.SQL, "select * from dfs.\"/tmp/voter.parquet\"", "", 1, 1, 1000, false);
   }
 
   @Test
   public void testDrill_1314() throws Exception {
     testFull(QueryType.SQL, "select l_partkey " +
-        "from dfs.`/tmp/drill_1314.parquet`", "", 1, 1, 10000, false);
+        "from dfs.\"/tmp/drill_1314.parquet\"", "", 1, 1, 10000, false);
   }
 
   @Test
   public void testDrill_1314_all_columns() throws Exception {
-    testFull(QueryType.SQL, "select * from dfs.`/tmp/drill_1314.parquet`", "", 1, 1, 10000, false);
+    testFull(QueryType.SQL, "select * from dfs.\"/tmp/drill_1314.parquet\"", "", 1, 1, 10000, false);
   }
 
   @Test
   public void testDictionaryError_419() throws Exception {
     testFull(QueryType.SQL,
-        "select c_address from dfs.`/tmp/customer_snappyimpala_drill_419.parquet`", "", 1, 1, 150000, false);
+        "select c_address from dfs.\"/tmp/customer_snappyimpala_drill_419.parquet\"", "", 1, 1, 150000, false);
   }
 
   @Test
   public void testNonExistentColumn() throws Exception {
     testFull(QueryType.SQL,
-        "select non_existent_column from cp.`tpch/nation.parquet`", "", 1, 1, 150000, false);
+        "select non_existent_column from cp.\"tpch/nation.parquet\"", "", 1, 1, 150000, false);
   }
 
 
@@ -207,14 +207,14 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
 
   public void testNonExistentColumnLargeFile() throws Exception {
     testFull(QueryType.SQL,
-        "select non_existent_column, non_existent_col_2 from dfs.`/tmp/customer.dict.parquet`", "", 1, 1, 150000, false);
+        "select non_existent_column, non_existent_col_2 from dfs.\"/tmp/customer.dict.parquet\"", "", 1, 1, 150000, false);
   }
 
   @Test
 
   public void testNonExistentColumnsSomePresentColumnsLargeFile() throws Exception {
     testFull(QueryType.SQL,
-        "select cust_key, address,  non_existent_column, non_existent_col_2 from dfs.`/tmp/customer.dict.parquet`",
+        "select cust_key, address,  non_existent_column, non_existent_col_2 from dfs.\"/tmp/customer.dict.parquet\"",
         "", 1, 1, 150000, false);
   }
 
@@ -222,7 +222,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
   @Test
   public void testTPCHPerformace_SF1() throws Exception {
     testFull(QueryType.SQL,
-        "select * from dfs.`/tmp/orders_part-m-00001.parquet`", "", 1, 1, 150000, false);
+        "select * from dfs.\"/tmp/orders_part-m-00001.parquet\"", "", 1, 1, 150000, false);
   }
 
   @Test
@@ -257,7 +257,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
       int numberOfTimesRead /* specified in json plan */,
       int numberOfRowGroups, int recordsPerRowGroup, boolean testValues) throws Exception {
 
-    // final RecordBatchLoader batchLoader = new RecordBatchLoader(getAllocator());
+    // final RecordBatchLoader batchLoader = new RecordBatchLoader(getRecordAllocator());
     final HashMap<String, FieldInfo> fields = new HashMap<>();
     final ParquetTestProperties props =
         new ParquetTestProperties(numberRowGroups, recordsPerRowGroup, DEFAULT_BYTES_PER_PAGE, fields);
@@ -438,7 +438,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
 
   @Test
   public void testReadError_Drill_901() throws Exception {
-    // select cast( L_COMMENT as varchar) from  dfs_test.`/tmp/dremiotest/employee_parquet`
+    // select cast( L_COMMENT as varchar) from  dfs_test.\"/tmp/dremiotest/employee_parquet\"
     HashMap<String, FieldInfo> fields = new HashMap<>();
     ParquetTestProperties props = new ParquetTestProperties(1, 60175, DEFAULT_BYTES_PER_PAGE, fields);
     testParquetFullEngineEventBased(false, false, "/parquet/par_writer_test.json", null,
@@ -448,7 +448,7 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
 
   @Test
   public void testReadError_Drill_839() throws Exception {
-    // select cast( L_COMMENT as varchar) from  dfs.`/tmp/dremiotest/employee_parquet`
+    // select cast( L_COMMENT as varchar) from  dfs.\"/tmp/dremiotest/employee_parquet\"
     HashMap<String, FieldInfo> fields = new HashMap<>();
     ParquetTestProperties props = new ParquetTestProperties(1, 150000, DEFAULT_BYTES_PER_PAGE, fields);
     String readEntries = "\"/tmp/customer_nonull.parquet\"";
@@ -488,8 +488,8 @@ public class ParquetRecordReaderTest extends BaseTestQuery {
 
   @Test
   public void test958_sql() throws Exception {
-    // testFull(QueryType.SQL, "select ss_ext_sales_price from dfs.`/tmp/store_sales`", "", 1, 1, 30000000, false);
-    testFull(QueryType.SQL, "select * from dfs.`/tmp/store_sales`", "", 1, 1, 30000000, false);
+    // testFull(QueryType.SQL, "select ss_ext_sales_price from dfs.\"/tmp/store_sales\"", "", 1, 1, 30000000, false);
+    testFull(QueryType.SQL, "select * from dfs.\"/tmp/store_sales\"", "", 1, 1, 30000000, false);
   }
 
   @Test

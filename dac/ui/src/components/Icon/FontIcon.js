@@ -17,6 +17,7 @@ import React, { Component } from 'react';
 import Immutable  from 'immutable';
 import Radium from 'radium';
 import PureRender from 'pure-render-decorator';
+import classNames from 'classnames';
 
 import PropTypes from 'prop-types';
 
@@ -186,13 +187,14 @@ export class FullFontIcon extends Component {
     type: PropTypes.string,
     theme: PropTypes.object,
     style: PropTypes.object,
+    iconClass: PropTypes.string,
     iconStyle: PropTypes.object,
     id: PropTypes.string,
     class: PropTypes.string
   }
 
   getIcon() {
-    const {type, hoverType, iconStyle} = this.props;
+    const {type, hoverType, iconStyle, iconClass} = this.props;
     const styles = this.getStylesForThemeItem('Icon');
     if (FONT_ICONS.has(type)) {
       const classes = 'fa ${type}';
@@ -209,7 +211,7 @@ export class FullFontIcon extends Component {
     const classes = `icon-type fa ${typeToShow}`;
     return (
       <span
-        className={classes}
+        className={classNames([classes, iconClass])}
         style={[hoverType ? {':hover': {}} : null, styles, iconStyle]} // need to fake out Radium
         key='iconFont'
         onMouseLeave={this.props.onMouseLeave}

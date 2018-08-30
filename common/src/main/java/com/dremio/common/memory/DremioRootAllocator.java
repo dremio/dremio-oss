@@ -18,11 +18,15 @@ package com.dremio.common.memory;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BaseAllocator;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.memory.RootAllocator;
 
 import com.dremio.common.exceptions.UserException;
+
+import io.netty.buffer.ArrowBuf;
 
 /**
  * The root allocator for using direct memory inside a Dremio process.
@@ -37,10 +41,11 @@ public class DremioRootAllocator extends RootAllocator {
   }
 
   @Override
-  public BufferAllocator newChildAllocator(final String name, final long initReservation, final long maxAllocation) {
+  public BufferAllocator newChildAllocator(final String name, final AllocationListener listener,
+                                           final long initReservation, final long maxAllocation) {
     //TODO: after ARROW-2165 is implemented, replace override of newChildAllocator() with a AllocatorListener listening
     //TODO: for additions and removals of children
-    BufferAllocator childAllocator = super.newChildAllocator(name, initReservation, maxAllocation);
+    BufferAllocator childAllocator = super.newChildAllocator(name, listener, initReservation, maxAllocation);
     children.put(name, childAllocator);
     return childAllocator;
   }
@@ -57,5 +62,15 @@ public class DremioRootAllocator extends RootAllocator {
         b.addContext("  ", children.get(childAllocatorName).toString().trim());
       }
     }
+  }
+
+  @Override
+  public ArrowBuf buffer(final int initialRequestSize) {
+    throw new UnsupportedOperationException("Dremio's root allocator should not be used for direct allocations");
+  }
+
+  @Override
+  public ArrowBuf buffer(final int initialRequestSize, BufferManager manager) {
+    throw new UnsupportedOperationException("Dremio's root allocator should not be used for direct allocations");
   }
 }

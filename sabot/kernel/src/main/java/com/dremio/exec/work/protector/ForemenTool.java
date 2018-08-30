@@ -36,5 +36,9 @@ public interface ForemenTool {
     @Override
     public Optional<QueryProfile> getProfile(ExternalId id) {
       return Optional.absent();
-    }};
+    }
+
+  };
+
+
 }

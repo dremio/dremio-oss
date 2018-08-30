@@ -92,7 +92,7 @@ public class Drill2769UnsupportedReportsUseSqlExceptionTest extends JdbcWithServ
       // Expected.
     }
     try {
-      getConnection().createArrayOf("INTEGER", new Object[0]);
+      getConnection().createArrayOf("STRUCT", new Object[0]);
       fail("Test seems to be out of date.  Were arrays implemented?");
     }
     catch (SQLException | UnsupportedOperationException e) {

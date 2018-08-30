@@ -38,19 +38,18 @@ describe('AccelerationUpdatesController', () => {
         accelerationRefreshPeriod: DataFreshnessSection.defaultFormValueRefreshInterval(),
         accelerationGracePeriod: DataFreshnessSection.defaultFormValueGracePeriod()
       }),
-      summaryDataset: Immutable.fromJS({
-        fields: [
-          {name: 'col1', type: 'INTEGER'},
-          {name: 'col2', type: 'TEXT'}
-        ]
-      }),
       entity: Immutable.fromJS({
         fullPathList: ['path']
       }),
-      loadSummaryDataset: sinon.stub().returns(Promise.resolve()),
       loadDatasetAccelerationSettings: sinon.stub(),
       updateDatasetAccelerationSettings: sinon.stub(),
-      onDone: sinon.stub().returns('onDone')
+      onDone: sinon.stub().returns('onDone'),
+      state: {
+        fields: [
+          {name: 'col1', type: {name: 'INTEGER'}},
+          {name: 'col2', type: {name: 'TEXT'}}
+        ]
+      }
     };
   });
 
@@ -103,33 +102,45 @@ describe('AccelerationUpdatesController', () => {
       };
       wrapper = shallow(<AccelerationUpdatesController {...props}/>);
       instance = wrapper.instance();
+
+      sinon.stub(instance, 'loadDataset').returns(Promise.resolve({
+        fields: [
+          {name: 'col1', type: {name: 'INTEGER'}},
+          {name: 'col2', type: {name: 'TEXT'}}
+        ]
+      }));
     });
     afterEach(() => {
       AccelerationUpdatesController.prototype.componentWillMount.restore();
     });
 
-    it('should load summaryDataset and settings when entity changed', () => {
+    it('should load settings when entity changed', (done) => {
       const nextProps = {
         ...props,
         entity: props.entity.set('fullPath', ['changed_path'])
       };
+
       instance.receiveProps(nextProps, props);
-      expect(props.loadSummaryDataset).to.have.been.called;
-      expect(props.loadDatasetAccelerationSettings).to.have.been.called;
+      setTimeout(() => {
+        expect(props.loadDatasetAccelerationSettings).to.have.been.called;
+        done();
+      }, 50);
     });
 
-    it('should not load summaryDataset and settings when entity did not change', () => {
+    it('should not load settings when entity did not change', (done) => {
       instance.receiveProps(props, props);
-      expect(props.loadSummaryDataset).to.have.not.been.called;
-      expect(props.loadDatasetAccelerationSettings).to.have.not.been.called;
+      setTimeout(() => {
+        expect(props.loadDatasetAccelerationSettings).to.have.not.been.called;
+        done();
+      }, 50);
     });
   });
 
   describe('#schemaToColumns', () => {
     it('should return only incremental columns', () => {
-      const summaryDataset = Immutable.fromJS({
-        fields: ALL_TYPES.map((type, i) => ({type, name: `col${i}`}))
-      });
+      const summaryDataset = {
+        fields: ALL_TYPES.map((type, i) => ({type: {name: type}, name: `col${i}`}))
+      };
       const wrapper = shallow(<AccelerationUpdatesController {...minimalProps}/>);
       const instance = wrapper.instance();
       const columnTypes = instance.schemaToColumns(summaryDataset).toJS().map(field => field.type);
@@ -151,3 +162,4 @@ describe('AccelerationUpdatesController', () => {
     });
   });
 });
+

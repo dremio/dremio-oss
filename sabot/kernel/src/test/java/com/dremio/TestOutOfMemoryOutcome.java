@@ -40,7 +40,7 @@ public class TestOutOfMemoryOutcome extends BaseTestQuery{
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(300, TimeUnit.SECONDS);
 
-  private static final String SINGLE_MODE = "ALTER SESSION SET `planner.disable_exchanges` = true";
+  private static final String SINGLE_MODE = "ALTER SESSION SET \"planner.disable_exchanges\" = true";
 
   private void testSingleMode(String fileName) throws Exception{
     test(SINGLE_MODE);

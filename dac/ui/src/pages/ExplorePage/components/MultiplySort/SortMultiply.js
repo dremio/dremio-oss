@@ -17,12 +17,14 @@ import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
+import classNames from 'classnames';
 
 import DragColumnMenu from 'components/DragComponents/DragColumnMenu';
 import FontIcon from 'components/Icon/FontIcon';
 import EllipsedText from 'components/EllipsedText';
 
 import SortDragArea from './components/SortDragArea';
+import { header, base, name, inner, addJoin } from './SortMultiply.less';
 
 // TODO: DRY and fix with Join/Group BY
 
@@ -47,16 +49,16 @@ class SortMultiply extends Component {
 
   render() {
     return ( // todo: loc
-      <div className='inner-join' style={[styles.base]} onMouseUp={this.props.handleDragStop}>
-        <div style={styles.header}>
-          <div style={styles.name}>
+      <div className={classNames(['inner-join', base])} onMouseUp={this.props.handleDragStop}>
+        <div className={header}>
+          <div className={name}>
             <EllipsedText text={`“${this.props.dataset.getIn(['displayFullPath', -1])}” fields:`}/>
           </div>
-          <div style={[styles.name, {borderRight: 'none'}]}>
+          <div className={name} style={{borderRight: 'none'}}>
             {la('Sort fields:')}
           </div>
         </div>
-        <div style={styles.inner}>
+        <div className={inner}>
           <DragColumnMenu
             items={this.props.columns || Immutable.List()}
             disabledColumnNames={this.getNamesOfColumnsInDragArea()}
@@ -75,7 +77,7 @@ class SortMultiply extends Component {
           />
         </div>
         <span
-          style={styles.addJoinStyle}
+          className={addJoin}
           onClick={this.props.addAnother}> {/* todo: ax, consistency: button */}
           <FontIcon type='Add' hoverType='AddHover' theme={{Container: {display: 'flex', alignItems: 'center'}}}/>
           {la('Add a Sort Field')}
@@ -86,37 +88,6 @@ class SortMultiply extends Component {
 }
 
 const styles = {
-  base: {
-    display: 'flex',
-    height: '100%',
-    flexWrap: 'wrap'
-  },
-  name: {
-    display: 'flex',
-    alignItems: 'center',
-    paddingLeft: 10,
-    height: 26,
-    width: 241, // +1 from style.dragNameStyle
-    borderRight: '1px solid rgba(0,0,0,0.10)'
-  },
-  header: {
-    backgroundColor: '#f3f3f3',
-    height: 26,
-    display: 'flex',
-    alignItems: 'center',
-    width: '100%',
-    margin: '10px 10px 0 10px'
-  },
-  inner: {
-    width: '100%',
-    backgroundColor: '#fff',
-    justifyContent: 'space-between',
-    border: '1px solid rgba(0,0,0,0.10)',
-    display: 'flex',
-    margin: '0 10px',
-    maxHeight: 180,
-    minHeight: 180
-  },
   rightMenu: {
     borderLeft: '1px solid rgba(0,0,0,0.10)'
   },
@@ -130,16 +101,6 @@ const styles = {
     width: '100%',
     overflowY: 'auto',
     justifyContent: 'space-between'
-  },
-  addJoinStyle: {
-    color: '#0096FF',
-    position: 'relative',
-    marginLeft: 230,
-    fontSize: 13,
-    cursor: 'pointer',
-    alignItems: 'center',
-    height: 35,
-    display: 'inline-flex'
   },
   dragArea: {
     display: 'flex',

@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+
 import org.apache.commons.collections.IteratorUtils;
 
 import com.dremio.common.AutoCloseables;
@@ -35,10 +36,15 @@ import com.dremio.datastore.PassThroughSerializer;
 import com.dremio.datastore.StoreBuildingFactory;
 import com.dremio.datastore.StringSerializer;
 import com.dremio.exec.serialization.JacksonSerializer;
-import com.dremio.exec.server.options.OptionValue.OptionType;
 import com.dremio.exec.store.sys.PersistentStore;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.store.KVPersistentStore.PersistentStoreCreator;
+import com.dremio.options.OptionList;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidator;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
+import com.dremio.options.Options;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
@@ -204,8 +210,8 @@ public class SystemOptionManager extends BaseOptionManager implements AutoClosea
 
   @Override
   public void setOption(final OptionValue value) {
-    checkArgument(value.type == OptionType.SYSTEM, "OptionType must be SYSTEM.");
-    final String name = value.name.toLowerCase();
+    checkArgument(value.getType() == OptionType.SYSTEM, "OptionType must be SYSTEM.");
+    final String name = value.getName().toLowerCase();
     final OptionValidator validator = getValidator(name);
 
     validator.validate(value); // validate the option
@@ -278,7 +284,7 @@ public class SystemOptionManager extends BaseOptionManager implements AutoClosea
       }
 
       try{
-        switch(validator.getDefault().kind){
+        switch(validator.getDefault().getKind()){
         case BOOLEAN:
           this.setOption(OptionValue.createBoolean(OptionType.SYSTEM, validator.getOptionName(), Boolean.parseBoolean(value)));
           break;

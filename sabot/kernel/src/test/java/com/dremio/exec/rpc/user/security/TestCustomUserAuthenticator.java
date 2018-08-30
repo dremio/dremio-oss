@@ -92,7 +92,7 @@ public class TestCustomUserAuthenticator extends BaseTestQuery {
     test("SHOW SCHEMAS");
     test("USE INFORMATION_SCHEMA");
     test("SHOW TABLES");
-    test("SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE TABLE_NAME LIKE 'COLUMNS'");
-    test("SELECT * FROM cp.`region.json` LIMIT 5");
+    test("SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_NAME LIKE 'COLUMNS'");
+    test("SELECT * FROM cp.\"region.json\" LIMIT 5");
   }
 }

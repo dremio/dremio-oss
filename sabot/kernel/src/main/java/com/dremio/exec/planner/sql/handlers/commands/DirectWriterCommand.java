@@ -26,6 +26,7 @@ import org.apache.arrow.memory.BufferManager;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.commons.lang3.text.StrTokenizer;
 
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -41,17 +42,16 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.server.NodeDebugContextProvider;
-import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
 import com.dremio.exec.store.pojo.PojoDataType;
 import com.dremio.exec.store.pojo.PojoRecordReader;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.exec.context.OpProfileDef;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.scan.VectorContainerMutator;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator.State;
 import com.dremio.service.namespace.NamespaceKey;
@@ -87,6 +87,11 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
     result = handler.toResult(sql, sqlNode);
     observer.planCompleted(null);
     return 1;
+  }
+
+  @Override
+  public void close() throws Exception {
+    // no-op
   }
 
   @Override
@@ -149,7 +154,7 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
   }
 
   private Writer getWriter(OptionManager options) throws IOException{
-    final String storeTablePath = options.getOption(QUERY_RESULTS_STORE_TABLE.getOptionName()).string_val;
+    final String storeTablePath = options.getOption(QUERY_RESULTS_STORE_TABLE.getOptionName()).getStringVal();
     final List<String> storeTable = new StrTokenizer(storeTablePath, '.', ParserConfig.QUOTING.string.charAt(0))
         .setIgnoreEmptyTokens(true).getTokenList();
 
@@ -163,6 +168,12 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
     return createTableEntry.getWriter(null);
   }
 
+
+  @Override
+  public String toString() {
+    return "DirectWriterCommand [handler=" + handler + ", sql=" + sql + "]";
+  }
+
   private OperatorContextImpl createContext(Writer writer) {
     BufferAllocator allocator = context.getAllocator().newChildAllocator("direct-command", 0, Long.MAX_VALUE);
     final OperatorStats stats = new OperatorStats(new OpProfileDef(0,0,0), allocator);
@@ -170,6 +181,7 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
         context.getConfig(),
         FragmentHandle.newBuilder().setQueryId(context.getQueryId()).setMajorFragmentId(0).setMinorFragmentId(0).build(),
         writer,
+        allocator,
         allocator,
         null,
         stats,

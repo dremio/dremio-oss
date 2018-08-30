@@ -41,7 +41,6 @@ public class GenericAccessorTest {
 
   private GenericAccessor genericAccessor;
   private ValueVector valueVector;
-  private ValueVector.Accessor accessor;
   private UserBitShared.SerializedField metadata;
 
   @Before

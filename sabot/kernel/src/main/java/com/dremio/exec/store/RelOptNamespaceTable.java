@@ -25,8 +25,10 @@ import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelDistribution;
 import org.apache.calcite.rel.RelDistributionTraitDef;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelReferentialConstraint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.schema.ColumnStrategy;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import com.google.common.base.Objects;
@@ -106,8 +108,20 @@ public final class RelOptNamespaceTable implements RelOptTable {
   public <T> T unwrap(Class<T> clazz) {
     if(clazz == NamespaceTable.class){
       return (T) table;
+    }else if(clazz == RelOptNamespaceTable.class) {
+      return (T) this;
     }
     return null;
+  }
+
+  @Override
+  public List<ColumnStrategy> getColumnStrategies() {
+    return ImmutableList.of();
+  }
+
+  @Override
+  public List<RelReferentialConstraint> getReferentialConstraints() {
+    return ImmutableList.of();
   }
 
   @Override

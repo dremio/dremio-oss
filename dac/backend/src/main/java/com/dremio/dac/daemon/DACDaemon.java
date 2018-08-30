@@ -18,13 +18,13 @@ package com.dremio.dac.daemon;
 import java.io.IOException;
 import java.util.EnumSet;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 
 import javax.net.ssl.HttpsURLConnection;
 
 import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.CatastrophicFailure;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.scanner.ClassPathScanner;
@@ -81,6 +81,8 @@ public final class DACDaemon implements AutoCloseable {
   private final boolean isMaster;
   private final boolean isCoordinator;
   private final boolean isExecutor;
+
+  private final CountDownLatch closed = new CountDownLatch(1);
 
   private WebServer webServer;
   private final DACConfig dacConfig;
@@ -179,14 +181,12 @@ public final class DACDaemon implements AutoCloseable {
     try (TimedBlock b = Timer.time("init")) {
       startPreServices();
       startServices();
-      System.out.println("Dremio Daemon Started as " + (isMaster ?  "master" : "slave"));
+      System.out.println("Dremio Daemon Started as " + (isMaster ?  "master" : "worker"));
       if(webServer != null){
         System.out.println(String.format("Webserver available at: %s://%s:%d",
             dacConfig.webSSLEnabled ? "https" : "http", thisNode, webServer.getPort()));
       }
 
-    } catch (final Throwable ex) {
-      CatastrophicFailure.exit(ex, "Failed to start services, daemon exiting.", 1);
     }
   }
 
@@ -240,12 +240,19 @@ public final class DACDaemon implements AutoCloseable {
     return registry.lookup(WebServer.class);
   }
 
+  public void awaitClose() throws InterruptedException {
+    closed.await();
+  }
+
   @Override
   public void close() throws Exception {
     try (TimedBlock b = Timer.time("close")) {
       // closes all registered services in reverse order
       AutoCloseables.close(registry, bootstrapRegistry);
     }
+
+    // Notify that daemon has been closed
+    closed.countDown();
   }
 
   public static DACDaemon newDremioDaemon(DACConfig dacConfig, ScanResult scanResult) throws IOException {

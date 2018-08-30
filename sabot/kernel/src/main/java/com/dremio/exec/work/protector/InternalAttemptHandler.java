@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.work.protector;
 
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 
 /**
  * Re-attempt logic for internal queries.<br>

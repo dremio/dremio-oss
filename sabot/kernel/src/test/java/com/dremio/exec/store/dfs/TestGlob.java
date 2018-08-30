@@ -29,7 +29,7 @@ public class TestGlob extends BaseTestQuery {
     @Test
     public void testGlobSet() throws Exception {
         testBuilder()
-            .sqlQuery(String.format("select count(*) from dfs_test.`%s/parquet/{1994,1995}`", MULTILEVEL))
+            .sqlQuery(String.format("select count(*) from dfs_test.\"%s/parquet/{1994,1995}\"", MULTILEVEL))
             .unOrdered()
             .baselineColumns("EXPR$0")
             .baselineValues(80L)
@@ -39,7 +39,7 @@ public class TestGlob extends BaseTestQuery {
     @Test
     public void testGlobWildcard() throws Exception {
         testBuilder()
-            .sqlQuery(String.format("select count(*) from dfs_test.`%s/parquet/1994/*`", MULTILEVEL))
+            .sqlQuery(String.format("select count(*) from dfs_test.\"%s/parquet/1994/*\"", MULTILEVEL))
             .unOrdered()
             .baselineColumns("EXPR$0")
             .baselineValues(40L)
@@ -49,7 +49,7 @@ public class TestGlob extends BaseTestQuery {
     @Test
     public void testGlobSingleCharacter() throws Exception {
         testBuilder()
-            .sqlQuery(String.format("select count(*) from dfs_test.`%s/parquet/199?/*`", MULTILEVEL))
+            .sqlQuery(String.format("select count(*) from dfs_test.\"%s/parquet/199?/*\"", MULTILEVEL))
             .unOrdered()
             .baselineColumns("EXPR$0")
             .baselineValues(120L)
@@ -59,7 +59,7 @@ public class TestGlob extends BaseTestQuery {
     @Test
     public void testGlobSingleCharacterRange() throws Exception {
         testBuilder()
-            .sqlQuery(String.format("select count(*) from dfs_test.`%s/parquet/199[4-5]/*`", MULTILEVEL))
+            .sqlQuery(String.format("select count(*) from dfs_test.\"%s/parquet/199[4-5]/*\"", MULTILEVEL))
             .unOrdered()
             .baselineColumns("EXPR$0")
             .baselineValues(80L)

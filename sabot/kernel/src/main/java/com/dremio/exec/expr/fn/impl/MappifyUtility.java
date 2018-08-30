@@ -41,14 +41,14 @@ public class MappifyUtility {
   public static ArrowBuf mappify(FieldReader reader, BaseWriter.ComplexWriter writer, ArrowBuf buffer,
                                  FunctionErrorContext errorContext) {
     // Currently we expect single map as input
-    if (reader.getMinorType() != getArrowMinorType(MinorType.MAP)) {
+    if (reader.getMinorType() != getArrowMinorType(MinorType.STRUCT)) {
       throw errorContext.error()
           .message("The kvgen function can only be used when operating against maps.")
           .build();
     }
     BaseWriter.ListWriter listWriter = writer.rootAsList();
     listWriter.startList();
-    BaseWriter.MapWriter mapWriter = listWriter.map();
+    BaseWriter.StructWriter structWriter = listWriter.struct();
 
     // Iterate over the fields in the map
     Iterator<String> fieldIterator = reader.iterator();
@@ -62,7 +62,7 @@ public class MappifyUtility {
       }
 
       // writing a new field, start a new map
-      mapWriter.start();
+      structWriter.start();
 
       // write "key":"columnname" into the map
       VarCharHolder vh = new VarCharHolder();
@@ -72,17 +72,17 @@ public class MappifyUtility {
       vh.start = 0;
       vh.end = b.length;
       vh.buffer = buffer;
-      mapWriter.varChar(fieldKey).write(vh);
+      structWriter.varChar(fieldKey).write(vh);
 
       // Write the value to the map
       try {
-        MapUtility.writeToMapFromReader(fieldReader, mapWriter);
+        MapUtility.writeToMapFromReader(fieldReader, structWriter);
       } catch (RuntimeException e) {
         throw errorContext.error(e)
             .build();
       }
 
-      mapWriter.end();
+      structWriter.end();
     }
     listWriter.endList();
 

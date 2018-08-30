@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
-import { Link } from 'react-router';
 
 import DatasetOverviewFormBase from 'pages/HomePage/components/modals/DatasetSettings/DatasetOverviewForm';
 import DatasetOverviewFormMixin from './DatasetOverviewFormMixin';
@@ -26,28 +25,5 @@ describe('DatasetOverviewFormMixin', () => {
   it('should render with minimal props without exploding', () => {
     const wrapper = shallow(<DatasetOverviewForm />);
     expect(wrapper).to.have.length(1);
-  });
-
-  it('should render move link only if entityType VIRTUAL_DATASET', () => {
-    const wrapper = shallow(<DatasetOverviewForm />);
-    wrapper.setProps({
-      entity: Immutable.Map({ entityType: 'VIRTUAL_DATASET' })
-    });
-    expect(wrapper.find(Link)).to.have.length(1);
-
-    wrapper.setProps({
-      entity: Immutable.Map({ entityType: 'file' })
-    });
-    expect(wrapper.find(Link)).to.have.length(0);
-
-    wrapper.setProps({
-      entity: Immutable.Map({ entityType: 'folder' })
-    });
-    expect(wrapper.find(Link)).to.have.length(0);
-
-    wrapper.setProps({
-      entity: Immutable.Map({ entityType: 'physicalDataset' })
-    });
-    expect(wrapper.find(Link)).to.have.length(0);
   });
 });

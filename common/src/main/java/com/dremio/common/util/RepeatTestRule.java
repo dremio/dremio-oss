@@ -15,14 +15,14 @@
  */
 package com.dremio.common.util;
 
-import org.junit.rules.TestRule;
-import org.junit.runner.Description;
-import org.junit.runners.model.Statement;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+
+import org.junit.rules.TestRule;
+import org.junit.runner.Description;
+import org.junit.runners.model.Statement;
 
 /**
  * A {@link TestRule} to repeat a test for a specified number of times. If "count" <= 0, the test is not run.
@@ -40,7 +40,7 @@ import java.lang.annotation.Target;
 public class RepeatTestRule implements TestRule {
 
   @Retention(RetentionPolicy.RUNTIME)
-  @Target({ElementType.METHOD})
+  @Target({ElementType.METHOD, ElementType.TYPE})
   public @interface Repeat {
     int count();
   }

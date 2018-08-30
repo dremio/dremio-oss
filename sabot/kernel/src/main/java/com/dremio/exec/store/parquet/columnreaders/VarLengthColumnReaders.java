@@ -21,9 +21,9 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 
 import org.apache.arrow.vector.DecimalHelper;
-import org.apache.arrow.vector.NullableDecimalVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.VarBinaryVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.SchemaElement;
@@ -34,12 +34,12 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 public class VarLengthColumnReaders {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VarLengthColumnReaders.class);
 
-  public static class Decimal28Column extends VarLengthValuesColumn<NullableDecimalVector> {
+  public static class Decimal28Column extends VarLengthValuesColumn<DecimalVector> {
 
-    protected NullableDecimalVector decimalVector;
+    protected DecimalVector decimalVector;
 
     Decimal28Column(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                    ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableDecimalVector v,
+                    ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, DecimalVector v,
                     SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
       this.decimalVector = v;
@@ -68,12 +68,12 @@ public class VarLengthColumnReaders {
     }
   }
 
-  public static class NullableDecimalColumn extends NullableVarLengthValuesColumn<NullableDecimalVector> {
+  public static class NullableDecimalColumn extends NullableVarLengthValuesColumn<DecimalVector> {
 
-    protected NullableDecimalVector decimalVector;
+    protected DecimalVector decimalVector;
 
     NullableDecimalColumn(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                          ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableDecimalVector v,
+                          ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, DecimalVector v,
                           SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
       decimalVector = v;
@@ -102,13 +102,13 @@ public class VarLengthColumnReaders {
     }
   }
 
-  public static class VarCharColumn extends VarLengthValuesColumn<NullableVarCharVector> {
+  public static class VarCharColumn extends VarLengthValuesColumn<VarCharVector> {
 
     // store a hard reference to the vector (which is also stored in the superclass) to prevent repetitive casting
-    protected final NullableVarCharVector varCharVector;
+    protected final VarCharVector varCharVector;
 
     VarCharColumn(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                  ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableVarCharVector v,
+                  ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, VarCharVector v,
                   SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
       varCharVector = v;
@@ -136,15 +136,15 @@ public class VarLengthColumnReaders {
     }
   }
 
-  public static class NullableVarCharColumn extends NullableVarLengthValuesColumn<NullableVarCharVector> {
+  public static class NullableVarCharColumn extends NullableVarLengthValuesColumn<VarCharVector> {
 
     int nullsRead;
     boolean currentValNull = false;
     // store a hard reference to the vector (which is also stored in the superclass) to prevent repetitive casting
-    private final NullableVarCharVector vector;
+    private final VarCharVector vector;
 
     NullableVarCharColumn(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                          ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableVarCharVector v,
+                          ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, VarCharVector v,
                           SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
       vector = v;
@@ -171,13 +171,13 @@ public class VarLengthColumnReaders {
     }
   }
 
-  public static class VarBinaryColumn extends VarLengthValuesColumn<NullableVarBinaryVector> {
+  public static class VarBinaryColumn extends VarLengthValuesColumn<VarBinaryVector> {
 
     // store a hard reference to the vector (which is also stored in the superclass) to prevent repetitive casting
-    private final NullableVarBinaryVector varBinaryVector;
+    private final VarBinaryVector varBinaryVector;
 
     VarBinaryColumn(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                    ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableVarBinaryVector v,
+                    ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, VarBinaryVector v,
                     SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
       varBinaryVector = v;
@@ -205,15 +205,15 @@ public class VarLengthColumnReaders {
     }
   }
 
-  public static class NullableVarBinaryColumn extends NullableVarLengthValuesColumn<NullableVarBinaryVector> {
+  public static class NullableVarBinaryColumn extends NullableVarLengthValuesColumn<VarBinaryVector> {
 
     int nullsRead;
     boolean currentValNull = false;
     // store a hard reference to the vector (which is also stored in the superclass) to prevent repetitive casting
-    private final NullableVarBinaryVector nullableVarBinaryVector;
+    private final VarBinaryVector nullableVarBinaryVector;
 
     NullableVarBinaryColumn(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                            ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableVarBinaryVector v,
+                            ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, VarBinaryVector v,
                             SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
       nullableVarBinaryVector = v;

@@ -179,9 +179,20 @@ public class ClassGenerator<T>{
     return method;
   }
 
-  public JInvocation invokeInnerMethod(JMethod method) {
+  public JMethod nestSetupMethod() {
+    JMethod method = clazz.method(JMod.PRIVATE, void.class, "inner_setup_method_" + innerMethodCount++);
+    String methodName = getCurrentMapping().getMethodName(BlockType.SETUP);
+    CodeGeneratorMethod cgm = sig.get(sig.get(methodName));
+    for (CodeGeneratorArgument arg : cgm) {
+      method.param(arg.getType(), arg.getName());
+    }
+    nestSetupBlock(method.body());
+    return method;
+  }
+
+  public JInvocation invokeInnerMethod(JMethod method, BlockType blockType) {
     JInvocation invocation = JExpr.invoke(method);
-    String methodName = getCurrentMapping().getMethodName(BlockType.EVAL);
+    String methodName = getCurrentMapping().getMethodName(blockType);
     CodeGeneratorMethod cgm = sig.get(sig.get(methodName));
     for (CodeGeneratorArgument arg : cgm) {
       invocation.arg(JExpr.ref(arg.getName()));
@@ -198,6 +209,16 @@ public class ClassGenerator<T>{
   public void unNestEvalBlock() {
     String methodName = getCurrentMapping().getMethodName(BlockType.EVAL);
     evaluationVisitor.leaveScope();
+    this.blocks[sig.get(methodName)].removeLast();
+  }
+
+  public void nestSetupBlock(JBlock block) {
+    String methodName = getCurrentMapping().getMethodName(BlockType.SETUP);
+    this.blocks[sig.get(methodName)].addLast(new SizedJBlock(block));
+  }
+
+  public void unNestSetupBlock() {
+    String methodName = getCurrentMapping().getMethodName(BlockType.SETUP);
     this.blocks[sig.get(methodName)].removeLast();
   }
 

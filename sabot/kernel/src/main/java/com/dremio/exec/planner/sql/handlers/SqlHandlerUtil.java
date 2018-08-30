@@ -1,3 +1,4 @@
+
 /*
  * Copyright (C) 2017-2018 Dremio Corporation
  *
@@ -48,8 +49,9 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableMap;
@@ -93,7 +95,7 @@ public class SqlHandlerUtil {
     // Get the row type of view definition query.
     // Reason for getting the row type from validated SqlNode than RelNode is because SqlNode -> RelNode involves
     // renaming duplicate fields which is not desired when creating a view or table.
-    // For ex: SELECT region_id, region_id FROM cp.`region.json` LIMIT 1 returns
+    // For ex: SELECT region_id, region_id FROM cp."region.json" LIMIT 1 returns
     //  +------------+------------+
     //  | region_id  | region_id0 |
     //  +------------+------------+
@@ -241,13 +243,13 @@ public class SqlHandlerUtil {
                                               final Rel inputRel) {
     final OptionManager options = context.getOptions();
     final boolean storeResults = options.getOption(STORE_QUERY_RESULTS.getOptionName()) != null ?
-        options.getOption(STORE_QUERY_RESULTS.getOptionName()).bool_val : false;
+        options.getOption(STORE_QUERY_RESULTS.getOptionName()).getBoolVal() : false;
 
     if (!storeResults) {
       return inputRel;
     }
 
-    final String storeTablePath = options.getOption(QUERY_RESULTS_STORE_TABLE.getOptionName()).string_val;
+    final String storeTablePath = options.getOption(QUERY_RESULTS_STORE_TABLE.getOptionName()).getStringVal();
     final List<String> storeTable =
         new StrTokenizer(storeTablePath, '.', config.quoting().string.charAt(0))
             .setIgnoreEmptyTokens(true)

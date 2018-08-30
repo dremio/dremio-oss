@@ -45,23 +45,23 @@ public class TestJsonReaderUnion extends BaseTestQuery {
 
   @BeforeClass
   public static void setup() throws Exception {
-    test("alter system set `exec.enable_union_type` = true");
+    test("alter system set \"exec.enable_union_type\" = true");
   }
 
   @AfterClass
   public static void shutdown() throws Exception {
-    test("alter system set `exec.enable_union_type` = false");
+    test("alter system set \"exec.enable_union_type\" = false");
   }
 
   @Test
   public void testDistribution() throws Exception {
     test("set planner.slice_target = 1");
-    test("select * from cp.`jsoninput/union/b.json` where a <> 1 order by a desc");
+    test("select * from cp.\"jsoninput/union/b.json\" where a <> 1 order by a desc");
   }
 
   @Test
   public void testSelectStarWithUnionType() throws Exception {
-    String query = "select * from cp.`jsoninput/union/a.json`";
+    String query = "select * from cp.\"jsoninput/union/a.json\"";
     testBuilder()
             .sqlQuery(query)
             .ordered()
@@ -110,9 +110,9 @@ public class TestJsonReaderUnion extends BaseTestQuery {
   @Ignore("DX-3988")
   @Test
   public void testSelectFromListWithCase() throws Exception {
-    String query = "select a, typeOf(a) `type` from " +
+    String query = "select a, typeOf(a) \"type\" from " +
             "(select case when is_list(field2) then field2[4][1].inner7 end a " +
-            "from cp.`jsoninput/union/a.json`) where a is not null";
+            "from cp.\"jsoninput/union/a.json\") where a is not null";
 
     testBuilder()
             .sqlQuery(query)
@@ -126,7 +126,7 @@ public class TestJsonReaderUnion extends BaseTestQuery {
   public void testTypeCase() throws Exception {
     String query = "select case when is_bigint(field1) " +
             "then field1 when is_list(field1) then field1[0] " +
-            "when is_map(field1) then t.field1.inner1 end f1 from cp.`jsoninput/union/a.json` t";
+            "when is_map(field1) then t.field1.inner1 end f1 from cp.\"jsoninput/union/a.json\" t";
 
     testBuilder()
             .sqlQuery(query)
@@ -144,12 +144,12 @@ public class TestJsonReaderUnion extends BaseTestQuery {
     String query = "select sum(cast(f1 as bigint)) sum_f1 from " +
             "(select case when is_bigint(field1) then assert_bigint(field1) " +
             "when is_list(field1) then field1[0] when is_map(field1) then t.field1.inner1 end f1 " +
-            "from cp.`jsoninput/union/a.json` t)";
+            "from cp.\"jsoninput/union/a.json\" t)";
 
     testBuilder()
             .sqlQuery(query)
             .ordered()
-            .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
+            .optionSettingQueriesForTestQuery("alter session set \"exec.enable_union_type\" = true")
             .baselineColumns("sum_f1")
             .baselineValues(9L)
             .go();
@@ -157,7 +157,7 @@ public class TestJsonReaderUnion extends BaseTestQuery {
 
   @Test
   public void testUnionExpressionMaterialization() throws Exception {
-    String query = "select a + b c from cp.`jsoninput/union/b.json`";
+    String query = "select a + b c from cp.\"jsoninput/union/b.json\"";
 
     testBuilder()
             .sqlQuery(query)
@@ -171,7 +171,7 @@ public class TestJsonReaderUnion extends BaseTestQuery {
 
   @Test
   public void testNestedUnionExpression() throws Exception {
-    String query = "select typeof(t.a.b) c from cp.`jsoninput/union/nestedUnion.json` t";
+    String query = "select typeof(t.a.b) c from cp.\"jsoninput/union/nestedUnion.json\" t";
 
     testBuilder()
             .sqlQuery(query)
@@ -179,7 +179,7 @@ public class TestJsonReaderUnion extends BaseTestQuery {
             .baselineColumns("c")
             .baselineValues("BIGINT")
             .baselineValues("VARCHAR")
-            .baselineValues("MAP")
+            .baselineValues("STRUCT")
             .go();
   }
 
@@ -195,7 +195,7 @@ public class TestJsonReaderUnion extends BaseTestQuery {
     }
     os.flush();
     os.close();
-    String query = "select sum(cast(case when `type` = 'map' then t.data.a else assert_bigint(data) end as bigint)) `sum` from dfs_test.multi_batch t";
+    String query = "select sum(cast(case when \"type\" = 'map' then t.data.a else assert_bigint(data) end as bigint)) \"sum\" from dfs_test.multi_batch t";
 
     testBuilder()
             .sqlQuery(query)
@@ -224,7 +224,7 @@ public class TestJsonReaderUnion extends BaseTestQuery {
     }
     os.flush();
     os.close();
-    String query = "select sum(cast(case when `type` = 'map' then t.data.a else data end as bigint)) `sum` from dfs_test.multi_file t";
+    String query = "select sum(cast(case when \"type\" = 'map' then t.data.a else data end as bigint)) \"sum\" from dfs_test.multi_file t";
 
     try {
       test(query);
@@ -244,7 +244,7 @@ public class TestJsonReaderUnion extends BaseTestQuery {
   public void testColumnOrderingWithUnionVector() throws Exception {
     List<QueryDataBatch> results = null;
     try {
-      results = testRunAndReturn(QueryType.SQL, "SELECT * FROM cp.`type_changes.json`");
+      results = testRunAndReturn(QueryType.SQL, "SELECT * FROM cp.\"type_changes.json\"");
       final RecordBatchDef def = results.get(0).getHeader().getDef();
       assertEquals(2, def.getFieldCount());
       assertEquals("a", def.getField(0).getNamePart().getName());

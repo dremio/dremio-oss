@@ -60,7 +60,7 @@ public class TestEarlyLimit0Optimization extends BaseTestQuery {
         "CAST((CASE WHEN marital_status = 'S' THEN true ELSE false END) AS BOOLEAN) AS single, " +
         "CAST(education_level AS VARCHAR(60)) AS education_level," +
         "CAST(gender AS CHAR) AS gender " +
-        "FROM cp.`employee.json` " +
+        "FROM cp.\"employee.json\" " +
         "ORDER BY employee_id " +
         "LIMIT 1;", viewName));
     // { "employee_id":1,"full_name":"Sheri Nowmer","first_name":"Sheri","last_name":"Nowmer","position_id":1,
@@ -75,7 +75,7 @@ public class TestEarlyLimit0Optimization extends BaseTestQuery {
             "cast(columns[3] as double) gpa, " +
             "cast(columns[4] as bigint) studentnum, " +
             "cast(columns[5] as timestamp) create_time " +
-            "from cp.`textinput/students.csv`",
+            "from cp.\"textinput/students.csv\"",
         stddevTypesViewName));
   }
 
@@ -87,12 +87,12 @@ public class TestEarlyLimit0Optimization extends BaseTestQuery {
 
   @Before
   public void setOption() throws Exception {
-    test("SET `%s` = true;", ExecConstants.EARLY_LIMIT0_OPT_KEY);
+    test("SET \"%s\" = true;", ExecConstants.EARLY_LIMIT0_OPT_KEY);
   }
 
   @After
   public void resetOption() throws Exception {
-    test("RESET `%s`;", ExecConstants.EARLY_LIMIT0_OPT_KEY);
+    test("RESET \"%s\";", ExecConstants.EARLY_LIMIT0_OPT_KEY);
   }
 
   // -------------------- SIMPLE QUERIES --------------------
@@ -448,18 +448,16 @@ public class TestEarlyLimit0Optimization extends BaseTestQuery {
   @Test
   public void extractSecond() throws Exception {
     final String query = "SELECT " +
-        "extract(SECOND FROM time '2:30:21.5') as `second`, " +
-        "extract(MINUTE FROM time '2:30:21.5') as `minute`, " +
-        "extract(HOUR FROM time '2:30:21.5') as `hour`, " +
-        "extract(EPOCH FROM time '2:30:21.5') as `epoch` " +
+        "extract(SECOND FROM time '2:30:21.5') as \"second\", " +
+        "extract(MINUTE FROM time '2:30:21.5') as \"minute\", " +
+        "extract(HOUR FROM time '2:30:21.5') as \"hour\" " +
         "FROM sys.version";
 
     @SuppressWarnings("unchecked")
     final List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList(
         Pair.of(SchemaPath.getSimplePath("second"), Types.optional(MinorType.BIGINT)),
         Pair.of(SchemaPath.getSimplePath("minute"), Types.optional(MinorType.BIGINT)),
-        Pair.of(SchemaPath.getSimplePath("hour"), Types.optional(MinorType.BIGINT)),
-        Pair.of(SchemaPath.getSimplePath("epoch"), Types.required(MinorType.BIGINT)));
+        Pair.of(SchemaPath.getSimplePath("hour"), Types.optional(MinorType.BIGINT)));
 
     testBuilder()
         .sqlQuery(wrapLimit0(query))
@@ -469,12 +467,11 @@ public class TestEarlyLimit0Optimization extends BaseTestQuery {
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
-        .baselineColumns("second", "minute", "hour", "epoch")
+        .baselineColumns("second", "minute", "hour")
         .baselineValues(
             21L, // seconds
             30L, // minute
-            2L, // hour
-            9021L) // epoch
+            2L) // hour
         .go();
 
 
@@ -535,7 +532,7 @@ public class TestEarlyLimit0Optimization extends BaseTestQuery {
 
   @Test
   public void castSum() throws Exception {
-    final String query = "SELECT CAST(SUM(position_id) AS INT) AS s FROM cp.`employee.json`";
+    final String query = "SELECT CAST(SUM(position_id) AS INT) AS s FROM cp.\"employee.json\"";
 
     @SuppressWarnings("unchecked")
     final List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList(
@@ -558,7 +555,7 @@ public class TestEarlyLimit0Optimization extends BaseTestQuery {
 
   @Test
   public void sumCast() throws Exception {
-    final String query = "SELECT SUM(CAST(position_id AS INT)) AS s FROM cp.`employee.json`";
+    final String query = "SELECT SUM(CAST(position_id AS INT)) AS s FROM cp.\"employee.json\"";
 
     @SuppressWarnings("unchecked")
     final List<Pair<SchemaPath, MajorType>> expectedSchema = Lists.newArrayList(
@@ -619,7 +616,7 @@ public class TestEarlyLimit0Optimization extends BaseTestQuery {
         "COUNT(1) as c1, " +
         "COUNT(*) as cs, " +
         "COUNT(CAST(n_regionkey AS INT)) as cc " +
-        "FROM cp.`tpch/nation.parquet` " +
+        "FROM cp.\"tpch/nation.parquet\" " +
         "GROUP BY CAST(n_regionkey AS INT)";
 
     @SuppressWarnings("unchecked")
@@ -838,31 +835,31 @@ public class TestEarlyLimit0Optimization extends BaseTestQuery {
    */
   @Test
   public void testTextReduceFilterExpressionCsv() throws Exception {
-    String query = "select * from cp.`/store/text/classpath_storage_csv_test.csv` where 1=0";
+    String query = "select * from cp.\"/store/text/classpath_storage_csv_test.csv\" where 1=0";
     PlanTestBase.testPlanMatchingPatterns(query, new String[] {"Empty\\("});
   }
 
   @Test
   public void testTextReduceFilterExpressionJson() throws Exception {
-    String query = "select * from cp.`customer.json` where 1=0";
+    String query = "select * from cp.\"customer.json\" where 1=0";
     PlanTestBase.testPlanMatchingPatterns(query, new String[] {"Empty\\("});
 
-    query = "select lname, address2, fullname from cp.`customer.json` where 1=0";
+    query = "select lname, address2, fullname from cp.\"customer.json\" where 1=0";
     PlanTestBase.testPlanMatchingPatterns(query, new String[] {"Empty\\("});
   }
 
   @Test
   public void testTextReduceFilterExpressionComplexParquet() throws Exception {
-    String query = "select * from cp.`parquet/complex.parquet` where 1=0";
+    String query = "select * from cp.\"parquet/complex.parquet\" where 1=0";
     PlanTestBase.testPlanMatchingPatterns(query, new String[] {"Empty\\("});
 
-    query = "select recipe from cp.`parquet/complex.parquet` c where 1=0";
+    query = "select recipe from cp.\"parquet/complex.parquet\" c where 1=0";
     PlanTestBase.testPlanMatchingPatterns(query, new String[] {"Empty\\("});
   }
 
   @Test
   public void testTextReduceFilterExpressionParquet() throws Exception {
-    String query = "select * from cp.`tpch/nation.parquet` where 1=0";
+    String query = "select * from cp.\"tpch/nation.parquet\" where 1=0";
     PlanTestBase.testPlanMatchingPatterns(query, new String[] {"Empty\\("});
   }
 

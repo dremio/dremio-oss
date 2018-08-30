@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.cost;
 
+import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Join;
@@ -27,6 +28,7 @@ import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.exec.planner.common.ScanRelBase;
+import com.dremio.reflection.rules.ReplacementPointer;
 
 public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMdDistinctRowCount {
   private static final RelMdDistinctRowCount INSTANCE =
@@ -50,6 +52,14 @@ public class RelMdDistinctRowCount extends org.apache.calcite.rel.metadata.RelMd
 
     final ImmutableBitSet allGroupSet = rel.getGroupSet().union(groupKey);
     return getDistinctRowCountFromEstimateRowCount(rel.getInput(), mq, allGroupSet, predicate);
+  }
+
+  public Double getDistinctRowCount(HepRelVertex vertex, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {
+    return mq.getDistinctRowCount(vertex.getCurrentRel(), groupKey, predicate);
+  }
+
+  public Double getDistinctRowCount(ReplacementPointer pointer, RelMetadataQuery mq, ImmutableBitSet groupKey, RexNode predicate) {
+    return mq.getDistinctRowCount(pointer.getSubTree(), groupKey, predicate);
   }
 
   public Double getDistinctRowCount(Join rel, RelMetadataQuery mq,

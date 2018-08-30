@@ -47,8 +47,40 @@ console.info({
 });
 
 const extractStyles = new ExtractTextPlugin({
-  filename: isProductionBuild ? 'style.[contentHash].css' : 'style.css'
+  filename: isProductionBuild ? 'style.[contentHash].css' : 'style.css',
+  ignoreOrder: isProductionBuild // see https://github.com/redbadger/website-honestly/issues/128
 });
+
+const getLessLoader = isModules => {
+  const rule = {
+    test: /\.less$/
+  };
+  const otherLoaders = [
+    { loader: 'postcss-loader', options: { config: { path: __dirname} } },
+    { loader: 'less-loader' }
+  ];
+  const cssLoader = {
+    loader: 'css-loader',
+    options: {
+      importLoaders: otherLoaders.length
+    }
+  };
+
+  if (isModules) {
+    cssLoader.options = {
+      ...cssLoader.options,
+      modules: true,
+      camelCase: true,
+      localIdentName: '[name]__[local]___[hash:base64:5]'
+    };
+  }
+
+  rule.use = extractStyles.extract({
+    use: [cssLoader, ...otherLoaders]
+  });
+
+  return rule;
+};
 
 class BuildInfo {
   apply(compiler) {
@@ -81,6 +113,8 @@ class BuildInfo {
           outsideCommunicationDisabled: ${isProductionBuild ? '${dremio.settings.outsideCommunicationDisabled?c}' : false},
           subhourAccelerationPoliciesEnabled: ${isProductionBuild ? '${dremio.settings.subhourAccelerationPoliciesEnabled?c}' : false},
           lowerProvisioningSettingsEnabled: ${isProductionBuild ? '${dremio.settings.lowerProvisioningSettingsEnabled?c}' : false},
+          allowFileUploads: ${isProductionBuild ? '${dremio.settings.allowFileUploads?c}' : true},
+          allowSpaceManagement: ${isProductionBuild ? '${dremio.settings.allowSpaceManagement?c}' : false},
           tdsMimeType: ${JSON.stringify('${dremio.settings.tdsMimeType}')},
           whiteLabelUrl: ${JSON.stringify(isProductionBuild ? '${dremio.settings.whiteLabelUrl}' : 'dremio')},
           clusterId: ${JSON.stringify('${dremio.clusterId}')},
@@ -139,14 +173,9 @@ const loaders = [
     })
   },
   {
-    test: /\.less$/,
-    use: extractStyles.extract({
-      use: [
-        { loader: 'css-loader', options: { importLoaders: 1 } },
-        { loader: 'postcss-loader', options: { config: { path: __dirname} } },
-        { loader: 'less-loader' }
-      ]
-    })
+    // oneOf is an interim solution to migrate to css modules
+    oneOf: [
+      getLessLoader(true)]
   },
   {
     test: /\.gif$/,

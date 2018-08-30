@@ -75,7 +75,7 @@ public class ParquetGroupScanUtils {
   private String selectionRoot;
   private List<SchemaPath> columns;
   private List<RowGroupInfo> rowGroupInfos;
-  private List<FilterCondition> conditions;
+  private List<ParquetFilterCondition> conditions;
   private final List<FileStatus> entries;
   private final FileSystemWrapper fs;
   private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns;
@@ -105,7 +105,7 @@ public class ParquetGroupScanUtils {
       List<SchemaPath> columns,
       BatchSchema schema,
       Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns,
-      List<FilterCondition> conditions)
+      List<ParquetFilterCondition> conditions)
       throws IOException {
     this.schema = schema;
     this.formatPlugin = formatPlugin;
@@ -530,7 +530,7 @@ public class ParquetGroupScanUtils {
     if (!hasConditions()) {
       return 1;
     }
-    FilterCondition condition = Iterables.getFirst(conditions, null);
+    ParquetFilterCondition condition = Iterables.getFirst(conditions, null);
     int sortIndex = condition.getSort();
     if (sortIndex < 0) {
       return 1;
@@ -540,7 +540,7 @@ public class ParquetGroupScanUtils {
     return Math.max(1, 16 / (sortIndex + 1));
   }
 
-  public List<FilterCondition> getConditions() {
+  public List<ParquetFilterCondition> getConditions() {
     return conditions;
   }
 

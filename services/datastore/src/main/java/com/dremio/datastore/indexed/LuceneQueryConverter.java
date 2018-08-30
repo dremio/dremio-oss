@@ -15,13 +15,15 @@
  */
 package com.dremio.datastore.indexed;
 
+import org.apache.lucene.document.DoublePoint;
+import org.apache.lucene.document.FloatPoint;
+import org.apache.lucene.document.IntPoint;
+import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
-import org.apache.lucene.search.FieldValueFilter;
 import org.apache.lucene.search.FieldValueQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
-import org.apache.lucene.search.NumericRangeQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
@@ -132,39 +134,55 @@ public class LuceneQueryConverter {
   }
 
   private Query toRangeQuery(RangeDouble range) {
-    return NumericRangeQuery.newDoubleRange(
+    return DoublePoint.newRangeQuery(
         range.getField(),
-        range.hasMin() ? range.getMin() : null,
-        range.hasMax() ? range.getMax() : null,
-        range.getMinInclusive(),
-        range.getMaxInclusive());
+        range.hasMin() ?
+          range.getMinInclusive() ? range.getMin()
+          : Math.nextUp(range.getMin())
+        : Double.NEGATIVE_INFINITY,
+        range.hasMax() ?
+          range.getMaxInclusive() ? range.getMax()
+          : Math.nextAfter(range.getMax(), -Double.MAX_VALUE)
+        : Double.POSITIVE_INFINITY );
   }
 
   private Query toRangeQuery(RangeFloat range) {
-    return NumericRangeQuery.newFloatRange(
+    return FloatPoint.newRangeQuery(
         range.getField(),
-        range.hasMin() ? range.getMin() : null,
-        range.hasMax() ? range.getMax() : null,
-        range.getMinInclusive(),
-        range.getMaxInclusive());
+        range.hasMin() ?
+          range.getMinInclusive() ? range.getMin()
+          : Math.nextUp(range.getMin())
+        : Float.NEGATIVE_INFINITY,
+        range.hasMax() ?
+          range.getMaxInclusive() ? range.getMax()
+          : Math.nextAfter(range.getMax(), -Double.MAX_VALUE)
+        : Float.POSITIVE_INFINITY );
   }
 
   private Query toRangeQuery(RangeInt range) {
-    return NumericRangeQuery.newIntRange(
+    return IntPoint.newRangeQuery(
         range.getField(),
-        range.hasMin() ? range.getMin() : null,
-        range.hasMax() ? range.getMax() : null,
-        range.getMinInclusive(),
-        range.getMaxInclusive());
+        range.hasMin() ?
+          range.getMinInclusive() ? range.getMin()
+          : (range.getMin() + 1)
+        : -Integer.MAX_VALUE,
+        range.hasMax() ?
+          range.getMaxInclusive() ? range.getMax()
+          : (range.getMax() - 1)
+        : Integer.MAX_VALUE );
   }
 
   private Query toRangeQuery(RangeLong range) {
-    return NumericRangeQuery.newLongRange(
+    return LongPoint.newRangeQuery(
         range.getField(),
-        range.hasMin() ? range.getMin() : null,
-        range.hasMax() ? range.getMax() : null,
-        range.getMinInclusive(),
-        range.getMaxInclusive());
+        range.hasMin() ?
+          range.getMinInclusive() ? range.getMin()
+          : (range.getMin() + 1L)
+        : -Long.MAX_VALUE,
+        range.hasMax() ?
+          range.getMaxInclusive() ? range.getMax()
+          : (range.getMax() - 1L)
+        : Long.MAX_VALUE );
   }
 
   private Query toRangeQuery(RangeTerm range) {
@@ -185,39 +203,31 @@ public class LuceneQueryConverter {
   }
 
   private Query toTermIntQuery(SearchQuery.TermInt term) {
-    return NumericRangeQuery.newIntRange(
+    return IntPoint.newRangeQuery(
       term.getField(),
       term.getValue(),
-      term.getValue(),
-      true,
-      true);
+      term.getValue());
   }
 
   private Query toTermLongQuery(SearchQuery.TermLong term) {
-    return NumericRangeQuery.newLongRange(
+    return LongPoint.newRangeQuery(
       term.getField(),
       term.getValue(),
-      term.getValue(),
-      true,
-      true);
+      term.getValue());
   }
 
   private Query toTermFloatQuery(SearchQuery.TermFloat term) {
-    return NumericRangeQuery.newFloatRange(
+    return FloatPoint.newRangeQuery(
       term.getField(),
       term.getValue(),
-      term.getValue(),
-      true,
-      true);
+      term.getValue());
   }
 
   private Query toTermDoubleQuery(SearchQuery.TermDouble term) {
-    return NumericRangeQuery.newDoubleRange(
+    return DoublePoint.newRangeQuery(
       term.getField(),
       term.getValue(),
-      term.getValue(),
-      true,
-      true);
+      term.getValue());
   }
 
   private Query toExistsquery(SearchQuery.Exists exists) {
@@ -225,6 +235,9 @@ public class LuceneQueryConverter {
   }
 
   private Query toDoesNotExistQuery(SearchQuery.Exists exists) {
-    return new FieldValueFilter(exists.getField(), true);
+    BooleanQuery.Builder builder = new BooleanQuery.Builder();
+    builder.add(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD);
+    builder.add(new FieldValueQuery(exists.getField()), BooleanClause.Occur.MUST_NOT);
+    return builder.build();
   }
 }

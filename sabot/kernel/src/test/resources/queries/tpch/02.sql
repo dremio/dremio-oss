@@ -9,11 +9,11 @@ select
   s.s_phone,
   s.s_comment
 from
-  cp.`tpch/part.parquet` p,
-  cp.`tpch/supplier.parquet` s,
-  cp.`tpch/partsupp.parquet` ps,
-  cp.`tpch/nation.parquet` n,
-  cp.`tpch/region.parquet` r
+  cp."tpch/part.parquet" p,
+  cp."tpch/supplier.parquet" s,
+  cp."tpch/partsupp.parquet" ps,
+  cp."tpch/nation.parquet" n,
+  cp."tpch/region.parquet" r
 where
   p.p_partkey = ps.ps_partkey
   and s.s_suppkey = ps.ps_suppkey
@@ -28,10 +28,10 @@ where
       min(ps.ps_supplycost)
 
     from
-      cp.`tpch/partsupp.parquet` ps,
-      cp.`tpch/supplier.parquet` s,
-      cp.`tpch/nation.parquet` n,
-      cp.`tpch/region.parquet` r
+      cp."tpch/partsupp.parquet" ps,
+      cp."tpch/supplier.parquet" s,
+      cp."tpch/nation.parquet" n,
+      cp."tpch/region.parquet" r
     where
       p.p_partkey = ps.ps_partkey
       and s.s_suppkey = ps.ps_suppkey

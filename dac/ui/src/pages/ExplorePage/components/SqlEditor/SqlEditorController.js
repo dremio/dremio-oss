@@ -24,7 +24,7 @@ import PropTypes from 'prop-types';
 
 import SimpleButton from 'components/Buttons/SimpleButton';
 
-import { reapplyDataset } from 'actions/explore/dataset/reapply';
+import { editOriginalSql } from 'actions/explore/dataset/reapply';
 import { setCurrentSql, setQueryContext } from 'actions/explore/view';
 
 import { PALE_BLUE, EXPLORE_SQL_BUTTON_COLOR } from 'uiTheme/radium/colors.js';
@@ -32,6 +32,9 @@ import {  MARGIN_PANEL } from 'uiTheme/radium/sizes.js';
 import { bodySmall } from 'uiTheme/radium/typography';
 import { constructFullPath } from 'utils/pathUtils';
 import { sqlEditorButton } from 'uiTheme/radium/buttons';
+import { replace } from 'react-router-redux';
+import { withDatasetChanges } from '@app/pages/ExplorePage/DatasetChanges';
+import { showUnsavedChangesConfirmDialog } from '@app/actions/confirmation';
 
 import DatasetsPanel from './DatasetsPanel';
 import SqlToggle from './SqlToggle';
@@ -43,21 +46,27 @@ import FunctionsHelpPanel from './FunctionsHelpPanel';
 export class SqlEditorController extends Component {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
+    datasetSummary: PropTypes.object,
     exploreViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     sqlSize: PropTypes.number,
     sqlState: PropTypes.bool,
     type: PropTypes.string,
     dragType: PropTypes.string,
 
-    //connected
+    //connected by redux connect
     currentSql: PropTypes.string,
     queryContext: PropTypes.instanceOf(Immutable.List),
+    focusKey: PropTypes.number,
+    //---------------------------
+    // provided by withDatasetChanges
+    getDatasetChangeDetails: PropTypes.func.isRequired,
 
     // actions
     setCurrentSql: PropTypes.func,
     setQueryContext: PropTypes.func,
-    reapplyDataset: PropTypes.func,
-    focusKey: PropTypes.number
+    editOriginalSql: PropTypes.func,
+    replaceUrlAction: PropTypes.func,
+    showUnsavedChangesConfirmDialog: PropTypes.func
   };
 
   constructor(props) {
@@ -100,6 +109,11 @@ export class SqlEditorController extends Component {
     }
     if ((dataset && constructFullPath(dataset.get('context'))) !== constructFullPath(nextDataset.get('context'))) {
       nextProps.setQueryContext({ context: nextDataset.get('context') });
+      //if context was changed, put cursor back to an editor.
+      // This case has place also in case of new query
+      if (this.refs.editor) {
+        this.refs.editor.focus();
+      }
     }
   }
 
@@ -133,12 +147,45 @@ export class SqlEditorController extends Component {
   handleContextChange = (context) => this.props.setQueryContext({ context });
 
   handleEditOriginal = () => {
-    this.props.reapplyDataset(this.props.dataset, null, null, true);
+    const {
+      dataset,
+      editOriginalSql: editSql,
+      datasetSummary,
+      replaceUrlAction,
+      getDatasetChangeDetails,
+      showUnsavedChangesConfirmDialog: showConfirm
+    } = this.props;
+
+    const reapply = () => {
+      editSql(dataset.get('id'), dataset.getIn(['apiLinks', 'self']), null, null, true);
+    };
+
+    if (this.isDatasetReadyForReapply()) {
+      const {
+        sqlChanged,
+        historyChanged
+      } = getDatasetChangeDetails();
+
+      if (sqlChanged || historyChanged) {
+        showConfirm({
+          confirm: reapply
+        });
+      } else {
+        reapply();
+      }
+    } else {
+      replaceUrlAction(datasetSummary.links.edit);
+    }
   };
 
+  isDatasetReadyForReapply = () => {
+    const {dataset, sqlState } = this.props;
+    return sqlState && dataset.get('canReapply');
+  }
+
   renderEditOriginalButton() {
-    const {dataset, sqlState} = this.props;
-    if (sqlState && dataset.get('canReapply')) {
+    const { datasetSummary } = this.props;
+    if (this.isDatasetReadyForReapply() || datasetSummary) {
       return (
         <SimpleButton
           type='button'
@@ -150,6 +197,14 @@ export class SqlEditorController extends Component {
         </SimpleButton>
       );
     }
+  }
+
+  onAutoCompleteEnabledChanged = () => {
+    this.setState(state => {
+      return {
+        autoCompleteEnabled: !state.autoCompleteEnabled
+      };
+    });
   }
 
   renderSqlBlocks() {
@@ -211,6 +266,7 @@ export class SqlEditorController extends Component {
         funcHelpPanel={this.state.funcHelpPanel}
         dragType={this.props.dragType}
         errors={errors}
+        autoCompleteEnabled={false}
       />
     );
     const toggleButton = this.props.sqlState
@@ -244,15 +300,18 @@ function mapStateToProps(state) {
   return {
     currentSql: state.explore.view.get('currentSql'),
     queryContext: state.explore.view.get('queryContext'),
-    focusKey: state.explore.view.get('sqlEditorFocusKey')
+    focusKey: state.explore.view.get('sqlEditorFocusKey'),
+    datasetSummary: state.resources.entities.get('datasetSummary')
   };
 }
 
 export default connect(mapStateToProps, {
   setCurrentSql,
   setQueryContext,
-  reapplyDataset
-})(SqlEditorController);
+  editOriginalSql,
+  replaceUrlAction: replace,
+  showUnsavedChangesConfirmDialog
+})(withDatasetChanges(SqlEditorController));
 
 const styles = {
   base: {

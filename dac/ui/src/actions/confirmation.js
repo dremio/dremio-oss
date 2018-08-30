@@ -34,8 +34,9 @@ export function hideConfirmationDialog() {
 export function showUnsavedChangesConfirmDialog({text, confirm}) {
   return (dispatch) => dispatch(showConfirmationDialog({
     title: la('Unsaved Changes'),
-    confirmText: la('Don\'t Save'),
-    text: text || la('Are you sure you want to leave without saving changes?'),
+    confirmText: la('Leave'),
+    cancelText: la('Stay'),
+    text: text || la('You have unsaved changes. Are you sure you want to leave?'),
     confirm
   }));
 }

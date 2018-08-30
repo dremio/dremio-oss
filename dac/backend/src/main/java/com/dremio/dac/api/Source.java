@@ -17,6 +17,8 @@ package com.dremio.dac.api;
 
 import java.util.List;
 
+import javax.validation.Valid;
+
 import com.dremio.dac.server.InputValidation;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.conf.ConnectionConf;
@@ -32,6 +34,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
  */
 public class Source implements CatalogEntity {
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type")
+  @Valid
   private ConnectionConf<?, ?> config;
   private SourceState state;
   private String id;
@@ -44,6 +47,8 @@ public class Source implements CatalogEntity {
   private MetadataPolicy metadataPolicy;
   private long accelerationGracePeriodMs;
   private long accelerationRefreshPeriodMs;
+  private Boolean accelerationNeverExpire;
+  private Boolean accelerationNeverRefresh;
   private List<CatalogItem> children;
 
   private static final InputValidation validator = new InputValidation();
@@ -73,6 +78,8 @@ public class Source implements CatalogEntity {
 
     this.accelerationGracePeriodMs = settings.getGracePeriod();
     this.accelerationRefreshPeriodMs = settings.getRefreshPeriod();
+    this.accelerationNeverExpire = settings.getNeverExpire();
+    this.accelerationNeverRefresh = settings.getNeverRefresh();
 
     // TODO: use our own config classes
     this.config = reader.getConnectionConf(config);
@@ -156,6 +163,25 @@ public class Source implements CatalogEntity {
     this.accelerationRefreshPeriodMs = accelerationRefreshPeriodMs;
   }
 
+  public Boolean isAccelerationNeverExpire() {
+    // Ensure that we always return true/false in case the setting is not passed in via the API (and thus null).
+    // SourceConfig defaults to false and we want to match that behavior and not return null when the user doesn't pass
+    // in the value.
+    return Boolean.TRUE.equals(accelerationNeverExpire);
+  }
+
+  public void setAccelerationNeverExpire(Boolean accelerationNeverExpire) {
+    this.accelerationNeverExpire = accelerationNeverExpire;
+  }
+
+  public Boolean isAccelerationNeverRefresh() {
+    return Boolean.TRUE.equals(accelerationNeverRefresh);
+  }
+
+  public void setAccelerationNeverRefresh(Boolean accelerationNeverRefresh) {
+    this.accelerationNeverRefresh = accelerationNeverRefresh;
+  }
+
   public SourceState getState() {
     // TODO: use our own SourceState
     return this.state;
@@ -182,6 +208,8 @@ public class Source implements CatalogEntity {
     sourceConfig.setMetadataPolicy(getMetadataPolicy().toMetadataPolicy());
     sourceConfig.setAccelerationGracePeriod(getAccelerationGracePeriodMs());
     sourceConfig.setAccelerationRefreshPeriod(getAccelerationRefreshPeriodMs());
+    sourceConfig.setAccelerationNeverExpire(isAccelerationNeverExpire());
+    sourceConfig.setAccelerationNeverRefresh(isAccelerationNeverRefresh());
     return sourceConfig;
   }
 

@@ -54,17 +54,17 @@ public class TestFunctionsQuery extends BaseTestQuery {
   // enable decimal data type
   @BeforeClass
   public static void enableDecimalDataType() throws Exception {
-    test(String.format("alter session set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
   @AfterClass
   public static void disableDecimalDataType() throws Exception {
-    test(String.format("alter session set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    test(String.format("alter session set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
   @Test
   public void testContains() throws Exception {
-    String query = "select * from cp.`employee.json` where contains(first_name:ABCDE)";
+    String query = "select * from cp.\"employee.json\" where contains(first_name:ABCDE)";
     errorMsgWithTypeTestHelper(query, ErrorType.UNSUPPORTED_OPERATION, "Contains operator is not supported for the table");
   }
 
@@ -88,7 +88,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         String.format("abs(cast('%s' as decimal(28, 5))) DEC28_ABS_2, ", values[5]) +
         String.format("abs(cast('%s' as decimal(38, 1))) DEC38_ABS_1, ", values[6]) +
         String.format("abs(cast('%s' as decimal(38, 1))) DEC38_ABS_2 ", values[7]) +
-        "FROM cp.`tpch/region.parquet` limit 1";
+        "FROM cp.\"tpch/region.parquet\" limit 1";
 
     Object[] expected = new Object[values.length];
     for (int i = 0; i < values.length; i++) {
@@ -131,7 +131,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "ceil(cast('1234567891234567891234567891234567891.0' as decimal(38, 1))) DEC38_3, " +
         "ceil(cast('-1234567891234567891234567891234567891.4' as decimal(38, 1))) DEC38_4, " +
         "ceil(cast('-1234567891234567891234567891234567891.0' as decimal(38, 1))) DEC38_5 " +
-        "FROM cp.`tpch/region.parquet` limit 1";
+        "FROM cp.\"tpch/region.parquet\" limit 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -169,7 +169,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "floor(cast('1234567891234567891234567891234567891.0' as decimal(38, 1))) DEC38_3, " +
         "floor(cast('-1234567891234567891234567891234567891.4' as decimal(38, 1))) DEC38_4, " +
         "floor(cast('-999999999999999999999999999999999999.4' as decimal(38, 1))) DEC38_5 " +
-        "FROM cp.`tpch/region.parquet` limit 1";
+        "FROM cp.\"tpch/region.parquet\" limit 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -207,7 +207,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "trunc(cast('1234567891234567891234567891234567891.0' as decimal(38, 1))) DEC38_3, " +
         "trunc(cast('-1234567891234567891234567891234567891.4' as decimal(38, 1))) DEC38_4, " +
         "trunc(cast('-999999999999999999999999999999999999.4' as decimal(38, 1))) DEC38_5 " +
-        "FROM cp.`tpch/region.parquet` limit 1";
+        "FROM cp.\"tpch/region.parquet\" limit 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -246,7 +246,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "trunc(cast('999999999.1234' as decimal(38, 4)), 12) DEC38_3, " +
         "trunc(cast('-123456789123456789.4' as decimal(38, 1)), 10) DEC38_4, " +
         "trunc(cast('-999999999999999999999999999999999999.4' as decimal(38, 1)), 1) DEC38_5 " +
-        "FROM cp.`tpch/region.parquet` limit 1";
+        "FROM cp.\"tpch/region.parquet\" limit 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -285,7 +285,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "round(cast('1234567891234567891234567891234567891.2' as decimal(38, 1))) DEC38_4, " +
         "round(cast('-1234567891234567891234567891234567891.4' as decimal(38, 1))) DEC38_5, " +
         "round(cast('-999999999999999999999999999999999999.9' as decimal(38, 1))) DEC38_6 " +
-        "FROM cp.`tpch/region.parquet` limit 1";
+        "FROM cp.\"tpch/region.parquet\" limit 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -326,7 +326,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "round(cast('999999999.9999999995678' as decimal(38, 18)), 21) DEC38_5, " +
         "round(cast('-1234567891234567891234567891234567891.4' as decimal(38, 1)), 1) DEC38_6, " +
         "round(cast('-999999999999999999999999999999999999.9' as decimal(38, 1)), 0) DEC38_7 " +
-        "FROM cp.`tpch/region.parquet` limit 1";
+        "FROM cp.\"tpch/region.parquet\" limit 1";
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -348,7 +348,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
     String query = "select  (cast('9' as decimal(9, 1)) / cast('2' as decimal(4, 1))) as DEC9_DIV, " +
         "cast('999999999' as decimal(9,0)) / cast('0.000000000000000000000000001' as decimal(28,28)) as DEC38_DIV, " +
         "cast('123456789.123456789' as decimal(18, 9)) * cast('123456789.123456789' as decimal(18, 9)) as DEC18_MUL " +
-        "from cp.`employee.json` where employee_id = 1";
+        "from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -370,7 +370,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   public void testLiteralCastToFLOATYieldsFLOAT() throws Exception {
     testBuilder()
     .sqlQuery( "SELECT CAST( 1.5 AS FLOAT ) AS ShouldBeFLOAT "
-               + "FROM cp.`employee.json` LIMIT 1" )
+               + "FROM cp.\"employee.json\" LIMIT 1" )
     .unOrdered()
     .baselineColumns("ShouldBeFLOAT")
     .baselineValues(new Float(1.5f))
@@ -381,7 +381,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   public void testLiteralCastToDOUBLEYieldsDOUBLE() throws Exception {
     testBuilder()
     .sqlQuery( "SELECT CAST( 1.25 AS DOUBLE PRECISION ) AS ShouldBeDOUBLE "
-               + "FROM cp.`employee.json` LIMIT 1" )
+               + "FROM cp.\"employee.json\" LIMIT 1" )
     .unOrdered()
     .baselineColumns("ShouldBeDOUBLE")
     .baselineValues(new Double(1.25))
@@ -392,7 +392,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   public void testLiteralCastToBIGINTYieldsBIGINT() throws Exception {
     testBuilder()
     .sqlQuery( "SELECT CAST( 64 AS BIGINT ) AS ShouldBeBIGINT "
-               + "FROM cp.`employee.json` LIMIT 1" )
+               + "FROM cp.\"employee.json\" LIMIT 1" )
     .unOrdered()
     .baselineColumns("ShouldBeBIGINT")
     .baselineValues(new Long(64))
@@ -403,7 +403,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   public void testLiteralCastToINTEGERYieldsINTEGER() throws Exception {
     testBuilder()
     .sqlQuery( "SELECT CAST( 32 AS INTEGER ) AS ShouldBeINTEGER "
-               + "FROM cp.`employee.json` LIMIT 1" )
+               + "FROM cp.\"employee.json\" LIMIT 1" )
     .unOrdered()
     .baselineColumns("ShouldBeINTEGER")
     .baselineValues(new Integer(32))
@@ -415,7 +415,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   public void testLiteralCastToSMALLINTYieldsSMALLINT() throws Exception {
     testBuilder()
     .sqlQuery( "SELECT CAST( 16 AS SMALLINT ) AS ShouldBeSMALLINT "
-               + "FROM cp.`employee.json` LIMIT 1" )
+               + "FROM cp.\"employee.json\" LIMIT 1" )
     .unOrdered()
     .baselineColumns("ShouldBeSMALLINT")
     .baselineValues(new Short((short) 16))
@@ -427,7 +427,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   public void testLiteralCastToTINYINTYieldsTINYINT() throws Exception {
     testBuilder()
     .sqlQuery( "SELECT CAST( 8 AS TINYINT ) AS ShouldBeTINYINT "
-               + "FROM cp.`employee.json` LIMIT 1" )
+               + "FROM cp.\"employee.json\" LIMIT 1" )
     .unOrdered()
     .baselineColumns("ShouldBeTINYINT")
     .baselineValues(new Byte((byte) 8))
@@ -441,7 +441,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
     String query = "select cast('1' as decimal(9, 5)) * cast ('999999999999999999999999999.999999999' as decimal(38, 9)) as DEC38_1, " +
         "cast('1000000000000000001.000000000000000000' as decimal(38, 18)) * cast('0.999999999999999999' as decimal(38, 18)) as DEC38_2, " +
         "cast('3' as decimal(9, 8)) * cast ('333333333.3333333333333333333' as decimal(38, 19)) as DEC38_3 " +
-        "from cp.`employee.json` where employee_id = 1";
+        "from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -459,7 +459,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "cast('999999999999999999.1234567895' as decimal(38, 9)) as DEC38_3, " +
         "cast('99999.12345' as decimal(18, 4)) as DEC18_1, " +
         "cast('99999.99995' as decimal(18, 4)) as DEC18_2 " +
-        "from cp.`employee.json` where employee_id = 1";
+        "from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -480,7 +480,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "cast((cast('-999999999999999.6789' as decimal(38, 4))) as decimal(18, 2)) as DEC38_DEC18_1, " +
         "cast((cast('-999999999999999.6789' as decimal(38, 4))) as decimal(18, 0)) as DEC38_DEC18_2, " +
         "cast((cast('100000000999999999.6789' as decimal(38, 4))) as decimal(28, 0)) as DEC38_DEC28_1 " +
-        "from cp.`employee.json` where employee_id = 1";
+        "from cp.\"employee.json\" where employee_id = 1";
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -503,7 +503,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "truncate(-1234, -4) as T_8, " +
         "truncate(8124674407369523212, 0) as T_9, " +
         "truncate(81246744073695.395, 1) as T_10 " +
-        "FROM cp.`tpch/region.parquet` limit 1";
+        "FROM cp.\"tpch/region.parquet\" limit 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -526,7 +526,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "round(-1234, -4) as T_8, " +
         "round(8124674407369523212, -4) as T_9, " +
         "round(81246744073695.395, 1) as T_10 " +
-        "FROM cp.`tpch/region.parquet` limit 1";
+        "FROM cp.\"tpch/region.parquet\" limit 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -546,7 +546,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "round(cast('23.55' as float)) round_float_2, " +
         "round(8124674407369.2345) round_double_1, " +
         "round(8124674407369.589) round_double_2 " +
-        " from cp.`tpch/region.parquet` limit 1";
+        " from cp.\"tpch/region.parquet\" limit 1";
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -565,7 +565,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "to_char(cast('99999912399.9567' as decimal(18, 5)), '#.#####') DEC18_1, " +
         "to_char(cast('12345678912345678912.5567' as decimal(28, 5)), '#,###.#####') DEC28_1, " +
         "to_char(cast('999999999999999999999999999.5' as decimal(38, 1)), '#.#') DEC38_1 " +
-        "FROM cp.`tpch/region.parquet` limit 1";
+        "FROM cp.\"tpch/region.parquet\" limit 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -579,7 +579,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   public void testConcatFunction() throws Exception {
     String query = "SELECT " +
         "concat('1234', ' COL_VALUE ', R_REGIONKEY, ' - STRING') as STR_1 " +
-        "FROM cp.`tpch/region.parquet` limit 1";
+        "FROM cp.\"tpch/region.parquet\" limit 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -593,7 +593,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   public void testTimeStampConstant() throws Exception {
     String query = "SELECT " +
         "timestamp '2008-2-23 12:23:23' as TS " +
-        "FROM cp.`tpch/region.parquet` limit 1";
+        "FROM cp.\"tpch/region.parquet\" limit 1";
 
     LocalDateTime date = formatTimeStampMilli.parseLocalDateTime("2008-02-23 12:23:23.0");
     testBuilder()
@@ -610,7 +610,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "CAST(NULL AS TIME) AS t, " +
         "CAST(NULL AS TIMESTAMP) AS ts, " +
         "CAST(NULL AS DATE) AS d " +
-        "FROM cp.`region.json` LIMIT 1";
+        "FROM cp.\"region.json\" LIMIT 1";
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -624,7 +624,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   public void testIntMinToDecimal() throws Exception {
     String query = "select cast((employee_id - employee_id + -2147483648) as decimal(28, 2)) as DEC_28," +
         "cast((employee_id - employee_id + -2147483648) as decimal(18, 2)) as DEC_18 from " +
-        "cp.`employee.json` limit 1";
+        "cp.\"employee.json\" limit 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -638,7 +638,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   @Ignore("decimal")
   public void testDecimalAddConstant() throws Exception {
     String query = "select (cast('-1' as decimal(37, 3)) + cast (employee_id as decimal(37, 3))) as CNT " +
-        "from cp.`employee.json` where employee_id <= 4";
+        "from cp.\"employee.json\" where employee_id <= 4";
 
     testBuilder()
         .sqlQuery(query)
@@ -654,7 +654,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   @Ignore("decimal")
   public void testDecimalAddIntConstant() throws Exception {
     String query = "select 1 + cast(employee_id as decimal(9, 3)) as DEC_9 , 1 + cast(employee_id as decimal(37, 5)) as DEC_38 " +
-        "from cp.`employee.json` where employee_id <= 2";
+        "from cp.\"employee.json\" where employee_id <= 2";
 
     testBuilder()
         .sqlQuery(query)
@@ -668,7 +668,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   @Test
   public void testSignFunction() throws Exception {
     String query = "select sign(cast('1.23' as float)) as SIGN_FLOAT, sign(-1234.4567) as SIGN_DOUBLE, sign(23) as SIGN_INT " +
-        "from cp.`employee.json` where employee_id < 2";
+        "from cp.\"employee.json\" where employee_id < 2";
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -682,7 +682,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   public void testPadFunctions() throws Exception {
     String query = "select rpad(first_name, 10) as RPAD_DEF, rpad(first_name, 10, '*') as RPAD_STAR, lpad(first_name, 10) as LPAD_DEF, lpad(first_name, 10, '*') as LPAD_STAR, " +
         "lpad(first_name, 2) as LPAD_TRUNC, rpad(first_name, 2) as RPAD_TRUNC " +
-        "from cp.`employee.json` where employee_id = 1";
+        "from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -697,7 +697,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   public void testExtractSecond() throws Exception {
     String query = "select extract(second from date '2008-2-23') as DATE_EXT, extract(second from timestamp '2008-2-23 10:00:20.123') as TS_EXT, " +
         "extract(second from time '10:20:30.303') as TM_EXT " +
-        "from cp.`employee.json` where employee_id = 1";
+        "from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -708,10 +708,74 @@ public class TestFunctionsQuery extends BaseTestQuery {
   }
 
   @Test
+  public void testCastIntervalDayToInt() throws Exception {
+    final String query = "select " +
+      "cast(interval '1' second as integer) as sec," +
+      "cast((interval '1' second - interval '2' second) as integer) as sec_calc," +
+      "cast(interval '1' minute as integer) as mins," +
+      "cast(interval '1' hour as integer) as hours," +
+      "cast(interval '1' day as integer) as days ";
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("sec", "sec_calc", "mins", "hours", "days")
+      .baselineValues(1, -1, 1, 1, 1)
+      .go();
+  }
+
+  @Test
+  public void testCastIntervalYearToInt() throws Exception {
+    final String query = "select " +
+      "cast(interval '1' month as integer) as months," +
+      "cast(interval '1' year as integer) as years, " +
+      "cast((interval '1' year - interval '2' year) as integer) as year_calc ";
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("months", "years", "year_calc")
+      .baselineValues(1, 1, -1)
+      .go();
+  }
+
+  @Test
+  public void testTsAddCastIntervalDayToInt() throws Exception {
+    final String query = "select " +
+      "timestampadd(second, cast((interval '2' second - interval '4' second) as integer), {ts '1990-12-12 12:12:12'}) as ts1, \n" +
+      "timestampadd(second, cast((interval '2' second - interval '4' second) as integer) , a) as ts2 from (values({ts '1990-12-12 12:12:12'})) tbl(a)";
+
+    final LocalDateTime result = formatTimeStampMilli.parseLocalDateTime("1990-12-12 12:12:10.000");
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("ts1", "ts2")
+      .baselineValues(result, result)
+      .go();
+  }
+
+  @Test
+  public void testTsAddCastIntervalYearToInt() throws Exception {
+    final String query = "select " +
+      "timestampadd(year, cast((interval '2' year - interval '4' year) as integer) , {ts '1990-12-12 12:12:12'}) as ts1, " +
+      "timestampadd(year, cast((interval '2' year - interval '4' year) as integer) , a) as ts2 from (values({ts '1990-12-12 12:12:12'})) tbl(a)";
+
+    final LocalDateTime result = formatTimeStampMilli.parseLocalDateTime("1988-12-12 12:12:12.000");
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("ts1", "ts2")
+      .baselineValues(result, result)
+      .go();
+  }
+
+  @Test
   @Ignore("decimal")
   public void testCastDecimalDouble() throws Exception {
     String query = "select cast((cast('1.0001' as decimal(18, 9))) as double) DECIMAL_DOUBLE_CAST " +
-        "from cp.`employee.json` where employee_id = 1";
+        "from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -724,7 +788,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   @Test
   public void testExtractSecondFromInterval() throws Exception {
     String query = "select extract (second from interval '1 2:30:45.100' day to second) as EXT_INTDAY " +
-        "from cp.`employee.json` where employee_id = 1";
+        "from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -739,7 +803,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
     String query = "SELECT to_date('2003/07/09', 'YYYY/MM/DD') as col1, " +
         "TO_DATE('2003/07/09', 'YYYY/MM/DD') as col2, " +
         "To_DaTe('2003/07/09', 'YYYY/MM/DD') as col3 " +
-        "from cp.`employee.json` LIMIT 1";
+        "from cp.\"employee.json\" LIMIT 1";
 
     LocalDateTime date = formatDate.parseLocalDateTime("2003-07-09");
 
@@ -755,7 +819,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   @Ignore("decimal")
   public void testDecimal18Decimal38Comparison() throws Exception {
     String query = "select cast('-999999999.999999999' as decimal(18, 9)) = cast('-999999999.999999999' as decimal(38, 18)) as CMP " +
-        "from cp.`employee.json` where employee_id = 1";
+        "from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -769,7 +833,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   @Ignore("decimal")
   public void testOptiqDecimalCapping() throws Exception {
     String query = "select  cast('12345.678900000' as decimal(18, 9))=cast('12345.678900000' as decimal(38, 9)) as CMP " +
-        "from cp.`employee.json` where employee_id = 1";
+        "from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -782,7 +846,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   @Test
   public void testNegative() throws Exception {
     String query = "select  negative(2) as NEG " +
-        "from cp.`employee.json` where employee_id = 1";
+        "from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -795,7 +859,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   @Test
   public void testOptiqValidationFunctions() throws Exception {
     String query = "select trim(first_name) as TRIM_STR, substring(first_name, 2) as SUB_STR " +
-        "from cp.`employee.json` where employee_id = 1";
+        "from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -809,7 +873,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   @Ignore("decimal")
   public void testToTimeStamp() throws Exception {
     String query = "select to_timestamp(cast('800120400.12312' as decimal(38, 5))) as DEC38_TS, to_timestamp(200120400) as INT_TS " +
-        "from cp.`employee.json` where employee_id < 2";
+        "from cp.\"employee.json\" where employee_id < 2";
 
     LocalDateTime result1 = new LocalDateTime(800120400123l, UTC);
     LocalDateTime result2 = new LocalDateTime(200120400000l, UTC);
@@ -827,7 +891,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   public void testCaseWithDecimalExpressions() throws Exception {
     String query = "select " +
         "case when true then cast(employee_id as decimal(15, 5)) else cast('0.0' as decimal(2, 1)) end as col1 " +
-        "from cp.`employee.json` where employee_id = 1";
+        "from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -854,7 +918,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "hash64AsDouble(cast(employee_id as decimal(9, 0))) = hash64AsDouble(cast(employee_id as decimal(18, 0))) col5, " +
         "hash64AsDouble(cast(employee_id as decimal(18, 0))) = hash64AsDouble(cast(employee_id as decimal(28, 0))) col6, " +
         "hash64AsDouble(cast(employee_id as decimal(28, 0))) = hash64AsDouble(cast(employee_id as decimal(38, 0))) col7 " +
-        "from cp.`employee.json`  where employee_id = 1";
+        "from cp.\"employee.json\"  where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -875,7 +939,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
             "hash64AsDouble(cast(employee_id as decimal(9, 0)), #RAND_SEED#) = hash64AsDouble(cast(employee_id as decimal(18, 0)), #RAND_SEED#) col5, " +
             "hash64AsDouble(cast(employee_id as decimal(18, 0)), #RAND_SEED#) = hash64AsDouble(cast(employee_id as decimal(28, 0)), #RAND_SEED#) col6, " +
             "hash64AsDouble(cast(employee_id as decimal(28, 0)), #RAND_SEED#) = hash64AsDouble(cast(employee_id as decimal(38, 0)), #RAND_SEED#) col7 " +
-            "from cp.`employee.json` where employee_id = 1";
+            "from cp.\"employee.json\" where employee_id = 1";
 
     String queryWithSeed = querytemplate.replaceAll("#RAND_SEED#", String.format("%d",seed));
     testBuilder()
@@ -899,7 +963,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "hash32AsDouble(cast(employee_id as decimal(9, 0))) = hash32AsDouble(cast(employee_id as decimal(18, 0))) col5, " +
         "hash32AsDouble(cast(employee_id as decimal(18, 0))) = hash32AsDouble(cast(employee_id as decimal(28, 0))) col6, " +
         "hash32AsDouble(cast(employee_id as decimal(28, 0))) = hash32AsDouble(cast(employee_id as decimal(38, 0))) col7 " +
-        "from cp.`employee.json` where employee_id = 1";
+        "from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -920,7 +984,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
             "hash32AsDouble(cast(employee_id as decimal(9, 0)), #RAND_SEED#) = hash32AsDouble(cast(employee_id as decimal(18, 0)), #RAND_SEED#) col5, " +
             "hash32AsDouble(cast(employee_id as decimal(18, 0)), #RAND_SEED#) = hash32AsDouble(cast(employee_id as decimal(28, 0)), #RAND_SEED#) col6, " +
             "hash32AsDouble(cast(employee_id as decimal(28, 0)), #RAND_SEED#) = hash32AsDouble(cast(employee_id as decimal(38, 0)), #RAND_SEED#) col7 " +
-            "from cp.`employee.json` where employee_id = 1";
+            "from cp.\"employee.json\" where employee_id = 1";
 
     String queryWithSeed = querytemplate.replaceAll("#RAND_SEED#", String.format("%d",seed));
     testBuilder()
@@ -936,7 +1000,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
   public void testImplicitCastVarcharToDouble() throws Exception {
     // tests implicit cast from varchar to double
     testBuilder()
-        .sqlQuery("select `integer` i, `float` f from cp.`jsoninput/input1.json` where `float` = '1.2'")
+        .sqlQuery("select \"integer\" i, \"float\" f from cp.\"jsoninput/input1.json\" where \"float\" = '1.2'")
         .unOrdered()
         .baselineColumns("i", "f")
         .baselineValues(2001l, 1.2d)
@@ -945,7 +1009,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
 
   @Test
   public void testConcatSingleInput() throws Exception {
-    String query = "select concat(employee_id) as col1 from cp.`employee.json` where employee_id = 1";
+    String query = "select concat(employee_id) as col1 from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -954,7 +1018,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         .baselineValues("1")
         .go();
 
-    query = "select concat('foo') as col1 from cp.`employee.json` where employee_id = 1";
+    query = "select concat('foo') as col1 from cp.\"employee.json\" where employee_id = 1";
 
     testBuilder()
         .sqlQuery(query)
@@ -1135,14 +1199,14 @@ public class TestFunctionsQuery extends BaseTestQuery {
 
   @Test
   public void testTimestampAddTableauQuery() throws Exception {
-    final String query = "SELECT * FROM (SELECT SUM(1) AS `sum_Number_of_Records_ok`, " +
-        "{fn TIMESTAMPADD(SQL_TSI_MONTH,CAST((-1 * (EXTRACT(MONTH FROM CAST(`userswithdate`.`yelping_since` as DATE)) - 1)) AS INTEGER)," +
-        "{fn TIMESTAMPADD(SQL_TSI_DAY,CAST((-1 * (EXTRACT(DAY FROM CAST(`userswithdate`.`yelping_since` as DATE)) - 1)) AS INTEGER)," +
-        "CAST(`userswithdate`.`yelping_since` AS DATE))})} AS `tyr_yelping_since_ok`" +
-        "FROM cp.`yelp_user_data.json` `userswithdate`" +
-        "GROUP BY {fn TIMESTAMPADD(SQL_TSI_MONTH,CAST((-1 * (EXTRACT(MONTH FROM CAST(`userswithdate`.`yelping_since` as DATE)) - 1)) AS INTEGER)," +
-        "{fn TIMESTAMPADD(SQL_TSI_DAY,CAST((-1 * (EXTRACT(DAY FROM CAST(`userswithdate`.`yelping_since` as DATE)) - 1)) AS INTEGER)," +
-        "CAST(`userswithdate`.`yelping_since` AS DATE))})}) T";
+    final String query = "SELECT * FROM (SELECT SUM(1) AS \"sum_Number_of_Records_ok\", " +
+        "{fn TIMESTAMPADD(SQL_TSI_MONTH,CAST((-1 * (EXTRACT(MONTH FROM CAST(\"userswithdate\".\"yelping_since\" as DATE)) - 1)) AS INTEGER)," +
+        "{fn TIMESTAMPADD(SQL_TSI_DAY,CAST((-1 * (EXTRACT(DAY FROM CAST(\"userswithdate\".\"yelping_since\" as DATE)) - 1)) AS INTEGER)," +
+        "CAST(\"userswithdate\".\"yelping_since\" AS DATE))})} AS \"tyr_yelping_since_ok\"" +
+        "FROM cp.\"yelp_user_data.json\" \"userswithdate\"" +
+        "GROUP BY {fn TIMESTAMPADD(SQL_TSI_MONTH,CAST((-1 * (EXTRACT(MONTH FROM CAST(\"userswithdate\".\"yelping_since\" as DATE)) - 1)) AS INTEGER)," +
+        "{fn TIMESTAMPADD(SQL_TSI_DAY,CAST((-1 * (EXTRACT(DAY FROM CAST(\"userswithdate\".\"yelping_since\" as DATE)) - 1)) AS INTEGER)," +
+        "CAST(\"userswithdate\".\"yelping_since\" AS DATE))})}) T";
 
     final List<Pair<SchemaPath, MajorType>> expectedSchema = ImmutableList.of(
         Pair.of(SchemaPath.getSimplePath("sum_Number_of_Records_ok"),
@@ -1175,7 +1239,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
 
   @Test
   public void testVarianceWithDecimal() throws Exception {
-    final String query = "select variance(cast(employee_id as decimal(9, 5))) from cp.`employee.json`";
+    final String query = "select variance(cast(employee_id as decimal(9, 5))) from cp.\"employee.json\"";
     testBuilder().sqlQuery(query)
         .unOrdered()
         .baselineColumns("EXPR$0")

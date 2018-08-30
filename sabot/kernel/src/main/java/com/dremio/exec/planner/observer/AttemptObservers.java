@@ -37,7 +37,7 @@ import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 
 /**
  * Collection of observers.

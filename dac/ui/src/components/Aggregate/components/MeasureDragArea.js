@@ -40,7 +40,9 @@ export default class MeasureDragArea extends Component {
     dragType: PropTypes.string,
     isDragInProgress: PropTypes.bool,
     handleDragStart: PropTypes.func,
-    onDragEnd: PropTypes.func
+    onDragEnd: PropTypes.func,
+    className: PropTypes.string,
+    dragContentCls: PropTypes.string
   };
 
   handleRemoveColumn = (index) => {
@@ -82,9 +84,15 @@ export default class MeasureDragArea extends Component {
   render() {
     const isEmpty = !this.props.columnsField.length;
     const isDragged = this.canDropColumn();
+    const {
+      className,
+      dragContentCls
+    } = this.props;
 
     return (
       <ExploreDragArea
+        className={className}
+        dragContentCls={dragContentCls}
         dataQa={DRAG_AREA_TYPE}
         dragType={this.props.dragType}
         onDrop={this.handleDrop}

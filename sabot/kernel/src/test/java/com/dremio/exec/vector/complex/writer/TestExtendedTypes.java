@@ -45,14 +45,14 @@ public class TestExtendedTypes extends BaseTestQuery {
 
     final String newTable = "TestExtendedTypes/newjson";
     try {
-      testNoResult(String.format("ALTER SESSION SET `%s` = 'json'", ExecConstants.OUTPUT_FORMAT_VALIDATOR.getOptionName()));
-      testNoResult(String.format("ALTER SESSION SET `%s` = true", ExecConstants.JSON_EXTENDED_TYPES.getOptionName()));
+      testNoResult(String.format("ALTER SESSION SET \"%s\" = 'json'", ExecConstants.OUTPUT_FORMAT_VALIDATOR.getOptionName()));
+      testNoResult(String.format("ALTER SESSION SET \"%s\" = true", ExecConstants.JSON_EXTENDED_TYPES.getOptionName()));
 
       // create table
-      test("create table dfs_test.tmp.`%s` as select * from dfs.`%s`", newTable, originalFile);
+      test("create table dfs_test.tmp.\"%s\" as select * from dfs.\"%s\"", newTable, originalFile);
 
       // check query of table.
-      test("select * from dfs_test.tmp.`%s`", newTable);
+      test("select * from dfs_test.tmp.\"%s\"", newTable);
 
       // check that original file and new file match.
       final byte[] originalData = Files.readAllBytes(Paths.get(originalFile));
@@ -60,10 +60,10 @@ public class TestExtendedTypes extends BaseTestQuery {
           + "/0_0_0.json"));
       assertEquals(new String(originalData), new String(newData));
     } finally {
-      testNoResult(String.format("ALTER SESSION SET `%s` = '%s'",
+      testNoResult(String.format("ALTER SESSION SET \"%s\" = '%s'",
           ExecConstants.OUTPUT_FORMAT_VALIDATOR.getOptionName(),
           ExecConstants.OUTPUT_FORMAT_VALIDATOR.getDefault().getValue()));
-      testNoResult(String.format("ALTER SESSION SET `%s` = %s",
+      testNoResult(String.format("ALTER SESSION SET \"%s\" = %s",
           ExecConstants.JSON_EXTENDED_TYPES.getOptionName(),
           ExecConstants.JSON_EXTENDED_TYPES.getDefault().getValue()));
     }
@@ -77,23 +77,23 @@ public class TestExtendedTypes extends BaseTestQuery {
         Matcher.quoteReplacement(TestTools.getWorkingPath()));
 
     try {
-      testNoResult(String.format("ALTER SESSION SET `%s` = 'json'", ExecConstants.OUTPUT_FORMAT_VALIDATOR.getOptionName()));
-      testNoResult(String.format("ALTER SESSION SET `%s` = true", ExecConstants.JSON_EXTENDED_TYPES.getOptionName()));
+      testNoResult(String.format("ALTER SESSION SET \"%s\" = 'json'", ExecConstants.OUTPUT_FORMAT_VALIDATOR.getOptionName()));
+      testNoResult(String.format("ALTER SESSION SET \"%s\" = true", ExecConstants.JSON_EXTENDED_TYPES.getOptionName()));
 
-      int actualRecordCount = testSql(String.format("select * from dfs.`%s`", originalFile));
+      int actualRecordCount = testSql(String.format("select * from dfs.\"%s\"", originalFile));
       assertEquals(
           String.format(
               "Received unexpected number of rows in output: expected=%d, received=%s",
               1, actualRecordCount), 1, actualRecordCount);
-      List<QueryDataBatch> resultList = testSqlWithResults(String.format("select * from dfs.`%s`", originalFile));
+      List<QueryDataBatch> resultList = testSqlWithResults(String.format("select * from dfs.\"%s\"", originalFile));
       String actual = getResultString(resultList, ",");
       String expected = "dremio_timestamp_millies,bin,bin1\n2015-07-07T03:59:43.488,dremio,dremio\n";
       Assert.assertEquals(expected, actual);
     } finally {
-      testNoResult(String.format("ALTER SESSION SET `%s` = '%s'",
+      testNoResult(String.format("ALTER SESSION SET \"%s\" = '%s'",
           ExecConstants.OUTPUT_FORMAT_VALIDATOR.getOptionName(),
           ExecConstants.OUTPUT_FORMAT_VALIDATOR.getDefault().getValue()));
-      testNoResult(String.format("ALTER SESSION SET `%s` = %s",
+      testNoResult(String.format("ALTER SESSION SET \"%s\" = %s",
           ExecConstants.JSON_EXTENDED_TYPES.getOptionName(),
           ExecConstants.JSON_EXTENDED_TYPES.getDefault().getValue()));
     }

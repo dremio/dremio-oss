@@ -21,6 +21,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
@@ -33,7 +34,6 @@ import com.dremio.exec.store.pojo.PojoDataType;
 import com.dremio.exec.store.pojo.PojoRecordReader;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.op.scan.VectorContainerMutator;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
 
 public class DirectCommand<T, R> implements CommandRunner<Object> {
 
@@ -61,6 +61,11 @@ public class DirectCommand<T, R> implements CommandRunner<Object> {
     result = handler.toResult(sql, sqlNode);
     observer.planCompleted(null);
     return 1;
+  }
+
+  @Override
+  public void close() throws Exception {
+    // no-op
   }
 
   @Override

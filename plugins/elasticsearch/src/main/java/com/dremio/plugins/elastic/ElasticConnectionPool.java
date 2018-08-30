@@ -44,7 +44,10 @@ import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.JerseyInvocation;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
+import org.glassfish.jersey.client.filter.EncodingFilter;
 import org.glassfish.jersey.logging.LoggingFeature;
+import org.glassfish.jersey.message.DeflateEncoder;
+import org.glassfish.jersey.message.GZipEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,6 +102,9 @@ public class ElasticConnectionPool implements AutoCloseable {
   // Version 5x or higher
   private static final Version ELASTICSEARCH_VERSION_5X = new Version(5, 0, 0);
 
+  //Version 5.3.x or higher
+  private static final Version ELASTICSEARCH_VERSION_5_3_X = new Version(5, 3, 0);
+
   private volatile ImmutableMap<String, WebTarget> clients;
   private Client client;
   private final List<Host> hosts;
@@ -127,6 +133,12 @@ public class ElasticConnectionPool implements AutoCloseable {
    * Flag to indicate if the current cluster has a high enough version for 5x features.  For example, boolean group by is supported for 5x cluster.
    */
   private boolean enable5vFeatures;
+
+  /**
+   * Flag to indicate if contains is supported.
+   * A typo between v5.0.0 and v5.2.x causes query failure with contains
+   */
+  private boolean enableContains;
 
   /**
    * The lowest version found in the cluster.
@@ -161,6 +173,10 @@ public class ElasticConnectionPool implements AutoCloseable {
         .hostnameVerifier(SSLHelper.newAllValidHostnameVerifier())
         .sslContext(SSLHelper.newAllTrustingSSLContext("SSL"))
         .build();
+
+    client.register(GZipEncoder.class);
+    client.register(DeflateEncoder.class);
+    client.register(EncodingFilter.class);
 
     if(REQUEST_LOGGER.isInfoEnabled()){
       java.util.logging.Logger julLogger = java.util.logging.Logger.getLogger(REQUEST_LOGGER_NAME);
@@ -295,7 +311,7 @@ public class ElasticConnectionPool implements AutoCloseable {
     return new SourceCapabilities(
         new BooleanCapabilityValue(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES, enable5vFeatures),
         new BooleanCapabilityValue(ElasticsearchStoragePlugin.SUPPORTS_NEW_FEATURES, enableNewFeatures),
-        new BooleanCapabilityValue(SourceCapabilities.SUPPORTS_CONTAINS, true)
+        new BooleanCapabilityValue(SourceCapabilities.SUPPORTS_CONTAINS, enableContains)
         );
   }
 
@@ -383,17 +399,12 @@ public class ElasticConnectionPool implements AutoCloseable {
           format("Dremio only supports Elasticsearch versions above %s. Found a node with version %s",
               MIN_ELASTICSEARCH_VERSION, minVersionInCluster));
     }
-    if (minVersionInCluster.compareTo(MIN_VERSION_TO_ENABLE_NEW_FEATURES) >= 0) {
-      enableNewFeatures = true;
-    } else {
-      enableNewFeatures = false;
-    }
 
-    if (minVersionInCluster.compareTo(ELASTICSEARCH_VERSION_5X) >= 0) {
-      enable5vFeatures = true;
-    } else {
-      enable5vFeatures = false;
-    }
+    enableNewFeatures = minVersionInCluster.compareTo(MIN_VERSION_TO_ENABLE_NEW_FEATURES) >= 0;
+
+    enable5vFeatures = minVersionInCluster.compareTo(ELASTICSEARCH_VERSION_5X) >= 0;
+
+    enableContains = minVersionInCluster.compareTo(ELASTICSEARCH_VERSION_5_3_X) >= 0;
 
     return hosts;
   }
@@ -511,12 +522,12 @@ public class ElasticConnectionPool implements AutoCloseable {
         switch (Response.Status.fromStatusCode(response.getStatus())) {
         case NOT_FOUND: { // index not found
           builder = UserException.invalidMetadataError(e)
-              .message("Failure executing Elastic request %s.", action.getAction());
+              .message("Failure executing Elastic request %s: HTTP 404 Not Found.", action.getAction());
           break;
         }
         default:
           builder = UserException.dataReadError(e)
-              .message("Failure executing Elastic request %s.", action.getAction());
+              .message("Failure executing Elastic request %s: HTTP %d.", action.getAction(), response.getStatus());
           break;
         }
 
@@ -645,6 +656,7 @@ public class ElasticConnectionPool implements AutoCloseable {
     }
   }
 
+  @Override
   public void close(){
     if(client != null){
       client.close();

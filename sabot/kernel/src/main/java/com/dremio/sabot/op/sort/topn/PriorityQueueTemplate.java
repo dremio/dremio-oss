@@ -66,7 +66,6 @@ public abstract class PriorityQueueTemplate implements PriorityQueue {
   @Override
   public void resetQueue(final VectorContainer newQueue, final SelectionVector4 oldHeap) {
     Schema schema = hyperBatch.getSchema();
-    BufferAllocator allocator = hyperBatch.getAllocator();
 
     // Cleanup old data.
     close();

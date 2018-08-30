@@ -199,6 +199,10 @@ export default class MainInfo extends Component {
     let rows = Immutable.List();
     if (contents && !contents.isEmpty()) {
       const appendRow = dataset => {
+        // DX-10700 there could be the cases, when we reset a entity cache (delete all entities of the certain type), but there are references on these intities in the state;
+        // For example, we clearing folders, when we navigating to another folder, but sources could have a reference by id on these folder. As folder would not be found, here we would have undefined
+        //skip such cases
+        if (!dataset) return;
         rows = rows.push(this.getRow(dataset));
       };
       contents.get('datasets').forEach(appendRow);

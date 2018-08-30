@@ -44,7 +44,7 @@ public class TestParquetWriterEmptyFiles extends BaseTestQuery {
     final String outputFile = "testparquetwriteremptyfiles_testwriteemptyfile";
 
     try {
-      test("CREATE TABLE dfs_test.%s AS SELECT * FROM cp.`employee.json` WHERE 1=0", outputFile);
+      test("CREATE TABLE dfs_test.%s AS SELECT * FROM cp.\"employee.json\" WHERE 1=0", outputFile);
 
       final Path path = new Path(getDfsTestTmpSchemaLocation(), outputFile);
       Assert.assertFalse(fs.exists(path));
@@ -57,10 +57,10 @@ public class TestParquetWriterEmptyFiles extends BaseTestQuery {
   public void testMultipleWriters() throws Exception {
     final String outputFile = "testparquetwriteremptyfiles_testmultiplewriters";
 
-    runSQL("alter session set `planner.slice_target` = 1");
+    runSQL("alter session set \"planner.slice_target\" = 1");
 
     try {
-      final String query = "SELECT position_id FROM cp.`employee.json` WHERE position_id IN (15, 16) GROUP BY position_id";
+      final String query = "SELECT position_id FROM cp.\"employee.json\" WHERE position_id IN (15, 16) GROUP BY position_id";
       test("CREATE TABLE dfs_test.%s AS %s", outputFile, query);
 
       // this query will fail if an "empty" file was created
@@ -70,7 +70,7 @@ public class TestParquetWriterEmptyFiles extends BaseTestQuery {
         .sqlBaselineQuery(query)
         .go();
     } finally {
-      runSQL("alter session set `planner.slice_target` = " + ExecConstants.SLICE_TARGET_DEFAULT);
+      runSQL("alter session set \"planner.slice_target\" = " + ExecConstants.SLICE_TARGET_DEFAULT);
       deleteTableIfExists(outputFile);
     }
   }
@@ -83,9 +83,9 @@ public class TestParquetWriterEmptyFiles extends BaseTestQuery {
     try {
       // this specific value will force a flush just after the final row is written
       // this may cause the creation of a new "empty" parquet file
-      test("ALTER SESSION SET `store.parquet.block-size` = 19926");
+      test("ALTER SESSION SET \"store.parquet.block-size\" = 19926");
 
-      final String query = "SELECT * FROM cp.`employee.json` LIMIT 100";
+      final String query = "SELECT * FROM cp.\"employee.json\" LIMIT 100";
       test("CREATE TABLE dfs_test.%s AS %s", outputFile, query);
 
       // this query will fail if an "empty" file was created
@@ -96,7 +96,7 @@ public class TestParquetWriterEmptyFiles extends BaseTestQuery {
         .go();
     } finally {
       // restore the session option
-      test("ALTER SESSION SET `store.parquet.block-size` = %d", ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR.getDefault().num_val);
+      test("ALTER SESSION SET \"store.parquet.block-size\" = %d", ExecConstants.PARQUET_BLOCK_SIZE_VALIDATOR.getDefault().getNumVal());
       deleteTableIfExists(outputFile);
     }
   }

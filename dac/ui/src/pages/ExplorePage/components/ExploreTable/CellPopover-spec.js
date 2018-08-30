@@ -46,7 +46,7 @@ describe('CellPopover', () => {
     expect(wrapper).to.have.length(1);
     expect(wrapper.hasClass('cell-popover-wrap')).to.eql(true);
     expect(wrapper.find('JSONTree')).to.have.length(1);
-    expect(wrapper.find('SelectedTextPopover')).to.have.length(1);
+    expect(wrapper.find('withLocation(SelectedTextPopoverView)')).to.have.length(1);
   });
 
   describe('getMapModel', () => {

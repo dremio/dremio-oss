@@ -23,17 +23,17 @@ import org.apache.hadoop.fs.Path;
 import org.hibernate.validator.constraints.NotBlank;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 import io.protostuff.Tag;
 
-@SourceType("MAPRFS")
+@SourceType(value = "MAPRFS", label = "MapR-FS")
 public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin> {
 
   //  optional string cluster_name = 1;
@@ -44,20 +44,23 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin> {
 
   @NotBlank
   @Tag(1)
+  @DisplayMetadata(label = "Cluster Name")
   public String clusterName;
 
   @Tag(2)
+  @DisplayMetadata(label = "Enable impersonation")
   public boolean enableImpersonation = false;
 
   @Tag(3)
+  @DisplayMetadata(label = "Encrypt connection")
   public boolean secure = false;
 
-  @JsonProperty("propertyList")
   @Tag(4)
   @NotMetadataImpacting
-  public List<Property> properties = Lists.newArrayList();
+  public List<Property> propertyList = Lists.newArrayList();
 
   @Tag(5)
+  @DisplayMetadata(label = "Root Path")
   public String rootPath = "/";
 
   @Override
@@ -72,7 +75,7 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin> {
 
   @Override
   public List<Property> getProperties() {
-    return properties;
+    return propertyList;
   }
 
   @Override

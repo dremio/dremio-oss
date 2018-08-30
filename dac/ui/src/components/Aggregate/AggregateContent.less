@@ -1,0 +1,50 @@
+/*
+ * Copyright (C) 2017-2018 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import "~@app/uiTheme/less/color-schema.less";
+
+@_border: 1px solid @TABLE_BORDER;
+
+.base {
+  display: flex;
+  flex-wrap: nowrap;
+  flex-grow: 1;
+  //background-color: whiteBackground;
+  min-height: 180px;
+  border: @_border;
+  width: 100%;
+  overflow: hidden;
+}
+
+@fieldAreaWidth: 240px;
+
+.inner {
+  min-width: @fieldAreaWidth;
+  margin-left: -2px;
+  overflow: hidden;
+}
+
+.left-border {
+  border-left: @_border;
+  width: 100%; // needed to have columns, that fill all availabled space in flex container
+}
+
+.full-height {
+  height: 100%;
+}
+
+.content-padding {
+  composes: table-row-content-padding-left from '@app/uiTheme/less/forms.less';
+}

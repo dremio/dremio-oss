@@ -16,16 +16,25 @@
 
 package com.dremio.exec.planner.common;
 
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptCostImpl;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Window;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexLiteral;
 
 import java.util.List;
 
 public class WindowRelBase extends Window {
+
+  /**
+   * This factor is needed to make sure that Window is considered more costly than a similar project
+   */
+  private static final double WINDOW_COST_FACTOR = 2;
 
   public WindowRelBase(
       RelOptCluster cluster,
@@ -35,5 +44,11 @@ public class WindowRelBase extends Window {
       RelDataType rowType,
       List<Group> windows) {
     super(cluster, traits, child, constants, MoreRelOptUtil.uniqifyFieldName(rowType, cluster.getTypeFactory()), windows);
+  }
+
+  @Override public RelOptCost computeSelfCost(RelOptPlanner planner,
+                                              RelMetadataQuery mq) {
+    RelOptCost cost = super.computeSelfCost(planner, mq);
+    return cost.multiplyBy(WINDOW_COST_FACTOR);
   }
 }

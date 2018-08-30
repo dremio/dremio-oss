@@ -25,9 +25,9 @@ import dataStoreUtils from 'utils/dataStoreUtils';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 
 import { formLabel } from 'uiTheme/radium/typography';
-import { LINE_START_CENTER } from 'uiTheme/radium/flexStyle';
 
-import { BINARY, TEXT, INTEGER, FLOAT, DECIMAL, LIST, DATE, TIME, DATETIME, MAP, BOOLEAN } from 'constants/DataTypes';
+import classNames from 'classnames';
+import { typeToIconType, BINARY, TEXT, INTEGER, FLOAT, DECIMAL, LIST, DATE, TIME, DATETIME, MAP, BOOLEAN } from 'constants/DataTypes';
 import SimpleButton from 'components/Buttons/SimpleButton';
 import {
   NoParamToBinary,
@@ -37,15 +37,24 @@ import {
   NoParamToJSON,
   NoParamToText
 } from 'components/Menus/ExplorePage/ColumnTypeMenu';
+import {
+  padding,
+  selectLeftAligned,
+  rowMargin,
+  typeElement,
+  selectItem as selectItemCls
+} from './DataTypeConverterView.less';
 
 import NonMatchingForm from './forms/NonMatchingForm';
 import ConvertDateToTextForm from './forms/DateToTextForm';
 import ConvertTextToDateForm from './forms/TextToDateForm';
-import NumberToDateForm from './forms/NumberToDateForm';
 import ConvertListToTextForm from './forms/ConvertListToTextForm';
 import ConvertFloatToIntForm from './forms/ConvertFloatToIntForm';
-import DateToNumberForm from './forms/DateToNumberForm';
+import DateAndNumberForm from './forms/DateAndNumberForm';
 import NoParamForm from './forms/NoParamForm';
+
+const DateToNumberForm = props => <DateAndNumberForm form='dateToNumber' {...props} />;
+const NumberToDateForm = props => <DateAndNumberForm form='numberToDate' {...props} />;
 
 const NoParam = {
   BINARY: NoParamToBinary,
@@ -113,15 +122,23 @@ export default class DataTypeConverterView extends Component {
     const value = toType || defaultValue;
     const options = toType ? this.options : [{label: defaultValue, disabled: true}, ...this.options];
     return (
-      <div style={[LINE_START_CENTER, {marginLeft: 10}]}>
+      <div className={padding}>
         <div style={styles.convertToLabel}>{la('Convert to')}</div>
-        <Select
-          dataQa='dataTypeSelect'
-          name='selecttype'
-          value={value}
-          items={options}
-          onChange={this.onConvertTypeChange}
-        />
+        <div className={ rowMargin }>
+          <Select
+            dataQa='dataTypeSelect'
+            name='selecttype'
+            value={value}
+            items={options}
+            onChange={this.onConvertTypeChange}
+            className={selectLeftAligned}
+            itemClass={selectItemCls}
+            itemRenderer={(item, label) => (<span className={classNames([typeElement, 'font-icon'])}>
+              <span className={classNames(['icon-type', typeToIconType[item.option]])}></span>
+              {label}
+            </span>)}
+          />
+        </div>
       </div>
     );
   }
@@ -152,7 +169,7 @@ export default class DataTypeConverterView extends Component {
       initialValues: this.getTransformationValuesFromLocalStorage(toType)
     };
 
-    return <div style={{ margin: '10px 0 0 0px' }}>
+    return <div>
       {this.renderSelect()}
       {this.renderCancelButton()}
       <Tabs activeTab={fromType}>

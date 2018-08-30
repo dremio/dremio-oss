@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import Radium from 'radium';
 
 import { Radio } from 'components/Fields';
 import NewFieldSection from 'components/Forms/NewFieldSection';
 import { FieldWithError, TextField } from 'components/Fields';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import { formSectionTitle } from 'uiTheme/radium/exploreTransform';
-import { FLEX_COL_START, LINE_ROW_START_CENTER } from 'uiTheme/radium/flexStyle';
+import { inputForRadio, radioStacked } from '@app/uiTheme/less/forms.less';
+import { sectionMargin } from '@app/uiTheme/less/layout.less';
 
 import { isRequired, applyValidators } from 'utils/validation';
 import TransformForm, { formWrapperProps } from '../../forms/TransformForm';
@@ -35,7 +35,6 @@ function validate(values) {
   }
 }
 
-@Radium
 export class NonMatchingForm extends Component {
   static propTypes = transformProps;
 
@@ -57,20 +56,20 @@ export class NonMatchingForm extends Component {
       <TransformForm
         {...formWrapperProps(this.props)}
         onFormSubmit={this.submit}>
-        <div style={styles.radioOption}>
+        <div>
           <span style={[formSectionTitle, {marginBottom: 5}]}>{la('Action for Non-matching Values')}</span>
           <Radio
+            className={radioStacked}
             {...fields.actionForNonMatchingValue}
-            style={styles.radio}
             label='Replace values with null'
             radioValue='REPLACE_WITH_NULL'/>
-          <div style={LINE_ROW_START_CENTER}>
+          <div>
             <Radio
+              className={radioStacked}
               {...fields.actionForNonMatchingValue}
-              style={styles.radio}
               label='Replace values with:'
               radioValue='REPLACE_WITH_DEFAULT'/>
-            <FieldWithError errorPlacement='right' {...fields.defaultValue} style={{marginLeft: 10}}>
+            <FieldWithError errorPlacement='right' {...fields.defaultValue} className={inputForRadio}>
               <TextField
                 disabled={fields.actionForNonMatchingValue.value !== 'REPLACE_WITH_DEFAULT'}
                 {...fields.defaultValue}
@@ -78,12 +77,12 @@ export class NonMatchingForm extends Component {
             </FieldWithError>
           </div>
           <Radio
+            className={radioStacked}
             {...fields.actionForNonMatchingValue}
-            style={styles.radio}
             label='Delete records'
             radioValue='DELETE_RECORDS'/>
         </div>
-        <NewFieldSection fields={fields}/>
+        <NewFieldSection fields={fields} className={sectionMargin}/>
       </TransformForm>
     );
   }
@@ -109,14 +108,3 @@ export default connectComplexForm({
   overwriteOnInitialValuesChange: false,
   validate
 }, SECTIONS, mapStateToProps, null)(NonMatchingForm);
-
-const styles = {
-  radioOption: {
-    margin: '10px 0 10px 10px',
-    ...FLEX_COL_START
-  },
-  radio: {
-    margin: '5px 0 5px 0',
-    paddingLeft: 0
-  }
-};

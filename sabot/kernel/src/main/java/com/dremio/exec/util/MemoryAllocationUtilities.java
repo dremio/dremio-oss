@@ -23,7 +23,7 @@ import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.server.ClusterResourceInformation;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 
 public final class MemoryAllocationUtilities {
 
@@ -52,7 +52,7 @@ public final class MemoryAllocationUtilities {
     if (sortList.size() > 0) {
       final long maxWidthPerNode = clusterInfo.getAverageExecutorCores(optionManager);
       final long maxAllocPerNode = Math.min(clusterInfo.getAverageExecutorMemory(),
-          optionManager.getOption(ExecConstants.MAX_QUERY_MEMORY_PER_NODE_KEY).num_val);
+          optionManager.getOption(ExecConstants.MAX_QUERY_MEMORY_PER_NODE_KEY).getNumVal());
       final long maxSortAlloc = maxAllocPerNode / (sortList.size() * maxWidthPerNode);
       logger.debug("Max sort alloc: {}", maxSortAlloc);
 

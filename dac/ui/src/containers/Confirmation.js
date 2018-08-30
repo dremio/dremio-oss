@@ -54,7 +54,8 @@ export class ConfirmationContainer extends Component {
       doNotAskAgainText,
       doNotAskAgainKey,
       showPrompt,
-      promptFieldProps
+      promptFieldProps,
+      dataQa
     } = this.props.confirmation;
     if (!isOpen) {
       return null;
@@ -74,6 +75,7 @@ export class ConfirmationContainer extends Component {
         promptFieldProps={promptFieldProps}
         onCancel={this.onCancel}
         onConfirm={this.onConfirm}
+        dataQa={dataQa}
       />
     );
   }

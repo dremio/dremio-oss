@@ -35,7 +35,6 @@ import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.proto.model.acceleration.AccelerationApiDescriptor;
 import com.dremio.dac.proto.model.acceleration.AccelerationStateApiDescriptor;
 import com.dremio.dac.proto.model.acceleration.LayoutContainerApiDescriptor;
-import com.dremio.dac.resource.ApiIntentMessageMapper;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.service.source.SourceService;
@@ -63,7 +62,6 @@ import com.google.common.base.Preconditions;
  */
 public abstract class AccelerationTestUtil extends BaseTestServer {
 
-  public static final ApiIntentMessageMapper MAPPER = new ApiIntentMessageMapper();
   private static AtomicInteger queryNumber = new AtomicInteger(0);
 
   public static final String HOME_NAME = HomeName.getUserHomePath(SampleDataPopulator.DEFAULT_USER_NAME).getName();
@@ -212,12 +210,6 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
         getBuilder(getAPIv2().path("/accelerations")).buildPost(Entity.entity(path.toPathList(), JSON)),
         AccelerationApiDescriptor.class
         );
-  }
-
-  protected AccelerationApiDescriptor saveAcceleration(AccelerationId id, AccelerationApiDescriptor descriptor) {
-    return expectSuccess(getBuilder(
-        getAPIv2().path(String.format("/accelerations/%s", id.getId()))).buildPut(Entity.entity(MAPPER.toIntentMessage(descriptor), JSON)),
-        AccelerationApiDescriptor.class);
   }
 
   protected AccelerationApiDescriptor pollAcceleration(AccelerationId id) {

@@ -33,6 +33,8 @@ enum RpcType {
   RESP_REFLECTION_INFO = 3;
   REQ_REFRESH_INFO = 4;
   RESP_REFRESH_INFO = 5;
+  REQ_DEPENDENCY_INFO = 6;
+  RESP_DEPENDENCY_INFO = 7;
 }
 
 message ReflectionInfo {
@@ -45,10 +47,11 @@ message ReflectionInfo {
  optional string partitionColumns = 7;
  optional string distributionColumns = 8;
  optional string dimensions = 9;
- optional string measures = 10;
+ optional string measures = 10 [deprecated = true];
  optional string displayColumns = 11;
  optional string externalReflection = 12;
  optional int32 numFailures = 13 [default = 0];
+ repeated exec.shared.MeasureColumn measure_columns = 14;
 }
 
 message ReflectionInfoResp {
@@ -84,4 +87,18 @@ message RefreshInfoResp {
 }
 
 message RefreshInfoReq {
+}
+
+message DependencyInfo {
+  optional string reflection_id = 1;
+  optional string dependency_id = 2;
+  optional string dependency_type = 3;
+  optional string dependency_path = 4;
+}
+
+message DependencyInfoResp {
+  repeated DependencyInfo dependencyInfo = 1;
+}
+
+message DependencyInfoReq {
 }

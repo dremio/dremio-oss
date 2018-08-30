@@ -15,7 +15,40 @@
  */
 package com.dremio.sabot.task;
 
+import java.util.Collections;
+
 public interface TaskPool extends AutoCloseable {
 
-  public void execute(AsyncTaskWrapper task);
-}
+  void execute(AsyncTaskWrapper task);
+
+  default Iterable<ThreadInfo> getSlicingThreads() {
+    return Collections.emptyList();
+  }
+
+  class ThreadInfo {
+    /** current Java thread name */
+    public final String threadName;
+    /** slicing thread Id */
+    public final int slicingThreadId;
+    /** OS thread Id */
+    public final int osThreadId;
+    /** cpu id (core) */
+    public final int cpuId;
+
+    public final int numTasks;
+    public final int numStagedTasks;
+    public final int numRequestedWork;
+
+
+    public ThreadInfo(String threadName, int slicingThreadId, int osThreadId, int cpuId, int numTasks, int numStagedTasks,
+               int numRequestedWork) {
+      this.threadName = threadName;
+      this.slicingThreadId = slicingThreadId;
+      this.osThreadId = osThreadId;
+      this.cpuId = cpuId;
+      this.numTasks = numTasks;
+      this.numStagedTasks = numStagedTasks;
+      this.numRequestedWork = numRequestedWork;
+    }
+
+  }}

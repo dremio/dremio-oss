@@ -47,12 +47,12 @@ public class UseSchemaHandler extends SimpleDirectHandler {
     NamespaceKey compoundPath = orig.size() == 1 && orig.getRoot().contains(".") ? new NamespaceKey(SqlUtils.parseSchemaPath(orig.getRoot())) : null;
 
     if(defaultPath != null && catalog.containerExists(defaultPath)) {
-      session.setDefaultSchemaPath(defaultPath.getPathComponents(), catalog);
+      session.setDefaultSchemaPath(defaultPath.getPathComponents());
     } else if (catalog.containerExists(orig)) {
-      session.setDefaultSchemaPath(orig.getPathComponents(), catalog);
+      session.setDefaultSchemaPath(orig.getPathComponents());
     } else if(compoundPath != null && catalog.containerExists(compoundPath)) {
       // kept to support old compound use statements.
-      session.setDefaultSchemaPath(compoundPath.getPathComponents(), catalog);
+      session.setDefaultSchemaPath(compoundPath.getPathComponents());
     } else {
       throw UserException.validationError().message("Schema [%s] is not valid with respect to either root schema or current default schema.", orig).build(logger);
     }

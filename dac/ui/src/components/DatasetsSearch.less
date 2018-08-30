@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+ :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-.datasets-search {
-  .search-result-row:hover .main-settings-btn {
-    visibility: visible;
-  }
-  .main-settings-btn {
-    visibility: hidden;
+  .datasets-search {
+    .search-result-row:hover .main-settings-btn {
+      visibility: visible;
+    }
+    .main-settings-btn {
+      visibility: hidden;
+    }
   }
 }

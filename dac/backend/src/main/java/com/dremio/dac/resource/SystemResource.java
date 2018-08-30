@@ -33,6 +33,7 @@ import javax.ws.rs.core.SecurityContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.job.JobDataFragment;
@@ -76,88 +77,97 @@ public class SystemResource {
 
 
     List<NodeInfo> result = new ArrayList<>();
+    Map<String, NodeEndpoint> map = new HashMap<>();
 
-    String sql = "select\n" +
-            "   'green' as status,\n" +
-            "   nodes.hostname name,\n" +
-            "   nodes.ip_address ip,\n" +
-            "   nodes.fabric_port port,\n" +
-            "   cpu cpu,\n" +
-            "   memory memory \n" +
-            "from\n" +
-            "   sys.nodes,\n" +
-            "   (select\n" +
-            "      hostname,\n" +
-            "      fabric_port,\n" +
-            "      sum(cast(cpuTime as float) / cores) cpu \n" +
-            "   from\n" +
-            "      sys.threads \n" +
-            "   group by\n" +
-            "      hostname,\n" +
-            "      fabric_port) cpu,\n" +
-            "   (select\n" +
-            "      hostname,\n" +
-            "      fabric_port,\n" +
-            "      direct_current * 100.0 / direct_max as memory \n" +
-            "   from\n" +
-            "      sys.memory) memory  \n" +
-            "where\n" +
-            "   nodes.hostname = cpu.hostname \n" +
-            "   and nodes.fabric_port = cpu.fabric_port  \n" +
-            "   and nodes.hostname = memory.hostname \n" +
-            "   and nodes.fabric_port = memory.fabric_port \n" +
-            "order by\n" +
-            "   name,\n" +
-            "   port";
+    // first get the coordinator nodes (in case there are no executors running)
+    for(NodeEndpoint ep : context.get().getCoordinators()){
+      map.put(ep.getAddress() + ":" + ep.getFabricPort(), ep);
+      logger.info("address: " + ep.getAddress() + " fabric port: " + ep.getFabricPort());
+    }
 
-    JobUI job = new JobUI(jobsService.get().submitJob(JobRequest.newBuilder()
+    // try to get any executor nodes, but don't throw a UserException if we can't find any
+    try {
+      String sql = "select\n" +
+        "   'green' as status,\n" +
+        "   nodes.hostname name,\n" +
+        "   nodes.ip_address ip,\n" +
+        "   nodes.fabric_port port,\n" +
+        "   cpu cpu,\n" +
+        "   memory memory \n" +
+        "from\n" +
+        "   sys.nodes,\n" +
+        "   (select\n" +
+        "      hostname,\n" +
+        "      fabric_port,\n" +
+        "      sum(cast(cpuTime as float) / cores) cpu \n" +
+        "   from\n" +
+        "      sys.threads \n" +
+        "   group by\n" +
+        "      hostname,\n" +
+        "      fabric_port) cpu,\n" +
+        "   (select\n" +
+        "      hostname,\n" +
+        "      fabric_port,\n" +
+        "      direct_current * 100.0 / direct_max as memory \n" +
+        "   from\n" +
+        "      sys.memory) memory  \n" +
+        "where\n" +
+        "   nodes.hostname = cpu.hostname \n" +
+        "   and nodes.fabric_port = cpu.fabric_port  \n" +
+        "   and nodes.hostname = memory.hostname \n" +
+        "   and nodes.fabric_port = memory.fabric_port \n" +
+        "order by\n" +
+        "   name,\n" +
+        "   port";
+
+      JobUI job = new JobUI(jobsService.get().submitJob(JobRequest.newBuilder()
         .setSqlQuery(new SqlQuery(sql, Arrays.asList("sys"), securityContext))
         .setQueryType(QueryType.UI_INTERNAL_RUN)
         .build(), NoOpJobStatusListener.INSTANCE));
-    // TODO: Truncate the results to 500, this will change in DX-3333
-    final JobDataFragment pojo = job.getData().truncate(500);
+      // TODO: Truncate the results to 500, this will change in DX-3333
+      final JobDataFragment pojo = job.getData().truncate(500);
 
-    Map<String, NodeEndpoint> map = new HashMap<>();
-    for(NodeEndpoint ep : context.get().getCoordinators()){
-      map.put(ep.getAddress() + ":" + ep.getFabricPort(), ep);
-    }
-
-    for(NodeEndpoint ep : context.get().getExecutors()){
-      map.put(ep.getAddress() + ":" + ep.getFabricPort(), ep);
-    }
-
-    for(int i =0; i < pojo.getReturnedRowCount(); i++){
-
-      String name = pojo.extractString("name", i);
-      String port = pojo.extractString("port", i);
-      String key = name + ":" + port;
-      NodeEndpoint ep = map.remove(key);
-      if(ep == null){
-        logger.warn("Unable to find node with identity: {}", key);
-        continue;
+      for (NodeEndpoint ep : context.get().getExecutors()) {
+        map.put(ep.getAddress() + ":" + ep.getFabricPort(), ep);
       }
 
-      NodeInfo nodeInfo = new NodeInfo();
-      boolean exec = ep.getRoles().getJavaExecutor();
-      boolean coord = ep.getRoles().getSqlQuery();
+      for (int i = 0; i < pojo.getReturnedRowCount(); i++) {
 
-      port = Integer.toString(ep.getUserPort());
-      if(exec && coord){
-        name += " (c + e)";
-      } else if (exec) {
-        name += " (e)";
-      } else {
-        name += " (c)";
+        String name = pojo.extractString("name", i);
+        String port = pojo.extractString("port", i);
+        String key = name + ":" + port;
+        NodeEndpoint ep = map.remove(key);
+        if (ep == null) {
+          logger.warn("Unable to find node with identity: {}", key);
+          continue;
+        }
+
+        NodeInfo nodeInfo = new NodeInfo();
+        boolean exec = ep.getRoles().getJavaExecutor();
+        boolean coord = ep.getRoles().getSqlQuery();
+
+        port = Integer.toString(ep.getUserPort());
+        if (exec && coord) {
+          name += " (c + e)";
+        } else if (exec) {
+          name += " (e)";
+        } else {
+          name += " (c)";
+        }
+
+
+        nodeInfo.setName(name);
+        nodeInfo.setIp(pojo.extractString("ip", i));
+        nodeInfo.setCpu(pojo.extractString("cpu", i));
+        nodeInfo.setPort(port);
+        nodeInfo.setMemory(pojo.extractString("memory", i));
+        nodeInfo.setStatus(pojo.extractString("status", i));
+        result.add(nodeInfo);
       }
-
-
-      nodeInfo.setName(name);
-      nodeInfo.setIp(pojo.extractString("ip", i));
-      nodeInfo.setCpu(pojo.extractString("cpu", i));
-      nodeInfo.setPort(port);
-      nodeInfo.setMemory(pojo.extractString("memory", i));
-      nodeInfo.setStatus(pojo.extractString("status", i));
-      result.add(nodeInfo);
+    } catch (UserException e) {
+      logger.warn(e.getMessage());
+    } catch (Exception e) {
+      throw e;
     }
 
     List<NodeInfo> finalList = new ArrayList<>();

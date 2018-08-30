@@ -44,7 +44,11 @@ describe('LeftTree', () => {
           entities: {source: { 'new-id': {id: 'new-id', links: {self: '/self'}}}},
           result: 'new-id'
         })
-      })
+      }),
+      authInfo: {
+        isAdmin: true,
+        allowSpaceManagement: true
+      }
 
     };
     commonProps = {

@@ -21,6 +21,7 @@ import Immutable from 'immutable';
 import ExploreDragArea from 'pages/ExplorePage/components/ExploreDragArea';
 import { isAlreadySelected } from 'utils/explore/aggregateUtils';
 import ColumnDragItem from 'utils/ColumnDragItem';
+import { rowMargin } from '@app/uiTheme/less/forms.less';
 
 import DragAreaColumn from '../../DragComponents/DragAreaColumn';
 
@@ -44,7 +45,9 @@ class ColumnDragArea extends Component {
     dragAreaText: PropTypes.string,
     handleDragStart: PropTypes.func,
     canUseFieldAsBothDimensionAndMeasure: PropTypes.bool,
-    onDragEnd: PropTypes.func
+    onDragEnd: PropTypes.func,
+    className: PropTypes.string,
+    dragContentCls: PropTypes.string
   };
 
   static defaultProps = {
@@ -82,6 +85,7 @@ class ColumnDragArea extends Component {
   renderColumnsForDragArea() {
     return this.props.columnsField.map( (columnField, i) => (
       <DragAreaColumn
+        className={rowMargin}
         onDragStart={this.props.handleDragStart}
         onDragEnd={this.props.onDragEnd}
         canSelectColumn={this.canSelectColumn}
@@ -103,9 +107,15 @@ class ColumnDragArea extends Component {
   render() {
     const isEmpty = !this.props.columnsField.length;
     const isDragged = this.canDropColumn();
+    const {
+      className,
+      dragContentCls
+    } = this.props;
 
     return (
       <ExploreDragArea
+        className={className}
+        dragContentCls={dragContentCls}
         dataQa={this.props.dragOrigin}
         dragType={this.props.dragType}
         onDrop={this.handleDrop}

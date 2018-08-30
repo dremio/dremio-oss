@@ -29,7 +29,12 @@ describe('JobErrorLog', () => {
       })
     };
     commonProps = {
-      ...minimalProps
+      failureInfo: Immutable.fromJS({
+        errors: [
+          {message: 'my error1'},
+          {message: 'my error2'}
+        ]
+      })
     };
   });
 
@@ -38,8 +43,16 @@ describe('JobErrorLog', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render …', () => {
+  it('should render errors', () => {
     const wrapper = shallow(<JobErrorLog {...commonProps}/>);
     expect(wrapper).to.have.length(1);
+  });
+
+  it('should render nothing', () => {
+    const emptylProps = {
+      failureInfo: Immutable.fromJS({a: 'a'})
+    };
+    const wrapper = shallow(<JobErrorLog {...emptylProps}/>);
+    expect(wrapper.unrendered).to.be.defined;
   });
 });

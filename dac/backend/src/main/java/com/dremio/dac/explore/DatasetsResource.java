@@ -73,6 +73,7 @@ import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.datastore.SearchTypes.SortOrder;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.file.FilePath;
 import com.dremio.file.SourceFilePath;
@@ -104,6 +105,7 @@ public class DatasetsResource {
   private final NamespaceService namespaceService;
   private final DatasetTool tool;
   private final ConnectionReader connectionReader;
+  private final Catalog catalog;
 
   @Inject
   public DatasetsResource(
@@ -112,23 +114,36 @@ public class DatasetsResource {
       JobsService jobsService,
       QueryExecutor executor,
       ConnectionReader connectionReader,
-      @Context SecurityContext securityContext) {
-    this(namespaceService, datasetService, new DatasetTool(datasetService, jobsService, executor, securityContext), connectionReader);
+      @Context SecurityContext securityContext,
+      Catalog catalog) {
+    this(namespaceService, datasetService, new DatasetTool(datasetService, jobsService, executor, securityContext), connectionReader, catalog);
   }
 
   protected DatasetsResource(NamespaceService namespaceService,
       DatasetVersionMutator datasetService,
       DatasetTool tool,
-      ConnectionReader connectionReader) {
+      ConnectionReader connectionReader,
+      Catalog catalog) {
     this.namespaceService = namespaceService;
     this.datasetService = datasetService;
     this.tool = tool;
     this.connectionReader = connectionReader;
+    this.catalog = catalog;
   }
 
-  private InitialPreviewResponse newUntitled(FromBase from, DatasetVersion newVersion, List<String> context)
+  private InitialPreviewResponse newUntitled(DatasetPath fromDatasetPath, DatasetVersion newVersion)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
-    return tool.newUntitled(from, newVersion, context);
+    FromTable from = new FromTable(fromDatasetPath.toPathString());
+    DatasetSummary summary = getDatasetSummary(fromDatasetPath);
+
+    return newUntitled(from, newVersion, fromDatasetPath.toParentPathList(), summary);
+  }
+
+  private InitialPreviewResponse newUntitled(FromBase from, DatasetVersion newVersion, List<String> context,
+                                             DatasetSummary parentSummary)
+    throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
+
+    return tool.newUntitled(from, newVersion, context, parentSummary, false);
   }
 
   /**
@@ -151,7 +166,7 @@ public class DatasetsResource {
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     try {
       Preconditions.checkNotNull(newVersion, "newVersion should not be null");
-      return newUntitled(new FromSQL(sql.getSql()).setAlias("nested_0"), newVersion, sql.getContext());
+      return newUntitled(new FromSQL(sql.getSql()).setAlias("nested_0"), newVersion, sql.getContext(), null);
     }catch (Exception e) {
       e.printStackTrace();
       throw e;
@@ -186,11 +201,11 @@ public class DatasetsResource {
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     Preconditions.checkNotNull(newVersion, "newVersion should not be null");
     try {
-      return newUntitled(new FromTable(parentDataset.toPathString()), newVersion, parentDataset.toParentPathList());
+      return newUntitled(parentDataset, newVersion);
     } catch (DatasetNotFoundException | NamespaceException e) {
       // TODO: this should really be a separate API from the UI.
       // didn't find as virtual dataset, let's return as opaque sql (as this could be a source) .
-      return newUntitled(new FromTable(parentDataset.toPathString()), newVersion, parentDataset.toParentPathList());
+      return newUntitled(parentDataset, newVersion);
     }
   }
 
@@ -242,7 +257,11 @@ public class DatasetsResource {
   @Produces(MediaType.APPLICATION_JSON)
   public DatasetSummary getDatasetSummary(@PathParam("path") String path) throws NamespaceException {
     final DatasetPath datasetPath = new DatasetPath(PathUtils.toPathComponents(path));
-    final DatasetConfig datasetConfig = namespaceService.getDataset(datasetPath.toNamespaceKey());
+    return getDatasetSummary(datasetPath);
+  }
+
+  private DatasetSummary getDatasetSummary(DatasetPath datasetPath) throws NamespaceException {
+    final DatasetConfig datasetConfig = catalog.getTable(datasetPath.toNamespaceKey()).getDatasetConfig();
     return newDatasetSummary(datasetConfig,
       datasetService.getJobsCount(datasetPath.toNamespaceKey()),
       datasetService.getDescendantsCount(datasetPath.toNamespaceKey()));

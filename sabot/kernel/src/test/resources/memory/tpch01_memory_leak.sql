@@ -10,7 +10,7 @@ select
   avg(l_discount) as avg_disc,
   count(*) as count_order
 from
-  cp.`tpch/lineitem.parquet`
+  cp."tpch/lineitem.parquet"
 where
   l_shipdate <= date '1998-12-01' - interval '120' day (3)
 group by

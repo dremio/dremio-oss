@@ -22,7 +22,6 @@ import "../../../../../protocol/src/main/protobuf/Coordination.proto";
 import "../../../../../protocol/src/main/protobuf/UserBitShared.proto";
 import "../../../../../protocol/src/main/protobuf/ExecutionProtos.proto";
 
-
 option java_package = "com.dremio.service.job.proto";
 option optimize_for = SPEED;
 
@@ -70,6 +69,8 @@ message MaterializationSummary {
   optional string reflectionId = 2;
   optional int32 layoutVersion = 3;
   optional string materializationId = 4;
+  optional string reflectionName = 5;
+  optional string reflectionType = 6;
 }
 
 message ScanPath {

@@ -51,11 +51,11 @@ import org.apache.calcite.avatica.QueryState;
 import org.apache.calcite.avatica.util.Cursor;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
-import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.rpc.ConnectionThrottle;
 import com.dremio.jdbc.AlreadyClosedSqlException;
@@ -96,7 +96,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
         client.getConfig().getInt(
             ExecConstants.JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD );
     resultsListener = new ResultsListener(batchQueueThrottlingThreshold);
-    batchLoader = new RecordBatchLoader(client.getAllocator());
+    batchLoader = new RecordBatchLoader(client.getRecordAllocator());
     cursor = new DremioCursor(connection, statement, signature);
   }
 
@@ -1150,16 +1150,8 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
   }
 
   @Override
-  public AvaticaStatement getStatement() {
-    try {
-      throwIfClosed();
-    } catch (AlreadyClosedSqlException e) {
-      // Can't throw any SQLException because AvaticaConnection's
-      // getStatement() is missing "throws SQLException".
-      throw new RuntimeException(e.getMessage(), e);
-    } catch (SQLException e) {
-      throw new RuntimeException(e.getMessage(), e);
-    }
+  public AvaticaStatement getStatement() throws SQLException {
+    throwIfClosed();
     return super.getStatement();
   }
 

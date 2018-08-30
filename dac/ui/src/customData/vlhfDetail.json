@@ -1,0 +1,838 @@
+[
+  {"sourceType": "REDSHIFT", "tags":["beta"],
+    "metadataRefresh": {"datasetDiscovery": true},
+    "form": { "tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "elements": [
+              {
+                "propName": "config.connectionString",
+                "placeholder": "e.g. jdbc:redshift://123.123.123.123:5439/database",
+                "help": {"position":"bottom", "text": "Your JDBC connection URL can be found in AWS console"},
+                "validate": {"isRequired": true}
+              }
+            ]
+          },
+          {
+            "name": "Authentication",
+            "elements": [
+              {
+                "propName": "config.authenticationType"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "help": {"position": "bottom", "text": "Set to 0 to have Dremio automatically decide."},
+            "elements": [
+              {
+                "propName": "config.fetchSize",
+                "size": "half",
+                "value": "0",
+                "tooltip": "Number of records to fetch at once. "
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }},
+  {"sourceType": "S3", "tags": ["beta"],
+    "metadataRefresh": {"datasetDiscovery": true},
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Authentication",
+            "layout": "row",
+            "elements": [
+              {
+                "propName": "config.accessKey",
+                "size": "half",
+                "errMsg": "Both access secret and key are required for private S3 buckets."
+              },
+              {
+                "propName": "config.accessSecret",
+                "size": "half",
+                "errMsg": "Both access secret and key are required for private S3 buckets.",
+                "secure": true
+              },
+              {
+                "propName": "config.secure"
+              }
+            ],
+            "help": {
+              "position": "top",
+              "text": "All buckets associated with this access key will be available."
+            }
+          },
+          {
+            "name": "Public Buckets",
+            "elements": [
+              {
+                "propName": "config.externalBucketList[]",
+                "uiType": "value_list",
+                "emptyLabel": "No public buckets added",
+                "addLabel": "Add bucket",
+                "validate": {"isRequired": false}
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "title": "Connection Properties",
+        "sections": [
+          {
+            "elements": [
+              {
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property",
+                "propName": "config.propertyList"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }},
+  {"sourceType": "ADL", "tags": ["beta"],
+    "metadataRefresh": {"datasetDiscovery": true},
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Authentication",
+            "tooltip": "",
+            "elements": [
+              {
+                "propName": "config.accountName",
+                "placeholder": ""
+              },
+              {
+                "propName": "config.clientId",
+                "placeholder": ""
+              },
+              {
+                "propName": "config.clientKeyRefreshUrl",
+                "placeholder": ""
+              },
+              {
+                "propName": "config.clientKeyPassword"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "title": "Connection Properties",
+        "sections": [
+          {
+            "elements": [
+              {
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property",
+                "propName": "config.propertyList"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }},
+  {"sourceType": "ELASTIC",
+    "metadataRefresh": {"datasetDiscovery": true},
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "tooltip": "",
+            "elements": [
+              {
+                "propName": "config.hostList",
+                "uiType": "host_list",
+                "emptyLabel": "",
+                "addLabel": "Add Host",
+                "defaultPort": 9200
+              },
+              {
+                "propName": "config.sslEnabled"
+              },
+              {
+                "propName": "config.useWhitelist",
+                "tooltip": "Only query above hosts. Typically needed when connecting to Elasticsearch-as-a-service clusters."
+              }
+            ]
+          },
+          {
+            "name": "Authentication",
+            "elements": [
+              {
+                "propName": "config.authenticationType"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.showHiddenIndices"
+              },
+              {
+                "propName": "config.usePainless"
+              },
+              {
+                "propName": "config.showIdColumn"
+              },
+              {
+                "propName": "config.allowPushdownOnNormalizedOrAnalyzedFields"
+              },
+              {
+                "propName": "config.scriptsEnabled"
+              },
+              {
+                "propName": "config.readTimeoutMillis",
+                "size": "half",
+                "validate": {"isNumber": true},
+                "scale": "1:1000",
+                "label": "Read timeout (seconds)"
+              },
+              {
+                "propName": "config.scrollTimeoutMillis",
+                "size": "half",
+                "validate": {"isNumber": true},
+                "scale": "1:1000",
+                "label": "Scroll timeout (seconds)"
+              },
+              {
+                "propName": "config.scrollSize",
+                "tooltip": "Configure scroll size for Elasticsearch requests Dremio makes. This setting must be less than or equal to your Elasticsearch's setting for index.max_result_window setting (typically defaults to 10,000).",
+                "size": "half"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }},
+  {"sourceType": "HBASE", "tags": ["beta"],
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "layout": "row",
+            "elements": [
+              {
+                "propName": "config.zkQuorum",
+                "placeholder": "e.g. 123.0.0.1,123.0.0.2",
+                "size": "half",
+                "validate": {"isRequired": true}
+              },
+              {
+                "propName": "config.port",
+                "size": "half",
+                "validate": {"isRequired": true}
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.isSizeCalcEnabled"
+              }
+            ]
+          },
+          {
+            "name": "Connection Properties",
+            "elements": [
+              {
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property",
+                "propName": "config.propertyList"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }},
+  {"sourceType": "HDFS",
+    "metadataRefresh": {"authorization": true},
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "layout": "row",
+            "elements": [
+              {
+                "propName": "config.hostname",
+                "placeholder": "e.g.123.123.123.123",
+                "size": "half",
+                "validate": {"isRequired": true}
+              },
+              {
+                "propName": "config.port",
+                "size": "half",
+                "validate": {"isRequired": true}
+              },
+              {
+                "propName": "config.enableImpersonation"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.rootPath"
+              },
+              {
+                "propName": "config.shortCircuitFlag",
+                "uiType": "container_selection",
+                "options": [
+                  {"value": "SYSTEM", "container": {}},
+                  {"value": "ENABLED", "container": {
+                    "propName": "config.shortCircuitSocketPath",
+                    "placeholder": "/var/lib/hadoop-hdfs/dn_socket"
+                  }},
+                  {"value": "DISABLED", "container": {}}
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Connection Properties",
+            "elements": [
+              {
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property",
+                "propName": "config.propertyList"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }},
+  {"sourceType": "HIVE",
+    "metadataRefresh": {"datasetDiscovery": true, "authorization": true},
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "layout": "row",
+            "elements": [
+              {
+                "propName": "config.hostname",
+                "placeholder": "e.g. 123.123.123.123",
+                "size": "half",
+                "validate": {"isRequired": true}
+              },
+              {
+                "propName": "config.port",
+                "size": "half",
+                "validate": {"isRequired": true}
+              },
+              {
+                "uiType": "check_enabled_container",
+                "propName": "config.enableSasl",
+                "container": {
+                  "propName": "config.kerberosPrincipal",
+                  "placeholder": "e.g. principal@REALM.COM",
+                  "errMsg": "Value is required unless you uncheck the checkbox."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "title": "Connection Properties",
+        "sections": [
+          {
+            "elements": [
+              {
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property",
+                "propName": "config.propertyList"
+              }
+            ]
+          }
+        ]
+      }    ]
+  }},
+  {"sourceType": "MAPRFS",
+    "metadataRefresh": {"authorization": true},
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "elements": [
+              {
+                "propName": "config.clusterName",
+                "placeholder": "e.g. my.cluster.com"
+              },
+              {
+                "propName": "config.enableImpersonation"
+              },
+              {
+                "propName": "config.secure"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.rootPath"
+              }
+            ]
+          },
+          {
+            "name": "Connection Properties",
+            "elements": [
+              {
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property",
+                "propName": "config.propertyList"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }},
+  {"sourceType": "MSSQL",
+    "metadataRefresh": {"datasetDiscovery": true},
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "layout": "row",
+            "elements": [
+              {
+                "propName": "config.hostname",
+                "placeholder": "e.g.123.123.123.123",
+                "size": "half",
+                "validate": {"isRequired": true}
+              },
+              {
+                "propName": "config.port",
+                "size": "half"
+              },
+              {
+                "propName": "config.database"
+              }
+            ]
+          },
+          {
+            "name": "Authentication",
+            "elements": [
+              {
+                "propName": "config.authenticationType"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "help": {"position": "bottom", "text": "Set to 0 to have Dremio automatically decide."},
+            "elements": [
+              {
+                "propName": "config.showOnlyConnectionDatabase"
+              },
+              {
+                "propName": "config.fetchSize",
+                "size": "half",
+                "tooltip": "Number of records to fetch at once. "
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }},
+  {"sourceType": "MONGO", "tags": ["beta"],
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "help": {"position": "top", "text": "If MongoDB is sharded, enter the mongos hosts. Otherwise, enter the mongod host."},
+            "elements": [
+              {
+                "propName": "config.hostList",
+                "uiType": "host_list",
+                "emptyLabel": "",
+                "addLabel": "Add Host",
+                "defaultPort": 27017
+              },
+              {
+                "tooltip": "Force encrypted connection over SSL",
+                "propName": "config.useSsl"
+              },
+              {
+                "tooltip": "If enabled, queries will fail if no secondaries are available.",
+                "propName": "config.secondaryReadsOnly"
+              }
+            ]
+          },
+          {
+            "name": "Authentication",
+            "elements": [
+              {
+                "propName": "config.authenticationType"
+              },
+              {
+                "propName": "config.authDatabase"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.subpartitionSize",
+                "tooltip": "Number of records to be read by query fragments (increases query parallelism). Ignored if value is zero.",
+                "size": "half",
+                "validate": {"isNumber": true}
+              },
+              {
+                "propName": "config.authenticationTimeoutMillis",
+                "tooltip": "Default is 2000 milliseconds",
+                "size": "half",
+                "validate": {"isNumber": true}
+              }
+            ]
+          },
+          {
+            "name": "Connection Properties",
+            "elements": [
+              {
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property",
+                "propName": "config.propertyList"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }},
+  {"sourceType": "MYSQL",
+    "metadataRefresh": {"datasetDiscovery": true},
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Host",
+            "layout": "row",
+            "elements": [
+              {
+                "propName": "config.hostname",
+                "placeholder": "e.g.123.123.123.123",
+                "size": "half",
+                "validate": {"isRequired": true}
+              },
+              {
+                "propName": "config.port",
+                "size": "half",
+                "validate": {"isRequired": true}
+              },
+              {
+                "propName": "config.database"
+              }
+            ]
+          },
+          {
+            "name": "Authentication",
+            "elements": [
+              {
+                "propName": "config.authenticationType"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "help": {"position": "bottom", "text": "Set to 0 to have Dremio automatically decide."},
+            "elements": [
+              {
+                "propName": "config.showOnlyConnectionDatabase"
+              },
+              {
+                "propName": "config.fetchSize",
+                "size": "half",
+                "tooltip": "Number of records to fetch at once. "
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }},
+  {"sourceType": "NAS",
+    "metadataRefresh": {},
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "elements": [
+              {
+                "propName": "config.path",
+                "tooltip": "This path must exist on all nodes in the Dremio cluster.",
+                "placweholder": "e.g. /mnt/path",
+                "validate": {"isRequired": true}
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }},
+  {"sourceType": "ORACLE",
+    "metadataRefresh": {"datasetDiscovery": true},
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Host",
+            "layout": "row",
+            "elements": [
+              {
+                "propName": "config.hostname",
+                "placeholder": "e.g.123.123.123.123",
+                "size": "half",
+                "validate": {"isRequired": true}
+              },
+              {
+                "propName": "config.port",
+                "size": "half",
+                "validate": {"isRequired": true}
+              },
+              {
+                "propName": "config.instance",
+                "validate": {"isRequired": true}
+              }
+            ]
+          },
+          {
+            "name": "Authentication",
+            "elements": [
+              {
+                "propName": "config.authenticationType"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "help": {"position": "bottom", "text": "Set to 0 to have Dremio automatically decide."},
+            "elements": [
+              {
+                "propName": "config.fetchSize",
+                "size": "half",
+                "tooltip": "Number of records to fetch at once. "
+              }
+            ]
+          },
+          {
+            "name": "SSL/TLS Options",
+            "elements": [
+              {
+                "propName": "config.sslServerCertDN",
+                "size": "half",
+                "tooltip": "Certificate Distinguished Name. Leave blank to disable DN match"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }},
+  {"sourceType": "POSTGRES", "tags": ["beta"],
+    "metadataRefresh": {"datasetDiscovery": true},
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "layout": "row",
+            "elements": [
+              {
+                "propName": "config.hostname",
+                "placeholder": "e.g.123.123.123.123",
+                "size": "half",
+                "validate": {"isRequired": true}
+              },
+              {
+                "propName": "config.port",
+                "size": "half",
+                "validate": {"isRequired": true}
+              },
+              {
+                "propName": "config.databaseName",
+                "validate": {"isRequired": true}
+              }
+            ]
+          },
+          {
+            "name": "Authentication",
+            "elements": [
+              {
+                "propName": "config.authenticationType"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "help": {"position": "bottom", "text": "Set to 0 to have Dremio automatically decide."},
+            "elements": [
+              {
+                "propName": "config.fetchSize",
+                "size": "half",
+                "tooltip": "Number of records to fetch at once. "
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }},
+  {"sourceType": "DB2",
+    "metadataRefresh": {"datasetDiscovery": true},
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "layout": "row",
+            "elements": [
+              {
+                "propName": "config.hostname",
+                "placeholder": "e.g.123.123.123.123",
+                "size": "half",
+                "validate": {"isRequired": true}
+              },
+              {
+                "propName": "config.port",
+                "size": "half",
+                "validate": {"isRequired": true}
+              },
+              {
+                "propName": "config.databaseName",
+                "validate": {"isRequired": true}
+              }
+            ]
+          },
+          {
+            "name": "Authentication",
+            "elements": [
+              {
+                "propName": "config.authenticationType"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "help": {"position": "bottom", "text": "Set to 0 to have Dremio automatically decide."},
+            "elements": [
+              {
+                "propName": "config.fetchSize",
+                "size": "half",
+                "tooltip": "Number of records to fetch at once. "
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "ignored used for icon testing when moved level up": {
+      "icon": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+DQo8c3ZnIHdpZHRoPSI0OHB4IiBoZWlnaHQ9IjQ4cHgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgdmVyc2lvbj0iMS4xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIj4NCiAgICA8IS0tIEdlbmVyYXRvcjogU2tldGNoIDQxLjIgKDM1Mzk3KSAtIGh0dHA6Ly93d3cuYm9oZW1pYW5jb2RpbmcuY29tL3NrZXRjaCAtLT4NCiAgICA8dGl0bGU+U291cmNlL1MzPC90aXRsZT4NCiAgICA8ZGVzYz5DcmVhdGVkIHdpdGggU2tldGNoLjwvZGVzYz4NCiAgICA8ZGVmcz48L2RlZnM+DQogICAgPGcgaWQ9IkVsZW1lbnRzIiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4NCiAgICAgICAgPGcgaWQ9IlNvdXJjZS9TMyI+DQogICAgICAgICAgICA8Zz4NCiAgICAgICAgICAgICAgICA8Y2lyY2xlIGlkPSJPdmFsIiBmaWxsPSIjRTZFNkU2IiBjeD0iMjQiIGN5PSIyNCIgcj0iMjQiPjwvY2lyY2xlPg0KICAgICAgICAgICAgICAgIDxnIGlkPSJMb2dvL1MzIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4LjAwMDAwMCwgNC4wMDAwMDApIj4NCiAgICAgICAgICAgICAgICAgICAgPGcgaWQ9IlNvdXJjZS9TMyI+DQogICAgICAgICAgICAgICAgICAgICAgICA8cG9seWdvbiBpZD0iRmlsbC0xIiBmaWxsPSIjOEMzMTIzIiBwb2ludHM9IjAgOC4yMDU5NzU5IDAgMzEuNDE2MDk2NCAyLjYyNDIxNzM5IDMyLjczODAyNDEgOS4wNTM5NTY1MiAxOS44MDY5Mzk4IDIuNjI0MjE3MzkgNi44ODM1NjYyNyI+PC9wb2x5Z29uPg0KICAgICAgICAgICAgICAgICAgICAgICAgPHBvbHlnb24gaWQ9IkZpbGwtMiIgZmlsbD0iI0UwNTI0MyIgcG9pbnRzPSIxNi4yODY3NDM1IDI5LjM5OTQyMTcgMi42MjQyNjUyMiAzMi43MzA5ODggMi42MjQyNjUyMiA2Ljg4Mzc1OTA0IDE2LjI4Njc0MzUgMTAuMjE2NzcxMSAyMi43NDM3NDM1IDE5Ljg0OTA2MDIiPjwvcG9seWdvbj4NCiAgICAgICAgICAgICAgICAgICAgICAgIDxwb2x5Z29uIGlkPSJGaWxsLTMiIGZpbGw9IiM4QzMxMjMiIHBvaW50cz0iMTYuMjg2NzQzNSAyOS4zOTk0MjE3IDI5Ljk0ODc0MzUgMzIuNzMwOTg4IDMyLjMwODk2MDkgMjAuMTM4MjE2OSAyOS45NDg3NDM1IDYuODgzNzU5MDQgMTYuMjg2NzQzNSAxMC4yMTY3NzExIj48L3BvbHlnb24+DQogICAgICAgICAgICAgICAgICAgICAgICA8cG9seWdvbiBpZD0iRmlsbC00IiBmaWxsPSIjRTA1MjQzIiBwb2ludHM9IjI5Ljk0OTIyMTcgMzIuNzM4MDI0MSAzMi41NzQzOTU3IDMxLjQxNjA5NjQgMzIuNTc0Mzk1NyA4LjIwNTk3NTkgMjkuOTQ5MjIxNyA2Ljg4MzU2NjI3Ij48L3BvbHlnb24+DQogICAgICAgICAgICAgICAgICAgICAgICA8cG9seWdvbiBpZD0iRmlsbC01IiBmaWxsPSIjOEMzMTIzIiBwb2ludHM9IjEwLjMyOTE5MTMgMjQuMDg3NjYyNyAxNi4yODY4ODcgMjQuODUyIDIxLjAxMDE5MTMgMTkuODQ4NjI2NSAxNi4yODY4ODcgMTQuODQ1MjUzIDEwLjMyOTE5MTMgMTUuNTk3NTQyMiI+PC9wb2x5Z29uPg0KICAgICAgICAgICAgICAgICAgICAgICAgPHBvbHlnb24gaWQ9IkZpbGwtNiIgZmlsbD0iIzVFMUYxOCIgcG9pbnRzPSIxNi4yODY3OTEzIDAuMDAwMTQ0NTc4MzEzIDEwLjMyOTA5NTcgMTEuNDkyMTkyOCAxNi4yODY3OTEzIDEyLjU4NjY1MDYgMjIuMjQ1NDQzNSAxMS40OTIxOTI4Ij48L3BvbHlnb24+DQogICAgICAgICAgICAgICAgICAgICAgICA8cG9seWdvbiBpZD0iRmlsbC03IiBmaWxsPSIjRjJCMEE5IiBwb2ludHM9IjEwLjMyOTE0MzUgMjguMTgyMDcyMyAxNi4yODY4MzkxIDM5LjY3NDEyMDUgMjIuMjQ1NDkxMyAyOC4xODIwNzIzIDE2LjI4NjgzOTEgMjcuMDgwODY3NSI+PC9wb2x5Z29uPg0KICAgICAgICAgICAgICAgICAgICAgICAgPHBvbHlnb24gaWQ9IkZpbGwtOCIgZmlsbD0iI0UwNTI0MyIgcG9pbnRzPSIxNi4yODY3OTEzIDAuMDAwMTQ0NTc4MzEzIDE2LjI4Njc5MTMgMTAuMDA2ODkxNiAyMi4yNDU0NDM1IDExLjQ5MjE5MjggMjIuMjQ1NDQzNSAzLjAwMjA3MjI5Ij48L3BvbHlnb24+DQogICAgICAgICAgICAgICAgICAgICAgICA8cG9seWdvbiBpZD0iRmlsbC05IiBmaWxsPSIjOEMzMTIzIiBwb2ludHM9IjE2LjI4Njc5MTMgMC4wMDAxNDQ1NzgzMTMgMTAuMzI5MDk1NyAzLjAwMjA3MjI5IDEwLjMyOTA5NTcgMTEuNDkyMTkyOCAxNi4yODY3OTEzIDEwLjAwNjg5MTYiPjwvcG9seWdvbj4NCiAgICAgICAgICAgICAgICAgICAgICAgIDxwb2x5Z29uIGlkPSJGaWxsLTEwIiBmaWxsPSIjRTA1MjQzIiBwb2ludHM9IjE2LjI4Njc5MTMgMjkuNjY4MDQ4MiAxNi4yODY3OTEzIDM5LjY3NDMxMzMgMjIuMjQ0OTY1MiAzNi42NzI4Njc1IDIyLjI0NDk2NTIgMjguMTgyMjY1MSI+PC9wb2x5Z29uPg0KICAgICAgICAgICAgICAgICAgICAgICAgPHBvbHlnb24gaWQ9IkZpbGwtMTEiIGZpbGw9IiM4QzMxMjMiIHBvaW50cz0iMTAuMzI4NzEzIDM2LjY3Mjg2NzUgMTYuMjg2ODg3IDM5LjY3NDMxMzMgMTYuMjg2ODg3IDI5LjY2ODA0ODIgMTAuMzI4NzEzIDI4LjE4MjI2NTEiPjwvcG9seWdvbj4NCiAgICAgICAgICAgICAgICAgICAgICAgIDxwb2x5Z29uIGlkPSJGaWxsLTEyIiBmaWxsPSIjRTA1MjQzIiBwb2ludHM9IjIyLjI0NTQ0MzUgMjQuMDg3NjYyNyAxNi4yODY3OTEzIDI0Ljg1MiAxNi4yODY3OTEzIDE0Ljg0NTI1MyAyMi4yNDU0NDM1IDE1LjU5NzU0MjIiPjwvcG9seWdvbj4NCiAgICAgICAgICAgICAgICAgICAgPC9nPg0KICAgICAgICAgICAgICAgIDwvZz4NCiAgICAgICAgICAgIDwvZz4NCiAgICAgICAgPC9nPg0KICAgIDwvZz4NCjwvc3ZnPg=="
+    }
+  }}
+]

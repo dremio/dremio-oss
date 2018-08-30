@@ -36,7 +36,7 @@ import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.store.SampleMutator;
 import com.dremio.exec.vector.complex.fn.WorkingBuffer;
 import com.dremio.plugins.elastic.ElasticActions.Count;
@@ -314,7 +314,7 @@ class ElasticTableBuilder implements SourceTableDefinition {
           GroupScan.ALL_COLUMNS,
           readDefinition,
           pluginConfig);
-      final SampleMutator mutator = new SampleMutator(allocator)
+      final SampleMutator mutator = new SampleMutator(sampleAllocator)
       ) {
 
     schema.materializeVectors(GroupScan.ALL_COLUMNS, mutator);

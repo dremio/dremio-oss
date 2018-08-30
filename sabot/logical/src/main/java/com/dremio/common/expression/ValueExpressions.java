@@ -15,13 +15,23 @@
  */
 package com.dremio.common.expression;
 
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.Collections;
-import java.util.GregorianCalendar;
 import java.util.Iterator;
+
+import org.apache.calcite.util.DateString;
+import org.apache.calcite.util.TimeString;
+import org.apache.calcite.util.TimestampString;
 
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.common.util.CoreDecimalUtility;
+import com.dremio.common.util.DateTimes;
 import com.google.common.base.Objects;
 
 public class ValueExpressions {
@@ -49,22 +59,21 @@ public class ValueExpressions {
     return new QuotedString(s);
   }
 
-  public static LogicalExpression getDate(GregorianCalendar date) {
-    return new com.dremio.common.expression.ValueExpressions.DateExpression(date.getTimeInMillis());
+  public static LogicalExpression getDate(DateString date) {
+    LocalDate localDate = LocalDate.parse(date.toString(), DateTimes.CALCITE_LOCAL_DATE_FORMATTER);
+    return new DateExpression(localDate.atTime(LocalTime.MIDNIGHT).toInstant(ZoneOffset.UTC).toEpochMilli());
   }
 
-  public static LogicalExpression getTime(GregorianCalendar time) {
-      int millis = time.get(GregorianCalendar.HOUR_OF_DAY) * 60 * 60 * 1000 +
-                   time.get(GregorianCalendar.MINUTE) * 60 * 1000 +
-                   time.get(GregorianCalendar.SECOND) * 1000 +
-                   time.get(GregorianCalendar.MILLISECOND);
-
-      return new TimeExpression(millis);
+  public static LogicalExpression getTime(TimeString time) {
+    LocalTime localTime = LocalTime.parse(time.toString(), DateTimes.CALCITE_LOCAL_TIME_FORMATTER);
+    return new TimeExpression(Math.toIntExact(NANOSECONDS.toMillis(localTime.toNanoOfDay())));
   }
 
-  public static LogicalExpression getTimeStamp(GregorianCalendar date) {
-    return new com.dremio.common.expression.ValueExpressions.TimeStampExpression(date.getTimeInMillis());
+  public static LogicalExpression getTimeStamp(TimestampString timestamp) {
+    LocalDateTime localDateTime = LocalDateTime.parse(timestamp.toString(), DateTimes.CALCITE_LOCAL_DATETIME_FORMATTER);
+    return new TimeStampExpression(localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli());
   }
+
   public static LogicalExpression getIntervalYear(int months) {
     return new IntervalYearExpression(months);
   }

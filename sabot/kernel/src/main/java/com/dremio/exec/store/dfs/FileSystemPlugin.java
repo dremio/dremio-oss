@@ -35,7 +35,6 @@ import javax.annotation.Nullable;
 import javax.inject.Provider;
 
 import org.apache.calcite.schema.Function;
-import org.apache.directory.api.util.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -93,6 +92,7 @@ import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Optional;
 import com.google.common.base.Stopwatch;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -187,7 +187,8 @@ public class FileSystemPlugin implements StoragePlugin {
     if (!config.isImpersonationEnabled()) {
       userName = ImpersonationUtil.getProcessUserName();
     }
-    return ImpersonationUtil.createFileSystem(ImpersonationUtil.createProxyUgi(userName), getFsConf(), stats);
+    return ImpersonationUtil.createFileSystem(ImpersonationUtil.createProxyUgi(userName), getFsConf(), stats,
+        getConnectionUniqueProperties());
   }
 
   public Iterable<String> getSubPartitions(List<String> table,
@@ -418,7 +419,7 @@ public class FileSystemPlugin implements StoragePlugin {
       }
     }
 
-    if (!Strings.isEmpty(config.getConnection())) {
+    if (!Strings.isNullOrEmpty(config.getConnection())) {
       FileSystem.setDefaultUri(fsConf, config.getConnection());
     }
 
@@ -784,7 +785,7 @@ public class FileSystemPlugin implements StoragePlugin {
     FileSystemWrapper fs = getFS(schemaConfig.getUserName());
     boolean replaced = fs.exists(viewPath);
     final FsPermission viewPerms =
-            new FsPermission(schemaConfig.getOption(ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY).string_val);
+            new FsPermission(schemaConfig.getOption(ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY).getStringVal());
     try (OutputStream stream = FileSystemWrapper.create(fs, viewPath, viewPerms)) {
       lpPersistance.getMapper().writeValue(stream, view);
     }
@@ -851,7 +852,6 @@ public class FileSystemPlugin implements StoragePlugin {
    */
   public void dropTable(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
     FileSystemWrapper fs = getFS(schemaConfig.getUserName());
-    String defaultLocation = config.getPath().toString();
     List<String> fullPath = resolveTableNameToValidPath(tableSchemaPath);
     FileSelection fileSelection;
     try {
@@ -876,19 +876,28 @@ public class FileSystemPlugin implements StoragePlugin {
                 .build(logger);
       }
 
+      final Path fsPath = PathUtils.toFSPath(fullPath);
+
       // Generate unique identifier which will be added as a suffix to the table name
       ThreadLocalRandom r = ThreadLocalRandom.current();
       long time =  (System.currentTimeMillis()/1000);
       Long p1 = ((Integer.MAX_VALUE - time) << 32) + r.nextInt();
       Long p2 = r.nextLong();
       final String fileNameDelimiter = FileSystemWrapper.HIDDEN_FILE_PREFIX;
-      final String newFileName = FileSystemWrapper.HIDDEN_FILE_PREFIX + fullPath.get(fullPath.size() - 1) + fileNameDelimiter
+      final String newFileName = FileSystemWrapper.HIDDEN_FILE_PREFIX + fsPath.getName() + fileNameDelimiter
               + p1 + fileNameDelimiter + p2;
 
-      List<String> newFullPath = ImmutableList.<String>builder().addAll(fullPath.subList(0, fullPath.size() - 1)).add(newFileName).build();
-
-      fs.rename(new Path(defaultLocation, PathUtils.toFSPath(fullPath)), new Path(defaultLocation, PathUtils.toFSPath(newFullPath)));
-      fs.delete(new Path(defaultLocation, PathUtils.toFSPath(newFullPath)), true);
+      Path renamePath = new Path(fsPath.getParent(), newFileName);
+      if (!fs.rename(fsPath, renamePath)) {
+        throw UserException.ioExceptionError()
+            .message("Failed to rename folder %s -> %s prior to deletion", fsPath, renamePath)
+            .build(logger);
+      }
+      if (!fs.delete(renamePath, true)) {
+        throw UserException.ioExceptionError()
+            .message("Failed to drop table: %s", PathUtils.constructFullPath(tableSchemaPath))
+            .build(logger);
+      }
     } catch (AccessControlException e) {
       throw UserException
               .permissionError(e)
@@ -994,5 +1003,7 @@ public class FileSystemPlugin implements StoragePlugin {
     return fs;
   }
 
-
+  public List<String> getConnectionUniqueProperties() {
+    return config.getConnectionUniqueProperties();
+  }
 }

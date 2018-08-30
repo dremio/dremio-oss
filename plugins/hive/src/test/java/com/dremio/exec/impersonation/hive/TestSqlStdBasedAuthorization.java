@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.impersonation.hive;
 
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.WorkspaceConfig;
+import com.dremio.exec.store.hive.HivePluginOptions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
@@ -79,7 +79,7 @@ public class TestSqlStdBasedAuthorization extends BaseTestHiveImpersonation {
     addMiniDfsBasedStorage(Maps.<String, WorkspaceConfig>newHashMap(), /*impersonationEnabled=*/true);
     addHiveStoragePlugin(getHivePluginConfig());
     generateTestData();
-    test(String.format("alter session set `%s` = false", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+    test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
   }
 
   private static void setSqlStdBasedAuthorizationInHiveConf() {
@@ -246,7 +246,7 @@ public class TestSqlStdBasedAuthorization extends BaseTestHiveImpersonation {
     test(String.format("SELECT * FROM %s v JOIN %s s on v.name = s.name limit 2;", g_voter_role0, g_student_user2));
   }
 
-  private static void queryViewHelper(final String queryUser, final String query) throws Exception {
+  private void queryViewHelper(final String queryUser, final String query) throws Exception {
     updateClient(queryUser);
     testBuilder()
         .sqlQuery(query)

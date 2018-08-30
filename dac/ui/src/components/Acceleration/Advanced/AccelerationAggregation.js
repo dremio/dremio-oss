@@ -44,6 +44,7 @@ export default class AccelerationAggregation extends Component {
       'aggregationReflections[].dimensionFields[].name',
       'aggregationReflections[].dimensionFields[].granularity',
       'aggregationReflections[].measureFields[].name',
+      'aggregationReflections[].measureFields[].measureTypeList',
       'aggregationReflections[].distributionFields[].name',
       'aggregationReflections[].shouldDelete'
     ];
@@ -61,7 +62,7 @@ export default class AccelerationAggregation extends Component {
     }, aggregationReflections.map(e => e.name.value));
 
     aggregationReflections.addField(reflection);
-  }
+  };
 
   renderHeader = () => {
     return (
@@ -77,7 +78,7 @@ export default class AccelerationAggregation extends Component {
           type='button'/>
       </div>
     );
-  }
+  };
 
   render() {
     const {dataset, reflections, fields: {aggregationReflections}} = this.props;

@@ -18,11 +18,10 @@ import PropTypes from 'prop-types';
 import invariant from 'invariant';
 import Modal from 'components/Modals/Modal';
 import ConfirmCancelFooter from 'components/Modals/ConfirmCancelFooter';
-import { TextField, Checkbox } from 'components/Fields';
+import { Checkbox, TextField } from 'components/Fields';
 
-import { modalContent } from 'uiTheme/radium/modal';
+import { confirmBodyText, modalContent } from 'uiTheme/radium/modal';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
-import { confirmBodyText } from 'uiTheme/radium/modal';
 import Keys from 'constants/Keys.json';
 
 export default class ConfirmModal extends Component {
@@ -41,7 +40,8 @@ export default class ConfirmModal extends Component {
     doNotAskAgainText: PropTypes.string,
     doNotAskAgainKey: PropTypes.string,
     showPrompt: PropTypes.bool,
-    promptFieldProps: PropTypes.object
+    promptFieldProps: PropTypes.object,
+    dataQa: PropTypes.string
   };
 
   static defaultProps = {
@@ -89,7 +89,8 @@ export default class ConfirmModal extends Component {
       doNotAskAgainText,
       doNotAskAgainKey,
       showPrompt,
-      promptFieldProps
+      promptFieldProps,
+      dataQa
     } = this.props;
     const hideCancel = this.props.hideCancelButton || showOnlyConfirm;
     const onHide = showOnlyConfirm ? () => {} : onCancel;
@@ -126,13 +127,13 @@ export default class ConfirmModal extends Component {
       return <p key={i} style={{marginBottom: i < bodyElements.length - 1 ? '1em' : 0}}>{item}</p>;
     });
     bodyElements = showPrompt ? <label>{bodyElements}</label> : bodyElements;
-
     return (
       <Modal
         isOpen={isOpen}
         hide={onHide}
         hideCloseButton={hideCloseButton}
         classQa='confirm-modal'
+        dataQa={dataQa}
         size='smallest'
         title={title || la('Confirm')}
       >

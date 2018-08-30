@@ -32,7 +32,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.util.CellReference;
@@ -81,7 +81,7 @@ public class StAXBasedParser implements ExcelParser {
   private final SharedStringsTable sst;
   private final StylesTable styles;
   private final InputStream sheetInputStream;
-  private final MapWriter writer;
+  private final StructWriter writer;
 
   private ArrowBuf managedBuf;
   private XMLStreamReader xmlStreamReader;
@@ -127,7 +127,7 @@ public class StAXBasedParser implements ExcelParser {
                          final VectorContainerWriter writer, final ArrowBuf managedBuf,
                          final HashSet<String> columnsToProject) throws Exception {
     pkgInputStream = OPCPackage.open(inputStream);
-    this.writer = writer.rootAsMap();
+    this.writer = writer.rootAsStruct();
     this.managedBuf = managedBuf;
 
     final XSSFReader xssfReader = new XSSFReader(pkgInputStream);

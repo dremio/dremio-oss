@@ -48,7 +48,7 @@ describe('SelectFrequentValues', () => {
     wrapper.setState({
       activeCell: { cellValue: 'foo', anchor: document.createElement('span') }
     });
-    expect(wrapper.find('ExploreCellLargeOverlay')).to.have.length(1);
+    expect(wrapper.find('withLocation(ExploreCellLargeOverlayView)')).to.have.length(1);
   });
   describe('#handleCheck', () => {
     it('should return call onChange with checked values', () => {

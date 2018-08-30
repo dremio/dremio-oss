@@ -1,0 +1,155 @@
+/*
+ * Copyright (C) 2017-2018 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import "~@app/uiTheme/less/variables.less";
+@import "~@app/uiTheme/less/color-schema.less";
+
+.title {
+  composes: form-label from '@app/uiTheme/less/typography.less';
+}
+
+.form-body {
+  composes: horizontal-content-padding from '@app/uiTheme/less/layout.less';
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.common-title {
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 300;
+}
+
+.tab-title {
+  composes: common-title;
+  margin: 0 0 15px 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid @TABLE_BORDER;
+}
+
+.tab-sections {
+  width: 600px
+}
+
+.section-label {
+  composes: common-title;
+  color: @MID_GREY;
+  margin: 0 0 10px 0;
+}
+
+.section-body {
+  margin-bottom: 10px;
+}
+
+.section-title {
+  composes: title;
+  composes: section-margin from '@app/uiTheme/less/layout.less';
+}
+
+.input-for-radio {
+  margin-left: @input-under-radio-offset;
+  //do we need row-margin here????
+}
+
+.row-margin {
+  margin-top: @row-content-margin;
+}
+
+.radio-stacked {
+  composes: row-margin;
+  display: flex !important; //todo remove important, when all components would be switched to css modules
+}
+
+.text-input {
+  composes: form-default from '@app/uiTheme/less/typography.less';
+  padding-left: 5px;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 2px;
+  height: 28px;
+  width: 310px;
+  &:focus {
+    border: 1px solid #C0E9F5;
+    box-shadow: 0 0 4px 0 rgba(129,209,235,0.20)
+  }
+}
+
+.columns-container {
+  display: flex;
+}
+
+.first-column {
+  min-width: 450px;
+}
+
+.second-column {
+  margin-left: 20px;
+}
+
+.row-of-inputs {
+  display: flex;
+  align-items: center;
+}
+
+.fields-horizontal-spacing {
+  margin-right: @input-spacing;
+}
+
+.row-of-inputs-spacing {
+  > *:not(:last-child) {
+    .fields-horizontal-spacing
+  }
+}
+
+.row-of-radio {
+  margin-bottom: 6px;
+}
+
+.table-row-element-margin { // it is padding for table like view. See 
+  margin-left: @row-content-margin;
+}
+
+// uses this style for table like layout. See multi sort for example
+.row-height {
+  height: @row-element-height;
+}
+
+.table-row {
+  composes: row-height row-of-inputs;
+}
+
+.table-row-content-padding-left {
+  padding-left: @row-content-margin;
+}
+
+.view-state-wrapper {
+  composes: flex-column-container from '@app/uiTheme/less/layout.less';
+  overflow: hidden;
+}
+
+.source-form-wrapper {
+  display: flex;
+  height: 100%;
+}
+
+.inline-help {
+  color: @font-color2;
+  width: 100%;
+}
+
+.element-container {
+  margin-bottom: 10px;
+  width: 100%;
+}

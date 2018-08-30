@@ -13,14 +13,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.draggable-icon {
-  display: none;
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  visibility: hidden;
+ @import "~@app/uiTheme/less/color-schema.less";
+ @import "~@app/uiTheme/less/variables.less";
+ @import "~@app/uiTheme/less/mixins.less";
+
+:global {
+  .draggable-icon {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    visibility: hidden;
+  }
+  .draggable-row:hover .draggable-icon {
+    visibility: visible;
+  }
 }
-.draggable-row:hover .draggable-icon {
-  visibility: visible;
+
+.base {
+  min-height: @row-element-height;
+}
+
+.content {
+  composes: table-row from '@app/uiTheme/less/forms.less';
+  position: relative;
+  border: 1px solid transparent;
+  margin-left: @row-content-margin;
+  margin-right: @row-content-margin;
+  cursor: move;
+
+  &:hover {
+    .dragged-item-mixin();
+    box-shadow: 0px 0px 4px 0px @TABLE_BORDER;
+  }
+}
+
+.disabled {
+  cursor: default;
+
+  &:hover {
+    background-color: transparent;
+    box-shadow: none;
+    border-color: transparent;
+  }
 }

@@ -16,14 +16,19 @@
 package com.dremio.exec.work;
 
 import java.sql.Timestamp;
+import java.util.Collections;
 import java.util.Iterator;
 
 import com.dremio.sabot.task.TaskDescriptor;
-import com.sun.xml.internal.xsom.impl.scd.Iterators;
+import com.dremio.sabot.task.TaskPool;
 
 public interface WorkStats {
 
   Iterator<FragmentInfo> getRunningFragments();
+
+  default Iterable<TaskPool.ThreadInfo> getSlicingThreads() {
+    return Collections.emptyList();
+  }
 
   /**
    * @return number of running fragments / max width per node
@@ -45,6 +50,41 @@ public interface WorkStats {
    */
   double getMaxWidthFactor();
 
+  /**
+   * sys.slicing_threads entry
+   */
+  class SlicingThreadInfo {
+
+    /** Sabot node infos */
+    public final String hostname;
+    public final int fabric_port;
+    /** current Java thread name */
+    public final String threadName;
+    /** slicing thread Id */
+    public final int slicingThreadId;
+    /** OS thread Id */
+    public final int osThreadId;
+    /** cpu id (core) */
+    public final int cpuId;
+
+    public final int numTasks;
+
+    public final int numStagedTasks;
+
+    public final int numRequestedWork;
+
+    public SlicingThreadInfo(String hostName, int fabricPort, TaskPool.ThreadInfo info) {
+      this.hostname = hostName;
+      this.fabric_port = fabricPort;
+      this.threadName = info.threadName;
+      this.slicingThreadId = info.slicingThreadId;
+      this.osThreadId = info.osThreadId;
+      this.cpuId = info.cpuId;
+      this.numTasks = info.numTasks;
+      this.numStagedTasks = info.numStagedTasks;
+      this.numRequestedWork = info.numRequestedWork;
+    }
+  }
 
   class FragmentInfo {
     public final String hostname;
@@ -85,7 +125,7 @@ public interface WorkStats {
 
     @Override
     public Iterator<FragmentInfo> getRunningFragments() {
-      return Iterators.empty();
+      return Collections.emptyIterator();
     }
 
     @Override
@@ -106,5 +146,6 @@ public interface WorkStats {
     @Override
     public double getMaxWidthFactor() {
       return 1.0f;
-    }};
+    }
+  };
 }

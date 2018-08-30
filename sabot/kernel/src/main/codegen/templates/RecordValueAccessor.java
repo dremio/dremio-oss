@@ -66,8 +66,8 @@ public class RecordValueAccessor {
 
   public void getFieldById(int fieldId, ComplexHolder holder) {
     final ValueVector vv = vectors[fieldId];
-    if (vv instanceof BaseDataValueVector) {
-      holder.isSet =vv.getAccessor().isNull(currentIndex) ? 1 : 0;
+    if (vv instanceof BaseValueVector) {
+      holder.isSet =vv.isNull(currentIndex) ? 1 : 0;
     } else {
       holder.isSet = vv.isNull(currentIndex) ? 1 : 0;
     }
@@ -83,9 +83,9 @@ public class RecordValueAccessor {
     <#list vv.modes as mode>
   public void getFieldById(int fieldId, ${mode.prefix}${minor.class}Holder holder) {
     <#if mode.prefix == "Nullable">
-    ((${mode.prefix}${minor.class}Vector) vectors[fieldId]).get(currentIndex, holder);
+    ((${minor.class}Vector) vectors[fieldId]).get(currentIndex, holder);
     <#else>
-    ((${mode.prefix}${minor.class}Vector) vectors[fieldId]).getAccessor().get(currentIndex, holder);
+    ((${mode.prefix}${minor.class}Vector) vectors[fieldId]).get(currentIndex);
     </#if>
   }
 

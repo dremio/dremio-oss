@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.work.user;
 
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 
 public interface OptionProvider {
   void applyOptions(OptionManager manager);

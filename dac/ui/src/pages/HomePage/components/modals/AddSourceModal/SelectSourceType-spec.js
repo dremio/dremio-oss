@@ -15,9 +15,9 @@
  */
 import { shallow } from 'enzyme';
 
-import { sourceProperties } from 'dyn-load/constants/sourceTypes';
-
 import SelectSourceType from './SelectSourceType';
+
+const SOURCE_LIST = require('customData/sourceFormListConfig');
 
 describe('SelectSourceType', () => {
 
@@ -27,7 +27,8 @@ describe('SelectSourceType', () => {
   beforeEach(() => {
     minimalProps = {
       onSelectSource: sinon.spy(),
-      onAddSampleSource: sinon.spy()
+      onAddSampleSource: sinon.spy(),
+      sourceTypes: SOURCE_LIST
     };
     commonProps = {
       ...minimalProps
@@ -41,6 +42,6 @@ describe('SelectSourceType', () => {
   });
 
   it('should render SelectConnectionButton for each sourceType', () => {
-    expect(wrapper.find('SelectConnectionButton')).to.have.length(sourceProperties.length + 1);
+    expect(wrapper.find('SelectConnectionButton')).to.have.length(SOURCE_LIST.length + 1);
   });
 });

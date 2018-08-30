@@ -10,12 +10,12 @@ from
       extract(year from o.o_orderdate) as o_year,
       l.l_extendedprice * (1 - l.l_discount) - ps.ps_supplycost * l.l_quantity as amount
     from
-      cp.`tpch/part.parquet` p,
-      cp.`tpch/supplier.parquet` s,
-      cp.`tpch/lineitem.parquet` l,
-      cp.`tpch/partsupp.parquet` ps,
-      cp.`tpch/orders.parquet` o,
-      cp.`tpch/nation.parquet` n
+      cp."tpch/part.parquet" p,
+      cp."tpch/supplier.parquet" s,
+      cp."tpch/lineitem.parquet" l,
+      cp."tpch/partsupp.parquet" ps,
+      cp."tpch/orders.parquet" o,
+      cp."tpch/nation.parquet" n
     where
       s.s_suppkey = l.l_suppkey
       and ps.ps_suppkey = l.l_suppkey

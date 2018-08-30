@@ -42,10 +42,6 @@ public class JdbcCrel extends SingleRel implements CopyToCluster, Rel {
 
   private StoragePluginId pluginId;
 
-  public JdbcCrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input) {
-    this(cluster, traitSet, input, null);
-  }
-
   public JdbcCrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input, StoragePluginId pluginId) {
     super(cluster, traitSet, input);
     this.pluginId = pluginId;

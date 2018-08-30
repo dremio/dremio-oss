@@ -109,7 +109,7 @@ public class DatasetDownloadManager {
 
     final Job job = jobsService.submitJob(
         JobRequest.newDownloadJobBuilder(downloadId, fileName)
-            .setSqlQuery(new SqlQuery(ctasSql, userName))
+            .setSqlQuery(new SqlQuery(ctasSql, virtualDatasetUI.getContextList(), userName))
             .build(), NoOpJobStatusListener.INSTANCE);
     logger.debug("Scheduled download job {} for {}", job.getJobId(), datasetPath);
     return job;

@@ -61,7 +61,7 @@ public class UnorderedReceiverOperator implements ProducerOperator {
     this.config = config;
     this.stats = context.getStats();
     this.stats.setLongStat(Metric.NUM_SENDERS, config.getNumSenders());
-    this.outgoing = VectorContainer.create(context.getAllocator(), config.getSchema());
+    this.outgoing = context.createOutputVectorContainer(config.getSchema());
 
     // In normal case, batchLoader does not require an allocator. However, in case of splitAndTransfer of a value vector,
     // we may need an allocator for the new offset vector. Therefore, here we pass the context's allocator to batchLoader.

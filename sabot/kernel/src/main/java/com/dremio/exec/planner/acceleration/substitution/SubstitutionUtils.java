@@ -17,36 +17,40 @@ package com.dremio.exec.planner.acceleration.substitution;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-import javax.annotation.Nullable;
-
 import org.apache.calcite.plan.RelOptMaterialization;
-import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.RelVisitor;
-import org.apache.calcite.rel.core.TableFunctionScan;
 import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.util.graph.DefaultDirectedGraph;
-import org.apache.calcite.util.graph.DefaultEdge;
-import org.apache.calcite.util.graph.DirectedGraph;
-import org.apache.calcite.util.graph.Graphs;
-import org.apache.calcite.util.graph.TopologicalOrderIterator;
+import org.apache.calcite.sql.SqlExplainLevel;
 
 import com.dremio.exec.planner.RoutingShuttle;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.reflection.rules.ReplacementPointer;
 import com.dremio.service.Pointer;
-import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 /**
  * Utility methods for finding substitutions.
  */
 public final class SubstitutionUtils {
+
+  private static final RelShuttle REMOVE_REPLACEMENT_POINTER = new StatelessRelShuttleImpl() {
+    @Override
+    public RelNode visit(RelNode other) {
+      if (other instanceof ReplacementPointer) {
+        return ((ReplacementPointer) other).getSubTree();
+      }
+      return super.visit(other);
+    }
+  };
+
   private SubstitutionUtils() { }
 
   public static Set<List<String>> findTables(final RelNode node) {
@@ -100,6 +104,20 @@ public final class SubstitutionUtils {
         }
       })
       .toList();
+  }
+
+  /**
+   * @return true if query plan matches the candidate plan, after removing the {@link ReplacementPointer} from the candidate plan
+   */
+  public static boolean arePlansEqualIgnoringReplacementPointer(RelNode query, RelNode candidate) {
+    Preconditions.checkNotNull(query, "query plan required");
+    Preconditions.checkNotNull(candidate, "candidate plan required");
+
+    final String queryString = RelOptUtil.toString(query, SqlExplainLevel.DIGEST_ATTRIBUTES);
+    final RelNode updatedCandidate = candidate.accept(REMOVE_REPLACEMENT_POINTER);
+    final String candidateString = RelOptUtil.toString(updatedCandidate, SqlExplainLevel.DIGEST_ATTRIBUTES);
+
+    return queryString.equals(candidateString);
   }
 
 }

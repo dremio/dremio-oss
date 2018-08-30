@@ -16,73 +16,94 @@
 import { Component } from 'react';
 
 import PropTypes from 'prop-types';
+import classNames from 'classnames';
 
-import FieldWithError from 'components/Fields/FieldWithError';
-import TextField from 'components/Fields/TextField';
-import Radio from 'components/Fields/Radio';
+import FormUtils from 'utils/FormUtils/FormUtils';
 
-import { formLabel } from 'uiTheme/radium/typography';
-import { section, sectionTitle, formRow } from 'uiTheme/radium/forms';
+import { FieldWithError, TextField, Radio } from 'components/Fields';
+
+import { rowOfInputsSpacing, rowOfRadio } from '@app/uiTheme/less/forms.less';
+import { flexContainer, flexElementAuto } from '@app/uiTheme/less/layout.less';
+
+const DEFAULT_TEXT_FIELDS = [
+  {propName: 'username', label: 'Username', errMsg: 'Username is required unless you choose no authentication.'},
+  {propName: 'password', label: 'Password', errMsg: 'Password is required unless you choose no authentication.', secure: true}
+];
+
+const DEFAULT_RADIO_OPTIONS = [
+  { label: 'No Authentication', option: 'ANONYMOUS' },
+  { label: 'Master Credentials', option: 'MASTER' }
+];
+
+function validate(values, elementConfig) {
+  let errors = {config: {}};
+  const textFields = (elementConfig && elementConfig.textFields) ? elementConfig.textFields : DEFAULT_TEXT_FIELDS;
+
+  errors = textFields.reduce((accumulator, textField) => {
+    if (values.config.authenticationType === 'MASTER' && !values.config[textField.propName]) {
+      accumulator.config[textField.propName] = textField.errMsg || `${textField.label} is required unless you choose no authentication`;
+    }
+    return accumulator;
+  }, errors);
+  return errors;
+}
 
 export default class Credentials extends Component {
+
   static getFields() {
+    // credentials is not configurable
     return ['config.authenticationType', 'config.username', 'config.password'];
   }
 
-  static propTypes = {
-    fields: PropTypes.object.isRequired
-  };
-
-  static validate(values) {
-    const errors = {config: {}};
-    if (values.config.authenticationType === 'MASTER' && !values.config.username) {
-      errors.config.username = 'Username is required unless you choose no authentication or user credentials.';
-    }
-    if (values.config.authenticationType === 'MASTER' && !values.config.password) {
-      errors.config.password = 'Password is required unless you choose no authentication or user credentials.';
-    }
-    return errors;
+  static getValidators(elementConfig) {
+    return function(values) {
+      return validate(values, elementConfig);
+    };
   }
+
+  static propTypes = {
+    fields: PropTypes.object.isRequired,
+    elementConfig: PropTypes.object
+  };
 
   constructor(props) {
     super(props);
   }
 
   render() {
-    const {fields} = this.props;
-    const {config: {authenticationType, username, password}} = fields;
-    const inlineBlock = {display: 'inline-block'};
+    const {fields, elementConfig} = this.props;
+    const {config: {authenticationType}} = fields;
+    const textFields = (elementConfig && elementConfig.textFields) ? elementConfig.textFields : DEFAULT_TEXT_FIELDS;
+    const radioOptions = (elementConfig && elementConfig.radioOptions) ? elementConfig.radioOptions : DEFAULT_RADIO_OPTIONS;
     return (
-      <div className='credentials' style={section}>
-        <h2 style={sectionTitle}>{la('Authentication')}</h2>
-        <div style={formRow}>
-          <Radio
-            radioValue='ANONYMOUS'
-            label='No Authentication'
-            {...authenticationType}
-            style={{...styles.radio, marginLeft: -5}}/>
-          <Radio
-            radioValue='MASTER'
-            label='Master Credentials'
-            {...authenticationType}
-            style={[styles.radio, {marginLeft: 5}]}/>
-        </div>
-        <div style={formRow}>
-          <FieldWithError errorPlacement='bottom' label='Username' {...username} style={inlineBlock}>
-            <TextField className='name id' disabled={authenticationType.value !== 'MASTER'} {...username}/>
-          </FieldWithError>
-          <FieldWithError errorPlacement='bottom' label='Password' {...password} style={inlineBlock}>
-            <TextField className='name key' type='password'
-              disabled={authenticationType.value !== 'MASTER'} {...password}/>
-          </FieldWithError>
+      <div>
+        {radioOptions &&
+          <div className={classNames(rowOfInputsSpacing, rowOfRadio)}>
+            {radioOptions.map((option, index) => {
+              return (
+                <Radio radioValue={option.option}
+                       key={index}
+                       label={option.label}
+                       {...authenticationType}/>
+              );
+            })}
+          </div>
+        }
+        <div className={classNames(rowOfInputsSpacing, flexContainer)}>
+          {
+            textFields.map((textField, index) => {
+              const field = FormUtils.getFieldByComplexPropName(fields, `config.${textField.propName}`);
+              const type = (textField.secure) ? {type: 'password'} : {};
+              return (
+                <FieldWithError errorPlacement='bottom' label={textField.label} key={index} {...field} className={flexElementAuto}>
+                  <TextField style={{width: '100%'}} {...type} {...field} key={index}
+                             disabled={authenticationType.value !== 'MASTER'} {...field}/>
+                </FieldWithError>
+              );
+            })
+          }
         </div>
       </div>
     );
   }
 }
-
-const styles = {
-  radio: {
-    ...formLabel
-  }
-};

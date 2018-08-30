@@ -43,7 +43,7 @@ export class SpaceForm extends Component {
     const description = intl.formatMessage({ id: 'Space.AddSpaceModalDescription' });
     return (
       <ModalForm {...modalFormProps(this.props)} onSubmit={handleSubmit(onFormSubmit)}>
-        <FormBody>
+        <FormBody style={{padding: '20px 5px 20px 15px'}}>
           <General
             showAccelerationSection={false}
             fields={fields}

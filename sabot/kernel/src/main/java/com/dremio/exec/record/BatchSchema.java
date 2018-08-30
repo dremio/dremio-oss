@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -30,9 +29,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import javax.annotation.Nullable;
-
 import org.apache.arrow.flatbuf.Schema;
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.FieldIdUtil2;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -102,6 +100,11 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
   }
 
   private final SelectionVectorMode selectionVectorMode;
+
+  public BatchSchema(List<Field> fields) {
+    super(fields);
+    this.selectionVectorMode = SelectionVectorMode.NONE;
+  }
 
   BatchSchema(SelectionVectorMode selectionVector, List<Field> fields) {
     super(fields);
@@ -505,6 +508,17 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
       }
       mutator.addField(field, CompleteType.fromField(field).getValueVectorClass());
     }
+  }
+
+  /**
+   * Find an estimated size of the vectors. Currently we assume constant size for variable length columns.
+   */
+  public static int estimateRecordSize(Map<String, ValueVector> vectorMap, int listSizeEstimate, int varFieldSizeEstimate) {
+    int estimatedRecordSize = 0;
+    for (final ValueVector v : vectorMap.values()) {
+      estimatedRecordSize += BatchSchema.estimateFieldSize(v.getField(), listSizeEstimate, varFieldSizeEstimate);
+    }
+    return estimatedRecordSize;
   }
 
   /**

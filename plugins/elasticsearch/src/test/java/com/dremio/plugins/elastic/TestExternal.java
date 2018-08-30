@@ -60,7 +60,7 @@ public class TestExternal extends BaseTestQuery {
 
   @Test
   public void query01() throws Exception {
-    //test("alter session set `planner.disable_exchanges`=true");
+    //test("alter session set \"planner.disable_exchanges\"=true");
     test("explain plan for select count(*) from elasticsearch.academic.business");
     test("select count(*) from elasticsearch.academic.business");
   }
@@ -91,7 +91,7 @@ public class TestExternal extends BaseTestQuery {
 
   @Test
   public void query06() throws Exception {
-    //test("alter session set `planner.disable_exchanges`=true");
+    //test("alter session set \"planner.disable_exchanges\"=true");
     test("explain plan for select count(*), min(review_count) from elasticsearch.academic.business where stars > 4 and " +
             "review_count > 100");
     test("select count(*), min(review_count) from elasticsearch.academic.business where stars > 4 and " +
@@ -100,7 +100,7 @@ public class TestExternal extends BaseTestQuery {
 
   @Test
   public void query07() throws Exception {
-    //test("alter session set `planner.disable_exchanges`=true");
+    //test("alter session set \"planner.disable_exchanges\"=true");
     test("explain plan for select state, city, count(*) from elasticsearch.academic.business where review_count > 100 " +
             "group by state,city");
     test("select state, city, count(*) from elasticsearch.academic.business where review_count > 100 group by state,city");
@@ -108,14 +108,14 @@ public class TestExternal extends BaseTestQuery {
 
   @Test
   public void query08() throws Exception {
-    //test("alter session set `planner.disable_exchanges`=true");
+    //test("alter session set \"planner.disable_exchanges\"=true");
     test("explain plan for SELECT * FROM elasticsearch.academic.business where review_count > 1000");
     test("SELECT * FROM elasticsearch.academic.business where review_count > 1000");
   }
 
   @Test
   public void query09() throws Exception {
-    //test("alter session set `planner.disable_exchanges`=true");
+    //test("alter session set \"planner.disable_exchanges\"=true");
     test("explain plan for SELECT count(*), max(review_count) FROM elasticsearch.academic.business where review_count > " +
             "1000");
     test("SELECT count(*), max(review_count) FROM elasticsearch.academic.business where review_count > 1000");
@@ -123,7 +123,7 @@ public class TestExternal extends BaseTestQuery {
 
   @Test
   public void query10() throws Exception {
-    //test("alter session set `planner.disable_exchanges`=true");
+    //test("alter session set \"planner.disable_exchanges\"=true");
     test("explain plan for SELECT state, count(*), max(review_count) FROM elasticsearch.academic.business where " +
             "review_count > 1000 group by state");
     test("SELECT state, count(*), max(review_count) FROM elasticsearch.academic.business where " +
@@ -133,10 +133,10 @@ public class TestExternal extends BaseTestQuery {
   // Will have exchange (HashToRandom) below HassAggPrel.
   @Test
   public void query11() throws Exception {
-    //test("alter session set `planner.disable_exchanges`=true");
-    test("explain plan for select yelping_since, count(*), avg(average_stars) from elasticsearch.academic.`user` where " +
+    //test("alter session set \"planner.disable_exchanges\"=true");
+    test("explain plan for select yelping_since, count(*), avg(average_stars) from elasticsearch.academic.\"user\" where " +
             "review_count > 100 group by yelping_since");
-    test("select yelping_since, count(*), avg(average_stars) from elasticsearch.academic.`user` where " +
+    test("select yelping_since, count(*), avg(average_stars) from elasticsearch.academic.\"user\" where " +
             "review_count > 100 group by yelping_since");
   }
 
@@ -204,9 +204,9 @@ public class TestExternal extends BaseTestQuery {
   // Will have exchange (HashToRandom) below HassAggPrel.
   @Test
   public void query22() throws Exception {
-    test("explain plan for select yelping_since, count(*), avg(average_stars) from elasticsearch.academic.`user` group by " +
+    test("explain plan for select yelping_since, count(*), avg(average_stars) from elasticsearch.academic.\"user\" group by " +
             "yelping_since");
-    test("select yelping_since, count(*), avg(average_stars) from elasticsearch.academic.`user` group by " +
+    test("select yelping_since, count(*), avg(average_stars) from elasticsearch.academic.\"user\" group by " +
             "yelping_since");
   }
 
@@ -219,9 +219,9 @@ public class TestExternal extends BaseTestQuery {
 
   @Test
   public void query24() throws Exception {
-    String query = "SELECT * FROM (SELECT `Custom_SQL_Query`.`business_id` AS `business_id` FROM \n" +
-            "  (select * from elasticsearch.`clickstreams2016*`.click) `Custom_SQL_Query`\n" +
-            " GROUP BY `Custom_SQL_Query`.`business_id`) T LIMIT 0";
+    String query = "SELECT * FROM (SELECT \"Custom_SQL_Query\".\"business_id\" AS \"business_id\" FROM \n" +
+            "  (select * from elasticsearch.\"clickstreams2016*\".click) \"Custom_SQL_Query\"\n" +
+            " GROUP BY \"Custom_SQL_Query\".\"business_id\") T LIMIT 0";
     test("explain plan for " + query);
     printSchema(query);
     //test(query);
@@ -235,8 +235,8 @@ public class TestExternal extends BaseTestQuery {
 
   @Test
   public void query26() throws Exception {
-    test("alter system set `exec.enable_union_type`=true");
-    //test("alter system set `planner.enable_mergejoin`=false");
+    test("alter system set \"exec.enable_union_type\"=true");
+    //test("alter system set \"planner.enable_mergejoin\"=false");
     test("explain plan for select b.name, avg(r.votes.funny) as avg_funny, avg(r.votes.useful) as avg_useful, avg(r" +
             ".votes.cool) as avg_cool from elasticsearch.academic.business b join elasticsearch.academic.review r on b._id = r.business_id group by b.name;");
     //test("select b.name, avg(r.votes.funny) as avg_funny, avg(r.votes.useful) as avg_useful, avg(r.votes.cool) " +
@@ -245,7 +245,7 @@ public class TestExternal extends BaseTestQuery {
 
   @Test
   public void query27() throws Exception {
-    test("alter system set `exec.enable_union_type`=true");
+    test("alter system set \"exec.enable_union_type\"=true");
     test("select * from elasticsearch.academic.business;");
   }
 
@@ -280,8 +280,8 @@ public class TestExternal extends BaseTestQuery {
 
   @Test
   public void query32() throws Exception {
-    String query = "SELECT * FROM (SELECT `business`.`state` AS `state`, SUM(1) AS `sum_Number_of_Records_ok`\n" +
-            " FROM `elasticsearch.academic`.`business` `business` GROUP BY `business`.`state`) T LIMIT 0";
+    String query = "SELECT * FROM (SELECT \"business\".\"state\" AS \"state\", SUM(1) AS \"sum_Number_of_Records_ok\"\n" +
+            " FROM \"elasticsearch.academic\".\"business\" \"business\" GROUP BY \"business\".\"state\") T LIMIT 0";
     test("explain plan for " + query);
     printSchema(query);
     test(query);
@@ -295,15 +295,15 @@ public class TestExternal extends BaseTestQuery {
 
   @Test
   public void query34() throws Exception {
-    String query = "SELECT `business`.`longitude`, count(1) FROM `elasticsearch.academic`.`business` `business`\n" +
-            "group by `business`.`longitude` limit 10";
+    String query = "SELECT \"business\".\"longitude\", count(1) FROM \"elasticsearch.academic\".\"business\" \"business\"\n" +
+            "group by \"business\".\"longitude\" limit 10";
     test("explain plan for " + query);
     test(query);
   }
 
   @Test
   public void query35() throws Exception {
-    String query = "SELECT AVG(`business`.`longitude`) AS `avg_longitude_ok` FROM `elasticsearch.academic`.`business` `business`\n" +
+    String query = "SELECT AVG(\"business\".\"longitude\") AS \"avg_longitude_ok\" FROM \"elasticsearch.academic\".\"business\" \"business\"\n" +
             " where review_count < 10 limit 10";
     test("explain plan for " + query);
     test(query);
@@ -311,7 +311,7 @@ public class TestExternal extends BaseTestQuery {
 
   @Test
   public void query36() throws Exception {
-    String query = "SELECT * FROM (SELECT AVG(`business`.`longitude`) AS `avg_longitude_ok` FROM `elasticsearch.academic`.`business` `business`\n" +
+    String query = "SELECT * FROM (SELECT AVG(\"business\".\"longitude\") AS \"avg_longitude_ok\" FROM \"elasticsearch.academic\".\"business\" \"business\"\n" +
             " where review_count < 10 HAVING (COUNT(1) > 0)) T LIMIT 0";
     test("explain plan for " + query);
     test(query);
@@ -319,16 +319,16 @@ public class TestExternal extends BaseTestQuery {
 
   @Test
   public void query37() throws Exception {
-    String query = "SELECT `review`.`stars` AS `stars__review_` FROM `elasticsearch.academic`.`review` `review`\n" +
-            "GROUP BY `review`.`stars` limit 10";
+    String query = "SELECT \"review\".\"stars\" AS \"stars__review_\" FROM \"elasticsearch.academic\".\"review\" \"review\"\n" +
+            "GROUP BY \"review\".\"stars\" limit 10";
     test("explain plan for " + query);
     test(query);
   }
 
   @Test
   public void query38() throws Exception {
-    String query = "SELECT * FROM (SELECT SUM(`user`.`fans`) AS `sum_fans_ok`, `user`.`yelping_since` AS `yelping_since`\n" +
-            " FROM `elasticsearch.academic`.`user` `user` GROUP BY `user`.`yelping_since`) T LIMIT 0";
+    String query = "SELECT * FROM (SELECT SUM(\"user\".\"fans\") AS \"sum_fans_ok\", \"user\".\"yelping_since\" AS \"yelping_since\"\n" +
+            " FROM \"elasticsearch.academic\".\"user\" \"user\" GROUP BY \"user\".\"yelping_since\") T LIMIT 0";
     test("explain plan for " + query);
     printSchema(query);
     test(query);
@@ -336,12 +336,12 @@ public class TestExternal extends BaseTestQuery {
 
   @Test
   public void query39() throws Exception {
-    String query = "SELECT * FROM (SELECT AVG(`user`.`average_stars`) AS `avg_average_stars_ok`,\n" +
-            "  AVG(CAST(`user`.`review_count` AS FLOAT)) AS `avg_review_count_ok`,\n" +
-            "  `user`.`yelping_since` AS `yelping_since`\n" +
-            "FROM `elasticsearch.academic`.`user` `user`\n" +
-            "WHERE (`user`.`yelping_since` IN ('2014-01', '2014-02', '2014-03', '2014-04', '2014-05', '2014-06', '2014-07', '2014-08', '2014-09', '2014-10', '2014-11', '2014-12'))\n" +
-            "GROUP BY `user`.`yelping_since`) T LIMIT 0\n";
+    String query = "SELECT * FROM (SELECT AVG(\"user\".\"average_stars\") AS \"avg_average_stars_ok\",\n" +
+            "  AVG(CAST(\"user\".\"review_count\" AS FLOAT)) AS \"avg_review_count_ok\",\n" +
+            "  \"user\".\"yelping_since\" AS \"yelping_since\"\n" +
+            "FROM \"elasticsearch.academic\".\"user\" \"user\"\n" +
+            "WHERE (\"user\".\"yelping_since\" IN ('2014-01', '2014-02', '2014-03', '2014-04', '2014-05', '2014-06', '2014-07', '2014-08', '2014-09', '2014-10', '2014-11', '2014-12'))\n" +
+            "GROUP BY \"user\".\"yelping_since\") T LIMIT 0\n";
 
     test("explain plan for " + query);
     test(query);
@@ -349,20 +349,20 @@ public class TestExternal extends BaseTestQuery {
 
   @Test
   public void query40() throws Exception {
-    String query = "SELECT * FROM (SELECT `user`.`name` AS `name`,\n" +
-            "  SUM(1) AS `sum_Number_of_Records_ok`\n" +
-            "FROM `elasticsearch.academic`.`user` `user`\n" +
-            "GROUP BY `user`.`name`) T LIMIT 0";
+    String query = "SELECT * FROM (SELECT \"user\".\"name\" AS \"name\",\n" +
+            "  SUM(1) AS \"sum_Number_of_Records_ok\"\n" +
+            "FROM \"elasticsearch.academic\".\"user\" \"user\"\n" +
+            "GROUP BY \"user\".\"name\") T LIMIT 0";
     test("explain plan for " + query);
     test(query);
   }
 
   @Test // still fails due to multi projection issue
   public void query41() throws Exception {
-    String query = "SELECT * FROM (SELECT COUNT(1) AS `cnt_Number_of_Records_ok`,\n" +
-            "  `user`.`name` AS `name`\n" +
-            "FROM `elasticsearch.academic`.`user` `user`\n" +
-            "GROUP BY `user`.`name`) T LIMIT 0";
+    String query = "SELECT * FROM (SELECT COUNT(1) AS \"cnt_Number_of_Records_ok\",\n" +
+            "  \"user\".\"name\" AS \"name\"\n" +
+            "FROM \"elasticsearch.academic\".\"user\" \"user\"\n" +
+            "GROUP BY \"user\".\"name\") T LIMIT 0";
     test("explain plan for " + query);
     test(query);
   }
@@ -383,7 +383,7 @@ public class TestExternal extends BaseTestQuery {
   // Bug related to elastic search booleans (without the fix this fix, it returns false, false
   @Test
   public void query44() throws Exception {
-    String query = "select `open`, not `open` from elasticsearch.academic.business group by `open`";
+    String query = "select \"open\", not \"open\" from elasticsearch.academic.business group by \"open\"";
     test(query);
   }
 
@@ -399,7 +399,7 @@ public class TestExternal extends BaseTestQuery {
     validator.set(null, true);
     */
 
-    //test("alter session set `exec.enable_union_type`=true");
+    //test("alter session set \"exec.enable_union_type\"=true");
     String query = "select * from (select * from elasticsearch.academic.business limit 1000) t left join (select * from elasticsearch.academic.business limit 500) s on t.business_id = s.business_id";
     query = "select * from (select business_id as BID1, categories as CAT1 from elasticsearch.academic.business limit 1000) t left join (select business_id as BID2, categories as CAT2 from elasticsearch.academic.business limit 10) s on t.BID1 = s.BID2";
     test(query);
@@ -412,21 +412,21 @@ public class TestExternal extends BaseTestQuery {
 
     test(query);
 
-    //query = "SELECT * FROM (SELECT SUM(`user`.`fans`) AS `sum_fans_ok`, `user`.`yelping_since` AS `yelping_since`\n" +
-    //        " FROM `elasticsearch.academic`.`user` `user` GROUP BY `user`.`yelping_since`) T LIMIT 0";
+    //query = "SELECT * FROM (SELECT SUM(\"user\".\"fans\") AS \"sum_fans_ok\", \"user\".\"yelping_since\" AS \"yelping_since\"\n" +
+    //        " FROM \"elasticsearch.academic\".\"user\" \"user\" GROUP BY \"user\".\"yelping_since\") T LIMIT 0";
     //test("explain plan for " + query);
   }
 
   @Test
   public void query47() throws Exception {
-    String query = "select state, city, count(stars) as countStar, avg(stars) as avgStar, sum(review_count) as sumReview, avg( (stars-1)*2) as avgFunc from elastic.academic.business where state <> 'NV' and ((stars - 1)*2) > 4 and `open` group by state, city";
+    String query = "select state, city, count(stars) as countStar, avg(stars) as avgStar, sum(review_count) as sumReview, avg( (stars-1)*2) as avgFunc from elastic.academic.business where state <> 'NV' and ((stars - 1)*2) > 4 and \"open\" group by state, city";
     test("explain plan for " + query);
     test(query);
   }
 
   @Test
   public void query48() throws Exception {
-    String query = "select t.attributes.`Accepts Credit Cards` from elasticsearch.academic.business t group by t.attributes.`Accepts Credit Cards`";
+    String query = "select t.attributes.\"Accepts Credit Cards\" from elasticsearch.academic.business t group by t.attributes.\"Accepts Credit Cards\"";
     test("explain plan for " + query);
     test(query);
   }

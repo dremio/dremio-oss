@@ -27,6 +27,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.metadata.RelMdUtil;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
@@ -34,6 +35,7 @@ import org.apache.calcite.rex.RexNode;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
+import com.dremio.exec.planner.cost.RelMdRowCount;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
@@ -88,6 +90,22 @@ public abstract class JoinRelBase extends Join {
     }
 
     return computeLogicalJoinCost(planner, relMetadataQuery);
+  }
+
+  /**
+   * Copied for {@link RelMdRowCount#getRowCount(Join, RelMetadataQuery)}. We will be removing this
+   * function usage in Dremio code in future: TODO: DX-12150
+   *
+   * @param mq
+   * @return
+   */
+  @Override
+  public double estimateRowCount(RelMetadataQuery mq) {
+    if (getCondition().isAlwaysTrue()) {
+      return RelMdUtil.getJoinRowCount(mq, this, getCondition());
+    }
+
+    return Math.max(mq.getRowCount(getLeft()), mq.getRowCount(getRight()));
   }
 
   /**
@@ -178,9 +196,9 @@ public abstract class JoinRelBase extends Join {
     double joinConditionCost = DremioCost.COMPARE_CPU_COST * keySize;
 
     double factor = PrelUtil.getPlannerSettings(planner).getOptions()
-        .getOption(ExecConstants.HASH_JOIN_TABLE_FACTOR_KEY).float_val;
+        .getOption(ExecConstants.HASH_JOIN_TABLE_FACTOR_KEY).getFloatVal();
     long fieldWidth = PrelUtil.getPlannerSettings(planner).getOptions()
-        .getOption(ExecConstants.AVERAGE_FIELD_WIDTH_KEY).num_val;
+        .getOption(ExecConstants.AVERAGE_FIELD_WIDTH_KEY).getNumVal();
 
     // table + hashValues + links
     double memCost =

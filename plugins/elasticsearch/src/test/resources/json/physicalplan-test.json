@@ -52,7 +52,7 @@
         "enabled": true
       },
       "columns": [
-        "`review_count`", "stars"
+        "\"review_count\"", "stars"
       ],
       "cost": 2.0,
       "elasticsearch-aggregator-exprs" : [
@@ -91,12 +91,12 @@
           "expr" : "city"
         },
         {
-          "ref": "`EXPR$0`",
-          "expr": "`EXPR$0`"
+          "ref": "\"EXPR$0\"",
+          "expr": "\"EXPR$0\""
         },
         {
-          "ref": "`EXPR$1`",
-          "expr": "`EXPR$1`"
+          "ref": "\"EXPR$1\"",
+          "expr": "\"EXPR$1\""
         }
       ],
       "child": 2,

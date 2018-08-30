@@ -47,7 +47,7 @@ public class TestNewTextReader extends BaseTestQuery {
   @Test
   public void fieldDelimiterWithinQuotes() throws Exception {
     testBuilder()
-        .sqlQuery("select columns[1] as col1 from cp.`textinput/input1.csv`")
+        .sqlQuery("select columns[1] as col1 from cp.\"textinput/input1.csv\"")
         .unOrdered()
         .baselineColumns("col1")
         .baselineValues("foo,bar")
@@ -69,7 +69,7 @@ public class TestNewTextReader extends BaseTestQuery {
     pw.close();
 
     testBuilder()
-      .sqlQuery(String.format("select * from table(dfs.`%s` (type => 'text', fieldDelimiter => ',', " +
+      .sqlQuery(String.format("select * from table(dfs.\"%s\" (type => 'text', fieldDelimiter => ',', " +
         "autoGenerateColumnNames => true))", testFolder.getAbsolutePath()))
       .unOrdered()
       .baselineColumns("A","B")
@@ -83,7 +83,7 @@ public class TestNewTextReader extends BaseTestQuery {
   @Test
   public void ensureFailureOnNewLineDelimiterWithinQuotes() {
     try {
-      test("select columns[1] as col1 from cp.`textinput/input2.csv`");
+      test("select columns[1] as col1 from cp.\"textinput/input2.csv\"");
       fail("Expected exception not thrown.");
     } catch (Exception e) {
       assertTrue(e.getMessage().contains("Cannot use newline character within quoted string"));
@@ -95,7 +95,7 @@ public class TestNewTextReader extends BaseTestQuery {
     final String COL_NAME = "col1";
 
     try {
-      test("select max(columns[1]) as %s from cp.`textinput/input1.csv` where %s is not null", COL_NAME, COL_NAME);
+      test("select max(columns[1]) as %s from cp.\"textinput/input1.csv\" where %s is not null", COL_NAME, COL_NAME);
       fail("Query should have failed");
     } catch(UserRemoteException ex) {
       assertEquals(ErrorType.VALIDATION, ex.getErrorType());
@@ -107,7 +107,7 @@ public class TestNewTextReader extends BaseTestQuery {
   public void testTabSeparatedWithQuote() throws Exception {
     final String root = FileUtils.getResourceAsFile("/store/text/WithQuote.tsv").toURI().toString();
     final String query = String.format("select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n" +
-        "from dfs_test.`%s` ", root);
+        "from dfs_test.\"%s\" ", root);
 
     testBuilder()
         .sqlQuery(query)
@@ -124,7 +124,7 @@ public class TestNewTextReader extends BaseTestQuery {
   public void testSpaceSeparatedWithQuote() throws Exception {
     final String root = FileUtils.getResourceAsFile("/store/text/WithQuote.ssv").toURI().toString();
     final String query = String.format("select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n" +
-        "from TABLE(dfs_test.`%s`(type => 'TEXT', fieldDelimiter => ' ', lineDelimiter => '\n')) ", root);
+        "from TABLE(dfs_test.\"%s\"(type => 'TEXT', fieldDelimiter => ' ', lineDelimiter => '\n')) ", root);
 
     testBuilder()
         .sqlQuery(query)
@@ -141,7 +141,7 @@ public class TestNewTextReader extends BaseTestQuery {
   public void testPipSeparatedWithQuote() throws Exception {
     final String root = FileUtils.getResourceAsFile("/store/text/WithQuote.tbl").toURI().toString();
     final String query = String.format("select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n" +
-            "from dfs_test.`%s` ", root);
+            "from dfs_test.\"%s\" ", root);
 
     testBuilder()
         .sqlQuery(query)
@@ -192,7 +192,7 @@ public class TestNewTextReader extends BaseTestQuery {
   public void testCrLfSeparatedWithQuote() throws Exception {
     final String root = FileUtils.getResourceAsFile("/store/text/WithQuotedCrLf.tbl").toURI().toString();
     final String query = String.format("select columns[0] as c0, columns[1] as c1, columns[2] as c2 \n" +
-        "from dfs_test.`%s` ", root);
+        "from dfs_test.\"%s\" ", root);
 
     testBuilder()
         .sqlQuery(query)
@@ -217,7 +217,7 @@ public class TestNewTextReader extends BaseTestQuery {
     p.close();
 
     testBuilder()
-      .sqlQuery(String.format("select * from table(dfs.`%s` (type => 'text', " +
+      .sqlQuery(String.format("select * from table(dfs.\"%s\" (type => 'text', " +
         "fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true))",
         testFile.getAbsolutePath()))
       .unOrdered()
@@ -241,7 +241,7 @@ public class TestNewTextReader extends BaseTestQuery {
       "DATA_READ ERROR: UTF-16 files not supported"));
     // NB: using test() instead of testBuilder() because it unwraps the thrown RpcException and re-throws the
     // underlying UserException (which is then matched with the UserExceptionMatcher)
-    test(String.format("select * from table(dfs.`%s` (type => 'text', " +
+    test(String.format("select * from table(dfs.\"%s\" (type => 'text', " +
         "fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true))",
       testFile.getAbsolutePath()));
   }
@@ -256,7 +256,7 @@ public class TestNewTextReader extends BaseTestQuery {
     p2.close();
 
     testBuilder()
-      .sqlQuery(String.format("select * from table(dfs.`%s` (type => 'text', " +
+      .sqlQuery(String.format("select * from table(dfs.\"%s\" (type => 'text', " +
           "fieldDelimiter => ',', lineDelimiter => '\n', extractHeader => true)) ",
         testFile2.getAbsolutePath()))
       .unOrdered()

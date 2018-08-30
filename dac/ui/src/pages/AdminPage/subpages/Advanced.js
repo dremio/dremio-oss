@@ -33,9 +33,10 @@ import FormUnsavedRouteLeave from 'components/Forms/FormUnsavedRouteLeave';
 
 import Header from '../components/Header';
 import SettingsMicroForm from './SettingsMicroForm';
-import {LABELS, SECTIONS, LABELS_IN_SECTIONS} from './settingsConfig';
+import { LABELS, LABELS_IN_SECTIONS, SECTIONS } from './settingsConfig';
 
-import {RESERVED as SUPPORT_RESERVED} from './Support';
+import { RESERVED as SUPPORT_RESERVED } from './Support';
+
 const RESERVED = new Set([...SUPPORT_RESERVED]);
 
 export const VIEW_ID = 'ADVANCED_SETTINGS_VIEW_ID';
@@ -43,6 +44,7 @@ export const VIEW_ID = 'ADVANCED_SETTINGS_VIEW_ID';
 export class Advanced extends PureComponent {
   static propTypes = {
     getAllSettings: PropTypes.func.isRequired,
+    resetSetting: PropTypes.func.isRequired,
     addNotification: PropTypes.func.isRequired,
     setChildDirtyState: PropTypes.func,
 
@@ -109,7 +111,20 @@ export class Advanced extends PureComponent {
     evt.target.reset();
   }
 
-  renderMicroForm(settingId) {
+  resetSetting(settingId) {
+    return this.props.resetSetting(settingId).then(() => {
+      // need to remove the setting from our state
+      this.setState(function(state) {
+        return {
+          tempShown: state.tempShown.delete(settingId)
+        };
+      });
+      // we store all settings in memory, so we have to force a refresh here. DX-11295 to fix this.
+      return this.props.getAllSettings({viewId: VIEW_ID});
+    });
+  }
+
+  renderMicroForm(settingId, allowReset) {
     const formKey = 'settings-' + settingId;
     return <SettingsMicroForm
       updateFormDirtyState={this.props.setChildDirtyState(formKey)}
@@ -117,6 +132,7 @@ export class Advanced extends PureComponent {
       form={formKey}
       key={formKey}
       settingId={settingId}
+      resetSetting={allowReset && this.resetSetting.bind(this, settingId)}
       viewId={VIEW_ID} />;
   }
 
@@ -147,7 +163,7 @@ export class Advanced extends PureComponent {
     const settings = this.getShownSettings({includeSections: false});
 
     this.sortSettings(settings);
-    return settings.map(setting => this.renderMicroForm(setting.id));
+    return settings.map(setting => this.renderMicroForm(setting.id, true));
   }
 
   renderSections() {
@@ -195,5 +211,6 @@ function mapStateToProps(state) {
 
 export default connect(mapStateToProps, { // todo: find way to auto-inject PropTypes for actions
   getAllSettings: settingActions.getAll.dispatch,
+  resetSetting: settingActions.delete.dispatch,
   addNotification
 })(FormUnsavedRouteLeave(Advanced));

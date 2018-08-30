@@ -17,17 +17,20 @@ import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
+import classNames from 'classnames';
 
 import {
   getColumnByName, getMeasuresForColumnType, isMeasureValidForColumnType
 } from 'utils/explore/aggregateUtils';
 import ColumnDragItem from 'utils/ColumnDragItem';
+import { base, columnElement, select as selectCls } from '@app/pages/ExplorePage/components/MultiplySort/components/DragSortColumn.less';
 
 import Select from '../../Fields/Select';
 import DragAreaColumn from '../../DragComponents/DragAreaColumn';
 
 const COUNT_STAR = 'Count_Star';
 
+//todo reuse DragSortColumn for this component
 @Radium
 class DragMeasureColumn extends Component {
   static propTypes = {
@@ -55,50 +58,42 @@ class DragMeasureColumn extends Component {
     const measureItems = getMeasuresForColumnType(selectedColumn && selectedColumn.get('type'));
 
     return (
-      <div className='drag-measure-column' style={[styles.base]}>
+      <div className={classNames(['drag-measure-column', base])}>
         <Select
           {...field.measure}
-          style={styles.select}
+          className={classNames(['agg-func', selectCls])} // agg-func is used in automated testing
           items={measureItems}
           iconStyle={styles.iconStyle}
           customLabelStyle={styles.customLabelStyle}
         />
-        <DragAreaColumn
-          onDragStart={this.props.onDragStart}
-          onDragEnd={this.props.onDragEnd}
-          field={field.column}
-          disabled={field.measure.value === COUNT_STAR} // count star doesn't need a column
-          canSelectColumn={this.canSelectColumn}
-          isDragInProgress={this.props.isDragInProgress}
-          dragItem={this.props.dragItem}
-          allColumns={this.props.allColumns}
-          index={index}
-          dragOrigin='measures'
-          moveColumn={this.props.moveColumn}
-          dragType={this.props.dragType}
-          onRemoveColumn={this.props.onRemoveColumn}
-        />
+        <div className={columnElement}>
+          <DragAreaColumn
+            onDragStart={this.props.onDragStart}
+            onDragEnd={this.props.onDragEnd}
+            field={field.column}
+            disabled={field.measure.value === COUNT_STAR} // count star doesn't need a column
+            canSelectColumn={this.canSelectColumn}
+            isDragInProgress={this.props.isDragInProgress}
+            dragItem={this.props.dragItem}
+            allColumns={this.props.allColumns}
+            index={index}
+            dragOrigin='measures'
+            moveColumn={this.props.moveColumn}
+            dragType={this.props.dragType}
+            onRemoveColumn={this.props.onRemoveColumn}
+          />
+        </div>
       </div>
     );
   }
 }
 
 const styles = {
-  base: {
-    display: 'flex',
-    flexWrap: 'nowrap',
-    alignItems: 'center'
-  },
   iconStyle: {
     top: 0
   },
   customLabelStyle: {
     top: 13
-  },
-  select: {
-    width: 200,
-    height: 28,
-    marginLeft: 5
   }
 };
 

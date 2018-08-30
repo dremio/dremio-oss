@@ -25,7 +25,7 @@ public class TestHBaseConnectionManager extends BaseHBaseTest {
     runHBaseSQLVerifyCount("SELECT\n"
         + "row_key\n"
         + "FROM\n"
-        + "  hbase.`[TABLE_NAME]` tableName"
+        + "  hbase.\"[TABLE_NAME]\" tableName"
         , 8);
 
     /*
@@ -39,7 +39,7 @@ public class TestHBaseConnectionManager extends BaseHBaseTest {
     runHBaseSQLVerifyCount("SELECT\n"
         + "row_key\n"
         + "FROM\n"
-        + "  hbase.`[TABLE_NAME]` tableName"
+        + "  hbase.\"[TABLE_NAME]\" tableName"
         , 8);
 
     /*
@@ -51,7 +51,7 @@ public class TestHBaseConnectionManager extends BaseHBaseTest {
     runHBaseSQLVerifyCount("SELECT\n"
         + "row_key\n"
         + "FROM\n"
-        + "  hbase.`[TABLE_NAME]` tableName"
+        + "  hbase.\"[TABLE_NAME]\" tableName"
         , 8);
 
   }

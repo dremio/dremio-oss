@@ -49,6 +49,11 @@ public class OperatorTable extends SqlStdOperatorTable {
 
   @Override
   public void lookupOperatorOverloads(SqlIdentifier opName, SqlFunctionCategory category, SqlSyntax syntax, List<SqlOperator> operatorList) {
+    // don't try to evaluate operators that have non name.
+    if(opName == null || opName.names == null) {
+      return;
+    }
+
     inner.lookupOperatorOverloads(opName, category, syntax, operatorList);
 
     if (operatorList.isEmpty() && syntax == SqlSyntax.FUNCTION && opName.isSimple()) {

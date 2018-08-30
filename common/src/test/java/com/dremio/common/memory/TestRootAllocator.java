@@ -60,32 +60,6 @@ public class TestRootAllocator {
   }
 
   /**
-   * Root-only, no allocations
-   */
-  @Test
-  public void testRootSolo() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
-      "out of memory",
-      "Allocator(ROOT)"
-    ));
-    allocateHelper(rootAllocator, 32 * 1024);
-  }
-
-  /**
-   * Root-only, a few allocations
-   */
-  @Test
-  public void testRootSoloWithAllocs() throws Exception {
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
-      "out of memory",
-      "Allocator(ROOT)"
-    ));
-    try(ArrowBuf buf1 = allocateHelper(rootAllocator, 1024)) {
-      allocateHelper(rootAllocator, 32 * 1024);
-    }
-  }
-
-  /**
    * Root, plus single-level children. Allocation fails with child limit
    */
   @Test

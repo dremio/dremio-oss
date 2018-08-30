@@ -45,7 +45,7 @@ public class FieldIdUtil2 {
       return builder.finalType(CompleteType.fromField(field)).build();
     }
     if (seg.isNamed()) {
-      FieldWithOrdinal ford = getChildField(field, "map");
+      FieldWithOrdinal ford = getChildField(field, "struct");
       if (ford != null) {
         return getFieldIdIfMatches(ford.field, builder, addToBreadCrumb, seg);
       } else {

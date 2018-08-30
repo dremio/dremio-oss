@@ -41,6 +41,7 @@ import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.Text;
 import org.apache.commons.lang3.tuple.Pair;
+import org.joda.time.Period;
 import org.junit.Assert;
 
 import com.dremio.common.expression.SchemaPath;
@@ -710,6 +711,12 @@ public class DremioTestWrapper {
       } else {
         return false;
       }
+    }
+    if (actual instanceof Period && expected instanceof Period) {
+      // joda Period should be compared after normalized
+      Period actualValue = ((Period) actual).normalizedStandard();
+      Period expectedValue = ((Period) expected).normalizedStandard();
+      return actualValue.equals(expectedValue);
     }
     if (!expected.equals(actual)) {
       return false;

@@ -30,7 +30,6 @@ import com.dremio.sabot.op.common.ht2.Reallocators.Reallocator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 
@@ -45,6 +44,11 @@ public abstract class FieldBufferCopier {
 
   public abstract void allocate(int records);
   public abstract void copy(long offsetAddr, int count);
+  // Copy data and set validity to 0 for all records in nullAddr
+  // nullAddr is all the offsets of the records that are null
+  // The action to set validity is only needed for BitCopier in FieldBufferCopier,
+  // because validity data is copied in BitCopier
+  public abstract void copy(long offsetAddr, int count, long nullAddr, int nullCount);
 
   static class FourByteCopier extends FieldBufferCopier {
     private static final int SIZE = 4;
@@ -60,15 +64,18 @@ public abstract class FieldBufferCopier {
 
     @Override
     public void copy(long offsetAddr, int count) {
-      final List<ArrowBuf> sourceBuffers = source.getFieldBuffers();
       targetAlt.allocateNew(count);
-      final List<ArrowBuf> targetBuffers = target.getFieldBuffers();
-      final long max = offsetAddr + count * 2;
-      final long srcAddr = sourceBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
-      long dstAddr = targetBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
+      final long max = offsetAddr + count * STEP_SIZE;
+      final long srcAddr = source.getDataBufferAddress();
+      long dstAddr = target.getDataBufferAddress();
       for(long addr = offsetAddr; addr < max; addr += STEP_SIZE, dstAddr += SIZE){
         PlatformDependent.putInt(dstAddr, PlatformDependent.getInt(srcAddr + Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE));
       }
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      copy(offsetAddr, count);
     }
 
     public void allocate(int records){
@@ -92,15 +99,18 @@ public abstract class FieldBufferCopier {
 
     @Override
     public void copy(long offsetAddr, int count) {
-      final List<ArrowBuf> sourceBuffers = source.getFieldBuffers();
       targetAlt.allocateNew(count);
-      final List<ArrowBuf> targetBuffers = target.getFieldBuffers();
       final long max = offsetAddr + count * STEP_SIZE;
-      final long srcAddr = sourceBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
-      long dstAddr = targetBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
+      long srcAddr = source.getDataBufferAddress();
+      long dstAddr = target.getDataBufferAddress();
       for(long addr = offsetAddr; addr < max; addr += STEP_SIZE, dstAddr += SIZE){
         PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(srcAddr + Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE));
       }
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      copy(offsetAddr, count);
     }
 
     public void allocate(int records){
@@ -122,17 +132,20 @@ public abstract class FieldBufferCopier {
 
     @Override
     public void copy(long offsetAddr, int count) {
-      final List<ArrowBuf> sourceBuffers = source.getFieldBuffers();
       targetAlt.allocateNew(count);
-      final List<ArrowBuf> targetBuffers = target.getFieldBuffers();
       final long max = offsetAddr + count * STEP_SIZE;
-      final long srcAddr = sourceBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
-      long dstAddr = targetBuffers.get(VALUE_BUFFER_ORDINAL).memoryAddress();
+      final long srcAddr = source.getDataBufferAddress();
+      long dstAddr = target.getDataBufferAddress();
       for(long addr = offsetAddr; addr < max; addr += STEP_SIZE, dstAddr += SIZE){
         final int offset = Short.toUnsignedInt(PlatformDependent.getShort(addr)) * SIZE;
         PlatformDependent.putLong(dstAddr, PlatformDependent.getLong(srcAddr + offset));
         PlatformDependent.putLong(dstAddr+8, PlatformDependent.getLong(srcAddr + + offset + 8));
       }
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      copy(offsetAddr, count);
     }
 
     public void allocate(int records){
@@ -160,15 +173,14 @@ public abstract class FieldBufferCopier {
       // make sure vectors are internally consistent
       VariableLengthValidator.validateVariable(source, source.getValueCount());
 
-      final List<ArrowBuf> sourceBuffers = source.getFieldBuffers();
 
 
       final long maxSv2 = sv2 + count * STEP_SIZE;
-      final long srcOffsetAddr = sourceBuffers.get(OFFSET_BUFFER_ORDINAL).memoryAddress();
-      final long srcDataAddr = sourceBuffers.get(VARIABLE_DATA_BUFFER_ORDINAL).memoryAddress();
+      final long srcOffsetAddr = source.getOffsetBufferAddress();
+      final long srcDataAddr = source.getDataBufferAddress();
 
-      targetAlt.allocateNew(AVG_VAR_WIDTH * count, count);
-      long dstOffsetAddr = target.getFieldBuffers().get(OFFSET_BUFFER_ORDINAL).memoryAddress() + 4;
+        targetAlt.allocateNew(AVG_VAR_WIDTH * count, count);
+      long dstOffsetAddr = target.getOffsetBufferAddress() + 4;
       long curDataAddr = realloc.addr(); // start address for next copy in target
       long maxDataAddr = realloc.max(); // max bytes we can copy to target before we need to reallocate
       int lastOffset = 0; // total bytes copied in target so far
@@ -194,6 +206,11 @@ public abstract class FieldBufferCopier {
       }
 
       realloc.setCount(count);
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      copy(offsetAddr, count);
     }
 
     public void allocate(int records){
@@ -222,8 +239,20 @@ public abstract class FieldBufferCopier {
       if(allocateAsFixed){
         targetAlt.allocateNew(count);
       }
-      final long srcAddr = source.getFieldBuffers().get(bufferOrdinal).memoryAddress();
-      final long dstAddr = target.getFieldBuffers().get(bufferOrdinal).memoryAddress();
+      final long srcAddr;
+      final long dstAddr;
+      switch (bufferOrdinal) {
+        case NULL_BUFFER_ORDINAL:
+          srcAddr = source.getValidityBufferAddress();
+          dstAddr = target.getValidityBufferAddress();
+          break;
+        case VALUE_BUFFER_ORDINAL:
+          srcAddr = source.getDataBufferAddress();
+          dstAddr = target.getDataBufferAddress();
+          break;
+        default:
+          throw new UnsupportedOperationException("unexpected buffer offset");
+      }
 
       final long maxAddr = offsetAddr + count * STEP_SIZE;
       int targetIndex = 0;
@@ -233,6 +262,48 @@ public abstract class FieldBufferCopier {
         final int bitVal = ((byteValue >>> (recordIndex & 7)) & 1) << (targetIndex & 7);
         final long addr = dstAddr + (targetIndex >>> 3);
         PlatformDependent.putByte(addr, (byte) (PlatformDependent.getByte(addr) | bitVal));
+      }
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullAddr, int nullCount) {
+      if(allocateAsFixed){
+        targetAlt.allocateNew(count);
+      }
+      final long srcAddr;
+      final long dstAddr;
+      switch (bufferOrdinal) {
+        case NULL_BUFFER_ORDINAL:
+          srcAddr = source.getValidityBufferAddress();
+          dstAddr = target.getValidityBufferAddress();
+          break;
+        case VALUE_BUFFER_ORDINAL:
+          srcAddr = source.getDataBufferAddress();
+          dstAddr = target.getDataBufferAddress();
+          break;
+        default:
+          throw new UnsupportedOperationException("unexpected buffer offset");
+      }
+
+      final long maxAddr = offsetAddr + count * STEP_SIZE;
+      int targetIndex = 0;
+      for(; offsetAddr < maxAddr; offsetAddr += STEP_SIZE, targetIndex++){
+        final int recordIndex = Short.toUnsignedInt(PlatformDependent.getShort(offsetAddr));
+        final int byteValue = PlatformDependent.getByte(srcAddr + (recordIndex >>> 3));
+        final int bitVal = ((byteValue >>> (recordIndex & 7)) & 1) << (targetIndex & 7);
+        final long addr = dstAddr + (targetIndex >>> 3);
+        PlatformDependent.putByte(addr, (byte) (PlatformDependent.getByte(addr) | bitVal));
+      }
+
+      // Set the validity to 0 for all records in nullAddr after copy validity data
+      if (bufferOrdinal == NULL_BUFFER_ORDINAL) {
+        final long maxKeyAddr = nullAddr + nullCount * STEP_SIZE;
+        for (; nullAddr < maxKeyAddr; nullAddr += STEP_SIZE) {
+          targetIndex = Short.toUnsignedInt(PlatformDependent.getShort(nullAddr));
+          final long addr = dstAddr + (targetIndex >>> 3);
+          final int bitVal = ~(1 << (targetIndex & 7));
+          PlatformDependent.putByte(addr, (byte) (PlatformDependent.getByte(addr) & bitVal));
+        }
       }
     }
 
@@ -263,6 +334,11 @@ public abstract class FieldBufferCopier {
         transfer.copyValueSafe(index, target);
         target++;
       }
+    }
+
+    @Override
+    public void copy(long offsetAddr, int count, long nullKeyAddr, int nullKeyCount) {
+      copy(offsetAddr, count);
     }
 
     public void allocate(int records){
@@ -308,7 +384,7 @@ public abstract class FieldBufferCopier {
       break;
 
     case LIST:
-    case MAP:
+    case STRUCT:
     case UNION:
       copiers.add(new GenericCopier(source, target));
       break;

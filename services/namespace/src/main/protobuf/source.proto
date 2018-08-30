@@ -41,6 +41,8 @@ message SourceConfig {
   optional int64 accelerationRefreshPeriod = 12;
   // materialization grace period
   optional int64 accelerationGracePeriod = 13;
+  optional bool accelerationNeverExpire = 15 [default = false];
+  optional bool accelerationNeverRefresh = 16 [default = false];
   
   optional string type = 14;
 }

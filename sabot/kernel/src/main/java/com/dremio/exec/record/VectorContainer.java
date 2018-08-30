@@ -308,6 +308,12 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
     }
   }
 
+  @SuppressWarnings("unused")
+  private BufferAllocator getAllocator() {
+    throw new UnsupportedOperationException("Intentionally not exposing the allocator of the VectorContainer. " +
+                                              "Doing so might accidentally expose the fragment output allocator");
+  }
+
   @Override
   public BatchSchema getSchema() {
     // throws if buildSchema(...) was not called before this call, which happens if the caller did not

@@ -74,16 +74,6 @@ describe('AccelerationGridController', () => {
     expect(wrap).to.have.length(1);
   });
 
-  describe('#renderDistributionCell', () => {
-    it('should return undefined if !this.shouldShowDistribution()', () => {
-      sinon.stub(instance, 'shouldShowDistribution').returns(false);
-      expect(instance.renderDistributionCell()).to.be.undefined;
-
-      instance.shouldShowDistribution.returns(true);
-      expect(instance.renderDistributionCell()).to.not.be.undefined;
-    });
-  });
-
   describe('findCurrentIndexInFieldsList', () => {
     it('should return current index of column in field list', () => {
       const currentColumn = {name: 'columnA'};
@@ -135,6 +125,13 @@ describe('AccelerationGridController', () => {
 
     it('should return undefined if field have not current column', () => {
       expect(instance.findCurrentColumnInLayouts('dimensionFields', 0, 1)).to.eql(undefined);
+    });
+  });
+
+  describe('findCurrentCellAllMeasureTypes', () => {
+    it('should return null for raw page', () => {
+      wrapper.setProps({activeTab: 'raw'});
+      expect(instance.findCurrentCellAllMeasureTypes({})).to.be.null;
     });
   });
 
@@ -286,8 +283,7 @@ describe('AccelerationGridController', () => {
     });
   });
 
-
-  describe('handleOnSelectSortItem', () => {
+  describe('handleOnSortCheckboxItem', () => {
     beforeEach(() => {
       instance.setState({
         currentCell: {
@@ -302,15 +298,15 @@ describe('AccelerationGridController', () => {
     });
 
     it('should call toggleSortField', () => {
-      instance.handleOnSelectSortItem('sortFields');
+      instance.handleOnSortCheckboxItem(0, 0);
       expect(instance.toggleSortField).to.have.been.calledWith('sortFields', 0, 0);
     });
     it('should call applyConstraintsNext', () => {
-      instance.handleOnSelectSortItem('sortFields');
+      instance.handleOnSortCheckboxItem(0, 0);
       expect(instance.applyConstraintsNext).to.have.been.calledWith('sortFields', 0, 0);
     });
     it('should call handleRequestClose', () => {
-      instance.handleOnSelectSortItem('sortFields');
+      instance.handleOnSortCheckboxItem(0, 0);
       expect(instance.handleRequestClose).to.have.been.calledOnce;
     });
   });

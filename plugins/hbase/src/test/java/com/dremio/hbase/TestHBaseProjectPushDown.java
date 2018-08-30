@@ -25,7 +25,7 @@ public class TestHBaseProjectPushDown extends BaseHBaseTest {
     runHBaseSQLVerifyCount("SELECT\n"
         + "row_key\n"
         + "FROM\n"
-        + "  hbase.`[TABLE_NAME]` tableName"
+        + "  hbase.\"[TABLE_NAME]\" tableName"
         , 8);
   }
 
@@ -33,9 +33,9 @@ public class TestHBaseProjectPushDown extends BaseHBaseTest {
   public void testColumnWith1RowPushDown() throws Exception{
     setColumnWidth(6);
     runHBaseSQLVerifyCount("SELECT\n"
-        + "t.f2.c7 as `t.f2.c7`\n"
+        + "t.f2.c7 as \"t.f2.c7\"\n"
         + "FROM\n"
-        + "  hbase.`[TABLE_NAME]` t"
+        + "  hbase.\"[TABLE_NAME]\" t"
         , 1);
   }
 
@@ -46,10 +46,10 @@ public class TestHBaseProjectPushDown extends BaseHBaseTest {
         // Note:  Can't currently use period in column alias (not even with
         // qualified identifier) because Dremio internals don't currently encode
         // names sufficiently.
-        + "row_key, t.f.c1 * 31 as `t dot f dot c1 * 31`, "
-        + "t.f.c2 as `t dot f dot c2`, 5 as `5`, 'abc' as `'abc'`\n"
+        + "row_key, t.f.c1 * 31 as \"t dot f dot c1 * 31\", "
+        + "t.f.c2 as \"t dot f dot c2\", 5 as \"5\", 'abc' as \"'abc'\"\n"
         + "FROM\n"
-        + "  hbase.`[TABLE_NAME]` t"
+        + "  hbase.\"[TABLE_NAME]\" t"
         , 8);
   }
 
@@ -59,7 +59,7 @@ public class TestHBaseProjectPushDown extends BaseHBaseTest {
     runHBaseSQLVerifyCount("SELECT\n"
         + "row_key, f, f2\n"
         + "FROM\n"
-        + "  hbase.`[TABLE_NAME]` tableName"
+        + "  hbase.\"[TABLE_NAME]\" tableName"
         , 8);
   }
 

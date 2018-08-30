@@ -60,7 +60,7 @@ public class SqlDatePartOperator extends SqlFunction {
       .put("dow", TimeUnitRange.DOW)
       .put("doy", TimeUnitRange.DOY)
       .put("epoch", TimeUnitRange.EPOCH)
-      .put("millenium", TimeUnitRange.MILLENNIUM)
+      .put("millennium", TimeUnitRange.MILLENNIUM)
       .put("quarter", TimeUnitRange.QUARTER)
       .put("week", TimeUnitRange.WEEK).build();
 

@@ -17,11 +17,17 @@ package com.dremio.service.reflection;
 
 import static com.dremio.common.utils.PathUtils.constructFullPath;
 import static com.dremio.exec.ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS;
+import static com.dremio.service.reflection.ReflectionOptions.COMPACTION_TRIGGER_FILE_SIZE;
+import static com.dremio.service.reflection.ReflectionOptions.COMPACTION_TRIGGER_NUMBER_FILES;
+import static com.dremio.service.reflection.ReflectionOptions.ENABLE_COMPACTION;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_DELETION_GRACE_PERIOD;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_DELETION_NUM_ENTRIES;
+import static com.dremio.service.reflection.ReflectionUtils.computeDataPartitions;
 import static com.dremio.service.reflection.ReflectionUtils.getId;
 import static com.dremio.service.reflection.ReflectionUtils.getMaterializationPath;
+import static com.dremio.service.reflection.ReflectionUtils.submitRefreshJob;
 import static com.dremio.service.reflection.proto.ReflectionState.ACTIVE;
+import static com.dremio.service.reflection.proto.ReflectionState.COMPACTING;
 import static com.dremio.service.reflection.proto.ReflectionState.DEPRECATE;
 import static com.dremio.service.reflection.proto.ReflectionState.FAILED;
 import static com.dremio.service.reflection.proto.ReflectionState.METADATA_REFRESH;
@@ -32,15 +38,18 @@ import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import com.dremio.datastore.WarningTimer;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.user.SubstitutionSettings;
+import com.dremio.options.OptionManager;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.MaterializationSummary;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
@@ -50,23 +59,28 @@ import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.ReflectionServiceImpl.DescriptorCache;
 import com.dremio.service.reflection.ReflectionServiceImpl.ExpansionHelper;
 import com.dremio.service.reflection.handlers.RefreshDoneHandler;
 import com.dremio.service.reflection.handlers.RefreshStartHandler;
+import com.dremio.service.reflection.proto.DataPartition;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Failure;
+import com.dremio.service.reflection.proto.JobDetails;
 import com.dremio.service.reflection.proto.Materialization;
+import com.dremio.service.reflection.proto.MaterializationId;
+import com.dremio.service.reflection.proto.MaterializationMetrics;
 import com.dremio.service.reflection.proto.MaterializationState;
 import com.dremio.service.reflection.proto.ReflectionEntry;
+import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionState;
+import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.proto.RefreshDecision;
 import com.dremio.service.reflection.store.ExternalReflectionStore;
 import com.dremio.service.reflection.store.MaterializationStore;
@@ -75,7 +89,6 @@ import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
 /**
@@ -100,6 +113,7 @@ public class ReflectionManager implements Runnable {
    */
   private static final long WAKEUP_OVERLAP_MS = 10;
 
+  private final SabotContext sabotContext;
   private final JobsService jobsService;
   private final NamespaceService namespaceService;
   private final OptionManager optionManager;
@@ -107,7 +121,6 @@ public class ReflectionManager implements Runnable {
   private final ReflectionEntriesStore reflectionStore;
   private final ExternalReflectionStore externalReflectionStore;
   private final MaterializationStore materializationStore;
-  private final FileSystemPlugin accelerationPlugin;
   private final DependencyManager dependencyManager;
   private final DescriptorCache descriptorCache;
   private final Set<ReflectionId> reflectionsToUpdate;
@@ -116,12 +129,13 @@ public class ReflectionManager implements Runnable {
 
   private long lastWakeupTime;
 
-  ReflectionManager(JobsService jobsService, NamespaceService namespaceService, OptionManager optionManager,
+  ReflectionManager(SabotContext sabotContext, JobsService jobsService, NamespaceService namespaceService, OptionManager optionManager,
                     ReflectionGoalsStore userStore, ReflectionEntriesStore reflectionStore,
                     ExternalReflectionStore externalReflectionStore, MaterializationStore materializationStore,
-                    FileSystemPlugin accelerationPlugin, DependencyManager dependencyManager,
+                    DependencyManager dependencyManager,
                     DescriptorCache descriptorCache, Set<ReflectionId> reflectionsToUpdate,
                     WakeUpCallback wakeUpCallback, Supplier<ExpansionHelper> expansionHelper) {
+    this.sabotContext = Preconditions.checkNotNull(sabotContext, "sabotContext required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobsService required");
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespaceService required");
     this.optionManager = Preconditions.checkNotNull(optionManager, "optionManager required");
@@ -129,12 +143,11 @@ public class ReflectionManager implements Runnable {
     this.reflectionStore = Preconditions.checkNotNull(reflectionStore, "reflection store required");
     this.externalReflectionStore = Preconditions.checkNotNull(externalReflectionStore);
     this.materializationStore = Preconditions.checkNotNull(materializationStore, "materialization store required");
-    this.accelerationPlugin = Preconditions.checkNotNull(accelerationPlugin, "acceleration storage plugin required");
     this.dependencyManager = Preconditions.checkNotNull(dependencyManager, "dependency manager required");
     this.descriptorCache = Preconditions.checkNotNull(descriptorCache, "descriptor cache required");
     this.reflectionsToUpdate = Preconditions.checkNotNull(reflectionsToUpdate, "reflections to update required");
     this.wakeUpCallback = Preconditions.checkNotNull(wakeUpCallback, "wakeup callback required");
-    this.expansionHelper = Preconditions.checkNotNull(expansionHelper, "sqlConvertSupplier requiered");
+    this.expansionHelper = Preconditions.checkNotNull(expansionHelper, "sqlConvertSupplier required");
   }
 
   @Override
@@ -267,6 +280,7 @@ public class ReflectionManager implements Runnable {
         break;
       case REFRESHING:
       case METADATA_REFRESH:
+      case COMPACTING:
         handleRefreshingEntry(entry);
         break;
       case UPDATE:
@@ -298,13 +312,15 @@ public class ReflectionManager implements Runnable {
   private void handleRefreshingEntry(final ReflectionEntry entry) {
     // handle job completion
     final Materialization m = Preconditions.checkNotNull(materializationStore.getLastMaterialization(entry.getId()),
-      "entry in REFRESHING/METADATA_REFRESH state has no materialization entries", entry.getId());
+      "Reflection in refreshing state has no materialization entries", entry.getId());
+    Preconditions.checkState(m.getState() == MaterializationState.RUNNING,
+      "Reflection in refreshing state should have a materialization in RUNNING state but was %s instead", m.getState());
+
     Job job;
     try {
       job = jobsService.getJobFromStore(entry.getRefreshJobId());
     } catch (JobNotFoundException e) {
-      // something's wrong, a REFRESHING/METADATA_REFRESH entry means we already submitted a job and we should be able
-      // to retrieve it.
+      // something's wrong, a refreshing entry means we already submitted a job and we should be able to retrieve it.
       // let's handle this as a failure to avoid hitting an infinite loop trying to handle this reflection entry
       m.setState(MaterializationState.FAILED)
         .setFailure(new Failure().setMessage(String.format("Couldn't retrieve refresh job %s", entry.getRefreshJobId().getId())));
@@ -315,22 +331,35 @@ public class ReflectionManager implements Runnable {
 
     switch (job.getJobAttempt().getState()) {
       case COMPLETED:
-        logger.debug("refresh job {} for materialization {} completed successfully", job.getJobId().getId(), getId(m));
-        handleSuccessfulRefreshJob(entry, m, job);
+        try {
+          logger.debug("job {} for materialization {} completed successfully", job.getJobId().getId(), getId(m));
+          handleSuccessfulJob(entry, m, job);
+        } catch (Exception e){
+          m.setState(MaterializationState.FAILED)
+            .setFailure(new Failure().setMessage("Unexpected error occurred during job " + job.getJobId().getId()));
+          materializationStore.save(m);
+          reportFailure(entry, ACTIVE);
+        }
         break;
       case CANCELED:
-        logger.debug("refresh job {} for materialization {} was cancelled", job.getJobId().getId(), getId(m));
-        updateDependenciesIfPossible(entry, job.getJobAttempt());
+        logger.debug("job {} for materialization {} was cancelled", job.getJobId().getId(), getId(m));
+        if (entry.getState() == REFRESHING) {
+          // try to update the dependencies even when a refreshing job fails
+          updateDependenciesIfPossible(entry, job.getJobAttempt());
+        }
         m.setState(MaterializationState.CANCELED);
         materializationStore.save(m);
         entry.setState(ACTIVE);
         reflectionStore.save(entry);
         break;
       case FAILED:
-        logger.debug("refresh job {} for materialization {} failed", job.getJobId().getId(), getId(m));
-        updateDependenciesIfPossible(entry, job.getJobAttempt());
+        logger.debug("job {} for materialization {} failed", job.getJobId().getId(), getId(m));
+        if (entry.getState() == REFRESHING) {
+          // try to update the dependencies even when a refreshing job fails
+          updateDependenciesIfPossible(entry, job.getJobAttempt());
+        }
         final String jobFailure = Optional.fromNullable(job.getJobAttempt().getInfo().getFailureInfo())
-          .or("Materialization Job failed without reporting an error message");
+          .or("Reflection Job failed without reporting an error message");
         m.setState(MaterializationState.FAILED)
           .setFailure(new Failure().setMessage(jobFailure));
         materializationStore.save(m);
@@ -476,6 +505,27 @@ public class ReflectionManager implements Runnable {
     descriptorCache.invalidate(materialization.getId());
   }
 
+  private void deprecateLastMaterialization(Materialization materialization) {
+    Materialization lastDone = materializationStore.getLastMaterializationDone(materialization.getReflectionId());
+    if (lastDone != null) {
+      deprecateMaterialization(lastDone);
+    }
+  }
+
+  private void handleMaterializationDone(ReflectionEntry entry, Materialization materialization) {
+    final long now = System.currentTimeMillis();
+    if (materialization.getExpiration() <= now) {
+      materialization.setState(MaterializationState.FAILED)
+        .setFailure(new Failure().setMessage("Successful materialization already expired"));
+      logger.warn("Successful materialization {} already expired", ReflectionUtils.getId(materialization));
+    } else {
+      deprecateLastMaterialization(materialization);
+      materialization.setState(MaterializationState.DONE);
+      entry.setState(ACTIVE)
+        .setNumFailures(0);
+    }
+  }
+
   private void cancelRefreshJobIfAny(ReflectionEntry entry) {
     if (entry.getState() != REFRESHING && entry.getState() != METADATA_REFRESH) {
       return;
@@ -501,26 +551,32 @@ public class ReflectionManager implements Runnable {
     // when the materialization entry is deleted
   }
 
-  private void handleSuccessfulRefreshJob(ReflectionEntry entry, Materialization materialization, Job job) {
-    if (entry.getState() == REFRESHING) {
-      refreshingJobSucceded(entry, materialization, job);
-    } else if (entry.getState() == METADATA_REFRESH) {
-      metadataRefreshJobSucceeded(entry, materialization);
-    } else {
-      throw new IllegalStateException("Unexpected state " + entry.getState());
+  private void handleSuccessfulJob(ReflectionEntry entry, Materialization materialization, Job job) {
+    switch (entry.getState()) {
+      case REFRESHING:
+        refreshingJobSucceded(entry, materialization, job);
+        break;
+      case COMPACTING:
+        compactionJobSucceeded(entry, materialization, job);
+        break;
+      case METADATA_REFRESH:
+        metadataRefreshJobSucceeded(entry, materialization);
+        break;
+      default:
+        throw new IllegalStateException("Unexpected state " + entry.getState());
     }
   }
 
   private void refreshingJobSucceded(ReflectionEntry entry, Materialization materialization, Job job) {
 
     try {
-      final RefreshDoneHandler handler = new RefreshDoneHandler(entry, materialization, job, accelerationPlugin,
+      final RefreshDoneHandler handler = new RefreshDoneHandler(entry, materialization, job,
         namespaceService, materializationStore, dependencyManager, expansionHelper);
       final RefreshDecision decision = handler.handle();
 
       // no need to set the following attributes if we fail to handle the refresh
       // one could argue that we should still try to compute entry.dontGiveUp() if we were able to extract the dependencies
-      // but if we really fail to handle a successful refresh job for 3 times in a row, the entry is a bad state
+      // but if we really fail to handle a successful refresh job for 3 times in a row, the entry is in a bad state
       entry.setRefreshMethod(decision.getAccelerationSettings().getMethod())
         .setRefreshField(decision.getAccelerationSettings().getRefreshField())
         .setDatasetHash(decision.getDatasetHash())
@@ -533,25 +589,35 @@ public class ReflectionManager implements Runnable {
 
     // update the namespace metadata before saving information to the reflection store to avoid concurrent updates.
     if (materialization.getState() != MaterializationState.FAILED) {
-      // lastSuccessfulRefresh is used to trigger refreshes on dependent reflections.
-      // When an incremental refresh didn't write any data we still want to refresh its dependent reflections
-      // as they may have failed the previous time and will still benefit from this refresh
-      entry.setLastSuccessfulRefresh(System.currentTimeMillis());
 
-      // even if the materialization didn't write any data it may still own refreshes if it's a non-initial incremental
-      // otherwise we don't want to refresh an empty table as it will just fail
-      if (!Iterables.isEmpty(materializationStore.getRefreshes(materialization))) {
-        try {
-          refreshMetadata(entry, materialization);
-        } catch (Exception | AssertionError e) {
-          logger.warn("failed to start a LOAD MATERIALIZATION job for {}", getId(materialization), e);
-          materialization.setState(MaterializationState.FAILED)
-            .setFailure(new Failure().setMessage("Failed to start a LOAD MATERIALIZATION job"));
-        }
+      // expiration may not be set if materialization has failed
+      if (materialization.getExpiration() <= System.currentTimeMillis()) {
+        materialization.setState(MaterializationState.FAILED)
+          .setFailure(new Failure().setMessage("Successful materialization already expired"));
+        logger.warn("Successful materialization {} already expired", ReflectionUtils.getId(materialization));
       } else {
-        materialization.setState(MaterializationState.DONE);
-        entry.setState(ACTIVE)
-          .setNumFailures(0);
+        // lastSuccessfulRefresh is used to trigger refreshes on dependent reflections.
+        // When an incremental refresh didn't write any data we still want to refresh its dependent reflections
+        // as they may have failed the previous time and will still benefit from this refresh
+        entry.setLastSuccessfulRefresh(System.currentTimeMillis());
+
+        // even if the materialization didn't write any data it may still own refreshes if it's a non-initial incremental
+        // otherwise we don't want to refresh an empty table as it will just fail
+        final List<Refresh> refreshes = materializationStore.getRefreshes(materialization).toList();
+        if (!refreshes.isEmpty()) {
+          try {
+            Preconditions.checkState(materialization.getState() != MaterializationState.FAILED, "failed materialization");
+            if (!compactIfNecessary(entry, materialization, refreshes)) {
+              refreshMetadata(entry, materialization);
+            }
+          } catch (Exception | AssertionError e) {
+            logger.warn("failed to start a LOAD MATERIALIZATION job for {}", getId(materialization), e);
+            materialization.setState(MaterializationState.FAILED)
+              .setFailure(new Failure().setMessage("Failed to start a LOAD MATERIALIZATION job"));
+          }
+        } else {
+          handleMaterializationDone(entry, materialization);
+        }
       }
     }
 
@@ -561,6 +627,115 @@ public class ReflectionManager implements Runnable {
 
     materializationStore.save(materialization);
     reflectionStore.save(entry);
+  }
+
+  private boolean compactIfNecessary(ReflectionEntry entry, Materialization materialization, List<Refresh> refreshes) {
+    if (!optionManager.getOption(ENABLE_COMPACTION)) {
+      return false; // compaction disabled by user
+    }
+    if (entry.getRefreshMethod() != RefreshMethod.FULL) {
+      logger.debug("Skipping compaction check for reflection {} with incremental refresh", getId(entry));
+      return false; // only applies to full refresh
+    }
+
+    // full refresh materializations must contain a single refresh entry
+    Preconditions.checkState(refreshes.size() == 1, "expected 1 refresh entry found %s", refreshes.size());
+    final Refresh refresh = refreshes.get(0);
+
+    if (!shouldCompact(entry, refresh)) {
+      return false;
+    }
+
+    final ReflectionGoal goal = Preconditions.checkNotNull(userStore.get(entry.getId()),
+      "Couldn't find associated reflection goal to reflection %s", getId(entry));
+    final List<ReflectionField> partitionFields = goal.getDetails().getPartitionFieldList();
+    if (partitionFields != null && !partitionFields.isEmpty()) {
+      //TODO warn user through UI
+      logger.warn("Cannot compact materialization {} as it contains partition columns", getId(materialization));
+      return false;
+    }
+
+    // mark current materialization as COMPACTED (terminal state)
+    materialization
+      .setState(MaterializationState.COMPACTED);
+    materializationStore.save(materialization);
+
+    logger.debug("Compacting reflection {}", getId(entry));
+
+    // create a new materialization entry for the compacted data
+    final Materialization newMaterialization = new Materialization()
+      .setId(new MaterializationId(UUID.randomUUID().toString()))
+      .setReflectionId(entry.getId())
+      .setState(MaterializationState.RUNNING)
+      .setExpiration(materialization.getExpiration())
+      .setLastRefreshFromPds(materialization.getLastRefreshFromPds())
+      .setLogicalPlan(materialization.getLogicalPlan())
+      .setReflectionGoalVersion(materialization.getReflectionGoalVersion())
+      .setJoinAnalysis(materialization.getJoinAnalysis())
+      .setInitRefreshSubmit(System.currentTimeMillis()) // needed to properly return this materialization as last one
+      .setInitRefreshExecution(materialization.getInitRefreshExecution())
+      .setInitRefreshJobId(materialization.getInitRefreshJobId());
+    materializationStore.save(newMaterialization);
+
+    // start compaction job
+    final String sql = String.format("COMPACT MATERIALIZATION \"%s\".\"%s\" AS '%s'", entry.getId().getId(), materialization.getId().getId(), newMaterialization.getId().getId());
+
+    final Job compactionJob = submitRefreshJob(jobsService, namespaceService, entry, materialization, sql,
+      new WakeUpManagerWhenJobDone(wakeUpCallback, "compaction job done"));
+
+    newMaterialization
+      .setInitRefreshJobId(compactionJob.getJobId().getId());
+    materializationStore.save(newMaterialization);
+
+    entry.setState(COMPACTING)
+      .setRefreshJobId(compactionJob.getJobId());
+    reflectionStore.save(entry);
+
+    logger.debug("started job {} to compact materialization {} as {}", compactionJob.getJobId().getId(), getId(materialization), newMaterialization.getId().getId());
+    return true;
+  }
+
+  private void compactionJobSucceeded(ReflectionEntry entry, Materialization materialization, Job job) {
+    // update materialization seriesId/seriesOrdinal to point to the new refresh
+    final long seriesId = System.currentTimeMillis();
+    materialization.setSeriesId(seriesId)
+      .setSeriesOrdinal(0);
+
+    // create new refresh entry that points to the compacted data
+    final JobInfo jobInfo = job.getJobAttempt().getInfo();
+    final JobDetails jobDetails = ReflectionUtils.computeJobDetails(job.getJobAttempt());
+    final List<DataPartition> dataPartitions = computeDataPartitions(jobInfo);
+    final MaterializationMetrics metrics = ReflectionUtils.computeMetrics(job);
+    final Refresh refresh = ReflectionUtils.createRefresh(materialization, seriesId, 0, -1, jobDetails, metrics, dataPartitions);
+    refresh.setCompacted(true);
+
+    // no need to update entry lastSuccessfulRefresh, as it may only cause unnecessary refreshes on dependant reflections
+
+    materializationStore.save(materialization);
+    materializationStore.save(refresh);
+
+    // start a metadata refresh and delete compacted materialization, in parallel
+    deleteCompactedMaterialization(entry);
+    refreshMetadata(entry, materialization);
+  }
+
+  private void deleteCompactedMaterialization(ReflectionEntry entry) {
+    final Materialization compacted = materializationStore.getLastMaterializationCompacted(entry.getId());
+    if (compacted == null) {
+      logger.warn("Couldn't find any compacted materialization for reflection {}", getId(entry));
+      return;
+    }
+
+    deleteMaterialization(compacted);
+  }
+
+  private boolean shouldCompact(ReflectionEntry entry, Refresh refresh) {
+    final long medianFileSize = refresh.getMetrics().getMedianFileSize();
+    final int numFiles = refresh.getMetrics().getNumFiles();
+
+    logger.debug("Reflection {} refresh wrote {} files with a median size of {} bytes", getId(entry), numFiles, medianFileSize);
+    return numFiles > optionManager.getOption(COMPACTION_TRIGGER_NUMBER_FILES)
+      && medianFileSize < optionManager.getOption(COMPACTION_TRIGGER_FILE_SIZE)*1024*1024;
   }
 
   private void metadataRefreshJobSucceeded(ReflectionEntry entry, Materialization materialization) {
@@ -577,36 +752,19 @@ public class ReflectionManager implements Runnable {
       // materialization failed
       reportFailure(entry, ACTIVE);
     } else {
-      materialization.setState(MaterializationState.DONE);
-      entry.setState(ACTIVE)
-        .setNumFailures(0);
+      handleMaterializationDone(entry, materialization);
     }
 
     materializationStore.save(materialization);
     reflectionStore.save(entry);
-
   }
 
   private void refreshMetadata(ReflectionEntry entry, Materialization materialization) {
-    final String sql = String.format("LOAD MATERIALIZATION METADATA '%s'", materialization.getId().getId());
+    final String sql = String.format("LOAD MATERIALIZATION METADATA \"%s\".\"%s\"",
+      materialization.getReflectionId().getId(), materialization.getId().getId());
 
-    final SqlQuery query = new SqlQuery(sql, SYSTEM_USERNAME);
-    NamespaceKey datasetPathList = new NamespaceKey(namespaceService.findDatasetByUUID(entry.getDatasetId()).getFullPathList());
-    DatasetVersion datasetVersion = new DatasetVersion(entry.getDatasetVersion());
-    MaterializationSummary materializationSummary = new MaterializationSummary()
-      .setDatasetId(entry.getDatasetId())
-      .setReflectionId(entry.getId().getId())
-      .setLayoutVersion(entry.getVersion().intValue())
-      .setMaterializationId(materialization.getId().getId());
-
-    final Job job = jobsService.submitJob(
-      JobRequest.newMaterializationJobBuilder(materializationSummary,
-        new SubstitutionSettings(ImmutableList.<String>of()))
-        .setSqlQuery(query)
-        .setQueryType(QueryType.ACCELERATOR_CREATE)
-        .setDatasetPath(datasetPathList)
-        .setDatasetVersion(datasetVersion)
-        .build(), new WakeUpManagerWhenJobDone(wakeUpCallback, "metadata refreshing job"));
+    final Job job = submitRefreshJob(jobsService, namespaceService, entry, materialization, sql,
+      new WakeUpManagerWhenJobDone(wakeUpCallback, "metadata refresh job done"));
 
     entry.setState(METADATA_REFRESH)
       .setRefreshJobId(job.getJobId());
@@ -616,10 +774,24 @@ public class ReflectionManager implements Runnable {
   }
 
   private void startRefresh(ReflectionEntry entry) {
-    JobId refreshJobId;
     final long jobSubmissionTime = System.currentTimeMillis();
+    // we should always update lastSubmittedRefresh to avoid an immediate refresh if we fail to start a refresh job
+    entry.setLastSubmittedRefresh(jobSubmissionTime);
+
+    if (sabotContext.getExecutors().isEmpty()) {
+      logger.warn("reflection {} was not refreshed because no executors were available", entry.getId().getId());
+      reportFailure(entry, ACTIVE);
+      return;
+    }
+
     try {
-      refreshJobId = createStartHandler(entry).startJob(jobSubmissionTime);
+      final JobId refreshJobId = createStartHandler(entry).startJob(jobSubmissionTime);
+
+      entry.setState(REFRESHING)
+        .setRefreshJobId(refreshJobId);
+      reflectionStore.save(entry);
+
+      logger.debug("Started job {} to materialize reflection {}", refreshJobId.getId(), entry.getId().getId());
     } catch (Exception | AssertionError e) {
       // we failed to start the refresh
       logger.warn("failed to refresh reflection {}", getId(entry), e);
@@ -631,15 +803,7 @@ public class ReflectionManager implements Runnable {
         materializationStore.save(m);
       }
       reportFailure(entry, ACTIVE);
-      return;
     }
-
-    entry.setState(REFRESHING)
-      .setRefreshJobId(refreshJobId)
-      .setLastSubmittedRefresh(jobSubmissionTime);
-    reflectionStore.save(entry);
-
-    logger.debug("Started job {} to materialize reflection {}", refreshJobId.getId(), entry.getId().getId());
   }
 
   private void reportFailure(ReflectionEntry entry, ReflectionState newState) {

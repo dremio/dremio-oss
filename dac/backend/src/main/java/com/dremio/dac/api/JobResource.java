@@ -24,6 +24,8 @@ import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
+import javax.ws.rs.NotFoundException;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -35,6 +37,7 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobException;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
 import com.google.common.base.Preconditions;
@@ -60,22 +63,43 @@ public class JobResource {
 
   @GET
   @Path("/{id}")
-  public JobStatus getJobStatus(@PathParam("id") String id) throws JobNotFoundException {
-    Job job = jobs.getJob(new JobId(id), securityContext.getUserPrincipal().getName());
+  public JobStatus getJobStatus(@PathParam("id") String id) {
+    try {
+      Job job = jobs.getJob(new JobId(id), securityContext.getUserPrincipal().getName());
 
-    return JobStatus.fromJob(job);
+      return JobStatus.fromJob(job);
+    } catch (JobNotFoundException e) {
+      throw new NotFoundException(String.format("Could not find a job with id [%s]", id));
+    }
   }
 
   @GET
   @Path("/{id}/results")
-  public JobData getQueryResults(@PathParam("id") String id, @QueryParam("offset") @DefaultValue("0") Integer offset, @Valid @QueryParam("limit") @DefaultValue("100") Integer limit) throws JobNotFoundException {
-    Preconditions.checkArgument(limit < 500,"limit can not exceed 500 rows");
-    Job job = jobs.getJob(new JobId(id), securityContext.getUserPrincipal().getName());
+  public JobData getQueryResults(@PathParam("id") String id, @QueryParam("offset") @DefaultValue("0") Integer offset, @Valid @QueryParam("limit") @DefaultValue("100") Integer limit) {
+    Preconditions.checkArgument(limit <= 500,"limit can not exceed 500 rows");
+    try {
+      Job job = jobs.getJob(new JobId(id), securityContext.getUserPrincipal().getName());
 
-    if (job.getJobAttempt().getState() != JobState.COMPLETED) {
-      throw new BadRequestException(String.format("Can not fetch details for a job that is in [%s] state.", job.getJobAttempt().getState()));
+
+      if (job.getJobAttempt().getState() != JobState.COMPLETED) {
+        throw new BadRequestException(String.format("Can not fetch details for a job that is in [%s] state.", job.getJobAttempt().getState()));
+      }
+
+      return new QueryJobResults(job, offset, limit).getData();
+    } catch (JobNotFoundException e) {
+      throw new NotFoundException(String.format("Could not find a job with id [%s]", id));
     }
+  }
 
-    return new QueryJobResults(job, offset, limit).getData();
+  @POST
+  @Path("/{id}/cancel")
+  public void cancelJob(@PathParam("id") String id) throws JobException {
+    final String name = securityContext.getUserPrincipal().getName();
+
+    try {
+      jobs.cancel(name, new JobId(id));
+    } catch (JobNotFoundException e) {
+      throw new NotFoundException(String.format("Could not find a job with id [%s]", id));
+    }
   }
 }

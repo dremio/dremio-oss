@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.physical.impl;
 
+import org.joda.time.Period;
 import org.junit.Test;
 
 import com.dremio.sabot.BaseTestFunction;
@@ -69,6 +70,22 @@ public class TestCastFunctions extends BaseTestFunction {
       {"cast(c0 as varchar(30))", 14.3f, "14.3"},
       {"cast(c0 as varchar(30))", 14, "14"},
       {"cast(c0 as varchar(30))", 14.3d, "14.3"},
+    });
+  }
+
+  @Test
+  public void fromBigInt(){
+    testFunctions(new Object[][]{
+      {"cast(c0 as INTERVALDAY)", 14l, Period.millis(14)}, // INTERVALDAY is represented in milliseconds
+      {"cast(c0 as INTERVALYEAR)", 7l, Period.months(7)}, // INTERVALYEAR is represented in months
+    });
+  }
+
+  @Test
+  public void fromInteger(){
+    testFunctions(new Object[][]{
+      {"cast(c0 as INTERVALDAY)", Integer.valueOf(14), Period.millis(14)},
+      {"cast(c0 as INTERVALYEAR)", Integer.valueOf(7), Period.months(7)},
     });
   }
 }

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent, PropTypes } from 'react';
+import { PropTypes, PureComponent } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import invariant from 'invariant';
 
@@ -42,8 +42,8 @@ export default class SVG extends PureComponent {
     title: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.bool // set to true to take the aria-label
-    ])
-
+    ]),
+    dataQa: PropTypes.string
   }
 
   static defaultProps = {
@@ -51,7 +51,11 @@ export default class SVG extends PureComponent {
   }
 
   render() {
-    let {src, title, ...props} = this.props;
+    let {src, title, dataQa, ...props} = this.props;
+
+    if (!allSVGs[`./${src}`]) {
+      return null;
+    }
 
     const SpecificSVG = allSVGs[`./${src}`].default;
 
@@ -85,6 +89,6 @@ export default class SVG extends PureComponent {
       title = props['aria-label'];
     }
 
-    return <img src={url} title={title} {...props} />;
+    return <img src={url} title={title} data-qa={dataQa} {...props} />;
   }
 }

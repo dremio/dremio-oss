@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.fn.impl;
 
-import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
-import com.dremio.exec.rpc.RpcException;
+import static org.apache.arrow.vector.util.DateUtility.formatTimeStampMilli;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
@@ -25,10 +27,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
-
-import static org.apache.arrow.vector.util.DateUtility.formatTimeStampMilli;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
+import com.dremio.exec.rpc.RpcException;
 
 public class TestNewDateFunctions extends BaseTestQuery {
   LocalDateTime date;
@@ -104,7 +104,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
     date = formatter.parseLocalDateTime("2009-03-20 11:30:01");
     unixTimeStamp = com.dremio.common.util.DateTimes.toMillis(date) / 1000;
     testBuilder()
-        .sqlQuery("select unix_timestamp('2009-03-20 11:30:01') from cp.`employee.json` limit 1")
+        .sqlQuery("select unix_timestamp('2009-03-20 11:30:01') from cp.\"employee.json\" limit 1")
         .ordered()
         .baselineColumns("EXPR$0")
         .baselineValues(unixTimeStamp)
@@ -113,7 +113,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
     date = formatter.parseLocalDateTime("2014-08-09 05:15:06");
     unixTimeStamp = com.dremio.common.util.DateTimes.toMillis(date) / 1000;
     testBuilder()
-        .sqlQuery("select unix_timestamp('2014-08-09 05:15:06') from cp.`employee.json` limit 1")
+        .sqlQuery("select unix_timestamp('2014-08-09 05:15:06') from cp.\"employee.json\" limit 1")
         .ordered()
         .baselineColumns("EXPR$0")
         .baselineValues(unixTimeStamp)
@@ -122,7 +122,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
     date = formatter.parseLocalDateTime("1970-01-01 00:00:00");
     unixTimeStamp = com.dremio.common.util.DateTimes.toMillis(date) / 1000;
     testBuilder()
-        .sqlQuery("select unix_timestamp('1970-01-01 00:00:00') from cp.`employee.json` limit 1")
+        .sqlQuery("select unix_timestamp('1970-01-01 00:00:00') from cp.\"employee.json\" limit 1")
         .ordered()
         .baselineColumns("EXPR$0")
         .baselineValues(unixTimeStamp)
@@ -132,7 +132,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
     date = formatter.parseLocalDateTime("1970-01-01 23:12:12");
     unixTimeStamp = com.dremio.common.util.DateTimes.toMillis(date) / 1000;
     testBuilder()
-      .sqlQuery("select unix_timestamp('1970-01-01 23:12:12') from cp.`employee.json` limit 1")
+      .sqlQuery("select unix_timestamp('1970-01-01 23:12:12') from cp.\"employee.json\" limit 1")
       .ordered()
       .baselineColumns("EXPR$0")
       .baselineValues(unixTimeStamp)
@@ -146,7 +146,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
     unixTimeStamp = com.dremio.common.util.DateTimes.toMillis(date) / 1000;
 
     testBuilder()
-        .sqlQuery("select unix_timestamp('2009-03-20 11:30:01.0', 'YYYY-MM-DD HH:MI:SS.FFF') from cp.`employee.json` limit 1")
+        .sqlQuery("select unix_timestamp('2009-03-20 11:30:01.0', 'YYYY-MM-DD HH:MI:SS.FFF') from cp.\"employee.json\" limit 1")
         .ordered()
         .baselineColumns("EXPR$0")
         .baselineValues(unixTimeStamp)
@@ -157,7 +157,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
     unixTimeStamp = com.dremio.common.util.DateTimes.toMillis(date) / 1000;
 
     testBuilder()
-        .sqlQuery("select unix_timestamp('2009-03-20', 'YYYY-MM-DD') from cp.`employee.json` limit 1")
+        .sqlQuery("select unix_timestamp('2009-03-20', 'YYYY-MM-DD') from cp.\"employee.json\" limit 1")
         .ordered()
         .baselineColumns("EXPR$0")
         .baselineValues(unixTimeStamp)
@@ -167,7 +167,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
   @Test
   public void testCurrentDate() throws Exception {
     testBuilder()
-        .sqlQuery("select (extract(hour from current_date) = 0) as col from cp.`employee.json` limit 1")
+        .sqlQuery("select (extract(hour from current_date) = 0) as col from cp.\"employee.json\" limit 1")
         .unOrdered()
         .baselineColumns("col")
         .baselineValues(true)
@@ -177,7 +177,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
   @Test
   public void testLocalTimestamp() throws Exception {
     testBuilder()
-        .sqlQuery("select extract(day from localtimestamp) = extract(day from current_date) as col from cp.`employee.json` limit 1")
+        .sqlQuery("select extract(day from localtimestamp) = extract(day from current_date) as col from cp.\"employee.json\" limit 1")
         .unOrdered()
         .baselineColumns("col")
         .baselineValues(true)
@@ -225,7 +225,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
   @Test
   public void testQuarter() throws Exception {
     testBuilder()
-        .sqlQuery("select `quarter`(d) res1 from (VALUES({d '2017-01-02'}),({d '2000-05-07'}),(CAST(NULL as DATE))) tbl(d)")
+        .sqlQuery("select \"quarter\"(d) res1 from (VALUES({d '2017-01-02'}),({d '2000-05-07'}),(CAST(NULL as DATE))) tbl(d)")
         .ordered()
         .baselineColumns("res1")
         .baselineValues(1L)
@@ -237,7 +237,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
   @Test
   public void testYear() throws Exception {
     testBuilder()
-        .sqlQuery("select `year`(d) res1 from (VALUES({d '2017-01-02'}),({d '2000-05-07'}),(CAST(NULL as DATE))) tbl(d)")
+        .sqlQuery("select \"year\"(d) res1 from (VALUES({d '2017-01-02'}),({d '2000-05-07'}),(CAST(NULL as DATE))) tbl(d)")
         .ordered()
         .baselineColumns("res1")
         .baselineValues(2017L)
@@ -252,7 +252,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
     for (String tz : tzs) {
       DateTimeZone.setDefault(DateTimeZone.forID(tz));
       testBuilder()
-        .sqlQuery("SELECT CAST(`datetime0` AS DATE) res1 FROM (VALUES({ts '2016-01-02 00:46:36'})) tbl(datetime0)")
+        .sqlQuery("SELECT CAST(\"datetime0\" AS DATE) res1 FROM (VALUES({ts '2016-01-02 00:46:36'})) tbl(datetime0)")
         .ordered()
         .baselineColumns("res1")
         .baselineValues(new LocalDateTime(2016, 1, 2, 0, 0))
@@ -263,7 +263,7 @@ public class TestNewDateFunctions extends BaseTestQuery {
   @Test
   public void testDateMinusDate() throws Exception {
     testBuilder()
-        .sqlQuery("SELECT (CAST(`datetime0` AS DATE) - CAST({d '2004-01-01'} AS DATE)) res1 FROM (VALUES({ts '2017-01-13 01:02:03'})) tbl(datetime0)")
+        .sqlQuery("SELECT (CAST(\"datetime0\" AS DATE) - CAST({d '2004-01-01'} AS DATE)) res1 FROM (VALUES({ts '2017-01-13 01:02:03'})) tbl(datetime0)")
         .ordered()
         .baselineColumns("res1")
         .baselineValues(Period.days(4761))
@@ -273,10 +273,20 @@ public class TestNewDateFunctions extends BaseTestQuery {
   @Test
   public void testDateMinusDateAsInteger() throws Exception {
     testBuilder()
-        .sqlQuery("SELECT CAST((CAST(`datetime0` AS DATE) - CAST({d '2004-01-01'} AS DATE)) AS INTEGER) res1 FROM (VALUES({ts '2017-01-13 01:02:03'})) tbl(datetime0)")
+      .sqlQuery("SELECT CAST((CAST(\"datetime0\" AS DATE) - CAST({d '2004-01-01'} AS DATE)) AS INTEGER) res1 FROM (VALUES({ts '2017-01-13 01:02:03'})) tbl(datetime0)")
+      .ordered()
+      .baselineColumns("res1")
+      .baselineValues(4761)
+      .go();
+  }
+
+  @Test
+  public void testDateMinusDateAsBigint() throws Exception {
+    testBuilder()
+        .sqlQuery("SELECT CAST((CAST(\"datetime0\" AS DATE) - CAST({d '2004-01-01'} AS DATE)) AS BIGINT) res1 FROM (VALUES({ts '2017-01-13 01:02:03'})) tbl(datetime0)")
         .ordered()
         .baselineColumns("res1")
-        .baselineValues(4761)
+        .baselineValues(4761L)
         .go();
   }
 
@@ -367,8 +377,8 @@ public class TestNewDateFunctions extends BaseTestQuery {
             newPeriod(-24, -21482905), // c9
             newPeriod(-25, -36778608), // c10
             newPeriod(-23, -35081905), // c11
-            newPeriod(24, -821392), // c12
-            newPeriod(-24, 20418608), // c13
+            newPeriod(23, 85578608), // c12
+            newPeriod(-23, -65981392), // c13
             newPeriod(208, 15618608) // c14
         )
         .go();

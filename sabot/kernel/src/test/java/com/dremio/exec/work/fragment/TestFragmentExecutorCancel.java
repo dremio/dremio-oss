@@ -43,7 +43,7 @@ public class TestFragmentExecutorCancel extends BaseTestQuery {
 
   @Test
   public void testCancelNonRunningFragments() throws Exception{
-    test("alter session set `planner.slice_target` = 10");
+    test("alter session set \"planner.slice_target\" = 10");
 
     // Inject an out of memory exception in the ScanBatch
     CoordinationProtos.NodeEndpoint endpoint = nodes[0].getContext().getEndpoint();

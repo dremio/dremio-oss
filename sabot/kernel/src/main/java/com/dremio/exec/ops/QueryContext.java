@@ -32,6 +32,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
@@ -44,12 +45,9 @@ import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserProtos.QueryPriority;
-import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionList;
-import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.PartitionExplorer;
@@ -59,6 +57,9 @@ import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.exec.util.Utilities;
 import com.dremio.exec.work.WorkStats;
+import com.dremio.options.OptionList;
+import com.dremio.options.OptionManager;
+import com.dremio.resource.common.ResourceSchedulingContext;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.ContextInformation;
@@ -76,7 +77,7 @@ import io.netty.buffer.ArrowBuf;
 
 // TODO - consider re-name to PlanningContext, as the query execution context actually appears
 // in fragment contexts
-public class QueryContext implements AutoCloseable, OptimizerRulesContext {
+public class QueryContext implements AutoCloseable, ResourceSchedulingContext, OptimizerRulesContext {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryContext.class);
 
   private final SabotContext sabotContext;
@@ -182,6 +183,7 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
     return substitutionProviderFactory;
   }
 
+  @Override
   public QueryId getQueryId(){
     return queryId;
   }
@@ -204,6 +206,7 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
    * Get the user name of the user who issued the query that is managed by this QueryContext.
    * @return
    */
+  @Override
   public String getQueryUserName() {
     return session.getCredentials().getUserName();
   }
@@ -216,6 +219,7 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
     return executionControls;
   }
 
+  @Override
   public NodeEndpoint getCurrentEndpoint() {
     return sabotContext.getEndpoint();
   }
@@ -224,6 +228,7 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
     return sabotContext.getLpPersistence();
   }
 
+  @Override
   public Collection<NodeEndpoint> getActiveEndpoints() {
     return sabotContext.getExecutors();
   }
@@ -263,6 +268,7 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
     return table;
   }
 
+  @Override
   public QueryContextInformation getQueryContextInfo() {
     return queryContextInfo;
   }
@@ -313,6 +319,11 @@ public class QueryContext implements AutoCloseable, OptimizerRulesContext {
 
   public NamespaceService getNamespaceService() {
     return namespaceService;
+  }
+
+  @Override
+  public BufferManager getBufferManager() {
+    return bufferManager;
   }
 
   @Override

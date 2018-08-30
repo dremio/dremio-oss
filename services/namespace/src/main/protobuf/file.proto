@@ -95,6 +95,7 @@ message ColumnValueCount {
 message FileSystemCachedEntity {
   optional string path = 1; // full path of a file
   optional int64 lastModificationTime = 2;
+  optional int64 length = 3;
 }
 
 message FileUpdateKey {

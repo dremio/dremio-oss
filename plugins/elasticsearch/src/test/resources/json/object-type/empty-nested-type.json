@@ -7,7 +7,7 @@
                         "type": "nested"
                     },
                     "my_string_type": {
-                        "type": "string"
+                        "type": "text"
                     }
                 }
             }

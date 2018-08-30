@@ -13,15 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.add-field-editor {
-  .sql-help-panel {
-    position: absolute;
-    background: #F4F4F4;
-    width: 50%;
-    top: 0px !important;
-    bottom: 0px !important;
-    height: 112px;
-    right: 0;
-    border-top: 1px solid #c2c2c2;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+    
+  .add-field-editor {
+    .sql-help-panel {
+      position: absolute;
+      background: #F4F4F4;
+      width: 50%;
+      top: 0px !important;
+      bottom: 0px !important;
+      height: 112px;
+      right: 0;
+      border-top: 1px solid #c2c2c2;
+    }
   }
 }

@@ -24,13 +24,10 @@ import java.util.concurrent.TimeUnit;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
-import com.dremio.common.expression.fn.CastFunctions;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.resolver.FunctionResolver;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 
@@ -105,23 +102,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
    */
   @Override
   public BaseFunctionHolder findFunction(FunctionResolver functionResolver, FunctionCall functionCall) {
-    return functionResolver.getBestMatch(functionRegistry.getMethods(functionReplacement(functionCall)), functionCall);
-  }
-
-  // Check if this Function Replacement is needed; if yes, return a new name. otherwise, return the original name
-  private String functionReplacement(FunctionCall functionCall) {
-    String funcName = functionCall.getName();
-      if (functionCall.args.size() > 0) {
-        CompleteType completeType =  functionCall.args.get(0).getCompleteType();
-          MinorType minorType = completeType.toMinorType();
-          if (optionManager != null
-              && optionManager.getOption(ExecConstants.CAST_TO_NULLABLE_NUMERIC).bool_val
-              && CastFunctions.isReplacementNeeded(funcName, minorType)) {
-              funcName = CastFunctions.getReplacingCastFunction(funcName, minorType);
-          }
-      }
-
-    return funcName;
+    return functionResolver.getBestMatch(functionRegistry.getMethods(functionCall.getName()), functionCall);
   }
 
   /**

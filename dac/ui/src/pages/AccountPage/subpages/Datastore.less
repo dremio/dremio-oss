@@ -13,35 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#account-datastore {
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .content-block {
-    max-width: 900px;
+  #account-datastore {
 
-    .credential {
-      overflow: hidden;
-      margin-bottom: 30px;
+    .content-block {
+      max-width: 900px;
 
-      .header-container {
-        margin-bottom: 10px;
+      .credential {
         overflow: hidden;
+        margin-bottom: 30px;
 
-        .header {
-          font-size: 16px;
-          font-weight: bold;
-          float: left;
-        }
+        .header-container {
+          margin-bottom: 10px;
+          overflow: hidden;
 
-        .remove {
-          float: right;
+          .header {
+            font-size: 16px;
+            font-weight: bold;
+            float: left;
+          }
+
+          .remove {
+            float: right;
+          }
         }
       }
     }
-  }
 
-  .add-credentials {
-    font-size: 16px;
-    margin: 30px 0;
-  }
+    .add-credentials {
+      font-size: 16px;
+      margin: 30px 0;
+    }
 
+  }
 }

@@ -13,57 +13,72 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import '../../uiTheme/less/typography.less';
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/mixins.less"; // replacement of typography.less with mixins.less changes the output significantly
+ //but the change is in better direction. Duplicated styles from typography are not loaded
 
-#admin-page {
-  .left-menu {
-    .left-item {
-      &:hover{
-        outline: 1px solid rgba(0,0,0,.05);
-      }
-      &.selected {
-        background-color: rgba(0,0,0,.05);
-        cursor: default;
-        outline: 0;
-      }
-    }
-  }
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .separator {
-    border-bottom: 1px solid #D6D6D6;
-    clear: both;
-    margin: 5px 0;
-  }
-
-  .table{
-    thead{
-      .formLabel();
-      th{
-        padding-left: 0;
-      }
-    }
-    tr {
-      height: 30px;
-      cursor: default;
-
-      .actions-wrap {
-        a, button {
-          cursor: pointer;
-          margin-left: 15px;
+  #admin-page {
+    .left-menu {
+      .left-item {
+        &:hover{
+          outline: 1px solid rgba(0,0,0,.05);
+        }
+        &.selected {
+          background-color: rgba(0,0,0,.05);
+          cursor: default;
+          outline: 0;
         }
       }
+    }
 
-      &:hover{
-        background: #E9E9E9;
+    .separator {
+      border-bottom: 1px solid #D6D6D6;
+      clear: both;
+      margin: 5px 0;
+    }
+
+    .fixedDataTableLayout_header {
+      .formLabel();
+    }
+
+    .public_fixedDataTableCell_cellContent {
+      padding-left: 0;
+    }
+
+    .public_fixedDataTable_bodyRow {
+      cursor: default;
+
+      .public_fixedDataTableCell_cellContent { // remove padding for body cells
+        padding: 0;
+      }
+
+      // restore vertical alignment after padding remove ---------
+
+      .fixedDataTableCellLayout_wrap1 {
+        height: 100%;
+      }
+
+      .fixedDataTableCellLayout_wrap3 { // restore vertical
+        vertical-align: middle;
+      }
+
+      // ----------------------------------------------------------
+      
+      &:hover {
+        background: @OVERLAY_BORDER;
         .actions-wrap {
           opacity: 1;
         }
       }
-      td{
-        padding: 0;
-        .actions-wrap{
-          opacity: 0;
-        }
+    }
+      
+    .actions-wrap {
+      opacity: 0;
+      a, button {
+        cursor: pointer;
+        margin-left: 15px;
       }
     }
   }

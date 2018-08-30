@@ -19,8 +19,8 @@ import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
-import { formDefault, unavailable } from 'uiTheme/radium/typography';
-import { PALE_BLUE, PALE_NAVY } from 'uiTheme/radium/colors';
+import classNames from 'classnames';
+import { itemWrapper, selected as selectedCls, disabled as disabledCls } from './Select.less';
 
 export const CONTENT_WIDTH = 'calc(100% - 25px)';
 
@@ -29,11 +29,13 @@ export const CONTENT_WIDTH = 'calc(100% - 25px)';
 export default class SelectItem extends Component {
   static propTypes = {
     label: PropTypes.node.isRequired,
+    dataQA: PropTypes.string,
     style: PropTypes.object,
     value: PropTypes.any,
     disabled: PropTypes.bool,
     onTouchTap: PropTypes.func,
-    selected: PropTypes.bool
+    selected: PropTypes.bool,
+    className: PropTypes.string
   }
 
   handleTouchTap = (event) => {
@@ -45,36 +47,20 @@ export default class SelectItem extends Component {
   }
 
   render() {
-    const { disabled, style, label, selected } = this.props;
-    const labelStyle = disabled ? unavailable : formDefault;
-    const selectedStyle = selected ? {backgroundColor: PALE_NAVY} : {};
+    const { disabled, style, label, selected, dataQA, className } = this.props;
     return (
       <div
         onTouchTap={this.handleTouchTap}
-        style={[styles.base, style, selectedStyle]}
-        className='field'
-        data-qa={label}>
-        <div style={[labelStyle, styles.label]}>
-          {label}
-        </div>
+        style={[style]}
+        className={classNames({
+          [itemWrapper]: true,
+          [className]: !!className,
+          [selectedCls]: selected,
+          [disabledCls]: disabled
+        })}
+        data-qa={dataQA || label}>
+        {label}
       </div>
     );
   }
 }
-
-const styles = {
-  base: {
-    height: 25,
-    padding: '0 10px',
-    lineHeight: '25px',
-    cursor: 'pointer',
-    width: '100%',
-    ':hover': {
-      backgroundColor: PALE_BLUE
-    }
-  },
-  label: {
-    width: CONTENT_WIDTH,
-    whiteSpace: 'nowrap'
-  }
-};

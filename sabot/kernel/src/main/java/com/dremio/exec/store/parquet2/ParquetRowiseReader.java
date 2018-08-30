@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.NullableIntVector;
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SimpleIntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
@@ -53,15 +53,14 @@ import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.Type;
 
+import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.store.parquet.AbstractParquetReader;
-import com.dremio.exec.store.parquet.ParquetReaderUtility;
-import com.dremio.exec.store.parquet.ParquetRecordWriter;
+import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -74,6 +73,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetRowiseReader.class);
   private final int rowGroupIndex;
   private final String path;
+  private final InputStreamProvider inputStreamProvider;
 
   // same as the DEFAULT_RECORDS_TO_READ_IF_NOT_FIXED_WIDTH in DeprecatedParquetVectorizedReader
 
@@ -90,7 +90,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
   // For columns not found in the file, we need to return a schema element with the correct number of values
   // at that position in the schema. Currently this requires a vector be present. Here is a list of all of these vectors
   // that need only have their value count set at the end of each call to next(), as the values default to null.
-  private List<NullableIntVector> nullFilledVectors;
+  private List<IntVector> nullFilledVectors;
   // Keeps track of the number of records returned in the case where only columns outside of the file were selected.
   // No actual data needs to be read out of the file, we only need to return batches until we have 'read' the number of
   // records specified in the row group metadata
@@ -101,24 +101,23 @@ public class ParquetRowiseReader extends AbstractParquetReader {
   // See DRILL-4203
   private SchemaDerivationHelper schemaHelper;
   private VectorizedBasedFilter vectorizedBasedFilter;
-  private final boolean useSingleStream;
 
   public ParquetRowiseReader(OperatorContext context, ParquetMetadata footer, int rowGroupIndex, String path,
                              List<SchemaPath> columns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
-                             SimpleIntVector deltas, boolean useSingleStream) {
+                             SimpleIntVector deltas, InputStreamProvider inputStreamProvider) {
     super(context, columns, deltas);
     this.footer = footer;
     this.fileSystem = fileSystem;
     this.rowGroupIndex = rowGroupIndex;
     this.path = path;
     this.schemaHelper = schemaHelper;
-    this.useSingleStream = useSingleStream;
+    this.inputStreamProvider = inputStreamProvider;
   }
 
   public ParquetRowiseReader(OperatorContext context, ParquetMetadata footer, int rowGroupIndex, String path,
                              List<SchemaPath> columns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
-                             boolean useSingleStream) {
-    this(context, footer, rowGroupIndex, path, columns, fileSystem, schemaHelper, null, useSingleStream);
+                             InputStreamProvider inputStreamProvider) {
+    this(context, footer, rowGroupIndex, path, columns, fileSystem, schemaHelper, null, inputStreamProvider);
   }
 
   /**
@@ -223,8 +222,13 @@ public class ParquetRowiseReader extends AbstractParquetReader {
     try {
       this.operatorContext = context;
       schema = footer.getFileMetaData().getSchema();
-      String jsonArrowSchema = footer.getFileMetaData().getKeyValueMetaData().get(ParquetRecordWriter.DREMIO_ARROW_SCHEMA);
-      Schema arrowSchema = jsonArrowSchema == null ? null : Schema.fromJSON(jsonArrowSchema);
+      Schema arrowSchema;
+      try {
+        arrowSchema = DremioArrowSchema.fromMetaData(footer.getFileMetaData().getKeyValueMetaData());
+      } catch (Exception e) {
+        arrowSchema = null;
+        logger.warn("Invalid Arrow Schema", e);
+      }
       MessageType projection;
 
       if (isStarQuery()) {
@@ -239,7 +243,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
           nullFilledVectors = new ArrayList<>();
           for(SchemaPath col: columnsNotFound){
             nullFilledVectors.add(
-              (NullableIntVector)output.addField(new Field(col.getAsUnescapedPath(), true,
+              (IntVector)output.addField(new Field(col.getAsUnescapedPath(), true,
                               MinorType.INT.getType(), null),
                       (Class<? extends ValueVector>) TypeHelper.getValueVectorClass(MinorType.INT)));
           }
@@ -269,7 +273,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         pageReadStore = new ColumnChunkIncReadStore(recordCount,
                 CodecFactory.createDirectCodecFactory(fileSystem.getConf(),
                         new ParquetDirectByteBufferAllocator(operatorContext.getAllocator()), 0), operatorContext.getAllocator(),
-                fileSystem, filePath, useSingleStream);
+                fileSystem, filePath, inputStreamProvider);
 
         for (String[] path : schema.getPaths()) {
           Type type = schema.getType(path);
@@ -388,6 +392,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         pageReadStore.close();
         pageReadStore = null;
       }
+      inputStreamProvider.close();
     } catch (IOException e) {
       logger.warn("Failure while closing PageReadStore", e);
     }

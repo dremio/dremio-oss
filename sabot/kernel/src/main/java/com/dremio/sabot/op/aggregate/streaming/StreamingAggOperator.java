@@ -18,7 +18,7 @@ package com.dremio.sabot.op.aggregate.streaming;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.arrow.vector.NullableBigIntVector;
+import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.TransferPair;
@@ -103,7 +103,7 @@ public class StreamingAggOperator implements SingleInputOperator  {
     this.config = config;
     this.context = context;
     this.stats = context.getStats();
-    this.outgoing = new VectorContainer(context.getAllocator());
+    this.outgoing = context.createOutputVectorContainer();
   }
 
   @Override
@@ -288,7 +288,7 @@ public class StreamingAggOperator implements SingleInputOperator  {
     for (final VectorWrapper<?> vw: outgoing) {
       final ValueVector vv = vw.getValueVector();
       if (!exprs.isEmpty() && isCount(exprs.get(exprIndex))) {
-        ((NullableBigIntVector) vv).setSafe(0, 0);
+        ((BigIntVector) vv).setSafe(0, 0);
       }
       vv.setValueCount(SPECIAL_BATCH_COUNT);
       exprIndex++;

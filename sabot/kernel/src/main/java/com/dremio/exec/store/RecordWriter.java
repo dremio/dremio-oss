@@ -31,12 +31,20 @@ import java.io.IOException;
  */
 public interface RecordWriter extends AutoCloseable {
 
+  String FRAGMENT_COLUMN = "Fragment";
+  String FILESIZE_COLUMN = "FileSize";
+  String PATH_COLUMN = "Path";
+  String METADATA_COLUMN = "Metadata";
+  String PARTITION_COLUMN = "Partition";
+  String RECORDS_COLUMN = "Records";
+
   BatchSchema SCHEMA = BatchSchema.newBuilder()
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType("Fragment", Types.optional(MinorType.VARCHAR)))
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType("Records", Types.optional(MinorType.BIGINT)))
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType("Path", Types.optional(MinorType.VARCHAR)))
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType("Metadata", Types.optional(MinorType.VARBINARY)))
-      .addField(MajorTypeHelper.getFieldForNameAndMajorType("Partition", Types.optional(MinorType.INT)))
+      .addField(MajorTypeHelper.getFieldForNameAndMajorType(FRAGMENT_COLUMN, Types.optional(MinorType.VARCHAR)))
+      .addField(MajorTypeHelper.getFieldForNameAndMajorType(RECORDS_COLUMN, Types.optional(MinorType.BIGINT)))
+      .addField(MajorTypeHelper.getFieldForNameAndMajorType(PATH_COLUMN, Types.optional(MinorType.VARCHAR)))
+      .addField(MajorTypeHelper.getFieldForNameAndMajorType(METADATA_COLUMN, Types.optional(MinorType.VARBINARY)))
+      .addField(MajorTypeHelper.getFieldForNameAndMajorType(PARTITION_COLUMN, Types.optional(MinorType.INT)))
+      .addField(MajorTypeHelper.getFieldForNameAndMajorType(FILESIZE_COLUMN, Types.optional(MinorType.BIGINT)))
       .setSelectionVectorMode(SelectionVectorMode.NONE)
       .build();
 
@@ -45,6 +53,7 @@ public interface RecordWriter extends AutoCloseable {
   Field PATH = SCHEMA.getColumn(2);
   Field METADATA = SCHEMA.getColumn(3);
   Field PARTITION = SCHEMA.getColumn(4);
+  Field FILESIZE = SCHEMA.getColumn(5);
 
 
   /**
@@ -67,7 +76,6 @@ public interface RecordWriter extends AutoCloseable {
   /**
    * Write the given record batch. It is callers responsibility to release the
    * batch.
-   * @param partitionNumber The partition number associated with this write.
    * @param offset The offset
    * @param length
    * @return
@@ -86,8 +94,8 @@ public interface RecordWriter extends AutoCloseable {
    * Listener that is informed of any output entries that have been returned.
    * Depending on the source, this could be files, a database path, etc.
    */
-  public interface OutputEntryListener {
-    void recordsWritten(long recordCount, String path, byte[] metadata, Integer partitionNumber);
+  interface OutputEntryListener {
+    void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber);
   }
 
   /**

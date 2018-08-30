@@ -118,8 +118,8 @@ public class SqlCreateReflection extends SqlSystemCall {
     return toNameAndGranularity(dimensionList);
   }
 
-  public List<String> getMeasureList() {
-    return toStrings(measureList);
+  public List<NameAndMeasures> getMeasureList() {
+    return toNameAndMeasures(measureList);
   }
 
   public List<String> getDistributionList() {
@@ -136,6 +136,19 @@ public class SqlCreateReflection extends SqlSystemCall {
 
   public PartitionDistributionStrategy getPartitionDistributionStrategy() {
     return partitionDistributionStrategy;
+  }
+
+  private List<NameAndMeasures> toNameAndMeasures(SqlNodeList list){
+    if(list == null){
+      return ImmutableList.of();
+    }
+    List<NameAndMeasures> columnNames = Lists.newArrayList();
+    for(SqlNode node : list.getList()) {
+      IdentifierWithMeasures ident = (IdentifierWithMeasures) node;
+      NameAndMeasures value = new NameAndMeasures(ident.getSimple(), ident.getMeasureTypes());
+      columnNames.add(value);
+    }
+    return columnNames;
   }
 
   private List<NameAndGranularity> toNameAndGranularity(SqlNodeList list){
@@ -196,7 +209,46 @@ public class SqlCreateReflection extends SqlSystemCall {
       return granularity;
     }
 
+  }
 
+  public static class NameAndMeasures {
+    private final String name;
+    private final List<MeasureType> measureTypes;
+
+    public NameAndMeasures(String name, List<MeasureType> measureTypes) {
+      super();
+      this.name = name;
+      this.measureTypes = measureTypes;
+    }
+    public String getName() {
+      return name;
+    }
+    public List<MeasureType> getMeasureTypes() {
+      return measureTypes;
+    }
+
+  }
+
+  /**
+   * Type of Measure for Sql parsing purposes.
+   */
+  public static enum MeasureType {
+    UNKNOWN("invalid"),
+    MIN("MIN"),
+    MAX("MAX"),
+    SUM("SUM"),
+    COUNT("COUNT"),
+    APPROX_COUNT_DISTINCT("APPROXIMATE COUNT DISTINCT");
+
+    final String sqlName;
+
+    MeasureType(String sqlName){
+      this.sqlName = sqlName;
+    }
+
+    public String toString() {
+      return sqlName;
+    }
   }
 
   public static enum Granularity{

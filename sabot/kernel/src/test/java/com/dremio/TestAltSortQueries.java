@@ -23,20 +23,20 @@ public class TestAltSortQueries extends BaseTestQuery{
   @Test
   public void testOrderBy() throws Exception{
     test("select R_REGIONKEY " +
-         "from dfs.`[WORKING_PATH]/../../sample-data/region.parquet` " +
+         "from dfs.\"[WORKING_PATH]/../../sample-data/region.parquet\" " +
          "order by R_REGIONKEY");
   }
 
   @Test
   public void testOrderBySingleFile() throws Exception{
     test("select R_REGIONKEY " +
-         "from dfs.`[WORKING_PATH]/../../sample-data/regionsSF/` " +
+         "from dfs.\"[WORKING_PATH]/../../sample-data/regionsSF/\" " +
          "order by R_REGIONKEY");
   }
 
   @Test
   public void testSelectWithLimit() throws Exception{
-    test("select employee_id,  first_name, last_name from cp.`employee.json` order by employee_id limit 5 ");
+    test("select employee_id,  first_name, last_name from cp.\"employee.json\" order by employee_id limit 5 ");
   }
 
   // TODO - This is currently passing but I think that it is still in error,
@@ -45,7 +45,7 @@ public class TestAltSortQueries extends BaseTestQuery{
   @Test
   public void testSelectWithLimitOffset() throws Exception{
     testBuilder()
-        .sqlQuery("select employee_id,  first_name, last_name from cp.`employee.json` order by employee_id limit 5 offset 10 ")
+        .sqlQuery("select employee_id,  first_name, last_name from cp.\"employee.json\" order by employee_id limit 5 offset 10 ")
         .ordered()
         .csvBaselineFile("sort/testSelectWithLimitOffset.tsv")
         .baselineColumns("employee_id", "first_name", "last_name")
@@ -58,9 +58,9 @@ public class TestAltSortQueries extends BaseTestQuery{
         "  nations.N_NAME,\n" +
         "  regions.R_NAME\n" +
         "FROM\n" +
-        "  dfs.`[WORKING_PATH]/../../sample-data/nation.parquet` nations\n" +
+        "  dfs.\"[WORKING_PATH]/../../sample-data/nation.parquet\" nations\n" +
         "JOIN\n" +
-        "  dfs.`[WORKING_PATH]/../../sample-data/region.parquet` regions\n" +
+        "  dfs.\"[WORKING_PATH]/../../sample-data/region.parquet\" regions\n" +
         "  on nations.N_REGIONKEY = regions.R_REGIONKEY" +
         " order by regions.R_NAME, nations.N_NAME " +
         " limit 5");

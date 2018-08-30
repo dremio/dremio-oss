@@ -43,7 +43,7 @@ public class TestXlsExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testEmptyXls() throws Exception {
     final String filePath = getExcelDir() + "empty.xls";
-    final String query = String.format("SELECT * FROM TABLE(dfs.`%s` (type => 'excel', extractHeader => true, hasMergedCells => true, xls => true))", filePath);
+    final String query = String.format("SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => true, xls => true))", filePath);
 
     testAndExpectUserException(query, ErrorType.DATA_READ, "Selected table has no columns.");
   }
@@ -51,7 +51,7 @@ public class TestXlsExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testEmpty2Xls() throws Exception {
     final String filePath = getExcelDir() + "empty2.xls";
-    final String query = String.format("SELECT * FROM TABLE(dfs.`%s` (type => 'excel', extractHeader => true, hasMergedCells => true, xls => true))", filePath);
+    final String query = String.format("SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => true, xls => true))", filePath);
 
     testAndExpectUserException(query, ErrorType.DATA_READ, "Selected table has no columns.");
   }
@@ -59,7 +59,7 @@ public class TestXlsExcelFormatPlugin extends TestExcelFormatPluginBase {
   @Test
   public void testOldXlsFile() throws Exception {
     final String filePath = getExcelDir() + "old.xls";
-    final String query = String.format("select * from TABLE(dfs.`%s` (type => 'excel', extractHeader => false, hasMergedCells => false, xls => true ))", filePath);
+    final String query = String.format("select * from TABLE(dfs.\"%s\" (type => 'excel', extractHeader => false, hasMergedCells => false, xls => true ))", filePath);
 
     testAndExpectUserException(query, ErrorType.DATA_READ, "Excel 5.0/7.0 (BIFF5) format");
   }

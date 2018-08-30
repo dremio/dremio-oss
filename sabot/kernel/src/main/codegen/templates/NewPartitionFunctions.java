@@ -46,7 +46,7 @@ public class GNewPartitionNumberFunctions {
 
   <#if mode.name != "Repeated" && mode.name != "Required" && !minor.class?starts_with("UInt") && !minor.class?starts_with("SmallInt") && !minor.class?starts_with("TinyInt") >
 
-<#if !minor.class.startsWith("Decimal") && !minor.class.startsWith("Interval")>
+<#if !minor.class.startsWith("Decimal") && !minor.class.startsWith("Interval") && (minor.class != "FixedSizeBinary")>
 @SuppressWarnings("unused")
 @FunctionTemplate(name = "newPartitionNumber", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.INTERNAL)
 public static class NewPartitionNumber${minor.class}${mode.prefix} implements SimpleFunction{
@@ -78,8 +78,8 @@ public static class NewPartitionNumber${minor.class}${mode.prefix} implements Si
     }
   }
   </#if>
-  
-  <#if mode.name == "Optional">
+
+  <#if (mode.name == "Optional") && (minor.class != "FixedSizeBinary")>
   public void eval() {
     if (partitionNumber != -1) {
       if (in.isSet == 0 && previous.isSet == 0) {

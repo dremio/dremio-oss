@@ -25,19 +25,21 @@ export const REAPPLY_DATASET_START   = 'REAPPLY_DATASET_START';
 export const REAPPLY_DATASET_SUCCESS = 'REAPPLY_DATASET_SUCCESS';
 export const REAPPLY_DATASET_FAILURE = 'REAPPLY_DATASET_FAILURE';
 
-export function reapplyDataset(dataset, nextAction, viewId, replaceNav) {
+export function editOriginalSql(previousDatasetId, selfApiUrl, nextAction, viewId, replaceNav) {
   return (dispatch) => {
-    return dispatch(fetchReapplyDataset(dataset, viewId)).then((response) => {
-      if (!response.error) {
-        dispatch(navigateAfterReapply(response, replaceNav, nextAction));
-      }
-      return response;
-    });
+    return dispatch(fetchOriginalSql(previousDatasetId,
+      selfApiUrl,
+      viewId)).then((response) => {
+        if (!response.error) {
+          dispatch(navigateAfterReapply(response, replaceNav, nextAction));
+        }
+        return response;
+      });
   };
 }
 
-function fetchReapplyDataset(dataset, viewId) {
-  const meta = { viewId, previousId: dataset.get('id') };
+function fetchOriginalSql(previousDatasetId, selfApiUrl, viewId) {
+  const meta = { viewId, previousId: previousDatasetId };
   return {
     [CALL_API]: {
       types: [
@@ -47,7 +49,7 @@ function fetchReapplyDataset(dataset, viewId) {
       ],
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      endpoint: `${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/reapply`
+      endpoint: `${API_URL_V2}${selfApiUrl}/editOriginalSql` // look here
     }
   };
 }

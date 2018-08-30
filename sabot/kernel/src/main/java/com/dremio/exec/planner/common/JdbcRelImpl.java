@@ -15,10 +15,14 @@
  */
 package com.dremio.exec.planner.common;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.calcite.plan.CopyWithCluster.CopyToCluster;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.google.common.base.Preconditions;
 
 /**
  * Relational expression to push down to jdbc source
@@ -34,8 +38,32 @@ public interface JdbcRelImpl extends RelNode, CopyToCluster {
   StoragePluginId getPluginId();
 
   /**
-   * Revert to logical rel node
-   * @return the reverted node
+   * Return the logical {@link RelNode} version of this node. Typically, implementations override
+   * {@link #revert(List)}, rather than this method directly.
+   *
+   * @return reverted version of this node as a logical {@link RelNode}
    */
-  RelNode revert();
+  default RelNode revert() {
+    final List<RelNode> inputs = getInputs();
+
+    final List<RelNode> revertedInputs = new ArrayList<>();
+    for (int i = 0; i < inputs.size(); i++) {
+      final RelNode input = inputs.get(i);
+      Preconditions.checkState(input instanceof JdbcRelImpl,
+          String.format("%s (#%d) is not a JdbcRelImpl", input.getClass().getSimpleName(), i));
+      revertedInputs.add(((JdbcRelImpl) input).revert());
+    }
+
+    return revert(revertedInputs);
+  }
+
+  /**
+   * Return the logical {@link RelNode} version of this node, assuming that the given inputs are converted to logical
+   * {@link RelNode}. Typically, consumers of this interface use {@link #revert()}.
+   *
+   * @param revertedInputs inputs as logical {@link RelNode RelNodes}
+   * @return reverted version of this node as a logical {@link RelNode}
+   */
+  RelNode revert(List<RelNode> revertedInputs);
+
 }

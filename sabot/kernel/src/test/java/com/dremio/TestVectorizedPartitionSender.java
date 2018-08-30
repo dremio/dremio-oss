@@ -37,25 +37,25 @@ public class TestVectorizedPartitionSender extends BaseTestQuery {
   @Rule
   public final TestRule TIMEOUT = TestTools.getTimeoutRule(200, TimeUnit.SECONDS);
 
-  private static void testDistributed(final String fileName) throws Exception {
+  private void testDistributed(final String fileName) throws Exception {
     final String query = getFile(fileName).replace(";", " ");
     try (AutoCloseable op1 = withOption(ExecConstants.SLICE_TARGET_OPTION, 10L);
          AutoCloseable op2 = withOption(ExecConstants.TARGET_BATCH_RECORDS_MAX, 128L)
     ) {
       testBuilder()
           .unOrdered()
-          .optionSettingQueriesForBaseline("SET `exec.operator.partitioner.vectorize` = false")
+          .optionSettingQueriesForBaseline("SET \"exec.operator.partitioner.vectorize\" = false")
           .sqlBaselineQuery(query)
-          .optionSettingQueriesForTestQuery("SET `exec.operator.partitioner.vectorize` = true")
+          .optionSettingQueriesForTestQuery("SET \"exec.operator.partitioner.vectorize\" = true")
           .sqlQuery(query)
           .go();
 
       try (AutoCloseable ac = withOption(ExecConstants.PARTITION_SENDER_BATCH_ADAPTIVE, true)) {
         testBuilder()
             .unOrdered()
-            .optionSettingQueriesForBaseline("SET `exec.operator.partitioner.vectorize` = false")
+            .optionSettingQueriesForBaseline("SET \"exec.operator.partitioner.vectorize\" = false")
             .sqlBaselineQuery(query)
-            .optionSettingQueriesForTestQuery("SET `exec.operator.partitioner.vectorize` = true")
+            .optionSettingQueriesForTestQuery("SET \"exec.operator.partitioner.vectorize\" = true")
             .sqlQuery(query)
             .go();
       }
@@ -169,7 +169,7 @@ public class TestVectorizedPartitionSender extends BaseTestQuery {
 
   @Test
   public void testHashToMergeExchange() throws Exception {
-    String query = "select `integer` from cp.`/jsoninput/input2.json` where 2 in (select flatten(t.l) from cp.`/jsoninput/input2.json` t)";
+    String query = "select \"integer\" from cp.\"/jsoninput/input2.json\" where 2 in (select flatten(t.l) from cp.\"/jsoninput/input2.json\" t)";
     try (AutoCloseable o = withOption(ExecConstants.SLICE_TARGET_OPTION, 1)) {
       testBuilder()
         .unOrdered()

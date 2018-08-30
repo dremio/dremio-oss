@@ -83,7 +83,7 @@ public class NLJOperator implements DualInputOperator {
   protected NLJOperator(OperatorContext context, NestedLoopJoinPOP config) {
     this.context = context;
     this.config = config;
-    this.outgoing = new VectorContainer(context.getAllocator());
+    this.outgoing = context.createOutputVectorContainer();
   }
 
   @Override

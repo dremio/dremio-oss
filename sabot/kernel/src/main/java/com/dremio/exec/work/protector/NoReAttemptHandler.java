@@ -15,10 +15,8 @@
  */
 package com.dremio.exec.work.protector;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.work.AttemptId;
 import com.dremio.proto.model.attempts.AttemptReason;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 
 /**
  * Re-attempt handler that doesn't support re-attempts

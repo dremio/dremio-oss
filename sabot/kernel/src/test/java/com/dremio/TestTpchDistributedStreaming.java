@@ -32,8 +32,8 @@ public class TestTpchDistributedStreaming extends BaseTestQuery{
 
   private void testDistributed(String fileName) throws Exception{
     String query = getFile(fileName);
-    test("alter session set `planner.slice_target` = 10; alter session set `planner.enable_hashjoin` = false; " +
-            "alter session set `planner.enable_hashagg` = false; " + query);
+    test("alter session set \"planner.slice_target\" = 10; alter session set \"planner.enable_hashjoin\" = false; " +
+            "alter session set \"planner.enable_hashagg\" = false; " + query);
   }
 
   @Test

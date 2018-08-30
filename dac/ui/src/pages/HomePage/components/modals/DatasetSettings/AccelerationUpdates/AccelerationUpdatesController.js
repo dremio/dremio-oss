@@ -20,12 +20,11 @@ import Immutable from 'immutable';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import { constructFullPath } from 'utils/pathUtils';
 import {
-  loadDatasetAccelerationSettings, updateDatasetAccelerationSettings
+  loadDatasetAccelerationSettings,
+  updateDatasetAccelerationSettings
 } from 'actions/resources/datasetAccelerationSettings';
 import ApiUtils from 'utils/apiUtils/apiUtils';
-import { loadSummaryDataset } from 'actions/resources/dataset';
-import { getSummaryDataset } from 'selectors/datasets';
-import { getViewState, getEntity } from 'selectors/resources';
+import { getEntity } from 'selectors/resources';
 import { INCREMENTAL_TYPES } from 'constants/columnTypeGroups';
 import AccelerationUpdatesForm from './AccelerationUpdatesForm';
 
@@ -38,11 +37,13 @@ export class AccelerationUpdatesController extends Component {
     onDone: PropTypes.func,
     loadDatasetAccelerationSettings: PropTypes.func,
     updateDatasetAccelerationSettings: PropTypes.func,
-    loadSummaryDataset: PropTypes.func,
     updateFormDirtyState: PropTypes.func,
-    summaryDataset: PropTypes.instanceOf(Immutable.Map),
-    accelerationSettings: PropTypes.instanceOf(Immutable.Map),
-    viewState: PropTypes.instanceOf(Immutable.Map)
+    accelerationSettings: PropTypes.instanceOf(Immutable.Map)
+  }
+
+  state = {
+    dataset: null,
+    viewState: Immutable.fromJS({})
   }
 
   componentWillMount() {
@@ -56,18 +57,42 @@ export class AccelerationUpdatesController extends Component {
   receiveProps(nextProps, oldProps) {
     const { entity } = nextProps;
     if (entity !== oldProps.entity) {
-      this.props.loadSummaryDataset(entity.get('fullPathList').join('/'), VIEW_ID).then(() => {
+      const id = entity.get('id');
+      this.loadDataset(id).then((dataset) => {
+        this.setState({dataset, viewState: Immutable.fromJS({})});
         this.props.loadDatasetAccelerationSettings(entity, VIEW_ID);
+      }).catch((e) => {
+        this.setState(
+          {
+            viewState: Immutable.fromJS({
+              isFailed: true,
+              error: {
+                message: la('Failed to load dataset: ' + e.statusText)
+              }
+            })
+          }
+        );
       });
     }
   }
 
+  loadDataset(id) {
+    // We fetch to the full schema using the v3 catalog api here so we can filter out types.  v2 collapses types
+    // by display types instead of returning the actual type.
+    return new Promise((resolve, reject) => {
+      ApiUtils.fetch(`catalog/${id}`).then((response) => {
+        response.json().then((dataset) => {
+          resolve(dataset);
+        });
+      }).catch(reject);
+    });
+  }
+
   schemaToColumns(dataset) {
-    const schema = dataset.get('fields') || Immutable.List();
-    const columns = schema.toJS().filter(i => INCREMENTAL_TYPES.indexOf(i.type) > -1)
+    const schema = (dataset && dataset.fields) || [];
+    const columns = schema.filter(i => INCREMENTAL_TYPES.indexOf(i.type.name) > -1)
       .map((item, index) => {
-        const { name, type } = item;
-        return {name, type, index};
+        return {name: item.name, type: item.type.name, index};
       });
     return Immutable.fromJS(columns);
   }
@@ -79,12 +104,15 @@ export class AccelerationUpdatesController extends Component {
   }
 
   render() {
-    const { onCancel, accelerationSettings, summaryDataset, updateFormDirtyState } = this.props;
+    const { onCancel, accelerationSettings, updateFormDirtyState } = this.props;
+
+    const viewState = this.state.viewState;
+
     return (
-      <ViewStateWrapper viewState={this.props.viewState} hideChildrenWhenInProgress>
+      <ViewStateWrapper viewState={viewState} hideChildrenWhenInProgress>
         {accelerationSettings && <AccelerationUpdatesForm
           accelerationSettings={accelerationSettings}
-          datasetFields={this.schemaToColumns(summaryDataset)}
+          datasetFields={this.schemaToColumns(this.state.dataset)}
           entityType={this.props.entity.get('entityType')}
           entity={this.props.entity}
           onCancel={onCancel}
@@ -100,14 +128,11 @@ function mapStateToProps(state, ownProps) {
   const fullPath = constructFullPath(entity.get('fullPathList'));
   // TODO: this is a workaround for accelerationSettings not having its own id
   return {
-    accelerationSettings: getEntity(state, fullPath, 'datasetAccelerationSettings'),
-    summaryDataset: getSummaryDataset(state, entity.get('fullPathList').join(',')),
-    viewState: getViewState(state, VIEW_ID)
+    accelerationSettings: getEntity(state, fullPath, 'datasetAccelerationSettings')
   };
 }
 
 export default connect(mapStateToProps, {
   loadDatasetAccelerationSettings,
-  updateDatasetAccelerationSettings,
-  loadSummaryDataset
+  updateDatasetAccelerationSettings
 })(AccelerationUpdatesController);

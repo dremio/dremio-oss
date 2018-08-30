@@ -99,7 +99,7 @@ public class TestImpersonationQueries extends BaseTestImpersonation {
   private static void createTestTable(String user, String group, String tableName) throws Exception {
     updateClient(user);
 //    test("USE " + getWSSchema(user));
-    test(String.format("CREATE TABLE %s.`/user/%s/%s` as SELECT * FROM cp.`tpch/%s.parquet`;", MINIDFS_STORAGE_PLUGIN_NAME, user, tableName, tableName));
+    test(String.format("CREATE TABLE %s.\"/user/%s/%s\" as SELECT * FROM cp.\"tpch/%s.parquet\";", MINIDFS_STORAGE_PLUGIN_NAME, user, tableName, tableName));
 
     // Change the ownership and permissions manually. Currently there is no option to specify the default permissions
     // and ownership for new tables.
@@ -177,7 +177,7 @@ public class TestImpersonationQueries extends BaseTestImpersonation {
   }
 
   private String fullPath(String user, String table) {
-    return String.format("%s.`%s/%s`", MINIDFS_STORAGE_PLUGIN_NAME, getUserHome(user), table);
+    return String.format("%s.\"%s/%s\"", MINIDFS_STORAGE_PLUGIN_NAME, getUserHome(user), table);
   }
 
   @Test
@@ -206,7 +206,7 @@ public class TestImpersonationQueries extends BaseTestImpersonation {
       fail("query is expected to fail");
     } catch(UserRemoteException e) {
       assertEquals(ErrorType.PERMISSION, e.getErrorType());
-      assertThat(e.getMessage(), containsString("PERMISSION ERROR: Access denied reading dataset miniDfsPlugin.`/user/user0_1/lineitem`"));
+      assertThat(e.getMessage(), containsString("PERMISSION ERROR: Access denied reading dataset miniDfsPlugin.\"/user/user0_1/lineitem\""));
     }
 
   }

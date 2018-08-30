@@ -27,7 +27,6 @@ public enum ElasticsearchType {
   DOUBLE,
   BOOLEAN,
   BINARY,
-  STRING,
   TEXT,
   KEYWORD,
   DATE,

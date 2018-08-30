@@ -24,8 +24,11 @@ import Select from 'components/Fields/Select';
 import TextField from 'components/Fields/TextField';
 import FieldWithError from 'components/Fields/FieldWithError';
 import { applyValidators, isRequired } from 'utils/validation';
-import { LINE_START_CENTER, FLEX_WRAP_COL_CENTER } from 'uiTheme/radium/flexStyle';
 import { formLabel } from 'uiTheme/radium/typography';
+import classNames from 'classnames';
+
+import { sectionMargin } from '@app/uiTheme/less/layout.less';
+import { fieldsHorizontalSpacing, rowMargin } from '@app/uiTheme/less/forms.less';
 
 @PureRender
 @Radium
@@ -109,27 +112,23 @@ export default class SplitFooter extends Component {
   render() {
     const { fields: { position } } = this.props;
     return (
-      <div style={{...LINE_START_CENTER, marginBottom: 5}} className='extract-footer'>
-        <div style={styles.wrap}>
+      <div style={{display: 'flex', marginBottom: 5}} className={classNames('extract-footer', sectionMargin)}>
+        <div className={fieldsHorizontalSpacing}>
           <span style={formLabel}>{la('Position')}</span>
           <Select
             items={this.options}
+            className={rowMargin}
             style={styles.select}
             {...position}/>
         </div>
         {this.renderTextField()}
-        <NewFieldSection fields={this.props.fields}/>
+        <NewFieldSection fields={this.props.fields} />
       </div>
     );
   }
 }
 
 const styles = {
-  wrap: {
-    ...FLEX_WRAP_COL_CENTER,
-    marginLeft: 10,
-    marginBottom: 10
-  },
   textField: {
     width: 100,
     height: 24

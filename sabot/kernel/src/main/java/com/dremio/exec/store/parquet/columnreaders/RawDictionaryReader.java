@@ -18,11 +18,11 @@ package com.dremio.exec.store.parquet.columnreaders;
 import java.io.IOException;
 import java.util.Map;
 
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableFloat4Vector;
-import org.apache.arrow.vector.NullableFloat8Vector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.parquet.bytes.BytesUtils;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.SchemaElement;
@@ -38,14 +38,14 @@ import com.google.common.collect.Maps;
 /**
  * Read local dictionary ids and map them to global dictionary id.
  */
-public class RawDictionaryReader extends NullableColumnReader<NullableIntVector> {
+public class RawDictionaryReader extends NullableColumnReader<IntVector> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RawDictionaryReader.class);
   private final int[] localIdToGlobalId;
   private final int dictionaryWidthBits;
 
   public RawDictionaryReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize,
                              ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
-                             boolean fixedLength, NullableIntVector valueVector, SchemaElement schemaElement,
+                             boolean fixedLength, IntVector valueVector, SchemaElement schemaElement,
                              GlobalDictionaries globalDictionaries) throws ExecutionSetupException {
     super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, valueVector, schemaElement);
     // outgoing data type nodes
@@ -55,7 +55,7 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
     switch (schemaElement.getType()) {
       case INT32: {
         final Map<Integer, Integer> valueLookup = Maps.newHashMap();
-        final NullableIntVector intVector = vectorContainer.getValueAccessorById(NullableIntVector.class, 0).getValueVector();
+        final IntVector intVector = vectorContainer.getValueAccessorById(IntVector.class, 0).getValueVector();
         for (int i = 0; i < vectorContainer.getRecordCount(); ++i) {
           valueLookup.put(intVector.get(i), i);
         }
@@ -67,7 +67,7 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
 
       case INT64: {
         final Map<Long, Integer> valueLookup = Maps.newHashMap();
-        final NullableBigIntVector longVector = vectorContainer.getValueAccessorById(NullableBigIntVector.class, 0).getValueVector();
+        final BigIntVector longVector = vectorContainer.getValueAccessorById(BigIntVector.class, 0).getValueVector();
         for (int i = 0; i < vectorContainer.getRecordCount(); ++i) {
           valueLookup.put(longVector.get(i), i);
         }
@@ -81,7 +81,7 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
       case FIXED_LEN_BYTE_ARRAY:
       case BYTE_ARRAY: {
         final Map<Binary, Integer> valueLookup = Maps.newHashMap();
-        final NullableVarBinaryVector binaryVector = vectorContainer.getValueAccessorById(NullableVarBinaryVector.class, 0).getValueVector();
+        final VarBinaryVector binaryVector = vectorContainer.getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
         for (int i = 0; i < vectorContainer.getRecordCount(); ++i) {
           valueLookup.put(Binary.fromConstantByteArray(binaryVector.get(i)), i);
         }
@@ -93,7 +93,7 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
 
       case FLOAT: {
         final Map<Float, Integer> valueLookup = Maps.newHashMap();
-        final NullableFloat4Vector floarVector = vectorContainer.getValueAccessorById(NullableFloat4Vector.class, 0).getValueVector();
+        final Float4Vector floarVector = vectorContainer.getValueAccessorById(Float4Vector.class, 0).getValueVector();
         for (int i = 0; i < vectorContainer.getRecordCount(); ++i) {
           valueLookup.put(floarVector.get(i), i);
         }
@@ -105,7 +105,7 @@ public class RawDictionaryReader extends NullableColumnReader<NullableIntVector>
 
       case DOUBLE: {
         final Map<Double, Integer> valueLookup = Maps.newHashMap();
-        final NullableFloat8Vector doubleVector = vectorContainer.getValueAccessorById(NullableFloat8Vector.class, 0).getValueVector();
+        final Float8Vector doubleVector = vectorContainer.getValueAccessorById(Float8Vector.class, 0).getValueVector();
         for (int i = 0; i < vectorContainer.getRecordCount(); ++i) {
           valueLookup.put(doubleVector.get(i), i);
         }

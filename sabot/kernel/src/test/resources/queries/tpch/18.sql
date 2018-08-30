@@ -7,15 +7,15 @@ select
   o.o_totalprice,
   sum(l.l_quantity)
 from
-  cp.`tpch/customer.parquet` c,
-  cp.`tpch/orders.parquet` o,
-  cp.`tpch/lineitem.parquet` l
+  cp."tpch/customer.parquet" c,
+  cp."tpch/orders.parquet" o,
+  cp."tpch/lineitem.parquet" l
 where
   o.o_orderkey in (
     select
       l_orderkey
     from
-      cp.`tpch/lineitem.parquet`
+      cp."tpch/lineitem.parquet"
     group by
       l_orderkey having
         sum(l_quantity) > 300

@@ -20,7 +20,7 @@ import io.netty.buffer.ArrowBuf;
 import java.io.IOException;
 
 import org.apache.arrow.vector.VariableWidthVector;
-import org.apache.arrow.vector.BaseNullableVariableWidthVector;
+import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.ValueVector;
 
 import org.apache.parquet.column.ColumnDescriptor;
@@ -54,7 +54,7 @@ public abstract class VarLengthValuesColumn<V extends ValueVector> extends VarLe
 
   @Override
   protected void readField(long recordToRead) {
-    dataTypeLengthInBits = ((BaseNullableVariableWidthVector)variableWidthVector).getValueLength(valuesReadInCurrentPass);
+    dataTypeLengthInBits = ((BaseVariableWidthVector)variableWidthVector).getValueLength(valuesReadInCurrentPass);
     // again, I am re-purposing the unused field here, it is a length n BYTES, not nodes
     boolean success = setSafe((int) valuesReadInCurrentPass, pageReader.pageData,
         (int) pageReader.readPosInBytes + 4, dataTypeLengthInBits);
@@ -101,7 +101,7 @@ public abstract class VarLengthValuesColumn<V extends ValueVector> extends VarLe
     }
 
     // this should not fail
-    ((BaseNullableVariableWidthVector)variableWidthVector).setValueLengthSafe((int) valuesReadInCurrentPass + pageReader.valuesReadyToRead,
+    ((BaseVariableWidthVector)variableWidthVector).setValueLengthSafe((int) valuesReadInCurrentPass + pageReader.valuesReadyToRead,
         dataTypeLengthInBits);
     return false;
   }

@@ -57,33 +57,31 @@ SqlIdentifier CompoundIdentifier() :
     }
 }
 
-
 /**
  * Parses a comma-separated list of compound identifiers.
  */
-void CompoundIdentifierCommaList(List<SqlNode> list) :
+void CompoundIdentifierTypeCommaList(List<SqlNode> list, List<SqlNode> extendList) :
 {
-    SqlIdentifier id;
 }
 {
-    id = CompoundIdentifier() {list.add(id);}
-    (<COMMA> id = CompoundIdentifier() {list.add(id);}) *
+    CompoundIdentifierType(list, extendList)
+    (<COMMA> CompoundIdentifierType(list, extendList))*
 }
 
 /**
   * List of compound identifiers in parentheses. The position extends from the
   * open parenthesis to the close parenthesis.
   */
-SqlNodeList ParenthesizedCompoundIdentifierList() :
+Pair<SqlNodeList, SqlNodeList> ParenthesizedCompoundIdentifierList() :
 {
-    SqlParserPos pos;
-    List<SqlNode> list = new ArrayList<SqlNode>();
+    final Span s;
+    final List<SqlNode> list = new ArrayList<SqlNode>();
+    final List<SqlNode> extendList = new ArrayList<SqlNode>();
 }
 {
-    <LPAREN> { pos = getPos(); }
-    CompoundIdentifierCommaList(list)
-    <RPAREN>
-    {
-        return new SqlNodeList(list, pos.plus(getPos()));
+    <LPAREN> { s = span(); }
+    CompoundIdentifierTypeCommaList(list, extendList)
+    <RPAREN> {
+        return Pair.of(new SqlNodeList(list, s.end(this)), new SqlNodeList(extendList, s.end(this)));
     }
 }

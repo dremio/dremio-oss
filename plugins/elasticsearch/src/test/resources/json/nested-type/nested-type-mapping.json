@@ -2,14 +2,14 @@
     "<TABLE_NAME>" : {
         "properties" : {
             "id" : { "type" : "integer" },
-            "username" : { "type" : "string" },
+            "username" : { "type" : "text" },
             "address" : {
                 "type" : "nested",
                 "properties" : {
-                    "city"   : { "type" : "string" },
-                    "state"  : { "type" : "string" },
+                    "city"   : { "type" : "text" },
+                    "state"  : { "type" : "text" },
                     "zip"    : { "type" : "integer" },
-                    "street" : { "type" : "string" },
+                    "street" : { "type" : "text" },
                     "phones" : {
                         "type" : "nested",
                         "properties" : {

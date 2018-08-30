@@ -272,6 +272,10 @@ public class MaterializationStore {
     return findLastMaterializationByState(id, MaterializationState.DONE);
   }
 
+  public Materialization getLastMaterializationCompacted(final ReflectionId id) {
+    return findLastMaterializationByState(id, MaterializationState.COMPACTED);
+  }
+
   public Materialization getLastMaterialization(final ReflectionId id) {
     final FindByCondition condition = new FindByCondition()
       .addSorting(LAST_REFRESH_SUBMIT)

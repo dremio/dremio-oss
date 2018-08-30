@@ -16,11 +16,14 @@
 package com.dremio.service.reflection;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection;
+import com.dremio.exec.planner.sql.parser.SqlCreateReflection.MeasureType;
+import com.dremio.exec.planner.sql.parser.SqlCreateReflection.NameAndMeasures;
 import com.dremio.exec.store.sys.accel.AccelerationDetailsPopulator;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.accel.LayoutDefinition;
@@ -37,6 +40,7 @@ import com.dremio.service.reflection.proto.ReflectionDimensionField;
 import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
+import com.dremio.service.reflection.proto.ReflectionMeasureField;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -59,6 +63,11 @@ class AccelerationManagerImpl implements AccelerationManager {
     super();
     this.reflectionService = reflectionService;
     this.namespace = namespace;
+  }
+
+  @Override
+  public ExcludedReflectionsProvider getExcludedReflectionsProvider() {
+    return reflectionService.getExcludedReflectionsProvider();
   }
 
   @Override
@@ -85,7 +94,7 @@ class AccelerationManagerImpl implements AccelerationManager {
     details.setDimensionFieldList(toDimensionFields(definition.getDimension()));
     details.setDisplayFieldList(toDescriptor(definition.getDisplay()));
     details.setDistributionFieldList(toDescriptor(definition.getDistribution()));
-    details.setMeasureFieldList(toDescriptor(definition.getMeasure()));
+    details.setMeasureFieldList(toMeasureFields(definition.getMeasure()));
     details.setPartitionFieldList(toDescriptor(definition.getPartition()));
     details.setSortFieldList(toDescriptor(definition.getSort()));
     details.setPartitionDistributionStrategy(definition.getPartitionDistributionStrategy() ==
@@ -126,6 +135,41 @@ class AccelerationManagerImpl implements AccelerationManager {
       public ReflectionField apply(String input) {
         return new ReflectionField(input);
       }}).toList();
+  }
+
+  private List<ReflectionMeasureField> toMeasureFields(List<NameAndMeasures> fields){
+    if(fields == null){
+      return ImmutableList.of();
+    }
+
+    return FluentIterable.from(fields).transform(new Function<NameAndMeasures, ReflectionMeasureField>(){
+
+      @Override
+      public ReflectionMeasureField apply(NameAndMeasures input) {
+        return new ReflectionMeasureField(input.getName())
+            .setMeasureTypeList(input.getMeasureTypes().stream()
+                .map(AccelerationManagerImpl::toMeasureType)
+                .collect(Collectors.toList()));
+      }}).toList();
+  }
+
+  private static com.dremio.service.reflection.proto.MeasureType toMeasureType(MeasureType t){
+    switch(t) {
+    case APPROX_COUNT_DISTINCT:
+      return com.dremio.service.reflection.proto.MeasureType.APPROX_COUNT_DISTINCT;
+    case COUNT:
+      return com.dremio.service.reflection.proto.MeasureType.COUNT;
+    case MAX:
+      return com.dremio.service.reflection.proto.MeasureType.MAX;
+    case MIN:
+      return com.dremio.service.reflection.proto.MeasureType.MIN;
+    case SUM:
+      return com.dremio.service.reflection.proto.MeasureType.SUM;
+    case UNKNOWN:
+    default:
+      throw new UnsupportedOperationException(t.name());
+
+    }
   }
 
   @Override

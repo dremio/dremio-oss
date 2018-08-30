@@ -19,7 +19,6 @@ import static java.lang.String.format;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.util.List;
-import java.util.Objects;
 
 import javax.annotation.Nullable;
 import javax.annotation.security.RolesAllowed;
@@ -150,7 +149,9 @@ public class DatasetResource {
       .setAccelerationRefreshPeriod(settings.getRefreshPeriod())
       .setAccelerationGracePeriod(settings.getGracePeriod())
       .setMethod(settings.getMethod())
-      .setRefreshField(settings.getRefreshField());
+      .setRefreshField(settings.getRefreshField())
+      .setAccelerationNeverExpire(settings.getNeverExpire())
+      .setAccelerationNeverRefresh(settings.getNeverRefresh());
 
     final ByteString schemaBytes = DatasetHelper.getSchemaBytes(config);
     if (schemaBytes != null) {
@@ -201,15 +202,23 @@ public class DatasetResource {
     }
 
     final AccelerationSettings settings = reflectionSettings.getReflectionSettings(datasetPath.toNamespaceKey());
-    final boolean settingsUpdated = !Objects.equals(settings.getRefreshPeriod(), descriptor.getAccelerationRefreshPeriod()) ||
-      !Objects.equals(settings.getGracePeriod(), descriptor.getAccelerationGracePeriod()) ||
-      !Objects.equals(settings.getMethod(), descriptor.getMethod()) ||
-      !Objects.equals(settings.getRefreshField(), descriptor.getRefreshField());
+    final AccelerationSettings descriptorSettings = new AccelerationSettings()
+      .setAccelerationTTL(settings.getAccelerationTTL()) // needed to use protobuf equals
+      .setVersion(settings.getVersion()) // needed to use protobuf equals
+      .setRefreshPeriod(descriptor.getAccelerationRefreshPeriod())
+      .setGracePeriod(descriptor.getAccelerationGracePeriod())
+      .setMethod(descriptor.getMethod())
+      .setRefreshField(descriptor.getRefreshField())
+      .setNeverExpire(descriptor.getAccelerationNeverExpire())
+      .setNeverRefresh(descriptor.getAccelerationNeverRefresh());
+    final boolean settingsUpdated = !settings.equals(descriptorSettings);
     if (settingsUpdated) {
       settings.setRefreshPeriod(descriptor.getAccelerationRefreshPeriod())
         .setGracePeriod(descriptor.getAccelerationGracePeriod())
         .setMethod(descriptor.getMethod())
-        .setRefreshField(descriptor.getRefreshField());
+        .setRefreshField(descriptor.getRefreshField())
+        .setNeverExpire(descriptor.getAccelerationNeverExpire())
+        .setNeverRefresh(descriptor.getAccelerationNeverRefresh());
       reflectionSettings.setReflectionSettings(datasetPath.toNamespaceKey(), settings);
     }
   }

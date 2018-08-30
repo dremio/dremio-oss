@@ -40,7 +40,7 @@ import io.protostuff.ByteString;
 public class ParquetSubScan extends SubScanWithProjection {
 
   private final List<DatasetSplit> splits;
-  private final List<FilterCondition> conditions;
+  private final List<ParquetFilterCondition> conditions;
   private final StoragePluginId pluginId;
   private final FileConfig formatSettings;
   private final List<String> partitionColumns;
@@ -54,7 +54,7 @@ public class ParquetSubScan extends SubScanWithProjection {
     @JsonProperty("userName") String userName,
     @JsonProperty("schema") BatchSchema schema,
     @JsonProperty("tableSchemaPath") List<String> tablePath,
-    @JsonProperty("conditions") List<FilterCondition> conditions,
+    @JsonProperty("conditions") List<ParquetFilterCondition> conditions,
     @JsonProperty("pluginId") StoragePluginId pluginId,
     @JsonProperty("columns") List<SchemaPath> columns,
     @JsonProperty("partitionColumns") List<String> partitionColumns,
@@ -86,7 +86,7 @@ public class ParquetSubScan extends SubScanWithProjection {
     return extendedProperty;
   }
 
-  public List<FilterCondition> getConditions() {
+  public List<ParquetFilterCondition> getConditions() {
     return conditions;
   }
 

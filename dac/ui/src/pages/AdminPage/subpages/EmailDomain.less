@@ -13,84 +13,86 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#admin-email{
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+	#admin-email{
 
-	.input-text{
-		margin: 10px 0 20px 15px;
-	}
-		
-	.server-email{
-		width: 1030px;
-		
-		.radio-one, .radio-two{
+		.input-text{
+			margin: 10px 0 20px 15px;
+		}
+			
+		.server-email{
+			width: 1030px;
+			
+			.radio-one, .radio-two{
+				display: flex;
+				margin-top: 5px;
+			}
+
+			.smtp, .username {
+				float: left;
+				margin: 15px 0 0 15px;
+			} 
+
+			.port, .password{
+				float: right;
+				margin: 15px 0 0 15px;
+			}
+
+			.tls{
+				display: inline-block;
+				margin: 15px 0 0 15px;
+			}
+
+			.address{
+				margin: 15px 0 80px 15px;
+			}
+		}
+
+		.short{
+			width: 1030px;
+			border-bottom: 1px solid #D6D6D6;
+			clear: both;
+			margin: 5px 0;
+		}
+
+		.email{
+			width: 320px;
+
+			.email-blu, .email-grey {
+				width: 150px;
+				padding: 7px;
+				font-size: 15px;
+				font-weight: bold;
+				border-radius: 4px;
+				margin-top: 5px;
+			}
+
+			.email-blu {
+				background-color: #0096FF;
+				border: none;
+				color: white;
+			}
+
+			.email-grey {
+				background-color: #F5F5F5;
+				border: 1px solid #E0E0E0;
+				margin-left: 10px;
+			}
+		}
+			// TODO to Vasyl, this selector does not exist
+		t{
+			padding-left: 2px;
+		}
+
+		input[type=text]{
+			border: 1px solid #A3E2FF;
+			border-radius: 3px;
+			height: 35px;
+			width: 500px;
+			padding: 5px;
+			box-shadow: none;
+			outline: none;
 			display: flex;
-			margin-top: 5px;
-		}
-
-		.smtp, .username {
-			float: left;
-			margin: 15px 0 0 15px;
-		} 
-
-		.port, .password{
-			float: right;
-			margin: 15px 0 0 15px;
-		}
-
-		.tls{
-			display: inline-block;
-			margin: 15px 0 0 15px;
-		}
-
-		.address{
-			margin: 15px 0 80px 15px;
 		}
 	}
-
-	.short{
-		width: 1030px;
-	  border-bottom: 1px solid #D6D6D6;
-	  clear: both;
-	  margin: 5px 0;
-	}
-
-	.email{
-		width: 320px;
-
-		.email-blu, .email-grey {
-	    width: 150px;
-	    padding: 7px;
-	    font-size: 15px;
-	    font-weight: bold;
-	    border-radius: 4px;
-	    margin-top: 5px;
-	  }
-
-	  .email-blu {
-	    background-color: #0096FF;
-	    border: none;
-	    color: white;
-	  }
-
-	  .email-grey {
-	    background-color: #F5F5F5;
-	    border: 1px solid #E0E0E0;
-	    margin-left: 10px;
-	  }
-	}
-    // TODO to Vasyl, this selector does not exist
-	t{
-		padding-left: 2px;
-	}
-
-  input[type=text]{
-		border: 1px solid #A3E2FF;
-	  border-radius: 3px;
-	  height: 35px;
-	  width: 500px;
-	  padding: 5px;
-	  box-shadow: none;
-	  outline: none;
-	  display: flex;
-  }
 }

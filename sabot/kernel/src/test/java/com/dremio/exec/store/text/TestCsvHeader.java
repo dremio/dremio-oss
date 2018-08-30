@@ -35,13 +35,13 @@ public class TestCsvHeader extends BaseTestQuery{
   @Before
   public void initialize() throws Exception {
     root = FileUtils.getResourceAsFile("/store/text/data/cars.csvh").toURI().toString();
-    test("alter session set `exec.errors.verbose` = true ");
+    test("alter session set \"exec.errors.verbose\" = true ");
   }
 
   @Test //DRILL-951
   public void testCsvWithHeader() throws Exception {
-    //Pre DRILL-951: Qry: select * from dfs.`%s` LIMIT 2
-    String query = String.format("select * from dfs.`%s` LIMIT 2", root);
+    //Pre DRILL-951: Qry: select * from dfs.\"%s\" LIMIT 2
+    String query = String.format("select * from dfs.\"%s\" LIMIT 2", root);
     testBuilder()
             .sqlQuery(query)
             .unOrdered()
@@ -53,8 +53,8 @@ public class TestCsvHeader extends BaseTestQuery{
 
   @Test //DRILL-951
   public void testCsvWhereWithHeader() throws Exception {
-    //Pre DRILL-951: Qry: select * from dfs.`%s` where columns[1] = 'Chevy'
-    String query = String.format("select * from dfs.`%s` where Make = 'Chevy'", root);
+    //Pre DRILL-951: Qry: select * from dfs.\"%s\" where columns[1] = 'Chevy'
+    String query = String.format("select * from dfs.\"%s\" where Make = 'Chevy'", root);
 
     testBuilder()
             .sqlQuery(query)
@@ -67,8 +67,8 @@ public class TestCsvHeader extends BaseTestQuery{
 
   @Test //DRILL-951
   public void testCsvStarPlusWithHeader() throws Exception {
-    //Pre DRILL-951: Qry: select *,columns[1] from dfs.`%s` where columns[1] = 'Chevy'
-    String query = String.format("select *, Make from dfs.`%s` where Make = 'Chevy'", root);
+    //Pre DRILL-951: Qry: select *,columns[1] from dfs.\"%s\" where columns[1] = 'Chevy'
+    String query = String.format("select *, Make from dfs.\"%s\" where Make = 'Chevy'", root);
 
     testBuilder()
             .sqlQuery(query)
@@ -81,8 +81,8 @@ public class TestCsvHeader extends BaseTestQuery{
 
   @Test //DRILL-951
   public void testCsvWhereColumnsWithHeader() throws Exception {
-    //Pre DRILL-951: Qry: select columns[1] from dfs.`%s` where columns[1] = 'Chevy'
-    String query = String.format("select Make from dfs.`%s` where Make = 'Chevy'", root);
+    //Pre DRILL-951: Qry: select columns[1] from dfs.\"%s\" where columns[1] = 'Chevy'
+    String query = String.format("select Make from dfs.\"%s\" where Make = 'Chevy'", root);
     testBuilder()
             .sqlQuery(query)
             .unOrdered()
@@ -94,8 +94,8 @@ public class TestCsvHeader extends BaseTestQuery{
 
   @Test //DRILL-951
   public void testCsvColumnsWithHeader() throws Exception {
-    //Pre DRILL-951: Qry: select columns[0],columns[2],columns[4] from dfs.`%s` where columns[1] = 'Chevy'
-    String query = String.format("select `Year`, Model, Price from dfs.`%s` where Make = 'Chevy'", root);
+    //Pre DRILL-951: Qry: select columns[0],columns[2],columns[4] from dfs.\"%s\" where columns[1] = 'Chevy'
+    String query = String.format("select \"Year\", Model, Price from dfs.\"%s\" where Make = 'Chevy'", root);
 
     testBuilder()
             .sqlQuery(query)
@@ -108,7 +108,7 @@ public class TestCsvHeader extends BaseTestQuery{
 
   @Test //DRILL-951
   public void testCsvHeaderShortCircuitReads() throws Exception {
-    String query = String.format("select `Year`, Model from dfs.`%s` where Make = 'Chevy'", root);
+    String query = String.format("select \"Year\", Model from dfs.\"%s\" where Make = 'Chevy'", root);
 
     testBuilder()
             .sqlQuery(query)
@@ -122,7 +122,7 @@ public class TestCsvHeader extends BaseTestQuery{
   @Test //DRILL-4108
   @Ignore("not supported")
   public void testCsvHeaderNonExistingColumn() throws Exception {
-    String query = String.format("select `Year`, Model, Category from dfs.`%s` where Make = 'Chevy'", root);
+    String query = String.format("select \"Year\", Model, Category from dfs.\"%s\" where Make = 'Chevy'", root);
 
     testBuilder()
             .sqlQuery(query)
@@ -137,7 +137,7 @@ public class TestCsvHeader extends BaseTestQuery{
   @Ignore("not supported currently")
   public void testCsvHeaderMismatch() throws Exception {
     String ddir = FileUtils.getResourceAsFile("/store/text/data/d2").toURI().toString();
-    String query = String.format("select `Year`, Model, Category from dfs.`%s` where Make = 'Chevy'", ddir);
+    String query = String.format("select \"Year\", Model, Category from dfs.\"%s\" where Make = 'Chevy'", ddir);
     testBuilder()
             .sqlQuery(query)
             .unOrdered()
@@ -154,7 +154,7 @@ public class TestCsvHeader extends BaseTestQuery{
     // test that header is not skipped when skipFirstLine is true
     // testing by defining new format plugin with skipFirstLine set to true and diff file extension
     String dfile = FileUtils.getResourceAsFile("/store/text/data/cars.csvh-test").getAbsolutePath();
-    String query = String.format("select `Year`, Model from TABLE(dfs_root.`%s`(type => 'TEXT', fieldDelimiter => ',', lineDelimiter => '\n', skipFirstLine => true, extractHeader => true)) where Make = 'Chevy'", dfile);
+    String query = String.format("select \"Year\", Model from TABLE(dfs_root.\"%s\"(type => 'TEXT', fieldDelimiter => ',', lineDelimiter => '\n', skipFirstLine => true, extractHeader => true)) where Make = 'Chevy'", dfile);
     testBuilder()
             .sqlQuery(query)
             .unOrdered()
@@ -190,7 +190,7 @@ public class TestCsvHeader extends BaseTestQuery{
   @Test
   public void testCsvWithHeaderEmptyAndDuplicateColumnNames() throws Exception {
     String file = FileUtils.getResourceAsFile("/store/text/data/cars-badheaders.csvh").toURI().toString();
-    String query = String.format("select * from dfs.`%s` LIMIT 2", file);
+    String query = String.format("select * from dfs.\"%s\" LIMIT 2", file);
     testBuilder()
       .sqlQuery(query)
       .unOrdered()

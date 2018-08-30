@@ -43,10 +43,7 @@ public class SabotConfig extends NestedConfig {
 
   private final ImmutableList<String> startupArguments;
 
-  public static final boolean ON_OSX = System.getProperty("os.name").contains("OS X");
 
-  @SuppressWarnings("restriction")
-  private static final long MAX_DIRECT_MEMORY = sun.misc.VM.maxDirectMemory();
 
   private SabotConfig(Config config, ImmutableList<String> startupArguments){
     super(config);
@@ -292,7 +289,7 @@ public class SabotConfig extends NestedConfig {
     }
 
     throw new SabotConfigurationException(String.format(
-        "No class defined at location '%s'. Expected a definition of the class []",
+        "No class defined at location '%s'. Expected a definition of the class [%s]",
         location, clazz.getCanonicalName()));
   }
 
@@ -337,9 +334,5 @@ public class SabotConfig extends NestedConfig {
   @Override
   public String toString() {
     return this.root().render();
-  }
-
-  public static long getMaxDirectMemory() {
-    return MAX_DIRECT_MEMORY;
   }
 }

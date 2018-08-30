@@ -1,11 +1,11 @@
 -- tpch11 using 1395599672 as a seed to the RNG
 select
   ps.ps_partkey,
-  sum(ps.ps_supplycost * ps.ps_availqty) as `value`
+  sum(ps.ps_supplycost * ps.ps_availqty) as "value"
 from
-  cp.`tpch/partsupp.parquet` ps,
-  cp.`tpch/supplier.parquet` s,
-  cp.`tpch/nation.parquet` n
+  cp."tpch/partsupp.parquet" ps,
+  cp."tpch/supplier.parquet" s,
+  cp."tpch/nation.parquet" n
 where
   ps.ps_suppkey = s.s_suppkey
   and s.s_nationkey = n.n_nationkey
@@ -16,13 +16,13 @@ group by
       select
         sum(ps.ps_supplycost * ps.ps_availqty) * 0.0001000000
       from
-        cp.`tpch/partsupp.parquet` ps,
-        cp.`tpch/supplier.parquet` s,
-        cp.`tpch/nation.parquet` n
+        cp."tpch/partsupp.parquet" ps,
+        cp."tpch/supplier.parquet" s,
+        cp."tpch/nation.parquet" n
       where
         ps.ps_suppkey = s.s_suppkey
         and s.s_nationkey = n.n_nationkey
         and n.n_name = 'JAPAN'
     )
 order by
-  `value` desc;
+  "value" desc;

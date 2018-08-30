@@ -80,7 +80,7 @@ public class WindowFrameOperator implements SingleInputOperator {
     state.is(State.NEEDS_SETUP);
 
     incoming = accessible;
-    outgoing = new VectorContainer(context.getAllocator());
+    outgoing = context.createOutputVectorContainer();
     createFramers(incoming);
     outgoing.buildSchema();
     outgoing.setInitialCapacity(context.getTargetBatchSize());

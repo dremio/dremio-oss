@@ -34,7 +34,7 @@ public class TestMergeFilterPlan extends PlanTestBase {
         "         position_id, " +
         "         position_title, " +
         "         education_level " +
-        " FROM cp.`employee.json` " +
+        " FROM cp.\"employee.json\" " +
         " WHERE position_id in (1, 2, 3 ) " ;
 
     String querySQL =  " select dat.store_id\n" +
@@ -44,7 +44,7 @@ public class TestMergeFilterPlan extends PlanTestBase {
         "            , sum( salary) as store_cost\n" +
         "       from MyViewWithFilter \n" +
         " where full_name in ( select n_name\n" +
-        "                      from cp.`tpch/nation.parquet`)\n" +
+        "                      from cp.\"tpch/nation.parquet\")\n" +
         "  and  education_level = 'GRADUATE DEGREE' " +
         "  and position_id in ( select position_id \n" +
         "                       from MyViewWithFilter\n" +
@@ -71,8 +71,8 @@ public class TestMergeFilterPlan extends PlanTestBase {
 
   @Test
   public void filterMergeAlwaysFalse() throws Exception {
-    final String query = "SELECT `integer` FROM (SELECT `integer` FROM cp.`jsoninput/input2.json` " +
-      "WHERE `integer` > 1) WHERE `integer` IS NULL";
+    final String query = "SELECT \"integer\" FROM (SELECT \"integer\" FROM cp.\"jsoninput/input2.json\" " +
+      "WHERE \"integer\" > 1) WHERE \"integer\" IS NULL";
 
     testPlanSubstrPatterns(query,
       new String[]{"Empty"},

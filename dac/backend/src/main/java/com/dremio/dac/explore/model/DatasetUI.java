@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.explore.model;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -84,7 +85,10 @@ public class DatasetUI {
       displayFullPath = fullPath; // this is going to be tmp.UNTITLED
       datasetType = DatasetType.VIRTUAL_DATASET;
     } else {
-      if (isUnsaved && vds.getDerivation() == Derivation.DERIVED_VIRTUAL) { // its tmp.UNTITLED select * from virtual dataset
+      // if its tmp.UNTITLED we want to get the parent dataset path to display.  The UI uses displayFullPath for history
+      // requests and therefore we need to be precise here. We manually check the path as this code would previously get
+      // triggered for history dataset entries that derive from another dataset.
+      if (isUnsaved && vds.getDerivation() == Derivation.DERIVED_VIRTUAL && Arrays.asList("tmp", "UNTITLED").equals(fullPath)) {
         displayFullPath = vds.getParentsList().get(0).getDatasetPathList();
       } else {
         displayFullPath = fullPath;
@@ -213,6 +217,7 @@ public class DatasetUI {
     return apiLinks;
   }
 
+  // TODO make this consistent with DatasetSummary.getLinks. In ideal case, both methods should use the same util method
   public static Map<String, String> createLinks(List<String> fullPath, List<String> displayFullPath, DatasetVersion datasetVersion, boolean isUnsavedDirectPhysicalDataset) {
     String dottedFullPath = PathUtils.constructFullPath(fullPath);
     String queryUrlPath;

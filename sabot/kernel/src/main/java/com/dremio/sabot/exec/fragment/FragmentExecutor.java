@@ -29,6 +29,7 @@ import com.dremio.common.CatastrophicFailure;
 import com.dremio.common.DeferredException;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -40,9 +41,10 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
-import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.ImpersonationUtil;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.driver.OperatorCreator;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.driver.Pipeline;
@@ -108,6 +110,7 @@ public class FragmentExecutor {
   private final FunctionLookupContext functionLookupContext;
   private final TunnelProvider tunnelProvider;
   private final FlushableSendingAccountor flushable;
+  private final OptionManager fragmentOptions;
   private final FragmentStats stats;
   private final FragmentTicket ticket;
   private final CatalogService sources;
@@ -121,6 +124,7 @@ public class FragmentExecutor {
   // All Fragments starts as awaiting allocation. Changed by only execution thread. Modified externally thus volatile setting.
   private volatile FragmentState state = FragmentState.AWAITING_ALLOCATION;
 
+  private BufferAllocator outputAllocator;
   private Pipeline pipeline;
   private final IncomingBuffers buffers;
 
@@ -147,6 +151,7 @@ public class FragmentExecutor {
       FunctionLookupContext functionLookupContext,
       TunnelProvider tunnelProvider,
       FlushableSendingAccountor flushable,
+      OptionManager fragmentOptions,
       FragmentStats stats,
       final FragmentTicket ticket,
       final CatalogService sources,
@@ -168,6 +173,7 @@ public class FragmentExecutor {
     this.contextCreator = contextCreator;
     this.tunnelProvider = tunnelProvider;
     this.flushable = flushable;
+    this.fragmentOptions = fragmentOptions;
     this.stats = stats;
     this.ticket = ticket;
     this.deferredException = exception;
@@ -316,6 +322,10 @@ public class FragmentExecutor {
 
   private void setupExecution() throws Exception{
     logger.debug("Starting fragment {}:{} on {}:{}", fragment.getHandle().getMajorFragmentId(), fragment.getHandle().getMinorFragmentId(), fragment.getAssignment().getAddress(), fragment.getAssignment().getUserPort());
+    outputAllocator = ticket.newChildAllocator("output-frag:" + QueryIdHelper.getFragmentId(fragment.getHandle()),
+      fragmentOptions.getOption(ExecConstants.OUTPUT_ALLOCATOR_RESERVATION),
+      Long.MAX_VALUE);
+    contextCreator.setFragmentOutputAllocator(outputAllocator);
 
     final PhysicalOperator rootOperator = reader.readFragmentOperator(fragment.getFragmentJson(), fragment.getFragmentCodec());
 
@@ -398,6 +408,7 @@ public class FragmentExecutor {
     clusterCoordinator.getServiceSet(ClusterCoordinator.Role.COORDINATOR).removeNodeStatusListener(crashListener);
 
     deferredException.suppressingClose(contextCreator);
+    deferredException.suppressingClose(outputAllocator);
     deferredException.suppressingClose(allocator);
     deferredException.suppressingClose(ticket);
 

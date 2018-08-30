@@ -15,13 +15,6 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import com.dremio.exec.physical.EndpointAffinity;
-import com.dremio.exec.physical.PhysicalOperatorSetupException;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -30,6 +23,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
+
+import com.dremio.exec.physical.EndpointAffinity;
+import com.dremio.exec.physical.PhysicalOperatorSetupException;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 
 /**
  * Implementation of {@link FragmentParallelizer} where fragment has zero or more endpoints with affinities. Width
@@ -85,7 +87,8 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
   }
 
   // Assign endpoints based on the given endpoint list, affinity map and width.
-  private List<NodeEndpoint> findEndpoints(final Collection<NodeEndpoint> activeEndpoints,
+  @VisibleForTesting
+  List<NodeEndpoint> findEndpoints(final Collection<NodeEndpoint> activeEndpoints,
       final Map<NodeEndpoint, EndpointAffinity> endpointAffinityMap, final int width,
       final ParallelizationParameters parameters)
     throws PhysicalOperatorSetupException {
@@ -93,8 +96,15 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
     final List<NodeEndpoint> endpoints = Lists.newArrayList();
 
     if (endpointAffinityMap.size() > 0) {
-      // Get EndpointAffinity list sorted in descending order of affinity values
-      List<EndpointAffinity> sortedAffinityList = ENDPOINT_AFFINITY_ORDERING.immutableSortedCopy(endpointAffinityMap.values());
+      // try to sort by affinity and it belongs to active endpoints, versus just by affinity
+      // this way we may get better layout of the nodes for resource allocations
+      List<EndpointAffinity> sortedAffinityList = endpointAffinityMap.values().stream().collect(Collectors.toList());
+      Collections.sort(sortedAffinityList, Comparator.comparing(EndpointAffinity::getAffinity).thenComparing(
+        (EndpointAffinity v1, EndpointAffinity v2) ->
+          Boolean.compare(activeEndpoints.contains(v1.getEndpoint()), activeEndpoints.contains(v2.getEndpoint()))
+      ).reversed());
+
+      sortedAffinityList = Collections.unmodifiableList(sortedAffinityList);
 
       // Find the number of mandatory nodes (nodes with +infinity affinity).
       int numRequiredNodes = 0;

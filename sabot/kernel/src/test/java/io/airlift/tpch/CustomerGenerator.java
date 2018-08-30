@@ -31,8 +31,8 @@ package io.airlift.tpch;
 import static java.util.Locale.ENGLISH;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.VarCharVector;
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 
 class CustomerGenerator extends TpchGenerator {
@@ -49,15 +49,15 @@ class CustomerGenerator extends TpchGenerator {
   private final RandomString marketSegmentRandom = randomString(1140279430, DISTRIBUTIONS.getMarketSegments());
   private final RandomText commentRandom = randomText(1335826707, TEXT_POOL, COMMENT_AVERAGE_LENGTH);
 
-  private final NullableBigIntVector customerKey;
-  private final NullableBigIntVector nationKey;
-  private final NullableBigIntVector accountBalance;
+  private final BigIntVector customerKey;
+  private final BigIntVector nationKey;
+  private final BigIntVector accountBalance;
 
-  private final NullableVarCharVector customerName;
-  private final NullableVarCharVector address;
-  private final NullableVarCharVector phone;
-  private final NullableVarCharVector marketSegment;
-  private final NullableVarCharVector comment;
+  private final VarCharVector customerName;
+  private final VarCharVector address;
+  private final VarCharVector phone;
+  private final VarCharVector marketSegment;
+  private final VarCharVector comment;
 
   public CustomerGenerator(BufferAllocator allocator, GenerationDefinition def, int partitionIndex, String...includedColumns) {
     super(TpchTable.CUSTOMER, allocator, def, partitionIndex, includedColumns);

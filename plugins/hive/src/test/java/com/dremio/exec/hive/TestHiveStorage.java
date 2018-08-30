@@ -45,11 +45,11 @@ import org.junit.rules.TestRule;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.PathUtils;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.CatalogService.UpdateType;
 import com.dremio.exec.store.StoragePlugin.UpdateStatus;
+import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemPartitionUpdateKey;
@@ -72,14 +72,14 @@ public class TestHiveStorage extends HiveTestBase {
 
   @BeforeClass
   public static void setupOptions() throws Exception {
-    test(String.format("alter session set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    test(String.format("alter session set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
 
   @Test // DRILL-4083
   public void testNativeScanWhenNoColumnIsRead() throws Exception {
     try {
-      test(String.format("alter session set `%s` = true", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
 
       String query = "SELECT count(*) as col FROM hive.kv_parquet";
       testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
@@ -91,23 +91,23 @@ public class TestHiveStorage extends HiveTestBase {
           .baselineValues(5L)
           .go();
     } finally {
-      test(String.format("alter session set `%s` = %s",
-          ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS,
-              ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS_VALIDATOR.getDefault().bool_val ? "true" : "false"));
+      test(String.format("alter session set \"%s\" = %s",
+          HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS,
+              HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS_VALIDATOR.getDefault().getBoolVal() ? "true" : "false"));
     }
   }
 
   @Test
   public void testTimestampNulls() throws Exception {
     try {
-      test(String.format("alter session set `%s` = true", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
 
       String query = "SELECT * FROM hive.parquet_timestamp_nulls";
       test(query);
     } finally {
-      test(String.format("alter session set `%s` = %s",
-        ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS,
-        ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS_VALIDATOR.getDefault().bool_val ? "true" : "false"));
+      test(String.format("alter session set \"%s\" = %s",
+        HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS,
+        HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS_VALIDATOR.getDefault().getBoolVal() ? "true" : "false"));
     }
   }
 
@@ -143,14 +143,28 @@ public class TestHiveStorage extends HiveTestBase {
         .go();
   }
 
+  @Test
+  public void readAllSupportedHiveDataTypesText() throws Exception {
+    readAllSupportedHiveDataTypes("readtest");
+  }
+
+  @Test
+  public void readAllSupportedHiveDataTypesORC() throws Exception {
+    readAllSupportedHiveDataTypes("readtest_orc");
+  }
+
+  @Test
+  public void readAllSupportedHiveDataTypesParquet() throws Exception {
+    readAllSupportedHiveDataTypes("readtest_parquet");
+  }
+
   /**
    * Test to ensure Dremio reads the all supported types correctly both normal fields (converted to Nullable types) and
    * partition fields (converted to Required types).
    * @throws Exception
    */
-  @Test
-  public void readAllSupportedHiveDataTypes() throws Exception {
-    testBuilder().sqlQuery("SELECT * FROM hive.readtest")
+  private void readAllSupportedHiveDataTypes(String table) throws Exception {
+    testBuilder().sqlQuery("SELECT * FROM hive." + table)
         .ordered()
         .baselineColumns(
             "binary_field",
@@ -255,7 +269,7 @@ public class TestHiveStorage extends HiveTestBase {
   @Test
   public void testLowUpperCasingForParquet() throws Exception {
     try {
-      test(String.format("alter session set `%s` = true", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
       final String query = "SELECT * FROM hive.parquet_region";
 
       // Make sure the plan has Hive scan with native parquet reader
@@ -293,131 +307,14 @@ public class TestHiveStorage extends HiveTestBase {
           "uickly special accou"
         ).go();
     } finally {
-      test(String.format("alter session set `%s` = false", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-    }
-  }
-
-  /**
-   * Test to ensure Dremio reads the all supported types through native Parquet readers.
-   * NOTE: As part of Hive 1.2 upgrade, make sure this test and {@link #readAllSupportedHiveDataTypes()} are merged
-   * into one test.
-   */
-  @Test
-  public void readAllSupportedHiveDataTypesNativeParquet() throws Exception {
-    try {
-      test(String.format("alter session set `%s` = true", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-      final String query = "SELECT * FROM hive.readtest_parquet";
-
-      // Make sure the plan has Hive scan with native parquet reader
-      testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
-
-      testBuilder().sqlQuery(query)
-          .ordered()
-          .baselineColumns(
-              "binary_field",
-              "boolean_field",
-              "tinyint_field",
-              "decimal0_field",
-              "decimal9_field",
-              "decimal18_field",
-              "decimal28_field",
-              "decimal38_field",
-              "double_field",
-              "float_field",
-              "int_field",
-              "bigint_field",
-              "smallint_field",
-              "string_field",
-              "varchar_field",
-              "timestamp_field",
-              "char_field",
-              // There is a regression in Hive 1.2.1 in binary and boolean partition columns. Disable for now.
-              //"binary_part",
-              "boolean_part",
-              "tinyint_part",
-              "decimal0_part",
-              "decimal9_part",
-              "decimal18_part",
-              "decimal28_part",
-              "decimal38_part",
-              "double_part",
-              "float_part",
-              "int_part",
-              "bigint_part",
-              "smallint_part",
-              "string_part",
-              "varchar_part",
-              "timestamp_part",
-              "date_part",
-              "char_part")
-          .baselineValues(
-              "binaryfield".getBytes(),
-              false,
-              34,
-              new BigDecimal("66"),
-              new BigDecimal("2347.92"),
-              new BigDecimal("2758725827.99990"),
-              new BigDecimal("29375892739852.8"),
-              new BigDecimal("89853749534593985.783"),
-              8.345d,
-              4.67f,
-              123456,
-              234235L,
-              3455,
-              "stringfield",
-              "varcharfield",
-              new LocalDateTime(Timestamp.valueOf("2013-07-05 17:01:00").getTime()),
-              "charfield",
-              // There is a regression in Hive 1.2.1 in binary and boolean partition columns. Disable for now.
-              //"binary",
-              true,
-              64,
-              new BigDecimal("37"),
-              new BigDecimal("36.90"),
-              new BigDecimal("3289379872.94565"),
-              new BigDecimal("39579334534534.4"),
-              new BigDecimal("363945093845093890.900"),
-              8.345d,
-              4.67f,
-              123456,
-              234235L,
-              3455,
-              "string",
-              "varchar",
-              new LocalDateTime(Timestamp.valueOf("2013-07-05 17:01:00").getTime()),
-              new LocalDateTime(Date.valueOf("2013-07-05").getTime()),
-              "char")
-          .baselineValues( // All fields are null, but partition fields have non-null values
-              null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-              // There is a regression in Hive 1.2.1 in binary and boolean partition columns. Disable for now.
-              //"binary",
-              true,
-              64,
-              new BigDecimal("37"),
-              new BigDecimal("36.90"),
-              new BigDecimal("3289379872.94565"),
-              new BigDecimal("39579334534534.4"),
-              new BigDecimal("363945093845093890.900"),
-              8.345d,
-              4.67f,
-              123456,
-              234235L,
-              3455,
-              "string",
-              "varchar",
-              new LocalDateTime(Timestamp.valueOf("2013-07-05 17:01:00").getTime()),
-              new LocalDateTime(Date.valueOf("2013-07-05").getTime()),
-              "char")
-          .go();
-    } finally {
-        test(String.format("alter session set `%s` = false", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+      test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
     }
   }
 
   @Test
   public void orderByOnHiveTable() throws Exception {
     testBuilder()
-        .sqlQuery("SELECT * FROM hive.kv ORDER BY `value` DESC")
+        .sqlQuery("SELECT * FROM hive.kv ORDER BY \"value\" DESC")
         .ordered()
         .baselineColumns("key", "value")
         .baselineValues(5, " key_5")
@@ -453,7 +350,7 @@ public class TestHiveStorage extends HiveTestBase {
         ImmutableMap.of(FileSystem.FS_DEFAULT_NAME_KEY, "hdfs://localhost:9001"));
 
     testBuilder()
-        .sqlQuery("SELECT * FROM hive.`default`.kv LIMIT 1")
+        .sqlQuery("SELECT * FROM hive.\"default\".kv LIMIT 1")
         .unOrdered()
         .baselineColumns("key", "value")
         .baselineValues(1, " key_1")
@@ -494,7 +391,7 @@ public class TestHiveStorage extends HiveTestBase {
   @Test // DRILL-3938
   public void readFromAlteredPartitionedTable() throws Exception {
     testBuilder()
-        .sqlQuery("SELECT key, `value`, newcol FROM hive.kv_parquet ORDER BY key LIMIT 1")
+        .sqlQuery("SELECT key, \"value\", newcol FROM hive.kv_parquet ORDER BY key LIMIT 1")
         .unOrdered()
         .baselineColumns("key", "value", "newcol")
         .baselineValues(1, " key_1", null)
@@ -504,21 +401,21 @@ public class TestHiveStorage extends HiveTestBase {
   @Test // DRILL-3938
   public void nativeReaderIsDisabledForAlteredPartitionedTable() throws Exception {
     try {
-      test(String.format("alter session set `%s` = true", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-      final String query = "EXPLAIN PLAN FOR SELECT key, `value`, newcol FROM hive.kv_parquet ORDER BY key LIMIT 1";
+      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+      final String query = "EXPLAIN PLAN FOR SELECT key, \"value\", newcol FROM hive.kv_parquet ORDER BY key LIMIT 1";
 
       // Make sure the HiveScan in plan has no native parquet reader
       final String planStr = getPlanInString(query, OPTIQ_FORMAT);
       assertFalse("Hive native is not expected in the plan", planStr.contains("hive-native-parquet-scan"));
     } finally {
-      test(String.format("alter session set `%s` = false", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+      test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
     }
   }
 
   @Test
   public void readFromMixedSchema() throws Exception {
     testBuilder()
-        .sqlQuery("SELECT key, `value` FROM hive.kv_mixedschema")
+        .sqlQuery("SELECT key, \"value\" FROM hive.kv_mixedschema")
         .unOrdered()
         .baselineColumns("key", "value")
         .baselineValues("1", " key_1")
@@ -541,7 +438,7 @@ public class TestHiveStorage extends HiveTestBase {
   @Test // DRILL-3739
   public void readingFromStorageHandleBasedTable2() throws Exception {
     try {
-      test(String.format("alter session set `%s` = true", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
 
       testBuilder()
           .sqlQuery("SELECT * FROM hive.kv_sh ORDER BY key LIMIT 2")
@@ -550,14 +447,14 @@ public class TestHiveStorage extends HiveTestBase {
           .expectsEmptyResultSet()
           .go();
     } finally {
-      test(String.format("alter session set `%s` = false", ExecConstants.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+      test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
     }
   }
 
   @Test // DRILL-3688
   public void readingFromSmallTableWithSkipHeaderAndFooter() throws Exception {
    testBuilder()
-        .sqlQuery("select key, `value` from hive.skipper.kv_text_small order by key asc")
+        .sqlQuery("select key, \"value\" from hive.skipper.kv_text_small order by key asc")
         .ordered()
         .baselineColumns("key", "value")
         .baselineValues(1, "key_1")
@@ -644,13 +541,13 @@ public class TestHiveStorage extends HiveTestBase {
   @Test
   public void testQueryNonExistingTable() throws Exception {
     errorMsgTestHelper("SELECT * FROM hive.nonExistedTable", "Table 'hive.nonExistedTable' not found");
-    errorMsgTestHelper("SELECT * FROM hive.`default`.nonExistedTable", "Table 'hive.default.nonExistedTable' not found");
+    errorMsgTestHelper("SELECT * FROM hive.\"default\".nonExistedTable", "Table 'hive.default.nonExistedTable' not found");
     errorMsgTestHelper("SELECT * FROM hive.db1.nonExistedTable", "Table 'hive.db1.nonExistedTable' not found");
   }
 
   @AfterClass
   public static void shutdownOptions() throws Exception {
-    test(String.format("alter session set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    test(String.format("alter session set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
   @Test
@@ -659,15 +556,15 @@ public class TestHiveStorage extends HiveTestBase {
     NamespaceService ns = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
     assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.db1.kv_db1")))).size());
     assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.db1.avro")))).size());
-    assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.dummy")))).size());
+    assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".dummy")))).size());
     assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.skipper.kv_parquet_large")))).size());
 
-    assertEquals(3, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.readtest")))).size());
-    assertEquals(3, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.readtest_parquet")))).size());
+    assertEquals(3, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".readtest")))).size());
+    assertEquals(3, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".readtest_parquet")))).size());
 
-    assertEquals(10, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.kv_parquet")))).size());
-    assertEquals(54, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.partition_with_few_schemas")))).size());
-    assertEquals(56, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.partition_pruning_test")))).size());
+    assertEquals(10, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".kv_parquet")))).size());
+    assertEquals(54, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".partition_with_few_schemas")))).size());
+    assertEquals(56, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".partition_pruning_test")))).size());
   }
 
   @Test
@@ -679,7 +576,7 @@ public class TestHiveStorage extends HiveTestBase {
     assertEquals(UpdateStatus.UNCHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
         datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
 
-    datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.partition_with_few_schemas")));
+    datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".partition_with_few_schemas")));
     assertEquals(UpdateStatus.UNCHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
       datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
 
@@ -693,7 +590,7 @@ public class TestHiveStorage extends HiveTestBase {
       assertEquals(UpdateStatus.CHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
         datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
 
-      datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.`default`.partition_with_few_schemas")));
+      datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".partition_with_few_schemas")));
       assertEquals(UpdateStatus.CHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
         datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
     } finally {
@@ -782,7 +679,7 @@ public class TestHiveStorage extends HiveTestBase {
     assertEquals(tables1.size() + 1, tables2.size());
 
     assertTrue(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
-      new NamespaceKey(PathUtils.parseFullPath("hive.`default`.foo_bar")), Type.DATASET));
+      new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".foo_bar")), Type.DATASET));
     assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
       new NamespaceKey(PathUtils.parseFullPath("hive.foo_bar")), Type.DATASET));
 
@@ -819,7 +716,7 @@ public class TestHiveStorage extends HiveTestBase {
     assertEquals(tables3.size() - 1, tables4.size());
 
     assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
-      new NamespaceKey(PathUtils.parseFullPath("hive.`default`.foo_bar")), Type.DATASET));
+      new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".foo_bar")), Type.DATASET));
     assertFalse(getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).exists(
       new NamespaceKey(PathUtils.parseFullPath("hive.foo_bar")), Type.DATASET));
   }
@@ -840,9 +737,26 @@ public class TestHiveStorage extends HiveTestBase {
         .unOrdered()
         .sqlQuery("SELECT * FROM hive.db1.impala_parquet")
         .baselineColumns("id", "bool_col", "tinyint_col", "smallint_col", "int_col", "bigint_col", "float_col",
-            "double_col", "date_string_col", "string_col", "timestamp_col")
+            "double_col", "date_string_col", "string_col", "timestamp_col"
+        )
         .baselineValues(0, true, 0, 0, 0, 0L, 0.0F, 0.0D, "01/01/09", "0", new LocalDateTime(1230768000000L, UTC))
         .baselineValues(1, false, 1, 1, 1, 10L, 1.1F, 10.1D, "01/01/09", "1", new LocalDateTime(1230768060000L, UTC))
+        .go();
+  }
+
+  @Test
+  public void orcVectorizedTest() throws Exception {
+    testBuilder()
+        .sqlQuery("SELECT * from hive.orc_region")
+        .unOrdered()
+        .sqlBaselineQuery("SELECT * FROM hive.parquet_region")
+        .go();
+
+    // project only few columns
+    testBuilder()
+        .sqlQuery("SELECT r_comment, r_regionkey from hive.orc_region")
+        .unOrdered()
+        .sqlBaselineQuery("SELECT r_comment, r_regionkey FROM hive.parquet_region")
         .go();
   }
 }

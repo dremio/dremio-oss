@@ -62,6 +62,7 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.file.File;
 import com.dremio.file.SourceFilePath;
 import com.dremio.service.namespace.DatasetHelper;
+import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -134,26 +135,28 @@ public class SourceService {
     return registerSourceWithRuntime(source.asSourceConfig());
   }
 
-  public SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig) throws ExecutionSetupException, NamespaceException {
-    return registerSourceWithRuntime(sourceConfig, createCatalog());
+  public SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig,  NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException {
+    return registerSourceWithRuntime(sourceConfig, createCatalog(), attributes);
   }
 
   public SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig, String userName) throws ExecutionSetupException, NamespaceException {
     return registerSourceWithRuntime(sourceConfig, createCatalog(userName));
   }
 
-  private SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig, Catalog catalog) throws ExecutionSetupException, NamespaceException {
+  private SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig, Catalog catalog,  NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException {
     if(sourceConfig.getVersion() == null) {
-      catalog.createSource(sourceConfig);
+      catalog.createSource(sourceConfig, attributes);
     } else {
-      catalog.updateSource(sourceConfig);
+      catalog.updateSource(sourceConfig, attributes);
     }
 
     final NamespaceKey key = new NamespaceKey(sourceConfig.getName());
     reflectionServiceHelper.getReflectionSettings().setReflectionSettings(key, new AccelerationSettings()
       .setMethod(RefreshMethod.FULL)
       .setRefreshPeriod(sourceConfig.getAccelerationRefreshPeriod())
-      .setGracePeriod(sourceConfig.getAccelerationGracePeriod()));
+      .setGracePeriod(sourceConfig.getAccelerationGracePeriod())
+      .setNeverExpire(sourceConfig.getAccelerationNeverExpire())
+      .setNeverRefresh(sourceConfig.getAccelerationNeverRefresh()));
     return namespaceService.getSource(key);
   }
 
@@ -168,7 +171,7 @@ public class SourceService {
     }
   }
 
-  public SourceConfig createSource(SourceConfig sourceConfig) throws ExecutionSetupException, NamespaceException, ResourceExistsException {
+  public SourceConfig createSource(SourceConfig sourceConfig, NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException, ResourceExistsException {
     validateSourceConfig(sourceConfig);
 
     Preconditions.checkArgument(sourceConfig.getId().getId() == null, "Source id is immutable.");
@@ -181,10 +184,10 @@ public class SourceService {
 
     sourceConfig.setCtime(System.currentTimeMillis());
 
-    return registerSourceWithRuntime(sourceConfig);
+    return registerSourceWithRuntime(sourceConfig, attributes);
   }
 
-  public SourceConfig updateSource(String id, SourceConfig sourceConfig) throws NamespaceException, ExecutionSetupException, SourceNotFoundException {
+  public SourceConfig updateSource(String id, SourceConfig sourceConfig, NamespaceAttribute... attributes) throws NamespaceException, ExecutionSetupException, SourceNotFoundException {
     validateSourceConfig(sourceConfig);
 
     SourceConfig oldSourceConfig = getById(id);
@@ -193,7 +196,7 @@ public class SourceService {
     Preconditions.checkArgument(oldSourceConfig.getName().equals(sourceConfig.getName()), "Source name is immutable.");
     Preconditions.checkArgument(oldSourceConfig.getType().equals(sourceConfig.getType()), "Source type is immutable.");
 
-    return registerSourceWithRuntime(sourceConfig);
+    return registerSourceWithRuntime(sourceConfig, attributes);
   }
 
   public void deleteSource(SourceConfig sourceConfig) {
@@ -603,7 +606,7 @@ public class SourceService {
     return sources;
   }
 
-  public SourceConfig getById(String id) throws SourceNotFoundException {
+  public SourceConfig getById(String id) throws SourceNotFoundException, NamespaceException {
     try {
       SourceConfig config = namespaceService.getSourceById(id);
       return config;

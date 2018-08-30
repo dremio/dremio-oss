@@ -71,18 +71,18 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
   static final String WORKING_PATH = TestTools.getWorkingPath();
   static final String TEST_RES_PATH = WORKING_PATH + "/src/test/resources";
 
-  //final String query = "SELECT sales_city, COUNT(*) cnt FROM cp.`region.json` GROUP BY sales_city";
-  //final String query = "SELECT * FROM cp.`employee.json` where  employee_id > 1 and  employee_id < 1000";
-  //final String query = "SELECT o_orderkey, o_custkey FROM dfs.tmp.`multilevel` where dir0 = 1995 and o_orderkey > 100 and o_orderkey < 1000 limit 5";
-  //final String query = "SELECT sum(o_totalprice) FROM dfs.tmp.`multilevel` where dir0 = 1995 and o_orderkey > 100 and o_orderkey < 1000";
-  //final String query = "SELECT o_orderkey FROM dfs.tmp.`multilevel` order by o_orderkey";
-  //final String query = "SELECT dir1, sum(o_totalprice) FROM dfs.tmp.`multilevel` where dir0 = 1995 group by dir1 order by dir1";
-  //final String query = String.format("SELECT dir0, sum(o_totalprice) FROM dfs.`%s/multilevel/json` group by dir0 order by dir0", TEST_RES_PATH);
+  //final String query = "SELECT sales_city, COUNT(*) cnt FROM cp.\"region.json\" GROUP BY sales_city";
+  //final String query = "SELECT * FROM cp.\"employee.json\" where  employee_id > 1 and  employee_id < 1000";
+  //final String query = "SELECT o_orderkey, o_custkey FROM dfs.tmp.\"multilevel\" where dir0 = 1995 and o_orderkey > 100 and o_orderkey < 1000 limit 5";
+  //final String query = "SELECT sum(o_totalprice) FROM dfs.tmp.\"multilevel\" where dir0 = 1995 and o_orderkey > 100 and o_orderkey < 1000";
+  //final String query = "SELECT o_orderkey FROM dfs.tmp.\"multilevel\" order by o_orderkey";
+  //final String query = "SELECT dir1, sum(o_totalprice) FROM dfs.tmp.\"multilevel\" where dir0 = 1995 group by dir1 order by dir1";
+  //final String query = String.format("SELECT dir0, sum(o_totalprice) FROM dfs.\"%s/multilevel/json\" group by dir0 order by dir0", TEST_RES_PATH);
 
   @Ignore("DX-4181")
   @Test(timeout=30000)
   public void testSingleFragmentQuery() throws Exception {
-    final String query = "SELECT * FROM cp.`employee.json` where  employee_id > 1 and  employee_id < 1000";
+    final String query = "SELECT * FROM cp.\"employee.json\" where  employee_id > 1 and  employee_id < 1000";
 
     QueryPlanFragments planFragments = getFragmentsHelper(query);
 
@@ -97,7 +97,7 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
   @Ignore("DX-4181")
   @Test(timeout=30000)
   public void testMultiMinorFragmentSimpleQuery() throws Exception {
-    final String query = String.format("SELECT o_orderkey FROM dfs.`%s/multilevel/json`", TEST_RES_PATH);
+    final String query = String.format("SELECT o_orderkey FROM dfs.\"%s/multilevel/json\"", TEST_RES_PATH);
 
     QueryPlanFragments planFragments = getFragmentsHelper(query);
 
@@ -115,7 +115,7 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
   @Ignore("DX-4181")
   @Test(timeout=30000)
   public void testMultiMinorFragmentComplexQuery() throws Exception {
-    final String query = String.format("SELECT dir0, sum(o_totalprice) FROM dfs.`%s/multilevel/json` group by dir0 order by dir0", TEST_RES_PATH);
+    final String query = String.format("SELECT dir0, sum(o_totalprice) FROM dfs.\"%s/multilevel/json\" group by dir0 order by dir0", TEST_RES_PATH);
 
     QueryPlanFragments planFragments = getFragmentsHelper(query);
 
@@ -135,7 +135,7 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
   private QueryPlanFragments getFragmentsHelper(final String query) throws InterruptedException, ExecutionException, RpcException {
     updateTestCluster(2, config);
 
-    List<QueryDataBatch> results = client.runQuery(QueryType.SQL, "alter session set `planner.slice_target`=1");
+    List<QueryDataBatch> results = client.runQuery(QueryType.SQL, "alter session set \"planner.slice_target\"=1");
     for(QueryDataBatch batch : results) {
       batch.release();
     }
@@ -166,7 +166,7 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
       ShowResultsUserResultsListener myListener = new ShowResultsUserResultsListener(getAllocator());
       AwaitableUserResultsListener listenerBits =
           new AwaitableUserResultsListener(myListener);
-      fragmentClient.runQuery(QueryType.SQL, "select hostname, user_port from sys.nodes where `current`=true",
+      fragmentClient.runQuery(QueryType.SQL, "select hostname, user_port from sys.nodes where \"current\"=true",
           listenerBits);
       int row = listenerBits.await();
       assertEquals(1, row);

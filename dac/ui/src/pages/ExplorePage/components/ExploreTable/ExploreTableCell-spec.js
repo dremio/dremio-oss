@@ -17,13 +17,17 @@ import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 
 import exploreUtils from 'utils/explore/exploreUtils';
-import ExploreTableCell from './ExploreTableCell';
+import { ExploreTableCellView as ExploreTableCell } from './ExploreTableCell';
 
 describe('ExploreTableCell', () => {
 
   let minimalProps;
   let commonProps;
   let context;
+  const getCellParentStub = () => ({
+    className: 'cell-wrap',
+    getAttribute: () => 'col1'
+  });
   beforeEach(() => {
     minimalProps = {
       columnType: 'TEXT',
@@ -201,9 +205,7 @@ describe('ExploreTableCell', () => {
       text: 'text',
       oRange: {
         startContainer: {
-          parentNode: {
-            getAttribute: () => 'col1'
-          }
+          parentNode: getCellParentStub()
         }
       }
     };
@@ -305,9 +307,7 @@ describe('ExploreTableCell', () => {
         oRange: {
           startContainer: {
             data: 'column_text',
-            parentNode: {
-              getAttribute: () => 'col1'
-            }
+            parentNode: getCellParentStub()
           }
         }
       };

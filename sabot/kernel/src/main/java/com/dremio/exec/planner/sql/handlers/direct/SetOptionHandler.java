@@ -29,10 +29,12 @@ import org.apache.calcite.tools.ValidationException;
 import org.apache.calcite.util.NlsString;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.server.options.OptionValue;
-import com.dremio.exec.server.options.OptionValue.OptionType;
+import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.work.foreman.ForemanSetupException;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
+import com.dremio.sabot.rpc.user.UserSession;
 
 /**
  * Converts a {@link SqlNode} representing "ALTER .. SET option = value" and "ALTER ... RESET ..." statements to a
@@ -43,16 +45,17 @@ import com.dremio.exec.work.foreman.ForemanSetupException;
 public class SetOptionHandler extends SimpleDirectHandler {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SetOptionHandler.class);
 
-  private final OptionManager options;
+  private final UserSession session;
 
-  public SetOptionHandler(OptionManager options) {
+  public SetOptionHandler(UserSession session) {
     super();
-    this.options = options;
+    this.session = session;
   }
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws ValidationException, RelConversionException, IOException,
-      ForemanSetupException{
+      ForemanSetupException {
+    final OptionManager options = new QueryOptionManager(session.getOptions());
     final SqlSetOption option = SqlNodeUtil.unwrap(sqlNode, SqlSetOption.class);
     final String name = option.getName().toString();
 
@@ -88,6 +91,7 @@ public class SetOptionHandler extends SimpleDirectHandler {
       options.setOption(optionValue);
     } else { // RESET option
       if ("ALL".equalsIgnoreCase(name)) {
+        session.setDefaultSchemaPath(null);
         options.deleteAllOptions(type);
       } else {
         options.deleteOption(name, type);

@@ -140,8 +140,8 @@ public class BaseTestMiniDFS extends PlanTestBase {
   protected static void createView(final String viewOwner, final String viewGroup, final short viewPerms,
                                  final String newViewName, final String fromPath) throws Exception {
     updateClient(viewOwner);
-    test(String.format("ALTER SESSION SET `%s`='%o';", ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY, viewPerms));
-    test(String.format("CREATE VIEW %s.`/user/%s/%s` AS SELECT * FROM %s.`%s`;",
+    test(String.format("ALTER SESSION SET \"%s\"='%o';", ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY, viewPerms));
+    test(String.format("CREATE VIEW %s.\"/user/%s/%s\" AS SELECT * FROM %s.\"%s\";",
       MINIDFS_STORAGE_PLUGIN_NAME, viewOwner, newViewName, MINIDFS_STORAGE_PLUGIN_NAME, fromPath));
 
     // Verify the view file created has the expected permissions and ownership
@@ -155,7 +155,7 @@ public class BaseTestMiniDFS extends PlanTestBase {
   protected static void createView(final String viewOwner, final String viewGroup, final String viewName,
                                  final String viewDef) throws Exception {
     updateClient(viewOwner);
-    test(String.format("ALTER SESSION SET `%s`='%o';", ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY, (short) 0750));
+    test(String.format("ALTER SESSION SET \"%s\"='%o';", ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY, (short) 0750));
     test("CREATE VIEW %s.%s.%s AS %s", MINIDFS_STORAGE_PLUGIN_NAME, "tmp", viewName, viewDef);
     final Path viewFilePath = new Path("/tmp/", viewName + DotFileType.VIEW.getEnding());
     fs.setOwner(viewFilePath, viewOwner, viewGroup);

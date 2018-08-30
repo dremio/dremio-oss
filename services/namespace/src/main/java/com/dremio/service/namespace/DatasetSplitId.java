@@ -69,7 +69,7 @@ public class DatasetSplitId {
   }
 
   @JsonValue
-  public String getSpiltId() {
+  public String getSplitId() {
     return compoundSplitId;
   }
 

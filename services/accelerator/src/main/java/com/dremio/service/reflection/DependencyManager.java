@@ -17,10 +17,12 @@ package com.dremio.service.reflection;
 
 import static com.dremio.service.reflection.DependencyUtils.filterDatasetDependencies;
 import static com.dremio.service.reflection.DependencyUtils.filterReflectionDependencies;
+import static com.google.common.base.Predicates.not;
 import static com.google.common.base.Predicates.notNull;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -114,11 +116,36 @@ public class DependencyManager {
       @Override
       public boolean apply(DatasetDependency dependency) {
         final AccelerationSettings settings = reflectionSettings.getReflectionSettings(dependency.getNamespaceKey());
-        return settings.getRefreshPeriod() == 0;
+        return Boolean.TRUE.equals(settings.getNeverRefresh());
       }
     });
   }
 
+
+  private List<String> findCyclicDependency(final ReflectionId reflectionId, final List<DependencyEntry> dependencyEntries) {
+    return filterReflectionDependencies(dependencyEntries)
+      .filter(new Predicate<ReflectionDependency>() {
+        @Override
+        public boolean apply(ReflectionDependency entry) {
+          return dependsOn(entry.getReflectionId(), reflectionId);
+        }
+      }).transform(new Function<ReflectionDependency, String>() {
+        @Override
+        public String apply(ReflectionDependency entry) {
+          return entry.getReflectionId().getId();
+        }
+      }).toList();
+  }
+
+  private boolean dependsOn(ReflectionId rId1, final ReflectionId rId2) {
+    return filterReflectionDependencies(getDependencies(rId1))
+      .anyMatch(new Predicate<ReflectionDependency>() {
+        @Override
+        public boolean apply(ReflectionDependency entry) {
+          return entry.getReflectionId().equals(rId2);
+        }
+      });
+  }
 
   /**
    * @return FAILED and cyclic dependencies
@@ -193,8 +220,7 @@ public class DependencyManager {
         public Long apply(DatasetDependency dependency) {
           // first account for the dataset's refresh period
           final AccelerationSettings settings = reflectionSettings.getReflectionSettings(dependency.getNamespaceKey());
-          final long refreshPeriod = settings.getRefreshPeriod();
-          final long refreshStart = refreshPeriod > 0 ? currentTime - refreshPeriod : 0;
+          final long refreshStart = Boolean.TRUE.equals(settings.getNeverRefresh()) || settings.getRefreshPeriod() == 0 ? 0 : currentTime - settings.getRefreshPeriod();
 
           // then account for any refresh request against the dataset
           final RefreshRequest request = requestsStore.get(dependency.getId());
@@ -259,7 +285,8 @@ public class DependencyManager {
         @Override
         public Long apply(DatasetDependency entry) {
           final AccelerationSettings settings = reflectionSettings.getReflectionSettings(entry.getNamespaceKey());
-          return settings.getGracePeriod();
+          // for reflections that never expire, use a grace period of 1000 years from now
+          return Boolean.TRUE.equals(settings.getNeverExpire()) ? (TimeUnit.DAYS.toMillis(365)*1000) : settings.getGracePeriod();
         }
       })
       .filter(notNull());
@@ -297,7 +324,7 @@ public class DependencyManager {
     return Optional.of(Ordering.natural().min(expirationTimes));
   }
 
-  List<DependencyEntry> getDependencies(final ReflectionId reflectionId) {
+  public List<DependencyEntry> getDependencies(final ReflectionId reflectionId) {
     return graph.getPredecessors(reflectionId);
   }
 
@@ -319,7 +346,7 @@ public class DependencyManager {
     if (Iterables.any(dependencies, isDeletedReflection)) {
       // filter out deleted reflections, and include all dataset dependencies
       dependencies = FluentIterable.from(dependencies)
-        .filter(isDeletedReflection)
+        .filter(not(isDeletedReflection))
         .append(extracted.getDecisionDependencies())
         .toSet();
     }

@@ -189,7 +189,8 @@ public final class QueryParser {
     @Override
     public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
       switch(phase){
-      case JOIN_PLANNING:
+      case JOIN_PLANNING_MULTI_JOIN:
+        // Join optimization starts with multijoin analysis phase
         builder.addPreJoinPlan(before);
         break;
       case LOGICAL:

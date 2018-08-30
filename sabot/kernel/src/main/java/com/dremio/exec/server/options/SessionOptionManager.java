@@ -18,10 +18,14 @@ package com.dremio.exec.server.options;
 import java.util.Collection;
 import java.util.Map;
 
+
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import com.dremio.common.map.CaseInsensitiveMap;
-import com.dremio.exec.server.options.OptionValue.OptionType;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidator;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
@@ -58,7 +62,7 @@ public class SessionOptionManager extends InMemoryOptionManager {
     if (!set) {
       return false;
     }
-    final String name = value.name;
+    final String name = value.getName();
     final OptionValidator validator = getValidator(name); // if set, validator must exist.
     final boolean shortLived = validator.isShortLived();
     if (shortLived) {
@@ -103,7 +107,7 @@ public class SessionOptionManager extends InMemoryOptionManager {
   private final Predicate<OptionValue> isLive = new Predicate<OptionValue>() {
     @Override
     public boolean apply(final OptionValue value) {
-      final String name = value.name;
+      final String name = value.getName();
       return !shortLivedOptions.containsKey(name) || withinRange(name);
     }
   };

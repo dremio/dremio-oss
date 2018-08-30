@@ -19,7 +19,7 @@ import java.lang.reflect.Array;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.complex.AbstractMapVector;
+import org.apache.arrow.vector.complex.AbstractStructVector;
 import org.apache.arrow.vector.complex.FieldIdUtil2;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
@@ -99,7 +99,7 @@ public class HyperVectorWrapper<T extends ValueVector> implements VectorWrapper<
     for (ValueVector v : this.vectors) {
       ValueVector vector = v;
       for (int i = 1; i < ids.length; i++) {
-        final AbstractMapVector mapLike = AbstractMapVector.class.cast(vector);
+        final AbstractStructVector mapLike = AbstractStructVector.class.cast(vector);
         if (mapLike == null) {
           return null;
         }

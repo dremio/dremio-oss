@@ -32,7 +32,7 @@ public class TestProjectPushDown extends PlanTestBase {
   public void testGroupBy() throws Exception {
     String expectedColNames = expectedColumnsString("marital_status");
     testPhysicalPlan(
-        "select marital_status, COUNT(1) as cnt from cp.`employee.json` group by marital_status",
+        "select marital_status, COUNT(1) as cnt from cp.\"employee.json\" group by marital_status",
         expectedColNames);
   }
 
@@ -40,7 +40,7 @@ public class TestProjectPushDown extends PlanTestBase {
   public void testOrderBy() throws Exception {
     String expectedColNames = expectedColumnsString("employee_id", "full_name", "first_name", "last_name");
     testPhysicalPlan("select employee_id , full_name, first_name , last_name "
-        + "from cp.`employee.json` order by first_name, last_name",
+        + "from cp.\"employee.json\" order by first_name, last_name",
         expectedColNames);
   }
 
@@ -49,7 +49,7 @@ public class TestProjectPushDown extends PlanTestBase {
     String expectedColNames = expectedColumnsString("employee_id", "full_name", "first_name", "last_name");
     testPhysicalPlan(
         "select employee_id + 100, full_name, first_name , last_name "
-            + "from cp.`employee.json` order by first_name, last_name",
+            + "from cp.\"employee.json\" order by first_name, last_name",
             expectedColNames);
   }
 
@@ -58,7 +58,7 @@ public class TestProjectPushDown extends PlanTestBase {
     String expectedColNames = expectedColumnsString("employee_id", "full_name", "first_name", "last_name");
     testPhysicalPlan(
         "select employee_id + 100, full_name, first_name , last_name "
-            + "from cp.`employee.json` where employee_id + 500 < 1000 ",
+            + "from cp.\"employee.json\" where employee_id + 500 < 1000 ",
             expectedColNames);
   }
 
@@ -69,9 +69,9 @@ public class TestProjectPushDown extends PlanTestBase {
 
     testPhysicalPlan("SELECT\n" + "  nations.N_NAME,\n" + "  regions.R_NAME\n"
         + "FROM\n"
-        + "  dfs.`[WORKING_PATH]/../../sample-data/nation.parquet` nations\n"
+        + "  dfs.\"[WORKING_PATH]/../../sample-data/nation.parquet\" nations\n"
         + "JOIN\n"
-        + "  dfs.`[WORKING_PATH]/../../sample-data/region.parquet` regions\n"
+        + "  dfs.\"[WORKING_PATH]/../../sample-data/region.parquet\" regions\n"
         + "  on nations.N_REGIONKEY = regions.R_REGIONKEY", expectedColNames1,
         expectedColNames2);
   }
@@ -103,7 +103,7 @@ public class TestProjectPushDown extends PlanTestBase {
 
   @Test
   public void testProjectPushDown() throws Exception {
-    final String pushDownSqlPattern = "select %s from cp.`%s` t";
+    final String pushDownSqlPattern = "select %s from cp.\"%s\" t";
     final String projection = "t.trans_id, t.user_info.cust_id, t.marketing_info.keywords[0]";
     final String expected = "columns=[`trans_id`, `user_info`.`cust_id`, `marketing_info`.`keywords`[0]]";
 
@@ -115,7 +115,7 @@ public class TestProjectPushDown extends PlanTestBase {
   @Ignore("DX-11163")
   @Test
   public void testProjectPastFilterPushDown() throws Exception {
-    final String pushDownSqlPattern = "select %s from cp.`%s` t where %s";
+    final String pushDownSqlPattern = "select %s from cp.\"%s\" t where %s";
     final String projection = "t.trans_id, t.user_info.cust_id, t.marketing_info.keywords[0]";
     final String filter = "t.another_field = 10 and t.columns[0] = 100 and t.columns[1] = t.other.columns[2]";
     final String expected = "columns=[`trans_id`, `another_field`, `user_info`.`cust_id`, `marketing_info`.`keywords`[0], `columns`[0], `columns`[1], `other`.`columns`[2]]";
@@ -128,7 +128,7 @@ public class TestProjectPushDown extends PlanTestBase {
   @Ignore("DX-11163")
   @Test
   public void testProjectPastJoinPushDown() throws Exception {
-    final String pushDownSqlPattern = "select %s from cp.`%s` t0, cp.`%s` t1 where %s";
+    final String pushDownSqlPattern = "select %s from cp.\"%s\" t0, cp.\"%s\" t1 where %s";
     final String projection = "t0.fcolumns[0], t0.fmy.field, t0.freally.nested.field[0], t1.scolumns[0], t1.smy.field, t1.sreally.nested.field[0]";
     final String filter = "t0.fname = t1.sname and t0.fcolumns[1]=10 and t1.scolumns[1]=100";
     final String firstExpected = "columns=[`fname`, `fcolumns`[0], `fmy`.`field`, `freally`.`nested`.`field`[0], `fcolumns`[1]]";
@@ -143,7 +143,7 @@ public class TestProjectPushDown extends PlanTestBase {
   @Ignore("DX-11163")
   @Test
   public void testProjectPastFilterPastJoinPushDown() throws Exception {
-    final String pushDownSqlPattern = "select %s from cp.`%s` t0, cp.`%s` t1 where %s";
+    final String pushDownSqlPattern = "select %s from cp.\"%s\" t0, cp.\"%s\" t1 where %s";
     final String projection = "t0.fcolumns[0], t0.fmy.field, t0.freally.nested.field[0], t1.scolumns[0], t1.smy.field, t1.sreally.nested.field[0]";
     final String filter = "t0.fname = t1.sname and t0.fcolumns[1] + t1.scolumns[1]=100";
     final String firstExpected = "columns=[`fname`, `fcolumns`[0], `fmy`.`field`, `freally`.`nested`.`field`[0], `fcolumns`[1]]";
@@ -158,7 +158,7 @@ public class TestProjectPushDown extends PlanTestBase {
   @Ignore("DX-11163")
   @Test
   public void testProjectPastFilterPastJoinPushDownWhenItemsAreWithinNestedOperators() throws Exception {
-    final String pushDownSqlPattern = "select %s from cp.`%s` t0, cp.`%s` t1 where %s";
+    final String pushDownSqlPattern = "select %s from cp.\"%s\" t0, cp.\"%s\" t1 where %s";
     final String projection = "concat(t0.fcolumns[0], concat(t1.scolumns[0], t0.fmy.field, t0.freally.nested.field[0], t1.smy.field, t1.sreally.nested.field[0]))";
     final String filter = "t0.fname = t1.sname and t0.fcolumns[1] + t1.scolumns[1]=100";
     final String firstExpected = "columns=[`fname`, `fcolumns`[0], `fmy`.`field`, `freally`.`nested`.`field`[0], `fcolumns`[1]]";
@@ -173,7 +173,7 @@ public class TestProjectPushDown extends PlanTestBase {
   @Ignore("DX-11163")
   @Test
   public void testProjectPastFilterPastJoinPastJoinPushDown() throws Exception {
-    final String pushDownSqlPattern = "select %s from cp.`%s` t0, cp.`%s` t1, cp.`%s` t2 where %s";
+    final String pushDownSqlPattern = "select %s from cp.\"%s\" t0, cp.\"%s\" t1, cp.\"%s\" t2 where %s";
     final String projection = "t0.fcolumns[0], t0.fmy.field, t0.freally.nested.field[0], t1.scolumns[0], t1.smy.field, t1.sreally.nested.field[0], t2.tcolumns[0], t2.tmy.field, t2.treally.nested.field[0]";
     final String filter = "t0.fname = t1.sname and t1.slastname = t2.tlastname and t0.fcolumns[1] + t1.scolumns[1] + t2.tcolumns[1]=100";
     final String firstExpected = "columns=[`fname`, `fcolumns`[0], `fmy`.`field`, `freally`.`nested`.`field`[0], `fcolumns`[1]]";
@@ -189,7 +189,7 @@ public class TestProjectPushDown extends PlanTestBase {
   @Ignore("DX-11163")
   @Test
   public void testProjectPastJoinPastFilterPastJoinPushDown() throws Exception {
-    final String pushDownSqlPattern = "select %s from cp.`%s` t0, cp.`%s` t1, cp.`%s` t2 where %s";
+    final String pushDownSqlPattern = "select %s from cp.\"%s\" t0, cp.\"%s\" t1, cp.\"%s\" t2 where %s";
     final String projection = "t0.fcolumns[0], t0.fmy.field, t0.freally.nested.field[0], t1.scolumns[0], t1.smy.field, t1.sreally.nested.field[0], t2.tcolumns[0], t2.tmy.field, t2.treally.nested.field[0]";
     final String filter = "t0.fname = t1.sname and t1.slastname = t2.tlastname and t0.fcolumns[1] + t1.scolumns[1] = 100";
     final String firstExpected = "columns=[`fname`, `fcolumns`[0], `fmy`.`field`, `freally`.`nested`.`field`[0], `fcolumns`[1]]";
@@ -205,7 +205,7 @@ public class TestProjectPushDown extends PlanTestBase {
 
   @Test
   public void testEmptyColProjectInTextScan() throws Exception {
-    final String sql = "SELECT count(*) cnt from cp.`store/text/data/d1/regions.csv`";
+    final String sql = "SELECT count(*) cnt from cp.\"store/text/data/d1/regions.csv\"";
     final String expected = expectedColumnsString();
     // Verify plan
     testPushDown(new PushDownTestInstance(sql, new String[] {expected}));
@@ -222,7 +222,7 @@ public class TestProjectPushDown extends PlanTestBase {
 
   @Test
   public void testEmptyColProjectInJsonScan() throws Exception {
-    final String sql = "SELECT count(*) cnt from cp.`employee.json`";
+    final String sql = "SELECT count(*) cnt from cp.\"employee.json\"";
     final String expected = expectedColumnsString();
 
     testPushDown(new PushDownTestInstance(sql, new String[] {expected}));
@@ -239,7 +239,7 @@ public class TestProjectPushDown extends PlanTestBase {
 
   @Test
   public void testEmptyColProjectInParquetScan() throws Exception {
-    final String sql = "SELECT 1 + 1 as val from cp.`tpch/region.parquet`";
+    final String sql = "SELECT 1 + 1 as val from cp.\"tpch/region.parquet\"";
     final String expected = expectedColumnsString();
 
     testPushDown(new PushDownTestInstance(sql, new String[] {expected}));
@@ -262,7 +262,7 @@ public class TestProjectPushDown extends PlanTestBase {
   @Test
   public void testSimpleProjectPastJoinPastFilterPastJoinPushDown() throws Exception {
 //    String sql = "select * " +
-//        "from cp.`%s` t0, cp.`%s` t1, cp.`%s` t2 " +
+//        "from cp.\"%s\" t0, cp.\"%s\" t1, cp.\"%s\" t2 " +
 //        "where t0.fname = t1.sname and t1.slastname = t2.tlastname and t0.fcolumns[0] + t1.scolumns = 100";
 
     final String firstExpected = "columns=[`a`, `fa`, `fcolumns`[0]]";
@@ -270,7 +270,7 @@ public class TestProjectPushDown extends PlanTestBase {
     final String thirdExpected = expectedColumnsString("d", "ta");
 
     String sql = "select t0.fa, t1.sa, t2.ta " +
-        " from cp.`%s` t0, cp.`%s` t1, cp.`%s` t2 " +
+        " from cp.\"%s\" t0, cp.\"%s\" t1, cp.\"%s\" t2 " +
         " where t0.a=t1.b and t1.c=t2.d and t0.fcolumns[0] + t1.a = 100";
     for (String table: MORE_TABLES) {
     testPushDown(new PushDownTestInstance(sql,

@@ -15,7 +15,7 @@
  */
 package com.dremio.service.accelerator;
 
-import static com.dremio.exec.ExecConstants.BIT_RPC_TIMEOUT;
+import static com.dremio.exec.rpc.RpcConstants.BIT_RPC_TIMEOUT;
 import static com.dremio.sabot.rpc.Protocols.REFLECTIONS_EXEC_TO_COORD;
 
 import javax.annotation.Nullable;
@@ -32,6 +32,7 @@ import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
+import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionStatusService;
 import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.PhysicalConnection;
@@ -55,12 +56,14 @@ class ReflectionProtocol implements FabricProtocol {
   private final BufferAllocator allocator;
   private final RpcConfig config;
   private final ReflectionStatusService reflectionStatusService;
+  private final ReflectionService reflectionService;
 
   public ReflectionProtocol(BufferAllocator allocator, ReflectionStatusService reflectionStatusService,
-                            SabotConfig config) {
+                            ReflectionService reflectionService, SabotConfig config) {
     this.allocator = allocator;
     this.config = getMapping(config);
     this.reflectionStatusService = reflectionStatusService;
+    this.reflectionService = reflectionService;
   }
 
   @Override
@@ -89,6 +92,9 @@ class ReflectionProtocol implements FabricProtocol {
 
       case ReflectionRPC.RpcType.RESP_REFRESH_INFO_VALUE:
         return ReflectionRPC.RefreshInfoResp.getDefaultInstance();
+
+      case ReflectionRPC.RpcType.RESP_DEPENDENCY_INFO_VALUE:
+        return ReflectionRPC.DependencyInfoResp.getDefaultInstance();
 
       default:
         throw new UnsupportedOperationException();
@@ -123,6 +129,21 @@ class ReflectionProtocol implements FabricProtocol {
         ReflectionRPC.RefreshInfoResp response = ReflectionRPC.RefreshInfoResp.newBuilder()
           .addAllRefreshInfo(refreshInfos).build();
         sender.send(new Response(ReflectionRPC.RpcType.RESP_REFRESH_INFO, response));
+        break;
+      }
+      case ReflectionRPC.RpcType.REQ_DEPENDENCY_INFO_VALUE: {
+        Iterable<AccelerationListManager.DependencyInfo> dependencyInfos = reflectionService.getReflectionDependencies();
+        FluentIterable<ReflectionRPC.DependencyInfo> dependenciesProto = FluentIterable.from(dependencyInfos)
+          .transform(new Function<AccelerationListManager.DependencyInfo, ReflectionRPC.DependencyInfo>() {
+            @Override
+            public ReflectionRPC.DependencyInfo apply(AccelerationListManager.DependencyInfo dependencyInfo) {
+              return dependencyInfo.toProto();
+            }
+          });
+
+        ReflectionRPC.DependencyInfoResp response = ReflectionRPC.DependencyInfoResp.newBuilder()
+          .addAllDependencyInfo(dependenciesProto).build();
+        sender.send(new Response(ReflectionRPC.RpcType.RESP_DEPENDENCY_INFO, response));
         break;
       }
       default:

@@ -20,14 +20,12 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.ArrowType.Null;
-
-
+import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,8 +42,6 @@ import com.dremio.plugins.elastic.mapping.ElasticMappingSet.Indexing;
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.Type;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -80,29 +76,32 @@ public class SchemaMerger {
 
   @VisibleForTesting
   List<MergeField> mergeFields(SchemaPath parent, List<ElasticField> declaredFields, List<Field> observedFields){
-    final Map<String, Field> batchFieldMap = new HashMap<>(FluentIterable.from(observedFields).uniqueIndex(new Function<Field, String>(){
-      @Override
-      public String apply(Field input) {
-        return input.getName();
-      }}));
+    if (observedFields.isEmpty()) {
+      return declaredFields.stream()
+          .map(f -> new MergeField(parent, f))
+          .collect(Collectors.toList());
+    }
 
-    // we'll add all the elastic columns, associating where we have an observed schema.
+    final Map<String, ElasticField> newFieldMap = declaredFields.stream()
+        .collect(Collectors.toMap(ElasticField::getName, f -> f));
+
+    // Go through the observed schema fields and add them in order
     final List<MergeField> outputFields = new ArrayList<>();
-    for(ElasticField declaredField : declaredFields){
-      final Field observedField = batchFieldMap.remove(declaredField.getName());
+    for(Field observedField : observedFields){
+      final ElasticField declaredField = newFieldMap.remove(observedField.getName());
 
-      if(observedField == null){
-        // this is a field that we haven't observed, add it with default settings.
-        outputFields.add(new MergeField(parent, declaredField));
+      if (declaredField == null) {
+        // this field doesn't exist in new schema, but we still need to add to the list (TODO: add explaination why)
+        outputFields.add(new MergeField(parent, null, observedField));
         continue;
       }
 
       outputFields.add(mergeField(parent, declaredField, CompleteType.fromField(observedField)));
     }
 
-    // Any remaining field that we didn't match already should be added as well.
-    for(Field f : batchFieldMap.values()){
-      outputFields.add(new MergeField(parent, null, f));
+    // Any remaining new fields that are not observed previously should be added with default settings
+    for(ElasticField declaredField : newFieldMap.values()) {
+      outputFields.add(new MergeField(parent, declaredField));
     }
 
     return outputFields;
@@ -126,30 +125,23 @@ public class SchemaMerger {
     }
 
     // default behavior.
-    if(declaredField.getType() != Type.OBJECT && declaredField.getType() != Type.NESTED) {
-      // the exact types should match.
-      if(!CompleteType.fromField(declaredField.toArrowField()).equals(observedType)){
-        throw failure(parent, declaredField, observedType);
-      }
-      // scalar (or defined structure) types match, all is good.
+    if((declaredField.getType() == Type.OBJECT || declaredField.getType() == Type.NESTED) &&
+        (observedType.isStruct())) {
+      // nested case
+      SchemaPath newParent = parent == null ? SchemaPath.getSimplePath(declaredField.getName()) : parent.getChild(declaredField.getName());
+      final List<MergeField> fields = mergeFields(newParent, declaredField.getChildren(), observedType.getChildren());
+      return new MergeField(parent, declaredField, fields);
+    } else {
       return new MergeField(parent, declaredField, observedType);
-
     }
-
-    // we are in the object/nested state.
-    if(observedType != null && !observedType.isStruct()){
-      throw failure(parent, declaredField, observedType);
-    }
-
-    final List<MergeField> fields = mergeFields(parent, declaredField.getChildren(), observedType.getChildren());
-    return new MergeField(parent, declaredField, fields);
   }
 
   private MergeField mergeUnion(SchemaPath parent, ElasticField declaredField, CompleteType observedType){
     List<Field> fields = observedType.getChildren();
 
     if(fields.size() != 2){
-      throw failure(parent, declaredField, observedType);
+      // fall back to default merging, same as below
+      return new MergeField(parent, declaredField, observedType);
     }
 
     Field f1 = fields.get(0);
@@ -159,7 +151,7 @@ public class SchemaMerger {
 
     if( !(t1.isList() && !t2.isList()) &&  !(!t1.isList() && t2.isList())){
       // one of the two types has to be a list type.
-      throw failure(parent, declaredField, observedType);
+      return new MergeField(parent, declaredField, observedType);
     }
 
 
@@ -170,7 +162,7 @@ public class SchemaMerger {
 
     // check that the basic list types are the same. We don't compare full types here because it could be that the two different structs (only a subset of fields showed up in one or both structs).
     if(!listChild.getType().equals(nonListType.getType()) && !listChild.getType().equals(Null.INSTANCE)){
-      throw failure(parent, declaredField, observedType);
+      return new MergeField(parent, declaredField, observedType);
     }
 
     CompleteType combined = nonListType.merge(CompleteType.fromField(listChild));
@@ -213,12 +205,18 @@ public class SchemaMerger {
       this.children = ImmutableList.of();
     }
 
+    // default merging, set type to unknown when not matching
     public MergeField(SchemaPath parent, ElasticField elasticField, CompleteType actualType) {
       super();
       this.parent = parent;
       this.elasticField = elasticField;
       this.actualField = actualType.toField(elasticField.getName());
       this.children = ImmutableList.of();
+
+      if (!CompleteType.fromField(elasticField.toArrowField()).equals(actualType)) {
+        // check for type match, set to unknown if fails
+        elasticField.setTypeUnknown();
+      }
     }
 
     public MergeField(SchemaPath parent, ElasticField elasticField, Field actualField) {
@@ -299,8 +297,10 @@ public class SchemaMerger {
 
   private static void recordAnnotations(SchemaPath path, ElasticField elasticField, ResultBuilder resultToPopulate){
     if(elasticField != null){
-      if(elasticField.getIndexing() != Indexing.NOT_ANALYZED){
+      if(elasticField.getIndexing() == Indexing.ANALYZED){
         resultToPopulate.isAnalyzed(path);
+      } else if (elasticField.getIndexing() == Indexing.NOT_INDEXED) {
+        resultToPopulate.isNotIndexed(path);
       }
 
       if (elasticField.isNormalized()) {
@@ -396,6 +396,10 @@ public class SchemaMerger {
 
     public void isAnalyzed(SchemaPath path){
       annotations.put(path, anno(path).setAnalyzed(true).build());
+    }
+
+    public void isNotIndexed(SchemaPath path) {
+      annotations.put(path, anno(path).setNotIndexed(true).build());
     }
 
     public void isNormalized(SchemaPath path) {

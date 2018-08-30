@@ -18,6 +18,9 @@ package com.dremio.exec.planner.fragment;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.exec.proto.CoordinationProtos;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 public class PlanningSet implements Iterable<Wrapper> {
@@ -60,4 +63,19 @@ public class PlanningSet implements Iterable<Wrapper> {
     return "FragmentPlanningSet:\n" + fragmentMap.values() + "]";
   }
 
+  /**
+   * Update Wrappers with allocations received from scheduler
+   */
+  public void updateWithAllocations(Map<Integer, Map<CoordinationProtos.NodeEndpoint, Long>> allocations) throws ExecutionSetupException {
+    for (Wrapper wrapper : fragmentMap.values()) {
+      if (!wrapper.isEndpointsAssignmentDone()) {
+        throw new ExecutionSetupException("Node assignment is not done for major Fragment: " +
+          wrapper.getMajorFragmentId());
+      }
+      int majorFragmentId = wrapper.getMajorFragmentId();
+      final Map<CoordinationProtos.NodeEndpoint, Long> majorFragmentAllocations = allocations.get(majorFragmentId);
+      Preconditions.checkNotNull(majorFragmentAllocations);
+      wrapper.assignMemoryAllocations(allocations.get(majorFragmentId));
+    }
+  }
 }

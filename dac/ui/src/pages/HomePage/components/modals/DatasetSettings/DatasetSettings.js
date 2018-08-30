@@ -33,8 +33,8 @@ import AccelerationController from 'components/Acceleration/AccelerationControll
 import DatasetSettingsMixin from 'dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetSettingsMixin';
 
 import { showUnsavedChangesConfirmDialog } from 'actions/confirmation';
+import NavPanel from 'components/Nav/NavPanel';
 import FileFormatController from './FileFormatController';
-import NavPanel from './NavPanel';
 import AccelerationUpdatesController from './AccelerationUpdates/AccelerationUpdatesController';
 import DatasetOverviewForm from './DatasetOverviewForm';
 

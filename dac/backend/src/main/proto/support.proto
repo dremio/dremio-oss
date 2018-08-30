@@ -86,4 +86,5 @@ message SupportHeader {
   optional ClusterInfo cluster_info = 1;
   optional Submission submission = 2;
   optional JobAttempt job = 3;
+  optional string dremio_version = 4;
 }

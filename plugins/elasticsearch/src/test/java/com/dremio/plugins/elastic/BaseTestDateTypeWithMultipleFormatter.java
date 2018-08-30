@@ -63,6 +63,17 @@ public class BaseTestDateTypeWithMultipleFormatter extends ElasticBaseTestQuery 
     elastic.load(schema, table, data);
   }
 
+  protected void populateNullWithDefaultFormatter() throws IOException {
+    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
+      new ElasticsearchCluster.ColumnData("field", DATE, new Object[][]{
+        {DATE_TIME_STRING},
+        {DATE_TIME_STRING_2},
+        null
+      })
+    };
+    elastic.load(schema, table, data);
+  }
+
   protected void populateCustomFormatter() throws IOException {
     ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
       new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "MM-dd-yyyy||strict_date_optional_time"), new Object[][]{
@@ -91,13 +102,14 @@ public class BaseTestDateTypeWithMultipleFormatter extends ElasticBaseTestQuery 
   }
 
   /**
-   * Testing time formats:  "basic_time||basic_t_Time||time_no_millis"
+   * Testing time formats:  "basic_time||time_no_millis"
+   *
+   * basic_t_time vs basic_t_Time between ES 5 and 6, so this format is not tested
    */
   protected void populateTimeFormatter() throws IOException {
     ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
-      new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "basic_time||basic_t_Time||time_no_millis"), new Object[][]{
+      new ElasticsearchCluster.ColumnData("field", DATE, ImmutableMap.of("format", "basic_time||time_no_millis"), new Object[][]{
         {"010203.123Z"},
-        {"T010203.345Z"},
         {"01:01:15Z"},
         {"010203.345Z"}
       })

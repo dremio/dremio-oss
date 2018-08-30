@@ -74,12 +74,12 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.server.options.Options;
-import com.dremio.exec.server.options.TypeValidators.BooleanValidator;
-import com.dremio.exec.server.options.TypeValidators.StringValidator;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.options.OptionManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.StringValidator;
 import com.dremio.service.Pointer;
 import com.dremio.service.Service;
 import com.dremio.service.job.proto.JobId;
@@ -383,6 +383,9 @@ public class SupportService implements Service {
         .setLast(user.getLastName());
 
     header.setSubmission(submission);
+
+    // record the dremio version that was used to run the query in the header
+    header.setDremioVersion(jobsService.get().getProfile(id, 0).getDremioVersion());
 
     ProtostuffUtil.toJSON(output, header, SupportHeader.getSchema(), false);
     return true;

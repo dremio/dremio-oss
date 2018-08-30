@@ -55,6 +55,7 @@ import com.dremio.exec.planner.physical.PrelUtil;
  */
 public abstract class ProjectRelBase extends Project {
   private final int nonSimpleFieldCount;
+  private final int simpleFieldCount;
   private final boolean hasContains;
 
   protected ProjectRelBase(Convention convention,
@@ -65,7 +66,8 @@ public abstract class ProjectRelBase extends Project {
                                 RelDataType rowType) {
     super(cluster, traits, child, exps, rowType, Flags.BOXED);
     assert getConvention() == convention;
-    nonSimpleFieldCount = this.getRowType().getFieldCount() - getSimpleFieldCount();
+    this.simpleFieldCount = getSimpleFieldCount();
+    this.nonSimpleFieldCount = this.getRowType().getFieldCount() - simpleFieldCount;
 
     boolean foundContains = false;
     int i = 0;
@@ -98,8 +100,7 @@ public abstract class ProjectRelBase extends Project {
     double rowCount = relMetadataQuery.getRowCount(this);
     // cpu is proportional to the number of columns and row count.  For complex expressions, we also add
     // additional cost for those columns (multiply by DremioCost.PROJECT_CPU_COST).
-    double cpuCost = (DremioCost.BASE_CPU_COST * rowCount * getRowType().getFieldCount())
-        + (DremioCost.PROJECT_CPU_COST * (nonSimpleFieldCount > 0 ? rowCount : 0) * nonSimpleFieldCount);
+    double cpuCost = (DremioCost.PROJECT_SIMPLE_CPU_COST * rowCount * simpleFieldCount) + (DremioCost.PROJECT_CPU_COST * (nonSimpleFieldCount > 0 ? rowCount : 0) * nonSimpleFieldCount);
     Factory costFactory = (Factory) planner.getCostFactory();
     return costFactory.makeCost(rowCount, cpuCost, 0, 0);
   }

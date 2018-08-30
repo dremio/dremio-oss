@@ -13,11 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.account-info-form {
-  input[type=password]::-ms-reveal,
-  input[type=password]::-ms-clear,
-  input[type=text]::-ms-reveal,
-  input[type=text]::-ms-clear  {
-    display: none;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+
+  .account-info-form {
+    input[type=password]::-ms-reveal,
+    input[type=password]::-ms-clear,
+    input[type=text]::-ms-reveal,
+    input[type=text]::-ms-clear  {
+      display: none;
+    }
   }
 }

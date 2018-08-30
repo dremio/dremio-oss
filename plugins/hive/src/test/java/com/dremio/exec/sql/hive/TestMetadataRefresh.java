@@ -31,7 +31,7 @@ public class TestMetadataRefresh extends HiveTestBase {
 
     // now try to read refresh a table where we have a DatasetConfig but not a ReadDefinition.
     testBuilder()
-    .sqlQuery("ALTER TABLE hive.`default`.kv REFRESH METADATA")
+    .sqlQuery("ALTER TABLE hive.\"default\".kv REFRESH METADATA")
     .unOrdered()
     .baselineColumns("ok", "summary")
     .baselineValues(true, "Metadata for table 'hive.default.kv' refreshed.")

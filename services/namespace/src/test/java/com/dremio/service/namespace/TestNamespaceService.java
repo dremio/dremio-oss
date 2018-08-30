@@ -495,6 +495,38 @@ public class TestNamespaceService {
     }
   }
 
+  @Test
+  public void testGetDatasetCount() throws Exception {
+    try (final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false)) {
+      kvstore.start();
+      final NamespaceService ns = new NamespaceServiceImpl(kvstore);
+
+      // create some nested datasets
+      addSource(ns, "a");
+
+      for (int i = 0; i < 10; i++) {
+        addDS(ns, "a.foo" + i);
+      }
+
+      for (int i = 0; i < 50; i++) {
+        addDS(ns, "a.foo0.bar" + i);
+      }
+
+      for (int i = 0; i < 50; i++) {
+        addDS(ns, "a.baz" + i);
+      }
+
+      // test count bound
+      BoundedDatasetCount boundedDatasetCount = ns.getDatasetCount(new NamespaceKey("a"), 5000, 30);
+      assertTrue(boundedDatasetCount.isCountBound());
+      assertEquals(boundedDatasetCount.getCount(), 30);
+
+      // test time bound - the code checks every 50 children visited to see if the time bound has been hit
+      boundedDatasetCount = ns.getDatasetCount(new NamespaceKey("a"), 1, 1000);
+      assertTrue(boundedDatasetCount.isTimeBound());
+    }
+  }
+
   // rewrite this as a reflection test
 /*
   @Test

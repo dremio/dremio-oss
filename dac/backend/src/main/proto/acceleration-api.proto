@@ -220,7 +220,7 @@ message LayoutDetailsApiDescriptor {
   // dimension fields
   repeated LayoutDimensionFieldApiDescriptor dimensionField = 3;
   // measure fields
-  repeated LayoutFieldApiDescriptor measureField = 4;
+  repeated LayoutMeasureFieldApiDescriptor measureField = 4;
   // distribution fields
   repeated LayoutFieldApiDescriptor displayField = 5;
   // distribution fields
@@ -239,6 +239,12 @@ message LayoutDimensionFieldApiDescriptor {
   required string name = 1;
   // granularity
   optional DimensionGranularity granularity = 2;
+}
+
+message LayoutMeasureFieldApiDescriptor {
+  // field name
+  required string name = 1;
+  repeated MeasureType measure_type = 2;
 }
 
 message AccelerationInfoApiDescriptor {

@@ -15,8 +15,6 @@
  */
 package com.dremio.plugins.elastic.planning.rules;
 
-import static org.apache.calcite.rex.RexUtil.toCnf;
-
 import java.io.IOException;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -29,10 +27,7 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
-import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.elasticsearch.index.query.QueryBuilder;
-
 import com.dremio.exec.planner.common.FilterRelBase;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.physical.FilterPrel;
@@ -99,8 +94,8 @@ public class ElasticFilterRule extends RelOptRule {
 
     Residue newResidue = PredicateAnalyzer.analyzeConjunctions(scan, newFilter.getCondition());
     if (newResidue.none()) {
-      QueryBuilder queryBuilder = PredicateAnalyzer.analyze(scan, newFilter.getCondition());
-      PredicateAnalyzer.queryAsJson(queryBuilder);
+      PredicateAnalyzer.analyze(scan, newFilter.getCondition());
+
       final RexNode residueCondition = residue.getResidue(originalCondition, rexBuilder);
       if (!residueCondition.isAlwaysTrue()) {
         final Filter residueFilter = filter.copy(filter.getTraitSet(), newInter, residueCondition);

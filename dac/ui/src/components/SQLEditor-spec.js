@@ -29,7 +29,8 @@ describe('SQLEditor', () => {
     instance.monacoEditorComponent = {
       editor: {
         setValue: sinon.stub(),
-        deltaDecorations: sinon.stub()
+        deltaDecorations: sinon.stub(),
+        focus: sinon.stub()
       }
     };
   };
@@ -40,7 +41,8 @@ describe('SQLEditor', () => {
         return { isEmpty: sinon.stub() };
       },
       editor: {
-        TrackedRangeStickiness: { NeverGrowsWhenTypingAtEdges: false }
+        TrackedRangeStickiness: { NeverGrowsWhenTypingAtEdges: false },
+        OverviewRulerLane: {} // an enum
       }
     };
   };

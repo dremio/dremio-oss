@@ -17,9 +17,11 @@ package com.dremio.exec.planner.sql.handlers.commands;
 
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PhysicalPlanReader;
+import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
+import com.dremio.resource.ResourceAllocator;
 
 /**
  * Go from prepare to execution.
@@ -36,8 +38,8 @@ public class PrepareToExecution extends AsyncCommand<Object> {
 
   public PrepareToExecution(PreparedPlan plan, QueryContext context, AttemptObserver observer,
       PhysicalPlanReader reader,
-      CoordToExecTunnelCreator tunnelCreator) {
-    super(context);
+      CoordToExecTunnelCreator tunnelCreator, ResourceAllocator queryResourceManager) {
+    super(context, queryResourceManager, observer);
     this.plan = plan;
     this.context = context;
     this.observer = observer;
@@ -48,8 +50,8 @@ public class PrepareToExecution extends AsyncCommand<Object> {
   @Override
   public double plan() throws Exception {
     plan.replay(observer);
-    setQueueTypeFromPlan(plan.getPlan());
-    exec = ExecutionPlanCreator.getExecutionPlan(context, reader, observer, plan.getPlan(), getQueueType());
+    final PlanningSet planningSet = allocateResourcesBasedOnPlan(plan.getPlan());
+    exec = ExecutionPlanCreator.getExecutionPlan(context, reader, observer, plan.getPlan(), resourceSet, planningSet);
     observer.planCompleted(exec);
     return plan.getPlan().getCost();
   }

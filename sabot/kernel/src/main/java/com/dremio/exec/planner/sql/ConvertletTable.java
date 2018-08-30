@@ -19,6 +19,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFamily;
 import org.apache.calcite.rex.RexBuilder;
@@ -26,6 +27,8 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlIntervalQualifier;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
@@ -37,6 +40,7 @@ import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
 import org.apache.calcite.sql2rel.StandardConvertletTable;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.sql.ChronoConvertlets.CurrentDateConvertlet;
 import com.dremio.exec.planner.sql.ChronoConvertlets.CurrentTimeConvertlet;
 import com.dremio.exec.planner.sql.ChronoConvertlets.CurrentTimeStampConvertlet;
@@ -70,9 +74,7 @@ public class ConvertletTable extends ReflectiveConvertletTable {
   public ConvertletTable(ContextInformation contextInformation) {
     super();
 
-    registerOp(SqlStdOperatorTable.TIMESTAMP_ADD, DEFAULT_CONVERTLET);
     registerOp(SqlStdOperatorTable.TIMESTAMP_DIFF, DEFAULT_CONVERTLET);
-    registerOp(SqlStdOperatorTable.EXTRACT, ExtractConvertlet.INSTANCE);
     registerOp(SqlStdOperatorTable.IS_DISTINCT_FROM, DistinctFromConvertlet.INSTANCE);
     registerOp(SqlStdOperatorTable.IS_NOT_DISTINCT_FROM, DistinctFromConvertlet.INSTANCE);
     registerOp(SqlFlattenOperator.INSTANCE, FlattenConvertlet.INSTANCE);
@@ -108,6 +110,35 @@ public class ConvertletTable extends ReflectiveConvertletTable {
           return e;
         }
       }
+    });
+    // For normalizing TimestampAdd to Datetime_Plus
+    registerOp(SqlStdOperatorTable.TIMESTAMP_ADD, new SqlRexConvertlet() {
+        @Override
+        public RexNode convertCall(SqlRexContext cx, SqlCall call) {
+          // TIMESTAMPADD(unit, count, timestamp)
+          //  => timestamp + count * INTERVAL '1' UNIT
+          final RexBuilder rexBuilder = cx.getRexBuilder();
+          final SqlLiteral unitLiteral = call.operand(0);
+          final TimeUnit unit = unitLiteral.symbolValue(TimeUnit.class);
+          switch (unit) {
+            // TODO(DX-11268): Support sub-second intervals with TIMESTAMPADD.
+            case MILLISECOND:
+            case MICROSECOND:
+              throw UserException.unsupportedError()
+                .message("TIMESTAMPADD function supports the following time units: YEAR, QUARTER, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND")
+                .build();
+          }
+          final RexNode timestampNode = cx.convertExpression(call.operand(2));
+          final RexNode multiplyNode = rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY,
+            rexBuilder.makeIntervalLiteral(unit.multiplier,
+              new SqlIntervalQualifier(unit, null, unitLiteral.getParserPosition())),
+            cx.convertExpression(call.operand(1)));
+
+          return rexBuilder.makeCall(SqlStdOperatorTable.DATETIME_PLUS,
+            timestampNode,
+            multiplyNode);
+
+        }
     });
 
     // these convertlets replace "current_date", "current_time" (or "localtime") and "current_timestamp"

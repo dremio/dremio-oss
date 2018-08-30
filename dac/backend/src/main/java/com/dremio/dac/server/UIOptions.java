@@ -15,9 +15,9 @@
  */
 package com.dremio.dac.server;
 
-import com.dremio.exec.server.options.Options;
-import com.dremio.exec.server.options.TypeValidators.BooleanValidator;
-import com.dremio.exec.server.options.TypeValidators.StringValidator;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.StringValidator;
 
 /**
  * Options to customize the UI behavior
@@ -28,5 +28,12 @@ public final class UIOptions {
 
   public static final StringValidator TABLEAU_TDS_MIMETYPE  = new StringValidator("ui.tableau.tds-mime-type", "application/tds");
 
+  public static final BooleanValidator ALLOW_FILE_UPLOADS  = new BooleanValidator("ui.upload.allow", true);
+
   public static final StringValidator WHITE_LABEL_URL  = new StringValidator("ui.whitelabel.url", "dremio");
+
+  /*
+  * Specifies weather non admin users are able to perform CRUD operations for spaces
+  */
+  public static final BooleanValidator ALLOW_SPACE_MANAGEMENT = new BooleanValidator("ui.space.allow-manage", false);
 }

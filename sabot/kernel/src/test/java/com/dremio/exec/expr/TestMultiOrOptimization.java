@@ -22,10 +22,11 @@ import org.joda.time.LocalTime;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
+
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.server.options.OptionValue;
-import com.dremio.exec.server.options.OptionValue.OptionType;
 import com.dremio.exec.util.AssertionUtil;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
 import com.dremio.sabot.BaseTestFunction;
 import com.dremio.sabot.Fixtures;
 import com.google.common.collect.ObjectArrays;

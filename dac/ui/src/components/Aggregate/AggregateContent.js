@@ -17,13 +17,14 @@ import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
+import classNames from 'classnames';
 
 import DragColumnMenu from 'components/DragComponents/DragColumnMenu';
 import ColumnDragItem from 'utils/ColumnDragItem';
 
 import ColumnDragArea from './components/ColumnDragArea';
 import MeasureDragArea, { MEASURE_DRAG_AREA_TEXT } from './components/MeasureDragArea';
-import { borderSolidGray, fieldAreaWidth, whiteBackground } from './aggregateStyles';
+import { base, inner, leftBorder, fullHeight, contentPadding } from './AggregateContent.less';
 
 export const NOT_SUPPORTED_TYPES = new Set(['MAP', 'LIST', 'STRUCT']);
 
@@ -42,7 +43,8 @@ class AggregateContent extends Component {
     path: PropTypes.string,
     isDragInProgress: PropTypes.bool,
     style: PropTypes.object,
-    dragItem: PropTypes.instanceOf(ColumnDragItem)
+    dragItem: PropTypes.instanceOf(ColumnDragItem),
+    className: PropTypes.string
   };
 
   static defaultProps = {
@@ -91,7 +93,8 @@ class AggregateContent extends Component {
   render() {
     const {
       allColumns, onDrop, fields, dragType, isDragInProgress, dragItem,
-      handleDragStart, onDragEnd, canUseFieldAsBothDimensionAndMeasure
+      handleDragStart, onDragEnd, canUseFieldAsBothDimensionAndMeasure,
+      className
     } = this.props;
     const commonDragAreaProps = {
       allColumns,
@@ -104,13 +107,14 @@ class AggregateContent extends Component {
       dragItem,
       canUseFieldAsBothDimensionAndMeasure
     };
+    const measurementCls = classNames(['aggregate-measurement', fullHeight]);
 
     return (
-      <div className='aggregate-content' style={[styles.base, this.props.style]}>
-        <div style={[styles.inner]}>
+      <div className={classNames(['aggregate-content', base, className])} style={this.props.style}>
+        <div className={inner}>
           <DragColumnMenu
-            style={[styles.dragColumn]}
             items={allColumns}
+            className={fullHeight}
             disabledColumnNames={this.disabledColumnNames}
             columnType='column'
             handleDragStart={handleDragStart}
@@ -119,48 +123,34 @@ class AggregateContent extends Component {
             name={`${this.props.path} (${la('Current')})`}
           />
         </div>
-        <ColumnDragArea
-          {...commonDragAreaProps}
-          columnsField={fields.columnsDimensions}/>
-        {
-          this.props.canSelectMeasure ?
-            <MeasureDragArea
-              {...commonDragAreaProps}
-              columnsField={fields.columnsMeasures}/> :
-            <ColumnDragArea
-              {...commonDragAreaProps}
-              dragOrigin='measures'
-              dragAreaText={MEASURE_DRAG_AREA_TEXT}
-              columnsField={fields.columnsMeasures}/>
-        }
+        <div className={leftBorder}>
+          <ColumnDragArea
+            className={classNames(['aggregate-dimension', fullHeight])}
+            dragContentCls={contentPadding}
+            {...commonDragAreaProps}
+            columnsField={fields.columnsDimensions}/>
+        </div>
+        <div className={leftBorder}>
+          {
+            this.props.canSelectMeasure ?
+              <MeasureDragArea
+                dragContentCls={contentPadding}
+                className={measurementCls}
+                {...commonDragAreaProps}
+                columnsField={fields.columnsMeasures}/> :
+              <ColumnDragArea
+                dragContentCls={contentPadding}
+                className={measurementCls}
+                {...commonDragAreaProps}
+                dragOrigin='measures'
+                dragAreaText={MEASURE_DRAG_AREA_TEXT}
+                columnsField={fields.columnsMeasures}/>
+          }
+        </div>
 
       </div>
     );
   }
 }
-
-const styles = {
-  base: {
-    display: 'flex',
-    flexWrap: 'nowrap',
-    flexGrow: 1,
-    backgroundColor: whiteBackground,
-    minHeight: 180,
-    border: borderSolidGray,
-    width: '100%',
-    overflow: 'hidden'
-  },
-  inner: {
-    minWidth: fieldAreaWidth,
-    marginLeft: -2,
-    overflow: 'hidden'
-  },
-  dragColumn: {
-    paddingRight: 5,
-    paddingLeft: 7,
-    borderRight: 0,
-    height: '100%'
-  }
-};
 
 export default AggregateContent;

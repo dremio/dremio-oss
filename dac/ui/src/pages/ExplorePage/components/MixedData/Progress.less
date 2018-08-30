@@ -13,28 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-progress[value] {
-  appearance: none;
-  height: 8px;
-  border: none;
-}
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-progress::-webkit-progress-value {
-  background-color: #5ED7B9;
-}
-
-progress::-moz-progress-bar {
-  background-color: #5ED7B9;
-}
-
-.clean-data-area {
-  progress::-webkit-progress-bar {
-    background-color: #F6F6F6;
+  progress[value] {
+    appearance: none;
+    height: 8px;
+    border: none;
   }
-}
 
-.clean-data-transform {
-  progress::-webkit-progress-bar {
-    background-color: #F5FCFF;
+  progress::-webkit-progress-value {
+    background-color: #5ED7B9;
+  }
+
+  progress::-moz-progress-bar {
+    background-color: #5ED7B9;
+  }
+
+  .clean-data-area {
+    progress::-webkit-progress-bar {
+      background-color: #F6F6F6;
+    }
+  }
+
+  .clean-data-transform {
+    progress::-webkit-progress-bar {
+      background-color: #F5FCFF;
+    }
   }
 }

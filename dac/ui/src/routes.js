@@ -77,6 +77,16 @@ export function getLoginUrl() {
   return `${LOGIN_PATH}?redirect=${encodeURIComponent(window.location.href.slice(window.location.origin.length))}`;
 }
 
+const resourceKeyName = 'resourceId';
+export const getSourceRoute = (rootType, component) => {
+  const suffix = `/${rootType}/:${resourceKeyName}`;
+  return (
+    <Route path={suffix} component={component}>
+      <Route path={`${suffix}/folder/**`} />
+    </Route>
+  );
+};
+
 export default (
   <Route path='/' component={App}>
     {/* TODO conflict with (/:resources), need to change resources for all components */}
@@ -130,9 +140,13 @@ export default (
     <Route component={UserIsAuthenticated(HomeModals)}>
       <Route component={Page}>
         <IndexRoute component={Home} /> {/* todo: is this valid?*/}
-        <Route path='/source(/:resourceId)' component={Home} />
-        <Route path='/space/:spaceId' component={Home} />
-        <Route path='/:rootType/:rootName/folder/**' component={Home} />
+        {/* a complicate route structure below is needed for correct work of Link component
+        from router package for case of onlyActiveOnIndex=false */}
+        {getSourceRoute('source', Home)}
+        {getSourceRoute('space', Home)}
+        <Route path='/home' component={Home}>
+          <Route path={`/home/:${resourceKeyName}/folder/**`} />
+        </Route>
         <Route path='/spaces/list' component={AllSpaces} />
         <Route path='/sources/list' component={AllSources} />
       </Route>

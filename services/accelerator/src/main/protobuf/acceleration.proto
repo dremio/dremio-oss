@@ -126,7 +126,7 @@ message LayoutDetails {
   // dimension fields
   repeated LayoutDimensionField dimensionField = 3;
   // measure fields
-  repeated LayoutField measureField = 4;
+  repeated LayoutMeasureField measureField = 4;
   // display fields
   repeated LayoutField displayField = 5;
   // distribution fields
@@ -147,6 +147,13 @@ message LayoutSortField {
   required LayoutField field = 1;
   // sort order
   required FieldSortOrder ordering = 2;
+}
+
+message LayoutMeasureField {
+  // field name
+  required string name = 1;
+  
+  repeated MeasureType measure_type = 2;
 }
 
 message LayoutDimensionField {

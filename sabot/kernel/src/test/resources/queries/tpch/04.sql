@@ -3,7 +3,7 @@ select
   o.o_orderpriority,
   count(*) as order_count
 from
-  cp.`tpch/orders.parquet` o
+  cp."tpch/orders.parquet" o
 
 where
   o.o_orderdate >= date '1996-10-01'
@@ -13,7 +13,7 @@ where
     select
       *
     from
-      cp.`tpch/lineitem.parquet` l
+      cp."tpch/lineitem.parquet" l
     where
       l.l_orderkey = o.o_orderkey
       and l.l_commitdate < l.l_receiptdate

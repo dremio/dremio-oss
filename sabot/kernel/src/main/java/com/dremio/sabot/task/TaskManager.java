@@ -66,6 +66,12 @@ public interface TaskManager<T extends Task> {
      * @return task selected to run next
      */
     TaskHandle<T> getTask(long time);
+
+    int getNumTasks();
+
+    int getNumStaged();
+
+    int getNumWorkRequests();
   }
 
   /**

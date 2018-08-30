@@ -35,14 +35,14 @@ import com.dremio.service.namespace.dataset.proto.DatasetSplit;
  * Group scan for file system based tables
  */
 public class ParquetGroupScan extends AbstractFileGroupScan {
-  private final List<FilterCondition> conditions;
+  private final ParquetScanFilter filter;
   private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final RelDataType cachedRelDataType;
 
-  public ParquetGroupScan(TableMetadata dataset, List<SchemaPath> columns, List<FilterCondition> conditions,
+  public ParquetGroupScan(TableMetadata dataset, List<SchemaPath> columns, ParquetScanFilter filter,
                           List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns, RelDataType cachedRelDataType) {
     super(dataset, columns);
-    this.conditions = conditions;
+    this.filter = filter;
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.cachedRelDataType = cachedRelDataType;
   }
@@ -54,16 +54,14 @@ public class ParquetGroupScan extends AbstractFileGroupScan {
     for(SplitWork split : work){
       splits.add(split.getSplit());
     }
-    return new ParquetSubScan(dataset.getFormatSettings(), splits, getUserName(), schema, getDataset().getName().getPathComponents(), conditions,
-      dataset.getStoragePluginId(), columns, dataset.getReadDefinition().getPartitionColumnsList(), globalDictionaryEncodedColumns, dataset.getReadDefinition().getExtendedProperty());
+    return new ParquetSubScan(dataset.getFormatSettings(), splits, getUserName(), schema,
+        getDataset().getName().getPathComponents(), filter == null ? null : filter.getConditions(),
+        dataset.getStoragePluginId(), columns, dataset.getReadDefinition().getPartitionColumnsList(),
+        globalDictionaryEncodedColumns, dataset.getReadDefinition().getExtendedProperty());
   }
 
-  public List<GlobalDictionaryFieldInfo> getGlobalDictionaryEncodedColumns() {
-    return globalDictionaryEncodedColumns;
-  }
-
-  public List<FilterCondition> getConditions() {
-    return conditions;
+  public ParquetScanFilter getFilter() {
+    return filter;
   }
 
   @Override

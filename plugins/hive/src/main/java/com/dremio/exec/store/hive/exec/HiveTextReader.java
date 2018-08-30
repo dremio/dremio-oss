@@ -21,25 +21,27 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Properties;
 import java.util.Queue;
 import java.util.Set;
 
 import org.apache.arrow.vector.ValueVector;
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDe;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters.Converter;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.mapred.InputSplit;
+import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
+import org.apache.hadoop.mapred.Reporter;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.store.ScanFilter;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
@@ -51,16 +53,32 @@ public class HiveTextReader extends HiveAbstractReader {
 
   private Object key;
   private SkipRecordsInspector skipRecordsInspector;
+  private RecordReader<Object, Object> reader;
+  // Converter which converts data from partition schema to table schema.
+  protected Converter partTblObjectInspectorConverter;
 
-  public HiveTextReader(HiveTableXattr tableAttr, DatasetSplit split, List<SchemaPath> projectedColumns,
-      List<String> partitionColumns, OperatorContext context, final HiveConf hiveConf) throws ExecutionSetupException {
-    super(tableAttr, split, projectedColumns, partitionColumns, context, hiveConf);
+  public HiveTextReader(final HiveTableXattr tableAttr, final DatasetSplit split,
+      final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
+      final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
+      final StructObjectInspector partitionOI, final ScanFilter filter) {
+    super(tableAttr, split, projectedColumns, context, jobConf, tableSerDe, tableOI, partitionSerDe, partitionOI, filter);
   }
 
   @Override
-  public void internalInit(Properties tableProperties, RecordReader<Object, Object> reader) {
+  public void internalInit(InputSplit inputSplit, JobConf jobConf, ValueVector[] vectors) throws IOException {
+    reader = jobConf.getInputFormat().getRecordReader(inputSplit, jobConf, Reporter.NULL);
+
+    if(logger.isTraceEnabled()) {
+      logger.trace("hive reader created: {} for inputSplit {}", reader.getClass().getName(), inputSplit.toString());
+    }
+
     key = reader.createKey();
-    skipRecordsInspector = new SkipRecordsInspector(tableProperties, reader);
+    skipRecordsInspector = new SkipRecordsInspector(jobConf, reader);
+
+    if (!partitionOI.equals(finalOI)) {
+      // If the partition and table have different schemas, create a converter
+      partTblObjectInspectorConverter = ObjectInspectorConverters.getConverter(partitionOI, finalOI);
+    }
   }
 
   @Override
@@ -128,10 +146,10 @@ public class HiveTextReader extends HiveAbstractReader {
     // actualCount without headerCount, used to determine holderIndex
     private int tempCount;
 
-    protected SkipRecordsInspector(Properties tableProperties, RecordReader reader) {
+    protected SkipRecordsInspector(JobConf jobConf, RecordReader reader) {
       this.fileFormats = new HashSet<Object>(Arrays.asList(org.apache.hadoop.mapred.TextInputFormat.class.getName()));
-      this.headerCount = retrievePositiveIntProperty(tableProperties, serdeConstants.HEADER_COUNT, 0);
-      this.footerCount = retrievePositiveIntProperty(tableProperties, serdeConstants.FOOTER_COUNT, 0);
+      this.headerCount = retrievePositiveIntProperty(jobConf, serdeConstants.HEADER_COUNT, 0);
+      this.footerCount = retrievePositiveIntProperty(jobConf, serdeConstants.FOOTER_COUNT, 0);
       logger.debug("skipRecordInspector: fileFormat {}, headerCount {}, footerCount {}", this.fileFormats,
           this.headerCount, this.footerCount);
       this.footerBuffer = Lists.newLinkedList();
@@ -193,7 +211,7 @@ public class HiveTextReader extends HiveAbstractReader {
      * formats list 2. property doesn't exist in table properties 3. property
      * value is negative otherwise casts value to int.
      *
-     * @param tableProperties
+     * @param jobConf
      *          property holder
      * @param propertyName
      *          name of the property
@@ -203,12 +221,12 @@ public class HiveTextReader extends HiveAbstractReader {
      * @throws NumberFormatException
      *           if property value is non-numeric
      */
-    protected int retrievePositiveIntProperty(Properties tableProperties, String propertyName, int defaultValue) {
+    protected int retrievePositiveIntProperty(JobConf jobConf, String propertyName, int defaultValue) {
       int propertyIntValue = defaultValue;
-      if (!fileFormats.contains(tableProperties.get(hive_metastoreConstants.FILE_INPUT_FORMAT))) {
+      if (!fileFormats.contains(jobConf.get(hive_metastoreConstants.FILE_INPUT_FORMAT))) {
         return propertyIntValue;
       }
-      Object propertyObject = tableProperties.get(propertyName);
+      Object propertyObject = jobConf.get(propertyName);
       if (propertyObject != null) {
         try {
           propertyIntValue = Integer.valueOf((String) propertyObject);
@@ -240,4 +258,14 @@ public class HiveTextReader extends HiveAbstractReader {
     }
   }
 
+
+  @Override
+  public void close() throws IOException {
+    if (reader != null) {
+      reader.close();
+      reader = null;
+    }
+    this.partTblObjectInspectorConverter = null;
+    super.close();
+  }
 }

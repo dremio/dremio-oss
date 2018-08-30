@@ -108,7 +108,7 @@ public class TestWindowOperator extends BaseTestOperator {
 
   @Test // DRILL-4657
   public void test4657() throws Exception {
-    // SELECT row_number() OVER(ORDER BY position_id) rn, rank() OVER(ORDER BY position_id) rnk FROM dfs.`%s/window/b3.p2`
+    // SELECT row_number() OVER(ORDER BY position_id) rn, rank() OVER(ORDER BY position_id) rnk FROM dfs.\"%s/window/b3.p2\"
     final WindowPOP window = new WindowPOP(null,
       Collections.<NamedExpression>emptyList(), // withins
       Arrays.asList(n("row_number()", "rn"), n("rank()", "rnk")), // aggregations

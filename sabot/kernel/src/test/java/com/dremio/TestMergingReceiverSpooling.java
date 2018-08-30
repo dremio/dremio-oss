@@ -38,7 +38,7 @@ public class TestMergingReceiverSpooling extends BaseTestQuery {
   public void tpch18() throws Exception{
     updateTestCluster(2, SabotConfig.create("dremio-spooling-test.conf"));
 
-    String query = "select l_orderkey from cp.`tpch/lineitem.parquet` group by l_orderkey having sum(l_quantity) > 300";
+    String query = "select l_orderkey from cp.\"tpch/lineitem.parquet\" group by l_orderkey having sum(l_quantity) > 300";
 
     setSessionOption(ExecConstants.SLICE_TARGET, "10");
     setSessionOption(PlannerSettings.HASHAGG, "false");

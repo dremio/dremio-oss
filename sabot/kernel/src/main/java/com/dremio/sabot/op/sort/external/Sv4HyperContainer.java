@@ -45,10 +45,4 @@ public class Sv4HyperContainer extends ExpandableHyperContainer {
     }
     super.close();
   }
-
-  public BufferAllocator getAllocator(){
-    return allocator;
-  }
-
-
 }

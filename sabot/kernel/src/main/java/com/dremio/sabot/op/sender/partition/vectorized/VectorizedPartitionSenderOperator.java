@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicIntegerArray;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.NullableIntVector;
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -43,7 +42,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.rpc.AccountingExecTunnel;
@@ -78,7 +77,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
   private final AtomicInteger remaingReceiverCount;
 
   private State state = State.NEEDS_SETUP;
-  private NullableIntVector partitionIndices;
+  private IntVector partitionIndices;
 
   private final OperatorStats stats;
   private final CopyWatches copyWatches = new CopyWatches();
@@ -204,7 +203,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     final TypedFieldId typedFieldId = incoming.getSchema().getFieldId(expr);
     final Field field = incoming.getSchema().getColumn(typedFieldId.getFieldIds()[0]);
     Preconditions.checkArgument(field.getType().getTypeID() == ArrowTypeID.Int);
-    partitionIndices = incoming.getValueAccessorById(NullableIntVector.class, typedFieldId.getFieldIds()[0]).getValueVector();
+    partitionIndices = incoming.getValueAccessorById(IntVector.class, typedFieldId.getFieldIds()[0]).getValueVector();
   }
 
   /**
@@ -255,7 +254,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
       preCopyWatch.stop();
 
       // copy
-      final long addr = copyIndices.getBuffer().memoryAddress();
+      final long addr = copyIndices.getDataBufferAddress();
       for (MultiDestCopier copier : copiers) {
         copier.copy(addr, start, numRowsToCopy);
       }
@@ -344,7 +343,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
 
   private void generateCopyIndices(final int start, final int numRowsToCopy) {
     long srcAddr = partitionIndices.getDataBufferAddress() + start*4;
-    long dstAddr = copyIndices.getBuffer().memoryAddress();
+    long dstAddr = copyIndices.getDataBufferAddress();
 
     final int mod = modSize - 1;
     final OutgoingBatch[] modLookup = this.modLookup;

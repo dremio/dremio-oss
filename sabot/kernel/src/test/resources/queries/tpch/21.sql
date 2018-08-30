@@ -3,10 +3,10 @@ select
   s.s_name,
   count(*) as numwait
 from
-  cp.`tpch/supplier.parquet` s,
-  cp.`tpch/lineitem.parquet` l1,
-  cp.`tpch/orders.parquet` o,
-  cp.`tpch/nation.parquet` n
+  cp."tpch/supplier.parquet" s,
+  cp."tpch/lineitem.parquet" l1,
+  cp."tpch/orders.parquet" o,
+  cp."tpch/nation.parquet" n
 where
   s.s_suppkey = l1.l_suppkey
   and o.o_orderkey = l1.l_orderkey
@@ -16,7 +16,7 @@ where
     select
       *
     from
-      cp.`tpch/lineitem.parquet` l2
+      cp."tpch/lineitem.parquet" l2
     where
       l2.l_orderkey = l1.l_orderkey
       and l2.l_suppkey <> l1.l_suppkey
@@ -25,7 +25,7 @@ where
     select
       *
     from
-      cp.`tpch/lineitem.parquet` l3
+      cp."tpch/lineitem.parquet" l3
     where
       l3.l_orderkey = l1.l_orderkey
       and l3.l_suppkey <> l1.l_suppkey

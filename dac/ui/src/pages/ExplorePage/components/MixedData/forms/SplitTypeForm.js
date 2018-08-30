@@ -21,16 +21,23 @@ import { startCase } from 'lodash/string';
 import Checkbox from 'components/Fields/Checkbox';
 import FontIcon from 'components/Icon/FontIcon';
 import Meter from 'components/Meter';
-import { formDescription } from 'uiTheme/radium/typography';
-import { formSectionTitle } from 'uiTheme/radium/exploreTransform';
 import { applyValidators, notEmptyArray } from 'utils/validation';
 
-import { FLEX_COL_START,  LINE_START_CENTER, INLINE_NOWRAP_ROW_FLEX_START } from 'uiTheme/radium/flexStyle';
+import { LINE_START_CENTER, INLINE_NOWRAP_ROW_FLEX_START } from 'uiTheme/radium/flexStyle';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import NewFieldSection from 'components/Forms/NewFieldSection';
+import classNames from 'classnames';
+import {
+  title,
+  columnsContainer,
+  rowMargin,
+  firstColumn,
+  secondColumn
+} from '@app/uiTheme/less/forms.less';
 import TransformForm, { formWrapperProps } from './../../forms/TransformForm';
 import { transformProps } from './../../forms/TransformationPropTypes';
 import NonMatchingValues from './../NonMatchingValues';
+import { description, newField } from './SplitTypeForm.less';
 
 const SECTIONS = [NewFieldSection];
 
@@ -67,12 +74,12 @@ export class SplitTypeForm extends Component {
     return (
       <div style={styles.typeList}>
         <div style={LINE_START_CENTER}>
-          <div style={formSectionTitle}>{la('Available Data Types')}
-            <span style={styles.percent}>{la('Types based on sample dataset')}</span>
+          <div className={title}>{la('Available Data Types')}
+            <span className={description}>{la('Types based on sample dataset')}</span>
           </div>
 
         </div>
-        <table>
+        <table className={rowMargin}>
           {
             dataTypes.map((option) => <tr>
               <td>
@@ -109,14 +116,12 @@ export class SplitTypeForm extends Component {
         {...formWrapperProps(this.props)}
         onFormSubmit={submit}
         submitting={this.props.submitting}>
-        <div style={styles.base} className='clean-data-transform'>
-          <div>
+        <div className={classNames(['clean-data-transform', columnsContainer])}>
+          <div className={firstColumn}>
             {this.renderTypes()}
-            <div style={styles.newFieldWrap}>
-              <NewFieldSection fields={fields}/>
-            </div>
+            <NewFieldSection fields={fields} className={newField}/>
           </div>
-          <div style={styles.nonMatchingWrap}>
+          <div className={secondColumn}>
             <NonMatchingValues nonMatchingCount={availableValuesCount} values={availableValues}/>
           </div>
         </div>
@@ -153,11 +158,8 @@ const styles = {
     ...INLINE_NOWRAP_ROW_FLEX_START
   },
   typeList: {
-    ...FLEX_COL_START,
     height: 199,
-    maxWidth: 450,
-    overflowY: 'scroll',
-    marginLeft: 10
+    overflowY: 'scroll'
   },
   checkbox: {
     marginTop: -8
@@ -166,16 +168,9 @@ const styles = {
     width: 300,
     paddingRight: 10
   },
-  percent: {
-    ...formDescription,
-    paddingRight: 5
-  },
   text: {
     paddingLeft: 10,
     paddingRight: 10
-  },
-  newFieldWrap: {
-    marginBottom: 10
   },
   nonMatchingWrap: {
     marginLeft: 20

@@ -17,7 +17,7 @@ import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import { cardsWrap } from 'uiTheme/radium/exploreTransform';
+import Cards from '@app/pages/ExplorePage/components/Transform/components/Cards';
 import ExtractTextCard from './ExtractTextCard';
 import EmptyCard from './EmptyCard';
 
@@ -58,7 +58,7 @@ export default class ExtractTextCards extends Component {
 
   render() {
     const {cards, fields, columnName, hasSelection} = this.props;
-    return <div className='transform-selection' style={cardsWrap}>
+    return <Cards>
       {fields.cards.map((cardFields, index) =>
         <ExtractTextCard
           key={index}
@@ -70,6 +70,6 @@ export default class ExtractTextCards extends Component {
         />
       )}
       {!hasSelection ? <EmptyCard /> : null}
-    </div>;
+    </Cards>;
   }
 }

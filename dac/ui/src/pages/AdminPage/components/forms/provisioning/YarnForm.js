@@ -27,11 +27,12 @@ import {FormBody, ModalForm, modalFormProps} from 'components/Forms';
 import NumberFormatUtils from 'utils/numberFormatUtils';
 import YarnProperties from 'components/Forms/YarnProperties';
 import {Checkbox, FieldWithError, Select, TextField} from 'components/Fields';
-import {formRow, label, sectionTitle, textInput} from 'uiTheme/radium/forms';
+import {formRow, label, sectionTitle } from 'uiTheme/radium/forms';
 import {formDefault, formLabel} from 'uiTheme/radium/typography';
 import TextFieldList from 'components/Forms/TextFieldList';
 import {formatMessage} from 'utils/locale';
 import config from 'utils/config';
+import { inputSpacing as inputSpacingCssValue} from '@app/uiTheme/less/variables.less';
 
 const FIELDS = [
   'id', 'clusterType', 'resourceManagerHost', 'namenodeHost', 'queue',
@@ -262,7 +263,7 @@ export class YarnForm extends Component {
         <FormBody style={style}>
           <h2 style={sectionTitle}>{la('General')}</h2>
           <div style={styles.formRow}>
-            <div style={{display: 'inline-flex', marginRight: textInput.marginRight}}>
+            <div style={{display: 'inline-flex', marginRight: inputSpacingCssValue}}>
               <div style={styles.inlineBlock}>
                 <div style={label}>{la('Hadoop Cluster')}</div>
                 <Select

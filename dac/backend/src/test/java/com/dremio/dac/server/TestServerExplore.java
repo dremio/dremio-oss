@@ -1446,17 +1446,13 @@ public class TestServerExplore extends BaseTestServer {
     doc("reapplying transform from untitled to ds1");
     InitialPreviewResponse reapplyResult = reapply(getDatasetVersionPath(d6));
     final DatasetUI d7 = reapplyResult.getDataset();
-    assertContains("cast(convert_from(convert_to(s_phone, 'json'), 'utf8') as varchar) as s_phone_json", d7.getSql().toLowerCase());
     assertEquals(Arrays.asList("space1", "ds1"), d7.getFullPath());
-    assertEquals(reapplyResult.getHistory().getItems().size(), 2);
+    assertEquals(reapplyResult.getHistory().getItems().size(), 1); // should be only data set creation. Transformation should be ignored
     HistoryItem firstHistoryItem = reapplyResult.getHistory().getItems().get(0);
     assertEquals(firstHistoryItem.getDataset(), d1Path);
     assertEquals(firstHistoryItem.getDatasetVersion(), d1.getDatasetVersion());
-    HistoryItem secondHistoryItem = reapplyResult.getHistory().getItems().get(1);
-    assertEquals(secondHistoryItem.getDataset(), d1Path);
-    assertEquals(secondHistoryItem.getDatasetVersion(), reapplyResult.getDataset().getDatasetVersion());
 
-    doc("should fail to reapply dataset that is created from sql");
+    doc("should fail to edit original sql for dataset that is created from sql");
     expectError(CLIENT_ERROR, reapplyInvocation(getDatasetVersionPath(d2)), UserExceptionMapper.ErrorMessageWithContext.class);
   }
 

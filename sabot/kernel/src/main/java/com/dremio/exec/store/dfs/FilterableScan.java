@@ -15,12 +15,10 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.util.List;
-
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.store.parquet.FilterCondition;
+import com.dremio.exec.store.ScanFilter;
 
 public interface FilterableScan extends RelNode {
-  FilterableScan applyConditions(List<FilterCondition> conditions);
+  FilterableScan applyFilter(ScanFilter scanFilter);
 }

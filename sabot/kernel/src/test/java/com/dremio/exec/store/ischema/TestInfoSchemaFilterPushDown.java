@@ -27,7 +27,7 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
 
   @Test
   public void testFilterPushdown_Equal() throws Exception {
-    final String query = "SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE TABLE_SCHEMA='INFORMATION_SCHEMA'";
+    final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA='INFORMATION_SCHEMA'";
     final String scan = "query=[type: TERM term {   field: \"SEARCH_SCHEMA\"   value: \"INFORMATION_SCHEMA\" } ]";
 
     testHelper(query, scan, false);
@@ -36,7 +36,7 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   @Ignore("NOT not currently supported")
   @Test
   public void testFilterPushdown_NonEqual() throws Exception {
-    final String query = "SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE TABLE_SCHEMA <> 'INFORMATION_SCHEMA'";
+    final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA <> 'INFORMATION_SCHEMA'";
     final String scan = "query=[type: NOT not {   clause {     type: TERM     term {       field: \"SEARCH_SCHEMA\"       value: \"INFORMATION_SCHEMA\"     }   } } ]";
 
     testHelper(query, scan, false);
@@ -44,7 +44,7 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
 
   @Test
   public void testFilterPushdown_Like() throws Exception {
-    final String query = "SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE TABLE_SCHEMA LIKE '%SCH%'";
+    final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE '%SCH%'";
     final String scan = "query=[type: WILDCARD wildcard {   field: \"SEARCH_SCHEMA\"   value: \"*SCH*\" } ]";
 
     testHelper(query, scan, false);
@@ -52,7 +52,7 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
 
   @Test
   public void testFilterPushdown_LikeWithEscape() throws Exception {
-    final String query = "SELECT * FROM INFORMATION_SCHEMA.`TABLES` WHERE TABLE_SCHEMA LIKE '%\\\\SCH%' ESCAPE '\\'";
+    final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE '%\\\\SCH%' ESCAPE '\\'";
     final String scan = "query=[type: WILDCARD wildcard {   field: \"SEARCH_SCHEMA\"   value: \"*\\\\\\\\SCH*\" } ])";
 
     testHelper(query, scan, false);
@@ -82,7 +82,7 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
 
   @Test
   public void testFilterPushDownWithProject_Equal() throws Exception {
-    final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.`COLUMNS` WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA'";
+    final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.\"COLUMNS\" WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA'";
     final String scan = "query=[type: TERM term {   field: \"SEARCH_SCHEMA\"   value: \"INFORMATION_SCHEMA\" } ]";
     testHelper(query, scan, false);
   }
@@ -90,14 +90,14 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   @Ignore("NOT not currently supported")
   @Test
   public void testFilterPushDownWithProject_NotEqual() throws Exception {
-    final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.`COLUMNS` WHERE TABLE_NAME <> 'TABLES'";
+    final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.\"COLUMNS\" WHERE TABLE_NAME <> 'TABLES'";
     final String scan = "query=[type: NOT not {   clause {     type: TERM     term {       field: \"SEARCH_NAME\"       value: \"TABLES\"     }   } } ]";
     testHelper(query, scan, false);
   }
 
   @Test
   public void testFilterPushDownWithProject_Like() throws Exception {
-    final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.`COLUMNS` WHERE TABLE_NAME LIKE '%BL%'";
+    final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.\"COLUMNS\" WHERE TABLE_NAME LIKE '%BL%'";
     final String scan = "query=[type: WILDCARD wildcard {   field: \"SEARCH_NAME\"   value: \"*BL*\" } ]";
     testHelper(query, scan, false);
   }

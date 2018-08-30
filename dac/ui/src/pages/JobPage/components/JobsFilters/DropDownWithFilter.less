@@ -13,39 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.drop-down-with-filter{
-  .all-label {
-    margin: 5px 0 0 5px;
-    cursor: pointer;
-  }
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  .drop-down-checkbox{
-    cursor: pointer;
-    margin: 0 5px 0 0;
-  }
+  .drop-down-with-filter{
+    .all-label {
+      margin: 5px 0 0 5px;
+      cursor: pointer;
+    }
 
-  .custom-filter{
-    .custom-filter-input{
-      display: block;
-      border: 1px solid rgba(0,0,0, .1);
+    .drop-down-checkbox{
+      cursor: pointer;
+      margin: 0 5px 0 0;
+    }
+
+    .custom-filter{
+      .custom-filter-input{
+        display: block;
+        border: 1px solid rgba(0,0,0, .1);
+        width: 100%;
+        padding: 4px 10px;
+        outline: 0;
+        font-family: Roboto, sans-serif;
+        font-weight: 400;
+        font-style: italic;
+        font-size: 12px;
+        color: #999999;
+      }
+      .fa{
+        font-size: 15px;
+        float: right;
+        margin: 4px 0 0 0;
+      }
+    }
+    .scroll-box{
       width: 100%;
-      padding: 4px 10px;
-      outline: 0;
-      font-family: Roboto, sans-serif;
-      font-weight: 400;
-      font-style: italic;
-      font-size: 12px;
-      color: #999999;
+      max-height: 150px;
+      overflow-y: auto;
     }
-    .fa{
-      font-size: 15px;
-      float: right;
-      margin: 4px 0 0 0;
-    }
-  }
-  .scroll-box{
-    width: 100%;
-    max-height: 150px;
-    overflow-y: auto;
   }
 }

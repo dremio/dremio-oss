@@ -28,9 +28,9 @@ import java.util.NavigableSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.arrow.vector.NullableVarBinaryVector;
+import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.complex.NullableMapVector;
+import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.hadoop.hbase.Cell;
@@ -63,8 +63,8 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
 
   private OutputMutator outputMutator;
 
-  private Map<String, NullableMapVector> familyVectorMap;
-  private NullableVarBinaryVector rowKeyVector;
+  private Map<String, StructVector> familyVectorMap;
+  private VarBinaryVector rowKeyVector;
 
   private Table hTable;
   private ResultScanner resultScanner;
@@ -163,9 +163,9 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
         if (column.equals(ROW_KEY_PATH)) {
           if (sample) {
             Field field = CompleteType.VARBINARY.toField(column.getAsNamePart().getName());
-            rowKeyVector = outputMutator.addField(field, NullableVarBinaryVector.class);
+            rowKeyVector = outputMutator.addField(field, VarBinaryVector.class);
           } else {
-            rowKeyVector = (NullableVarBinaryVector) output.getVector(ROW_KEY);
+            rowKeyVector = (VarBinaryVector) output.getVector(ROW_KEY);
           }
         } else {
           getOrCreateFamilyVector(output, column.getRootSegment().getPath(), false);
@@ -174,13 +174,13 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
 
       // Add map and child vectors for any HBase column families and/or HBase
       // columns that are requested (in order to avoid later creation of dummy
-      // NullableIntVectors for them).
+      // IntVectors for them).
       final Set<Map.Entry<byte[], NavigableSet<byte []>>> familiesEntries =
           hbaseScan.getFamilyMap().entrySet();
       for (Map.Entry<byte[], NavigableSet<byte []>> familyEntry : familiesEntries) {
         final String familyName = new String(familyEntry.getKey(),
                                              StandardCharsets.UTF_8);
-        final NullableMapVector familyVector = getOrCreateFamilyVector(output, familyName, false);
+        final StructVector familyVector = getOrCreateFamilyVector(output, familyName, false);
         final Set<byte []> children = familyEntry.getValue();
         if (null != children) {
           for (byte[] childNameBytes : children) {
@@ -241,12 +241,12 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
           final int familyOffset = cell.getFamilyOffset();
           final int familyLength = cell.getFamilyLength();
           final byte[] familyArray = cell.getFamilyArray();
-          final NullableMapVector mv = getOrCreateFamilyVector(outputMutator, new String(familyArray, familyOffset, familyLength), true);
-          mv.setIndexDefined(rowCount);
+          final StructVector sv = getOrCreateFamilyVector(outputMutator, new String(familyArray, familyOffset, familyLength), true);
+          sv.setIndexDefined(rowCount);
           final int qualifierOffset = cell.getQualifierOffset();
           final int qualifierLength = cell.getQualifierLength();
           final byte[] qualifierArray = cell.getQualifierArray();
-          final NullableVarBinaryVector v = getOrCreateColumnVector(mv, new String(qualifierArray, qualifierOffset, qualifierLength));
+          final VarBinaryVector v = getOrCreateColumnVector(sv, new String(qualifierArray, qualifierOffset, qualifierLength));
 
           final int valueOffset = cell.getValueOffset();
           final int valueLength = cell.getValueLength();
@@ -261,18 +261,18 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
     return rowCount;
   }
 
-  private NullableMapVector getOrCreateFamilyVector(OutputMutator output, String familyName, boolean allocateOnCreate) {
-    NullableMapVector v = familyVectorMap.get(familyName);
+  private StructVector getOrCreateFamilyVector(OutputMutator output, String familyName, boolean allocateOnCreate) {
+    StructVector v = familyVectorMap.get(familyName);
     if(v == null) {
       SchemaPath column = SchemaPath.getSimplePath(familyName);
       Field field = getFieldForNameAndMajorType(column.getAsNamePart().getName(), COLUMN_FAMILY_TYPE);
       if (sample) {
-        v = outputMutator.addField(field, NullableMapVector.class);
+        v = outputMutator.addField(field, StructVector.class);
         if (allocateOnCreate) {
           v.allocateNew();
         }
       } else {
-        v = (NullableMapVector) output.getVector(column.getAsNamePart().getName());
+        v = (StructVector) output.getVector(column.getAsNamePart().getName());
       }
       getColumns().add(column);
       familyVectorMap.put(familyName, v);
@@ -280,10 +280,10 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
     return v;
   }
 
-  private NullableVarBinaryVector getOrCreateColumnVector(NullableMapVector mv, String qualifier) {
-    int oldSize = mv.size();
-    NullableVarBinaryVector v = mv.addOrGet(qualifier, FieldType.nullable(getArrowMinorType(COLUMN_TYPE.getMinorType()).getType()), NullableVarBinaryVector.class);
-    if (oldSize != mv.size()) {
+  private VarBinaryVector getOrCreateColumnVector(StructVector sv, String qualifier) {
+    int oldSize = sv.size();
+    VarBinaryVector v = sv.addOrGet(qualifier, FieldType.nullable(getArrowMinorType(COLUMN_TYPE.getMinorType()).getType()), VarBinaryVector.class);
+    if (oldSize != sv.size()) {
       v.allocateNew();
     }
     return v;

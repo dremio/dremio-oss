@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -34,10 +35,13 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.AccessControlException;
+import org.apache.orc.OrcConf;
 import org.apache.thrift.TException;
 
+import com.dremio.common.VM;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
@@ -46,6 +50,7 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.hive.DatasetBuilder.StatsEstimationParameters;
 import com.dremio.exec.store.hive.exec.HiveReaderProtoUtil;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
@@ -54,6 +59,7 @@ import com.dremio.hive.proto.HiveReaderProto.HiveReadSignature;
 import com.dremio.hive.proto.HiveReaderProto.HiveReadSignatureType;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.MessageLevel;
@@ -88,15 +94,15 @@ public class HiveStoragePlugin implements StoragePlugin {
   private HiveConf hiveConf;
   private final boolean storageImpersonationEnabled;
   private final boolean metastoreImpersonationEnabled;
-  private final HiveStoragePluginConfig config;
   private final boolean isCoordinator;
+  private final OptionManager options;
 
   public HiveStoragePlugin(HiveStoragePluginConfig config, SabotContext context, String name) {
     this.isCoordinator = context.isCoordinator();
     this.hiveConf = createHiveConf(config);
     this.name = name;
     this.sabotConfig = context.getConfig();
-    this.config = config;
+    this.options = context.getOptionManager();
     storageImpersonationEnabled = hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_ENABLE_DOAS);
 
     // Hive Metastore impersonation is enabled if:
@@ -434,6 +440,7 @@ public class HiveStoragePlugin implements StoragePlugin {
               new NamespaceKey(datasetConfig.getFullPathList()),
               true,
               false,
+              getStatsParams(),
               hiveConf,
               datasetConfig);
           } catch (TException e) {
@@ -451,6 +458,14 @@ public class HiveStoragePlugin implements StoragePlugin {
     } return SystemUser.SYSTEM_USERNAME;
   }
 
+  private StatsEstimationParameters getStatsParams() {
+    return new StatsEstimationParameters(
+        options.getOption(HivePluginOptions.HIVE_USE_STATS_IN_METASTORE),
+        (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE),
+        (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE)
+    );
+  }
+
   @Override
   public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldConfig, boolean ignoreAuthErrors) throws Exception {
     try {
@@ -461,6 +476,7 @@ public class HiveStoragePlugin implements StoragePlugin {
         datasetPath,
         false, // we can't assume the path is canonized, so we'll have to hit the source
         ignoreAuthErrors,
+        getStatsParams(),
         hiveConf,
         oldConfig);
     } catch(RuntimeException e){
@@ -498,6 +514,7 @@ public class HiveStoragePlugin implements StoragePlugin {
               new NamespaceKey(ImmutableList.of(name, dbName, table)),
               true, // we got the path from HiveClient so it's safe to assume it's canonized
               ignoreAuthErrors,
+              getStatsParams(),
               hiveConf,
               null);
             if(builder != null){
@@ -546,14 +563,42 @@ public class HiveStoragePlugin implements StoragePlugin {
       }
     }
 
-    if(config.properties != null) {
-      for(Property prop : config.properties) {
+    if(config.propertyList != null) {
+      for(Property prop : config.propertyList) {
         hiveConf.set(prop.name, prop.value);
         if(logger.isTraceEnabled()){
           logger.trace("HiveConfig Override {}={}", prop.name, prop.value);
         }
       }
     }
+
+    // Check if zero-copy has been set by user or configuration
+    boolean useZeroCopyNotSet = hiveConf.get(OrcConf.USE_ZEROCOPY.getAttribute()) == null
+        || hiveConf.get(HiveConf.ConfVars.HIVE_ORC_ZEROCOPY.varname) == null;
+    if (useZeroCopyNotSet) {
+      if (VM.isWindowsHost() || VM.isMacOSHost()) {
+        logger.debug("MacOS or Windows host detected. Not enabling ORC zero-copy feature");
+      } else {
+        String fs = hiveConf.get(FileSystem.FS_DEFAULT_NAME_KEY);
+        if (fs.regionMatches(true, 0, "maprfs", 0, 6)) {
+          // DX-12672: do not enable ORC zero-copy on MapRFS
+          logger.debug("MapRFS detected. Not enabling ORC zero-copy feature");
+        } else {
+          logger.debug("Linux host detected. Enabling ORC zero-copy feature");
+          hiveConf.setBoolean(HiveConf.ConfVars.HIVE_ORC_ZEROCOPY.varname, true);
+        }
+      }
+    } else {
+      boolean useZeroCopy = OrcConf.USE_ZEROCOPY.getBoolean(hiveConf);
+      if (useZeroCopy) {
+        logger.warn("ORC zero-copy feature has been manually enabled. This is not recommended.");
+      } else {
+        logger.error("ORC zero-copy feature has been manually disabled. This is not recommended and might cause memory issues");
+      }
+    }
+    // Configure zero-copy for ORC reader
+
+
     return hiveConf;
   }
 

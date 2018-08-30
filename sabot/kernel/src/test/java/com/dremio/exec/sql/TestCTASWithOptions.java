@@ -26,10 +26,10 @@ public class TestCTASWithOptions extends PlanTestBase {
     try {
       test("CREATE TABLE dfs_test.testCsv " +
           "STORE AS (type => 'text', fieldDelimiter => ',') " +
-          "AS SELECT region_id, sales_city FROM cp.`region.json` ORDER BY region_id LIMIT 2");
+          "AS SELECT region_id, sales_city FROM cp.\"region.json\" ORDER BY region_id LIMIT 2");
 
       testBuilder()
-          .sqlQuery("SELECT * FROM TABLE(`dfs_test`.`testCsv`" +
+          .sqlQuery("SELECT * FROM TABLE(\"dfs_test\".\"testCsv\"" +
               "(type => 'text', fieldDelimiter => ',', extractHeader => true))")
           .unOrdered()
           .baselineColumns("region_id", "sales_city")
@@ -46,10 +46,10 @@ public class TestCTASWithOptions extends PlanTestBase {
     try {
       test("CREATE TABLE dfs_test.csvWithCustomExtension " +
           "STORE AS (type => 'text', fieldDelimiter => ',', outputExtension => 'myparquet') " +
-          "AS SELECT region_id, sales_city FROM cp.`region.json` ORDER BY region_id LIMIT 2");
+          "AS SELECT region_id, sales_city FROM cp.\"region.json\" ORDER BY region_id LIMIT 2");
 
       testBuilder()
-          .sqlQuery("SELECT * FROM TABLE(`dfs_test`.`csvWithCustomExtension`" +
+          .sqlQuery("SELECT * FROM TABLE(\"dfs_test\".\"csvWithCustomExtension\"" +
               "(type => 'text', fieldDelimiter => ',', extractHeader => true))")
           .unOrdered()
           .baselineColumns("region_id", "sales_city")
@@ -68,10 +68,10 @@ public class TestCTASWithOptions extends PlanTestBase {
       // order the options differently
       test("CREATE TABLE dfs_test.testCsvUnordered " +
           "STORE AS (fieldDelimiter => ',', type => 'text') " +
-          "AS SELECT region_id, sales_city FROM cp.`region.json` ORDER BY region_id LIMIT 2");
+          "AS SELECT region_id, sales_city FROM cp.\"region.json\" ORDER BY region_id LIMIT 2");
 
       testBuilder()
-          .sqlQuery("SELECT * FROM TABLE(`dfs_test`.`testCsvUnordered`" +
+          .sqlQuery("SELECT * FROM TABLE(\"dfs_test\".\"testCsvUnordered\"" +
               "(type => 'text', fieldDelimiter => ',', extractHeader => true))")
           .unOrdered()
           .baselineColumns("region_id", "sales_city")
@@ -88,11 +88,11 @@ public class TestCTASWithOptions extends PlanTestBase {
     try {
       test("CREATE TABLE dfs_test.testCsvTabRecordDelimiter " +
           "STORE AS (type => 'text', fieldDelimiter => ',', lineDelimiter => '\t') " +
-          "AS SELECT region_id, sales_city FROM cp.`region.json` ORDER BY region_id LIMIT 2");
+          "AS SELECT region_id, sales_city FROM cp.\"region.json\" ORDER BY region_id LIMIT 2");
 
       testBuilder()
           .sqlQuery("SELECT * FROM " +
-              "TABLE(`dfs_test`.`testCsvTabRecordDelimiter`" +
+              "TABLE(\"dfs_test\".\"testCsvTabRecordDelimiter\"" +
               "(type => 'text', fieldDelimiter => ',', lineDelimiter => '\t', extractHeader => true))")
           .unOrdered()
           .baselineColumns("region_id", "sales_city")
@@ -108,11 +108,11 @@ public class TestCTASWithOptions extends PlanTestBase {
   public void tsv() throws Exception {
     try {
       test("CREATE TABLE dfs_test.testTsv STORE AS (type => 'teXt', fieldDelimiter => '\t') " +
-          "AS SELECT region_id, sales_city FROM cp.`region.json` ORDER BY region_id LIMIT 2");
+          "AS SELECT region_id, sales_city FROM cp.\"region.json\" ORDER BY region_id LIMIT 2");
 
       testBuilder()
           .sqlQuery("SELECT * FROM " +
-              "TABLE(`dfs_test`.`testTsv`(type => 'text', fieldDelimiter => '\t', extractHeader => true))")
+              "TABLE(\"dfs_test\".\"testTsv\"(type => 'text', fieldDelimiter => '\t', extractHeader => true))")
           .unOrdered()
           .baselineColumns("region_id", "sales_city")
           .baselineValues("0", "None")
@@ -128,11 +128,11 @@ public class TestCTASWithOptions extends PlanTestBase {
     try {
       test("CREATE TABLE dfs_test.testJson " +
           "STORE AS (type => 'json') " +
-          "AS SELECT region_id, sales_city FROM cp.`region.json` ORDER BY region_id LIMIT 2");
+          "AS SELECT region_id, sales_city FROM cp.\"region.json\" ORDER BY region_id LIMIT 2");
 
       testBuilder()
           .sqlQuery("SELECT * FROM " +
-              "TABLE(`dfs_test`.`testJson`(type => 'json'))")
+              "TABLE(\"dfs_test\".\"testJson\"(type => 'json'))")
           .unOrdered()
           .baselineColumns("region_id", "sales_city")
           .baselineValues(0L, "None")
@@ -148,11 +148,11 @@ public class TestCTASWithOptions extends PlanTestBase {
     try {
       test("CREATE TABLE dfs_test.jsonWithCustomExtension " +
           "STORE AS (type => 'json', outputExtension => 'myjson') " +
-          "AS SELECT region_id, sales_city FROM cp.`region.json` ORDER BY region_id LIMIT 2");
+          "AS SELECT region_id, sales_city FROM cp.\"region.json\" ORDER BY region_id LIMIT 2");
 
       testBuilder()
           .sqlQuery("SELECT * FROM " +
-              "TABLE(`dfs_test`.`jsonWithCustomExtension`(type => 'json'))")
+              "TABLE(\"dfs_test\".\"jsonWithCustomExtension\"(type => 'json'))")
           .unOrdered()
           .baselineColumns("region_id", "sales_city")
           .baselineValues(0L, "None")
@@ -169,11 +169,11 @@ public class TestCTASWithOptions extends PlanTestBase {
     try {
       test("CREATE TABLE dfs_test.testParquet " +
           "STORE AS (type => 'parquet') " +
-          "AS SELECT region_id, sales_city FROM cp.`region.json` ORDER BY region_id LIMIT 2");
+          "AS SELECT region_id, sales_city FROM cp.\"region.json\" ORDER BY region_id LIMIT 2");
 
       testBuilder()
           .sqlQuery("SELECT * FROM " +
-              "TABLE(`dfs_test`.`testParquet`(type => 'parquet'))")
+              "TABLE(\"dfs_test\".\"testParquet\"(type => 'parquet'))")
           .unOrdered()
           .baselineColumns("region_id", "sales_city")
           .baselineValues(0L, "None")
@@ -189,11 +189,11 @@ public class TestCTASWithOptions extends PlanTestBase {
     try {
       test("CREATE TABLE dfs_test.parquetWithCustomExtension " +
           "STORE AS (type => 'parquet', outputExtension => 'myparquet') " +
-          "AS SELECT region_id, sales_city FROM cp.`region.json` ORDER BY region_id LIMIT 2");
+          "AS SELECT region_id, sales_city FROM cp.\"region.json\" ORDER BY region_id LIMIT 2");
 
       testBuilder()
           .sqlQuery("SELECT * FROM " +
-              "TABLE(`dfs_test`.`parquetWithCustomExtension`(type => 'parquet'))")
+              "TABLE(\"dfs_test\".\"parquetWithCustomExtension\"(type => 'parquet'))")
           .unOrdered()
           .baselineColumns("region_id", "sales_city")
           .baselineValues(0L, "None")
@@ -211,10 +211,10 @@ public class TestCTASWithOptions extends PlanTestBase {
       test("CREATE TABLE dfs_test.testParquetWithPartition " +
           "PARTITION BY (region_id) " +
           "STORE AS (type => 'parquet') " +
-          "AS SELECT region_id, sales_city FROM cp.`region.json` ORDER BY region_id LIMIT 2");
+          "AS SELECT region_id, sales_city FROM cp.\"region.json\" ORDER BY region_id LIMIT 2");
 
       testBuilder()
-          .sqlQuery("SELECT dir0, region_id, sales_city FROM TABLE(`dfs_test`.`testParquetWithPartition`(type => 'parquet'))")
+          .sqlQuery("SELECT dir0, region_id, sales_city FROM TABLE(\"dfs_test\".\"testParquetWithPartition\"(type => 'parquet'))")
           .unOrdered()
           .baselineColumns("dir0", "region_id", "sales_city")
           .baselineValues("0", 0L, "None")
@@ -229,7 +229,7 @@ public class TestCTASWithOptions extends PlanTestBase {
   public void negativeCaseUnsupportedType() throws Exception {
     final String query = "CREATE TABLE dfs_test.negativeCaseUnsupportedType " +
         "STORE AS (type => 'unknownFormat') " +
-        "AS SELECT region_id, sales_city FROM cp.`region.json` ORDER BY region_id LIMIT 2";
+        "AS SELECT region_id, sales_city FROM cp.\"region.json\" ORDER BY region_id LIMIT 2";
     errorMsgTestHelper(query, "unknown type unknownFormat, expected one of");
   }
 
@@ -237,7 +237,7 @@ public class TestCTASWithOptions extends PlanTestBase {
   public void negativeCaseUnknownOption() throws Exception {
     final String query = "CREATE TABLE dfs_test.negativeCaseUnknownOptions " +
         "STORE AS (type => 'json', unknownOption => 'sd') " +
-        "AS SELECT region_id, sales_city FROM cp.`region.json` ORDER BY region_id LIMIT 2";
+        "AS SELECT region_id, sales_city FROM cp.\"region.json\" ORDER BY region_id LIMIT 2";
     errorMsgTestHelper(query, "Unknown storage option(s): {unknownOption=sd}");
   }
 
@@ -247,12 +247,12 @@ public class TestCTASWithOptions extends PlanTestBase {
       final String query = "CREATE TABLE dfs_test.csvWithSingleWriter " +
           "STORE AS (type => 'text', fieldDelimiter => ',') " +
           "WITH SINGLE WRITER " +
-          "AS SELECT region_id, count(*) cnt FROM cp.`region.json` GROUP BY region_id ORDER BY region_id LIMIT 2";
+          "AS SELECT region_id, count(*) cnt FROM cp.\"region.json\" GROUP BY region_id ORDER BY region_id LIMIT 2";
 
       test(query);
 
       testBuilder()
-          .sqlQuery("SELECT * FROM TABLE(`dfs_test`.`csvWithSingleWriter`" +
+          .sqlQuery("SELECT * FROM TABLE(\"dfs_test\".\"csvWithSingleWriter\"" +
               "(type => 'text', fieldDelimiter => ',', extractHeader => true))")
           .unOrdered()
           .baselineColumns("region_id", "cnt")

@@ -18,12 +18,11 @@ import Immutable from 'immutable';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import { ModalForm, modalFormProps, FormBody } from 'components/Forms';
-import { section, label } from 'uiTheme/radium/forms';
-import { Radio, FieldSelect } from 'components/Fields';
+import { FormBody, FormTitle, ModalForm, modalFormProps } from 'components/Forms';
+import { label, section } from 'uiTheme/radium/forms';
+import { FieldSelect, Radio } from 'components/Fields';
 import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
 import HoverHelp from 'components/HoverHelp';
-import { FormTitle } from 'components/Forms';
 
 const SECTIONS = [DataFreshnessSection];
 
@@ -50,7 +49,7 @@ export class AccelerationUpdatesForm extends Component {
 
   whyCannotUseIncremental() {
     if (this.props.entityType === 'physicalDataset' && !this.props.datasetFields.size) {
-      return la('Incremental updating is not available for datasets without any number or date fields.');
+      return la('Incremental updating is not available for datasets without any BigInt fields.');
     }
     if (this.props.entityType === 'file') {
       return la('Incremental updating is not available for file-based datasets.');
@@ -71,8 +70,11 @@ export class AccelerationUpdatesForm extends Component {
     const requiredValues = {
       method: values.method,
       accelerationRefreshPeriod: values.accelerationRefreshPeriod,
-      accelerationGracePeriod: values.accelerationGracePeriod
+      accelerationGracePeriod: values.accelerationGracePeriod,
+      accelerationNeverExpire: values.accelerationNeverExpire,
+      accelerationNeverRefresh: values.accelerationNeverRefresh
     };
+
     if (this.requiresIncrementalFieldSelection(values)) {
       return {
         ...requiredValues,
@@ -143,7 +145,7 @@ export class AccelerationUpdatesForm extends Component {
         onCancel={onCancel}
       >
         <FormBody>
-          <FormTitle>{la('Refresh Policy')}</FormTitle>
+          <FormTitle>{la('Reflection Refresh')}</FormTitle>
           {this.renderContent()}
         </FormBody>
       </ModalForm>
@@ -170,7 +172,10 @@ const styles = {
   label: {
     ...label,
     display: 'flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    fontSize: 18,
+    fontWeight: 300,
+    marginBottom: 10
   }
 };
 
@@ -179,13 +184,17 @@ const mapStateToProps = (state, ownProps) => {
 
   const accelerationRefreshPeriod = settings.has('accelerationRefreshPeriod') ? settings.get('accelerationRefreshPeriod') : DataFreshnessSection.defaultFormValueRefreshInterval();
   const accelerationGracePeriod = settings.has('accelerationGracePeriod') ? settings.get('accelerationGracePeriod') : DataFreshnessSection.defaultFormValueGracePeriod();
+  const accelerationNeverExpire = settings.has('accelerationNeverExpire') ? settings.get('accelerationNeverExpire') : false;
+  const accelerationNeverRefresh = settings.has('accelerationNeverRefresh') ? settings.get('accelerationNeverRefresh') : false;
 
   return {
     initialValues: {
       method: settings.get('method') || 'FULL',
       refreshField: settings.get('refreshField') || ownProps.datasetFields.getIn([0, 'name']) || '',
       accelerationRefreshPeriod,
-      accelerationGracePeriod
+      accelerationGracePeriod,
+      accelerationNeverExpire,
+      accelerationNeverRefresh
     }
   };
 };

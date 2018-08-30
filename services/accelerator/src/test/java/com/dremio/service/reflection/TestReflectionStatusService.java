@@ -36,10 +36,12 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.reflection.MaterializationCache.CacheViewer;
 import com.dremio.service.reflection.ReflectionStatus.COMBINED_STATUS;
 import com.dremio.service.reflection.proto.DataPartition;
+import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.ReflectionEntry;
@@ -116,7 +118,8 @@ public class TestReflectionStatusService {
     when(namespaceService.findDatasetByUUID(datasetId)).thenReturn(dataset);
 
     final AccelerationSettings settings = new AccelerationSettings()
-      .setRefreshPeriod(manualRefresh ? 0L : 1000L);
+      .setRefreshPeriod(1000L)
+      .setNeverRefresh(manualRefresh);
     when(reflectionSettings.getReflectionSettings(new NamespaceKey(dataPath))).thenReturn(settings);
 
     final ReflectionGoal goal = new ReflectionGoal()
@@ -213,5 +216,60 @@ public class TestReflectionStatusService {
       newTestCase("cannot accelerate", COMBINED_STATUS.CANNOT_ACCELERATE_SCHEDULED, true, false, false, ReflectionState.ACTIVE, 0, MATERIALIZATION_STATE.NOT_FOUND, false),
       newTestCase("cannot accelerate manual", COMBINED_STATUS.CANNOT_ACCELERATE_MANUAL, true, true, false, ReflectionState.ACTIVE, 0, MATERIALIZATION_STATE.NOT_FOUND, false)
     );
+  }
+
+  @Test
+  public void testGetExternalReflectionStatus() throws Exception {
+    final NamespaceService namespaceService = mock(NamespaceService.class);
+    final SabotContext sabotContext = mock(SabotContext.class);
+    final ReflectionGoalsStore goalsStore = mock(ReflectionGoalsStore.class);
+    final ReflectionEntriesStore entriesStore = mock(ReflectionEntriesStore.class);
+    final MaterializationStore materializationStore = mock(MaterializationStore.class);
+    final ExternalReflectionStore externalReflectionStore = mock(ExternalReflectionStore.class);
+    final ReflectionSettings reflectionSettings = mock(ReflectionSettings.class);
+    final ReflectionValidator validator = mock(ReflectionValidator.class);
+
+    ReflectionStatusServiceImpl reflectionStatusService = new ReflectionStatusServiceImpl(
+      DirectProvider.wrap(namespaceService),
+      DirectProvider.wrap(sabotContext),
+      DirectProvider.<CacheViewer>wrap(new ConstantCacheViewer(false)),
+      goalsStore,
+      entriesStore,
+      materializationStore,
+      externalReflectionStore,
+      reflectionSettings,
+      validator
+    );
+
+    // mock query dataset
+    DatasetConfig queryDatasetConfig = new DatasetConfig();
+    queryDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    Integer queryHash = ReflectionUtils.computeDatasetHash(queryDatasetConfig, namespaceService);
+    String queryDatasetId = UUID.randomUUID().toString();
+    when(namespaceService.findDatasetByUUID(queryDatasetId)).thenReturn(queryDatasetConfig);
+
+    // mock target dataset
+    DatasetConfig targetDatasetConfig = new DatasetConfig();
+    targetDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
+    Integer targetHash = ReflectionUtils.computeDatasetHash(targetDatasetConfig, namespaceService);
+    String targetDatasetId = UUID.randomUUID().toString();
+    when(namespaceService.findDatasetByUUID(targetDatasetId)).thenReturn(targetDatasetConfig);
+
+
+    // mock external reflection
+    ReflectionId reflectionId = new ReflectionId(UUID.randomUUID().toString());
+    ExternalReflection externalReflection = new ExternalReflection();
+    externalReflection.setId(reflectionId.getId());
+    externalReflection.setQueryDatasetId(queryDatasetId);
+    externalReflection.setQueryDatasetHash(queryHash);
+    externalReflection.setTargetDatasetId(targetDatasetId);
+    // make the hashes not match
+    externalReflection.setTargetDatasetHash(targetHash + 1);
+
+    when(externalReflectionStore.get(reflectionId.getId())).thenReturn(externalReflection);
+
+    // since the hashes don't match, should return OUT_OF_SYNC
+    ExternalReflectionStatus externalReflectionStatus = reflectionStatusService.getExternalReflectionStatus(reflectionId);
+    assertEquals(externalReflectionStatus.getConfigStatus(), ExternalReflectionStatus.STATUS.OUT_OF_SYNC);
   }
 }

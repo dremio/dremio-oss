@@ -13,40 +13,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@import "../../../../uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/color-schema.less";
 
-.help-section {
-  padding: 8px 10px;
-  flex-shrink: 0;
-  background: rgba(0,0,0,.05);
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
-  @button-width: 120px;
-  @button-margin: 10px;
+  .help-section {
+    padding: 8px 10px;
+    flex-shrink: 0;
+    background: rgba(0,0,0,.05);
 
-  button {
-    margin: 15px @button-margin 0 0 !important; // todo: SimpleButton needs to get off of inline styles
-    width: @button-width;
-    vertical-align: text-bottom; // workaround spinner button not aligning
+    @button-width: 120px;
+    @button-margin: 10px;
 
-    &:last-of-type {
-      margin-right: 0 !important; // todo: SimpleButton needs to get off of inline styles
+    button {
+      margin: 15px @button-margin 0 0 !important; // todo: SimpleButton needs to get off of inline styles
+      width: @button-width;
+      vertical-align: text-bottom; // workaround spinner button not aligning
+
+      &:last-of-type {
+        margin-right: 0 !important; // todo: SimpleButton needs to get off of inline styles
+      }
     }
-  }
 
-  .quote-wrapper {
-    position: relative;
-    display: flex;
-    align-items: flex-start;
-    margin: 0 0 0 15px;
-  }
+    .quote-wrapper {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      margin: 0 0 0 15px;
+    }
 
-  .quote-block {
-    position: relative;
-    border: 1px solid rgba(0,0,0,.1);
-    border-radius: 2px;
-    background: @PALE_BLUE;
-    max-width: calc(3 * @button-width + 2 * @button-margin);
-    padding: 10px;
-    box-sizing: content-box;
+    .quote-block {
+      position: relative;
+      border: 1px solid rgba(0,0,0,.1);
+      border-radius: 2px;
+      background: @PALE_BLUE;
+      max-width: calc(3 * @button-width + 2 * @button-margin);
+      padding: 10px;
+      box-sizing: content-box;
+    }
   }
 }

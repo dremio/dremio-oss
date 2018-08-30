@@ -53,13 +53,24 @@ RemoveButton.propTypes = {
 };
 
 export function RemoveButton({onClick, style}) {
-  return <Art
+  return <span data-qa='remove-button'><Art
     src={'XSmall.svg'}
     alt={formatMessage('Common.Close')}
     style={{...styles.removeButton, ...style}}
     onClick={onClick}
-  />;
+  /></span>;
 }
+
+
+const buttonInlineMargin = 0;
+const buttonSize = 24;
+//todo move it to some common styles
+export const RemoveButtonStyles = {
+  inline: { // add this style, when remove button is added to a row of elements
+    marginRight: -(buttonSize + buttonInlineMargin), // apply negative margin to not break vertical alignment of a last row element with other element on other rows
+    marginLeft: buttonInlineMargin
+  }
+};
 
 export default class FieldList extends Component {
 
@@ -72,7 +83,8 @@ export default class FieldList extends Component {
     style: PropTypes.object,
     emptyLabel: PropTypes.string,
     className: PropTypes.string,
-    listContainer: PropTypes.node
+    listContainer: PropTypes.node,
+    propName: PropTypes.string
   };
 
   static defaultProps = {
@@ -87,7 +99,7 @@ export default class FieldList extends Component {
   getDefaultStyles = () => {
     const {items, itemHeight, getKey} = this.props;
     return items.map((item) => ({key: getKey(item), data: item, style: {height: itemHeight}, opacity: 1}));
-  }
+  };
   getStyles = () => {
     const {items, itemHeight, getKey} = this.props;
     return items.map((item) => ({
@@ -98,7 +110,7 @@ export default class FieldList extends Component {
         opacity: spring(1)
       }
     }));
-  }
+  };
 
   canRemove() {
     const {items, minItems} = this.props;
@@ -127,23 +139,29 @@ export default class FieldList extends Component {
   }
 
   render() {
-    const {emptyLabel, children, listContainer} = this.props;
-    let childNodes = this.props.items.map((data, index) => {
-      return React.cloneElement(React.Children.only(children), {
-        key: index,
-        item: data,
-        onRemove: this.canRemove() ? this.removeItem.bind(this, index) : undefined
+    const {emptyLabel, children, listContainer, propName} = this.props;
+
+    // React doesn't like rendering empty objects ({}) so use null to signify no children
+    let childNodes = null;
+
+    if (this.props.items) {
+      childNodes = this.props.items.map((data, index) => {
+        return React.cloneElement(React.Children.only(children), {
+          key: index,
+          item: data,
+          onRemove: this.canRemove() ? this.removeItem.bind(this, index) : undefined
+        });
       });
-    });
+    }
 
     if (listContainer) {
       childNodes = React.cloneElement(listContainer, {}, childNodes);
     }
 
     return (
-      <div style={this.props.style} className={`field ${this.props.className}`}>
+      <div style={this.props.style} className={`field ${this.props.className}`} data-qa={propName}>
         {(!this.props.items || this.props.items.length === 0) &&
-          <div className='largerFontSize' style={styles.empty}>
+          <div style={styles.empty}>
             {emptyLabel}
           </div>
         }
@@ -156,25 +174,29 @@ export default class FieldList extends Component {
 const styles = {
   addButton: {
     paddingTop: 10,
+    marginTop: -5,
+    marginBottom: 10,
     display: 'block',
     cursor: 'pointer',
     fontWeight: 400,
-    fontSize: 16,
-    color: '#46B4D5'
+    fontSize: 12,
+    color: '#999999'
   },
   addIcon: {
     marginBottom: -6,
-    width: 24,
-    height: 24
+    width: 20,
+    height: 20
   },
   removeButton: {
     color: '#999',
     fontSize: '10px',
     cursor: 'pointer',
-    width: 24,
-    height: 24
+    width: buttonSize,
+    height: buttonSize
   },
   empty: {
-    color: '#ccc'
+    color: '#ccc',
+    fontSize: 14,
+    marginBottom: 5
   }
 };

@@ -25,16 +25,22 @@ import com.dremio.service.namespace.source.proto.UpdateMode;
  */
 public class MetadataPolicy {
 
-  @Min(1)
+  public static final long ONE_MINUTE_IN_MS = 60000L;
+
+  // The minimum for this field is one minute as defined in MetadataRefresh.js
+  @Min(ONE_MINUTE_IN_MS)
   private long authTTLMs;
 
-  @Min(1)
+  // The minimum for this field is one minute as defined in MetadataRefresh.js
+  @Min(ONE_MINUTE_IN_MS)
   private long namesRefreshMs;
 
-  @Min(1)
+  // The minimum for this field is one minute as defined in MetadataRefresh.js
+  @Min(ONE_MINUTE_IN_MS)
   private long datasetRefreshAfterMs;
 
-  @Min(1)
+  // The minimum for this field is one minute as defined in MetadataRefresh.js
+  @Min(ONE_MINUTE_IN_MS)
   private long datasetExpireAfterMs;
   private String datasetUpdateMode;
 
@@ -48,7 +54,6 @@ public class MetadataPolicy {
     this.datasetUpdateMode = policy.getDatasetUpdateMode().name();
   }
 
-  @Min(1)
   public Long getAuthTTLMs() {
     return authTTLMs;
   }
@@ -57,7 +62,6 @@ public class MetadataPolicy {
     this.authTTLMs = authTTLMs;
   }
 
-  @Min(1)
   public long getNamesRefreshMs() {
     return namesRefreshMs;
   }
@@ -66,7 +70,6 @@ public class MetadataPolicy {
     this.namesRefreshMs = namesRefreshMs;
   }
 
-  @Min(1)
   public long getDatasetRefreshAfterMs() {
     return datasetRefreshAfterMs;
   }
@@ -75,7 +78,6 @@ public class MetadataPolicy {
     this.datasetRefreshAfterMs = datasetRefreshAfterMs;
   }
 
-  @Min(1)
   public long getDatasetExpireAfterMs() {
     return datasetExpireAfterMs;
   }

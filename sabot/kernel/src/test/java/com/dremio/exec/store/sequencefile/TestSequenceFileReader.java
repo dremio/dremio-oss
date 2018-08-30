@@ -41,7 +41,7 @@ public class TestSequenceFileReader extends BaseTestQuery {
   public void testSequenceFileReader() throws Exception {
     String root = FileUtils.getResourceAsFile("/sequencefiles/simple.seq").toURI().toString();
     final String query = String.format("select convert_from(t.binary_key, 'UTF8') as k, convert_from(t.binary_value, 'UTF8') as v " +
-      "from dfs.`%s` t", root);
+      "from dfs.\"%s\" t", root);
     testBuilder()
       .sqlQuery(query)
       .ordered()

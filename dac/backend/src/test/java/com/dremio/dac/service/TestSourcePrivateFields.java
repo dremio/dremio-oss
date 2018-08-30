@@ -17,7 +17,6 @@ package com.dremio.dac.service;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 
 import org.junit.Test;
 
@@ -25,6 +24,7 @@ import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -54,7 +54,7 @@ public class TestSourcePrivateFields extends BaseTestServer {
     SourceUI mySource = SourceUI.get(config, new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT));
     APrivateSource myS3config = (APrivateSource) mySource.getConfig();
 
-    assertNull(myS3config.password);
+    assertEquals(myS3config.password, ConnectionConf.USE_EXISTING_SECRET_VALUE);
     assertNotNull(myS3config.username);
 
     SourceUI withPrivatesSource = SourceUI.getWithPrivates(config, new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT));

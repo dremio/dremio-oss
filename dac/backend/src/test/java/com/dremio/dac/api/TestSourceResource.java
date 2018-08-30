@@ -17,8 +17,9 @@ package com.dremio.dac.api;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.Entity;
@@ -31,6 +32,8 @@ import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.APrivateSource;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
@@ -138,6 +141,13 @@ public class TestSourceResource extends BaseTestServer {
 
   @Test
   public void testUpdateSourceNegativeDatasetRefresh() throws Exception {
+    final MetadataPolicy testPolicy = new MetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    testPolicy.setDatasetRefreshAfterMs(-1L);
+    testMetadataPolicyWithInvalidValues(testPolicy);
+  }
+
+  @Test
+  public void testUpdateSourceBoundaryValues() throws Exception {
     SourceConfig sourceConfig = new SourceConfig();
     sourceConfig.setName("Foopy2");
 
@@ -154,38 +164,53 @@ public class TestSourceResource extends BaseTestServer {
       .setRefreshPeriod(TimeUnit.HOURS.toMillis(2))
       .setGracePeriod(TimeUnit.HOURS.toMillis(6));
 
-    // Negative data refresh interval -- should trigger a bad request.
     SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader);
-    updatedSource.getMetadataPolicy().setDatasetRefreshAfterMs(-1L);
+    updatedSource.getMetadataPolicy().setDatasetRefreshAfterMs(MetadataPolicy.ONE_MINUTE_IN_MS);
+    updatedSource.getMetadataPolicy().setAuthTTLMs(MetadataPolicy.ONE_MINUTE_IN_MS);
+    updatedSource.getMetadataPolicy().setNamesRefreshMs(MetadataPolicy.ONE_MINUTE_IN_MS);
 
-    expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildPut(Entity.entity(updatedSource, JSON)));
+    SourceResource.SourceDeprecated source = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildPut(Entity.entity(updatedSource, JSON)), SourceResource.SourceDeprecated.class);
+    assertEquals(source.getMetadataPolicy().getAuthTTLMs(), updatedSource.getMetadataPolicy().getAuthTTLMs());
+    assertEquals(source.getMetadataPolicy().getDatasetRefreshAfterMs(), updatedSource.getMetadataPolicy().getDatasetRefreshAfterMs());
+    assertEquals(source.getMetadataPolicy().getNamesRefreshMs(), updatedSource.getMetadataPolicy().getNamesRefreshMs());
+
+
     newNamespaceService().deleteSource(new SourcePath(createdSourceConfig.getName()).toNamespaceKey(), 1);
   }
 
   @Test
+  public void testUpdateSourceLowDatasetRefresh() throws Exception {
+    final MetadataPolicy testPolicy = new MetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    testPolicy.setDatasetRefreshAfterMs(500);
+    testMetadataPolicyWithInvalidValues(testPolicy);
+  }
+
+  @Test
+  public void testUpdateSourceLowDatasetExpire() throws Exception {
+    final MetadataPolicy testPolicy = new MetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    testPolicy.setDatasetExpireAfterMs(500);
+    testMetadataPolicyWithInvalidValues(testPolicy);
+  }
+
+  @Test
+  public void testUpdateLowAuthTTL() throws Exception {
+    final MetadataPolicy testPolicy = new MetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    testPolicy.setAuthTTLMs(500L);
+    testMetadataPolicyWithInvalidValues(testPolicy);
+  }
+
+  @Test
+  public void testUpdateLowNamesRefresh() throws Exception {
+    final MetadataPolicy testPolicy = new MetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    testPolicy.setNamesRefreshMs(500L);
+    testMetadataPolicyWithInvalidValues(testPolicy);
+  }
+
+  @Test
   public void testUpdateSourceNegativeNameRefresh() throws Exception {
-    SourceConfig sourceConfig = new SourceConfig();
-    sourceConfig.setName("Foopy2");
-
-    NASConf nasConfig = new NASConf();
-    sourceConfig.setType(nasConfig.getType());
-    nasConfig.path = "/";
-
-    sourceConfig.setConfig(nasConfig.toBytesString());
-
-    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig);
-
-    final AccelerationSettings settings = new AccelerationSettings()
-      .setMethod(RefreshMethod.FULL)
-      .setRefreshPeriod(TimeUnit.HOURS.toMillis(2))
-      .setGracePeriod(TimeUnit.HOURS.toMillis(6));
-
-    // Negative name refresh interval -- should trigger a bad request.
-    SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader);
-    updatedSource.getMetadataPolicy().setNamesRefreshMs(-1L);
-
-    expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildPut(Entity.entity(updatedSource, JSON)));
-    newNamespaceService().deleteSource(new SourcePath(createdSourceConfig.getName()).toNamespaceKey(), 1);
+    final MetadataPolicy testPolicy = new MetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    testPolicy.setNamesRefreshMs(-1L);
+    testMetadataPolicyWithInvalidValues(testPolicy);
   }
 
   @Test
@@ -244,11 +269,103 @@ public class TestSourceResource extends BaseTestServer {
     priv.password = "hello";
     config.setConnectionConf(priv);
 
-    SourceResource sourceResource = new SourceResource(newSourceService());
+    SourceResource sourceResource = new SourceResource(newSourceService(), null);
     SourceResource.SourceDeprecated source = sourceResource.fromSourceConfig(config);
     APrivateSource newConfig = (APrivateSource) source.getConfig();
 
     // make sure the sensitive fields have been removed
-    assertNull(newConfig.password);
+    assertEquals(newConfig.password, ConnectionConf.USE_EXISTING_SECRET_VALUE);
+  }
+
+  @Test
+  public void testSourcesByType() throws Exception {
+    ResponseList<SourceTypeTemplate> types = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH).path("type")).buildGet(), new GenericType<ResponseList<SourceTypeTemplate>>() {});
+
+    Boolean found = false;
+
+    for (SourceTypeTemplate type : types.getData()) {
+      if (type.getSourceType().equals("FAKESOURCE")) {
+        found = true;
+
+        // check that we load the svg image for the source
+        assertNotNull(type.getIcon());
+        assertTrue(type.getIcon().contains("FakeSVG"));
+        assertEquals(type.getLabel(), "FakeSource");
+      } else {
+        // test that we can load each source type that is discoverable
+        expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH).path("type").path(type.getSourceType())).buildGet(), SourceTypeTemplate.class);
+      }
+    }
+
+    assertTrue(found);
+  }
+
+  @Test
+  public void testSourceByType() throws Exception {
+    SourceTypeTemplate type = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH).path("type").path("FAKESOURCE")).buildGet(), SourceTypeTemplate.class);
+
+    assertEquals(type.getSourceType(), "FAKESOURCE");
+    assertEquals(type.getLabel(), "FakeSource");
+
+    List<SourcePropertyTemplate> elements = type.getElements();
+
+    assertEquals(elements.size(), 9);
+
+    assertSourceProperty(elements.get(0), "username", "text", null, false, null);
+    assertSourceProperty(elements.get(1), "password", "text", null, true, null);
+    assertSourceProperty(elements.get(2), "numeric", "number", null, false, 4);
+    assertSourceProperty(elements.get(3), "isAwesome", "boolean", "Awesome!", false, true);
+    assertSourceProperty(elements.get(4), "valueList", "value_list", null, false, null);
+    assertSourceProperty(elements.get(5), "hostList", "host_list", null, false, null);
+    assertSourceProperty(elements.get(6), "propList", "property_list", null, false, null);
+    assertSourceProperty(elements.get(7), "authenticationType", "credentials", null, false, null);
+    assertSourceProperty(elements.get(8), "enumType", "enum", null, false, null);
+
+    List<SourcePropertyTemplate.EnumValueTemplate> options = elements.get(8).getOptions();
+
+    assertEquals(options.size(), 2);
+    assertEquals(options.get(0).getValue(), "ENUM_1");
+    assertEquals(options.get(0).getLabel(), "Enum #1");
+    assertEquals(options.get(1).getValue(), "ENUM_2");
+    assertEquals(options.get(1).getLabel(), "Enum #2");
+  }
+
+  private void assertSourceProperty(SourcePropertyTemplate property, String propertyName, String type, String label, boolean isSecret, Object value) {
+    assertEquals(property.getPropertyName(), propertyName);
+    assertEquals(property.getType(), type);
+    assertEquals(property.getLabel(), label);
+    assertEquals(property.getSecret(), isSecret);
+    assertEquals(property.getDefaultValue(), value);
+  }
+
+  private void testMetadataPolicyWithInvalidValues(MetadataPolicy policy) throws Exception {
+    SourceConfig sourceConfig = new SourceConfig();
+    sourceConfig.setName("Foopy2");
+
+    NASConf nasConfig = new NASConf();
+    sourceConfig.setType(nasConfig.getType());
+    nasConfig.path = "/";
+
+    sourceConfig.setConfig(nasConfig.toBytesString());
+
+    SourceConfig createdSourceConfig = newSourceService().registerSourceWithRuntime(sourceConfig);
+
+    try {
+      final AccelerationSettings settings = new AccelerationSettings()
+        .setMethod(RefreshMethod.FULL)
+        .setRefreshPeriod(TimeUnit.HOURS.toMillis(2))
+        .setGracePeriod(TimeUnit.HOURS.toMillis(6));
+
+      SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader);
+
+      updatedSource.getMetadataPolicy().setDatasetRefreshAfterMs(policy.getDatasetRefreshAfterMs());
+      updatedSource.getMetadataPolicy().setDatasetExpireAfterMs(policy.getDatasetExpireAfterMs());
+      updatedSource.getMetadataPolicy().setAuthTTLMs(policy.getAuthTTLMs());
+      updatedSource.getMetadataPolicy().setNamesRefreshMs(policy.getNamesRefreshMs());
+
+      expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildPut(Entity.entity(updatedSource, JSON)));
+    } finally {
+      newNamespaceService().deleteSource(new SourcePath(createdSourceConfig.getName()).toNamespaceKey(), 1);
+    }
   }
 }

@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.physical;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -61,7 +62,7 @@ public class ValuesPrel extends AbstractRelNode implements LeafPrel {
 
   @Override
   public Iterator<Prel> iterator() {
-    return Iterators.emptyIterator();
+    return Collections.emptyIterator();
   }
 
   @Override

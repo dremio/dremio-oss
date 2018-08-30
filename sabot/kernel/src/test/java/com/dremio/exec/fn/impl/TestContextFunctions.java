@@ -25,7 +25,7 @@ public class TestContextFunctions extends PlanTestBase {
   public void userUDFForAnonymousConnection() throws Exception {
     updateClient("");
     testBuilder()
-        .sqlQuery("select user, session_user, system_user, query_user() as query_user from cp.`employee.json` limit 1")
+        .sqlQuery("select user, session_user, system_user, query_user() as query_user from cp.\"employee.json\" limit 1")
         .unOrdered()
         .baselineColumns("user", "session_user", "system_user", "query_user")
         .baselineValues("anonymous", "anonymous", "anonymous", "anonymous")
@@ -37,7 +37,7 @@ public class TestContextFunctions extends PlanTestBase {
     final String testUserName = "testUser1";
     updateClient(testUserName);
     testBuilder()
-        .sqlQuery("select user, session_user, system_user, query_user() as query_user from cp.`employee.json` limit 1")
+        .sqlQuery("select user, session_user, system_user, query_user() as query_user from cp.\"employee.json\" limit 1")
         .unOrdered()
         .baselineColumns("user", "session_user", "system_user", "query_user")
         .baselineValues(testUserName, testUserName, testUserName, testUserName)
@@ -49,7 +49,7 @@ public class TestContextFunctions extends PlanTestBase {
     final String testUserName = "testUser2";
     updateClient(testUserName);
     final String query = String.format(
-        "select employee_id from cp.`employee.json` where '%s' = user order by employee_id limit 1", testUserName);
+        "select employee_id from cp.\"employee.json\" where '%s' = user order by employee_id limit 1", testUserName);
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -64,7 +64,7 @@ public class TestContextFunctions extends PlanTestBase {
     final String waSalesUser = "testUser2";
 
     final String query = String.format("SELECT sales_city " +
-            "FROM cp.`region.json` t WHERE " +
+            "FROM cp.\"region.json\" t WHERE " +
                 "(query_user() = '%s' and t.sales_state_province = 'CA') OR " +
                 "(query_user() = '%s' and t.sales_state_province = 'WA')" +
             "ORDER BY sales_city LIMIT 2", caSalesUser, waSalesUser);
@@ -95,7 +95,7 @@ public class TestContextFunctions extends PlanTestBase {
   @Test
   public void currentSchemaUDFWhenDefaultSchemaNotSet() throws Exception {
     testBuilder()
-        .sqlQuery("select current_schema from cp.`employee.json` limit 1")
+        .sqlQuery("select current_schema from cp.\"employee.json\" limit 1")
         .unOrdered()
         .baselineColumns("current_schema")
         .baselineValues("")
@@ -106,7 +106,7 @@ public class TestContextFunctions extends PlanTestBase {
   public void currentSchemaUDFWithSingleLevelDefaultSchema() throws Exception {
     testBuilder()
         .optionSettingQueriesForTestQuery("USE dfs_test")
-        .sqlQuery("select current_schema from cp.`employee.json` limit 1")
+        .sqlQuery("select current_schema from cp.\"employee.json\" limit 1")
         .unOrdered()
         .baselineColumns("current_schema")
         .baselineValues("dfs_test")

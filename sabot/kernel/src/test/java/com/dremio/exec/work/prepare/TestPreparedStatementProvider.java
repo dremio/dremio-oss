@@ -49,7 +49,7 @@ public class TestPreparedStatementProvider extends BaseTestQuery {
    */
   @Test
   public void simple() throws Exception {
-    String query = "SELECT * FROM cp.`region.json` ORDER BY region_id LIMIT 1";
+    String query = "SELECT * FROM cp.\"region.json\" ORDER BY region_id LIMIT 1";
     PreparedStatement preparedStatement = createPrepareStmt(query, false, null);
 
     List<ExpectedColumnResult> expMetadata = ImmutableList.of(
@@ -78,7 +78,7 @@ public class TestPreparedStatementProvider extends BaseTestQuery {
    */
   @Test
   public void groupByQuery() throws Exception {
-    String query = "SELECT sales_city, count(*) as cnt FROM cp.`region.json` " +
+    String query = "SELECT sales_city, count(*) as cnt FROM cp.\"region.json\" " +
         "GROUP BY sales_city ORDER BY sales_city DESC LIMIT 1";
     PreparedStatement preparedStatement = createPrepareStmt(query, false, null);
 
@@ -102,7 +102,7 @@ public class TestPreparedStatementProvider extends BaseTestQuery {
    */
   @Test
   public void joinOrderByQuery() throws Exception {
-    String query = "SELECT l.l_quantity, l.l_shipdate, o.o_custkey FROM cp.`tpch/lineitem.parquet` l JOIN cp.`tpch/orders.parquet` o " +
+    String query = "SELECT l.l_quantity, l.l_shipdate, o.o_custkey FROM cp.\"tpch/lineitem.parquet\" l JOIN cp.\"tpch/orders.parquet\" o " +
         "ON l.l_orderkey = o.o_orderkey LIMIT 2";
 
     PreparedStatement preparedStatement = createPrepareStmt(query, false, null);
@@ -138,7 +138,7 @@ public class TestPreparedStatementProvider extends BaseTestQuery {
   public void invalidPrepareHandle() throws Exception {
     final ServerPreparedStatementState state = ServerPreparedStatementState.newBuilder()
         .setHandle(-23) // Handles start from 0 in the sever. This is relying on server implementation detail. May need to find a better way to test it.
-        .setSqlQuery("SELECT sales_city, count(*) as cnt FROM cp.`region.json` " +
+        .setSqlQuery("SELECT sales_city, count(*) as cnt FROM cp.\"region.json\" " +
             "GROUP BY sales_city ORDER BY sales_city DESC LIMIT 2")
         .setPrepareId(QueryId.newBuilder().build())
         .build();

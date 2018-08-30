@@ -46,26 +46,26 @@ public class TestImpersonationDisabledWithMiniDFS extends BaseTestImpersonation 
 
   private static void createTestData() throws Exception {
     // Create test table in minidfs.tmp schema for use in test queries
-    test(String.format("CREATE TABLE %s.dfsRegion AS SELECT * FROM cp.`region.json`",
+    test(String.format("CREATE TABLE %s.dfsRegion AS SELECT * FROM cp.\"region.json\"",
         MINIDFS_STORAGE_PLUGIN_NAME));
 
-    test("alter session set `store.format`='csv'");
-    test(String.format("CREATE TABLE %s.dfsRegionCsv AS SELECT * FROM cp.`region.json`",
+    test("alter session set \"store.format\"='csv'");
+    test(String.format("CREATE TABLE %s.dfsRegionCsv AS SELECT * FROM cp.\"region.json\"",
         MINIDFS_STORAGE_PLUGIN_NAME));
 
     // generate a large enough file that the DFS will not fulfill requests to read a
     // page of data all at once, see notes above testReadLargeParquetFileFromDFS()
-    test("alter session set `store.format`='parquet'");
+    test("alter session set \"store.format\"='parquet'");
     test(String.format(
         "CREATE TABLE %s.large_employee AS " +
-            "(SELECT employee_id, full_name FROM cp.`/employee.json`) " +
-            "UNION ALL (SELECT employee_id, full_name FROM cp.`/employee.json`)" +
-            "UNION ALL (SELECT employee_id, full_name FROM cp.`/employee.json`)" +
-            "UNION ALL (SELECT employee_id, full_name FROM cp.`/employee.json`)" +
-            "UNION ALL (SELECT employee_id, full_name FROM cp.`/employee.json`)" +
-            "UNION ALL (SELECT employee_id, full_name FROM cp.`/employee.json`)" +
-            "UNION ALL (SELECT employee_id, full_name FROM cp.`/employee.json`)" +
-        "UNION ALL (SELECT employee_id, full_name FROM cp.`/employee.json`)",
+            "(SELECT employee_id, full_name FROM cp.\"/employee.json\") " +
+            "UNION ALL (SELECT employee_id, full_name FROM cp.\"/employee.json\")" +
+            "UNION ALL (SELECT employee_id, full_name FROM cp.\"/employee.json\")" +
+            "UNION ALL (SELECT employee_id, full_name FROM cp.\"/employee.json\")" +
+            "UNION ALL (SELECT employee_id, full_name FROM cp.\"/employee.json\")" +
+            "UNION ALL (SELECT employee_id, full_name FROM cp.\"/employee.json\")" +
+            "UNION ALL (SELECT employee_id, full_name FROM cp.\"/employee.json\")" +
+        "UNION ALL (SELECT employee_id, full_name FROM cp.\"/employee.json\")",
         MINIDFS_STORAGE_PLUGIN_NAME));
   }
 
@@ -84,7 +84,7 @@ public class TestImpersonationDisabledWithMiniDFS extends BaseTestImpersonation 
   @Test
   public void testReadLargeParquetFileFromDFS() throws Exception {
     test(String.format("USE %s", MINIDFS_STORAGE_PLUGIN_NAME));
-    test("SELECT * FROM `large_employee`");
+    test("SELECT * FROM \"large_employee\"");
   }
 
   @Test // DRILL-3037

@@ -17,7 +17,7 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.io.IOException;
 
-import org.apache.arrow.vector.NullableVectorDefinitionSetter;
+import org.apache.arrow.vector.VectorDefinitionSetter;
 import org.apache.arrow.vector.ValueVector;
 
 import org.apache.parquet.column.ColumnDescriptor;
@@ -28,13 +28,13 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 
 abstract class NullableColumnReader<V extends ValueVector> extends ColumnReader<V>{
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NullableColumnReader.class);
-  NullableVectorDefinitionSetter castedVector;
+  VectorDefinitionSetter castedVector;
   protected long definitionLevelsRead = 0;
 
   NullableColumnReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
                        boolean fixedLength, V v, SchemaElement schemaElement) throws ExecutionSetupException {
     super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
-    castedVector = (NullableVectorDefinitionSetter) v;
+    castedVector = (VectorDefinitionSetter) v;
   }
 
   @Override

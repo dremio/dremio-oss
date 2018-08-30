@@ -100,7 +100,8 @@ public class SchemaField extends RexInputRef {
     return annotation;
   }
 
-  public ElasticFieldReference toReference(final boolean useDocIfPossible) {
+  public ElasticFieldReference toReference(final boolean useDocIfPossible, final boolean sourceAvailable,
+      final boolean allowPushdownAnalyzedNormalizedFields) {
 
     // doc references have to be scalar or scalar-list return values.
     final boolean isScalarOrScalarListReturn = type.isScalar() || (type.isList() && type.getOnlyChildType().isScalar());
@@ -111,16 +112,28 @@ public class SchemaField extends RexInputRef {
     // some fields don't have doc values.
     final boolean hasDocValue = annotation == null || !annotation.isDocValueMissing();
 
+    // doc values are not accurate for normalized keyword fields
+    final boolean hasCorrectDocValue = annotation == null || !annotation.isNormalized();
+
     final boolean hasSpecialType = NON_DOC_TYPES.contains(specialType);
-    final boolean useDoc = useDocIfPossible && hasDocValue && isScalarOrScalarListReturn && !isIpOnPreES5 && !hasSpecialType;
+    final boolean useDoc = useDocIfPossible && hasDocValue && hasCorrectDocValue &&
+        isScalarOrScalarListReturn && !isIpOnPreES5 && !hasSpecialType;
 
     final StringBuilder sb = new StringBuilder();
     final List<String> possibleNulls = new ArrayList<>();
+
+    if (useDoc && !allowPushdownAnalyzedNormalizedFields && type.isText() && annotation != null &&
+        (annotation.isAnalyzed() || annotation.isNormalized())) {
+      throw new RuntimeException("Cannot pushdown because of analyzed or normalized text or keyword field.");
+    }
 
     if(useDoc){
       sb.append(ElasticsearchConstants.DOC);
       sb.append(OPEN_BQ);
     } else {
+      if (!sourceAvailable) {
+        throw new RuntimeException("Cannot pushdown because neither _source nor doc value is available.");
+      }
       if(isPainless){
         // on V5, we use painless instead of groovy. In that case, source needs to be referenced differently.
         sb.append(ElasticsearchConstants.SOURCE_PAINLESS);
@@ -247,7 +260,15 @@ public class SchemaField extends RexInputRef {
         return new NullReference(input, useDoc ? ReferenceType.DOC : ReferenceType.SOURCE);
       }}).toList();
 
-    return new ElasticFieldReference(sb.toString(), nullReferences);
+    String ref;
+
+    if (isPainless && type.isTemporal()) {
+      ref = String.format("Instant.ofEpochMilli(%s.millis)", sb.toString());
+    } else {
+      ref = sb.toString();
+    }
+
+    return new ElasticFieldReference(ref, nullReferences);
   }
 
   public static enum ReferenceType {

@@ -169,6 +169,8 @@ public class ArrowRecordWriter implements RecordWriter {
       // write magic word bytes
       currentFileOutputStream.write(MAGIC_STRING.getBytes());
 
+      final long fileSize = currentFileOutputStream.getPos();
+
       currentFileOutputStream.close();
       currentFileOutputStream = null;
 
@@ -179,7 +181,7 @@ public class ArrowRecordWriter implements RecordWriter {
               .setPath(relativePath)
               .build();
 
-      outputEntryListener.recordsWritten(recordCount, currentFile.toString(), lastFileMetadata.toByteArray(), null);
+      outputEntryListener.recordsWritten(recordCount, fileSize, currentFile.toString(), lastFileMetadata.toByteArray(), null);
     }
   }
 

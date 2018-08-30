@@ -9,7 +9,7 @@ from
       substring(c_phone from 1 for 2) as cntrycode,
       c_acctbal
     from
-      cp.`tpch/customer.parquet` c
+      cp."tpch/customer.parquet" c
     where
       substring(c_phone from 1 for 2) in
         ('24', '31', '11', '16', '21', '20', '34')
@@ -17,7 +17,7 @@ from
         select
           avg(c_acctbal)
         from
-          cp.`tpch/customer.parquet`
+          cp."tpch/customer.parquet"
         where
           c_acctbal > 0.00
           and substring(c_phone from 1 for 2) in
@@ -27,7 +27,7 @@ from
         select
           *
         from
-          cp.`tpch/orders.parquet` o
+          cp."tpch/orders.parquet" o
         where
           o.o_custkey = c.c_custkey
       )

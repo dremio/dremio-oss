@@ -18,14 +18,14 @@ package com.dremio.exec.store.parquet.columnreaders;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-import org.apache.arrow.vector.NullableBigIntVector;
-import org.apache.arrow.vector.NullableDecimalVector;
-import org.apache.arrow.vector.NullableFloat4Vector;
-import org.apache.arrow.vector.NullableFloat8Vector;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableTimeStampMilliVector;
-import org.apache.arrow.vector.NullableTimeMilliVector;
-import org.apache.arrow.vector.NullableVarBinaryVector;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
+import org.apache.arrow.vector.TimeMilliVector;
+import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.SchemaElement;
@@ -36,9 +36,9 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 
 public class ParquetFixedWidthDictionaryReaders {
 
-  static class DictionaryIntReader extends FixedByteAlignedReader<NullableIntVector> {
+  static class DictionaryIntReader extends FixedByteAlignedReader<IntVector> {
     DictionaryIntReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                        ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableIntVector v,
+                        ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, IntVector v,
                         SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -58,9 +58,9 @@ public class ParquetFixedWidthDictionaryReaders {
     }
   }
 
-  static class DictionaryFixedBinaryReader extends FixedByteAlignedReader<NullableVarBinaryVector> {
+  static class DictionaryFixedBinaryReader extends FixedByteAlignedReader<VarBinaryVector> {
     DictionaryFixedBinaryReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                                ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableVarBinaryVector v,
+                                ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, VarBinaryVector v,
                                 SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -99,9 +99,9 @@ public class ParquetFixedWidthDictionaryReaders {
     }
   }
 
-  static class DictionaryIntDecimalReader extends FixedByteAlignedReader<NullableDecimalVector> {
+  static class DictionaryIntDecimalReader extends FixedByteAlignedReader<DecimalVector> {
     DictionaryIntDecimalReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                               ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableDecimalVector v,
+                               ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, DecimalVector v,
                                SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -123,9 +123,9 @@ public class ParquetFixedWidthDictionaryReaders {
     }
   }
 
-  static class DictionaryTimeReader extends FixedByteAlignedReader<NullableTimeMilliVector> {
+  static class DictionaryTimeReader extends FixedByteAlignedReader<TimeMilliVector> {
     DictionaryTimeReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                        ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableTimeMilliVector v,
+                        ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, TimeMilliVector v,
                         SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -145,9 +145,9 @@ public class ParquetFixedWidthDictionaryReaders {
     }
   }
 
-  static class DictionaryBigIntReader extends FixedByteAlignedReader<NullableBigIntVector> {
+  static class DictionaryBigIntReader extends FixedByteAlignedReader<BigIntVector> {
     DictionaryBigIntReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                           ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableBigIntVector v,
+                           ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, BigIntVector v,
                            SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -176,9 +176,9 @@ public class ParquetFixedWidthDictionaryReaders {
     }
   }
 
-  static class DictionaryLongDecimalReader extends FixedByteAlignedReader<NullableDecimalVector> {
+  static class DictionaryLongDecimalReader extends FixedByteAlignedReader<DecimalVector> {
     DictionaryLongDecimalReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                                ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableDecimalVector v,
+                                ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, DecimalVector v,
                                 SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -202,9 +202,9 @@ public class ParquetFixedWidthDictionaryReaders {
     }
   }
 
-  static class DictionaryTimeStampReader extends FixedByteAlignedReader<NullableTimeStampMilliVector> {
+  static class DictionaryTimeStampReader extends FixedByteAlignedReader<TimeStampMilliVector> {
     DictionaryTimeStampReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                           ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableTimeStampMilliVector v,
+                           ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, TimeStampMilliVector v,
                            SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -226,9 +226,9 @@ public class ParquetFixedWidthDictionaryReaders {
     }
   }
 
-  static class DictionaryFloat4Reader extends FixedByteAlignedReader<NullableFloat4Vector> {
+  static class DictionaryFloat4Reader extends FixedByteAlignedReader<Float4Vector> {
     DictionaryFloat4Reader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                           ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableFloat4Vector v,
+                           ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, Float4Vector v,
                            SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
@@ -245,9 +245,9 @@ public class ParquetFixedWidthDictionaryReaders {
     }
   }
 
-  static class DictionaryFloat8Reader extends FixedByteAlignedReader<NullableFloat8Vector> {
+  static class DictionaryFloat8Reader extends FixedByteAlignedReader<Float8Vector> {
     DictionaryFloat8Reader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor,
-                           ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, NullableFloat8Vector v,
+                           ColumnChunkMetaData columnChunkMetaData, boolean fixedLength, Float8Vector v,
                            SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }

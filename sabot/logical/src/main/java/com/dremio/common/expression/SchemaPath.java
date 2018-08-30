@@ -17,6 +17,7 @@ package com.dremio.common.expression;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -36,7 +37,6 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterators;
 
 public class SchemaPath extends LogicalExpressionBase implements Comparable<SchemaPath> {
 
@@ -231,7 +231,7 @@ public class SchemaPath extends LogicalExpressionBase implements Comparable<Sche
 
   @Override
   public Iterator<LogicalExpression> iterator() {
-    return Iterators.emptyIterator();
+    return Collections.emptyIterator();
   }
 
   @Override

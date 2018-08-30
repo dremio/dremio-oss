@@ -21,7 +21,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.arrow.vector.NullableBigIntVector;
+import org.apache.arrow.vector.BigIntVector;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -73,7 +73,7 @@ public class TestSimpleExternalSort extends BaseTestQuery {
       batchCount++;
       RecordBatchLoader loader = new RecordBatchLoader(allocator);
       loader.load(b.getHeader().getDef(),b.getData());
-      NullableBigIntVector c1 = loader.getValueAccessorById(NullableBigIntVector.class,
+      BigIntVector c1 = loader.getValueAccessorById(BigIntVector.class,
               loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
 
 
@@ -112,7 +112,7 @@ public class TestSimpleExternalSort extends BaseTestQuery {
       batchCount++;
       RecordBatchLoader loader = new RecordBatchLoader(allocator);
       loader.load(b.getHeader().getDef(),b.getData());
-      NullableBigIntVector c1 = loader.getValueAccessorById(NullableBigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
+      BigIntVector c1 = loader.getValueAccessorById(BigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
 
       for (int i =0; i < c1.getValueCount(); i++) {
         recordCount++;
@@ -165,7 +165,7 @@ public class TestSimpleExternalSort extends BaseTestQuery {
         batchCount++;
         RecordBatchLoader loader = new RecordBatchLoader(bit1.getContext().getAllocator());
         loader.load(b.getHeader().getDef(),b.getData());
-        NullableBigIntVector c1 = loader.getValueAccessorById(NullableBigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
+        BigIntVector c1 = loader.getValueAccessorById(BigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
 
         for (int i =0; i < c1.getValueCount(); i++) {
           recordCount++;
@@ -214,7 +214,7 @@ public class TestSimpleExternalSort extends BaseTestQuery {
         batchCount++;
         RecordBatchLoader loader = new RecordBatchLoader(bit1.getContext().getAllocator());
         loader.load(b.getHeader().getDef(),b.getData());
-        NullableBigIntVector c1 = loader.getValueAccessorById(NullableBigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
+        BigIntVector c1 = loader.getValueAccessorById(BigIntVector.class, loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
 
         for (int i =0; i < c1.getValueCount(); i++) {
           recordCount++;

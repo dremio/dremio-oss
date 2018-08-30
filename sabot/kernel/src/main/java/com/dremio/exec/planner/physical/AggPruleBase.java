@@ -16,16 +16,9 @@
 
 package com.dremio.exec.planner.physical;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.calcite.avatica.SqlType;
-import org.apache.calcite.linq4j.Ord;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.util.BitSets;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -33,7 +26,6 @@ import org.apache.calcite.plan.RelOptRuleOperand;
 
 import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.logical.AggregateRel;
-import com.dremio.exec.planner.physical.AggPrelBase.SqlHllAggFunction;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -62,13 +54,15 @@ public abstract class AggPruleBase extends Prule {
     return groupByFields;
   }
 
-  private static final Set<String> twoPhaseFunctions = ImmutableSet.<String>builder().add("SUM")
-    .add("MIN")
-    .add("MAX")
-    .add("COUNT")
-    .add("$SUM0")
-    .add("NDV")
-    .build();
+  private static final Set<String> twoPhaseFunctions = ImmutableSet.of(
+      "SUM",
+      "MIN",
+      "MAX",
+      "COUNT",
+      "$SUM0",
+      "HLL_MERGE",
+      "HLL"
+      );
 
   // Create 2 phase aggr plan for aggregates such as SUM, MIN, MAX
   // If any of the aggregate functions are not one of these, then we
@@ -90,23 +84,4 @@ public abstract class AggPruleBase extends Prule {
     return true;
   }
 
-  protected List<AggregateCall> convertAggCallList(AggregateRel aggregate, List<AggregateCall> aggCalls) {
-    List<AggregateCall> convertedCalls = new ArrayList<>();
-    for (Ord<AggregateCall> aggCall : Ord.zip(aggCalls)) {
-      AggregateCall newCall;
-      if ("NDV".equals(aggCall.e.getAggregation().getName())) {
-        newCall = AggregateCall.create(
-          new SqlHllAggFunction(),
-          aggCall.e.isDistinct(),
-          aggCall.e.getArgList(),
-          -1,
-          aggregate.getCluster().getTypeFactory().createSqlType(SqlTypeName.BINARY),
-          aggCall.e.getName());
-      } else {
-        newCall = aggCall.e;
-      }
-      convertedCalls.add(newCall);
-    }
-    return convertedCalls;
-  }
 }

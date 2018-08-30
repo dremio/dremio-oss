@@ -15,52 +15,111 @@
  */
 package com.dremio.sabot.rpc.user;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.calcite.avatica.util.Quoting;
-import org.apache.calcite.tools.ValidationException;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.proto.UserBitShared.RpcEndpointInfos;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.proto.UserProtos.Property;
 import com.dremio.exec.proto.UserProtos.RecordBatchFormat;
 import com.dremio.exec.proto.UserProtos.UserProperties;
-import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
 import com.dremio.exec.work.user.SubstitutionSettings;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
+import com.google.common.base.Strings;
 
 public class UserSession {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UserSession.class);
 
-  public static final String SCHEMA = "schema";
-  public static final String USER = "user";
-  public static final String PASSWORD = "password";
-  public static final String IMPERSONATION_TARGET = "impersonation_target";
+  public static final String SCHEMA = PropertySetter.SCHEMA.toPropertyName();
+  public static final String USER = PropertySetter.USER.toPropertyName();
+  public static final String PASSWORD = PropertySetter.PASSWORD.toPropertyName();
+  public static final String IMPERSONATION_TARGET = PropertySetter.IMPERSONATION_TARGET.toPropertyName();
+  public static final String QUOTING = PropertySetter.QUOTING.toPropertyName();
+  public static final String SUPPORTFULLYQUALIFIEDPROJECTS = PropertySetter.SUPPORTFULLYQUALIFIEDPROJECTS.toPropertyName();
 
-  // known property names in lower case
-  private static final Set<String> KNOWN_PROPERTIES = ImmutableSet.of(SCHEMA, USER, PASSWORD, IMPERSONATION_TARGET);
+  private enum PropertySetter {
+    USER, PASSWORD,
+
+    QUOTING {
+      @Override
+      public void setValue(UserSession session, String value) {
+        if (value == null) {
+          return;
+        }
+        final Quoting quoting;
+        switch(value.toUpperCase(Locale.ROOT)) {
+        case "BACK_TICK":
+          quoting = Quoting.BACK_TICK;
+          break;
+
+        case "DOUBLE_QUOTE":
+          quoting = Quoting.DOUBLE_QUOTE;
+          break;
+
+        case "BRACKET":
+          quoting = Quoting.BRACKET;
+          break;
+
+        default:
+          logger.warn("Ignoring message to use initial quoting of type {}.", value);
+          return;
+        }
+        session.initialQuoting = quoting;
+      }
+    },
+
+    SCHEMA {
+      @Override
+      public void setValue(UserSession session, String value) {
+        session.defaultSchemaPath = Strings.isNullOrEmpty(value) ? null : new NamespaceKey(SqlUtils.parseSchemaPath(value));
+      }
+    },
+
+    IMPERSONATION_TARGET {
+      @Override
+      public void setValue(UserSession session, String value) {
+        session.impersonationTarget = value;
+      }
+    },
+
+    SUPPORTFULLYQUALIFIEDPROJECTS {
+      @Override
+      public void setValue(UserSession session, String value) {
+        session.supportFullyQualifiedProjections = "true".equalsIgnoreCase(value);
+      }
+    };
+
+    /**
+     * Set the corresponding
+     * @param session
+     * @param value
+     */
+    public void setValue(UserSession session, String value) {
+      // Default: do nothing
+    }
+
+    public String toPropertyName() {
+      return name().toLowerCase(Locale.ROOT);
+    }
+  }
 
   private final AtomicInteger queryCount = new AtomicInteger(0);
   private boolean supportComplexTypes = false;
   private UserCredentials credentials;
-  private Map<String, String> properties = Maps.newHashMap();
   private NamespaceKey defaultSchemaPath;
   private OptionManager sessionOptions;
   private RpcEndpointInfos clientInfos;
   private boolean useLegacyCatalogName = false;
+  private String impersonationTarget = null;
   private Quoting initialQuoting;
   private boolean supportFullyQualifiedProjections;
   private RecordBatchFormat recordBatchFormat = RecordBatchFormat.DREMIO_1_4;
@@ -125,18 +184,22 @@ public class UserSession {
     }
 
     public Builder withUserProperties(UserProperties properties) {
-      userSession.properties = Maps.newHashMap();
-      if (properties != null) {
-        for (int i = 0; i < properties.getPropertiesCount(); i++) {
-          final Property property = properties.getProperties(i);
-          final String propertyName = property.getKey().toLowerCase();
-          if (KNOWN_PROPERTIES.contains(propertyName)) {
-            userSession.properties.put(propertyName, property.getValue());
-          } else {
-            logger.warn("Ignoring unknown property: {}", propertyName);
-          }
+      if (properties == null) {
+        return this;
+      }
+
+      for (int i = 0; i < properties.getPropertiesCount(); i++) {
+        final Property property = properties.getProperties(i);
+        final String propertyName = property.getKey().toUpperCase(Locale.ROOT);
+        final String propertyValue = property.getValue();
+        try {
+          final PropertySetter sessionProperty = PropertySetter.valueOf(propertyName);
+          sessionProperty.setValue(userSession, propertyValue);
+        } catch(IllegalArgumentException e) {
+          logger.warn("Ignoring unknown property: {}", propertyName);
         }
       }
+
       return this;
     }
 
@@ -237,14 +300,10 @@ public class UserSession {
   }
 
   public String getTargetUserName() {
-    return properties.get(IMPERSONATION_TARGET);
+    return impersonationTarget;
   }
 
   public String getDefaultSchemaName() {
-    final String schema = properties.get(SCHEMA);
-    if(schema != null) {
-      return schema;
-    }
     return defaultSchemaPath == null ? "" : defaultSchemaPath.toString();
   }
 
@@ -261,60 +320,17 @@ public class UserSession {
   }
 
   /**
-   * Update the schema path for the session.
-   * @param newDefaultSchemaPath New default schema path to set. It could be relative to the current default schema or
-   *                             absolute schema.
-   * @param currentDefaultSchema Current default schema.
-   * @throws ValidationException If the given default schema path is invalid in current schema tree.
+   * Set the schema path for the session.
+   * @param newDefaultSchemaPath New default schema path to set. It should be an absolute schema
    */
-  public void setDefaultSchemaPath(List<String> newDefaultSchemaPath, Catalog catalog)
-      throws ValidationException {
-
-    // First try to find the given schema relative to the current default schema.
-    if(this.defaultSchemaPath != null) {
-      List<String> resolved = new ArrayList<>();
-      resolved.addAll(defaultSchemaPath.getPathComponents());
-      resolved.addAll(newDefaultSchemaPath);
-      NamespaceKey key = new NamespaceKey(resolved);
-      if(catalog.containerExists(key)) {
-        this.defaultSchemaPath = key;
-        setProp(SCHEMA, null);
-        return;
-      }
-    }
-
-    NamespaceKey path = new NamespaceKey(newDefaultSchemaPath);
-    if(catalog.containerExists(path)) {
-      this.defaultSchemaPath = path;
-      setProp(SCHEMA, null);
-      return;
-    }
-
-    throw UserException.validationError()
-      .message("Unable to find schema [%s]. Either it doesn't exist or you don't have permission to access it.", path)
-      .build(logger);
-
+  public void setDefaultSchemaPath(List<String> newDefaultSchemaPath) {
+    this.defaultSchemaPath = newDefaultSchemaPath != null ? new NamespaceKey(newDefaultSchemaPath) : null;
   }
 
   /**
    * @return Get current default schema path.
    */
   public NamespaceKey getDefaultSchemaPath() {
-
-    final String schema = properties.get(SCHEMA);
-    if(schema != null) {
-      return new NamespaceKey(SqlUtils.parseSchemaPath(schema));
-    }
-
     return defaultSchemaPath;
-  }
-
-
-  private String getProp(String key) {
-    return properties.get(key) != null ? properties.get(key) : "";
-  }
-
-  private void setProp(String key, String value) {
-    properties.put(key, value);
   }
 }

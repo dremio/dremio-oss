@@ -109,6 +109,8 @@ public class AccumulatorBuilder {
         return new SumAccumulators.BigIntSumAccumulator(incomingValues, outputVector);
       case FLOAT8:
         return new SumAccumulators.DoubleSumAccumulator(incomingValues, outputVector);
+      case DECIMAL:
+        return new SumAccumulators.DecimalSumAccumulator(incomingValues, outputVector);
       }
       break;
     }
@@ -123,6 +125,28 @@ public class AccumulatorBuilder {
         return new MinAccumulators.BigIntMinAccumulator(incomingValues, outputVector);
       case FLOAT8:
         return new MinAccumulators.DoubleMinAccumulator(incomingValues, outputVector);
+      case DECIMAL:
+        return new MinAccumulators.DecimalMinAccumulator(incomingValues, outputVector);
+      case BIT:
+        return new MinAccumulators.BitMinAccumulator(incomingValues, outputVector);
+      case DATE:
+        // dates represented as NullableDateMilli, which are 8-byte values. For purposes of min(), comparisions
+        // of NullableDateMilli are the same as comparisons on the underlying long values
+        return new MinAccumulators.BigIntMinAccumulator(incomingValues, outputVector);
+      case TIME:
+        // time represented as NullableTimeMilli, which are 4-byte values. For purposes of min(), comparisons
+        // of NullableTimeMilli are the same as comparisons on the underlying int values
+        return new MinAccumulators.IntMinAccumulator(incomingValues, outputVector);
+      case TIMESTAMP:
+        // time represented as NullableTimeStampMilli, which are 8-byte values. For purposes of min(), comparisons
+        // of NullableTimeStampMilli are the same as comparisons on the underlying long values
+        return new MinAccumulators.BigIntMinAccumulator(incomingValues, outputVector);
+      case INTERVALDAY:
+        return new MinAccumulators.IntervalDayMinAccumulator(incomingValues, outputVector);
+      case INTERVALYEAR:
+        // interval-year represented as a NullableIntervalYear, which is a 4-byte value containing the number of months
+        // in the interval. Comparisons are the same as comparisons on the underlying int values
+        return new MinAccumulators.IntMinAccumulator(incomingValues, outputVector);
       }
       break;
     }
@@ -137,6 +161,28 @@ public class AccumulatorBuilder {
         return new MaxAccumulators.BigIntMaxAccumulator(incomingValues, outputVector);
       case FLOAT8:
         return new MaxAccumulators.DoubleMaxAccumulator(incomingValues, outputVector);
+      case DECIMAL:
+        return new MaxAccumulators.DecimalMaxAccumulator(incomingValues, outputVector);
+      case BIT:
+        return new MaxAccumulators.BitMaxAccumulator(incomingValues, outputVector);
+      case DATE:
+        // dates represented as NullableDateMilli, which are 8-byte values. For purposes of max(), comparisions
+        // of NullableDateMilli are the same as comparisons on the underlying long values
+        return new MaxAccumulators.BigIntMaxAccumulator(incomingValues, outputVector);
+      case TIME:
+        // time represented as NullableTimeMilli, which are 4-byte values. For purposes of max(), comparisons
+        // of NullableTimeMilli are the same as comparisons on the underlying int values
+        return new MaxAccumulators.IntMaxAccumulator(incomingValues, outputVector);
+      case TIMESTAMP:
+        // time represented as NullableTimeStampMilli, which are 8-byte values. For purposes of max(), comparisons
+        // of NullableTimeStampMilli are the same as comparisons on the underlying long values
+        return new MaxAccumulators.BigIntMaxAccumulator(incomingValues, outputVector);
+      case INTERVALDAY:
+        return new MaxAccumulators.IntervalDayMaxAccumulator(incomingValues, outputVector);
+      case INTERVALYEAR:
+        // interval-year represented as a NullableIntervalYear, which is a 4-byte value containing the number of months
+        // in the interval. Comparisons are the same as comparisons on the underlying int values
+        return new MaxAccumulators.IntMaxAccumulator(incomingValues, outputVector);
       }
       break;
     }
@@ -151,6 +197,8 @@ public class AccumulatorBuilder {
         return new SumZeroAccumulators.BigIntSumZeroAccumulator(incomingValues, outputVector);
       case FLOAT8:
         return new SumZeroAccumulators.DoubleSumZeroAccumulator(incomingValues, outputVector);
+      case DECIMAL:
+        return new SumZeroAccumulators.DecimalSumZeroAccumulator(incomingValues, outputVector);
       }
       break;
     }

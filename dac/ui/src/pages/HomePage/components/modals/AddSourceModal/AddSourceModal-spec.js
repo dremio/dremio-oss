@@ -16,7 +16,7 @@
 import { shallow } from 'enzyme';
 
 import ApiUtils from 'utils/apiUtils/apiUtils';
-import NASForm from 'components/sourceForms/NASForm';
+
 import { getResponseForEntity } from 'testUtil';
 
 import { NAS } from 'dyn-load/constants/sourceTypes';
@@ -74,21 +74,7 @@ describe('AddSourceModal', () => {
 
   it('should render SelectSourceType when no source type selected', () => {
     const wrapper = shallow(<AddSourceModal {...commonProps}/>, {context});
-
     expect(wrapper.find('SelectSourceType')).to.have.length(1);
-    wrapper.setProps({source: selectedSource});
-    expect(wrapper.find('SelectSourceType')).to.have.length(0);
-  });
-
-  it('should render NASForm when source is nas', () => {
-    const wrapper = shallow(<AddSourceModal {...commonProps} source={selectedSource}/>, {context});
-    expect(wrapper.find(NASForm)).to.have.length(1);
-  });
-
-  it('should continue to show NASForm while modal is hiding (source prop is removed)', () => {
-    const wrapper = shallow(<AddSourceModal {...commonProps} source={selectedSource}/>, {context});
-    wrapper.setProps({source: undefined});
-    expect(wrapper.find(NASForm)).to.have.length(1);
   });
 
   describe('#handleAddSampleSource()', () => {
@@ -116,10 +102,12 @@ describe('AddSourceModal', () => {
   });
 
   describe('handleSelectSource', () => {
-    it('should call router.push with sourceType added to location.state', () => {
+    it('should call setStateWithSourceTypeConfigFromServer', () => {
       const wrapper = shallow(<AddSourceModal {...commonProps}/>, {context});
+      const instance = wrapper.instance();
+      sinon.spy(instance, 'setStateWithSourceTypeConfigFromServer');
       wrapper.instance().handleSelectSource(selectedSource);
-      expect(context.router.push.args[0][0].state).to.eql({...commonProps.location.state, source: selectedSource});
+      expect(instance.setStateWithSourceTypeConfigFromServer).to.be.called;
     });
   });
 
@@ -145,14 +133,14 @@ describe('AddSourceModal', () => {
     });
     it('should call mutateFormValues and createSource', () => {
       sinon.spy(instance, 'mutateFormValues');
-      instance.submit(formValues);
+      instance.handleAddSourceSubmit(formValues);
       expect(instance.mutateFormValues).to.be.calledOnce;
       expect(ApiUtils.attachFormSubmitHandlers).to.be.calledOnce;
       expect(commonProps.createSource).to.be.calledOnce;
     });
 
     it('should call router.push with new source\'s url', () => {
-      return instance.submit(formValues).then(() => {
+      return instance.handleAddSourceSubmit(formValues).then(() => {
         expect(context.router.push).to.be.calledWith('someUrl');
       });
     });

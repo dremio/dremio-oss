@@ -34,7 +34,7 @@ public class JdbcRel extends JdbcRelBase implements Rel, CopyToCluster {
   }
 
   @Override
-  public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
+  public RelNode copy(RelTraitSet traitSet, List<RelNode> ignored /* inputs */) {
     return new JdbcRel(getCluster(), traitSet, jdbcSubTree);
   }
 

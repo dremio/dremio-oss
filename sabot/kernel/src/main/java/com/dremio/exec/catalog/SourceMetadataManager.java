@@ -191,9 +191,9 @@ class SourceMetadataManager implements AutoCloseable {
     }
   }
 
-  private void cancelRefreshTask() {
+  void cancelRefreshTask() {
+    cancelWork = true;
     synchronized(runLock) {
-      cancelWork = true;
       Cancellable lastTask = this.lastTask;
       if(lastTask != null && !lastTask.isCancelled()) {
         lastTask.cancel(false);
@@ -287,7 +287,11 @@ class SourceMetadataManager implements AutoCloseable {
         // Exception while updating the metadata. Ignore, and try again later
         logger.warn(String.format("Failed to update namespace for plugin '%s'", sourceKey), e);
       } finally {
-        scheduleUpdate(nextUpdateMs);
+        if (!cancelWork) {
+          // This tries to fetch refresh thread runLock which is already occupied by this thread, so it shouldn't
+          // have any problem
+          scheduleUpdate(nextUpdateMs);
+        }
       }
     }
   }
@@ -527,12 +531,30 @@ class SourceMetadataManager implements AutoCloseable {
       } else {
         definition = plugin.get().getDataset(key, config, false);
       }
-    } catch (Exception ex){
-      throw UserException.dataReadError(ex).message("Failure while attempting to read metadata for table %s from source.", key).build(logger);
+    } catch (Exception ex) {
+      throw UserException.dataReadError(ex)
+          .message("Failure while attempting to read metadata for table [%s] from source", key)
+          .build(logger);
     }
 
-    if(definition == null){
-      throw UserException.validationError().message("Unable to find requested table %s.", key).build(logger);
+    if (definition == null) {
+
+      if (config != null) {
+        // unable to find request table in the plugin, but somehow the entry exists in namespace, so delete it
+        try {
+          systemUserNamespaceService.deleteDataset(key, config.getVersion());
+          return UpdateStatus.DELETED;
+        } catch (NamespaceNotFoundException ignored) {
+        } catch (Exception e) {
+          throw UserException.dataReadError(e)
+              .message("Failure while attempting to delete table entry [%s] from namespace", key)
+              .build(logger);
+        }
+      }
+
+      throw UserException.validationError()
+          .message("Unable to find requested table [%s]", key)
+          .build(logger);
     }
 
     saver.completeSave(definition, config);

@@ -24,8 +24,11 @@ import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
+
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.ExtendedLatch;
+import com.dremio.common.utils.protos.ExternalIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.observer.OutOfBandQueryObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
@@ -39,17 +42,14 @@ import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.proto.UserProtos.RpcType;
-import com.dremio.exec.proto.helper.QueryIdHelper;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionManager;
 import com.dremio.exec.server.options.SystemOptionManager;
-import com.dremio.exec.work.SafeExit;
-import com.dremio.exec.work.ExternalIdHelper;
 import com.dremio.exec.work.RunningQueryProvider;
+import com.dremio.exec.work.SafeExit;
 import com.dremio.exec.work.foreman.TerminationListenerRegistry;
 import com.dremio.exec.work.rpc.CoordProtocol;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
@@ -57,6 +57,8 @@ import com.dremio.exec.work.rpc.CoordTunnelCreator;
 import com.dremio.exec.work.user.LocalExecutionConfig;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.OptionProvider;
+import com.dremio.options.OptionManager;
+import com.dremio.resource.ResourceAllocator;
 import com.dremio.sabot.rpc.ExecToCoordHandler;
 import com.dremio.sabot.rpc.Protocols;
 import com.dremio.sabot.rpc.user.UserRpcUtils;
@@ -103,6 +105,7 @@ public class ForemenWorkManager implements Service, SafeExit {
   private final Provider<SabotContext> dbContext;
   private final Provider<FabricService> fabric;
   private final BindingCreator bindingCreator;
+  private final Provider<ResourceAllocator> queryResourceManager;
 
   private ClusterCoordinator coordinator;
   private ExtendedLatch exitLatch = null; // This is used to wait to exit when things are still running
@@ -113,11 +116,13 @@ public class ForemenWorkManager implements Service, SafeExit {
       final Provider<ClusterCoordinator> coord,
       final Provider<FabricService> fabric,
       final Provider<SabotContext> dbContext,
+      final Provider<ResourceAllocator> queryResourceManager,
       final BindingCreator bindingCreator) {
     this.coord = coord;
     this.dbContext = dbContext;
     this.fabric = fabric;
     this.bindingCreator = bindingCreator;
+    this.queryResourceManager = queryResourceManager;
   }
 
   @Override
@@ -128,11 +133,15 @@ public class ForemenWorkManager implements Service, SafeExit {
     bindingCreator.replace(ExecToCoordHandler.class, new ExecToCoordHandlerImpl());
 
     final ForemenTool tool = new ForemenToolImpl();
-    final FabricRunnerFactory coordFactory = fabric.get().registerProtocol(new CoordProtocol(dbContext.get().getAllocator(), tool, dbContext.get().getConfig()));
+    boolean succeeded = bindingCreator.bindIfUnbound(ForemenTool.class, tool);
+    if (!succeeded) {
+      // then it is already bound, force set by replacing
+      bindingCreator.replace(ForemenTool.class, tool);
+    }
 
+    final FabricRunnerFactory coordFactory = fabric.get()
+        .registerProtocol(new CoordProtocol(dbContext.get().getAllocator(), tool, dbContext.get().getConfig()));
     bindingCreator.bindSelf(new CoordTunnelCreator(coordFactory));
-    bindingCreator.bind(ForemenTool.class, tool);
-
 
     // accept enduser rpc requests (replaces noop implementation).
     bindingCreator.bind(UserWorker.class, new UserWorkerImpl(dbContext.get().getOptionManager(), pool));
@@ -162,7 +171,8 @@ public class ForemenWorkManager implements Service, SafeExit {
           final ReAttemptHandler attemptHandler) {
 
     final DelegatingCompletionListener delegate = new DelegatingCompletionListener();
-    final Foreman foreman = newForeman(pool, delegate, externalId, observer, session, request, config, attemptHandler, tunnelCreator, preparedHandles);
+    final Foreman foreman = newForeman(pool, delegate, externalId, observer, session, request, config,
+      attemptHandler, tunnelCreator, preparedHandles);
     final ManagedForeman managed = new ManagedForeman(registry, foreman);
     externalIdToForeman.put(foreman.getExternalId(), managed);
     delegate.setListener(managed);
@@ -173,7 +183,8 @@ public class ForemenWorkManager implements Service, SafeExit {
       QueryObserver observer, UserSession session, UserRequest request, OptionProvider config,
       ReAttemptHandler attemptHandler, CoordToExecTunnelCreator tunnelCreator,
       Cache<Long, PreparedPlan> plans) {
-    return new Foreman(dbContext.get(), executor, listener, externalId, observer, session, request, config, attemptHandler, tunnelCreator, plans);
+    return new Foreman(dbContext.get(), executor, listener, externalId, observer, session, request, config,
+      attemptHandler, tunnelCreator, plans, queryResourceManager.get());
   }
 
   private class RunningQueryProviderImpl implements RunningQueryProvider {
@@ -243,6 +254,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     public void completed() {
       registry.removeTerminationListener(closeListener);
       final ExternalId externalId = foreman.getExternalId();
+
       final ManagedForeman managed = externalIdToForeman.remove(externalId);
       if (managed == null) {
         logger.warn("Couldn't find retiring Foreman for query " + externalId);
@@ -497,6 +509,5 @@ public class ForemenWorkManager implements Service, SafeExit {
 
       return managed.foreman.getCurrentProfile();
     }
-
   }
 }

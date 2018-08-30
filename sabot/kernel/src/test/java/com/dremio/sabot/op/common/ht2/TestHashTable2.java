@@ -19,8 +19,8 @@ import static org.junit.Assert.*;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.NullableIntVector;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.junit.Test;
 
 import com.dremio.exec.record.VectorContainer;
@@ -38,13 +38,13 @@ public class TestHashTable2 {
     try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
         final VectorContainer c = new VectorContainer();) {
 
-      NullableVarCharVector col1 = new NullableVarCharVector("col1", allocator);
+      VarCharVector col1 = new VarCharVector("col1", allocator);
       TestVarBinaryPivot.populate(col1, col1arr);
       c.add(col1);
-      NullableVarCharVector col2 = new NullableVarCharVector("col2", allocator);
+      VarCharVector col2 = new VarCharVector("col2", allocator);
       TestVarBinaryPivot.populate(col2, col2arr);
       c.add(col2);
-      NullableIntVector col3 = new NullableIntVector("col3", allocator);
+      IntVector col3 = new IntVector("col3", allocator);
       TestIntPivot.populate(col3, col3arr);
       c.add(col3);
       final int records = c.setAllCount(col1arr.length);
@@ -81,11 +81,11 @@ public class TestHashTable2 {
     try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
         final VectorContainer c = new VectorContainer();) {
 
-      NullableVarCharVector col1 = new NullableVarCharVector("col1", allocator);
+      VarCharVector col1 = new VarCharVector("col1", allocator);
       c.add(col1);
-      NullableVarCharVector col2 = new NullableVarCharVector("col2", allocator);
+      VarCharVector col2 = new VarCharVector("col2", allocator);
       c.add(col2);
-      NullableIntVector col3 = new NullableIntVector("col3", allocator);
+      IntVector col3 = new IntVector("col3", allocator);
       c.add(col3);
       c.allocateNew();
       final int records = c.setAllCount(2000);

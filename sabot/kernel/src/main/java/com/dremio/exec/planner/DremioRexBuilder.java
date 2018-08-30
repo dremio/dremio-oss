@@ -66,11 +66,6 @@ public class DremioRexBuilder extends RexBuilder {
       return ((RexCall) castRexNode).getOperands().get(0);
     }
 
-    // If the types do not match (especially nullability), then cast it.
-    if (!castRexNode.getType().equals(type)) {
-      return makeAbstractCast(type, castRexNode);
-    }
-
     return castRexNode;
   }
 }

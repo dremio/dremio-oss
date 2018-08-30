@@ -45,7 +45,7 @@ import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 
-import com.dremio.common.config.SabotConfig;
+import com.dremio.common.VM;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -118,7 +118,7 @@ public class LocalDictionariesReader {
   }
 
   public static void main(String[] args) {
-    try (final BufferAllocator bufferAllocator = new RootAllocator(SabotConfig.getMaxDirectMemory())) {
+    try (final BufferAllocator bufferAllocator = new RootAllocator(VM.getMaxDirectMemory())) {
       final FileSystem fs = FileSystem.getLocal(new Configuration());
       final Path filePath = new Path(args[0]);
       final CodecFactory codecFactory = CodecFactory.createDirectCodecFactory(fs.getConf(), new ParquetDirectByteBufferAllocator(bufferAllocator), 0);

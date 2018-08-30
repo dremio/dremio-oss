@@ -20,6 +20,7 @@ import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.Iterator;
 
+import com.dremio.common.VM;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.WorkStats;
@@ -41,11 +42,6 @@ public class ThreadsIterator implements Iterator<Object> {
   private final WorkStats stats;
   private final ThreadMXBean threadMXBean;
 
-  private static final int NUMBER_OF_CORES;
-  static {
-    NUMBER_OF_CORES=Runtime.getRuntime().availableProcessors();
-  }
-
   public ThreadsIterator(final SabotContext dbContext, final OperatorContext context) {
     this.dbContext = dbContext;
     threadMXBean = ManagementFactory.getThreadMXBean();
@@ -63,11 +59,12 @@ public class ThreadsIterator implements Iterator<Object> {
       }),
       Predicates.notNull());
 
-    logger.debug("number of threads = {}, number of cores = {}", ids.length, NUMBER_OF_CORES);
+    logger.debug("number of threads = {}, number of cores = {}", ids.length, VM.availableProcessors());
 
     this.stats = dbContext.getWorkStatsProvider().get();
   }
 
+  @Override
   public boolean hasNext() {
     return threadInfoIterator.hasNext();
   }
@@ -86,7 +83,7 @@ public class ThreadsIterator implements Iterator<Object> {
             currentThread.getThreadState().name(),
             stats.getCpuTrailingAverage(id, 1),
             stats.getUserTrailingAverage(id, 1),
-            NUMBER_OF_CORES,
+            VM.availableProcessors(),
             getStackTrace(currentThread));
   }
 

@@ -36,6 +36,7 @@ enum ReflectionState {
   FAILED = 5;
   DEPRECATE = 6;
   UPDATE = 7;
+  COMPACTING = 8;
 }
 
 // represent an individual, concrete acceleration

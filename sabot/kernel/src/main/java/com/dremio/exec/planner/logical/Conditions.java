@@ -15,9 +15,12 @@
  */
 package com.dremio.exec.planner.logical;
 
+import java.util.Set;
+
 import org.apache.calcite.rel.rules.PushProjector;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.runtime.PredicateImpl;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
@@ -40,7 +43,10 @@ public final class Conditions {
    * The above plan is wrong, since we do not want ITEM(X, 0) to be evaluated unless predicate(X) is true.
    * For instance, predicate(X) could be IS_LIST(X) and if X is not a list, we shouldn't do ITEM(X,0).
    */
-  public static PushProjector.ExprCondition PRESERVE_ITEM_CASE = new PushProjector.ExprCondition() {
+  public static final PushProjector.ExprCondition PRESERVE_ITEM_CASE = new PushProjectorExprCondition();
+
+  private static class PushProjectorExprCondition extends PredicateImpl<RexNode>
+    implements PushProjector.ExprCondition {
     @Override
     public boolean test(RexNode expr) {
       if (expr instanceof RexCall) {
@@ -56,10 +62,26 @@ public final class Conditions {
    * Avoid decomposing any expression where we might change the short circuit behavior, similar to
    * the preserve case above, just covers and & or as additional potential short circuit operators.
    */
-  public static PushProjector.ExprCondition SHORT_CIRCUIT_AND_ITEM = new PushProjector.OperatorExprCondition(ImmutableSet.<SqlOperator>of(
-      SqlStdOperatorTable.CASE,
-      SqlStdOperatorTable.ITEM,
-      SqlStdOperatorTable.AND,
-      SqlStdOperatorTable.OR
-      ));
+  public static final PushProjector.ExprCondition SHORT_CIRCUIT_AND_ITEM = new OperatorExprCondition(
+      ImmutableSet.<SqlOperator>of(
+        SqlStdOperatorTable.CASE,
+        SqlStdOperatorTable.ITEM,
+        SqlStdOperatorTable.AND,
+        SqlStdOperatorTable.OR
+        ));
+
+  private static class OperatorExprCondition extends PredicateImpl<RexNode>
+    implements PushProjector.ExprCondition {
+    private final Set<SqlOperator> operatorSet;
+
+    OperatorExprCondition(Iterable<? extends SqlOperator> operatorSet) {
+      this.operatorSet = ImmutableSet.copyOf(operatorSet);
+    }
+
+    @Override
+    public boolean test(RexNode expr) {
+      return expr instanceof RexCall
+          && operatorSet.contains(((RexCall) expr).getOperator());
+    }
+  }
 }

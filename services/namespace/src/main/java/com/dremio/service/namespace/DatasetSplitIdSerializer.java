@@ -37,7 +37,7 @@ public class DatasetSplitIdSerializer extends Serializer<DatasetSplitId> {
 
   @Override
   public byte[] convert(DatasetSplitId v) {
-    return StringSerializer.INSTANCE.convert(v.getSpiltId());
+    return StringSerializer.INSTANCE.convert(v.getSplitId());
   }
 
   @Override

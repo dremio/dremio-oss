@@ -30,7 +30,7 @@ public class TestDateReader extends BaseTestQuery {
     // and uses the PLAIN_DICTIONARY encoding
 
     // query parquet file. We shouldn't get any exception
-    testNoResult("SELECT * FROM cp.`parquet/date_dictionary.parquet`");
+    testNoResult("SELECT * FROM cp.\"parquet/date_dictionary.parquet\"");
   }
 
   /**
@@ -42,6 +42,6 @@ public class TestDateReader extends BaseTestQuery {
     // and uses the PLAIN encoding
 
     // query parquet file. We shouldn't get any exception
-    testNoResult("SELECT * FROM cp.`parquet/date_nodictionary.parquet`");
+    testNoResult("SELECT * FROM cp.\"parquet/date_nodictionary.parquet\"");
   }
 }

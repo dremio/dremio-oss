@@ -32,8 +32,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -70,11 +69,11 @@ import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.rpc.ConnectionThrottle;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotNode;
-import com.dremio.exec.server.options.OptionValidator;
-import com.dremio.exec.server.options.TypeValidators.BooleanValidator;
-import com.dremio.exec.server.options.TypeValidators.DoubleValidator;
-import com.dremio.exec.server.options.TypeValidators.LongValidator;
-import com.dremio.exec.server.options.TypeValidators.StringValidator;
+import com.dremio.options.OptionValidator;
+import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.DoubleValidator;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.StringValidator;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.exec.work.user.LocalQueryExecutor;
@@ -207,7 +206,6 @@ public class BaseTestQuery extends ExecTest {
   protected static SabotNode[] nodes;
   protected static ClusterCoordinator clusterCoordinator;
   protected static SabotConfig config;
-  protected static BufferAllocator allocator;
 
   /**
    * Number of nodes in test cluster. Default is 1.
@@ -296,7 +294,6 @@ public class BaseTestQuery extends ExecTest {
   }
 
   private static void openClient() throws Exception {
-    allocator = RootAllocatorFactory.newRoot(config);
     clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
 
     dfsTestTmpSchemaLocation = TestUtilities.createTempDir();
@@ -362,10 +359,6 @@ public class BaseTestQuery extends ExecTest {
     updateClient(props);
   }
 
-  protected static BufferAllocator getAllocator() {
-    return allocator;
-  }
-
   /*
    * Returns JDBC url to connect to one of the drilbit
    *
@@ -382,11 +375,7 @@ public class BaseTestQuery extends ExecTest {
     return format("jdbc:dremio:direct=%s:%d", endpoint.getAddress(), endpoint.getUserPort());
   }
 
-  public static TestBuilder newTest() {
-    return testBuilder();
-  }
-
-  public static TestBuilder testBuilder() {
+  public TestBuilder testBuilder() {
     return new TestBuilder(allocator);
   }
 
@@ -406,9 +395,6 @@ public class BaseTestQuery extends ExecTest {
 
     if(clusterCoordinator != null) {
       clusterCoordinator.close();
-    }
-    if (allocator != null) {
-      allocator.close();
     }
   }
 
@@ -736,11 +722,11 @@ public class BaseTestQuery extends ExecTest {
     return rowCount;
   }
 
-  protected static String getResultString(List<QueryDataBatch> results, String delimiter) throws SchemaChangeException {
+  protected String getResultString(List<QueryDataBatch> results, String delimiter) throws SchemaChangeException {
     return getResultString(results, delimiter, true);
   }
 
-  protected static String getResultString(List<QueryDataBatch> results, String delimiter, boolean includeHeader)
+  protected String getResultString(List<QueryDataBatch> results, String delimiter, boolean includeHeader)
       throws SchemaChangeException {
     final StringBuilder formattedResults = new StringBuilder();
     final RecordBatchLoader loader = new RecordBatchLoader(getAllocator());

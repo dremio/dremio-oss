@@ -16,18 +16,19 @@
 import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
-import Radium from 'radium';
 import Immutable from 'immutable';
 import { AutoSizer, List } from 'react-virtualized';
 
 import { SearchField } from 'components/Fields';
+import classNames from 'classnames';
+import { rowMargin } from '@app/uiTheme/less/forms.less';
 
 import ColumnMenuItem from './ColumnMenuItem';
+import { base, search } from './DragColumnMenu.less';
 
 export const NOT_SUPPORTED_TYPES = new Set(['MAP', 'LIST']);
 
 @pureRender
-@Radium
 export default class DragColumnMenu extends Component {
   static propTypes = {
     items: PropTypes.instanceOf(Immutable.List).isRequired,
@@ -39,7 +40,8 @@ export default class DragColumnMenu extends Component {
     dragType: PropTypes.string.isRequired,
     style: PropTypes.object,
     type: PropTypes.string,
-    fieldType: PropTypes.string
+    fieldType: PropTypes.string,
+    className: PropTypes.string
   }
 
   static sortColumns(columns, disabledColumnNames) {
@@ -88,7 +90,8 @@ export default class DragColumnMenu extends Component {
 
   renderColumn = ({ index, key, style }) => {
     const column = this.filteredSortedColumns.get(index);
-    return <div key={key} style={style}>
+    return <div key={key} style={style}
+      className={rowMargin}>
       <ColumnMenuItem
         item={column}
         disabled={this.props.disabledColumnNames.has(column.get('name'))}
@@ -104,14 +107,14 @@ export default class DragColumnMenu extends Component {
 
   render() {
     return (
-      <div className='inner-join-left-menu' style={[styles.base, this.props.style]}>
+      <div className={classNames(['inner-join-left-menu', base, this.props.className])} style={this.props.style}>
         <SearchField
           dataQa={'search-field-' + this.props.fieldType}
           showCloseIcon
           placeholder={la('Search fields…')}
           value={this.state.filter}
           onChange={this.onFilterChange}
-          style={styles.searchStyle}
+          className={search}
         />
         <div style={{flexGrow: 1}}>
           <AutoSizer>
@@ -120,7 +123,7 @@ export default class DragColumnMenu extends Component {
                 ref={(ref) => this.virtualList = ref}
                 rowRenderer={this.renderColumn}
                 rowCount={this.filteredSortedColumns.size}
-                rowHeight={29}
+                rowHeight={30}
                 height={height}
                 width={width}
               />
@@ -131,38 +134,3 @@ export default class DragColumnMenu extends Component {
     );
   }
 }
-
-const styles = {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    width: '100%',
-    height: 180,
-    borderRight: '1px solid rgba(0,0,0,0.10)',
-    paddingRight: 5,
-    paddingLeft: 5
-  },
-  content: {
-    display: 'flex',
-    flexDirection: 'column',
-    width: '100%',
-    overflowY: 'hidden'
-  },
-  items: {
-    display: 'flex',
-    flexDirection: 'column',
-    overflowY: 'auto',
-    minHeight: 150
-  },
-  title: {
-    paddingLeft: 5,
-    paddingTop: 5,
-    color: '#000',
-    fontWeight: 600
-  },
-  searchStyle: {
-    width: 230,
-    height: 30,
-    display: 'block'
-  }
-};

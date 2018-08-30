@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 export AddFileModal from './AddFileModal/AddFileModal';
-//export AddDatasetModal from './AddDatasetModal/AddDatasetModal';
 export UpdateDataset from './UpdateDataset/UpdateDataset';
 export DatasetSettingsModal from './DatasetSettings/DatasetSettingsModal';
-
 export AddFolderModal from './AddFolderModal';
 export SpaceModal from './SpaceModal';
 export AddSourceModal from './AddSourceModal/AddSourceModal';

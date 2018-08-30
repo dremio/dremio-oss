@@ -382,7 +382,7 @@ public class StringFunctions{
   /*
    * Location of specified substring.
    */
-  @FunctionTemplate(name = "position", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(names = {"position", "locate"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Position implements SimpleFunction {
     @Param  VarCharHolder substr;
     @Param  VarCharHolder str;
@@ -395,23 +395,24 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      //Do string match.
-      final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(str.buffer, str.start, str.end,
-                                                                                          substr.buffer, substr.start, substr.end);
+      // do string match
+      final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(
+          str.buffer, str.start, str.end, substr.buffer, substr.start, substr.end);
       if (pos < 0) {
-        out.value = 0; //indicate not found a matched substr.
+        out.value = 0; // indicate not found a matched substr
       } else {
-        //Count the # of characters. (one char could have 1-4 bytes)
-        out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(str.buffer, str.start, pos, errCtx) + 1;
+        // count the # of characters (one char could have 1-4 bytes)
+        out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(
+            str.buffer, str.start, pos, errCtx) + 1;
       }
     }
   }
 
-  @FunctionTemplate(name = "position", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(names = {"position", "locate"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
   public static class Position3 implements SimpleFunction {
     @Param  VarCharHolder substr;
     @Param  VarCharHolder str;
-    @Param  IntHolder start;
+    @Param  IntHolder start; // 1-indexed
 
     @Output IntHolder out;
     @Inject FunctionErrorContext errCtx;
@@ -421,14 +422,21 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      //Do string match.
-      final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(str.buffer, str.start, str.end,
-                                                                                          substr.buffer, substr.start, substr.end, start.value);
-      if (pos < 0) {
-        out.value = 0; //indicate not found a matched substr.
+      if (start.value < 1) {
+        throw errCtx.error()
+            .message("Start index (%d) must be greater than 0", start.value)
+            .build();
       } else {
-        //Count the # of characters. (one char could have 1-4 bytes)
-        out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(str.buffer, str.start, pos, errCtx) + 1;
+        // do string match
+        final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(
+            str.buffer, str.start, str.end, substr.buffer, substr.start, substr.end, start.value - 1);
+        if (pos < 0) {
+          out.value = 0; // indicate not found a matched substr
+        } else {
+          // count the # of characters (one char could have 1-4 bytes)
+          out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(
+              str.buffer, str.start, pos, errCtx) + 1;
+        }
       }
     }
 

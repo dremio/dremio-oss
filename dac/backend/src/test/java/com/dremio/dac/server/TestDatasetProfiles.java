@@ -172,7 +172,7 @@ public class TestDatasetProfiles extends BaseTestServer {
   }
 
   private static Field map(String name, Field...children) {
-    return new Field(name, true, MinorType.MAP.getType(), Arrays.asList(children));
+    return new Field(name, true, MinorType.STRUCT.getType(), Arrays.asList(children));
   }
 
   private static Field list(String name, Field inner) {

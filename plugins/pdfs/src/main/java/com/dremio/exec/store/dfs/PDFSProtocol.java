@@ -15,9 +15,12 @@
  */
 package com.dremio.exec.store.dfs;
 
+import static java.lang.String.format;
+
+import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.hadoop.conf.Configuration;
@@ -26,19 +29,28 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.dfs.proto.DFS;
+import com.dremio.exec.dfs.proto.DFS.ListStatusContinuationHandle;
 import com.dremio.exec.dfs.proto.DFS.WriteDataResponse;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.RpcConfig;
+import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.services.fabric.api.AbstractProtocol;
 import com.dremio.services.fabric.api.PhysicalConnection;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Ticker;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalCause;
+import com.google.common.cache.RemovalNotification;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -52,6 +64,7 @@ final class PDFSProtocol extends AbstractProtocol {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PDFSProtocol.class);
 
   public static final int PROTOCOL_ID = 42; // answer to the ultimate question
+  public static final String OPEN_ITERATORS_TIMEOUT_MS_KEY = "dremio.pdfs.open-iterators.timeout";
 
   private final NodeEndpoint endpoint;
   private final BufferAllocator allocator;
@@ -60,13 +73,38 @@ final class PDFSProtocol extends AbstractProtocol {
 
   private final int rpcTimeoutInSecs;
 
-  PDFSProtocol(NodeEndpoint endpoint, SabotConfig config, BufferAllocator allocator, FileSystem localFS, boolean allowLocalAccess) {
+  private final Cache<ListStatusContinuationHandle, RemoteIterator<FileStatus>> openIterators;
+
+  PDFSProtocol(NodeEndpoint endpoint, SabotConfig config, BufferAllocator allocator, FileSystem localFS,
+      boolean allowLocalAccess, Ticker ticker) {
     this.endpoint = endpoint;
     this.allocator = allocator;
     this.localFS = localFS;
     this.allowLocalAccess = allowLocalAccess;
 
-    this.rpcTimeoutInSecs = config.getInt(ExecConstants.BIT_RPC_TIMEOUT);
+    this.rpcTimeoutInSecs = config.getInt(RpcConstants.BIT_RPC_TIMEOUT);
+
+    long openIteratorsTimeoutMs = config.getMilliseconds(OPEN_ITERATORS_TIMEOUT_MS_KEY);
+    this.openIterators = CacheBuilder.newBuilder()
+        .ticker(ticker)
+        .expireAfterAccess(openIteratorsTimeoutMs, TimeUnit.MILLISECONDS)
+        .removalListener(
+            (RemovalNotification<ListStatusContinuationHandle, RemoteIterator<FileStatus>> notification) -> {
+              if (notification.getCause() == RemovalCause.EXPLICIT) {
+                return;
+              }
+              logger.info("Iterator for handle {} expired (cause: {})", notification.getKey(), notification.getCause());
+              RemoteIterator<FileStatus> iterator = notification.getValue();
+              if (iterator instanceof Closeable) {
+                try {
+                  ((Closeable) iterator).close();
+                } catch (IOException e) {
+                  // swallow exception
+                  logger.warn("Exception thrown when closing iterator for handle {}", notification.getKey(), e);
+                }
+              }
+            })
+        .build();
   }
 
   /**
@@ -78,10 +116,14 @@ final class PDFSProtocol extends AbstractProtocol {
    * @return the protocol
    * @throws IOException
    */
-  public static PDFSProtocol newInstance(NodeEndpoint endpoint, SabotConfig config, BufferAllocator allocator, boolean allowLocalHandling) throws IOException {
-    // we'll grab a raw local file system so append is supported (rather than the checksum local file system).
+  public static PDFSProtocol newInstance(NodeEndpoint endpoint, SabotConfig config, BufferAllocator allocator,
+      boolean allowLocalHandling) throws IOException {
+    // we'll grab a raw local file system so append is supported (rather than
+    // the checksum local file system).
     Configuration conf = new Configuration();
-    return new PDFSProtocol(endpoint, config, allocator, PseudoDistributedFileSystem.newLocalFileSystem(conf, allowLocalHandling), allowLocalHandling);
+    return new PDFSProtocol(endpoint, config, allocator,
+        PseudoDistributedFileSystem.newLocalFileSystem(conf, allowLocalHandling), allowLocalHandling,
+        Ticker.systemTicker());
   }
 
   @Override
@@ -248,16 +290,46 @@ final class PDFSProtocol extends AbstractProtocol {
   }
 
   private Response handle(PhysicalConnection connection, DFS.ListStatusRequest request) throws IOException {
-    Path path = new Path(request.getPath());
-
-    FileStatus[] statuses = localFS.listStatus(path);
-    List<DFS.FileStatus> protoStatuses = new ArrayList<>(statuses.length);
-    for (FileStatus status : statuses) {
-      protoStatuses.add(RemoteNodeFileSystem.toProtoFileStatus(status));
+    final RemoteIterator<FileStatus> iterator;
+    if (request.hasHandle()) {
+      final ListStatusContinuationHandle handle = request.getHandle();
+      iterator = openIterators.getIfPresent(handle);
+      if (iterator == null) {
+        throw new IOException(format("No iterator found for handle %s/path %s. Maybe it expired?", handle, request.getPath()));
+      }
+      // invalidate the previous handle as a new one will be created if needed
+      openIterators.invalidate(handle);
+    } else {
+      Preconditions.checkArgument(request.hasPath(), "No path argument provided for listStatus.");
+      Path path = new Path(request.getPath());
+      iterator = localFS.listStatusIterator(path);
     }
-    DFS.ListStatusResponse response = DFS.ListStatusResponse.newBuilder().addAllStatuses(protoStatuses).build();
 
-    return reply(DFS.RpcType.LIST_STATUS_RESPONSE, response);
+    final DFS.ListStatusResponse.Builder response = DFS.ListStatusResponse.newBuilder();
+    try {
+      // Only return as much as {limit} results (or all of them if no limit)
+      for(int i = 0; iterator.hasNext() && (!request.hasLimit() || i < request.getLimit()); i++) {
+        response.addStatuses(RemoteNodeFileSystem.toProtoFileStatus(iterator.next()));
+      }
+
+      // Check if more results are available
+      if (iterator.hasNext()) {
+        ListStatusContinuationHandle handle = ListStatusContinuationHandle.newBuilder()
+            .setId(UUID.randomUUID().toString())
+            .build();
+
+        openIterators.put(handle, iterator);
+        response.setHandle(handle);
+      }
+    } finally {
+      // If response has no handle (because not enough results or exception)
+      // make sure to close the iterator
+      if (!response.hasHandle() && iterator instanceof Closeable) {
+        ((Closeable) iterator).close();
+      }
+    }
+
+    return reply(DFS.RpcType.LIST_STATUS_RESPONSE, response.build());
   }
 
   private Response handle(PhysicalConnection connection, DFS.MkdirsRequest request) throws IOException {
@@ -290,5 +362,10 @@ final class PDFSProtocol extends AbstractProtocol {
 
   private static Response reply(EnumLite rpcType, MessageLite msg, ByteBuf...bodies) {
     return new Response(rpcType, msg, bodies);
+  }
+
+  @VisibleForTesting
+  boolean isIteratorOpen(ListStatusContinuationHandle handle) {
+    return openIterators.getIfPresent(handle) != null;
   }
 }

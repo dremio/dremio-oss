@@ -17,7 +17,7 @@ package com.dremio.exec.work.protector;
 
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 
 public interface UserResponseHandler {
 

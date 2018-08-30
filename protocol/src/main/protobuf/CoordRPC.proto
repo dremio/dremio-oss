@@ -32,5 +32,4 @@ enum RpcType {
   REQ_QUERY_CANCEL = 2;
   REQ_QUERY_PROFILE = 3;
   RESP_QUERY_PROFILE = 4;
-  
 }  

@@ -29,7 +29,7 @@ public interface HBaseConstants {
 
   public static final String HBASE_ZOOKEEPER_PORT = "hbase.zookeeper.property.clientPort";
 
-  public static final MajorType COLUMN_FAMILY_TYPE = Types.optional(MinorType.MAP);
+  public static final MajorType COLUMN_FAMILY_TYPE = Types.optional(MinorType.STRUCT);
 
   public static final MajorType COLUMN_TYPE = Types.optional(MinorType.VARBINARY);
 }

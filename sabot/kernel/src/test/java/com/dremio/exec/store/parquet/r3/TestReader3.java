@@ -298,9 +298,9 @@ public class TestReader3 extends BaseTestQuery {
   @Test
   public void anotherTest() throws Exception {
     test("alter system set planner.enable_decimal_data_type = true");
-    test("select c_date, count(distinct c_integer) from dfs.`/Users/jnadeau/Downloads/0_0_0.parquet` group by c_date");
-//    test("select c_date, c_integer from dfs.`/Users/jnadeau/Downloads/0_0_0.parquet` where c_date = date '2015-03-06' group by c_date, c_integer");
-//    test("select distinct c_integer from dfs.`/Users/jnadeau/Downloads/0_0_0.parquet` where c_date = date '2015-03-06'");
+    test("select c_date, count(distinct c_integer) from dfs.\"/Users/jnadeau/Downloads/0_0_0.parquet\" group by c_date");
+//    test("select c_date, c_integer from dfs.\"/Users/jnadeau/Downloads/0_0_0.parquet\" where c_date = date '2015-03-06' group by c_date, c_integer");
+//    test("select distinct c_integer from dfs.\"/Users/jnadeau/Downloads/0_0_0.parquet\" where c_date = date '2015-03-06'");
   }
 
 }

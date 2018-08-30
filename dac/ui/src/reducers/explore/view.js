@@ -19,6 +19,7 @@ import * as ActionTypes from 'actions/explore/view';
 
 import { RUN_TABLE_TRANSFORM_START, RUN_TABLE_TRANSFORM_SUCCESS } from 'actions/explore/dataset/common';
 import { LOAD_EXPLORE_ENTITIES_SUCCESS } from 'actions/explore/dataset/get';
+import { RUN_DATASET_SUCCESS } from 'actions/explore/dataset/run';
 
 export const EXPLORE_VIEW_ID = 'EXPLORE_VIEW_ID';
 
@@ -52,11 +53,18 @@ export default function view(state = initialState, action) {
     return state.setIn(['transform', action.meta.href], Immutable.Map());
   }
 
+  case RUN_DATASET_SUCCESS: {
+    return state.set('isPreviewMode', false);
+  }
+
   case LOAD_EXPLORE_ENTITIES_SUCCESS:
   case RUN_TABLE_TRANSFORM_SUCCESS: {
     const version = action.payload && action.payload.get && action.payload.get('result');
     const tables = action.payload && action.payload.getIn && action.payload.getIn(['entities', 'table']);
-    const nextState = state.set('activeTransformationHref', '');
+    const nextState = state.merge({
+      activeTransformationHref: '',
+      isPreviewMode: true
+    });
     if (!tables) {
       return nextState;
     }

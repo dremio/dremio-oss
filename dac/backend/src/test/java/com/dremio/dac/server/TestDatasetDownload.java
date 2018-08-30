@@ -22,6 +22,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.ws.rs.core.Response;
@@ -40,6 +41,9 @@ import com.dremio.dac.service.datasets.DatasetDownloadManager.DownloadDataRespon
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.space.proto.FolderConfig;
+import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -111,6 +115,37 @@ public class TestDatasetDownload extends BaseTestServer {
     DatasetUI ds = createDatasetFromSQLAndSave(dsPath,"select * from DG.dsg1 LIMIT 10", asList("cp"));
 
     Job job = datasetService.prepareDownload(dsPath, ds.getDatasetVersion(), DownloadFormat.CSV, 50, SampleDataPopulator.DEFAULT_USER_NAME);
+    job.getData().loadIfNecessary();
+    DownloadDataResponse downloadDataResponse = datasetService.downloadData(job.getJobAttempt().getInfo().getDownloadInfo(), SampleDataPopulator.DEFAULT_USER_NAME);
+    final List<TestData> downloadedData = readDataCsv(downloadDataResponse.getInput());
+    assertEquals(10, downloadedData.size());
+    for (int i = 0; i < 10; ++i) {
+      assertEquals("user" + i, downloadedData.get(i).getUser());
+      assertEquals(i%25, downloadedData.get(i).getAge());
+      assertEquals("address" + i, downloadedData.get(i).getAddress());
+    }
+  }
+
+  @Test
+  public void testDownloadWithRelativeDatasetPath() throws Exception {
+    SpaceConfig spaceConfig = new SpaceConfig();
+    spaceConfig.setName("mySpace");
+    newNamespaceService().addOrUpdateSpace(new NamespaceKey("mySpace"), spaceConfig);
+
+
+    FolderConfig folderConfig = new FolderConfig();
+    List<String> path = Arrays.asList("mySpace", "folder");
+    folderConfig.setFullPathList(path);
+    folderConfig.setName("folder");
+    newNamespaceService().addOrUpdateFolder(new NamespaceKey(path), folderConfig);
+
+    final DatasetPath dsPath = new DatasetPath("mySpace.folder.testVDS");
+    DatasetUI ds = createDatasetFromSQLAndSave(dsPath,"select * from DG.dsg1 LIMIT 10", asList("cp"));
+
+    final DatasetPath dsPath2 = new DatasetPath("mySpace.folder.testVDS2");
+    DatasetUI ds2 = createDatasetFromSQLAndSave(dsPath2,"select * from testVDS", path);
+
+    Job job = datasetService.prepareDownload(dsPath2, ds2.getDatasetVersion(), DownloadFormat.CSV, 50, SampleDataPopulator.DEFAULT_USER_NAME);
     job.getData().loadIfNecessary();
     DownloadDataResponse downloadDataResponse = datasetService.downloadData(job.getJobAttempt().getInfo().getDownloadInfo(), SampleDataPopulator.DEFAULT_USER_NAME);
     final List<TestData> downloadedData = readDataCsv(downloadDataResponse.getInput());

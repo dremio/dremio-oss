@@ -17,7 +17,6 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 import static com.dremio.common.util.MajorTypeHelper.getFieldForNameAndMajorType;
-import static com.dremio.exec.store.parquet.ParquetRecordWriter.DREMIO_ARROW_SCHEMA;
 import static com.dremio.exec.store.parquet.columnreaders.ColumnReaderFactory.createFixedColumnReader;
 
 import java.io.IOException;
@@ -30,7 +29,7 @@ import java.util.Map;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.AllocationHelper;
-import org.apache.arrow.vector.NullableIntVector;
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.RepeatedValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -47,6 +46,7 @@ import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.PrimitiveType;
 
+import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
@@ -55,7 +55,6 @@ import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.store.AbstractRecordReader;
@@ -86,7 +85,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
   // For columns not found in the file, we need to return a schema element with the correct number of values
   // at that position in the schema. Currently this requires a vector be present. Here is a list of all of these vectors
   // that need only have their value count set at the end of each call to next(), as the values default to null.
-  private List<NullableIntVector> nullFilledVectors;
+  private List<IntVector> nullFilledVectors;
   // Keeps track of the number of records returned in the case where only columns outside of the file were selected.
   // No actual data needs to be read out of the file, we only need to return batches until we have 'read' the number of
   // records specified in the row group metadata
@@ -362,9 +361,9 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
         final CompleteType type = CompleteType.fromField(field);
         final boolean dictionaryEncoded = globalDictionaryColumns.containsKey(toFieldName(column.getPath()));
         if (dictionaryEncoded) {
-          vector = output.addField(field, NullableIntVector.class);
+          vector = output.addField(field, IntVector.class);
           columnStatuses.add(new RawDictionaryReader(this, (int) numRowsPerBatch, column, columnChunkMetaData, true,
-            (NullableIntVector)vector, schemaElement, globalDictionaries));
+            (IntVector)vector, schemaElement, globalDictionaries));
         } else {
           fieldFixedLength = column.getType() != PrimitiveType.PrimitiveTypeName.BINARY;
           vector = output.addField(field, type.getValueVectorClass());
@@ -402,7 +401,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
           col = projectedColumns.get(i);
           assert col!=null;
           if ( ! columnsFound[i] && !col.equals(STAR_COLUMN)) {
-            nullFilledVectors.add((NullableIntVector)output.addField(new Field(col.getAsUnescapedPath(), true,
+            nullFilledVectors.add((IntVector)output.addField(new Field(col.getAsUnescapedPath(), true,
                     getArrowMinorType(MinorType.INT).getType(), null),
                 (Class<? extends ValueVector>) TypeHelper.getValueVectorClass(getArrowMinorType(TypeProtos.MinorType.INT))));
 
@@ -415,13 +414,13 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
   }
 
   private Schema parseArrowSchema() throws ExecutionSetupException {
-    String jsonArrowSchema = footer.getFileMetaData().getKeyValueMetaData().get(DREMIO_ARROW_SCHEMA);
     try {
-      Schema arrowSchema = jsonArrowSchema == null ? null : Schema.fromJSON(jsonArrowSchema);
+      Schema arrowSchema = DremioArrowSchema.fromMetaData(footer.getFileMetaData().getKeyValueMetaData());
       return arrowSchema;
     } catch (IOException e) {
-      throw new FragmentSetupException("Invalid Arrow Schema: " + jsonArrowSchema);
+      logger.warn("Invalid Arrow Schema", e);
     }
+    return null;
   }
 
   protected void handleAndRaise(String s, Exception e) {

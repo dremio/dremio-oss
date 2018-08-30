@@ -76,6 +76,8 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FileSystemWrapper.class);
   private final static boolean TRACKING_ENABLED = AssertionUtil.isAssertionsEnabled();
 
+  private final static DremioFileSystemCache DREMIO_FS_CACHE = new DremioFileSystemCache();
+
   public static final String HIDDEN_FILE_PREFIX = "_";
   public static final String DOT_FILE_PREFIX = ".";
   public static final String MAPRFS_SCHEME = "maprfs";
@@ -89,11 +91,11 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   private final boolean isMapRfs;
 
   public FileSystemWrapper(Configuration fsConf) throws IOException {
-    this(fsConf, (OperatorStats) null);
+    this(fsConf, (OperatorStats) null, null);
   }
 
-  public FileSystemWrapper(Configuration fsConf, OperatorStats operatorStats) throws IOException {
-    this(fsConf, FileSystem.get(fsConf), operatorStats);
+  public FileSystemWrapper(Configuration fsConf, OperatorStats operatorStats, List<String> connectionUniqueProps) throws IOException {
+    this(fsConf, DREMIO_FS_CACHE.get(FileSystem.getDefaultUri(fsConf), fsConf, connectionUniqueProps), operatorStats);
   }
 
   public FileSystemWrapper(Configuration fsConf, FileSystem fs) throws IOException {
@@ -131,7 +133,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   }
 
   public static FileSystemWrapper get(Configuration fsConf, OperatorStats stats) throws IOException {
-    return new FileSystemWrapper(fsConf, stats);
+    return new FileSystemWrapper(fsConf, stats, null);
   }
 
   public static FileSystemWrapper get(Path path, Configuration fsConf, OperatorStats stats) throws IOException {

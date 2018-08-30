@@ -19,10 +19,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executor;
 
+
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.observer.AttemptObserver;
@@ -43,22 +45,22 @@ import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.work.AttemptId;
 import com.dremio.exec.work.foreman.AttemptManager;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.exec.work.user.OptionProvider;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
 import com.dremio.proto.model.attempts.AttemptReason;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
+import com.dremio.resource.ResourceAllocator;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.cache.Cache;
-
 import com.google.common.collect.ImmutableSet;
+
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -88,6 +90,7 @@ public class Foreman {
   private final ReAttemptHandler attemptHandler;
   private final CoordToExecTunnelCreator tunnelCreator;
   private final Cache<Long, PreparedPlan> plans;
+  private final ResourceAllocator queryResourceManager;
 
   private AttemptId attemptId; // id of last attempt
 
@@ -97,17 +100,18 @@ public class Foreman {
   private volatile boolean canceled; // did the user cancel the query ?
 
   protected Foreman(
-          final SabotContext context,
-          final Executor executor,
-          final CompletionListener listener,
-          final ExternalId externalId,
-          final QueryObserver observer,
-          final UserSession session,
-          final UserRequest request,
-          final OptionProvider config,
-          final ReAttemptHandler attemptHandler,
-          final CoordToExecTunnelCreator tunnelCreator,
-          Cache<Long, PreparedPlan> plans) {
+    final SabotContext context,
+    final Executor executor,
+    final CompletionListener listener,
+    final ExternalId externalId,
+    final QueryObserver observer,
+    final UserSession session,
+    final UserRequest request,
+    final OptionProvider config,
+    final ReAttemptHandler attemptHandler,
+    final CoordToExecTunnelCreator tunnelCreator,
+    Cache<Long, PreparedPlan> plans,
+    final ResourceAllocator queryResourceManager) {
     this.attemptId = AttemptId.of(externalId);
     this.executor = executor;
     this.context = context;
@@ -119,6 +123,7 @@ public class Foreman {
     this.attemptHandler = attemptHandler;
     this.tunnelCreator = tunnelCreator;
     this.plans = plans;
+    this.queryResourceManager = queryResourceManager;
   }
 
   public void start() {
@@ -162,7 +167,8 @@ public class Foreman {
       Cache<Long, PreparedPlan> plans, Predicate<DatasetConfig> datasetValidityChecker) {
     final QueryContext queryContext = new QueryContext(session, context, attemptId.toQueryId(),
         queryRequest.getPriority(), queryRequest.getMaxAllocation(), datasetValidityChecker);
-    return new AttemptManager(context, attemptId, queryRequest, observer, options, tunnelCreator, plans, queryContext);
+    return new AttemptManager(context, attemptId, queryRequest, observer, options, tunnelCreator, plans,
+      queryContext, queryResourceManager);
   }
 
   public void updateStatus(FragmentStatus status) {
@@ -292,11 +298,6 @@ public class Foreman {
     }
 
     @Override
-    public void recordExtraInfo(String name, byte[] bytes) {
-      super.recordExtraInfo(name, bytes);
-    }
-
-    @Override
     public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
       if (phase == PlannerPhase.PHYSICAL) {
         containsHashAgg = containsHashAggregate(after);
@@ -306,7 +307,6 @@ public class Foreman {
 
     @Override
     public void attemptCompletion(UserResult result) {
-      super.attemptCompletion(result);
       attemptManager = null; // make sure we don't pass cancellation requests to this attemptManager anymore
 
       final QueryState queryState = result.getState();

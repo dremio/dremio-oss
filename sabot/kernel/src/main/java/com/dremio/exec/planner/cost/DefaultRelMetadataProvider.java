@@ -16,19 +16,6 @@
 package com.dremio.exec.planner.cost;
 
 import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
-import org.apache.calcite.rel.metadata.RelMdCollation;
-import org.apache.calcite.rel.metadata.RelMdColumnUniqueness;
-import org.apache.calcite.rel.metadata.RelMdDistribution;
-import org.apache.calcite.rel.metadata.RelMdExplainVisibility;
-import org.apache.calcite.rel.metadata.RelMdMaxRowCount;
-import org.apache.calcite.rel.metadata.RelMdMemory;
-import org.apache.calcite.rel.metadata.RelMdParallelism;
-import org.apache.calcite.rel.metadata.RelMdPercentageOriginalRows;
-import org.apache.calcite.rel.metadata.RelMdPopulationSize;
-import org.apache.calcite.rel.metadata.RelMdPredicates;
-import org.apache.calcite.rel.metadata.RelMdSelectivity;
-import org.apache.calcite.rel.metadata.RelMdSize;
-import org.apache.calcite.rel.metadata.RelMdUniqueKeys;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
@@ -43,20 +30,9 @@ public class DefaultRelMetadataProvider extends ChainedRelMetadataProvider {
         // Mostly relies on Calcite default with some adjustments...
         RelMdRowCount.SOURCE,
         RelMdDistinctRowCount.SOURCE,
-        RelMdPercentageOriginalRows.SOURCE,
         RelMdColumnOrigins.SOURCE,
-        RelMdMaxRowCount.SOURCE,
-        RelMdUniqueKeys.SOURCE,
-        RelMdColumnUniqueness.SOURCE,
-        RelMdPopulationSize.SOURCE,
-        RelMdSize.SOURCE,
-        RelMdParallelism.SOURCE,
-        RelMdDistribution.SOURCE,
-        RelMdMemory.SOURCE,
-        RelMdSelectivity.SOURCE,
-        RelMdExplainVisibility.SOURCE,
-        RelMdPredicates.SOURCE,
-        RelMdCollation.SOURCE));
+        // Calcite catch-all
+        org.apache.calcite.rel.metadata.DefaultRelMetadataProvider.INSTANCE));
   }
 
   @Override

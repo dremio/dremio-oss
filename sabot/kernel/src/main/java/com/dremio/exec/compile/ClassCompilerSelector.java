@@ -24,13 +24,13 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.compile.ClassTransformer.ClassNames;
 import com.dremio.exec.exception.ClassTransformationException;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.server.options.OptionValidator;
-import com.dremio.exec.server.options.OptionValue;
-import com.dremio.exec.server.options.Options;
-import com.dremio.exec.server.options.TypeValidators.BooleanValidator;
-import com.dremio.exec.server.options.TypeValidators.LongValidator;
-import com.dremio.exec.server.options.TypeValidators.StringValidator;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidator;
+import com.dremio.options.OptionValue;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.StringValidator;
 
 /**
  * {@code ClassCompiler} factory choosing the right instance
@@ -50,11 +50,11 @@ public class ClassCompilerSelector {
     public void validate(OptionValue v) {
       super.validate(v);
       try {
-        CompilerPolicy.valueOf(v.string_val.toUpperCase());
+        CompilerPolicy.valueOf(v.getStringVal().toUpperCase());
       } catch (IllegalArgumentException e) {
         throw UserException.validationError()
             .message("Invalid value '%s' specified for option '%s'. Valid values are %s.",
-              v.string_val, getOptionName(), Arrays.toString(CompilerPolicy.values()))
+              v.getStringVal(), getOptionName(), Arrays.toString(CompilerPolicy.values()))
             .build(logger);
       }
     }
@@ -94,13 +94,13 @@ public class ClassCompilerSelector {
   public ClassBytes[] getClassByteCode(ClassNames className, String sourceCode)
       throws CompileException, ClassNotFoundException, ClassTransformationException, IOException {
     OptionValue value = sessionOptions.getOption(JAVA_COMPILER_OPTION);
-    CompilerPolicy policy = (value != null) ? CompilerPolicy.valueOf(value.string_val.toUpperCase()) : defaultPolicy;
+    CompilerPolicy policy = (value != null) ? CompilerPolicy.valueOf(value.getStringVal().toUpperCase()) : defaultPolicy;
 
     value = sessionOptions.getOption(JAVA_COMPILER_JANINO_MAXSIZE_OPTION);
-    long janinoThreshold = (value != null) ? value.num_val : defaultJaninoThreshold;
+    long janinoThreshold = (value != null) ? value.getNumVal() : defaultJaninoThreshold;
 
     value = sessionOptions.getOption(JAVA_COMPILER_DEBUG_OPTION);
-    boolean debug = (value != null) ? value.bool_val : defaultDebug;
+    boolean debug = (value != null) ? value.getBoolVal() : defaultDebug;
 
     ClassCompiler classCompiler;
     if (jdkClassCompiler != null &&

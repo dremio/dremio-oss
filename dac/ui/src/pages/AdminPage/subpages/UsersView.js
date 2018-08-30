@@ -48,12 +48,28 @@ export default class UsersView extends Component {
   }
 
   getTableColumns() {
+    // set width for fixed width columns. If width is not provided, then flexGrow will be applied
     return [
-      la('Name'),
-      la('Username'),
-      la('Email'),
-      la('Action')
-    ].map((label, i) => ({key: i + '', label}));
+      {
+        label: la('Name'),
+        flexGrow: 1
+      },
+      {
+        label: la('Username'),
+        flexGrow: 1
+      },
+      {
+        label: la('Email'),
+        width: 250
+      },
+      {
+        label: la('Action'),
+        width: 120
+      }
+    ].map((colConfig, i) => ({
+      key: i + '',
+      ...colConfig
+    }));
   }
 
   getTableData() { // todo: styling: col alignment and spacing

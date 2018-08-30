@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
-import org.apache.calcite.plan.RelOptMaterialization;
-
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 
 /**
  * A Factory interface to create {@code org.apache.calcite.plan.SubstitutionProvider} based on context

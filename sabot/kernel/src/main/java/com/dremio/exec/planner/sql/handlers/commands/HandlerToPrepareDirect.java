@@ -48,6 +48,11 @@ public class HandlerToPrepareDirect implements CommandRunner<CreatePreparedState
   }
 
   @Override
+  public void close() throws Exception {
+    // no-op
+  }
+
+  @Override
   public CreatePreparedStatementResp execute() throws Exception {
     ServerPreparedStatementState state = ServerPreparedStatementState.newBuilder().setHandle(-1).setSqlQuery(sql).build();
     return PreparedStatementProvider.build(schema, state, context.getQueryId(), context.getSession().getCatalogName());

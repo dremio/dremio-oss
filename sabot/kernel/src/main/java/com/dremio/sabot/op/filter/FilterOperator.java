@@ -50,7 +50,7 @@ public class FilterOperator implements SingleInputOperator {
   public FilterOperator(Filter pop, OperatorContext context) throws OutOfMemoryException {
     this.config = pop;
     this.context = context;
-    this.output = new VectorContainerWithSV(context.getAllocator(), new SelectionVector2(context.getAllocator()));
+    this.output = context.createOutputVectorContainerWithSV();
   }
 
   @Override

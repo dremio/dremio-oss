@@ -21,7 +21,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.config.SabotConfig;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FinishedReceiver;
@@ -29,12 +28,13 @@ import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.ExecRPC.RpcType;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
-import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcBus;
 import com.dremio.exec.rpc.RpcConfig;
+import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.sabot.exec.FragmentExecutors;
 import com.dremio.sabot.rpc.Protocols;
@@ -192,7 +192,7 @@ public class ExecProtocol implements FabricProtocol {
   private static RpcConfig getMapping(SabotConfig config) {
     return RpcConfig.newBuilder()
         .name("DATA")
-        .timeout(config.getInt(ExecConstants.BIT_RPC_TIMEOUT))
+        .timeout(config.getInt(RpcConstants.BIT_RPC_TIMEOUT))
         .add(RpcType.REQ_RECORD_BATCH, FragmentRecordBatch.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_STREAM_COMPLETE, FragmentStreamComplete.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_RECEIVER_FINISHED, FinishedReceiver.class, RpcType.ACK, Ack.class)

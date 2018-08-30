@@ -20,7 +20,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.Random;
 
-import org.apache.arrow.vector.NullableIntVector;
+import org.apache.arrow.vector.IntVector;
 import org.junit.Test;
 
 import com.dremio.sabot.BaseTestWithAllocator;
@@ -51,7 +51,7 @@ public class TestIntPivot extends BaseTestWithAllocator {
     assertArrayEquals(expectValues, actualValues);
   }
 
-  static void populate(NullableIntVector vector, Integer[] values){
+  static void populate(IntVector vector, Integer[] values){
     vector.allocateNew();
     Random r = new Random();
     for(int i =0; i < values.length; i++){
@@ -73,8 +73,8 @@ public class TestIntPivot extends BaseTestWithAllocator {
     final Integer[] vectB = {null, 45, null, 65, 77};
 
     try(
-        NullableIntVector col1 = new NullableIntVector("col1", allocator);
-        NullableIntVector col2 = new NullableIntVector("col2", allocator);){
+        IntVector col1 = new IntVector("col1", allocator);
+        IntVector col2 = new IntVector("col2", allocator);){
       PivotDef pivot = PivotBuilder.getBlockDefinition(
           new FieldVectorPair(col1, col1),
           new FieldVectorPair(col2, col2)
@@ -120,8 +120,8 @@ public class TestIntPivot extends BaseTestWithAllocator {
 
   private void testDualIntVectors(int count, Integer[] vectA, Integer[] vectB){
     try(
-        NullableIntVector col1 = new NullableIntVector("col1", allocator);
-        NullableIntVector col2 = new NullableIntVector("col2", allocator);){
+        IntVector col1 = new IntVector("col1", allocator);
+        IntVector col2 = new IntVector("col2", allocator);){
       PivotDef pivot = PivotBuilder.getBlockDefinition(new FieldVectorPair(col1, col1),
           new FieldVectorPair(col2, col2)
           );

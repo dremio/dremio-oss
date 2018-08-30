@@ -16,7 +16,9 @@
 package com.dremio.dac.resource;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.TimeUnit;
 
@@ -109,6 +111,51 @@ public class TestDatasetResource extends BaseTestServer {
 
       assertEquals((Long) DEFAULT_REFRESH_PERIOD, descriptor.getAccelerationRefreshPeriod());
       assertEquals((Long) DEFAULT_GRACE_PERIOD, descriptor.getAccelerationGracePeriod());
+    }
+  }
+
+  @Test
+  public void testAccelerationSettingsNeverRefreshOrExpire() throws Exception {
+    final String endpoint = String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString());
+    {
+      final AccelerationSettingsDescriptor descriptor = expectSuccess(
+        getBuilder(getAPIv2().path(endpoint)).buildGet(),
+        AccelerationSettingsDescriptor.class
+      );
+
+      assertEquals((Long) DEFAULT_REFRESH_PERIOD, descriptor.getAccelerationRefreshPeriod());
+      assertEquals((Long) DEFAULT_GRACE_PERIOD, descriptor.getAccelerationGracePeriod());
+
+      descriptor.setAccelerationNeverExpire(true);
+      descriptor.setAccelerationNeverRefresh(false);
+
+      expectSuccess(
+        getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+          .buildPut(Entity.entity(descriptor, JSON)));
+
+      final AccelerationSettingsDescriptor middleDescriptor = expectSuccess(
+        getBuilder(getAPIv2().path(endpoint)).buildGet(),
+        AccelerationSettingsDescriptor.class
+      );
+
+      assertTrue(middleDescriptor.getAccelerationNeverExpire());
+      assertFalse(middleDescriptor.getAccelerationNeverRefresh());
+
+      middleDescriptor.setAccelerationNeverExpire(false);
+      middleDescriptor.setAccelerationNeverRefresh(true);
+
+      expectSuccess(
+        getBuilder(getAPIv2().path(String.format("/dataset/%s/acceleration/settings", DATASET_PATH.toPathString())))
+          .buildPut(Entity.entity(middleDescriptor, JSON)));
+
+
+      final AccelerationSettingsDescriptor descriptorMod = expectSuccess(
+        getBuilder(getAPIv2().path(endpoint)).buildGet(),
+        AccelerationSettingsDescriptor.class
+      );
+
+      assertFalse(descriptorMod.getAccelerationNeverExpire());
+      assertTrue(descriptorMod.getAccelerationNeverRefresh());
     }
   }
 

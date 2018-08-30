@@ -61,16 +61,22 @@ public class ServerMetaProvider {
       MinorType.DECIMAL28DENSE, MinorType.DECIMAL28SPARSE,
       MinorType.DECIMAL38DENSE, MinorType.DECIMAL38SPARSE);
 
-  private static ServerMeta DEFAULT = ServerMeta.newBuilder()
+  // to advertise support for 2-argument LOCATE(...) function
+  private static final String LOCATE_2 = "LOCATE_2";
+
+  private static final ServerMeta DEFAULT = ServerMeta.newBuilder()
       .addAllConvertSupport(getSupportedConvertOps())
       .addAllDateTimeFunctions(Splitter.on(",").split(SqlJdbcFunctionCall.getTimeDateFunctions()))
       .addAllDateTimeLiteralsSupport(Arrays.asList(DateTimeLiteralsSupport.values()))
       .addAllNumericFunctions(Splitter.on(",").split(SqlJdbcFunctionCall.getNumericFunctions()))
       .addAllOrderBySupport(Arrays.asList(OrderBySupport.OB_UNRELATED, OrderBySupport.OB_EXPRESSION))
-      .addAllOuterJoinSupport(Arrays.asList(OuterJoinSupport.OJ_LEFT, OuterJoinSupport.OJ_RIGHT, OuterJoinSupport.OJ_FULL))
+      .addAllOuterJoinSupport(Arrays.asList(OuterJoinSupport.OJ_LEFT, OuterJoinSupport.OJ_RIGHT,
+          OuterJoinSupport.OJ_FULL))
       .addAllStringFunctions(Splitter.on(",").split(SqlJdbcFunctionCall.getStringFunctions()))
+      .addStringFunctions(LOCATE_2)
       .addAllSystemFunctions(Splitter.on(",").split(SqlJdbcFunctionCall.getSystemFunctions()))
-      .addAllSubquerySupport(Arrays.asList(SubQuerySupport.SQ_CORRELATED, SubQuerySupport.SQ_IN_COMPARISON, SubQuerySupport.SQ_IN_EXISTS, SubQuerySupport.SQ_IN_QUANTIFIED))
+      .addAllSubquerySupport(Arrays.asList(SubQuerySupport.SQ_CORRELATED, SubQuerySupport.SQ_IN_COMPARISON,
+          SubQuerySupport.SQ_IN_EXISTS, SubQuerySupport.SQ_IN_QUANTIFIED))
       .addAllUnionSupport(Arrays.asList(UnionSupport.U_UNION, UnionSupport.U_UNION_ALL))
       .setAllTablesSelectable(false)
       .setBlobIncludedInMaxRowSize(true)
@@ -89,7 +95,7 @@ public class ServerMetaProvider {
       .setTableTerm("table")
       .build();
 
-  private static ServerMeta DRILL_1_0_DEFAULT = ServerMeta.newBuilder(DEFAULT)
+  private static final ServerMeta DRILL_1_0_DEFAULT = ServerMeta.newBuilder(DEFAULT)
       .clearConvertSupport()
       .addAllConvertSupport(getDrill10SupportedConvertOps())
       .build();
@@ -185,6 +191,11 @@ public class ServerMetaProvider {
     @Override
     public double plan() throws Exception {
       return 1;
+    }
+
+    @Override
+    public void close() throws Exception {
+      // no-op
     }
 
     @Override

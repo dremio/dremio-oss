@@ -18,11 +18,11 @@ package com.dremio.exec.store.parquet.columnreaders;
 import java.math.BigDecimal;
 
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.NullableVectorDefinitionSetter;
-import org.apache.arrow.vector.NullableDateMilliVector;
-import org.apache.arrow.vector.NullableDecimalVector;
+import org.apache.arrow.vector.VectorDefinitionSetter;
+import org.apache.arrow.vector.DateMilliVector;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.VariableWidthVector;
-import org.apache.arrow.vector.BaseNullableVariableWidthVector;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.arrow.vector.DecimalHelper;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -61,7 +61,7 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
     // vectorData is assigned by the superclass read loop method
     writeData();
     for (int i = 0; i < recordsToReadInThisPass; i++) {
-      ((NullableVectorDefinitionSetter) valueVec).setIndexDefined(i);
+      ((VectorDefinitionSetter) valueVec).setIndexDefined(i);
     }
   }
 
@@ -87,7 +87,7 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
       // now we need to write the lengths of each value
       int byteLength = dataTypeLengthInBits / 8;
       for (int i = 0; i < recordsToReadInThisPass; i++) {
-        ((BaseNullableVariableWidthVector)castedVector).setValueLengthSafe(valuesReadInCurrentPass + i, byteLength);
+        ((BaseVariableWidthVector)castedVector).setValueLengthSafe(valuesReadInCurrentPass + i, byteLength);
       }
     }
 
@@ -118,12 +118,12 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
     abstract void addNext(int start, int index);
   }
 
-  public static class DateReader extends ConvertedReader<NullableDateMilliVector> {
+  public static class DateReader extends ConvertedReader<DateMilliVector> {
 
-    private final NullableDateMilliVector vector;
+    private final DateMilliVector vector;
 
     DateReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
-                    boolean fixedLength, NullableDateMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
+                    boolean fixedLength, DateMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
       vector = v;
     }
@@ -144,12 +144,12 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
   /**
    * Old versions of Drill were writing a non-standard format for date. See DRILL-4203
    */
-  public static class CorruptDateReader extends ConvertedReader<NullableDateMilliVector> {
+  public static class CorruptDateReader extends ConvertedReader<DateMilliVector> {
 
-    private final NullableDateMilliVector vector;
+    private final DateMilliVector vector;
 
     CorruptDateReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
-                      boolean fixedLength, NullableDateMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
+                      boolean fixedLength, DateMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
       vector = v;
     }
@@ -174,12 +174,12 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
    * For files that lack enough metadata to determine if the dates are corrupt, we must just
    * correct values when they look corrupt during this low level read.
    */
-  public static class CorruptionDetectingDateReader extends ConvertedReader<NullableDateMilliVector> {
+  public static class CorruptionDetectingDateReader extends ConvertedReader<DateMilliVector> {
 
-    private final NullableDateMilliVector vector;
+    private final DateMilliVector vector;
 
     CorruptionDetectingDateReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
-                                  boolean fixedLength, NullableDateMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
+                                  boolean fixedLength, DateMilliVector v, SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
       vector = v;
     }
@@ -202,10 +202,10 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
 
   }
 
-  public static class DecimalReader extends ConvertedReader<NullableDecimalVector> {
+  public static class DecimalReader extends ConvertedReader<DecimalVector> {
 
     DecimalReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
-                  boolean fixedLength, NullableDecimalVector v, SchemaElement schemaElement) throws ExecutionSetupException {
+                  boolean fixedLength, DecimalVector v, SchemaElement schemaElement) throws ExecutionSetupException {
       super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
     }
 

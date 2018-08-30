@@ -55,7 +55,7 @@ public class TestMergingReceiver extends PopUnitTestBase {
         Files.toString(FileUtils.getResourceAsFile("/mergerecv/merging_receiver.json"),
           Charsets.UTF_8));
       int count = 0;
-      final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getAllocator());
+      final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getRecordAllocator());
       // print the results
       for (final QueryDataBatch b : results) {
         final QueryData queryData = b.getHeader();
@@ -84,7 +84,7 @@ public class TestMergingReceiver extends PopUnitTestBase {
               Files.toString(FileUtils.getResourceAsFile("/mergerecv/multiple_providers.json"),
                   Charsets.UTF_8));
       int count = 0;
-      final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getAllocator());
+      final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getRecordAllocator());
       // print the results
       Long lastBlueValue = null;
       for (final QueryDataBatch b : results) {
@@ -132,7 +132,7 @@ public class TestMergingReceiver extends PopUnitTestBase {
               Files.toString(FileUtils.getResourceAsFile("/mergerecv/empty_batch.json"),
                   Charsets.UTF_8));
       int count = 0;
-      final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getAllocator());
+      final RecordBatchLoader batchLoader = new RecordBatchLoader(client.getRecordAllocator());
       // print the results
       for (final QueryDataBatch b : results) {
         final QueryData queryData = b.getHeader();

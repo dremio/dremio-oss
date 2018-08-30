@@ -15,9 +15,13 @@
  */
 package com.dremio.exec.store.dfs;
 
+import static java.lang.String.format;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -26,15 +30,21 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.withSettings;
 
+import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PositionedReadable;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.Seekable;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.junit.Before;
@@ -49,11 +59,13 @@ import org.mockito.junit.MockitoRule;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.dfs.proto.DFS;
+import com.dremio.exec.dfs.proto.DFS.ListStatusContinuationHandle;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.rpc.Response;
 import com.dremio.services.fabric.api.PhysicalConnection;
 import com.dremio.test.DremioTest;
+import com.google.common.base.Ticker;
 
 import io.netty.buffer.ByteBuf;
 
@@ -230,16 +242,40 @@ public abstract class TestPDFSProtocol extends ExecTest {
      * @throws IOException
      * @throws UserException
      */
-    private DFS.ListStatusResponse getResponse(final Object o) throws IOException, UserException {
-      if (o instanceof Throwable) {
-        doThrow((Throwable) o).when(getFileSystem()).listStatus(TEST_PATH);
+    private DFS.ListStatusResponse getResponse(final String path, final Object o) throws IOException, UserException {
+      return getResponse(path, o, null, null);
+    }
+
+    private DFS.ListStatusResponse getResponse(final String pathString, final Object o, Integer limit,
+        final ListStatusContinuationHandle handle) throws IOException, UserException {
+
+      DFS.ListStatusRequest.Builder builder = DFS.ListStatusRequest.newBuilder();
+      if (pathString != null) {
+        // Mock can only be setup if path exists
+        final Path path = new Path(pathString);
+        if (o instanceof Throwable) {
+          doThrow((Throwable) o).when(getFileSystem()).listStatusIterator(path);
+        } else if (o instanceof RemoteIterator) {
+          doReturn(o).when(getFileSystem()).listStatusIterator(path);
+        } else if (o != null) {
+          fail(format("Wrong result type for mock. Was expectig exception or RemoteIterator, got %s", o.getClass()));
+        }
+        builder.setPath(pathString);
       } else {
-        doReturn(o).when(getFileSystem()).listStatus(TEST_PATH);
+        // Assert that no mocking is expected
+        assertNull(o);
+      }
+
+      if (limit != null) {
+        builder.setLimit(limit);
+      }
+      if (handle != null) {
+        builder.setHandle(handle);
       }
 
       Response response = getPDFSProtocol().handle(getConnection(),
           DFS.RpcType.LIST_STATUS_REQUEST_VALUE,
-          DFS.ListStatusRequest.newBuilder().setPath(TEST_PATH_STRING).build().toByteString(),
+          builder.build().toByteString(),
           null);
 
       assertEquals(DFS.RpcType.LIST_STATUS_RESPONSE, response.rpcType);
@@ -250,22 +286,118 @@ public abstract class TestPDFSProtocol extends ExecTest {
 
     @Test
     public void testOnMessageSuccessful() throws IOException {
-      FileStatus[] statuses = {
+      TestRemoteIterator statuses = newRemoteIterator(
           new FileStatus(1337, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", new Path(TEST_PATH, "bar")),
           new FileStatus(0, true, 0, 0, 3, 4, FsPermission.getDirDefault(), "testowner", "testgroup", new Path(TEST_PATH, "baz"))
-      };
+      );
 
-      DFS.ListStatusResponse response = getResponse(statuses);
+      DFS.ListStatusResponse response = getResponse(TEST_PATH_STRING, statuses);
 
       assertEquals(2, response.getStatusesList().size());
       assertEquals(TEST_PATH_STRING + "/bar", response.getStatusesList().get(0).getPath());
       assertEquals(TEST_PATH_STRING + "/baz", response.getStatusesList().get(1).getPath());
+      assertFalse(response.hasHandle());
+      assertTrue(statuses.isClosed());
+    }
+
+    @Test
+    public void testStream() throws IOException {
+      TestRemoteIterator statuses = newRemoteIterator(
+          new FileStatus(1337, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", new Path(TEST_PATH, "bar")),
+          new FileStatus(0, true, 0, 0, 3, 4, FsPermission.getDirDefault(), "testowner", "testgroup", new Path(TEST_PATH, "baz"))
+      );
+
+      final ListStatusContinuationHandle handle;
+      {
+        DFS.ListStatusResponse response = getResponse(TEST_PATH_STRING, statuses, 1, null);
+
+        assertEquals(1, response.getStatusesList().size());
+        assertEquals(TEST_PATH_STRING + "/bar", response.getStatusesList().get(0).getPath());
+        assertTrue(response.hasHandle());
+
+        handle = response.getHandle();
+        assertTrue(getPDFSProtocol().isIteratorOpen(handle));
+        assertFalse(statuses.isClosed());
+      }
+
+      {
+        DFS.ListStatusResponse response = getResponse(TEST_PATH_STRING, null, 1, handle);
+
+        assertEquals(1, response.getStatusesList().size());
+        assertEquals(TEST_PATH_STRING + "/baz", response.getStatusesList().get(0).getPath());
+        assertFalse(response.hasHandle());
+        assertFalse(getPDFSProtocol().isIteratorOpen(handle));
+        assertTrue(statuses.isClosed());
+      }
+    }
+
+    @Test
+    public void testStreamOptionalPath() throws IOException {
+      TestRemoteIterator statuses = newRemoteIterator(
+          new FileStatus(1337, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", new Path(TEST_PATH, "bar")),
+          new FileStatus(0, true, 0, 0, 3, 4, FsPermission.getDirDefault(), "testowner", "testgroup", new Path(TEST_PATH, "baz"))
+      );
+
+      final ListStatusContinuationHandle handle;
+      {
+        DFS.ListStatusResponse response = getResponse(TEST_PATH_STRING, statuses, 1, null);
+
+        assertEquals(1, response.getStatusesList().size());
+        assertEquals(TEST_PATH_STRING + "/bar", response.getStatusesList().get(0).getPath());
+        assertTrue(response.hasHandle());
+
+        handle = response.getHandle();
+        assertTrue(getPDFSProtocol().isIteratorOpen(handle));
+        assertFalse(statuses.isClosed());
+      }
+
+      {
+        DFS.ListStatusResponse response = getResponse(null, null, 1, handle);
+
+        assertEquals(1, response.getStatusesList().size());
+        assertEquals(TEST_PATH_STRING + "/baz", response.getStatusesList().get(0).getPath());
+        assertFalse(response.hasHandle());
+        assertFalse(getPDFSProtocol().isIteratorOpen(handle));
+        assertTrue(statuses.isClosed());
+      }
+    }
+
+    @Test
+    public void testStreamWithCacheExpiration() throws IOException {
+      TestRemoteIterator statuses = newRemoteIterator(
+          new FileStatus(1337, false, 1, 4096, 1, 2, FsPermission.getFileDefault(), "testowner", "testgroup", new Path(TEST_PATH, "bar")),
+          new FileStatus(0, true, 0, 0, 3, 4, FsPermission.getDirDefault(), "testowner", "testgroup", new Path(TEST_PATH, "baz"))
+      );
+
+      final ListStatusContinuationHandle handle;
+      {
+        DFS.ListStatusResponse response = getResponse(TEST_PATH_STRING, statuses, 1, null);
+
+        assertEquals(1, response.getStatusesList().size());
+        assertEquals(TEST_PATH_STRING + "/bar", response.getStatusesList().get(0).getPath());
+        assertTrue(response.hasHandle());
+
+        handle = response.getHandle();
+        assertTrue(getPDFSProtocol().isIteratorOpen(handle));
+        assertFalse(statuses.isClosed());
+      }
+
+      // Moving ticker so that open iterators expire
+      getTicker().advance(5, TimeUnit.MINUTES);
+
+      try {
+        getResponse(TEST_PATH_STRING, null, 1, handle);
+        fail();
+      } catch (UserException e) {
+        assertEquals(ErrorType.IO_EXCEPTION, e.getErrorType());
+        assertSame(IOException.class, e.getCause().getClass());
+      }
     }
 
     @Test
     public void testOnMessageFileNotFound() throws IOException {
       try {
-        getResponse(new FileNotFoundException("Where is the file?"));
+        getResponse(TEST_PATH_STRING, new FileNotFoundException("Where is the file?"));
         fail("Was expecting UserException/FileNotFoundException");
       } catch(UserException e) {
         assertEquals(ErrorType.IO_EXCEPTION, e.getErrorType());
@@ -277,12 +409,44 @@ public abstract class TestPDFSProtocol extends ExecTest {
     @Test
     public void testOnMessageIOException() throws IOException {
       try {
-        getResponse(new IOException());
+        getResponse(TEST_PATH_STRING, new IOException());
         fail("Was expecting UserException/IOException");
       } catch(UserException e) {
         assertEquals(ErrorType.IO_EXCEPTION, e.getErrorType());
         assertSame(IOException.class, e.getCause().getClass());
       }
+    }
+
+    private interface TestRemoteIterator extends RemoteIterator<FileStatus>, Closeable {
+
+      boolean isClosed();
+    }
+
+    private TestRemoteIterator newRemoteIterator(final FileStatus... statuses) {
+      final Iterator<FileStatus> iterator = Arrays.asList(statuses).iterator();
+      final AtomicBoolean closed = new AtomicBoolean(false);
+
+      return new TestRemoteIterator() {
+        @Override
+        public boolean hasNext() throws IOException {
+          return iterator.hasNext();
+        }
+
+        @Override
+        public FileStatus next() throws IOException {
+          return iterator.next();
+        }
+
+        @Override
+        public void close() throws IOException {
+          closed.set(true);
+        }
+
+        @Override
+        public boolean isClosed() {
+          return closed.get();
+        }
+      };
     }
   }
 
@@ -468,15 +632,31 @@ public abstract class TestPDFSProtocol extends ExecTest {
     }
   }
 
+
+  private static final class TestTicker extends Ticker {
+    private long nanos = System.nanoTime();
+
+    public void advance(long duration, TimeUnit timeUnit) {
+      nanos += timeUnit.toNanos(duration);
+    }
+
+    @Override
+    public long read() {
+      return nanos;
+    }
+  }
   @Rule public final MockitoRule mockitoRule = MockitoJUnit.rule();
   @Mock private FileSystem fileSystem;
   @Mock private PhysicalConnection connection;
 
+  private TestTicker ticker;
   private PDFSProtocol pdfsProtocol;
+
 
   @Before
   public void setUp() throws IOException {
-    pdfsProtocol = new PDFSProtocol(LOCAL_ENDPOINT, DremioTest.DEFAULT_SABOT_CONFIG, this.allocator, fileSystem, true);
+    this.ticker = new TestTicker();
+    pdfsProtocol = new PDFSProtocol(LOCAL_ENDPOINT, DremioTest.DEFAULT_SABOT_CONFIG, this.allocator, fileSystem, true, ticker);
   }
 
   /**
@@ -487,6 +667,10 @@ public abstract class TestPDFSProtocol extends ExecTest {
    */
   private static NodeEndpoint newNodeEndpoint(String address, int port) {
     return NodeEndpoint.newBuilder().setAddress(address).setFabricPort(port).build();
+  }
+
+  public TestTicker getTicker() {
+    return ticker;
   }
 
   protected PDFSProtocol getPDFSProtocol() {

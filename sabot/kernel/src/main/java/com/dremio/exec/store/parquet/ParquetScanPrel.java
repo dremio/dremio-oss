@@ -40,26 +40,27 @@ import com.google.common.base.Objects;
  */
 public class ParquetScanPrel extends ScanPrelBase {
 
-  private final List<FilterCondition> conditions;
+  private final ParquetScanFilter filter;
   private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final RelDataType cachedRelDataType;
 
   public ParquetScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                         TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment, List<FilterCondition> conditions) {
+                         TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
+                         ParquetScanFilter filter) {
     super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
-    this.conditions = conditions;
+    this.filter = filter;
     this.globalDictionaryEncodedColumns = null;
     this.cachedRelDataType = null;
   }
 
   // Clone used for copy
   private ParquetScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                         TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-                          List<FilterCondition> conditions,
+                          TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
+                          ParquetScanFilter filter,
                           List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
                           RelDataType relDataType) {
     super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
-    this.conditions = conditions;
+    this.filter = filter;
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.cachedRelDataType = relDataType;
     if (relDataType != null) {
@@ -73,7 +74,7 @@ public class ParquetScanPrel extends ScanPrelBase {
                           List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
                           RelDataType relDataType) {
     super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(), that.getTableMetadata(), that.getProjectedColumns(), observedRowcountAdjustment);
-    this.conditions = that.getConditions();
+    this.filter = that.getFilter();
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.cachedRelDataType = relDataType;
     if (relDataType != null) {
@@ -89,26 +90,22 @@ public class ParquetScanPrel extends ScanPrelBase {
     return super.deriveRowType();
   }
 
-  public List<FilterCondition> getConditions() {
-    return conditions;
-  }
-
-  public List<GlobalDictionaryFieldInfo> getGlobalDictionaryEncodedColumns() {
-    return globalDictionaryEncodedColumns;
+  public ParquetScanFilter getFilter() {
+    return filter;
   }
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    return creator.addMetadata(this, new ParquetGroupScan(tableMetadata, projectedColumns, conditions, globalDictionaryEncodedColumns, cachedRelDataType));
+    return creator.addMetadata(this, new ParquetGroupScan(tableMetadata, projectedColumns, filter, globalDictionaryEncodedColumns, cachedRelDataType));
   }
 
   @Override
   public ParquetScanPrel cloneWithProject(List<SchemaPath> projection) {
-    return new ParquetScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection, observedRowcountAdjustment, conditions);
+    return new ParquetScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection, observedRowcountAdjustment, filter);
   }
 
   protected double getFilterReduction(){
-    if(conditions != null && !conditions.isEmpty()){
+    if(filter != null){
       double selectivity = 0.15d;
 
       double max = PrelUtil.getPlannerSettings(getCluster()).getFilterMaxSelectivityEstimateFactor();
@@ -130,20 +127,21 @@ public class ParquetScanPrel extends ScanPrelBase {
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     pw = super.explainTerms(pw);
-    if(conditions != null && !conditions.isEmpty()){
-      return pw.item("filters",  conditions);
+    if(filter != null){
+      return pw.item("filters",  filter);
     }
     return pw;
   }
 
   @Override
   public double getCostAdjustmentFactor(){
-    return FilterConditions.getCostAdjustment(conditions);
+    return filter != null ? filter.getCostAdjustment() : super.getCostAdjustmentFactor();
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ParquetScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, conditions, globalDictionaryEncodedColumns, cachedRelDataType);
+    return new ParquetScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, projectedColumns,
+        observedRowcountAdjustment, filter, globalDictionaryEncodedColumns, cachedRelDataType);
   }
 
   @Override
@@ -152,7 +150,7 @@ public class ParquetScanPrel extends ScanPrelBase {
       return false;
     }
     ParquetScanPrel castOther = (ParquetScanPrel) other;
-    return Objects.equal(conditions, castOther.conditions) &&
+    return Objects.equal(filter, castOther.filter) &&
       Objects.equal(globalDictionaryEncodedColumns, castOther.globalDictionaryEncodedColumns) &&
       Objects.equal(cachedRelDataType, castOther.cachedRelDataType) &&
       super.equals(other);
@@ -160,7 +158,7 @@ public class ParquetScanPrel extends ScanPrelBase {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(super.hashCode(), conditions);
+    return Objects.hashCode(super.hashCode(), filter);
   }
 
   public ParquetScanPrel cloneWithGlobalDictionaryColumns(List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns, RelDataType relDataType) {

@@ -24,7 +24,7 @@ import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.calcite.sql.SqlExplain.Depth;
 import org.apache.calcite.sql.SqlExplainLevel;
@@ -383,7 +383,7 @@ public class PlanTestBase extends BaseTestQuery {
       final VectorWrapper<?> vw;
       try {
           vw = loader.getValueAccessorById(
-              NullableVarCharVector.class,
+              VarCharVector.class,
               loader.getValueVectorId(SchemaPath.getSimplePath(columnName)).getFieldIds());
       } catch (Throwable t) {
         throw new Exception("Looks like you did not provide an explain plan query, please add EXPLAIN PLAN FOR to the beginning of your query.");

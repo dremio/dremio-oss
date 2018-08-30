@@ -78,8 +78,6 @@ const styles = {
     height: 150,
     width: 455,
     minWidth: 455,
-    marginTop: 5,
-    marginLeft: 10,
     position: 'relative',
     backgroundColor: '#FFFFFF',
     cursor: 'pointer',

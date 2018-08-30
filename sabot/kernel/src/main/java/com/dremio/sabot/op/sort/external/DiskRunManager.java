@@ -46,14 +46,14 @@ import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.CodeGenerator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
-import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.record.selection.SelectionVector4;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.vector.CopyUtil;
@@ -119,28 +119,35 @@ public class DiskRunManager implements AutoCloseable {
       BatchSchema dataSchema,
       boolean compressSpilledBatch,
       ExternalSortTracer tracer
-      ) {
-    this.targetRecordCount = targetRecordCount;
-    this.targetBatchSizeInBytes = targetBatchSizeInBytes;
-    this.orderings = orderings;
-    this.producer = producer;
-    this.dataSchema = dataSchema;
-    this.parentAllocator = parentAllocator;
-    this.compressSpilledBatch = compressSpilledBatch;
-    this.tracer = tracer;
-    if (compressSpilledBatch) {
-      long reserve = VectorAccessibleSerializable.RAW_CHUNK_SIZE_TO_COMPRESS * 2;
-      compressSpilledBatchAllocator = this.parentAllocator.newChildAllocator("spill_with_snappy", reserve, Long.MAX_VALUE);
+      ) throws Exception {
+    try (RollbackCloseable rollback = new RollbackCloseable()) {
+      this.targetRecordCount = targetRecordCount;
+      this.targetBatchSizeInBytes = targetBatchSizeInBytes;
+      this.orderings = orderings;
+      this.producer = producer;
+      this.dataSchema = dataSchema;
+      this.parentAllocator = parentAllocator;
+      this.compressSpilledBatch = compressSpilledBatch;
+      this.tracer = tracer;
+      if (compressSpilledBatch) {
+        long reserve = VectorAccessibleSerializable.RAW_CHUNK_SIZE_TO_COMPRESS * 2;
+        compressSpilledBatchAllocator = this.parentAllocator.newChildAllocator("spill_with_snappy", reserve, Long.MAX_VALUE);
+        rollback.add(compressSpilledBatchAllocator);
+      }
+
+      final Configuration conf = FileSystemPlugin.getNewFsConf();
+      conf.set(SpillManager.DREMIO_LOCAL_IMPL_STRING, LocalSyncableFileSystem.class.getName());
+      // If the location URI doesn't contain any schema, fall back to local.
+      conf.set(FileSystem.FS_DEFAULT_NAME_KEY, FileSystem.DEFAULT_FS);
+
+      final String id = String.format("esort-%s.%s.%s.%s", QueryIdHelper.getQueryId(handle.getQueryId()),
+          handle.getMajorFragmentId(), handle.getMinorFragmentId(), operatorId
+      );
+      this.spillManager = new SpillManager(config, optionManager, id, conf, "sort spilling");
+      rollback.add(this.spillManager);
+
+      rollback.commit();
     }
-
-    final Configuration conf = FileSystemPlugin.getNewFsConf();
-    conf.set(SpillManager.DREMIO_LOCAL_IMPL_STRING, LocalSyncableFileSystem.class.getName());
-    // If the location URI doesn't contain any schema, fall back to local.
-    conf.set(FileSystem.FS_DEFAULT_NAME_KEY, FileSystem.DEFAULT_FS);
-
-    final String id = String.format("esort-%s.%s.%s.%s",QueryIdHelper.getQueryId(handle.getQueryId()),
-        handle.getMajorFragmentId(), handle.getMinorFragmentId(), operatorId);
-    this.spillManager = new SpillManager(config, optionManager, id, conf, "sort spilling");
   }
 
   public long spillTimeNanos() {
@@ -208,9 +215,6 @@ public class DiskRunManager implements AutoCloseable {
 
           rollback.commit();
         }
-        // As the runs are successfully loaded from disk and part of DiskRunMerger, we can remove them from global list
-        // and delete spill files.
-        removeDiskRuns(runList.size());
         return false;
       } catch (OutOfMemoryException e) {
         // reattempt with smaller list
@@ -349,6 +353,7 @@ public class DiskRunManager implements AutoCloseable {
     public void close() {
       try {
         AutoCloseables.close(copier, out, container);
+        removeDiskRuns(this.diskRuns.size());
       } catch (Exception e) {
         Throwables.propagate(e);
       }
@@ -583,7 +588,8 @@ public class DiskRunManager implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(Iterables.concat(this.diskRuns, Collections.singleton(compressSpilledBatchAllocator), Collections.singleton(this.spillManager), Collections.singleton(copierAllocator)));
+    AutoCloseables.close(Iterables.concat(this.diskRuns, Collections.singleton(diskRunMerger),
+      Collections.singleton(compressSpilledBatchAllocator), Collections.singleton(this.spillManager), Collections.singleton(copierAllocator)));
   }
 
   private class DiskRun implements AutoCloseable {
@@ -651,12 +657,27 @@ public class DiskRunManager implements AutoCloseable {
     private int recordIndexMax;
     private final VectorContainer container = new VectorContainer();
 
+    /*
+     * DiskRunIterator opens a spill file and loads batch(es) into memory when reading spill files.
+     * As part of creation of iterator below, we load a single batch and if this IO fails, the
+     * already opened spill file read stream will never be closed since the instantiation of
+     * DiskRunIterator never succeeded. Using RollbackCloseable in the caller will also not
+     * help for the same reason that failure happened during instantiation.
+     */
     private DiskRunIterator(int batchCount, SpillFile spillFile, ExpandableHyperContainer hyperContainer, BufferAllocator allocator) throws IOException {
-      this.allocator = allocator;
-      this.inputStream = spillFile.open();
-      this.batchIndexMax = batchCount;
-      loadNextBatch(true);
-      hyperContainer.addBatch(this.container);
+      try {
+        this.allocator = allocator;
+        this.inputStream = spillFile.open();
+        this.batchIndexMax = batchCount;
+        loadNextBatch(true);
+        hyperContainer.addBatch(this.container);
+      } catch (Exception e) {
+        /* close spill file read stream if failure happened after stream was successfully opened */
+        if (inputStream != null) {
+          inputStream.close();
+        }
+        throw e;
+      }
     }
 
     private void loadNextBatch(boolean first) throws IOException{

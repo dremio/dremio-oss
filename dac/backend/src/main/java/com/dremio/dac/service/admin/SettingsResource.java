@@ -21,6 +21,7 @@ import java.util.List;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -33,9 +34,9 @@ import javax.ws.rs.core.Response.Status;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionValue;
-import com.dremio.exec.server.options.OptionValue.OptionType;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -108,6 +109,19 @@ public class SettingsResource {
     return Response.ok(toSetting(options.getOption(id))).build();
   }
 
+  @DELETE
+  @Path("{id}")
+  public Response resetSetting(@PathParam("id") String id) {
+    if(!options.isValid(id)){
+      return Response.status(Status.NOT_FOUND).build();
+    }
+
+    OptionValue option = options.getOption(id);
+
+    options.deleteOption(id, option.getType());
+    return Response.ok().build();
+  }
+
   private OptionValue toOptionValue(Setting setting){
     if (setting instanceof Setting.BooleanSetting) {
       return OptionValue.createBoolean(OptionType.SYSTEM, setting.getId(), ((Setting.BooleanSetting)setting).getValue());
@@ -125,19 +139,19 @@ public class SettingsResource {
   @SuppressWarnings("rawtypes")
   private Setting toSetting(OptionValue option){
     // display the value if it is the whitelist or has been set.
-    final boolean showOutsideWhitelist = options.isSet(option.name);
+    final boolean showOutsideWhitelist = options.isSet(option.getName());
 
-    switch(option.kind){
+    switch(option.getKind()){
     case BOOLEAN:
-      return new Setting.BooleanSetting(option.name, option.bool_val, showOutsideWhitelist);
+      return new Setting.BooleanSetting(option.getName(), option.getBoolVal(), showOutsideWhitelist);
     case DOUBLE:
-      return new Setting.FloatSetting(option.name, option.float_val, showOutsideWhitelist);
+      return new Setting.FloatSetting(option.getName(), option.getFloatVal(), showOutsideWhitelist);
     case LONG:
-      return new Setting.IntegerSetting(option.name, option.num_val, showOutsideWhitelist);
+      return new Setting.IntegerSetting(option.getName(), option.getNumVal(), showOutsideWhitelist);
     case STRING:
-      return new Setting.TextSetting(option.name, option.string_val, showOutsideWhitelist);
+      return new Setting.TextSetting(option.getName(), option.getStringVal(), showOutsideWhitelist);
     default:
-      throw new IllegalStateException("Unable to handle kind " + option.kind);
+      throw new IllegalStateException("Unable to handle kind " + option.getKind());
     }
   }
 }

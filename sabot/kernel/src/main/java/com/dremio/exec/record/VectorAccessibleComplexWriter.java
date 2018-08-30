@@ -16,13 +16,13 @@
 package com.dremio.exec.record;
 
 import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
-public class VectorAccessibleComplexWriter extends MapVector {
+public class VectorAccessibleComplexWriter extends NonNullableStructVector {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorAccessibleComplexWriter.class);
 
   private final VectorContainer vc;

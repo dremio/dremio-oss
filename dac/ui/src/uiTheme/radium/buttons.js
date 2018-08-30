@@ -31,7 +31,7 @@ export const button = {
   minWidth: 100,
   height: 28,
   borderRadius: 2,
-  marginLeft: 5,
+  marginRight: 5,
   fontSize: 11,
   cursor: 'pointer'
 };

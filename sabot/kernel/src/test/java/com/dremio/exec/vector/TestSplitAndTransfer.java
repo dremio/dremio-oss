@@ -21,7 +21,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.util.TransferPair;
 import org.junit.Test;
 
@@ -30,8 +30,7 @@ import com.dremio.exec.ExecTest;
 public class TestSplitAndTransfer extends ExecTest {
   @Test
   public void test() throws Exception {
-    final BufferAllocator allocator = RootAllocatorFactory.newRoot(DEFAULT_SABOT_CONFIG);
-    final NullableVarCharVector varCharVector = new NullableVarCharVector("field", allocator);
+    final VarCharVector varCharVector = new VarCharVector("field", allocator);
     varCharVector.allocateNew(10000, 1000);
 
     final int valueCount = 500;
@@ -45,7 +44,7 @@ public class TestSplitAndTransfer extends ExecTest {
     varCharVector.setValueCount(valueCount);
 
     final TransferPair tp = varCharVector.getTransferPair(allocator);
-    final NullableVarCharVector newVarCharVector = (NullableVarCharVector) tp.getTo();
+    final VarCharVector newVarCharVector = (VarCharVector) tp.getTo();
     final int[][] startLengths = {{0, 201}, {201, 200}, {401, 99}};
 
     for (final int[] startLength : startLengths) {

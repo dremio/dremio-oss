@@ -27,17 +27,17 @@ import com.dremio.exec.planner.physical.PlannerSettings;
  */
 public class TestFixedLenDecimal extends BaseTestQuery {
 
-  private static final String DATAFILE = "cp.`parquet/fixedlenDecimal.parquet`";
+  private static final String DATAFILE = "cp.\"parquet/fixedlenDecimal.parquet\"";
 
   // enable decimal data type
   @BeforeClass
   public static void enableDecimalDataType() throws Exception {
-    runSQL(String.format("alter system set `%s` = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    runSQL(String.format("alter system set \"%s\" = true", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
   @AfterClass
   public static void disableDecimalDataType() throws Exception {
-    runSQL(String.format("alter system set `%s` = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
+    runSQL(String.format("alter system set \"%s\" = false", PlannerSettings.ENABLE_DECIMAL_DATA_TYPE_KEY));
   }
 
   @Test

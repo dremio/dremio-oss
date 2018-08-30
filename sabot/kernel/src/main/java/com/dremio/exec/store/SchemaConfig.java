@@ -15,9 +15,11 @@
  */
 package com.dremio.exec.store;
 
+import org.apache.calcite.schema.SchemaPlus;
+
 import com.dremio.exec.ops.ViewExpansionContext;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.server.options.OptionValue;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Preconditions;

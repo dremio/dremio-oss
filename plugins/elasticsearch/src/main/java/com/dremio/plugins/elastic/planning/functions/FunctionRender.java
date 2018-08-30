@@ -26,7 +26,7 @@ import com.google.common.collect.ImmutableList;
 public class FunctionRender {
   public static final String EMPTY = ".empty";
   public static final String EQ_NULL = " == null";
-  public static final String EQ_THEN = " ? null : ";
+  public static final String EQ_THEN = " ? %s : ";
   public static final String EQ_OR = " || ";
 
   private final String script;
@@ -47,9 +47,10 @@ public class FunctionRender {
 
   /**
    * Renders this as null guarded.
+   * @param nullReplacement is the value to return when a null value is caught
    * @return a null guarded version of the provided script.
    */
-  public String getNullGuardedScript(){
+  public String getNullGuardedScript(String nullReplacement){
     List<NullReference> inputListToCheck = ImmutableList.copyOf(nulls);
     Set<NullReference> checkRepeats = new HashSet<>();
     String toReturn = "";
@@ -75,10 +76,14 @@ public class FunctionRender {
     }
 
     if (checkRepeats.size() > 0) {
-      toReturn += (")" + EQ_THEN);
+      toReturn += (")" + String.format(EQ_THEN, nullReplacement));
     }
 
     return toReturn + script;
+  }
+
+  public String getNullGuardedScript() {
+    return this.getNullGuardedScript("null");
   }
 }
 

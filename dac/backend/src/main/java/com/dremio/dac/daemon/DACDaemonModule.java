@@ -27,7 +27,6 @@ import javax.inject.Provider;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.nodes.NodeProvider;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.common.store.ViewCreatorFactory;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
 import com.dremio.dac.homefiles.HomeFileTool;
@@ -38,6 +37,7 @@ import com.dremio.dac.server.WebServer;
 import com.dremio.dac.server.tokens.TokenManager;
 import com.dremio.dac.server.tokens.TokenManagerImpl;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
+import com.dremio.dac.service.collaboration.CollaborationService;
 import com.dremio.dac.service.datasets.DACViewCreatorFactory;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.exec.MasterElectionService;
@@ -51,8 +51,10 @@ import com.dremio.datastore.RemoteKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
@@ -76,6 +78,8 @@ import com.dremio.exec.work.rpc.CoordTunnelCreator;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.provision.service.ProvisioningService;
 import com.dremio.provision.service.ProvisioningServiceImpl;
+import com.dremio.resource.ResourceAllocator;
+import com.dremio.resource.basic.BasicResourceAllocator;
 import com.dremio.sabot.exec.FragmentWorkManager;
 import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.rpc.CoordExecService;
@@ -232,7 +236,7 @@ public class DACDaemonModule implements DACModule {
             fabricAddress,
             dacConfig.localPort,
             dacConfig.autoPort,
-            sabotConfig.getInt(ExecConstants.BIT_RPC_TIMEOUT),
+            sabotConfig.getInt(RpcConstants.BIT_RPC_TIMEOUT),
             sabotConfig.getInt(ExecConstants.BIT_SERVER_RPC_THREADS),
             bootstrap.getExecutor(),
             bootstrap.getAllocator(),
@@ -283,8 +287,8 @@ public class DACDaemonModule implements DACModule {
       )
     );
 
-
-    final boolean isInternalUGS = setupUserService(registry, dacConfig.getConfig());
+    final boolean isInternalUGS = setupUserService(registry, dacConfig.getConfig(),
+        registry.provider(SabotContext.class));
     registry.bind(NamespaceService.Factory.class, NamespaceServiceImpl.Factory.class);
     final DatasetListingService localListing;
     if (isMaster) {
@@ -392,13 +396,15 @@ public class DACDaemonModule implements DACModule {
             isMaster
             )
         );
-
     if(isCoordinator){
+      registry.bind(ResourceAllocator.class, new BasicResourceAllocator(registry.provider(ClusterCoordinator
+        .class)));
       registry.bindSelf(
           new ForemenWorkManager(
               registry.provider(ClusterCoordinator.class),
               registry.provider(FabricService.class),
               registry.provider(SabotContext.class),
+              registry.provider(ResourceAllocator.class),
               registry.getBindingCreator()
               )
           );
@@ -422,19 +428,6 @@ public class DACDaemonModule implements DACModule {
       registry.bind(WorkStats.class, WorkStats.NO_OP);
     }
 
-    final Provider<FileSystemPlugin> acceleratorStoragePluginProvider = new Provider<FileSystemPlugin>() {
-      @Override
-      public FileSystemPlugin get() {
-        CatalogService catalogService = registry.provider(CatalogService.class).get();
-
-        try {
-          return (FileSystemPlugin) catalogService.getSource(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
-        } catch(Exception e) {
-          throw Throwables.propagate(e);
-        }
-      }
-    };
-
     registry.bind(AccelerationManager.class, AccelerationManager.NO_OP);
 
     if (isCoordinator) {
@@ -444,7 +437,6 @@ public class DACDaemonModule implements DACModule {
         registry.provider(SchedulerService.class),
         registry.provider(JobsService.class),
         registry.provider(CatalogService.class),
-        acceleratorStoragePluginProvider,
         registry.provider(SabotContext.class),
         registry.provider(ReflectionStatusService.class),
         bootstrap.getExecutor(),
@@ -466,6 +458,7 @@ public class DACDaemonModule implements DACModule {
       registry.provider(KVStoreProvider.class),
       registry.provider(SabotContext.class),
       registry.provider(ReflectionStatusService.class),
+      registry.provider(ReflectionService.class),
       registry.provider(FabricService.class),
       registry.getBindingCreator()));
 
@@ -545,13 +538,18 @@ public class DACDaemonModule implements DACModule {
     registry.bind(NamespaceService.class, NamespaceServiceImpl.class);
     registry.bindSelf(ReflectionServiceHelper.class);
     registry.bindSelf(CatalogServiceHelper.class);
+    registry.bindSelf(CollaborationService.class);
   }
 
   /**
    * Set up the {@link UserService} in registry according to the config.
    * @return True if the internal user management is used.
    */
-  protected boolean setupUserService(final SingletonRegistry registry, final DremioConfig config) {
+  protected boolean setupUserService(
+      final SingletonRegistry registry,
+      final DremioConfig config,
+      final Provider<SabotContext> sabotContext
+  ) {
     final String authType = config.getString(WEB_AUTH_TYPE);
 
     if ("internal".equals(authType)) {

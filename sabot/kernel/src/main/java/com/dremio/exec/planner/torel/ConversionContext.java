@@ -16,13 +16,11 @@
 package com.dremio.exec.planner.torel;
 
 import java.util.List;
-import java.util.Map;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.prepare.Prepare;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
@@ -30,7 +28,6 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.schema.SchemaPlus;
 
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.LogicalPlan;
@@ -50,33 +47,22 @@ import com.dremio.exec.planner.logical.LimitRel;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.SortRel;
 import com.dremio.exec.planner.logical.UnionRel;
-import com.dremio.exec.planner.logical.ScanFieldDeterminer;
-import com.dremio.exec.planner.logical.ScanFieldDeterminer.FieldList;
 
 public class ConversionContext implements ToRelContext {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ConversionContext.class);
 
   private static final ConverterVisitor VISITOR = new ConverterVisitor();
 
-  private final Map<Scan, FieldList> scanFieldLists;
   private final RelOptCluster cluster;
-  private final Prepare prepare;
 
   public ConversionContext(RelOptCluster cluster, LogicalPlan plan) {
     super();
-    scanFieldLists = ScanFieldDeterminer.getFieldLists(plan);
     this.cluster = cluster;
-    this.prepare = null;
   }
 
   @Override
   public RelOptCluster getCluster() {
     return cluster;
-  }
-
-  private FieldList getFieldList(Scan scan) {
-    assert scanFieldLists.containsKey(scan);
-    return scanFieldLists.get(scan);
   }
 
   public RexBuilder getRexBuilder(){
@@ -102,18 +88,11 @@ public class ConversionContext implements ToRelContext {
   }
 
   public RelOptTable getTable(Scan scan){
-    FieldList list = getFieldList(scan);
-
     return null;
   }
 
   @Override
   public RelRoot expandView(RelDataType rowType, String queryString, List<String> schemaPath, List<String> viewPath) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public RelRoot expandView(RelDataType rowType, String queryString, SchemaPlus rootSchema, List<String> schemaPath, List<String> viewPath) {
     throw new UnsupportedOperationException();
   }
 

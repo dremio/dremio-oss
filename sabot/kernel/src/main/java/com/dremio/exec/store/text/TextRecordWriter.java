@@ -15,15 +15,14 @@
  */
 package com.dremio.exec.store.text;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
 
-import com.dremio.sabot.exec.context.OperatorStats;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.commons.io.ByteOrderMark;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.exceptions.UserException;
@@ -35,6 +34,7 @@ import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Joiner;
 
@@ -54,6 +54,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   private int index;
   private PrintStream stream = null;
   private FileSystemWrapper fs = null;
+  private FSDataOutputStream fos;
 
   private Path path;
   private long count;
@@ -120,7 +121,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
     // open a new file for writing data with new schema
     try {
       this.path = fs.canonicalizePath(partition.qualified(location, prefix + "_" + index + "." + extension));
-      DataOutputStream fos = fs.create(path);
+      fos = fs.create(path);
       stream = new PrintStream(fos);
       stream.write(ByteOrderMark.UTF_8.getBytes(), 0, ByteOrderMark.UTF_8.length());
       logger.debug("Created file: {}", path);
@@ -131,7 +132,8 @@ public class TextRecordWriter extends StringOutputRecordWriter {
     }
     index++;
 
-    stream.print(Joiner.on(fieldDelimiter).join(columnNames));
+    String columns = Joiner.on(fieldDelimiter).join(columnNames);
+    stream.print(columns);
     stream.print(lineDelimiter);
 
   }
@@ -198,13 +200,26 @@ public class TextRecordWriter extends StringOutputRecordWriter {
     }
   }
 
+  private long getFileSize() {
+    if (fos != null) {
+      try {
+        return fos.getPos();
+      } catch (IOException e) {
+        logger.warn("Couldn't retrieve written file size", e);
+      }
+    }
+
+    return 0;
+  }
+
   @Override
   public void close() {
 
     if (stream != null) {
-      listener.recordsWritten(count, path.toString(), null, partition.getBucketNumber());
+      listener.recordsWritten(count, getFileSize(), path.toString(), null, partition.getBucketNumber());
       stream.close();
       stream = null;
+      fos = null;
       count = 0;
       index = 0;
       logger.debug("closing file");

@@ -50,6 +50,7 @@ import com.dremio.exec.store.ischema.tables.SchemataTable.Schema;
 import com.dremio.exec.store.ischema.tables.TablesTable.Table;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.namespace.DatasetIndexKeys;
+import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceIndexKeys;
 import com.dremio.service.namespace.NamespaceKey;
@@ -109,8 +110,8 @@ public class CatalogImpl implements Catalog {
     this.systemNamespaceService = context.getNamespaceService(SystemUser.SYSTEM_USERNAME);
     this.userNamespaceService = context.getNamespaceService(username);
     this.datasets = new DatasetManager(
-        pluginRetriever,
-        userNamespaceService
+      pluginRetriever,
+      userNamespaceService
     );
 
     this.sourceModifier = sourceModifier;
@@ -206,13 +207,17 @@ public class CatalogImpl implements Catalog {
 
   @Override
   public Iterable<String> listSchemas(NamespaceKey path) {
-    final SearchQuery filter = path.size() == 0 ? null : SearchQueryUtils.newTermQuery(DatasetIndexKeys.UNQUOTED_LC_SCHEMA, path.toUnescapedString().toLowerCase());
-    return FluentIterable.from(InfoSchemaTable.SCHEMATA.<Schema>asIterable("N/A", username, context.getDatasetListing(), filter)).transform(new com.google.common.base.Function<Schema, String>(){
+    final SearchQuery filter = path.size() == 0
+        ? null
+        : SearchQueryUtils.newTermQuery(DatasetIndexKeys.UNQUOTED_LC_SCHEMA, path.toUnescapedString().toLowerCase());
+    return FluentIterable.from(InfoSchemaTable.SCHEMATA.<Schema>asIterable("N/A", username, context.getDatasetListing(), filter))
+        .transform(new com.google.common.base.Function<Schema, String>() {
 
-      @Override
-      public String apply(Schema input) {
-        return input.SCHEMA_NAME;
-      }});
+          @Override
+          public String apply(Schema input) {
+            return input.SCHEMA_NAME;
+          }
+        });
   }
 
   @Override
@@ -334,7 +339,7 @@ public class CatalogImpl implements Catalog {
 
     final FormatPlugin formatPlugin;
     if (storageOptions == null || storageOptions.isEmpty()) {
-      String storage = options.getSchemaConfig().getOption(ExecConstants.OUTPUT_FORMAT_OPTION).string_val;
+      String storage = options.getSchemaConfig().getOption(ExecConstants.OUTPUT_FORMAT_OPTION).getStringVal();
       formatPlugin = fsPlugin.getFormatPlugin(storage);
       if (formatPlugin == null) {
         throw new UnsupportedOperationException(String.format("Unsupported format '%s' in '%s'", storage, key));
@@ -510,13 +515,13 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
-  public boolean createOrUpdateDataset(NamespaceService userNamespaceService, NamespaceKey source, NamespaceKey datasetPath, DatasetConfig datasetConfig) throws NamespaceException {
+  public boolean createOrUpdateDataset(NamespaceService userNamespaceService, NamespaceKey source, NamespaceKey datasetPath, DatasetConfig datasetConfig, NamespaceAttribute... attributes) throws NamespaceException {
     ManagedStoragePlugin plugin = pluginRetriever.getPlugin(source.getRoot(), true);
     if(plugin == null){
       throw UserException.validationError().message("Unknown source %s", datasetPath.getRoot()).build(logger);
     }
 
-    return datasets.createOrUpdateDataset(userNamespaceService, plugin, source, datasetPath, datasetConfig);
+    return datasets.createOrUpdateDataset(userNamespaceService, plugin, source, datasetPath, datasetConfig, attributes);
   }
 
   @Override
@@ -525,13 +530,13 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
-  public void createSource(SourceConfig config) {
-    sourceModifier.createSource(config);
+  public void createSource(SourceConfig config, NamespaceAttribute... attributes) {
+    sourceModifier.createSource(config, attributes);
   }
 
   @Override
-  public void updateSource(SourceConfig config) {
-    sourceModifier.updateSource(config);
+  public void updateSource(SourceConfig config, NamespaceAttribute... attributes) {
+    sourceModifier.updateSource(config, attributes);
   }
 
   @Override

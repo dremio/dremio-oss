@@ -35,10 +35,10 @@ public class DremioUDFUtils {
 
 
   public static void writeCardExample(ComplexWriter writer, CardExamplePosition... positions) {
-    org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter.ListWriter list = writer.rootAsList();
+    org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter.ListWriter list = writer.rootAsList();
     list.startList();
     for (CardExamplePosition position : positions) {
-      org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter.MapWriter positionWriter = list.map();
+      org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter.StructWriter positionWriter = list.struct();
       positionWriter.start();
       positionWriter.integer(OFFSET_FIELD).writeInt(position.getOffset());
       positionWriter.integer(LENGTH_FIELD).writeInt(position.getLength());

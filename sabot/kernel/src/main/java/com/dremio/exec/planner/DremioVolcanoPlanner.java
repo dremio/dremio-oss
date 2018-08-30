@@ -17,12 +17,16 @@ package com.dremio.exec.planner;
 
 import java.util.List;
 
+import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.ConventionTraitDef;
+import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rex.RexExecutor;
 import org.apache.calcite.runtime.Hook;
 
+import com.dremio.common.VM;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider.Substitution;
@@ -36,26 +40,34 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
 
   private final SubstitutionProvider substitutionProvider;
 
-  private static final boolean IS_DEBUG = java.lang.management.ManagementFactory.getRuntimeMXBean().getInputArguments()
-      .toString().indexOf("-agentlib:jdwp") > 0;
-
-
   private CancelFlag cancelFlag = null;
 
-  public DremioVolcanoPlanner(final SqlConverter converter) {
-    super(converter.getCostFactory(), converter.getSettings());
-    this.substitutionProvider = converter.getSubstitutionProvider();
+  private DremioVolcanoPlanner(RelOptCostFactory costFactory, Context context, SubstitutionProvider substitutionProvider) {
+    super(costFactory, context);
+    this.substitutionProvider = substitutionProvider;
+  }
 
-    setExecutor(new ConstExecutor(converter.getFunctionImplementationRegistry(), converter.getFunctionContext(), converter.getSettings()));
-    clearRelTraitDefs();
-    addRelTraitDef(ConventionTraitDef.INSTANCE);
-    addRelTraitDef(DistributionTraitDef.INSTANCE);
-    addRelTraitDef(RelCollationTraitDef.INSTANCE);
+  public static DremioVolcanoPlanner of(final SqlConverter converter) {
+    final ConstExecutor executor = new ConstExecutor(converter.getFunctionImplementationRegistry(), converter.getFunctionContext(), converter.getSettings());
+
+    return of(converter.getCostFactory(), converter.getSettings(), converter.getSubstitutionProvider(), executor);
+  }
+
+  public static DremioVolcanoPlanner of(RelOptCostFactory costFactory, Context context, SubstitutionProvider substitutionProvider, RexExecutor executor) {
+    DremioVolcanoPlanner volcanoPlanner = new DremioVolcanoPlanner(costFactory, context, substitutionProvider);
+
+    volcanoPlanner.setExecutor(executor);
+    volcanoPlanner.clearRelTraitDefs();
+    volcanoPlanner.addRelTraitDef(ConventionTraitDef.INSTANCE);
+    volcanoPlanner.addRelTraitDef(DistributionTraitDef.INSTANCE);
+    volcanoPlanner.addRelTraitDef(RelCollationTraitDef.INSTANCE);
+
+    return volcanoPlanner;
   }
 
   @Override
-  protected void useApplicableMaterializations() {
-    final List<Substitution> substitutions = substitutionProvider.findSubstitutions(originalRoot);
+  protected void registerMaterializations() {
+    final List<Substitution> substitutions = substitutionProvider.findSubstitutions(getOriginalRoot());
     LOGGER.debug("found {} substitutions", substitutions.size());
     for (final Substitution substitution : substitutions) {
       if (!isRegistered(substitution.getReplacement())) {
@@ -73,13 +85,9 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
     this.cancelFlag = cancelFlag;
   }
 
-  public RelNode getOriginalRoot() {
-    return originalRoot;
-  }
-
   @Override
   public void checkCancel() {
-    if(!IS_DEBUG){
+    if(!VM.isDebugEnabled()){
       if (cancelFlag != null && cancelFlag.isCancelRequested()) {
         throw UserException.planError()
             .message("Query was cancelled because planning time exceeded %d seconds", cancelFlag.getTimeoutInSecs())

@@ -19,8 +19,9 @@ import PropTypes from 'prop-types';
 
 import FieldWithError from 'components/Fields/FieldWithError';
 import TextField from 'components/Fields/TextField';
-import { section, sectionTitle, description as descriptionStyle } from 'uiTheme/radium/forms';
+import { sectionTitle, description as descriptionStyle } from 'uiTheme/radium/forms';
 import { applyValidators, isRequired, isWholeNumber } from 'utils/validation';
+import { rowOfInputsSpacing } from '@app/uiTheme/less/forms.less';
 
 export default class Host extends Component {
   static getFields() {
@@ -49,14 +50,14 @@ export default class Host extends Component {
     const title = this.props.title ? <div style={styles.title}>{this.props.title}</div> : null;
     const description = this.props.description ? <div className='largerFontSize' style={styles.des}>{this.props.description}</div> : null;
     return (
-      <div style={{...section, ...style}}>
-        <h2>{title}</h2>
+      <div className={rowOfInputsSpacing} style={{...styles.hostPortItem, ...style}}>
+        {title && <h2>{title}</h2>}
         {description}
-        <FieldWithError errorPlacement='top' label='Host' {...hostname} style={{display: 'inline-block'}}>
-          <TextField {...hostname} />
+        <FieldWithError errorPlacement='top' label='Host' {...hostname} style={styles.hostPortField}>
+          <TextField {...hostname} style={styles.textFieldItem} />
         </FieldWithError>
-        <FieldWithError errorPlacement='top' label='Port' {...port} style={{display: 'inline-block'}}>
-          <TextField {...port} />
+        <FieldWithError errorPlacement='top' label='Port' {...port} style={styles.hostPortField}>
+          <TextField {...port} style={styles.textFieldItem} />
         </FieldWithError>
       </div>
     );
@@ -64,6 +65,17 @@ export default class Host extends Component {
 }
 
 const styles = {
+  hostPortItem: {
+    display: 'flex',
+    width: '100%',
+    marginBottom: 12
+  },
+  hostPortField: {
+    flex: '1 1 auto'
+  },
+  textFieldItem: {
+    width: '100%'
+  },
   title: {
     ...sectionTitle,
     margin: '10px 0'

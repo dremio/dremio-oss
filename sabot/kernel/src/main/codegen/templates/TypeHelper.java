@@ -23,6 +23,7 @@ package com.dremio.exec.expr;
 import com.google.common.base.Preconditions;
 import io.netty.buffer.*;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.UnionMode;
 import org.apache.arrow.vector.types.pojo.ArrowType.Union;
 
@@ -64,25 +65,25 @@ public class TypeHelper extends BasicTypeHelper {
       <#assign dremioMinorType = typeMapping.minor_type!minor.class?upper_case>
       <#if supported>
     case ${minor.class?upper_case}:
-      return new Nullable${minor.class}Accessor((Nullable${minor.class}Vector) vector);
-    </#if>  
+      return new ${minor.class}Accessor((${minor.class}Vector) vector);
+    </#if>
     </#list>
     </#list>
-    case MAP:
+    case STRUCT:
     case LIST:
       return new GenericAccessor(vector);
     }
     throw new UnsupportedOperationException(buildErrorMessage("find sql accessor", (type)));
   }
-  
+
   public static JType getHolderType(JCodeModel model, com.dremio.common.types.TypeProtos.MinorType type, com.dremio.common.types.TypeProtos.DataMode mode){
     switch (type) {
     case UNION:
       return model._ref(UnionHolder.class);
-    case MAP:
+    case STRUCT:
     case LIST:
       return model._ref(ComplexHolder.class);
-      
+
 <#list vv.types as type>
   <#list type.minor as minor>
     <#assign typeMapping = TypeMappings[minor.class]!{}>
@@ -121,11 +122,11 @@ public class TypeHelper extends BasicTypeHelper {
     } else if (v instanceof ListVector) {
       new ListVectorHelper((ListVector) v).load(metadata, buffer);
       return;
-    } else if (v instanceof NullableMapVector) {
-      new NullableMapVectorHelper((NullableMapVector) v).load(metadata, buffer);
+    } else if (v instanceof StructVector) {
+      new StructVectorHelper((StructVector) v).load(metadata, buffer);
       return;
-    } else if (v instanceof MapVector) {
-      new MapVectorHelper((MapVector) v).load(metadata, buffer);
+    } else if (v instanceof NonNullableStructVector) {
+      new NonNullableStructVectorHelper((NonNullableStructVector) v).load(metadata, buffer);
       return;
     } else
     <#list vv.types as type>
@@ -135,15 +136,25 @@ public class TypeHelper extends BasicTypeHelper {
       <#assign dremioMinorType = typeMapping.minor_type!minor.class?upper_case>
       <#if supported>
     if (v instanceof ${minor.class}Vector) {
-        <#if minor.class == "Bit">
-        new ValidityVectorHelper((BitVector) v).load(metadata, buffer);
-        <#else>
-        new ${minor.class}VectorHelper((${minor.class}Vector) v).load(metadata, buffer);
-        </#if>
+        new Nullable${minor.class}VectorHelper((${minor.class}Vector) v).load(metadata, buffer);
         return;
-    } else if (v instanceof Nullable${minor.class}Vector) {
-        new Nullable${minor.class}VectorHelper((Nullable${minor.class}Vector) v).load(metadata, buffer);
-        return;
+    }
+    </#if>
+    </#list>
+    </#list>
+    throw new UnsupportedOperationException(String.format("no loader for vector %s", v));
+  }
+
+  public static void loadData(ValueVector v, SerializedField metadata, ArrowBuf buffer) {
+    <#list vv.types as type>
+    <#list type.minor as minor>
+    <#assign typeMapping = TypeMappings[minor.class]!{}>
+      <#assign supported = typeMapping.supported!true>
+      <#assign dremioMinorType = typeMapping.minor_type!minor.class?upper_case>
+      <#if supported>
+    if (v instanceof ${minor.class}Vector) {
+      new Nullable${minor.class}VectorHelper((${minor.class}Vector) v).loadData(metadata, buffer);
+      return;
     }
     </#if>
     </#list>
@@ -158,10 +169,10 @@ public class TypeHelper extends BasicTypeHelper {
     if (v instanceof ListVector) {
       return new ListVectorHelper((ListVector) v).getMetadataBuilder();
     }
-    if (v instanceof MapVector){
+    if (v instanceof StructVector){
       return null;
     }
-    if (v instanceof NullableMapVector){
+    if (v instanceof NonNullableStructVector){
       return null;
     }
     <#list vv.types as type>
@@ -171,13 +182,7 @@ public class TypeHelper extends BasicTypeHelper {
       <#assign dremioMinorType = typeMapping.minor_type!minor.class?upper_case>
       <#if supported>
     if (v instanceof ${minor.class}Vector)
-      <#if minor.class == "Bit">
-      return new ValidityVectorHelper((BitVector) v).getMetadataBuilder();
-      <#else>
-      return new ${minor.class}VectorHelper((${minor.class}Vector) v).getMetadataBuilder();
-      </#if>
-    if (v instanceof Nullable${minor.class}Vector)
-      return new Nullable${minor.class}VectorHelper((Nullable${minor.class}Vector) v).getMetadataBuilder();
+      return new Nullable${minor.class}VectorHelper((${minor.class}Vector) v).getMetadataBuilder();
     </#if>
     </#list>
     </#list>
@@ -194,11 +199,11 @@ public class TypeHelper extends BasicTypeHelper {
     if (v instanceof ListVector){
       return new ListVectorHelper((ListVector)v).getMetadata();
     }
-    if (v instanceof NullableMapVector){
-      return new NullableMapVectorHelper((NullableMapVector)v).getMetadata();
+    if (v instanceof StructVector){
+      return new StructVectorHelper((StructVector)v).getMetadata();
     }
-    if (v instanceof MapVector){
-      return new MapVectorHelper((MapVector)v).getMetadata();
+    if (v instanceof NonNullableStructVector){
+      return new NonNullableStructVectorHelper((NonNullableStructVector)v).getMetadata();
     }
     <#list vv.types as type>
     <#list type.minor as minor>
@@ -207,13 +212,7 @@ public class TypeHelper extends BasicTypeHelper {
       <#assign dremioMinorType = typeMapping.minor_type!minor.class?upper_case>
     <#if supported>
     if (v instanceof ${minor.class}Vector)
-      <#if minor.class == "Bit">
-      return new ValidityVectorHelper((BitVector) v).getMetadata();
-      <#else>
-      return new ${minor.class}VectorHelper((${minor.class}Vector) v).getMetadata();
-      </#if>
-    if (v instanceof Nullable${minor.class}Vector)
-      return new Nullable${minor.class}VectorHelper((Nullable${minor.class}Vector) v).getMetadata();
+      return new Nullable${minor.class}VectorHelper((${minor.class}Vector) v).getMetadata();
     </#if>
     </#list>
     </#list>
@@ -252,7 +251,7 @@ public class TypeHelper extends BasicTypeHelper {
     switch(serializedField.getMajorType().getMinorType()) {
     case LIST:
       return new Field(name, true, arrowMinorType.getType(), ImmutableList.of(getFieldForSerializedField(serializedField.getChild(2))));
-    case MAP: {
+    case STRUCT: {
       ImmutableList.Builder<Field> builder = ImmutableList.builder();
       List<SerializedField> childList = serializedField.getChildList();
       Preconditions.checkState(childList.size() > 0, "children should start with validity vector buffer");

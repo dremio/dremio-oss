@@ -58,6 +58,16 @@ export const smallestModal = {
   }
 };
 
+export const mediumModal = {
+  overlay,
+  content: {
+    ...modalContent,
+    width: 840,
+    top: null,
+    bottom: null
+  }
+};
+
 export const largeModal = {
   overlay,
   content: {

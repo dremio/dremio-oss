@@ -126,7 +126,7 @@ message LayoutDetailsDescriptor {
   // dimension fields
   repeated LayoutDimensionFieldDescriptor dimensionField = 3;
   // measure fields
-  repeated LayoutFieldDescriptor measureField = 4;
+  repeated LayoutMeasureFieldDescriptor measureField = 4;
   // display fields
   repeated LayoutFieldDescriptor displayField = 5;
   // distribution fields
@@ -138,6 +138,13 @@ message LayoutDetailsDescriptor {
 message LayoutFieldDescriptor {
   // field name
   required string name = 1;
+}
+
+message LayoutMeasureFieldDescriptor {
+  // field name
+  required string name = 1;
+
+  repeated MeasureType measure_type = 2;
 }
 
 message LayoutDimensionFieldDescriptor {

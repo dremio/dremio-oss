@@ -45,7 +45,7 @@ public class Wrapper {
   private final Stats stats;
   private boolean endpointsAssigned;
   private long initialAllocation = 0;
-  private final long maxAllocation = Long.MAX_VALUE;
+  private long maxAllocation = Long.MAX_VALUE;
   private final IdentityHashMap<GroupScan, ListMultimap<Integer, CompleteWork>> splitSets = new IdentityHashMap<>();
 
   // List of fragments this particular fragment depends on for determining its parallelization and endpoint assignments.
@@ -54,6 +54,7 @@ public class Wrapper {
   // a list of assigned endpoints. Technically, there could repeated endpoints in this list if we'd like to assign the
   // same fragment multiple times to the same endpoint.
   private final List<NodeEndpoint> endpoints = Lists.newLinkedList();
+  private final List<Long> maxMemoryAllocationPerNode = Lists.newLinkedList();
 
   public Wrapper(Fragment node, int majorFragmentId) {
     this.majorFragmentId = majorFragmentId;
@@ -96,6 +97,10 @@ public class Wrapper {
 
   public long getMaxAllocation() {
     return maxAllocation;
+  }
+
+  public void setMaxAllocation(long maxAllocation) {
+    this.maxAllocation = maxAllocation;
   }
 
   public void addAllocation(PhysicalOperator pop) {
@@ -153,6 +158,27 @@ public class Wrapper {
     return endpoints.get(minorFragmentId);
   }
 
+  public long getMemoryAllocationPerNode(int minorFragmentId) {
+    Preconditions.checkState(endpointsAssigned);
+    return (maxMemoryAllocationPerNode.isEmpty()) ?
+      maxAllocation : maxMemoryAllocationPerNode.get(minorFragmentId);
+  }
+
+  public void assignMemoryAllocations(final Map<NodeEndpoint, Long> memoryAllocations) {
+    Preconditions.checkState(endpointsAssigned);
+    for (NodeEndpoint endpoint : endpoints) {
+      // set max Memory for each minor fragment to Max Memory per node
+      // e.g. if there 6 minor fragments on node1 with 1 GB each Max will be set to 6 GB for each of the 6 minors
+      // on the Executor side this max will be enforced on minor/major fragment
+      // TODO at this point it is also enforced on Query level
+      Long memory = memoryAllocations.get(endpoint);
+      Preconditions.checkNotNull(memory, "Major frag: " + majorFragmentId + ", Endpoint: " + endpoint);
+      maxMemoryAllocationPerNode.add(memory);
+      // TODO we should not set it every time and actually should not
+      // even set or use it globally
+      maxAllocation = memory;
+    }
+  }
   /**
    * Add a parallelization dependency on given fragment.
    *

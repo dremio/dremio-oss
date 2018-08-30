@@ -38,7 +38,7 @@ export default class ReflectionList extends PureComponent {
   };
 
   render() {
-    const items = this.props.reflections.map(({relationship, dataset, reflection, materialization}) => {
+    const items = this.props.reflections.map(({relationship, dataset, reflection, materialization, datasetLink}) => {
       const name = reflection.name || this.props.intl.formatMessage({ id: 'Reflection.UnnamedReflection' });
 
       let desc = '';
@@ -54,6 +54,7 @@ export default class ReflectionList extends PureComponent {
       }
 
       const showLink = this.context.loggedInUser.admin && (reflection.type === 'RAW' || reflection.type === 'AGGREGATION');
+      const showDatasetLink = !!datasetLink;
 
       return <li>
         <div>
@@ -69,7 +70,9 @@ export default class ReflectionList extends PureComponent {
                 }
               }}>{name}</Link>}
             </EllipsedText>
-            <EllipsedText text={dataset.path.join('.')} />
+            <EllipsedText text={dataset.path.join('.')}>
+              {showDatasetLink && <Link to={datasetLink} title={datasetLink.title}>{dataset.path.join('.')}</Link>}
+            </EllipsedText>
           </div>
         </div>
         <div>

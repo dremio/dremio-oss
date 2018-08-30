@@ -23,6 +23,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
+
 import com.dremio.plugins.elastic.ElasticActions.ContextListener;
 import com.dremio.plugins.elastic.ElasticActions.ElasticAction;
 import com.dremio.plugins.elastic.ElasticActions.ElasticAction2;
@@ -52,7 +53,25 @@ public class ElasticTestActions {
 
     @Override
     public String toString() {
-      String format = "{\n\"settings\":{\n\"index\":{\n\"number_of_shards\":%d,\n\"number_of_replicas\":%d\n}\n}\n}";
+      String format =
+          "{\n" +
+          "  \"settings\": {\n" +
+          "    \"analysis\": {\n" +
+          "      \"normalizer\": {\n" +
+          "        \"lowercase_normalizer\": {\n" +
+          "          \"type\": \"custom\",\n" +
+          "          \"filter\": [\n" +
+          "            \"lowercase\"\n" +
+          "          ]\n" +
+          "        }\n" +
+          "      }\n" +
+          "    },\n" +
+          "    \"index\": {\n" +
+          "      \"number_of_shards\": %d,\n" +
+          "      \"number_of_replicas\": %d\n" +
+          "    }\n" +
+          "  }\n" +
+          "}";
       try {
         return String.format(format, shards, replicas);
       } catch (Exception e) {
@@ -205,6 +224,7 @@ public class ElasticTestActions {
       return this;
     }
 
+    @Override
     public Result getResult(WebTarget target) {
       WebTarget t = target;
       target.path(Joiner.on(",").join(indexes)).path("_mapping");

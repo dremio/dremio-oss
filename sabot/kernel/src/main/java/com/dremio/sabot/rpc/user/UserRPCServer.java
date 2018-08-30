@@ -25,6 +25,8 @@ import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.avatica.util.Quoting;
 
+import com.dremio.common.utils.protos.ExternalIdHelper;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.sql.handlers.commands.MetadataProvider;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedStatementProvider;
@@ -61,14 +63,12 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionValue;
-import com.dremio.exec.server.options.OptionValue.OptionType;
-import com.dremio.exec.work.ExternalIdHelper;
 import com.dremio.exec.work.foreman.TerminationListenerRegistry;
 import com.dremio.exec.work.protector.UserConnectionResponseHandler;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserWorker;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
 import com.dremio.service.users.UserLoginException;
 import com.dremio.service.users.UserService;
 import com.google.common.annotations.VisibleForTesting;
@@ -359,12 +359,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
 
 
       final UserWorker worker = UserRPCServer.this.worker.get();
-      UserSession.Builder builder = UserSession.Builder.newBuilder()
-          .withCredentials(inbound.getCredentials())
-          .withOptionManager(worker.getSystemOptions())
-          .withUserProperties(inbound.getProperties())
-          .setSupportComplexTypes(inbound.getSupportComplexTypes());
-
+      UserSession.Builder builder = UserSession.Builder.newBuilder();
       // Support legacy drill driver. If the client info is empty or it exists
       // and doesn't contain dremio, assume it is Apache Drill format.
       boolean legacyDriver = false;
@@ -378,6 +373,8 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
       } else {
         legacyDriver = true;
       }
+
+      // Set default catalog and quoting based on legacy vs dremio
       if (legacyDriver) {
         builder.withLegacyCatalog()
             .withInitialQuoting(Quoting.BACK_TICK)
@@ -385,28 +382,11 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
             .setSupportComplexTypes(false);
       }
 
-      // check if we have quoting that we want to set.
-      if(inbound.hasProperties()){
-        UserProperties properties = inbound.getProperties();
-        for(Property p : properties.getPropertiesList()){
-          if(p.hasValue() && p.hasKey()) {
-            if (p.getKey().equalsIgnoreCase("quoting")) {
-              String value = p.getValue();
-              if ("BACK_TICK".equalsIgnoreCase(value)) {
-                builder.withInitialQuoting(Quoting.BACK_TICK);
-              } else if ("DOUBLE_QUOTE".equalsIgnoreCase(value)) {
-                builder.withInitialQuoting(Quoting.DOUBLE_QUOTE);
-              } else if ("BRACKET".equalsIgnoreCase(value)) {
-                builder.withInitialQuoting(Quoting.BRACKET);
-              } else {
-                logger.warn("Ignoring message to use initial quoting of type {}.", value);
-              }
-            } else if (p.getKey().equalsIgnoreCase("supportFullyQualifiedProjects")) {
-              builder.withFullyQualifiedProjectsSupport("true".equalsIgnoreCase(p.getValue()));
-            }
-          }
-        }
-      }
+      builder
+          .withCredentials(inbound.getCredentials())
+          .withOptionManager(worker.getSystemOptions())
+          .withUserProperties(inbound.getProperties())
+          .setSupportComplexTypes(inbound.getSupportComplexTypes());
 
       // Choose batch record format to use
       if (inbound.hasRecordBatchType()) {

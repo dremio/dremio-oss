@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.store.parquet.columnreaders;
 
-import org.apache.arrow.vector.NullableBitVector;
+import org.apache.arrow.vector.BitVector;
 
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.SchemaElement;
@@ -23,10 +23,10 @@ import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 
-final class BitReader extends ColumnReader<NullableBitVector> {
+final class BitReader extends ColumnReader<BitVector> {
 
   BitReader(DeprecatedParquetVectorizedReader parentReader, int allocateSize, ColumnDescriptor descriptor, ColumnChunkMetaData columnChunkMetaData,
-            boolean fixedLength, NullableBitVector v, SchemaElement schemaElement) throws ExecutionSetupException {
+            boolean fixedLength, BitVector v, SchemaElement schemaElement) throws ExecutionSetupException {
     super(parentReader, allocateSize, descriptor, columnChunkMetaData, fixedLength, v, schemaElement);
   }
 

@@ -1,0 +1,109 @@
+/*
+ * Copyright (C) 2017-2018 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ @import "~@app/uiTheme/less/variables.less";
+ @import "~@app/uiTheme/less/color-schema.less";
+ @import "~@app/uiTheme/less/mixins.less";
+
+ @horizontal-padding: 5px; // should be >= @_margin value below
+ @vertical-padding: 3px;
+ @_margin: 5px;
+ @cursor-width: 1px;
+ @border-width: 1px;
+
+.container {
+  composes: border-radius-default from '@app/uiTheme/less/layout.less';
+  display: inline-flex;
+  flex-wrap: wrap;
+  // top padding is not applied, as it would be applied to .item. This is needed to make things look good for multiline case
+  // if we alter Tags.js component to determine a cursor position by clicking in arbitrary point of container. We will be able to get rid of this stuff.
+  padding-bottom: @vertical-padding;
+
+  padding-left: @horizontal-padding - @_margin; // this is needed, as I put a placeholder before each tag. This placeholder has @_margin width
+  padding-right: @horizontal-padding;
+  border: @border-width solid @TABLE_BORDER;
+  min-height: @form-row-height-default;
+  outline: none;
+  background: white;
+}
+
+.item {
+  margin-top: @vertical-padding; // should apply this for items for multiline case
+}
+
+.cursor-placeholder {
+  composes: item;
+  composes: row-of-inputs from '@app/uiTheme/less/forms.less';
+  width: @_margin;
+  justify-content: center;
+
+  align-self: stretch;
+  cursor: text;
+}
+
+.tag-wrapper {
+  composes: item;
+  composes: row-of-inputs from '@app/uiTheme/less/forms.less';
+  display: inline-flex;
+}
+
+.tag-element {
+  // put tag specific styles here
+}
+
+.cursor:before {
+  content: '';
+  display: block;
+  @adjusted-margin: (@_margin - @cursor-width) / 2;
+
+  height: 90%;
+  width: @cursor-width;
+  background: @font-color1;
+
+  // IMPORTANT!!! do not use shorthand property 'animation'. Css modules does not work with it corretly (see https://github.com/css-modules/css-modules/issues/141#issuecomment-379242211)
+  animation-name: blink;
+  animation-duration: 1s;
+  animation-iteration-count: infinite;
+}
+
+.input {
+  composes: form-default from '@app/uiTheme/less/typography.less';
+  composes: item;
+  padding-left: @_margin; // this is neede to be applied here to put cusor into input, when an user click between tag and input field
+  border: none;
+  flex: 1 1;
+
+  background: transparent; // should inherit a backgrounf of container
+  min-width: 50px;
+
+  line-height: @form-row-height-default - 2 * (@vertical-padding + @border-width);
+
+  &:focus {
+    outline: none;
+  }
+
+  &::placeholder {
+  .unavailable-font();
+  }
+}
+
+@keyframes blink {
+  from, to {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}

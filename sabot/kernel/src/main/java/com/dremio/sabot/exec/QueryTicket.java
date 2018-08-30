@@ -121,9 +121,10 @@ class QueryTicket extends TicketWithChildren {
       completed.add(finalStatus);
     } finally {
       if (this.release()) {
+        NodeQueryStatus finalQueryStatus = getStatus();
         queriesClerk.removeQueryTicket(this);
         // NB: not waiting for an ack. Status report is on a best effort basis
-        tunnelCreator.getTunnel(getForeman()).sendNodeQueryStatus(getStatus());
+        tunnelCreator.getTunnel(getForeman()).sendNodeQueryStatus(finalQueryStatus);
       }
     }
   }
@@ -141,7 +142,9 @@ class QueryTicket extends TicketWithChildren {
   NodeQueryStatus getStatus() {
     final NodeQueryStatus.Builder b = NodeQueryStatus.newBuilder()
       .setId(queryId)
-      .setEndpoint(assignment);
+      .setEndpoint(assignment)
+      .setMaxMemoryUsed(getAllocator().getPeakMemoryAllocation());
+
     for (NodePhaseStatus nodePhaseStatus : completed) {
       b.addPhaseStatus(nodePhaseStatus);
     }

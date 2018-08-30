@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import javax.validation.Valid;
 import javax.validation.constraints.Pattern;
 
 import com.dremio.dac.model.common.AddressableResource;
@@ -49,6 +50,7 @@ import com.google.common.collect.ImmutableList;
 @JsonIgnoreProperties(value={ "links", "fullPathList", "resourcePath" }, allowGetters=true, ignoreUnknown=true)
 public class SourceUI implements AddressableResource, DatasetContainer {
 
+  @Valid
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type")
   private ConnectionConf<?, ?> config;
 
@@ -70,6 +72,8 @@ public class SourceUI implements AddressableResource, DatasetContainer {
   // acceleration grace and refresh periods
   private Long accelerationGracePeriod;
   private Long accelerationRefreshPeriod;
+  private Boolean accelerationNeverExpire;
+  private Boolean accelerationNeverRefresh;
 
   public SourceUI setConfig(ConnectionConf<?, ?> sourceConfig) {
     this.config = sourceConfig;
@@ -163,11 +167,11 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     this.state = state;
   }
 
-  public UIMetadataPolicy getMetadataPolicy(){
+  public UIMetadataPolicy getMetadataPolicy() {
     return metadataPolicy;
   }
 
-  public void setMetadataPolicy(UIMetadataPolicy metadataPolicy){
+  public void setMetadataPolicy(UIMetadataPolicy metadataPolicy) {
     this.metadataPolicy = MoreObjects.firstNonNull(metadataPolicy, UIMetadataPolicy.DEFAULT_UIMETADATA_POLICY);
   }
 
@@ -216,6 +220,22 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     return ImmutableList.of(name);
   }
 
+  public Boolean getAccelerationNeverExpire() {
+    return accelerationNeverExpire;
+  }
+
+  public void setAccelerationNeverExpire(Boolean accelerationNeverExpire) {
+    this.accelerationNeverExpire = accelerationNeverExpire;
+  }
+
+  public Boolean getAccelerationNeverRefresh() {
+    return accelerationNeverRefresh;
+  }
+
+  public void setAccelerationNeverRefresh(Boolean accelerationNeverRefresh) {
+    this.accelerationNeverRefresh = accelerationNeverRefresh;
+  }
+
   public Map<String, String> getLinks() {
     Map<String, String> links = new HashMap<>();
     String resourcePath = new SourcePath(new SourceName(name)).toUrlPath();
@@ -243,6 +263,8 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     c.setVersion(version);
     c.setAccelerationRefreshPeriod(accelerationRefreshPeriod);
     c.setAccelerationGracePeriod(accelerationGracePeriod);
+    c.setAccelerationNeverExpire(Boolean.TRUE.equals(accelerationNeverExpire));
+    c.setAccelerationNeverRefresh(Boolean.TRUE.equals(accelerationNeverRefresh));
     c.setMetadataPolicy(metadataPolicy.asMetadataPolicy());
     c.setId(new EntityId(getId()));
     return c;
@@ -287,6 +309,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     source.setVersion(sourceConfig.getVersion());
     source.setAccelerationRefreshPeriod(sourceConfig.getAccelerationRefreshPeriod());
     source.setAccelerationGracePeriod(sourceConfig.getAccelerationGracePeriod());
+    source.setAccelerationNeverExpire(sourceConfig.getAccelerationNeverExpire());
     source.setId(sourceConfig.getId().getId());
     return source;
   }

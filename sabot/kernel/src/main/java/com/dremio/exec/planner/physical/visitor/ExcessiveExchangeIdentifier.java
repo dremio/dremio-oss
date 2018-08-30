@@ -20,11 +20,9 @@ import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.LeafPrel;
-import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.google.common.collect.Lists;
@@ -78,7 +76,7 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
     s.add(prel);
 
     // Add all children to MajorFragmentStat, before we visit each child.
-    // Since MajorFramentStat keeps track of maxRows of Prels in MajorFrag, it's fine to add prel multiple times.
+    // Since MajorFramentStat keeps track of maxCost of Prels in MajorFrag, it's fine to add prel multiple times.
     // Doing this will ensure MajorFragmentStat is same when visit each individual child, in order to make
     // consistent decision.
     for (Prel p : prel) {
@@ -97,12 +95,12 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
 
   class MajorFragmentStat {
     private DistributionAffinity distributionAffinity = DistributionAffinity.NONE;
-    private double maxRows = 0d;
+    private double maxCost = 0d;
     private int maxWidth = Integer.MAX_VALUE;
     private boolean isMultiSubScan = false;
 
     public void add(Prel prel) {
-      maxRows = Math.max(prel.estimateRowCount(DefaultRelMetadataProvider.INSTANCE.getRelMetadataQuery()), maxRows);
+      maxCost = Math.max(maxCost, prel.getCostForParallelization());
     }
 
     public void addScreen(ScreenPrel screenPrel) {
@@ -123,7 +121,7 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
         return false;
       }
 
-      int suggestedWidth = (int) Math.ceil((maxRows+1)/targetSliceSize);
+      int suggestedWidth = (int) Math.ceil((maxCost +1)/targetSliceSize);
 
       int w = Math.min(maxWidth, suggestedWidth);
       if (w < 1) {
@@ -137,7 +135,7 @@ public class ExcessiveExchangeIdentifier extends BasePrelVisitor<Prel, Excessive
     }
 
     public void merge(MajorFragmentStat newStat) {
-      this.maxRows = Math.max(this.maxRows, newStat.maxRows);
+      this.maxCost = Math.max(this.maxCost, newStat.maxCost);
       this.maxWidth = Math.min(this.maxWidth, newStat.maxWidth);
       if (newStat.distributionAffinity == DistributionAffinity.HARD) {
         this.distributionAffinity = DistributionAffinity.HARD;

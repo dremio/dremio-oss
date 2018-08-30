@@ -163,7 +163,7 @@ public class ExtractList {
       }
       listWriter.endList();
       break;
-    case MAP:
+    case STRUCT:
     case NULL:
     case UINT1:
     case UINT2:

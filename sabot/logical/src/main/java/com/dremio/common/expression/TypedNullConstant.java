@@ -15,10 +15,10 @@
  */
 package com.dremio.common.expression;
 
+import java.util.Collections;
 import java.util.Iterator;
 
 import com.dremio.common.expression.visitors.ExprVisitor;
-import com.google.common.collect.Iterators;
 
 public class TypedNullConstant extends LogicalExpressionBase {
 
@@ -40,7 +40,7 @@ public class TypedNullConstant extends LogicalExpressionBase {
 
     @Override
     public Iterator<LogicalExpression> iterator() {
-      return Iterators.emptyIterator();
+      return Collections.emptyIterator();
     }
 
 }

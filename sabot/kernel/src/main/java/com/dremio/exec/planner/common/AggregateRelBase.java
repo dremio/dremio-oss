@@ -37,15 +37,17 @@ public abstract class AggregateRelBase extends Aggregate {
   }
 
   @Override public double estimateRowCount(RelMetadataQuery mq) {
-    // Assume that each sort column has 50% of the value count.
-    // Therefore one sort column has .5 * rowCount,
-    // 2 sort columns give .75 * rowCount.
+    // Assume that each sort column has 90% of the value count.
+    // Therefore one sort column has .10 * rowCount,
+    // 2 sort columns give .19 * rowCount.
     // Zero sort columns yields 1 row (or 0 if the input is empty).
     final int groupCount = groupSet.cardinality();
     if (groupCount == 0) {
       return 1;
     } else {
-      double rowCount = super.estimateRowCount(mq);
+      // don't use super.estimateRowCount(mq) to not apply on top of calcite
+      // estimation for Aggregate. Directly get input rowcount
+      double rowCount = mq.getRowCount(getInput());
       rowCount *= 1.0 - Math.pow(.9, groupCount);
       return rowCount;
     }

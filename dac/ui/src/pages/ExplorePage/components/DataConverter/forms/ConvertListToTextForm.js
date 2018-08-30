@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import Radium from 'radium';
 
 import Select from 'components/Fields/Select';
 import Radio from 'components/Fields/Radio';
@@ -23,17 +22,14 @@ import TextField from 'components/Fields/TextField';
 import NewFieldSection from 'components/Forms/NewFieldSection';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 
-import { formLabel } from 'uiTheme/radium/typography';
-import { FLEX_NOWRAP_COL_START, LINE_START_CENTER } from 'uiTheme/radium/flexStyle';
-
-import TransformForm, {formWrapperProps} from '../../forms/TransformForm';
-import { transformProps } from './../../forms/TransformationPropTypes';
+import TransformForm, {formWrapperProps} from '@app/pages/ExplorePage/components/forms/TransformForm';
+import { transformProps } from '@app/pages/ExplorePage/components/forms/TransformationPropTypes';
+import { radioStacked, sectionTitle, rowMargin, fieldsHorizontalSpacing } from '@app/uiTheme/less/forms.less';
+import { delimiterContainer, customDelimiterInput, newField } from './ConvertListToTextForm.less';
 
 const SECTIONS = [NewFieldSection];
-
 // todo: loc
 
-@Radium
 export class ConvertListToTextForm extends Component {
   static propTypes = transformProps;
 
@@ -62,25 +58,28 @@ export class ConvertListToTextForm extends Component {
   renderListContent() {
     const { delimiter, format } = this.props.fields;
     return (
-      <div style={styles.base}>
-        <div style={styles.options}>
-          <span style={formLabel}>{la('Options:')}</span>
-          <Radio {...format} label='Delimiter' radioValue='text'/>
-          <Radio {...format} label='JSON encoding' radioValue='json'/>
+      <div>
+        <div>
+          <span className={sectionTitle}>{la('Options:')}</span>
+          <Radio {...format} label='Delimiter' radioValue='text' className={radioStacked} />
+          <Radio {...format} label='JSON encoding' radioValue='json' className={radioStacked} />
         </div>
-        <span style={formLabel}>{la('Delimiter:')}</span>
-        <div style={styles.options}>
-          <span>{la('Separate list objects with a')}</span>
-          <Select
-            disabled={format.value !== 'text'}
-            items={this.options}
-            {...delimiter}
-            value={this.options.some(e => e.option === delimiter.value) ? delimiter.value : ''}/>
-          <TextField
-            style={styles.input}
-            disabled={format.value !== 'text'}
-            {...delimiter}
-            type='text'/>
+        <div className={sectionTitle}>{la('Delimiter:')}</div>
+        <div>
+          <div className={rowMargin}>{la('Separate list objects with a')}</div>
+          <div className={delimiterContainer}>
+            <Select
+              className={fieldsHorizontalSpacing}
+              disabled={format.value !== 'text'}
+              items={this.options}
+              {...delimiter}
+              value={this.options.some(e => e.option === delimiter.value) ? delimiter.value : ''}/>
+            <TextField
+              className={customDelimiterInput}
+              disabled={format.value !== 'text'}
+              {...delimiter}
+              type='text'/>
+          </div>
         </div>
       </div>
     );
@@ -93,7 +92,7 @@ export class ConvertListToTextForm extends Component {
         {...formWrapperProps(this.props)}
         onFormSubmit={this.props.submit}>
         {this.renderListContent()}
-        <NewFieldSection fields={fields}/>
+        <NewFieldSection fields={fields} className={newField} />
       </TransformForm>
     );
   }
@@ -116,21 +115,3 @@ export default connectComplexForm({
   fields: ['format', 'delimiter'],
   overwriteOnInitialValuesChange: false
 }, SECTIONS, mapStateToProps, null)(ConvertListToTextForm);
-
-const styles = {
-  base: {
-    margin: '10px 0 10px 10px',
-    ...FLEX_NOWRAP_COL_START
-  },
-  options: {
-    ...LINE_START_CENTER,
-    marginBottom: 10
-  },
-  input: {
-    height: 28,
-    width: 100,
-    marginLeft: 10,
-    borderRadius: 2,
-    border: '1px solid #81d1eb'
-  }
-};

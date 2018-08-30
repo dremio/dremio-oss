@@ -28,7 +28,9 @@ describe('AccelerationUpdatesForm', () => {
     const values = {
       method: 'FULL',
       accelerationRefreshPeriod: DataFreshnessSection.defaultFormValueRefreshInterval(),
-      accelerationGracePeriod: DataFreshnessSection.defaultFormValueGracePeriod()
+      accelerationGracePeriod: DataFreshnessSection.defaultFormValueGracePeriod(),
+      accelerationNeverExpire: false,
+      accelerationNeverRefresh: false
     };
     minimalProps = {
       ...minimalFormProps(fieldNames),
@@ -145,10 +147,32 @@ describe('AccelerationUpdatesForm', () => {
         method: 'INCREMENTAL',
         accelerationRefreshPeriod: DataFreshnessSection.defaultFormValueRefreshInterval(),
         accelerationGracePeriod: DataFreshnessSection.defaultFormValueGracePeriod(),
+        accelerationNeverExpire: false,
+        accelerationNeverRefresh: false,
         fieldList: ['col1'],
         refreshField: 'col1'
       };
       expect(instance.mapFormValues(commonProps.values)).to.be.eql(expectedValues);
+
+      stub.restore();
+    });
+
+
+    it('should include never expire/never refresh', () => {
+      const stub = sinon.stub(AccelerationUpdatesForm.prototype, 'requiresIncrementalFieldSelection').returns(true);
+
+      const wrapper = shallow(<AccelerationUpdatesForm {...minimalProps}/>);
+      const instance = wrapper.instance();
+
+      const props = {
+        ...minimalProps,
+        accelerationNeverExpire: true,
+        accelerationNeverRefresh: true
+      };
+
+      wrapper.setProps({ ...props});
+      expect(instance.mapFormValues(props).accelerationNeverExpire).to.be.eql(true);
+      expect(instance.mapFormValues(props).accelerationNeverExpire).to.be.eql(true);
 
       stub.restore();
     });

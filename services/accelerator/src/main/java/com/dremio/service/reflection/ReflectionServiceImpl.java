@@ -16,7 +16,7 @@
 package com.dremio.service.reflection;
 
 import static com.dremio.common.utils.SqlUtils.quotedCompound;
-import static com.dremio.exec.server.options.OptionValue.OptionType.SYSTEM;
+import static com.dremio.options.OptionValue.OptionType.SYSTEM;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_ENABLED;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_ENABLE_SUBSTITUTION;
@@ -31,6 +31,7 @@ import static org.threeten.bp.Instant.ofEpochMilli;
 
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -58,14 +59,14 @@ import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.OptionManager;
-import com.dremio.exec.server.options.OptionValue;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.exec.work.AttemptId;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.jobs.JobsService;
@@ -144,7 +145,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   private final Provider<JobsService> jobsService;
   private final Provider<NamespaceService> namespaceService;
   private final Provider<CatalogService> catalogService;
-  private final Provider<FileSystemPlugin> accelerationPlugin;
   private final Provider<SabotContext> sabotContext;
   private final Provider<ReflectionStatusService> reflectionStatusService;
   private final ReflectionSettings reflectionSettings;
@@ -186,7 +186,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     Provider<SchedulerService> schedulerService,
     Provider<JobsService> jobsService,
     Provider<CatalogService> catalogService,
-    Provider<FileSystemPlugin> accelerationPlugin,
     final Provider<SabotContext> sabotContext,
     Provider<ReflectionStatusService> reflectionStatusService,
     ExecutorService executorService,
@@ -195,7 +194,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     this.schedulerService = Preconditions.checkNotNull(schedulerService, "scheduler service required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobs service required");
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalog service required");
-    this.accelerationPlugin = Preconditions.checkNotNull(accelerationPlugin, "acceleration plugin required");
     this.sabotContext = Preconditions.checkNotNull(sabotContext, "acceleration plugin required");
     this.reflectionStatusService = Preconditions.checkNotNull(reflectionStatusService, "reflection status service required");
     this.executorService = Preconditions.checkNotNull(executorService, "executor service required");
@@ -266,6 +264,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       dependencyManager.start();
 
       final ReflectionManager manager = new ReflectionManager(
+        sabotContext.get(),
         jobsService.get(),
         namespaceService.get(),
         getOptionManager(),
@@ -273,7 +272,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         internalStore,
         externalReflectionStore,
         materializationStore,
-        accelerationPlugin.get(),
         dependencyManager,
         new DescriptorCacheImpl(),
         reflectionsToUpdate,
@@ -327,10 +325,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
   @Override
   public ExcludedReflectionsProvider getExcludedReflectionsProvider() {
-    if (dependencyManager != null) {
-      return dependencyManager.getExcludedReflectionsProvider();
-    }
-    return super.getExcludedReflectionsProvider();
+    return dependencyManager.getExcludedReflectionsProvider();
   }
 
   private Instant getNextRefreshTimeInMillis() {
@@ -534,7 +529,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
   @Override
   public void clearAll() {
-    logger.warn("Clearing all reflections");
     final Iterable<ReflectionGoal> reflections = userStore.getAll();
     for (ReflectionGoal goal : reflections) {
       if (goal.getState() != ReflectionGoalState.DELETED) {
@@ -549,6 +543,24 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       return dependencyManager.getDependencies(reflectionId);
     }
     return super.getDependencies(reflectionId);
+  }
+
+  public Iterable<AccelerationListManager.DependencyInfo> getReflectionDependencies() {
+    final Iterable<ReflectionGoal> goalReflections = getAllReflections();
+    final List<AccelerationListManager.DependencyInfo> reflectionDependencies = new LinkedList<>();
+    for(ReflectionGoal goal : goalReflections) {
+      ReflectionId goalId = goal.getId();
+      final List<DependencyEntry> dependencyEntries = dependencyManager.getDependencies(goalId);
+      for(DependencyEntry entry: dependencyEntries) {
+        reflectionDependencies.add(new AccelerationListManager.DependencyInfo(
+          goalId.getId(),
+          entry.getId(),
+          entry.getType().toString(),
+          entry.getPath().toString()
+        ));
+      }
+    }
+    return reflectionDependencies;
   }
 
   @Override
@@ -640,6 +652,16 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   @Override
   public Optional<Materialization> getMaterialization(MaterializationId materializationId) {
     return Optional.fromNullable(materializationStore.get(materializationId));
+  }
+
+  @Override
+  public Materialization getLastMaterialization(ReflectionId reflectionId) {
+    return materializationStore.getLastMaterialization(reflectionId);
+  }
+
+  @Override
+  public Iterable<Refresh> getRefreshes(Materialization materialization) {
+    return materializationStore.getRefreshes(materialization);
   }
 
   @Override

@@ -25,8 +25,6 @@ import com.dremio.exec.planner.logical.JdbcRel;
 
 class ConvertJdbcLogicalToJdbcRel extends StatelessRelShuttleImpl {
 
-  private static final JdbcRelReverter REVERTER = new JdbcRelReverter();
-
   @Override
   public RelNode visit(RelNode other) {
     if (other instanceof JdbcCrel) {
@@ -34,36 +32,18 @@ class ConvertJdbcLogicalToJdbcRel extends StatelessRelShuttleImpl {
       // Eliminate subsets to enforce that all nodes in the Jdbc subtree are JdbcRelImpl nodes.
       // TODO: When we implement more of the StoragePlugin design, it should be easier to just get the StoragePluginId.
       final RelNode subsetRemoved = logical.getInput().accept(new MoreRelOptUtil.SubsetRemover());
+
       if (logical.getPluginId() == null) {
-        return revert(logical.getInput());
+        // Reverts JdbcRelImpl nodes back to their original Logical rel. This is necessary to handle subtrees that
+        // contain a values operator. We try to pushdown these subtrees if they are joined with another subtree that
+        // is pushed down to a jdbc source. After the HEP planner is finished, if we see that there are isolated
+        // branches that were not joined, we don't want to push them down, so we must revert.
+        return ((JdbcRelImpl) logical.getInput()).revert();
       }
+
       logical.replaceInput(0, subsetRemoved);
       return new JdbcRel(logical.getCluster(), logical.getTraitSet(), logical.getInput());
     }
     return super.visit(other);
-  }
-
-  /**
-   * Reverts JdbcRelImpl nodes back to their original Logical rel. This is necessary to handle subtrees that contain a
-   * values operator. We try to pushdown these subtrees if they are joined with another subtree that is pushed down to a
-   * jdbc source. After the HEP planner is finished, if we see that there are isolated branches that were not joined, we
-   * don't want to push them down, so we must revert.
-   * @param rel
-   * @return
-   */
-  private static RelNode revert(RelNode rel) {
-    return rel.accept(REVERTER);
-  }
-
-  private static class JdbcRelReverter extends StatelessRelShuttleImpl {
-    @Override
-    public RelNode visit(RelNode other) {
-      RelNode rel = super.visit(other);
-      if (!(rel instanceof JdbcRelImpl)) {
-        return rel;
-      }
-
-      return ((JdbcRelImpl) rel).revert();
-    }
   }
 }

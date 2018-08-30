@@ -40,7 +40,7 @@ public class TestExternalSort extends BaseTestQuery {
   private void attemptTestNumericTypes(String query, int record_count) throws Exception {
     TestBuilder builder = testBuilder()
       .sqlQuery(query)
-      .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
+      .optionSettingQueriesForTestQuery("alter session set \"exec.enable_union_type\" = true")
       .ordered()
       .baselineColumns("a");
     for (int i = record_count; i >= 0;) {
@@ -68,7 +68,7 @@ public class TestExternalSort extends BaseTestQuery {
       os.write(String.format(format, (float) i).getBytes());
     }
     os.close();
-    String query = String.format("select * from dfs_root.`%s` order by a desc", table_dir.toPath().toString());
+    String query = String.format("select * from dfs_root.\"%s\" order by a desc", table_dir.toPath().toString());
     // First attempt will fail with a schema change error
     try {
       attemptTestNumericTypes(query, record_count);
@@ -86,7 +86,7 @@ public class TestExternalSort extends BaseTestQuery {
     TestBuilder builder = testBuilder()
       .sqlQuery(query)
       .ordered()
-      .optionSettingQueriesForTestQuery("alter session set `exec.enable_union_type` = true")
+      .optionSettingQueriesForTestQuery("alter session set \"exec.enable_union_type\" = true")
       .baselineColumns("a");
     // Strings come first because order by is desc
     for (int i = record_count; i >= 0;) {
@@ -118,7 +118,7 @@ public class TestExternalSort extends BaseTestQuery {
       os.write(String.format(format, i).getBytes());
     }
     os.close();
-    String query = String.format("select * from dfs_root.`%s` order by a desc", table_dir.toPath().toString());
+    String query = String.format("select * from dfs_root.\"%s\" order by a desc", table_dir.toPath().toString());
     // First attempt will fail with a schema change error
     try {
       attemptTestNumericAndStringTypes(query, record_count);

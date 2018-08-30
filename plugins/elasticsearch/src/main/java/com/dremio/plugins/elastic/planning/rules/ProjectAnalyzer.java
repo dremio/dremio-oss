@@ -16,6 +16,7 @@
 package com.dremio.plugins.elastic.planning.rules;
 
 import java.util.Calendar;
+
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexDynamicParam;
@@ -28,7 +29,7 @@ import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.rex.RexRangeRef;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.elasticsearch.script.Script;
-import org.elasticsearch.script.ScriptService.ScriptType;
+import org.elasticsearch.script.ScriptType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +44,7 @@ import com.dremio.plugins.elastic.planning.functions.FunctionRenderer.RenderMode
 import com.dremio.plugins.elastic.planning.rules.SchemaField.ElasticFieldReference;
 import com.dremio.plugins.elastic.planning.rules.SchemaField.NullReference;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 public class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
 
@@ -50,11 +52,18 @@ public class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
 
   private boolean foundMetaColumn = false;
   private boolean requiresScripts = false;
+  private final boolean isAggregationContext;
+  private final boolean allowPushdownAnalyzedNormalizedFields;
 
   private FunctionRenderer renderer;
 
-  public static Script getScript(RexNode node, boolean painlessAllowed, boolean supportsV5Features, boolean scriptsEnabled){
-    ProjectAnalyzer analyzer = new ProjectAnalyzer();
+  public static Script getScript(RexNode node,
+      boolean painlessAllowed,
+      boolean supportsV5Features,
+      boolean scriptsEnabled,
+      boolean isAggregationContext,
+      boolean allowPushdownAnalyzedNormalizedFields){
+    ProjectAnalyzer analyzer = new ProjectAnalyzer(isAggregationContext, allowPushdownAnalyzedNormalizedFields);
     RenderMode mode = painlessAllowed && supportsV5Features ? RenderMode.PAINLESS : RenderMode.GROOVY;
     FunctionRenderer r = new FunctionRenderer(supportsV5Features, scriptsEnabled, mode, analyzer);
     analyzer.renderer = r;
@@ -63,19 +72,26 @@ public class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
       throw new RuntimeException(String.format("Failed to convert expression %s to script.", node));
     }
 
-    String nullGuardedScript = render.getNullGuardedScript();
+    String nullGuardedScript;
+    if (isAggregationContext) {
+      nullGuardedScript = render.getNullGuardedScript();
+    } else {
+      nullGuardedScript = render.getNullGuardedScript("false");
+    }
 
     if (mode == RenderMode.PAINLESS) {
       // when returning a painless script, let's make sure we cast to a valid output type.
-      return new Script(String.format("(def) (%s)", nullGuardedScript), ScriptType.INLINE, "painless", null);
+      return new Script(ScriptType.INLINE,  "painless", String.format("(def) (%s)", nullGuardedScript), ImmutableMap.of());
     } else {
       // keeping this so plan matching tests will pass
-      return new Script(nullGuardedScript, ScriptType.INLINE, "groovy", null);
+      return new Script(ScriptType.INLINE, "groovy", nullGuardedScript, ImmutableMap.of());
     }
   }
 
-  private ProjectAnalyzer() {
+  private ProjectAnalyzer(boolean isAggregationContext, boolean allowPushdownAnalyzedNormalizedFields) {
     super(true);
+    this.isAggregationContext = isAggregationContext;
+    this.allowPushdownAnalyzedNormalizedFields = allowPushdownAnalyzedNormalizedFields;
   }
 
   public boolean isNotAllowed() {
@@ -113,7 +129,7 @@ public class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
       case DATE:
       case TIME:
       case TIMESTAMP:
-        return new FunctionRender(Long.toString(((Calendar) literal.getValue()).getTimeInMillis()) + "L", ImmutableList.<NullReference>of());
+        return new FunctionRender("Instant.ofEpochMilli(" + Long.toString(((Calendar) literal.getValue()).getTimeInMillis()) + "L)", ImmutableList.of());
       default:
         return new FunctionRender(literal.toString(), ImmutableList.<NullReference>of());
     }
@@ -128,7 +144,7 @@ public class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
       foundMetaColumn = true;
     }
 
-    ElasticFieldReference reference = field.toReference(true);
+    ElasticFieldReference reference = field.toReference(true, isAggregationContext, allowPushdownAnalyzedNormalizedFields);
     return new FunctionRender(reference.getReference(), reference.getPossibleNulls());
   }
 

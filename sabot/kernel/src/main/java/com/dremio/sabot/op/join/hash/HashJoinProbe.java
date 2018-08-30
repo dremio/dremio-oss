@@ -22,6 +22,8 @@ import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.common.hashtable.HashTable;
 
 import io.netty.buffer.ArrowBuf;
+
+import java.util.BitSet;
 import java.util.List;
 
 import org.apache.calcite.rel.core.JoinRelType;
@@ -50,6 +52,8 @@ public interface HashJoinProbe {
       JoinRelType joinRelType,
       List<BuildInfo> buildInfos,
       List<ArrowBuf> startIndices,
+      List<BitSet> keyMatchBitVectors,
+      int maxHashTableIndex,
       int targetRecordsPerBatch);
 
 

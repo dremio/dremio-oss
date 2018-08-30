@@ -199,6 +199,7 @@ message PhysicalDataset {
   optional bytes deprecated_dataset_schema = 2; // FlatBuffer encoded schema
   optional bool isAppendOnly = 3 [default = false];
   optional AccelerationSettings accelerationSettings = 4;
+  optional bool allow_approx_stats = 5 [default = false];
 }
 
 message DatasetField {
@@ -218,6 +219,8 @@ message AccelerationSettings {
   // materialization grace period
   optional int64 gracePeriod = 5;
   optional int64 version = 6;
+  optional bool neverExpire = 7 [default = false];
+  optional bool neverRefresh = 8 [default = false];
 }
 
 enum RefreshMethod {

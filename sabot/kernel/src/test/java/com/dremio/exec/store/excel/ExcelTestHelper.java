@@ -140,7 +140,7 @@ class ExcelTestHelper {
   void test(final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion) throws Exception {
     final StringBuilder builder = new StringBuilder()
             .append("SELECT * FROM ")
-            .append("TABLE(dfs.`").append(testFilePath).append("` (")
+            .append("TABLE(dfs.\"").append(testFilePath).append("\" (")
             .append("type => 'excel'");
 
     if (sheetName != null) {
@@ -193,7 +193,7 @@ class ExcelTestHelper {
   void testProjectPushdown1(final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion) throws Exception {
     final StringBuilder builder = new StringBuilder()
       .append("SELECT Number, MyTime FROM ")
-      .append("TABLE(dfs.`").append(testFilePath).append("` (")
+      .append("TABLE(dfs.\"").append(testFilePath).append("\" (")
       .append("type => 'excel'");
 
     if (sheetName != null) {
@@ -238,7 +238,7 @@ class ExcelTestHelper {
   void testProjectPushdown2(final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion) throws Exception {
     final StringBuilder builder = new StringBuilder()
       .append("SELECT  Number, String2 FROM ")
-      .append("TABLE(dfs.`").append(testFilePath).append("` (")
+      .append("TABLE(dfs.\"").append(testFilePath).append("\" (")
       .append("type => 'excel'");
 
     if (sheetName != null) {
@@ -295,7 +295,7 @@ class ExcelTestHelper {
   void testProjectPushdown3(final TestBuilder testBuilder, String sheetName, boolean header, boolean mergedCellExpansion) throws Exception {
     final StringBuilder builder = new StringBuilder()
       .append("SELECT  String1, String2 FROM ")
-      .append("TABLE(dfs.`").append(testFilePath).append("` (")
+      .append("TABLE(dfs.\"").append(testFilePath).append("\" (")
       .append("type => 'excel'");
 
     if (sheetName != null) {

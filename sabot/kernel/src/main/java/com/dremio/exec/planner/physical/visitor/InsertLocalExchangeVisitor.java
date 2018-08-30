@@ -15,23 +15,24 @@
  */
 package com.dremio.exec.planner.physical.visitor;
 
-import com.dremio.exec.planner.physical.ExchangePrel;
-import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
-import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.UnorderedDeMuxExchangePrel;
-import com.dremio.exec.planner.physical.UnorderedMuxExchangePrel;
-import com.dremio.exec.planner.physical.HashPrelUtil.HashExpressionCreatorHelper;
-import com.dremio.exec.planner.sql.SqlOperatorImpl;
-import com.dremio.exec.server.options.OptionManager;
-import com.google.common.collect.Lists;
+import java.util.Collections;
+import java.util.List;
+
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 
-import java.util.Collections;
-import java.util.List;
+import com.dremio.exec.planner.physical.ExchangePrel;
+import com.dremio.exec.planner.physical.HashPrelUtil.HashExpressionCreatorHelper;
+import com.dremio.exec.planner.physical.HashToRandomExchangePrel;
+import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.physical.UnorderedDeMuxExchangePrel;
+import com.dremio.exec.planner.physical.UnorderedMuxExchangePrel;
+import com.dremio.exec.planner.sql.SqlOperatorImpl;
+import com.dremio.options.OptionManager;
+import com.google.common.collect.Lists;
 
 public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, RuntimeException> {
   private final boolean isMuxEnabled;

@@ -16,7 +16,7 @@
 package com.dremio.sabot.join.hash;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.NullableBigIntVector;
+import org.apache.arrow.vector.BigIntVector;
 
 import com.dremio.common.types.Types;
 import com.dremio.common.types.TypeProtos.MinorType;
@@ -31,8 +31,8 @@ public class EmptyGenerator implements Generator {
 
   public EmptyGenerator(BufferAllocator allocator){
     c = new VectorContainer(allocator);
-    c.addOrGet("key", Types.optional(MinorType.BIGINT), NullableBigIntVector.class);
-    c.addOrGet("value", Types.optional(MinorType.BIGINT), NullableBigIntVector.class);
+    c.addOrGet("key", Types.optional(MinorType.BIGINT), BigIntVector.class);
+    c.addOrGet("value", Types.optional(MinorType.BIGINT), BigIntVector.class);
     c.buildSchema(SelectionVectorMode.NONE);
   }
 

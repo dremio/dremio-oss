@@ -224,6 +224,11 @@ public class APIFieldDescriber {
     }
 
     @Override
+    public Void visit(ArrowType.FixedSizeBinary fixedSizeBinary) {
+      return writeString("BINARY");
+    }
+
+    @Override
     public Void visit(ArrowType.Union union) {
       return writeString(sqlTypeNameVisitor.visit(union));
     }

@@ -25,7 +25,7 @@ import static org.junit.Assert.fail;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.arrow.vector.NullableVarCharVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.util.DateUtility;
 import org.apache.arrow.vector.util.JsonStringArrayList;
@@ -66,14 +66,14 @@ public class TestConvertFunctions extends BaseTestQuery {
       final String newTblName = "testConvertFromConvertToInt_tbl";
       final String ctasQuery = String.format("CREATE TABLE %s.%s as \n" +
           "SELECT convert_to(r_regionkey, 'INT') as ct \n" +
-          "FROM cp.`tpch/region.parquet`",
+          "FROM cp.\"tpch/region.parquet\"",
           TEMP_SCHEMA, newTblName);
       final String query = String.format("SELECT convert_from(ct, 'INT') as cf \n" +
           "FROM %s.%s \n" +
           "ORDER BY ct",
           TEMP_SCHEMA, newTblName);
 
-      test("alter session set `planner.slice_target` = 1");
+      test("alter session set \"planner.slice_target\" = 1");
       test(ctasQuery);
       testBuilder()
           .sqlQuery(query)
@@ -87,20 +87,20 @@ public class TestConvertFunctions extends BaseTestQuery {
           .build()
           .run();
     } finally {
-      test("alter session set `planner.slice_target` = " + ExecConstants.SLICE_TARGET_DEFAULT);
+      test("alter session set \"planner.slice_target\" = " + ExecConstants.SLICE_TARGET_DEFAULT);
     }
   }
 
   @Test
   public void testExplainConvertFromJSON() throws Exception {
-    final String subQuery = "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.`functions/conv/list_map.json`";
+    final String subQuery = "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.\"functions/conv/list_map.json\"";
     final String query = "SELECT q.L[1] AS L1, q.M.f AS Mf FROM (" + subQuery + ") q";
     test("EXPLAIN PLAN FOR " + query);
   }
 
   @Test
   public void testQueryListFromMultipleConvertFromJSON() throws Exception {
-    final String subQuery = "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.`functions/conv/list_map.json`";
+    final String subQuery = "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.\"functions/conv/list_map.json\"";
     final String query = "SELECT q.L[1] AS L1 FROM (" + subQuery + ") q";
 
     setEnableReAttempts(true);
@@ -119,7 +119,7 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void testQueryMapFromMultipleConvertFromJSON() throws Exception {
-    final String subQuery = "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.`functions/conv/list_map.json`";
+    final String subQuery = "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.\"functions/conv/list_map.json\"";
     final String query = "SELECT q.M.f AS Mf FROM (" + subQuery + ") q";
 
     setEnableReAttempts(true);
@@ -138,7 +138,7 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void testQueryListMapFromMultipleConvertFromJSON() throws Exception {
-    final String subQuery = "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.`functions/conv/list_map.json`";
+    final String subQuery = "SELECT CONVERT_FROM(list, 'JSON') AS L, CONVERT_FROM(map, 'JSON') AS M FROM cp.\"functions/conv/list_map.json\"";
     final String query = "SELECT q.L[1] AS L1, q.M.f AS Mf FROM (" + subQuery + ") q";
 
     setEnableReAttempts(true);
@@ -164,7 +164,7 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void test_JSON_convertTo_empty_null_lists() throws Exception {
-    final String query = prepareConvertTestQuery("cp.`/json/null_list.json`", "mylist", "list","null_list_json");
+    final String query = prepareConvertTestQuery("cp.\"/json/null_list.json\"", "mylist", "list","null_list_json");
     setEnableReAttempts(true);
     try {
       testBuilder()
@@ -185,7 +185,7 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void test_JSON_convertTo_empty_null_maps() throws Exception {
-    final String query = prepareConvertTestQuery("cp.`/json/null_map.json`", "map", "map", "null_map_json");
+    final String query = prepareConvertTestQuery("cp.\"/json/null_map.json\"", "map", "map", "null_map_json");
     setEnableReAttempts(true);
     try {
       testBuilder()
@@ -206,7 +206,7 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void test_castConvertToEmptyListErrorDrill1416Part1() throws Exception {
-    final String query = prepareConvertTestQuery("cp.`/store/json/input2.json`", "rl[1]", "list_col", "input2_json");
+    final String query = prepareConvertTestQuery("cp.\"/store/json/input2.json\"", "rl[1]", "list_col", "input2_json");
 
     errorMsgTestHelper("SELECT CAST(list_col AS VARCHAR(100)) FROM dfs_test.input2_json",
       "Cast function cannot convert value of type VARBINARY(65536) to type VARCHAR(100)");
@@ -230,7 +230,7 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void test_castConvertToEmptyListErrorDrill1416Part2() throws Exception {
-    final String query = prepareConvertTestQuery("cp.`/store/json/json_project_null_object_from_list.json`", "rl[1]", "map_col", "json_project_null_json");
+    final String query = prepareConvertTestQuery("cp.\"/store/json/json_project_null_object_from_list.json\"", "rl[1]", "map_col", "json_project_null_json");
 
     Object mapVal1 = mapOf("f1", 4L, "f2", 6L);
     Object mapVal2 = mapOf("f1", 11L);
@@ -252,7 +252,7 @@ public class TestConvertFunctions extends BaseTestQuery {
 
   @Test
   public void testConvertToComplexJSON() throws Exception {
-    errorMsgTestHelper("select cast(convert_to(rl[1], 'EXTENDEDJSON') as varchar(100)) as json_str from cp.`/store/json/input2.json`",
+    errorMsgTestHelper("select cast(convert_to(rl[1], 'EXTENDEDJSON') as varchar(100)) as json_str from cp.\"/store/json/input2.json\"",
         "Cast function cannot convert value of type VARBINARY(65536) to type VARCHAR(100)");
 
     String result1 =
@@ -264,7 +264,7 @@ public class TestConvertFunctions extends BaseTestQuery {
     String[] result2 = new String[] { null };
 
     testBuilder()
-        .sqlQuery("select cast(convert_from(convert_to(rl[1], 'EXTENDEDJSON'), 'UTF8') as varchar(100)) as json_str from cp.`/store/json/input2.json`")
+        .sqlQuery("select cast(convert_from(convert_to(rl[1], 'EXTENDEDJSON'), 'UTF8') as varchar(100)) as json_str from cp.\"/store/json/input2.json\"")
         .unOrdered()
         .baselineColumns("json_str")
         .baselineValues(result1)
@@ -280,7 +280,7 @@ public class TestConvertFunctions extends BaseTestQuery {
     verifySQL("select"
            + "   convert_from(binary_string('\\xBE\\xBA\\xFE\\xCA'), 'INT')"
            + " from"
-           + "   cp.`employee.json` LIMIT 1",
+           + "   cp.\"employee.json\" LIMIT 1",
             0xCAFEBABE);
   }
 
@@ -289,7 +289,7 @@ public class TestConvertFunctions extends BaseTestQuery {
     verifySQL("select"
            + "   convert_to(-889275714, 'INT')"
            + " from"
-           + "   cp.`employee.json` LIMIT 1",
+           + "   cp.\"employee.json\" LIMIT 1",
            new byte[] {(byte) 0xBE, (byte) 0xBA, (byte) 0xFE, (byte) 0xCA});
   }
 
@@ -337,7 +337,7 @@ public class TestConvertFunctions extends BaseTestQuery {
   public void testBinaryString() throws Exception {
     final String[] queries = {
         "SELECT convert_from(binary_string(key), 'INT_BE') as intkey \n" +
-            "FROM cp.`functions/conv/conv.json`"
+            "FROM cp.\"functions/conv/conv.json\""
     };
 
     for (String query: queries) {
@@ -389,7 +389,7 @@ public class TestConvertFunctions extends BaseTestQuery {
     String[] result2 = new String[] { null };
 
     testBuilder()
-      .sqlQuery("select cast(convert_from(convert_to(rl[1], 'EXTENDEDJSON'), 'UTF8', '') as varchar(100)) as json_str from cp.`/store/json/input2.json`")
+      .sqlQuery("select cast(convert_from(convert_to(rl[1], 'EXTENDEDJSON'), 'UTF8', '') as varchar(100)) as json_str from cp.\"/store/json/input2.json\"")
       .unOrdered()
       .baselineColumns("json_str")
       .baselineValues(result1)
@@ -419,7 +419,7 @@ public class TestConvertFunctions extends BaseTestQuery {
     }
 
     testBuilder()
-      .sqlQuery("SELECT is_utf8(l_comment) as A FROM cp.`tpch/lineitem.parquet` LIMIT 1")
+      .sqlQuery("SELECT is_utf8(l_comment) as A FROM cp.\"tpch/lineitem.parquet\" LIMIT 1")
       .ordered()
       .baselineColumns("A")
       .baselineValues(true)
@@ -442,8 +442,8 @@ public class TestConvertFunctions extends BaseTestQuery {
         loader.load(result.getHeader().getDef(), result.getData());
         ValueVector v = loader.iterator().next().getValueVector();
         for (int j = 0; j < v.getValueCount(); j++) {
-          if  (v instanceof NullableVarCharVector) {
-            res.add(new String(((NullableVarCharVector) v).get(j)));
+          if  (v instanceof VarCharVector) {
+            res.add(new String(((VarCharVector) v).get(j)));
           } else {
             res.add(v.getObject(j));
           }

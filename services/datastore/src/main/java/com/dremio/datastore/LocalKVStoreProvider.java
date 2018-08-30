@@ -15,14 +15,21 @@
  */
 package com.dremio.datastore;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.stream.StreamSupport;
 
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.dremio.common.perf.Timer;
+import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.CoreStoreProvider.CoreStoreBuilder;
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
@@ -38,14 +45,20 @@ import com.google.common.collect.ImmutableMap;
 /**
  * Datastore provider for master node.
  */
-public class LocalKVStoreProvider implements KVStoreProvider, Iterable<CoreStoreProviderImpl.StoreWithId> {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LocalKVStoreProvider.class);
+public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWithId> {
+  private static final Logger logger = LoggerFactory.getLogger(LocalKVStoreProvider.class);
+
+  private static final String ALARM = ".indexing";
+
   private final CoreStoreProviderImpl coreStoreProvider;
   private final Provider<FabricService> fabricService;
   private final BufferAllocator allocator;
   private final String hostName;
   private final ScanResult scan;
+  private final String baseDirectory;
+
   private ImmutableMap<Class<? extends StoreCreationFunction<?>>, KVStore<?, ?>> stores;
+  private File alarmFile;
 
   @VisibleForTesting
   public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed) {
@@ -69,6 +82,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<CoreStore
     this.allocator = allocator;
     this.hostName = hostName;
     this.scan = scan;
+    this.baseDirectory = baseDirectory;
   }
 
   @VisibleForTesting
@@ -104,13 +118,28 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<CoreStore
       }
     });
 
+    alarmFile = new File(baseDirectory, ALARM);
+    if (alarmFile.exists()) {
+      logger.info("Dremio was not stopped properly, and needs to reindex all internal stores. This may take a while..");
+
+      try(TimedBlock ignored = Timer.time("reindex all stores")) {
+        StreamSupport.stream(coreStoreProvider.spliterator(), false)
+            .filter(storeWithId -> storeWithId.getStore() instanceof CoreIndexedStore)
+            .map(StoreWithId::getId)
+            .forEach(coreStoreProvider::reIndex);
+      }
+
+      logger.info("Finished reindexing all internal stores.");
+    } else {
+      Files.createFile(alarmFile.toPath());
+    }
+
     logger.info("LocalKVStoreProvider is up");
   }
 
   public void scan() throws Exception {
     coreStoreProvider.scan();
   }
-
 
   @Override
   public Iterator<StoreWithId> iterator() {
@@ -121,6 +150,11 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<CoreStore
   public void close() throws Exception {
     logger.info("Stopping LocalKVStoreProvider");
     coreStoreProvider.close();
+
+    if (alarmFile != null && !alarmFile.delete()) {
+      logger.warn("Failed to remove alarm file. Dremio will reindex internal stores on next start up.");
+    }
+
     logger.info("Stopped LocalKVStoreProvider");
   }
 

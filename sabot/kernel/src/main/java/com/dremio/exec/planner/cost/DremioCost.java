@@ -48,6 +48,7 @@ public class DremioCost implements RelOptCost {
   // that is not a simple column or constant may include evaluation, but we
   // currently don't model it at that level of detail.
   public static final int PROJECT_CPU_COST = 4 * BASE_CPU_COST;
+  public static final double PROJECT_SIMPLE_CPU_COST = 0.00001 * BASE_CPU_COST;
 
   // hash cpu cost per field (for now we don't distinguish between fields of different types) involves
   // the cost of the following operations:

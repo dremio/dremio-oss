@@ -52,9 +52,14 @@ public final class LBlockHashTable implements AutoCloseable {
   public static final int CHUNK_OFFSET_MASK = 0xFFFFFFFF >>> (32 - BITS_IN_CHUNK);
   public static final int FREE = -1; // same for both int and long.
   public static final long LFREE = -1l; // same for both int and long.
+
   public static final int NEGATIZE = 0x80000000;
   public static final int POSITIVE_MASK = 0x7FFFFFFF;
   public static final int NO_MATCH = -1;
+
+  private static final int RETRY_RETURN_CODE = -2;
+  public static final int ORDINAL_SIZE = 4;
+
 
   private final HashConfigWrapper config;
   private final ResizeListener listener;
@@ -188,6 +193,61 @@ public final class LBlockHashTable implements AutoCloseable {
       return insert(blockWidth, tableControlAddr, keyHash, dataWidth, keyFixedAddr, keyVarAddr, keyVarLen);
     }
 
+  }
+
+  // Get the length of the variable keys for the record specified by ordinal.
+  public int getVarKeyLength(int ordinal) {
+    if (fixedOnly) {
+      return 0;
+    } else {
+      final int blockWidth = pivot.getBlockWidth();
+      final int dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
+      final long tableVarOffsetAddr = tableFixedAddresses[dataChunkIndex] + ((ordinal & CHUNK_OFFSET_MASK) * blockWidth) + blockWidth - VAR_OFFSET_SIZE;
+      final int tableVarOffset = PlatformDependent.getInt(tableVarOffsetAddr);
+      // VAR_LENGTH_SIZE is not added to varLen when pivot it in pivotVariableLengths method, so we need to add it here
+      final int varLen = PlatformDependent.getInt(initVariableAddresses[dataChunkIndex] + tableVarOffset) + VAR_LENGTH_SIZE;
+      return varLen;
+    }
+  }
+
+
+  /* Copy the keys of the records specified in keyOffsetAddr to destination memory
+   * keyOffsetAddr contains all the ordinals of keys
+   * count is the number of keys
+   * keyFixedAddr is the destination memory for fixed keys
+   * keyVarAddr is the destination memory for variable keys
+   */
+  public void copyKeyToBuffer(long keyOffsetAddr, final int count, long keyFixedAddr, long keyVarAddr) {
+    final long maxAddr = keyOffsetAddr + count * ORDINAL_SIZE;
+    final int blockWidth = pivot.getBlockWidth();
+    if (fixedOnly) {
+      for (; keyOffsetAddr < maxAddr; keyOffsetAddr += ORDINAL_SIZE, keyFixedAddr += blockWidth) {
+        // Copy the fixed key that is pivoted in Pivots.pivot
+        final int ordinal = PlatformDependent.getInt(keyOffsetAddr);
+        final int dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
+        final long tableFixedAddr = tableFixedAddresses[dataChunkIndex] + ((ordinal & CHUNK_OFFSET_MASK) * blockWidth);
+        Copier.copy(tableFixedAddr, keyFixedAddr, blockWidth);
+      }
+    } else {
+      int varOffset = 0;
+      for (; keyOffsetAddr < maxAddr; keyOffsetAddr += ORDINAL_SIZE, keyFixedAddr += blockWidth) {
+        // Copy the fixed keys that is pivoted in Pivots.pivot
+        final int ordinal = PlatformDependent.getInt(keyOffsetAddr);
+        final int dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
+        final long tableFixedAddr = tableFixedAddresses[dataChunkIndex] + ((ordinal & CHUNK_OFFSET_MASK) * blockWidth);
+        Copier.copy(tableFixedAddr, keyFixedAddr, blockWidth - VAR_OFFSET_SIZE);
+        // Update the variable offset of the key
+        PlatformDependent.putInt(keyFixedAddr + blockWidth - VAR_OFFSET_SIZE, varOffset);
+
+        // Copy the variable keys that is pivoted in Pivots.pivot
+        final long tableVarOffsetAddr = tableFixedAddr + blockWidth - VAR_OFFSET_SIZE;
+        final int tableVarOffset = PlatformDependent.getInt(tableVarOffsetAddr);
+        final int varLen = PlatformDependent.getInt(initVariableAddresses[dataChunkIndex] + tableVarOffset) + VAR_LENGTH_SIZE;
+        Copier.copy(initVariableAddresses[dataChunkIndex] + tableVarOffset, keyVarAddr + varOffset, varLen);
+
+        varOffset += varLen;
+      }
+    }
   }
 
   private int insert(final long blockWidth, long tableControlAddr, final int keyHash, final int dataWidth, final long keyFixedAddr, final long keyVarAddr, final int keyVarLen){

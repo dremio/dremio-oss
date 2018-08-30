@@ -15,8 +15,15 @@
  */
 package com.dremio.common.util;
 
+import static java.time.temporal.ChronoField.HOUR_OF_DAY;
+import static java.time.temporal.ChronoField.MINUTE_OF_HOUR;
+import static java.time.temporal.ChronoField.NANO_OF_SECOND;
+import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
+
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -24,6 +31,27 @@ import org.joda.time.LocalDateTime;
 import org.joda.time.LocalDateTimes;
 
 public class DateTimes {
+
+  /*
+   * Formatters used to convert from/to Dremio representation into Calcite representation
+   * during constant reduction
+   */
+  public static final DateTimeFormatter CALCITE_LOCAL_DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
+  public static final DateTimeFormatter CALCITE_LOCAL_TIME_FORMATTER = new DateTimeFormatterBuilder()
+      .appendValue(HOUR_OF_DAY, 2)
+      .appendLiteral(':')
+      .appendValue(MINUTE_OF_HOUR, 2)
+      .appendLiteral(':')
+      .appendValue(SECOND_OF_MINUTE, 2)
+      .optionalStart()
+      .appendFraction(NANO_OF_SECOND, 0, 9, true)
+      .toFormatter();
+  public static final DateTimeFormatter CALCITE_LOCAL_DATETIME_FORMATTER = new DateTimeFormatterBuilder()
+      .parseCaseInsensitive()
+      .append(CALCITE_LOCAL_DATE_FORMATTER)
+      .appendLiteral(' ')
+      .append(CALCITE_LOCAL_TIME_FORMATTER)
+      .toFormatter();
 
   public static long toMillis(LocalDateTime localDateTime) {
     return LocalDateTimes.getLocalMillis(localDateTime);

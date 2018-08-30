@@ -22,7 +22,9 @@ import static com.dremio.common.types.TypeProtos.MinorType.INTERVALDAY;
 import static com.dremio.common.types.TypeProtos.MinorType.VARBINARY;
 import static com.dremio.common.types.TypeProtos.MinorType.VARCHAR;
 import static com.dremio.common.types.TypeProtos.MinorType.DECIMAL;
+import com.dremio.common.types.Types;
 import static java.lang.String.format;
+import org.apache.arrow.memory.RootAllocator;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -31,8 +33,8 @@ import com.dremio.common.types.TypeProtos;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.UInt1Vector;
-import org.apache.arrow.vector.NullableDecimalVector;
 import org.apache.arrow.vector.DecimalHelper;
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.slf4j.Logger;
 
@@ -69,7 +71,7 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
           sizesString(buffers, bufferStart, buffersLength), parentName, name, mode, minor, field.getBufferLength()));
     }
     if ("$values$".equals(name)) {
-      // the values vectors inside the NullableVectors used to be called the same as their parent.
+      // the values vectors inside the Vectors used to be called the same as their parent.
       // now they are just "$values$"
       // the drill load code will check this
       field.getNamePartBuilder().setName(parentName);
@@ -110,7 +112,7 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
          * to ensure backwards compatibility
          */
         if (minor == DECIMAL) {
-          /* NullableDecimalVector: {validityBuffer, dataBuffer} */
+          /* DecimalVector: {validityBuffer, dataBuffer} */
           final int decimalBufferIndex = 1;
           SerializedField.Builder decimalField = children.get(decimalBufferIndex);
           final ArrowBuf decimalBuffer = (ArrowBuf)buffers[bufferStart + decimalBufferIndex];
@@ -174,25 +176,26 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
 
   static ArrowBuf convertBitsToBytes(BufferAllocator allocator,
                                      SerializedField.Builder fieldBuilder, ArrowBuf oldBuf) {
+    int valueCount = fieldBuilder.getValueCount();
     ArrowBuf newBuf;
-    try (BitVector bitVector = new BitVector("$bits$", allocator);
-         UInt1Vector byteVector = new UInt1Vector("$bits$", allocator);) {
-      TypeHelper.load(bitVector, fieldBuilder.build(), oldBuf);
-      BitVector.Accessor bitsAccessor = bitVector.getAccessor();
-      int valueCount = bitsAccessor.getValueCount();
-      UInt1Vector.Mutator bytesMutator = byteVector.getMutator();
-      byteVector.allocateNew(valueCount);
+    try {
+      /**
+       * Create a new buffer, loop all the bit value in oldBuf, and then convert to byte value in new buffer
+       */
+      newBuf = allocator.buffer(valueCount);
       for (int i = 0; i < valueCount; i++) {
-        bytesMutator.set(i, bitsAccessor.get(i));
+        int byteIndex = i >> 3;
+        byte b = oldBuf.getByte(byteIndex);
+        int bitIndex = i & 7;
+        newBuf.setByte(i, Long.bitCount((long) b & 1L << bitIndex));
       }
-      bytesMutator.setValueCount(valueCount);
-      SerializedField newField = TypeHelper.getMetadata(byteVector);
-      fieldBuilder.setMajorType(newField.getMajorType());
-      fieldBuilder.setBufferLength(newField.getBufferLength());
-      newBuf = byteVector.getBuffer();
-      // TODO?
+      newBuf.writerIndex(valueCount);
+      fieldBuilder.setMajorType(Types.required(MinorType.UINT1));
+      fieldBuilder.setBufferLength(valueCount);
+
       oldBuf.release();
-      newBuf.retain();
+    } catch (Exception e) {
+      throw e;
     }
     return newBuf;
   }
@@ -230,7 +233,7 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
    */
   static ByteBuf patchDecimal(BufferAllocator allocator, final ArrowBuf dataBuffer,
                               final SerializedField.Builder decimalField, final SerializedField.Builder childDecimalField) {
-    final int decimalLength = NullableDecimalVector.TYPE_WIDTH;
+    final int decimalLength = DecimalVector.TYPE_WIDTH;
     final int startPoint = dataBuffer.readerIndex();
     final int valueCount = dataBuffer.readableBytes()/decimalLength;
     final ByteBuf drillBuffer = allocator.buffer(dataBuffer.readableBytes() + 8*valueCount);

@@ -23,10 +23,10 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.NullableBitVector;
-import org.apache.arrow.vector.NullableIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.junit.BeforeClass;
@@ -43,12 +43,12 @@ import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.exec.server.options.OptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.exec.testing.Controls;
 import com.dremio.exec.testing.ControlsInjectionUtil;
 import com.dremio.exec.work.user.LocalUserUtil;
 import com.dremio.sabot.op.aggregate.hash.HashAggOperator;
-import com.dremio.sabot.op.screen.QueryWritableBatch;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.google.common.collect.Sets;
@@ -59,8 +59,8 @@ public class TestQueryReAttempt extends BaseTestQuery {
 
   private static final int COUNT = 5;
 
-  private static NullableBitVector bitVector(String name) {
-    NullableBitVector vec = new NullableBitVector(name, getAllocator());
+  private BitVector bitVector(String name) {
+    BitVector vec = new BitVector(name, getAllocator());
     vec.allocateNew(COUNT);
     vec.set(0, 1);
     vec.set(1, 0);
@@ -72,10 +72,10 @@ public class TestQueryReAttempt extends BaseTestQuery {
     return vec;
   }
 
-  private static MapVector mapVector(String name) {
-    MapVector vector = new MapVector(name, allocator, null);
+  private NonNullableStructVector structVector(String name) {
+    NonNullableStructVector vector = new NonNullableStructVector(name, allocator, null);
 
-    ComplexWriterImpl mapWriter = new ComplexWriterImpl("colMap", vector);
+    ComplexWriterImpl structWriter = new ComplexWriterImpl("colMap", vector);
 
     // colMap contains the following records:
     // { bigint: 23, nVarCharCol: 'value', nListCol: [1970-01-01, 1970-01-03, 1969-12-31], nUnionCol: 2 }
@@ -84,48 +84,48 @@ public class TestQueryReAttempt extends BaseTestQuery {
     // { }
     // { bigint: 234543 }
 
-    BaseWriter.MapWriter mapWr = mapWriter.rootAsMap();
+    BaseWriter.StructWriter structWr = structWriter.rootAsStruct();
 
-    mapWr.setPosition(0);
-    mapWr.start();
-    mapWr.bigInt("bigint").writeBigInt(23);
-    mapWr.list("list").startList();
-    mapWr.list("list").dateMilli().writeDateMilli(2312L);
-    mapWr.list("list").dateMilli().writeDateMilli(234823492L);
-    mapWr.list("list").dateMilli().writeDateMilli(-2382437L);
-    mapWr.list("list").endList();
-    mapWr.integer("union").writeInt(2);
-    mapWr.end();
+    structWr.setPosition(0);
+    structWr.start();
+    structWr.bigInt("bigint").writeBigInt(23);
+    structWr.list("list").startList();
+    structWr.list("list").dateMilli().writeDateMilli(2312L);
+    structWr.list("list").dateMilli().writeDateMilli(234823492L);
+    structWr.list("list").dateMilli().writeDateMilli(-2382437L);
+    structWr.list("list").endList();
+    structWr.integer("union").writeInt(2);
+    structWr.end();
 
-    mapWr.setPosition(1);
-    mapWr.start();
-    mapWr.bigInt("bigint").writeBigInt(223);
-    mapWr.list("list").startList();
-    mapWr.list("list").dateMilli().writeDateMilli(-234238942L);
-    mapWr.list("list").dateMilli().writeDateMilli(-234238942L);
-    mapWr.list("list").endList();
-    mapWr.end();
+    structWr.setPosition(1);
+    structWr.start();
+    structWr.bigInt("bigint").writeBigInt(223);
+    structWr.list("list").startList();
+    structWr.list("list").dateMilli().writeDateMilli(-234238942L);
+    structWr.list("list").dateMilli().writeDateMilli(-234238942L);
+    structWr.list("list").endList();
+    structWr.end();
 
-    mapWr.setPosition(2);
-    mapWr.start();
-    mapWr.bigInt("bigint").writeBigInt(54645L);
-    mapWr.map("map").start();
-    mapWr.map("map").integer("a").writeInt(1);
-    mapWr.map("map").end();
-    mapWr.end();
+    structWr.setPosition(2);
+    structWr.start();
+    structWr.bigInt("bigint").writeBigInt(54645L);
+    structWr.struct("map").start();
+    structWr.struct("map").integer("a").writeInt(1);
+    structWr.struct("map").end();
+    structWr.end();
 
-    mapWr.setPosition(4);
-    mapWr.start();
-    mapWr.bigInt("bigint").writeBigInt(234543L);
-    mapWr.end();
+    structWr.setPosition(4);
+    structWr.start();
+    structWr.bigInt("bigint").writeBigInt(234543L);
+    structWr.end();
 
-    mapWriter.setValueCount(COUNT);
+    structWriter.setValueCount(COUNT);
     vector.setValueCount(COUNT);
     return vector;
   }
 
-  private static NullableIntVector intVector(String name) {
-    NullableIntVector vec = new NullableIntVector(name, allocator);
+  private IntVector intVector(String name) {
+    IntVector vec = new IntVector(name, allocator);
     vec.allocateNew(5);
     vec.set(0, 20);
     vec.set(1, 50);
@@ -159,7 +159,7 @@ public class TestQueryReAttempt extends BaseTestQuery {
     // original schema [field1=bit, field2=int]
     // new schema [field1=bit, field3=map, field2=int]
     List<ValueVector> original = Arrays.<ValueVector>asList(bitVector("field1"), intVector("field2"));
-    List<ValueVector> updated = Arrays.asList(bitVector("field1"), mapVector("field3"), intVector("field2"));
+    List<ValueVector> updated = Arrays.asList(bitVector("field1"), structVector("field3"), intVector("field2"));
     checkSchemaChange(original, updated);
   }
 
@@ -169,7 +169,7 @@ public class TestQueryReAttempt extends BaseTestQuery {
     // original schema [field1=bit, field2=int]
     // new schema [field1=bit, field2=map, field3=int]
     List<ValueVector> original = Arrays.<ValueVector>asList(bitVector("field1"), intVector("field2"));
-    List<ValueVector> updated = Arrays.asList(bitVector("field1"), mapVector("field2"), intVector("field3"));
+    List<ValueVector> updated = Arrays.asList(bitVector("field1"), structVector("field2"), intVector("field3"));
 
     try {
       checkSchemaChange(original, updated);
@@ -220,7 +220,7 @@ public class TestQueryReAttempt extends BaseTestQuery {
     }
   }
 
-  private static void assertBatchCanBeLoaded(QueryWritableBatch batch, List<ValueVector> original) throws Exception {
+  private void assertBatchCanBeLoaded(QueryWritableBatch batch, List<ValueVector> original) throws Exception {
     RpcOutcomeListener<GeneralRPCProtos.Ack> listener = Mockito.mock(RpcOutcomeListener.class);
 
     try (QueryDataBatch dataBatch = LocalUserUtil.acquireData(allocator, listener, batch);

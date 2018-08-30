@@ -21,7 +21,7 @@ import java.util.List;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.MapWriter;
+import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.common.exceptions.UserException;
@@ -106,12 +106,12 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
     // if we had no columns, create one empty one so we can return some data for count purposes.
     SchemaPath sp = columns.get(0);
     PathSegment fieldPath = sp.getRootSegment();
-    BaseWriter.MapWriter fieldWriter = writer.rootAsMap();
+    BaseWriter.StructWriter fieldWriter = writer.rootAsStruct();
     while (fieldPath.getChild() != null && !fieldPath.getChild().isArray()) {
-      fieldWriter = fieldWriter.map(fieldPath.getNameSegment().getPath());
+      fieldWriter = fieldWriter.struct(fieldPath.getNameSegment().getPath());
       fieldPath = fieldPath.getChild();
     }
-    if (fieldWriter.isEmptyMap()) {
+    if (fieldWriter.isEmptyStruct()) {
       fieldWriter.integer(fieldPath.getNameSegment().getPath());
     }
   }
@@ -137,20 +137,20 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
         return ReadState.END_OF_STREAM;
       }
 
-      MapWriter mapWriter = writer.rootAsMap();
-      mapWriter.start();
+      StructWriter structWriter = writer.rootAsStruct();
+      structWriter.start();
 
       assert t == JsonToken.VALUE_STRING;
       index = parser.getText();
       if (metaIndexSelected) {
-        mapWriter.varChar(ElasticsearchConstants.INDEX).writeVarChar(0, workingBuffer.prepareVarCharHolder(index), workingBuffer.getBuf());
+        structWriter.varChar(ElasticsearchConstants.INDEX).writeVarChar(0, workingBuffer.prepareVarCharHolder(index), workingBuffer.getBuf());
       }
 
       t = seekForward(ElasticsearchConstants.TYPE);
       assert t == JsonToken.VALUE_STRING;
       type = parser.getText();
       if (metaTypeSelected) {
-        mapWriter.varChar(ElasticsearchConstants.TYPE).writeVarChar(0, workingBuffer.prepareVarCharHolder(type), workingBuffer.getBuf());
+        structWriter.varChar(ElasticsearchConstants.TYPE).writeVarChar(0, workingBuffer.prepareVarCharHolder(type), workingBuffer.getBuf());
       }
 
       // We use _uid, since _uid can be used in aggregation pipelines, while _id cannot.
@@ -162,24 +162,24 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
         final String thisID = parser.getText();
         if (metaUIDSelected) {
           final String uid = this.type + "#" + thisID;
-          mapWriter.varChar(ElasticsearchConstants.UID).writeVarChar(0, workingBuffer.prepareVarCharHolder(uid), workingBuffer.getBuf());
+          structWriter.varChar(ElasticsearchConstants.UID).writeVarChar(0, workingBuffer.prepareVarCharHolder(uid), workingBuffer.getBuf());
         }
         if (metaIDSelected) {
-          mapWriter.varChar(ElasticsearchConstants.ID).writeVarChar(0, workingBuffer.prepareVarCharHolder(thisID), workingBuffer.getBuf());
+          structWriter.varChar(ElasticsearchConstants.ID).writeVarChar(0, workingBuffer.prepareVarCharHolder(thisID), workingBuffer.getBuf());
         }
       }
 
       if (fieldsProjected) {
         t = seekForward(ElasticsearchConstants.FIELDS);
         if (t == null) {
-          mapWriter.end();
+          structWriter.end();
           return ReadState.WRITE_SUCCEED;
         } else {
-          readState = writeToVector(mapWriter, t);
+          readState = writeToVector(structWriter, t);
         }
       } else {
         t = seekForward(ElasticsearchConstants.SOURCE);
-        readState = writeToVector(mapWriter, t);
+        readState = writeToVector(structWriter, t);
       }
 
       t = parser.nextToken();
@@ -187,7 +187,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
       parser.skipChildren();
       assert parser.getCurrentToken() == JsonToken.END_OBJECT;
 
-      mapWriter.end();
+      structWriter.end();
     } else {
       readState = ReadState.END_OF_STREAM;
     }
@@ -207,7 +207,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
     return readState;
   }
 
-  private ReadState writeToVector(MapWriter writer, JsonToken t) throws IOException {
+  private ReadState writeToVector(StructWriter writer, JsonToken t) throws IOException {
     switch (t) {
       case START_OBJECT:
       case START_ARRAY:
@@ -248,7 +248,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
     }
   }
 
-  private void writeDeclaredMap(MapWriter map,
+  private void writeDeclaredMap(StructWriter map,
                          FieldSelection selection,
                          FieldReadDefinition parentDefinition,
                          boolean moveForward,
@@ -314,14 +314,14 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
           ListWriter list = map.list(fieldName);
           list.startList();
           if(t == JsonToken.START_OBJECT){
-            writeDeclaredMap(list.map(), childSelection, definition, true, path, false);
+            writeDeclaredMap(list.struct(), childSelection, definition, true, path, false);
           } else {
             definition.writeList(list, t, parser);
           }
           list.endList();
 
         } else if (t == JsonToken.START_OBJECT) {
-          writeDeclaredMap(map.map(fieldName), childSelection, definition.asNoList(), true, path, false);
+          writeDeclaredMap(map.struct(fieldName), childSelection, definition.asNoList(), true, path, false);
         } else if (t == JsonToken.END_OBJECT) {
           return;
         } else {
@@ -351,7 +351,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
         } else if (token == JsonToken.END_OBJECT) {
           continue;
         } else if (token == JsonToken.START_OBJECT) {
-          writeDeclaredMap(list.map(), selection, readDef, true, path, false);
+          writeDeclaredMap(list.struct(), selection, readDef, true, path, false);
         } else {
           readDef.writeList(list, token, parser);
         }
@@ -404,7 +404,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
   }
 
 
-  private void writeUndeclaredMap(MapWriter map, FieldSelection selection, boolean moveForward, boolean skipMapStartEnd, boolean breakAfterSingle) throws IOException {
+  private void writeUndeclaredMap(StructWriter map, FieldSelection selection, boolean moveForward, boolean skipMapStartEnd, boolean breakAfterSingle) throws IOException {
     //
     if(!skipMapStartEnd){
       map.start();
@@ -439,7 +439,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
           writeUndeclaredList(map.list(fieldName), childSelection);
           break;
         case START_OBJECT:
-          writeUndeclaredMap(map.map(fieldName), childSelection, true, false, false);
+          writeUndeclaredMap(map.struct(fieldName), childSelection, true, false, false);
           break;
         case END_OBJECT:
           break outside;
@@ -506,7 +506,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
           writeUndeclaredList(list.list(), selection);
           break;
         case START_OBJECT:
-          writeUndeclaredMap(list.map(), selection, true, false, false);
+          writeUndeclaredMap(list.struct(), selection, true, false, false);
           break;
         case END_ARRAY:
         case END_OBJECT:

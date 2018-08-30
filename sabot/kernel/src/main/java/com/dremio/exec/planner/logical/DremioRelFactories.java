@@ -43,7 +43,8 @@ import com.google.common.collect.ImmutableList;
 
 public class DremioRelFactories {
 
-  // Same as {@link RelFactories#LOGICAL_BUILDER}. This must be used for all rules borrowed from Calcite.
+  // Same as {@link RelFactories#LOGICAL_BUILDER}, except DEFAULT_MATCH_FACTORY.
+  // This must be used for all rules borrowed from Calcite.
   public static final RelBuilderFactory CALCITE_LOGICAL_BUILDER =
     RelBuilder.proto(
       Contexts.of(
@@ -53,6 +54,7 @@ public class DremioRelFactories {
         RelFactories.DEFAULT_SEMI_JOIN_FACTORY,
         RelFactories.DEFAULT_SORT_FACTORY,
         RelFactories.DEFAULT_AGGREGATE_FACTORY,
+     /* RelFactories.DEFAULT_MATCH_FACTORY, */
         RelFactories.DEFAULT_SET_OP_FACTORY,
         RelFactories.DEFAULT_VALUES_FACTORY,
         RelFactories.DEFAULT_TABLE_SCAN_FACTORY));

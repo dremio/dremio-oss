@@ -23,6 +23,7 @@ import PropTypes from 'prop-types';
 import { TEXT, LIST } from 'constants/DataTypes';
 import exploreUtils from 'utils/explore/exploreUtils';
 import { CELL_EXPANSION_HEADER } from 'uiTheme/radium/colors';
+import { withLocation } from 'containers/dremioLocation';
 import SelectedTextPopover from './SelectedTextPopover';
 
 const PADDING_TOP_FOR_TEXT = -2;
@@ -32,7 +33,7 @@ const PADDING_SELECTED_TEXT = 5;
 
 @pureRender
 @Radium
-export default class DropdownForSelectedText extends Component {
+export class DropdownForSelectedTextView extends Component {
   static propTypes = {
     hideDrop: PropTypes.func.isRequired,
     dropPositions: PropTypes.instanceOf(Immutable.Map),
@@ -105,9 +106,10 @@ export default class DropdownForSelectedText extends Component {
           copySelection={this.copyText}
           hideDrop={this.props.hideDrop}
           columnName={location.query.column}
-          location={this.props.location}
         />
       </div>
     );
   }
 }
+
+export default withLocation(DropdownForSelectedTextView);

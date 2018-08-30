@@ -70,6 +70,9 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
 
     hiveConf.set(ConfVars.SCRATCHDIR.varname, "file:///" + getTempDir("scratch_dir"));
     hiveConf.set(ConfVars.LOCALSCRATCHDIR.varname, getTempDir("local_scratch_dir"));
+    hiveConf.set(ConfVars.METASTORE_SCHEMA_VERIFICATION.varname, "false");
+    hiveConf.set(ConfVars.METASTORE_AUTO_CREATE_ALL.varname, "true");
+    hiveConf.set(ConfVars.HIVE_CBO_ENABLED.varname, "false");
 
     // Set MiniDFS conf in HiveConf
     hiveConf.set(FS_DEFAULT_NAME_KEY, dfsConf.get(FS_DEFAULT_NAME_KEY));
@@ -92,9 +95,9 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
   public static HiveStoragePluginConfig createHiveStoragePlugin(final Map<String, String> hiveConfig) throws Exception {
     HiveStoragePluginConfig pluginConfig = new HiveStoragePluginConfig();
     pluginConfig.hostname = "dummy";
-    pluginConfig.properties = new ArrayList<>();
+    pluginConfig.propertyList = new ArrayList<>();
     for(Entry<String, String> e : hiveConfig.entrySet()) {
-      pluginConfig.properties.add(new Property(e.getKey(), e.getValue()));
+      pluginConfig.propertyList.add(new Property(e.getKey(), e.getValue()));
     }
     return pluginConfig;
   }
@@ -142,7 +145,7 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
   protected static void createView(final String viewOwner, final String viewGroup, final String viewName,
                                  final String viewDef) throws Exception {
     updateClient(viewOwner);
-    test(String.format("ALTER SESSION SET `%s`='%o';", ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY, (short) 0750));
+    test(String.format("ALTER SESSION SET \"%s\"='%o';", ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY, (short) 0750));
     test("CREATE VIEW %s.%s AS %s", MINIDFS_STORAGE_PLUGIN_NAME, viewName, viewDef);
     final Path viewFilePath = new Path("/", viewName + DotFileType.VIEW.getEnding());
     fs.setOwner(viewFilePath, viewOwner, viewGroup);

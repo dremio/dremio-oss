@@ -24,7 +24,7 @@ import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.WorkloadClass;
 import com.dremio.exec.proto.UserProtos.QueryPriority;
-import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.google.common.collect.Lists;
 
 public class Utilities {

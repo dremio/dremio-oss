@@ -20,8 +20,11 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -35,10 +38,12 @@ import org.apache.hadoop.fs.FSInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
 
 import com.dremio.exec.dfs.proto.DFS;
+import com.dremio.exec.dfs.proto.DFS.ListStatusContinuationHandle;
 import com.dremio.exec.rpc.FutureBitCommand;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcFuture;
@@ -65,8 +70,14 @@ import io.netty.buffer.Unpooled;
 class RemoteNodeFileSystem extends FileSystem {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RemoteNodeFileSystem.class);
 
-  static final int REMOTE_WRITE_BUFFER_SIZE = 128*1024;
-  private static final long RPC_TIMEOUT_MS = 5000;
+  static final String LIST_STATUS_BATCH_SIZE_KEY = "dremio.pdfs.remote.list-status.batch-size";
+  static final int LIST_STATUS_BATCH_SIZE_DEFAULT = 128;
+
+  static final String REMOTE_WRITE_BUFFER_SIZE_KEY = "dremio.pdfs.remote.buffer-size";
+  static final int REMOTE_WRITE_BUFFER_SIZE_DEFAULT = 128*1024;
+
+  static final String RPC_TIMEOUT_KEY = "dremio.pdfs.remote.rpc.timeout.ms";
+  static final long RPC_TIMEOUT_MS_DEFAULT = 5000;
 
   private static final Path ROOT_PATH = new Path("/");
 
@@ -87,10 +98,25 @@ class RemoteNodeFileSystem extends FileSystem {
   }
 
   private static final class ListStatusCommand extends PDFSCommand<DFS.ListStatusResponse> {
-    public ListStatusCommand(String path) {
+    public ListStatusCommand(String path, ListStatusContinuationHandle handle, int limit) {
       super(DFS.ListStatusResponse.class,
           DFS.RpcType.LIST_STATUS_REQUEST,
-          DFS.ListStatusRequest.newBuilder().setPath(path).build());
+          newRequest(path, handle, limit));
+    }
+
+    private static DFS.ListStatusRequest newRequest(String path, ListStatusContinuationHandle handle, Integer limit) {
+      DFS.ListStatusRequest.Builder builder = DFS.ListStatusRequest.newBuilder();
+      if (path != null) {
+        builder.setPath(path);
+      }
+      if (handle != null) {
+        builder.setHandle(handle);
+      }
+      if (limit != null) {
+        builder.setLimit(limit);
+      }
+
+      return builder.build();
     }
   }
 
@@ -216,7 +242,7 @@ class RemoteNodeFileSystem extends FileSystem {
    * @return the Hadoop status instance
    * @throws IOException
    */
-  FileStatus fromProtoFileStatus(DFS.FileStatus status) throws IOException {
+  FileStatus fromProtoFileStatus(DFS.FileStatus status) {
     final Integer permissionValue = status.getPermission();
 
     return new FileStatus(status.getLength(), status.getIsDirectory(), status.getBlockReplication(),
@@ -234,6 +260,11 @@ class RemoteNodeFileSystem extends FileSystem {
   private URI uri;
   private Path workingDirectory;
 
+  // configuration
+  private int listStatusBatchSize = LIST_STATUS_BATCH_SIZE_DEFAULT;
+  private int writeBufferSize = REMOTE_WRITE_BUFFER_SIZE_DEFAULT;
+  private long rpcTimeoutMs = RPC_TIMEOUT_MS_DEFAULT;
+
   public RemoteNodeFileSystem(FabricCommandRunner runner, BufferAllocator allocator) {
     this.runner = runner;
     this.workingDirectory = ROOT_PATH;
@@ -246,7 +277,12 @@ class RemoteNodeFileSystem extends FileSystem {
     if (name.getHost() == null || name.getPort() == -1) {
       throw new IllegalArgumentException("FileSystem name needs a complete authority element.");
     }
-    uri = name;  }
+    uri = name;
+
+    listStatusBatchSize = conf.getInt(LIST_STATUS_BATCH_SIZE_KEY, LIST_STATUS_BATCH_SIZE_DEFAULT);
+    writeBufferSize = conf.getInt(REMOTE_WRITE_BUFFER_SIZE_KEY, REMOTE_WRITE_BUFFER_SIZE_DEFAULT);
+    rpcTimeoutMs = conf.getTimeDuration(RPC_TIMEOUT_KEY, RPC_TIMEOUT_MS_DEFAULT, TimeUnit.MILLISECONDS);
+  }
 
   private Path toAbsolutePath(Path p) {
     if (p.isAbsolute()) {
@@ -376,7 +412,7 @@ class RemoteNodeFileSystem extends FileSystem {
 
       RpcFuture<DFS.GetFileDataResponse> future = command.getFuture();
       try {
-        DFS.GetFileDataResponse response = future.checkedGet(RPC_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        DFS.GetFileDataResponse response = future.checkedGet(rpcTimeoutMs, TimeUnit.MILLISECONDS);
         eof = (response.getRead() == -1);
         buf = future.getBuffer();
         if (buf == null) {
@@ -408,7 +444,7 @@ class RemoteNodeFileSystem extends FileSystem {
   @Override
   public FSDataOutputStream create(Path f, FsPermission permission, boolean overwrite, int bufferSize,
       short replication, long blockSize, Progressable progress) throws IOException {
-    return new FSDataOutputStream(new LocalStatefulOutputStream(f.toString(), runner, allocator, REMOTE_WRITE_BUFFER_SIZE), null);
+    return new FSDataOutputStream(new LocalStatefulOutputStream(f.toString(), runner, allocator, writeBufferSize), null);
   }
 
   @Override
@@ -428,7 +464,7 @@ class RemoteNodeFileSystem extends FileSystem {
 
     RpcFuture<DFS.RenameResponse> future = command.getFuture();
     try {
-      DFS.RenameResponse response = future.checkedGet(RPC_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+      DFS.RenameResponse response = future.checkedGet(rpcTimeoutMs, TimeUnit.MILLISECONDS);
       return response.getValue();
     } catch(TimeoutException e) {
       throw new IOException("Timeout occured during I/O request for " + uri, e);
@@ -449,7 +485,7 @@ class RemoteNodeFileSystem extends FileSystem {
 
     RpcFuture<DFS.DeleteResponse> future = command.getFuture();
     try {
-      DFS.DeleteResponse response = future.checkedGet(RPC_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+      DFS.DeleteResponse response = future.checkedGet(rpcTimeoutMs, TimeUnit.MILLISECONDS);
       return response.getValue();
     } catch(TimeoutException e) {
       throw new IOException("Timeout occured during I/O request for " + uri, e);
@@ -470,31 +506,77 @@ class RemoteNodeFileSystem extends FileSystem {
 
   @Override
   public FileStatus[] listStatus(Path f) throws FileNotFoundException, IOException {
-    Path absolutePath = toAbsolutePath(f);
+    RemoteIterator<FileStatus> remoteIterator = listStatusIterator(f);
+    List<FileStatus> statuses = new ArrayList<>();
+    while(remoteIterator.hasNext()) {
+      statuses.add(remoteIterator.next());
+    }
+
+    return statuses.toArray(new FileStatus[0]);
+  }
+
+  @Override
+  public RemoteIterator<FileStatus> listStatusIterator(final Path f) throws FileNotFoundException, IOException {
+    final Path absolutePath = toAbsolutePath(f);
     checkPath(absolutePath);
 
-    final ListStatusCommand command = new ListStatusCommand(absolutePath.toUri().getPath());
-    runner.runCommand(command);
+    final String path = absolutePath.toUri().getPath();
 
-    RpcFuture<DFS.ListStatusResponse> future = command.getFuture();
-    try {
-      DFS.ListStatusResponse response = future.checkedGet(RPC_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    return new RemoteIterator<FileStatus>() {
+      private ListStatusContinuationHandle handle = null;
+      private Iterator<FileStatus> currentIterator = null;
+      private boolean done = false;
 
-      List<DFS.FileStatus> protoStatuses = getListOrEmpty(response.getStatusesList());
-      FileStatus[] statuses = new FileStatus[protoStatuses.size()];
-      for (int i = 0; i < statuses.length; i++) {
-        statuses[i] = fromProtoFileStatus(protoStatuses.get(i));
+      @Override
+      public boolean hasNext() throws IOException {
+        if (done) {
+          return false;
+        }
+
+        while(currentIterator == null || (!currentIterator.hasNext() && handle != null)) {
+          nextIterator();
+        }
+
+        // At this point, either there's a next element or we reached end of stream
+        if (!currentIterator.hasNext()) {
+          done = false;
+        }
+        return currentIterator.hasNext();
       }
 
-      return statuses;
-    } catch(TimeoutException e) {
-      throw new IOException("Timeout occured during I/O request for " + uri, e);
-    } catch(RpcException e) {
-      RpcException.propagateIfPossible(e, IOException.class);
+      @Override
+      public FileStatus next() throws IOException {
+        if (!hasNext()) {
+          throw new NoSuchElementException();
+        }
+        return currentIterator.next();
+      }
 
-      throw e;
-    }
+      private void nextIterator() throws IOException {
+        final ListStatusCommand command = new ListStatusCommand(path, handle, listStatusBatchSize);
+        runner.runCommand(command);
+
+        RpcFuture<DFS.ListStatusResponse> future = command.getFuture();
+        try {
+          DFS.ListStatusResponse response = future.checkedGet(rpcTimeoutMs, TimeUnit.MILLISECONDS);
+          handle = response.hasHandle() ? response.getHandle() : null;
+
+          List<DFS.FileStatus> protoStatuses = getListOrEmpty(response.getStatusesList());
+
+          currentIterator = protoStatuses.stream().map(s -> { return fromProtoFileStatus(s); }).iterator();
+        } catch(TimeoutException e) {
+          throw new IOException("Timeout occured during I/O request for " + uri, e);
+        } catch(RpcException e) {
+          RpcException.propagateIfPossible(e, IOException.class);
+
+          throw e;
+        }
+      }
+
+    };
   }
+
+
 
   @Override
   public void setWorkingDirectory(Path newDir) {
@@ -520,7 +602,7 @@ class RemoteNodeFileSystem extends FileSystem {
 
     RpcFuture<DFS.MkdirsResponse> future = command.getFuture();
     try {
-      DFS.MkdirsResponse response = future.checkedGet(RPC_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+      DFS.MkdirsResponse response = future.checkedGet(rpcTimeoutMs, TimeUnit.MILLISECONDS);
       return response.getValue();
     } catch(TimeoutException e) {
       throw new IOException("Timeout occured during I/O request for " + uri, e);
@@ -541,7 +623,7 @@ class RemoteNodeFileSystem extends FileSystem {
 
     RpcFuture<DFS.GetFileStatusResponse> future = command.getFuture();
     try {
-      DFS.GetFileStatusResponse response = future.checkedGet(RPC_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+      DFS.GetFileStatusResponse response = future.checkedGet(rpcTimeoutMs, TimeUnit.MILLISECONDS);
       return fromProtoFileStatus(response.getStatus());
     } catch(TimeoutException e) {
       throw new IOException("Timeout occured during I/O request for " + uri, e);

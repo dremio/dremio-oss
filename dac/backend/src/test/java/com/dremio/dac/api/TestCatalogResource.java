@@ -16,8 +16,10 @@
 package com.dremio.dac.api;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.List;
@@ -35,6 +37,7 @@ import org.junit.rules.ExpectedException;
 import com.dremio.common.util.TestTools;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
+import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -190,6 +193,7 @@ public class TestCatalogResource extends BaseTestServer {
       null,
       vds.getSql(),
       null,
+      null,
       null
     );
     vds = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(renamedVDS.getId())).buildPut(Entity.json(renamedVDS)), new GenericType<Dataset>() {});
@@ -266,6 +270,7 @@ public class TestCatalogResource extends BaseTestServer {
 
     // load the json dir
     Folder folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildGet(), new GenericType<Folder>() {});
+    assertEquals(folder.getChildren().size(), 19);
 
     String fileId = null;
 
@@ -291,11 +296,19 @@ public class TestCatalogResource extends BaseTestServer {
     // load the dataset
     dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet(), new GenericType<Dataset>() {});
 
+    // verify listing
+    folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildGet(), new GenericType<Folder>() {});
+    assertEquals(folder.getChildren().size(), 19);
+
     // unpromote file
     expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildDelete());
 
     // dataset should no longer exist
     expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+
+    // verify listing
+    folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildGet(), new GenericType<Folder>() {});
+    assertEquals(folder.getChildren().size(), 19);
 
     // promote a folder that contains several csv files (dac/backend/src/test/resources/datasets/folderdataset)
     String folderId = getFolderIdByName(source.getChildren(), "\"datasets\"");
@@ -320,6 +333,40 @@ public class TestCatalogResource extends BaseTestServer {
 
     // dataset should no longer exist
     expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
+
+    newNamespaceService().deleteSource(new NamespaceKey(source.getName()), Long.valueOf(source.getTag()));
+  }
+
+  @Test
+  public void testSourceEditWithoutSecret() throws Exception {
+    // fakesource only works if password is the same as the name, else with fail to create
+    final FakeSource fakeConf = new FakeSource();
+    fakeConf.password = "fake";
+    fakeConf.isAwesome = true;
+
+    final Source newSource = new Source();
+    newSource.setName("fake");
+    newSource.setType("FAKESOURCE");
+    newSource.setConfig(fakeConf);
+
+    // create the source
+    Source source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)), new GenericType<Source>() {});
+
+    FakeSource config = (FakeSource) source.getConfig();
+
+    // we should get back the use existing secret const
+    assertTrue(config.isAwesome);
+    assertEquals(config.password, ConnectionConf.USE_EXISTING_SECRET_VALUE);
+
+    // verify that saving with the const works
+    config.isAwesome = false;
+    source.setConfig(config);
+
+    source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildPut(Entity.json(source)), new GenericType<Source>() {});
+    config = (FakeSource) source.getConfig();
+
+    assertEquals(source.getTag(), "1");
+    assertFalse(config.isAwesome);
 
     newNamespaceService().deleteSource(new NamespaceKey(source.getName()), Long.valueOf(source.getTag()));
   }
@@ -365,7 +412,7 @@ public class TestCatalogResource extends BaseTestServer {
     assertEquals(home.getChildren().size(), size + 1);
 
     // make sure that trying to create the folder again fails
-    expectStatus(Response.Status.CONFLICT, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(folder)));
+    expectStatus(Response.Status.CONFLICT, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)));
 
     // load folder
     folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(), new GenericType<Folder>() {});
@@ -394,15 +441,35 @@ public class TestCatalogResource extends BaseTestServer {
   }
 
   @Test
+  public void testByPath() throws Exception {
+    Source createdSource = createSource();
+
+    // test getting a source by name
+    Source source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path(createdSource.getName())).buildGet(), new GenericType<Source>() {});
+    assertEquals(source.getId(), createdSource.getId());
+
+    // test getting a folder by path
+    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path(createdSource.getName()).path("json")).buildGet(), new GenericType<Folder>() {});
+
+    // test getting a file with a url character in name (?)
+    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path(createdSource.getName()).path("testfiles").path("file_with_?.json")).buildGet(), new GenericType<File>() {});
+
+    newNamespaceService().deleteSource(new NamespaceKey(source.getName()), Long.valueOf(source.getTag()));
+  }
+
+  @Test
   public void testErrors() throws Exception {
     // test non-existent id
     expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("bad-id")).buildGet());
 
     // test non-existent internal id
     expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(CatalogServiceHelper.generateInternalId(Arrays.asList("bad-id")))).buildGet());
+
+    // test non-existent path
+    expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path("doesnot").path("exist")).buildGet());
   }
 
-  private String getFolderIdByName(List<CatalogItem> items, String nameToFind) {
+  public static String getFolderIdByName(List<CatalogItem> items, String nameToFind) {
     for (CatalogItem item : items) {
       List<String> path = item.getPath();
       if (item.getContainerType() == CatalogItem.ContainerSubType.FOLDER && path.get(path.size() - 1).equals(nameToFind)) {
@@ -424,7 +491,8 @@ public class TestCatalogResource extends BaseTestServer {
       null,
       null,
       null,
-      format
+      format,
+      null
     );
   }
 
@@ -438,6 +506,7 @@ public class TestCatalogResource extends BaseTestServer {
       null,
       null,
       sql,
+      null,
       null,
       null
     );

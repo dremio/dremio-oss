@@ -25,14 +25,17 @@ import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelDistribution;
 import org.apache.calcite.rel.RelDistributionTraitDef;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelReferentialConstraint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.schema.ColumnStrategy;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.sql.SqlAccessType;
 import org.apache.calcite.sql.validate.SqlModality;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
 import org.apache.calcite.sql.validate.SqlValidatorTable;
+import org.apache.calcite.sql2rel.InitializerContext;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import com.google.common.base.Supplier;
@@ -143,6 +146,21 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
   @Override
   public boolean supportsModality(SqlModality paramSqlModality) {
     return SqlModality.RELATION == paramSqlModality;
+  }
+
+  @Override
+  public List<ColumnStrategy> getColumnStrategies() {
+    return ImmutableList.of();
+  }
+
+  @Override
+  public List<RelReferentialConstraint> getReferentialConstraints() {
+    return ImmutableList.of();
+  }
+
+  @Override
+  public boolean columnHasDefaultValue(RelDataType rowType, int ordinal, InitializerContext initializerContext) {
+    return false;
   }
 
 }

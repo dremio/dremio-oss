@@ -49,7 +49,7 @@ import org.junit.Test;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.proto.helper.QueryIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
 import com.dremio.exec.testing.Controls;
 import com.dremio.exec.work.foreman.AttemptManager;

@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import Radium from 'radium';
+import classNames from 'classnames';
 import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
-import { BLUE } from 'uiTheme/radium/colors';
 import Checkbox, { checkboxPropTypes } from './Checkbox';
+import { dot, dummy } from './Radio.less';
 
-@Radium
 @pureRender
 export default class Radio extends Component {
 
@@ -34,8 +33,11 @@ export default class Radio extends Component {
   }
 
   renderDummyRadio = (isChecked, style) => {
-    return <div data-qa={this.props.radioValue}
-      style={[styles.dummy, style, isChecked ? styles.checked : null]}>{isChecked ? <div style={styles.dot}/> : ''}
+    return <div
+      data-qa={this.props.radioValue}
+      className={classNames(dummy, isChecked && 'checked')}
+      style={style}>
+      {isChecked ? <div className={dot} /> : ''}
     </div>;
   }
 
@@ -46,28 +48,3 @@ export default class Radio extends Component {
       inputType='radio' renderDummyInput={this.renderDummyRadio}/>;
   }
 }
-
-const styles = {
-  dummy: {
-    flexShrink: 0,
-    width: 13,
-    height: 13,
-    marginRight: 5,
-    padding: '5px 2px',
-    border: '1px solid #bbb',
-    borderRadius: '50%',
-    background: '#fff'
-  },
-  dot: {
-    background: BLUE,
-    width: 7,
-    height: 7,
-    borderRadius: '50%',
-    position: 'relative',
-    top: -3
-  },
-  checked: {
-    border: `1px solid ${BLUE}`,
-    color: BLUE
-  }
-};

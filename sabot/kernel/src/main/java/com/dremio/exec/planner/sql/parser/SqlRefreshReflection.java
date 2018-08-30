@@ -100,7 +100,7 @@ public class SqlRefreshReflection extends SqlCall implements SqlToPlanHandler.Cr
   public SqlToPlanHandler toPlanHandler() {
     try {
       return (SqlToPlanHandler) Class.forName("com.dremio.service.reflection.RefreshHandler").newInstance();
-    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+    } catch (ReflectiveOperationException e) {
       throw Throwables.propagate(e);
     }
   }

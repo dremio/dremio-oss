@@ -32,7 +32,7 @@ import java.util.UUID;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.NullableVarBinaryVector;
+import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -48,10 +48,8 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.common.config.SabotConfig;
+import com.dremio.common.VM;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.util.GlobalDictionaryBuilder;
-import com.dremio.exec.util.LocalDictionariesReader;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.google.common.collect.Lists;
 
@@ -183,7 +181,7 @@ public class TestGlobalDictionaryBuilder {
 
   @Test
   public void testGlobalDictionary() throws Exception {
-    try (final BufferAllocator bufferAllocator = new RootAllocator(SabotConfig.getMaxDirectMemory())) {
+    try (final BufferAllocator bufferAllocator = new RootAllocator(VM.getMaxDirectMemory())) {
       Map<ColumnDescriptor, Path> globalDictionaries = GlobalDictionaryBuilder.createGlobalDictionaries(fs, tableDirPath, bufferAllocator).getColumnsToDictionaryFiles();
       assertEquals(1, globalDictionaries.size());
       ColumnDescriptor column = globalDictionaries.entrySet().iterator().next().getKey();
@@ -193,7 +191,7 @@ public class TestGlobalDictionaryBuilder {
       Path dictionaryRootPath = GlobalDictionaryBuilder.getDictionaryVersionedRootPath(fs, tableDirPath, dictionaryVersion);
       try (final VectorContainer dict = GlobalDictionaryBuilder.readDictionary(fs, dictionaryRootPath, column, bufferAllocator)) {
         assertEquals(4, dict.getRecordCount());
-        final NullableVarBinaryVector dictValues = dict.getValueAccessorById(NullableVarBinaryVector.class, 0).getValueVector();
+        final VarBinaryVector dictValues = dict.getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
         assertEquals("cell", new String(dictValues.get(0), UTF8));
         assertEquals("landline", new String(dictValues.get(1), UTF8));
         assertEquals("mobile", new String(dictValues.get(2), UTF8));
@@ -211,7 +209,7 @@ public class TestGlobalDictionaryBuilder {
       assertEquals(1, dictionaryVersion);
       try (final VectorContainer dict = GlobalDictionaryBuilder.readDictionary(fs, dictionaryRootPath, column, bufferAllocator)) {
         assertEquals(5, dict.getRecordCount());
-        final NullableVarBinaryVector dictValues = dict.getValueAccessorById(NullableVarBinaryVector.class, 0).getValueVector();
+        final VarBinaryVector dictValues = dict.getValueAccessorById(VarBinaryVector.class, 0).getValueVector();
         assertEquals("cell", new String(dictValues.get(0), UTF8));
         assertEquals("home", new String(dictValues.get(1), UTF8));
         assertEquals("landline", new String(dictValues.get(2), UTF8));
@@ -226,7 +224,7 @@ public class TestGlobalDictionaryBuilder {
 
   @Test
   public void testLocalDictionaries() throws IOException {
-    try (final BufferAllocator bufferAllocator = new RootAllocator(SabotConfig.getMaxDirectMemory())) {
+    try (final BufferAllocator bufferAllocator = new RootAllocator(VM.getMaxDirectMemory())) {
       final CodecFactory codecFactory = CodecFactory.createDirectCodecFactory(fs.getConf(), new ParquetDirectByteBufferAllocator(bufferAllocator), 0);
       Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries1 =
         LocalDictionariesReader.readDictionaries(fs, new Path(tableDirPath, "phonebook1.parquet"), codecFactory);

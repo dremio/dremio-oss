@@ -18,6 +18,7 @@ import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import Popover from 'material-ui/Popover';
+import classNames from 'classnames';
 
 import FontIcon from 'components/Icon/FontIcon';
 import { SearchField } from 'components/Fields';
@@ -26,11 +27,12 @@ import EllipsedText from 'components/EllipsedText';
 
 import { formDefault } from 'uiTheme/radium/typography';
 import { typeToIconType } from 'constants/DataTypes';
-import { PALE_BLUE, HISTORY_ITEM_COLOR, ACTIVE_DRAG_AREA, BORDER_ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
+import { PALE_BLUE, HISTORY_ITEM_COLOR, ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
 import { FLEX_ROW_START_CENTER } from 'uiTheme/radium/flexStyle';
 import { NOT_SUPPORTED_TYPES } from './DragColumnMenu';
 import DragSource from './DragSource';
 import DragTarget from './DragTarget';
+import { base, content, column as columnCls } from './DragAreaColumn.less';
 
 @Radium
 class DragAreaColumn extends Component {
@@ -51,7 +53,8 @@ class DragAreaColumn extends Component {
     moveColumn: PropTypes.func,
     icon: PropTypes.any,
     id: PropTypes.any,
-    allColumns: PropTypes.instanceOf(Immutable.List)
+    allColumns: PropTypes.instanceOf(Immutable.List),
+    className: PropTypes.string
   };
 
   static defaultProps = {
@@ -198,7 +201,8 @@ class DragAreaColumn extends Component {
     if (this.checkDropPosibility()) {
       return (
         <div
-          style={[styles.content, styles.largeContent, styles.empty]}
+          className={content}
+          style={styles.empty}
           key='custom-content'
           onClick={this.showPopover}>
           <span>Drag a field here</span>
@@ -207,7 +211,8 @@ class DragAreaColumn extends Component {
     } else if (!field.value) {
       return (
         <div
-          style={[styles.content, styles.largeContent, styles.empty, {borderWidth: 0}]}
+          className={content}
+          style={styles.empty}
           key='custom-content'
           onClick={this.showPopover}>
           <SearchField
@@ -239,7 +244,7 @@ class DragAreaColumn extends Component {
     const selectedColumn = this.props.allColumns.find(c => c.get('name') === field.value);
 
     return (
-      <div style={[styles.content, styles.largeContent]} key='custom-content'>
+      <div className={content} key='custom-content'>
         <FontIcon type={typeToIconType[selectedColumn.get('type')]} key='custom-type' theme={styles.type}/>
         <EllipsedText style={styles.name} text={field.value} />
       </div>
@@ -247,7 +252,7 @@ class DragAreaColumn extends Component {
   }
 
   render() {
-    const { field, disabled } = this.props;
+    const { field, disabled, className } = this.props;
     const columnName = field.value;
     const columnStyle = disabled ? {visibility: 'hidden'} : null;
     const color = this.state.isDragAreaActive ? ACTIVE_DRAG_AREA : '#fff';
@@ -256,7 +261,7 @@ class DragAreaColumn extends Component {
       : {};
 
     return (
-      <div className='inner-join-column' style={styles.base}
+      <div className={classNames(['inner-join-column', base, className])}
         onDragLeave={this.handleDragOut}
         onDragOver={this.handleDragOver}>
         <DragSource
@@ -273,7 +278,7 @@ class DragAreaColumn extends Component {
             index={this.props.index}
             id={columnName}>
             <div style={[styles.columnWrap]}>
-              <div style={[styles.simpleColumn, styles.largeColumn, dragStyle, columnStyle]} key='custom'>
+              <div className={columnCls} style={[dragStyle, columnStyle]} key='custom'>
                 {this.renderContent()}
               </div>
               {
@@ -295,13 +300,6 @@ class DragAreaColumn extends Component {
 }
 
 const styles = {
-  base: {
-    display: 'flex',
-    width: '100%',
-    justifyContent: 'center',
-    opacity: 1,
-    overflow: 'hidden'
-  },
   fontIcon: {
     Container: {
       width: 25,
@@ -342,42 +340,12 @@ const styles = {
       top: 0
     }
   },
-  largeContent: {
-    marginTop: 0,
-    borderRadius: 1
-  },
-  largeColumn: {
-    width: '100%',
-    marginTop: 0,
-    backgroundColor: ACTIVE_DRAG_AREA,
-    border: `1px solid ${BORDER_ACTIVE_DRAG_AREA}`
-  },
-  content: {
-    display: 'flex',
-    width: '100%',
-    borderLeft: '1px solid transparent',
-    borderRight: '1px solid transparent',
-    borderTop: '1px solid transparent',
-    borderBottom: '1px solid transparent',
-    alignItems: 'center',
-    cursor: 'move'
-  },
-  simpleColumn: {
-    display: 'flex',
-    alignItems: 'center',
-    width: 179,
-    minHeight: 28,
-    backgroundColor: '#f3f3f3',
-    borderRadius: 1,
-    marginLeft: 5,
-    overflow: 'hidden'
-  },
   columnWrap: {
     display: 'flex',
     flexWrap: 'nowrap',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '2px 0',
+    //padding: '2px 0',
     minWidth: 100
   },
   dragStyle: {

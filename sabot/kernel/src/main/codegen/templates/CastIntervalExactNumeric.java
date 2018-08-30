@@ -27,8 +27,6 @@
 
 <#include "/@includes/vv_imports.ftl" />
 
-  import io.netty.buffer.ArrowBuf;
-
   import com.dremio.exec.expr.SimpleFunction;
   import com.dremio.exec.expr.annotations.FunctionTemplate;
   import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
@@ -44,7 +42,6 @@
 public class Cast${type.from}To${type.to} implements SimpleFunction {
 
   @Param ${type.from}Holder in;
-  @Inject ArrowBuf buffer;
   @Output ${type.to}Holder out;
 
   public void setup() {
@@ -52,43 +49,6 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
 
   public void eval() {
     out.value = in.value;
-  }
-}
-
-<#elseif type.major == "IntervalDayExactNumeric">
-<@pp.changeOutputFile name="/com/dremio/exec/expr/fn/impl/gcast/Cast${type.from}To${type.to}.java" />
-
-<#include "/@includes/license.ftl" />
-
-  package com.dremio.exec.expr.fn.impl.gcast;
-
-<#include "/@includes/vv_imports.ftl" />
-
-  import io.netty.buffer.ArrowBuf;
-
-  import com.dremio.exec.expr.SimpleFunction;
-  import com.dremio.exec.expr.annotations.FunctionTemplate;
-  import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
-  import com.dremio.exec.expr.annotations.Output;
-  import com.dremio.exec.expr.annotations.Param;
-  import org.apache.arrow.vector.holders.*;
-
-  /**
-   * generated from ${.template_name} ${type.from} ${type.to} ${type.major}
-   */
-@SuppressWarnings("unused")
-@FunctionTemplate(name = "cast${type.to?upper_case}", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.NULL_IF_NULL)
-public class Cast${type.from}To${type.to} implements SimpleFunction {
-
-  @Param ${type.from}Holder in;
-  @Inject ArrowBuf buffer;
-  @Output ${type.to}Holder out;
-
-  public void setup() {
-  }
-
-  public void eval() {
-    out.value = in.days;
   }
 }
 </#if> <#-- type.major -->

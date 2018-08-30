@@ -13,17 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-.SelectSourceType {
 
-  margin: 20px 30px 0 30px;
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+
+  .SelectSourceType {
+
+  margin: 60px 30px 0 30px;
 
   .main {
   	margin-left: auto;
   	margin-right: auto;
+    margin-top: 40px;
     max-width: 960px;
 
-    .source-type-section {
-      margin-bottom: 30px;
+      .source-type-section {
+        margin-bottom: 30px;
+      }
     }
   }
 }

@@ -17,6 +17,8 @@ import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import SampleDataMessage from 'pages/ExplorePage/components/SampleDataMessage';
+import classNames from 'classnames';
+import { base, warning, buttons } from './WizardFooter.less';
 
 @Radium
 export default class WizardFooter extends Component {
@@ -33,45 +35,14 @@ export default class WizardFooter extends Component {
 
   render() {
     return (
-      <div className='wizard-footer' style={[styles.base, this.props.style]}>
-        <div style={styles.topBorder}/>
-        <div style={[styles.buttons]}>
+      <div className={classNames(['wizard-footer', base])} style={[this.props.style]}>
+        <div className={buttons}>
           {this.props.children}
         </div>
-        <div style={styles.warning}>
+        <div className={warning}>
           {this.renderPreviewWarning()}
         </div>
       </div>
     );
   }
 }
-
-const styles = {
-  base: {
-    display: 'flex',
-    alignItems: 'center',
-    position: 'relative',
-    width: '100%',
-    padding: '0 4px',
-    backgroundColor: '#F5FCFF',
-    borderTop: '1px solid rgba(0,0,0,0.05)'
-  },
-  buttons: {
-    paddingTop: '10px',
-    paddingBottom: '10px',
-    display: 'flex',
-    alignItems: 'center'
-  },
-  topBorder: {
-    display: 'block',
-    borderTop: '1px solid rgba(0,0,0,0.05)',
-    margin: 0
-  },
-  warning: {
-    margin: '5px 10px 0 5px'
-  },
-  warntext: {
-    display: 'inline-flex',
-    alignItems: 'center'
-  }
-};

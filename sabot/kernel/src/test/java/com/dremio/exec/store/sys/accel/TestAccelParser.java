@@ -37,6 +37,11 @@ public class TestAccelParser {
   }
 
   @Test
+  public void addAggReflectionMeasures() throws SqlParseException {
+    parse("ALTER TABLE a.b.c CREATE AGGREGATE REFLECTION reflection USING DIMENSIONS (x by day,y) MEASURES (b (COUNT, SUM),c (COUNT, MIN, MAX)) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
+  }
+
+  @Test
   public void addRawReflection() throws SqlParseException {
     parse("ALTER TABLE a.b.c CREATE RAW REFLECTION reflection USING DISPLAY(x,y) DISTRIBUTE BY (r,z) PARTITION BY (s,l) LOCALSORT BY (n,x)");
   }

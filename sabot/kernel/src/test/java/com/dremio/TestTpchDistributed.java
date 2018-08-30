@@ -32,7 +32,7 @@ public class TestTpchDistributed extends BaseTestQuery {
 
   private static void testDistributed(final String fileName) throws Exception {
     final String query = getFile(fileName);
-    testNoResult("alter session set `planner.slice_target` = 10");
+    testNoResult("alter session set \"planner.slice_target\" = 10");
     test(query);
   }
 

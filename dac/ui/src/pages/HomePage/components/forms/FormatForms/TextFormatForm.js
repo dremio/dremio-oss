@@ -105,13 +105,13 @@ export default class TextFormatForm extends Component {
       }
     } = this.props;
 
-    const fieldProps = (field) => { // todo: move into FormatField itself?
+    const fieldProps = (field, last) => {
       return {
         ...field,
         onBlur: this.onDelimiterChange(field),
         onChange: this.onDelimiterChange(field),
         value: this.getDelimiterValue(field),
-        style: styles.field,
+        style: last ? styles.lastField : styles.field,
         disabled
       };
     };
@@ -146,7 +146,7 @@ export default class TextFormatForm extends Component {
             options={quoteOptions}
           />
           <FormatField
-            {...fieldProps(comment)}
+            {...fieldProps(comment, true)}
             label={intl.formatMessage({ id: 'File.Comment' })}
             options={commentOptions}
           />
@@ -163,7 +163,7 @@ export default class TextFormatForm extends Component {
             label={intl.formatMessage({ id: 'File.Escape' })}
             options={escapeOptions}
           />
-          <div style={styles.field}>
+          <div style={styles.lastField}>
             <label style={label}><FormattedMessage id='Common.Options' /></label>
             <div style={styles.options}>
               <Checkbox disabled={disabled} style={styles.checkbox} dataQa='extract-field-names'
@@ -192,6 +192,10 @@ const styles = {
     marginTop: 10
   },
   field: {
+    flex: 1,
+    marginRight: 10
+  },
+  lastField: {
     flex: 1
   },
   options: {
