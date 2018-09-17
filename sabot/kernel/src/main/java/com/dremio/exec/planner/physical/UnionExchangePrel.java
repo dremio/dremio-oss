@@ -56,7 +56,7 @@ public class UnionExchangePrel extends ExchangePrel {
     }
 
     RelNode child = this.getInput();
-    double inputRows = child.estimateRowCount(mq);
+    double inputRows = mq.getRowCount(child);
     int  rowWidth = child.getRowType().getFieldCount() * DremioCost.AVG_FIELD_WIDTH;
     double svrCpuCost = DremioCost.SVR_CPU_COST * inputRows;
     double networkCost = DremioCost.BYTE_NETWORK_COST * inputRows * rowWidth;
@@ -69,6 +69,7 @@ public class UnionExchangePrel extends ExchangePrel {
     return new UnionExchangePrel(getCluster(), traitSet, sole(inputs));
   }
 
+  @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     Prel child = (Prel) this.getInput();
 

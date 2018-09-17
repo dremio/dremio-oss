@@ -74,6 +74,7 @@ import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -465,11 +466,11 @@ public class DatasetVersionMutator {
       this.version = version;
     }
 
-    VersionDatasetKey(String s) {
-      String[] split = s.split("/");
-      // TODO: validate
-      this.path = new DatasetPath(split[0]);
-      this.version = new DatasetVersion(split[1]);
+    public VersionDatasetKey(String s) {
+      final int pos = s.lastIndexOf('/');
+      Preconditions.checkArgument(pos != -1, "version dataset key should include path and version separated by '/'");
+      this.path = new DatasetPath(s.substring(0, pos));
+      this.version = new DatasetVersion(s.substring(pos + 1));
     }
 
     @Override
@@ -479,6 +480,10 @@ public class DatasetVersionMutator {
 
     public DatasetPath getPath() {
       return path;
+    }
+
+    public DatasetVersion getVersion() {
+      return version;
     }
   }
 }

@@ -30,7 +30,6 @@ import org.apache.calcite.runtime.FlatLists;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.util.Pair;
 
-import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.explain.PrelSequencer.OpId;
@@ -45,7 +44,7 @@ class NumberingRelWriter implements RelWriter {
   protected final PrintWriter pw;
   private final SqlExplainLevel detailLevel;
   protected final Spacer spacer = new Spacer();
-  private final List<Pair<String, Object>> values = new ArrayList<Pair<String, Object>>();
+  private final List<Pair<String, Object>> values = new ArrayList<>();
 
   private final Map<Prel, OpId> ids;
   //~ Constructors -----------------------------------------------------------
@@ -62,7 +61,7 @@ class NumberingRelWriter implements RelWriter {
       RelNode rel,
       List<Pair<String, Object>> values) {
     List<RelNode> inputs = rel.getInputs();
-    RelMetadataQuery mq = RelMetadataQuery.instance(DefaultRelMetadataProvider.INSTANCE);
+    RelMetadataQuery mq = rel.getCluster().getMetadataQuery();
     if (rel instanceof HashJoinPrel && ((HashJoinPrel) rel).isSwapped()) {
       HashJoinPrel joinPrel = (HashJoinPrel) rel;
       inputs = FlatLists.of(joinPrel.getRight(), joinPrel.getLeft());
@@ -132,24 +131,29 @@ class NumberingRelWriter implements RelWriter {
     }
   }
 
+  @Override
   public final void explain(RelNode rel, List<Pair<String, Object>> valueList) {
     explain_(rel, valueList);
   }
 
+  @Override
   public SqlExplainLevel getDetailLevel() {
     return detailLevel;
   }
 
+  @Override
   public RelWriter input(String term, RelNode input) {
     values.add(Pair.of(term, (Object) input));
     return this;
   }
 
+  @Override
   public RelWriter item(String term, Object value) {
     values.add(Pair.of(term, value));
     return this;
   }
 
+  @Override
   public RelWriter itemIf(String term, Object value, boolean condition) {
     if (condition) {
       item(term, value);
@@ -157,6 +161,7 @@ class NumberingRelWriter implements RelWriter {
     return this;
   }
 
+  @Override
   public RelWriter done(RelNode node) {
     int i = 0;
     if (values.size() > 0 && values.get(0).left.equals("subset")) {
@@ -178,6 +183,7 @@ class NumberingRelWriter implements RelWriter {
     return this;
   }
 
+  @Override
   public boolean nest() {
     return false;
   }

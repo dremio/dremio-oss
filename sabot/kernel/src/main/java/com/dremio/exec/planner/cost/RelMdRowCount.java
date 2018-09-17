@@ -23,6 +23,7 @@ import org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.rules.MultiJoin;
+import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.util.BuiltInMethod;
 import org.apache.calcite.util.ImmutableBitSet;
 
@@ -60,7 +61,8 @@ public class RelMdRowCount extends org.apache.calcite.rel.metadata.RelMdRowCount
   }
 
   public Double getRowCount(MultiJoin rel, RelMetadataQuery mq) {
-    if (rel.getJoinFilter().isAlwaysTrue()) {
+    if (rel.getJoinFilter().isAlwaysTrue() &&
+      RexUtil.composeConjunction(rel.getCluster().getRexBuilder(), rel.getOuterJoinConditions(), false).isAlwaysTrue()) {
       double rowCount = 1;
       for (RelNode input : rel.getInputs()) {
         rowCount *= mq.getRowCount(input);

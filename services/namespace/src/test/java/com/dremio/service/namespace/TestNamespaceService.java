@@ -45,6 +45,8 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.SearchQueryUtils;
+import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.Affinity;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -877,6 +879,16 @@ public class TestNamespaceService {
         ns.findSplits(new IndexedStore.FindByCondition().setCondition(DatasetSplitId.getSplitsQuery(datasetConfig)))));
       newSplitVersion = datasetConfig.getReadDefinition().getSplitVersion();
       assertTrue(newSplitVersion > lastSplitVersion);
+
+      // Checking that orphan splits get cleaned
+      SearchQuery searchQuery = SearchQueryUtils.newTermQuery(DatasetSplitIndexKeys.DATASET_ID, datasetConfig.getId().getId());
+      int count = ns.getSplitCount(new IndexedStore.FindByCondition().setCondition(searchQuery));
+      int deleted = ns.deleteSplitOrphans();
+      int newCount = ns.getSplitCount(new IndexedStore.FindByCondition().setCondition(searchQuery));
+
+      // Only 10 splits should be left in the kvstore for that dataset
+      assertEquals(10, newCount);
+      assertEquals(count, deleted + newCount);
     }
   }
 

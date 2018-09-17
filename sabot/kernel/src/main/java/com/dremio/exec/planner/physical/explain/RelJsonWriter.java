@@ -28,7 +28,6 @@ import org.apache.calcite.util.JsonBuilder;
 import org.apache.calcite.util.Pair;
 import org.apache.commons.lang3.StringUtils;
 
-import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.explain.PrelSequencer.OpId;
 import com.google.common.collect.ImmutableList;
@@ -66,7 +65,7 @@ public class RelJsonWriter implements RelWriter {
 
   protected void explain_(RelNode rel, List<Pair<String, Object>> values) {
     final Map<String, Object> map = Maps.newLinkedHashMap(); // need the ordering
-    RelMetadataQuery mq = RelMetadataQuery.instance(DefaultRelMetadataProvider.INSTANCE);
+    RelMetadataQuery mq = rel.getCluster().getMetadataQuery();
 
     putIntoMap(map, "op", relJson.classToTypeName(rel.getClass()));
 

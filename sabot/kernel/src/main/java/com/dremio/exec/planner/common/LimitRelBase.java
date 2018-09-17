@@ -28,7 +28,6 @@ import org.apache.calcite.rex.RexNode;
 
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
-import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.physical.PrelUtil;
 
 /**
@@ -68,7 +67,7 @@ public abstract class LimitRelBase extends SingleRel {
       return super.computeSelfCost(planner).multiplyBy(.1);
     }
 
-    double numRows = estimateRowCount(DefaultRelMetadataProvider.INSTANCE.getRelMetadataQuery());
+    double numRows = mq.getRowCount(this);
     double cpuCost = DremioCost.COMPARE_CPU_COST * numRows;
     Factory costFactory = (Factory)planner.getCostFactory();
     return costFactory.makeCost(numRows, cpuCost, 0, 0);
@@ -87,7 +86,7 @@ public abstract class LimitRelBase extends SingleRel {
     int off = offset != null ? RexLiteral.intValue(offset) : 0 ;
 
     if (fetch == null) {
-      return getInput().estimateRowCount(DefaultRelMetadataProvider.INSTANCE.getRelMetadataQuery()) - off;
+      return mq.getRowCount(getInput()) - off;
     } else {
       int f = RexLiteral.intValue(fetch);
       return off + f;

@@ -39,11 +39,10 @@ export default class ChartTooltip extends Component {
   calculateTop() {
     const tooltip = $('#tooltip')[0];
     const { height } = tooltip.getBoundingClientRect();
-    const OFFSET = 23;
     this.setState({
       position: {
         ...this.state.position,
-        top: this.state.position.top - height + OFFSET
+        top: this.state.position.top - height
       }
     });
   }

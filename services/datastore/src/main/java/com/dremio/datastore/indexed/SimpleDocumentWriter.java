@@ -1,0 +1,177 @@
+/*
+ * Copyright (C) 2017-2018 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.datastore.indexed;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.DoubleDocValuesField;
+import org.apache.lucene.document.DoublePoint;
+import org.apache.lucene.document.Field.Store;
+import org.apache.lucene.document.IntPoint;
+import org.apache.lucene.document.LongPoint;
+import org.apache.lucene.document.NumericDocValuesField;
+import org.apache.lucene.document.SortedDocValuesField;
+import org.apache.lucene.document.StoredField;
+import org.apache.lucene.document.StringField;
+import org.apache.lucene.util.BytesRef;
+
+import com.dremio.datastore.KVStoreProvider.DocumentWriter;
+import com.dremio.datastore.SearchTypes.SearchFieldSorting;
+import com.google.common.base.Preconditions;
+
+/**
+ * A basic document writer
+ *
+ * Doesn't reuse document
+ *
+ */
+final class SimpleDocumentWriter implements DocumentWriter {
+  private static final int MAX_STRING_LENGTH = 30000;
+
+  private final Document doc;
+
+  SimpleDocumentWriter(Document doc) {
+    this.doc = doc;
+  }
+
+  @Override
+  public void write(IndexKey key, Double value) {
+    if(value != null){
+      addToDoc(key, value);
+    }
+  }
+
+  @Override
+  public void write(IndexKey key, Integer value) {
+    if(value != null){
+      addToDoc(key, value);
+    }
+  }
+
+  @Override
+  public void write(IndexKey key, Long value) {
+    if(value != null){
+      addToDoc(key, value);
+    }
+  }
+
+  @Override
+  public void write(IndexKey key, byte[]... values) {
+    addToDoc(key, values);
+  }
+
+  @Override
+  public void write(IndexKey key, String... values) {
+    addToDoc(key, values);
+  }
+
+  private void addToDoc(IndexKey key, String... values){
+    Preconditions.checkArgument(key.getValueType() == String.class);
+    final boolean sorted = key.isSorted();
+    if (sorted) {
+      Preconditions.checkArgument(values.length < 2, "sorted fields cannot have multiple values");
+    }
+
+    final String indexFieldName = key.getIndexFieldName();
+    final Store stored = key.isStored() ? Store.YES : Store.NO;
+    for (final String value : values) {
+      if (value == null) {
+        continue;
+      }
+      final String truncatedValue = StringUtils.abbreviate(value, MAX_STRING_LENGTH);
+      doc.add(new StringField(indexFieldName, truncatedValue, stored));
+    }
+
+    if (sorted && values.length == 1 && values[0] != null) {
+      Preconditions.checkArgument(key.getSortedValueType() == SearchFieldSorting.FieldType.STRING);
+      doc.add(new SortedDocValuesField(indexFieldName, new BytesRef(values[0])));
+    }
+  }
+
+  void addToDoc(IndexKey key, byte[]... values){
+    Preconditions.checkArgument(key.getValueType() == String.class);
+    final boolean sorted = key.isSorted();
+    if (sorted) {
+      Preconditions.checkArgument(values.length < 2, "sorted fields cannot have multiple values");
+    }
+
+    final String indexFieldName = key.getIndexFieldName();
+    final Store stored = key.isStored() ? Store.YES : Store.NO;
+    for (final byte[] value : values) {
+      if (value == null) {
+        continue;
+      }
+      final BytesRef truncatedValue = new BytesRef(value,0, Math.min(value.length, MAX_STRING_LENGTH));
+      doc.add(new StringField(indexFieldName, truncatedValue, stored));
+    }
+
+    if (sorted && values.length == 1 && values[0] != null) {
+      Preconditions.checkArgument(key.getSortedValueType() == SearchFieldSorting.FieldType.STRING);
+      doc.add(new SortedDocValuesField(indexFieldName, new BytesRef(values[0])));
+    }
+  }
+
+  void addToDoc(IndexKey key, Long value){
+    Preconditions.checkArgument(key.getValueType() == Long.class);
+    if(value == null){
+      return;
+    }
+
+    final String indexFieldName = key.getIndexFieldName();
+    doc.add(new LongPoint(indexFieldName, value));
+    if (key.isStored()) {
+      doc.add(new StoredField(indexFieldName, value));
+    }
+    if (key.isSorted()) {
+      Preconditions.checkArgument(key.getSortedValueType() == SearchFieldSorting.FieldType.LONG);
+      doc.add(new NumericDocValuesField(indexFieldName, value));
+    }
+  }
+
+  void addToDoc(IndexKey key, Integer value){
+    Preconditions.checkArgument(key.getValueType() == Integer.class);
+    if(value == null){
+      return;
+    }
+
+    final String indexFieldName = key.getIndexFieldName();
+    doc.add(new IntPoint(indexFieldName, value));
+    if (key.isStored()) {
+      doc.add(new StoredField(indexFieldName, value));
+    }
+    if (key.isSorted()) {
+      Preconditions.checkArgument(key.getSortedValueType() == SearchFieldSorting.FieldType.INTEGER);
+      doc.add(new NumericDocValuesField(indexFieldName, value));
+    }
+  }
+
+  void addToDoc(IndexKey key, Double value){
+    Preconditions.checkArgument(key.getValueType() == Double.class);
+    if(value == null){
+      return;
+    }
+
+    final String indexFieldName = key.getIndexFieldName();
+    doc.add(new DoublePoint(indexFieldName, value));
+    if (key.isStored()) {
+      doc.add(new StoredField(indexFieldName, value));
+    }
+    if (key.isSorted()) {
+      Preconditions.checkArgument(key.getSortedValueType() == SearchFieldSorting.FieldType.DOUBLE);
+      doc.add(new DoubleDocValuesField(indexFieldName, value));
+    }
+  }
+}

@@ -27,7 +27,6 @@ import org.apache.calcite.rel.rules.ReduceExpressionsRule;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilderFactory;
 
-import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.google.common.collect.Lists;
 
 public class ReduceExpressionsUtil extends ReduceExpressionsRule {
@@ -48,14 +47,14 @@ public class ReduceExpressionsUtil extends ReduceExpressionsRule {
 
   public static boolean numReducibleExprs(Filter filter) {
     final List<RexNode> expList = Lists.newArrayList(filter.getCondition());
-    final RelMetadataQuery mq = RelMetadataQuery.instance(DefaultRelMetadataProvider.INSTANCE);
+    final RelMetadataQuery mq = filter.getCluster().getMetadataQuery();
     final RelOptPredicateList predicates = mq.getPulledUpPredicates(filter.getInput());
     return reduceExpressions(filter, expList, predicates);
   }
 
   public static int numReducibleExprs(Project project) {
     final List<RexNode> expList = Lists.newArrayList(project.getProjects());
-    final RelMetadataQuery mq = RelMetadataQuery.instance(DefaultRelMetadataProvider.INSTANCE);
+    final RelMetadataQuery mq = project.getCluster().getMetadataQuery();
     final RelOptPredicateList predicates = mq.getPulledUpPredicates(project.getInput());
     boolean reducible = reduceExpressions(project, expList, predicates);
     if (reducible) {

@@ -17,18 +17,19 @@ package com.dremio.datastore.indexed;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field.Store;
-import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.util.BytesRef;
 
+import com.dremio.common.VM;
 import com.dremio.datastore.CoreIndexedStore;
 import com.dremio.datastore.CoreKVStore;
 import com.dremio.datastore.IndexedStore;
@@ -36,11 +37,11 @@ import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.KVAdmin;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.KVStoreProvider.DocumentConverter;
-import com.dremio.datastore.KVStoreProvider.DocumentWriter;
 import com.dremio.datastore.KVStoreTuple;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.SearchTypes.SortOrder;
+import com.google.common.base.Throwables;
 
 /**
  * Implementation of core Indexed Store based on a Lucene search index.
@@ -67,17 +68,108 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
     this.index = index;
   }
 
+  private static final IndexKey ID_KEY = new IndexKey(IndexedStore.ID_FIELD_NAME, IndexedStore.ID_FIELD_NAME,
+      String.class, null, false, true);
+
+  private class ReindexThread extends Thread {
+    private final Iterator<Entry<KVStoreTuple<K>, KVStoreTuple<V>>> iterator;
+    private final Object lock;
+    private final AtomicBoolean cancelled;
+
+    private volatile Throwable error = null;
+    private volatile int elementCount = 0;
+
+    public ReindexThread(Iterator<Entry<KVStoreTuple<K>, KVStoreTuple<V>>> iterator, Object lock, AtomicBoolean cancelled) {
+      this.iterator = iterator;
+      this.lock = lock;
+      this.cancelled = cancelled;
+    }
+
+    @Override
+    public void run() {
+      try {
+        while (!cancelled.get()) {
+          final Entry<KVStoreTuple<K>, KVStoreTuple<V>> entry;
+          // Get the next element
+          synchronized (lock) {
+            if (!iterator.hasNext()) {
+              break;
+            }
+            entry = iterator.next();
+          }
+
+          elementCount++;
+
+          final Document doc = toDoc(entry.getKey(), entry.getValue());
+
+          if (doc == null) {
+            continue;
+          }
+
+          index.add(doc);
+        }
+      } catch (Throwable t) {
+        cancelled.set(true);
+        this.error = t;
+      }
+    }
+  }
+
   @Override
   public int reindex() {
-    Iterable<Entry<KVStoreTuple<K>, KVStoreTuple<V>>> iter = find();
-    int elementCount = 0;
-
+    // Delete all previous documents
     index.delete();
-    for (Entry<KVStoreTuple<K>, KVStoreTuple<V>> entry:iter) {
-      index(entry.getKey(), entry.getValue());
-      elementCount++;
+
+    // Switching index writer to reindexing mode
+    final int[] resultRef = { 0 };
+    final Throwable[] errorRef = { null };
+    index.forReindexing(() -> {
+      final int numThreads = VM.availableProcessors();
+      final Iterator<Entry<KVStoreTuple<K>, KVStoreTuple<V>>> iterator = find().iterator();
+      final Object lock = new Object();
+
+      // Start all workers
+
+      final AtomicBoolean cancelled = new AtomicBoolean(false);
+      final List<ReindexThread> workers = new ArrayList<>(numThreads);
+      for(int i = 0; i < numThreads; i++) {
+        final ReindexThread reindexThread = new ReindexThread(iterator, lock, cancelled);
+        workers.add(reindexThread);
+        reindexThread.start();
+      }
+
+      // Read all data and transfer it to workers
+      for(final ReindexThread reindexThread: workers) {
+        try {
+          reindexThread.join();
+        } catch (InterruptedException e) {
+          // Propagate
+          Thread.currentThread().interrupt();
+        }
+        resultRef[0] += reindexThread.elementCount;
+
+        // Look if thread threw some exception
+        final Throwable error = reindexThread.error;
+        if (error == null) {
+          continue;
+        }
+
+        // Chaining exception
+        if (errorRef[0] == null) {
+          errorRef[0] = error;
+        } else {
+          errorRef[0].addSuppressed(error);
+        }
+      }
+    });
+
+    // Check for error
+    Throwable error = errorRef[0];
+    if (error != null) {
+      Throwables.throwIfUnchecked(error);
+      throw new RuntimeException(error);
     }
-    return elementCount;
+    return resultRef[0];
   }
 
   @Override
@@ -115,44 +207,14 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
 
   private Document toDoc(KVStoreTuple<K> key, KVStoreTuple<V> value){
     final Document doc = new Document();
-    converter.convert(new DocumentWriter() {
-
-      @Override
-      public void write(IndexKey key, Double value) {
-        if(value != null){
-          key.addToDoc(doc, value);
-        }
-      }
-
-      @Override
-      public void write(IndexKey key, Integer value) {
-        if(value != null){
-          key.addToDoc(doc, value);
-        }
-      }
-
-      @Override
-      public void write(IndexKey key, Long value) {
-        if(value != null){
-          key.addToDoc(doc, value);
-        }
-      }
-
-      public void write(IndexKey key, byte[]... values) {
-        key.addToDoc(doc, values);
-      }
-
-      @Override
-      public void write(IndexKey key, String... values) {
-        key.addToDoc(doc, values);
-      }
-    }, key.getObject(), value.getObject());
+    final SimpleDocumentWriter documentWriter = new SimpleDocumentWriter(doc);
+    converter.convert(documentWriter, key.getObject(), value.getObject());
 
     if (doc.getFields().isEmpty()) {
       return null;
     }
 
-    doc.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef(key.getSerializedBytes()), Store.YES));
+    documentWriter.write(ID_KEY, key.getSerializedBytes());
 
     return doc;
   }

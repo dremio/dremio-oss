@@ -32,6 +32,7 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.Deque;
 import java.util.Iterator;
@@ -152,47 +153,46 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   /**
-   * Helper class for finding split orphans.
+   * Comparator for split ranges
    */
-  private static class SplitRange implements Comparable<SplitRange> {
-
-    private final Range<String> range;
-
-    public SplitRange(Range<String> range) {
-      super();
-      this.range = range;
-    }
-
-    @Override
-    public int compareTo(SplitRange o) {
-      return range.lowerEndpoint().compareTo(o.range.lowerEndpoint());
-    }
-
-  }
+  private static final Comparator<Range<String>> SPLIT_RANGE_COMPARATOR =
+      Comparator.comparing(Range::lowerEndpoint);
 
   @Override
   public int deleteSplitOrphans() {
-    final List<SplitRange> ranges = new ArrayList<>();
+    final List<Range<String>> ranges = new ArrayList<>();
 
     int itemsDeleted = 0;
     for(Map.Entry<byte[], NameSpaceContainer> entry : namespace.find()) {
       NameSpaceContainer container = entry.getValue();
       if(container.getType() == Type.DATASET && container.getDataset().getReadDefinition() != null && container.getDataset().getReadDefinition().getSplitVersion() != null) {
-        ranges.add(new SplitRange(DatasetSplitId.getSplitStringRange(container.getDataset())));
+        ranges.add(DatasetSplitId.getSplitStringRange(container.getDataset()));
       }
     }
 
-    for(Map.Entry<DatasetSplitId, DatasetSplit> e : splitsStore.find()) {
-      String id = e.getKey().getSplitIdentifier();
-      final int item = Collections.binarySearch(ranges, new SplitRange(Range.singleton(id)));
+    // ranges need to be sorted for binary search to be working
+    Collections.sort(ranges, SPLIT_RANGE_COMPARATOR);
 
-      // we should never find a match since we're searching for a split key.
+    // Some explanations:
+    // ranges is setup to contain the current (exclusive) range of splits for each dataset.
+    // The function then iterates over all splits present in the split tables and verify
+    // that the split belongs to one of the dataset split range. If not, the item is dropped.
+    // The binary search provides the index in ranges where a split would be inserted if not
+    // already present in the list (this is the insertion point, see Collections.binarySort
+    // javadoc), which should be just after the corresponding dataset range as ranges items
+    // are sorted based on their lower endpoint.
+    for (Map.Entry<DatasetSplitId, DatasetSplit> e : splitsStore.find()) {
+      String id = e.getKey().getSplitId();
+      final int item = Collections.binarySearch(ranges, Range.singleton(id), SPLIT_RANGE_COMPARATOR);
+
+      // we should never find a match since we're searching for a split key and that dataset
+      // split range endpoints are excluded/not valid split keys
       Preconditions.checkArgument(item < 0);
 
       final int insertionPoint = (-item) - 1;
       final int consideredRange = insertionPoint - 1; // since a normal match would come directly after the start range, we need to check the range directly above the insertion point.
 
-      if(consideredRange < 0 || ranges.get(consideredRange).range.contains(id)) {
+      if (consideredRange < 0 || !ranges.get(consideredRange).contains(id)) {
         splitsStore.delete(e.getKey());
         itemsDeleted++;
       }

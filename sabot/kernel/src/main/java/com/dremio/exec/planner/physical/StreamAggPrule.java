@@ -161,10 +161,10 @@ public class StreamAggPrule extends AggPruleBase {
                   OperatorPhase.PHASE_2of2);
             }
           }.go(aggregate, convertedInput);
-        } else {
+        } else if (isSingleton(call)){
           DistributionTrait singleDist = DistributionTrait.SINGLETON;
           final RelTraitSet singleDistTrait = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL)
-                  .plus(singleDist).plus(collation);
+            .plus(singleDist).plus(collation);
           createTransformRequest(call, aggregate, input, singleDistTrait);
         }
       }

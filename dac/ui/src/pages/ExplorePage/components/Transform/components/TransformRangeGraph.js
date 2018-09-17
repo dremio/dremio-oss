@@ -17,12 +17,8 @@ import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import BarChart from 'components/Charts/BarChart';
-import { isDateType } from 'constants/DataTypes';
 
 import TransformRangeSlider, { POSITION_LEFT, POSITION_RIGHT } from './TransformRangeSlider';
-
-const OFFSET_RIGHT = 152; //values based on numbers from getBarChartWidth from TransformRange
-const OFFSET_LEFT = 151;
 
 @Radium
 export default class TransformRangeGraph extends Component {
@@ -37,6 +33,9 @@ export default class TransformRangeGraph extends Component {
     width: PropTypes.number,
     style: PropTypes.object
   }
+
+  container = null; // will store root container element
+
   constructor(props) {
     super(props);
 
@@ -78,17 +77,11 @@ export default class TransformRangeGraph extends Component {
   moveSlider(event) {
     const { activeSlider } = this.state;
     if (activeSlider) {
-      const offset = this.calculateOffset(activeSlider);
+      const offset = this.container ? this.container.getBoundingClientRect().x : 0;
       this.setState({
         [`${activeSlider}RangeOffset`]: event.clientX - offset
       });
     }
-  }
-
-  calculateOffset(position) {
-    const defaultOffset = position === POSITION_RIGHT ? OFFSET_RIGHT : OFFSET_LEFT;
-    const dateOffset = isDateType(this.props.columnType) ? 93 : -2;
-    return defaultOffset + dateOffset;
   }
 
   stopSlide() {
@@ -107,6 +100,10 @@ export default class TransformRangeGraph extends Component {
     }
   }
 
+  onRef = (el) => {
+    this.container = el;
+  };
+
   render() {
     const {
       style,
@@ -117,11 +114,13 @@ export default class TransformRangeGraph extends Component {
 
     const { activeSlider, leftRangeOffset, rightRangeOffset } = this.state;
     return (
-      <div onMouseMove={this.moveSlider} onMouseLeave={this.stopSlide} style={[style]}>
+      <div onMouseMove={this.moveSlider} onMouseUp={this.stopSlide} onMouseLeave={this.stopSlide} style={[style]}
+        ref={this.onRef}>
         <BarChart
           type={columnType}
           data={data}
           width={width}
+          blockTooltips={!!activeSlider}
         />
         <TransformRangeSlider
           blockStyle={{
@@ -131,7 +130,6 @@ export default class TransformRangeGraph extends Component {
           position={POSITION_LEFT}
           offset={leftRangeOffset}
           activeSlider={activeSlider}
-          stopSlide={this.stopSlide}
           setActiveSlider={this.setActiveSlider}
           dataQa='TransformRangeLeftSlider'
         />
@@ -142,7 +140,6 @@ export default class TransformRangeGraph extends Component {
           }}
           position={POSITION_RIGHT}
           offset={rightRangeOffset}
-          stopSlide={this.stopSlide}
           activeSlider={activeSlider}
           setActiveSlider={this.setActiveSlider}
           dataQa='TransformRangeRightSlider'

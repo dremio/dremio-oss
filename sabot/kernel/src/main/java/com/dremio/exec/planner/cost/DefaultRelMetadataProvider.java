@@ -17,7 +17,6 @@ package com.dremio.exec.planner.cost;
 
 import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import com.google.common.collect.ImmutableList;
 
@@ -33,10 +32,5 @@ public class DefaultRelMetadataProvider extends ChainedRelMetadataProvider {
         RelMdColumnOrigins.SOURCE,
         // Calcite catch-all
         org.apache.calcite.rel.metadata.DefaultRelMetadataProvider.INSTANCE));
-  }
-
-  @Override
-  public RelMetadataQuery getRelMetadataQuery() {
-    return new RelMetadataQuery(this) {};
   }
 }

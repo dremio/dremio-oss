@@ -15,12 +15,14 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
+import java.lang.ref.SoftReference;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.calcite.plan.RelOptPlanner;
@@ -32,6 +34,7 @@ import org.apache.calcite.rel.metadata.NullSentinel;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.metadata.UnboundMetadata;
+import org.apache.calcite.rex.RexNode;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -49,7 +52,7 @@ public class CachingRelMetadataProvider implements RelMetadataProvider {
 
   // Limiting concurrency to 2, as planner is single threaded, and only observer might
   // require concurrent access
-  private final Map<List<Object>, CacheEntry> cache = new ConcurrentHashMap<>(16, 0.75f, 2);
+  private final Map<CacheKey, CacheEntry> cache = new ConcurrentHashMap<>(16, 0.75f, 2);
 
   private final RelMetadataProvider underlyingProvider;
 
@@ -96,20 +99,47 @@ public class CachingRelMetadataProvider implements RelMetadataProvider {
     return underlyingProvider.handlers(def);
   }
 
-  @Override public RelMetadataQuery getRelMetadataQuery() {
-    return underlyingProvider.getRelMetadataQuery();
-  }
-
   //~ Inner Classes ----------------------------------------------------------
+
+  /** A key in the cache. It is wrapped into a soft reference so that GC
+   * can collect the underlying value if needed.
+   */
+  private static class CacheKey extends SoftReference<List<Object>> {
+    private final int hash;
+
+    public CacheKey(List<Object> referent) {
+      super(referent);
+      this.hash = Preconditions.checkNotNull(referent).hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof CacheKey)) {
+        return false;
+      }
+
+      CacheKey that = (CacheKey) obj;
+      return Objects.equals(this.get(), that.get());
+    }
+
+    @Override
+    public int hashCode() {
+      return hash;
+    }
+
+  }
 
   /** An entry in the cache. Consists of the cached object and the timestamp
    * when the entry is valid. If read at a later timestamp, the entry will be
    * invalid and will be re-computed as if it did not exist. The net effect is a
    * lazy-flushing cache. */
-  private static class CacheEntry {
-    long timestamp;
+  private static class CacheEntry extends SoftReference<Object> {
+    private final long timestamp;
 
-    Object result;
+    public CacheEntry(Object result, long timestamp) {
+      super(result);
+      this.timestamp = timestamp;
+    }
   }
 
   /** Implementation of {@link InvocationHandler} for calls to a
@@ -129,22 +159,34 @@ public class CachingRelMetadataProvider implements RelMetadataProvider {
       // Compute hash key.
       final ImmutableList.Builder<Object> builder = ImmutableList.builder();
       builder.add(method);
+      // RelNode don't have identity but their digest is not stable...
       builder.add(metadata.rel());
       if (args != null) {
         for (Object arg : args) {
-          // Replace null values because ImmutableList does not allow them.
-          builder.add(NullSentinel.mask(arg));
+          if (arg instanceof RexNode) {
+            // RexNode don't have any identity so use their digest instead
+            builder.add(((RexNode) arg).toString());
+          } else {
+            // Replace null values because ImmutableList does not allow them.
+            builder.add(NullSentinel.mask(arg));
+          }
         }
       }
-      List<Object> key = builder.build();
+      final ImmutableList<Object> internalKey = builder.build();
+      CacheKey key = new CacheKey(internalKey);
 
       long timestamp = planner.getRelMetadataTimestamp(metadata.rel());
 
       // Perform cache lookup.
       CacheEntry entry = cache.get(key);
+
       if (entry != null) {
-        if (timestamp == entry.timestamp) {
-          return entry.result;
+        Object result = entry.get();
+        if (result != null && timestamp == entry.timestamp) {
+          if (result == NullSentinel.INSTANCE) {
+            return null;
+          }
+          return result;
         }
       }
 
@@ -152,9 +194,7 @@ public class CachingRelMetadataProvider implements RelMetadataProvider {
       try {
         Object result = method.invoke(metadata, args);
         if (result != null) {
-          entry = new CacheEntry();
-          entry.timestamp = timestamp;
-          entry.result = result;
+          entry = new CacheEntry(NullSentinel.mask(result), timestamp);
           cache.put(key, entry);
         }
         return result;

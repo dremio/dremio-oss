@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-root</artifactId>
-  <version>2.1.4-201808302048550610_0981242</version>
+  <version>2.1.6-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Root</name>
@@ -38,9 +38,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.10.0-201806210053570350-1f84eef-dremio</arrow.version>
+    <arrow.version>0.10.0-201809072309460111-effa235-dremio</arrow.version>
     <avatica.version>1.11.0</avatica.version>
-    <calcite.version>1.16.0-201807312206090258-e1b02e7</calcite.version>
+    <calcite.version>1.16.0-201809101700460107-acbf677</calcite.version>
     <db2jcc.version>4.23.42</db2jcc.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
@@ -2550,12 +2550,12 @@ limitations under the License.
       <dependency>
         <groupId>net.java.dev.jna</groupId>
         <artifactId>jna</artifactId>
-        <version>4.4.0</version>
+        <version>4.5.0</version>
       </dependency>
       <dependency>
         <groupId>net.java.dev.jna</groupId>
         <artifactId>jna-platform</artifactId>
-        <version>4.4.0</version>
+        <version>4.5.0</version>
       </dependency>
       <dependency>
         <groupId>javax.xml.stream</groupId>

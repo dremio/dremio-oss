@@ -87,7 +87,8 @@ export class ReplaceRangeForm extends Component {
   getChartWidth() {
     const { transform } = this.props;
     const offsetWidth = isDateType(transform.get('columnType')) ? 235 : 140;
-    return exploreUtils.getDocumentWidth() - offsetWidth * 2 - 63;
+    // fixed magic number for now. But we should get rid of them. TODO address the issue under DX-12895
+    return exploreUtils.getDocumentWidth() - offsetWidth * 2 - 92;
   }
 
   updateChartData(cardValues) {

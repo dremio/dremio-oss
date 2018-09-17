@@ -227,8 +227,7 @@ class RocksDBStore implements ByteStore {
     public void compactKeyValues() throws IOException {
       try {
         compact();
-      }catch(RocksDBException ex) {
-        Throwables.propagateIfInstanceOf(ex, IOException.class);
+      } catch (RocksDBException ex) {
         throw new IOException(ex);
       }
     }

@@ -51,8 +51,8 @@ public class ReplacementPointer extends SingleRel implements ContainerRel {
   }
 
   @Override
-  public double estimateRowCount(RelMetadataQuery md) {
-    return equivalent.estimateRowCount(md);
+  public double estimateRowCount(RelMetadataQuery mq) {
+    return mq.getRowCount(equivalent);
   }
 
   @Override

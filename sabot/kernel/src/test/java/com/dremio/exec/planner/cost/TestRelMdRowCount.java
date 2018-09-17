@@ -79,7 +79,7 @@ public class TestRelMdRowCount {
     when(info.getExecutorNodeCount()).thenReturn(1);
     PlannerSettings plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, info);
     cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), rexBuilder);
-    cluster.setMetadataProvider(provider().metadataProvider);
+    cluster.setMetadataProvider(DefaultRelMetadataProvider.INSTANCE);
   }
 
   @Test
@@ -155,10 +155,11 @@ public class TestRelMdRowCount {
   }
 
   private void verifyCount(Double expected, Prel input) {
-    Double rowCountFromGet = provider().getRowCount(input);
+    final RelMetadataQuery metadataQuery = input.getCluster().getMetadataQuery();
+    Double rowCountFromGet = metadataQuery.getRowCount(input);
     assertEquals(expected, rowCountFromGet.doubleValue(), 0.0d);
 
-    Double rowCountFromEstimateRowCount = input.estimateRowCount(provider());
+    Double rowCountFromEstimateRowCount = input.estimateRowCount(metadataQuery);
     assertEquals(expected, rowCountFromEstimateRowCount.doubleValue(), 0.0d);
   }
 
@@ -208,9 +209,5 @@ public class TestRelMdRowCount {
       fail();
     }
     return null;
-  }
-
-  private static RelMetadataQuery provider() {
-    return DefaultRelMetadataProvider.INSTANCE.getRelMetadataQuery();
   }
 }

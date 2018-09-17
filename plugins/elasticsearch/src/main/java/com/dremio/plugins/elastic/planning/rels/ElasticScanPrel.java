@@ -27,7 +27,6 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.CustomPrel;
 import com.dremio.exec.planner.physical.LeafPrel;
@@ -71,7 +70,7 @@ public class ElasticScanPrel extends TableScan implements LeafPrel, CustomPrel {
 
   @Override
   public double estimateRowCount(RelMetadataQuery mq) {
-    return input.estimateRowCount(mq);
+    return mq.getRowCount(input);
   }
 
   @Override
@@ -81,7 +80,8 @@ public class ElasticScanPrel extends TableScan implements LeafPrel, CustomPrel {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    return creator.addMetadata(this, scanBuilder.toGroupScan((long) input.estimateRowCount(DefaultRelMetadataProvider.INSTANCE.getRelMetadataQuery())));
+    final RelMetadataQuery mq = input.getCluster().getMetadataQuery();
+    return creator.addMetadata(this, scanBuilder.toGroupScan(mq.getRowCount(input).longValue()));
   }
 
   @Override

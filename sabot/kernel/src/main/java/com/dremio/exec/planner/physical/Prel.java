@@ -18,10 +18,8 @@ package com.dremio.exec.planner.physical;
 import java.io.IOException;
 
 import org.apache.calcite.plan.Convention;
-import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.logical.Rel;
@@ -63,7 +61,7 @@ public interface Prel extends RelNode, Iterable<Prel>{
   boolean needsFinalColumnReordering();
 
   default double getCostForParallelization() {
-    return estimateRowCount(getCluster().getMetadataQuery());
+    return getCluster().getMetadataQuery().getRowCount(this);
   }
 
   //

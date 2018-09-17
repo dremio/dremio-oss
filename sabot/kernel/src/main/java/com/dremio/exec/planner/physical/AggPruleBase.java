@@ -19,12 +19,11 @@ package com.dremio.exec.planner.physical;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.AggregateCall;
 
-import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.google.common.collect.ImmutableSet;
@@ -67,11 +66,9 @@ public abstract class AggPruleBase extends Prule {
   // Create 2 phase aggr plan for aggregates such as SUM, MIN, MAX
   // If any of the aggregate functions are not one of these, then we
   // currently won't generate a 2 phase plan.
-  protected boolean create2PhasePlan(RelOptRuleCall call, AggregateRel aggregate) {
+  protected static boolean create2PhasePlan(RelOptRuleCall call, AggregateRel aggregate) {
     PlannerSettings settings = PrelUtil.getPlannerSettings(call.getPlanner());
-    RelNode child = call.rel(0).getInputs().get(0);
-    boolean smallInput = child.estimateRowCount(DefaultRelMetadataProvider.INSTANCE.getRelMetadataQuery()) < settings.getSliceTarget();
-    if (! settings.isMultiPhaseAggEnabled() || settings.isSingleMode() || smallInput) {
+    if (! settings.isMultiPhaseAggEnabled() || isSingleton(call)) {
       return false;
     }
 
@@ -82,6 +79,15 @@ public abstract class AggPruleBase extends Prule {
       }
     }
     return true;
+  }
+
+  protected static boolean isSingleton(RelOptRuleCall call) {
+    PlannerSettings settings = PrelUtil.getPlannerSettings(call.getPlanner());
+    if (settings.isSingleMode()) {
+      return true;
+    }
+    RelNode child = call.rel(0).getInputs().get(0);
+    return call.getMetadataQuery().getRowCount(child) < settings.getSliceTarget();
   }
 
 }

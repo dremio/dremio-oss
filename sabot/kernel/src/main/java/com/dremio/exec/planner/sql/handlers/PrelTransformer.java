@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
+import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
@@ -40,6 +41,7 @@ import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -79,7 +81,6 @@ import com.dremio.exec.planner.acceleration.substitution.AccelerationAwareSubsti
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.cost.ChainedRelMetadataProvider;
 import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.logical.CancelFlag;
@@ -395,7 +396,11 @@ public class PrelTransformer {
           ChainedRelMetadataProvider.of(list), planner);
 
       // Modify RelMetaProvider for every RelNode in the SQL operator Rel tree.
-      input.accept(new MetaDataProviderModifier(cachingMetaDataProvider));
+      RelOptCluster cluster = input.getCluster();
+      cluster.setMetadataProvider(cachingMetaDataProvider);
+      cluster.invalidateMetadataQuery();
+
+      // Begin planning
       planner.setRoot(input);
       if (!input.getTraitSet().equals(targetTraits)) {
         planner.changeTraits(input, toTraits);
@@ -421,8 +426,11 @@ public class PrelTransformer {
           ChainedRelMetadataProvider.of(list), planner);
 
       // Modify RelMetaProvider for every RelNode in the SQL operator Rel tree.
-      input.accept(new MetaDataProviderModifier(cachingMetaDataProvider));
+      RelOptCluster cluster = input.getCluster();
+      cluster.setMetadataProvider(cachingMetaDataProvider);
+      cluster.invalidateMetadataQuery();
 
+      // Configure substitutions
       final AccelerationAwareSubstitutionProvider substitutions = config.getConverter().getSubstitutionProvider();
       substitutions.setObserver(config.getObserver());
       substitutions.setEnabled(phase.useMaterializations);
@@ -439,6 +447,8 @@ public class PrelTransformer {
           return pl.findBestExp().accept(new ConvertJdbcLogicalToJdbcRel());
         }
       );
+
+      // Begin planning
       boolean completed = false;
       try {
         output = program.run(planner, input, toTraits, ImmutableList.of(), ImmutableList.of());

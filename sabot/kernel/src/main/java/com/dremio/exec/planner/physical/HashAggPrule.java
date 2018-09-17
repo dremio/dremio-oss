@@ -64,41 +64,47 @@ public class HashAggPrule extends AggPruleBase {
       return;
     }
 
+    RelTraitSet traits = null;
+
     try {
-      DistributionTrait singleDist = DistributionTrait.SINGLETON;
-      RelTraitSet singletonTraits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(singleDist);
       if (aggregate.getGroupSet().isEmpty()) {
-        createTransformRequest(call, aggregate, input, singletonTraits);
+        DistributionTrait singleDist = DistributionTrait.SINGLETON;
+        traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(singleDist);
+        createTransformRequest(call, aggregate, input, traits);
       } else {
         // hash distribute on all grouping keys
         DistributionTrait distOnAllKeys =
-            new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
-                                       ImmutableList.copyOf(getDistributionField(aggregate, true /* get all grouping keys */)));
+          new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
+            ImmutableList.copyOf(getDistributionField(aggregate, true /* get all grouping keys */)));
 
-        RelTraitSet traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distOnAllKeys);
+        traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distOnAllKeys);
         createTransformRequest(call, aggregate, input, traits);
 
         // hash distribute on single grouping key
         DistributionTrait distOnOneKey =
-            new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
-                                       ImmutableList.copyOf(getDistributionField(aggregate, false /* get single grouping key */)));
+          new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
+            ImmutableList.copyOf(getDistributionField(aggregate, false /* get single grouping key */)));
 
         traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distOnOneKey);
         createTransformRequest(call, aggregate, input, traits);
 
+        // if the call supports creating a two phase plan, also create and transform to the two-phase version of plan
         if (create2PhasePlan(call, aggregate)) {
           traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL) ;
 
           RelNode convertedInput = convert(input, traits);
           new TwoPhaseSubset(call, distOnAllKeys).go(aggregate, convertedInput);
-
-        } else {
-          createTransformRequest(call, aggregate, input, singletonTraits);
+        } else if (isSingleton(call)) {
+          // if the agg should be singleton, create and transform to the singleton plan
+          DistributionTrait singleDist = DistributionTrait.SINGLETON;
+          traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(singleDist);
+          createTransformRequest(call, aggregate, input, traits);
         }
       }
     } catch (InvalidRelException e) {
       tracer.warn(e.toString());
     }
+
   }
 
   private class TwoPhaseSubset extends SubsetTransformer<AggregateRel, InvalidRelException> {

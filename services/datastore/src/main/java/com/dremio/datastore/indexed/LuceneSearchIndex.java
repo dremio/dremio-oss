@@ -16,6 +16,7 @@
 package com.dremio.datastore.indexed;
 
 import static com.dremio.datastore.MetricUtils.COLLECT_METRICS;
+import static java.lang.String.format;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,10 +26,12 @@ import java.util.List;
 
 import org.apache.lucene.analysis.core.KeywordAnalyzer;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.index.ConcurrentMergeScheduler;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.index.LiveIndexWriterConfig;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
@@ -57,10 +60,63 @@ import com.google.common.collect.ImmutableList;
 public class LuceneSearchIndex implements AutoCloseable {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LuceneSearchIndex.class);
 
+
+  /**
+   * Property name for configuring the amount of RAM (in MB) that may be used for buffering added documents
+   *  and deletions before they are flushed during normal processing
+   *
+   *  Default is 32MB
+   */
+  public static final String RAM_BUFFER_SIZE_MB_PROPERTY = "dremio.lucene.ram_buffer_size_mb";
+
+  /**
+   * Property name for configuring the amount of RAM (in MB) that may be used for buffering added documents
+   *  and deletions before they are flushed during reindexing
+   *
+   *  Default is half the amount of JVM memory
+   */
+  public static final String REINDEX_RAM_BUFFER_SIZE_MB_PROPERTY = "dremio.lucene.reindex.ram_buffer_size_mb";
+
+  /**
+   * Property name for configuring the ratio between the reindex ram buffer and the total JVM
+   *
+   *  Default is 2
+   */
+  public static final String REINDEX_RAM_BUFFER_SIZE_AUTO_RATIO_PROPERTY = "dremio.lucene.reindex.ram_buffer_size_auto_ratio";
+
+  /**
+   * Property name for the frequency (period in millis) between two commits
+   *
+   * Default is 1minute
+   */
+  public static final String COMMIT_FREQUENCY_MILLIS_PROPERTY = "dremio.lucene.commit_frequency";
+
+  /**
+   * Spinning disks override property
+   *
+   * Set to true if spinning disk, false if ssd, and do not set if auto-detect (only works on linux)
+   */
+  public static final String OVERRIDE_SPINS_PROPERTY = "dremio.lucene.override_spins";
+
+
   private static final String METRIC_PREFIX = "kvstore.lucene";
 
+
   //delay between end of a commit and next commit
-  private static final long COMMIT_FREQUENCY = Integer.getInteger("dremio.lucene.commit_frequency", 60_000);
+  private static final long COMMIT_FREQUENCY = Integer.getInteger(COMMIT_FREQUENCY_MILLIS_PROPERTY, 60_000);
+
+  // Amount of RAM that may be used for buffering added documents and deletions before they are flushed
+  // during normal processing
+  private static final int RAM_BUFFER_SIZE_MB = Integer.getInteger(RAM_BUFFER_SIZE_MB_PROPERTY, 32);
+
+  // Ratio to apply to JVM total memory for buffering added documents and deletions during reindexing
+  // if not set
+  private static final int REINDEX_RAM_BUFFER_SIZE_AUTO_RATIO = Integer.getInteger(REINDEX_RAM_BUFFER_SIZE_AUTO_RATIO_PROPERTY, 2);
+
+  // Amount of RAM that may be used for buffering added documents and deletions before they are flushed
+  // during reindexing
+  private static final int REINDEX_RAM_BUFFER_SIZE_MB = Integer.getInteger(REINDEX_RAM_BUFFER_SIZE_MB_PROPERTY,
+      (int) (Runtime.getRuntime().totalMemory() / (1024 * 1024) / REINDEX_RAM_BUFFER_SIZE_AUTO_RATIO));
 
 
   /**
@@ -80,7 +136,7 @@ public class LuceneSearchIndex implements AutoCloseable {
         }
       });
 
-      commitThread.setName("LuceneSearchIndex:committer");
+      commitThread.setName(format("LuceneSearchIndex:committer %s", name));
       commitThread.start();
     }
 
@@ -98,6 +154,11 @@ public class LuceneSearchIndex implements AutoCloseable {
         } catch (InterruptedException e) {
           // thread interrupted, exit immediately
           return;
+        }
+
+        // Do not commit while reindexing
+        if (reindexing) {
+          continue;
         }
 
         try (WarningTimer watch = new WarningTimer("LuceneSearchIndex commit", 5000)) {
@@ -132,9 +193,10 @@ public class LuceneSearchIndex implements AutoCloseable {
 
   private final IndexWriter writer;
   private final BaseDirectory directory;
-  private final DirectoryReader reader;
   private final SearcherManager searcherManager;
   private final String name;
+
+  private volatile boolean reindexing = false;
 
   public LuceneSearchIndex(final String localStorageDir, final String name, boolean inMemory) {
     this(new File(localStorageDir), name, inMemory);
@@ -143,9 +205,15 @@ public class LuceneSearchIndex implements AutoCloseable {
   public LuceneSearchIndex(final File localStorageDir, final String name, boolean inMemory) {
     this.name = name;
 
+    final ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler();
+    String overrideSpins = System.getProperty(OVERRIDE_SPINS_PROPERTY);
+    if (overrideSpins != null) {
+      cms.setDefaultMaxMergesAndThreads(Boolean.parseBoolean(overrideSpins));
+    }
     final IndexWriterConfig writerConfig = new IndexWriterConfig(new KeywordAnalyzer())
         .setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND)
-        .setRAMBufferSizeMB(32);
+        .setRAMBufferSizeMB(RAM_BUFFER_SIZE_MB)
+        .setMergeScheduler(cms);
 
     try {
 
@@ -170,7 +238,6 @@ public class LuceneSearchIndex implements AutoCloseable {
       writer = new IndexWriter(directory, writerConfig);
       writer.commit();
       searcherManager = new SearcherManager(writer, true, true, null);
-      reader = DirectoryReader.open(writer, true, true);
 
       committerThread = new CommitterThread();
     } catch(IOException ex){
@@ -191,7 +258,7 @@ public class LuceneSearchIndex implements AutoCloseable {
 
   private void checkIfChanged() {
     try{
-      if (!reader.isCurrent()) {
+      if (!searcherManager.isSearcherCurrent()) {
         searcherManager.maybeRefreshBlocking();
       }
     }catch(IOException ex){
@@ -351,15 +418,22 @@ public class LuceneSearchIndex implements AutoCloseable {
       writer.close();
     }
     searcherManager.close();
-    reader.close();
   }
 
   public int getLiveRecords() {
-    return reader.numDocs();
+    checkIfChanged();
+    try(Searcher searcher = acquireSearcher()) {
+      DirectoryReader reader = (DirectoryReader) searcher.searcher.getIndexReader();
+      return reader.numDocs();
+    }
   }
 
   public int getDeletedRecords() {
-    return reader.numDeletedDocs();
+    checkIfChanged();
+    try(Searcher searcher = acquireSearcher()) {
+      DirectoryReader reader = (DirectoryReader) searcher.searcher.getIndexReader();
+      return reader.numDeletedDocs();
+    }
   }
 
   public void deleteDocuments(Term key) {
@@ -376,11 +450,33 @@ public class LuceneSearchIndex implements AutoCloseable {
     try {
       writer.deleteAll();
       writer.commit();
+      // Forcing refresh of index so that open files are freed and deleted from disk
+      checkIfChanged();
     } catch(Exception ex){
       throw Throwables.propagate(ex);
     }
   }
 
+  public void forReindexing(Runnable r) {
+    final LiveIndexWriterConfig config = writer.getConfig();
+    final double maxRAMBufferSizeMB = config.getRAMBufferSizeMB();
+    final boolean useCompoundFile = config.getUseCompoundFile();
+
+    try {
+      reindexing = true;
+      // Adjust index writer settings to be better suited for reindexing
+      config.setRAMBufferSizeMB(REINDEX_RAM_BUFFER_SIZE_MB);
+      config.setUseCompoundFile(false);
+      r.run();
+      writer.commit();
+    } catch (Exception ex) {
+      throw Throwables.propagate(ex);
+    } finally {
+      config.setRAMBufferSizeMB(maxRAMBufferSizeMB);
+      config.setUseCompoundFile(useCompoundFile);
+      reindexing = false;
+    }
+  }
   /**
    * Class that describes the relevant information to map index items to the KVStore.
    */

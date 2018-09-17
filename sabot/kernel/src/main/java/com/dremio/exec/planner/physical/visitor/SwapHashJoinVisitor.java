@@ -20,8 +20,8 @@ import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.Prel;
@@ -62,11 +62,11 @@ public class SwapHashJoinVisitor extends BasePrelVisitor<Prel, Double, RuntimeEx
   @Override
   public Prel visitJoin(JoinPrel prel, Double value) throws RuntimeException {
     JoinPrel newJoin = (JoinPrel) visitPrel(prel, value);
-
+    RelMetadataQuery mq = prel.getCluster().getMetadataQuery();
     if (prel instanceof HashJoinPrel) {
       // Mark left/right is swapped, when INNER hash join's left row count < ( 1+ margin factor) right row count.
-      if ( (newJoin.getLeft().estimateRowCount(DefaultRelMetadataProvider.INSTANCE.getRelMetadataQuery())
-          < (1 + value.doubleValue() ) * newJoin.getRight().estimateRowCount(DefaultRelMetadataProvider.INSTANCE.getRelMetadataQuery()) )
+      if ( (mq.getRowCount(newJoin.getLeft())
+          < (1 + value.doubleValue() ) * mq.getRowCount(newJoin.getRight()) )
           && newJoin.getJoinType() == JoinRelType.INNER) {
         ( (HashJoinPrel) newJoin).setSwapped(true);
       }

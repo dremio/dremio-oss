@@ -25,7 +25,6 @@ import { isDateType, dateTypeToFormat, TIME, FLOAT, DECIMAL, DATE, DATETIME } fr
 import ChartTooltip, { ARROW_OFFSET } from './ChartTooltip';
 
 const BAR_CHART_HEIGHT = 108;
-const MARGIN_TOP = 180;
 const MAX_TICK_COUNT = 8;
 const tickFormat = {
   [TIME]: 'HH:mm',
@@ -38,7 +37,8 @@ export default class BarChart extends Component {
   static propTypes = {
     data: PropTypes.array,
     width: PropTypes.number,
-    type: PropTypes.string
+    type: PropTypes.string,
+    blockTooltips: PropTypes.bool
   };
 
   constructor(props) {
@@ -75,7 +75,8 @@ export default class BarChart extends Component {
     const index = $(el).index();
     const bar = $(`path.c3-shape-${index}`)[0];
     const barRect = bar.getBoundingClientRect();
-    const top = barRect.top - MARGIN_TOP;
+    const top = barRect.top - this.refs.chart.getBoundingClientRect().top;
+
     const rectWidth = Number(el.getAttribute('width'));
     const left = Number(el.getAttribute('x')) - ARROW_OFFSET + rectWidth / 2;
 
@@ -204,6 +205,16 @@ export default class BarChart extends Component {
     });
   }
 
+  showToolTip() {
+    const { blockTooltips } = this.props;
+    const { openTooltip } = this.state;
+    const { index } = this.state;
+    const { data } = this.props;
+
+    return !blockTooltips && openTooltip && index >= 0 &&
+      data[index].y > 0; // number of metched records more than 0
+  }
+
   renderTooltipContent() {
     const { index } = this.state;
     const { data } = this.props;
@@ -216,17 +227,17 @@ export default class BarChart extends Component {
           {`${la('Range')}:
             ${this.formatValue(range.lowerLimit, true)} - ${this.formatValue(range.upperLimit, true)}`}
         </span>
-        <br/>({item.y} {la('matches')})
+        <br/>({item.y} {la('records')})
       </p>
     );
   }
 
   render() {
-    const { openTooltip, position } = this.state;
+    const { position } = this.state;
     return (
       <div>
         <div ref='chart' />
-        {openTooltip ? <ChartTooltip position={position} content={this.renderTooltipContent()} /> : null}
+        {this.showToolTip() ? <ChartTooltip position={position} content={this.renderTooltipContent()} /> : null}
       </div>
     );
   }

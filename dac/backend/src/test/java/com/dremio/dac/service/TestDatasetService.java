@@ -25,7 +25,9 @@ import java.util.Set;
 import org.apache.calcite.util.Pair;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
@@ -50,12 +52,21 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import com.dremio.test.UserExceptionMatcher;
 import com.google.common.collect.Lists;
 
 /**
  * Tests the dataset service
  */
 public class TestDatasetService extends BaseTestServer {
+
+  /**
+   * Rule for tests that verify {@link com.dremio.common.exceptions.UserException} type and message. See
+   * {@link UserExceptionMatcher} and e.g. {@link com.dremio.exec.server.TestOptions#checkValidationException}.
+   * Tests that do not use this rule are not affected.
+   */
+  @Rule
+  public final ExpectedException thrownException = ExpectedException.none();
 
   @Before
   public void setup() throws Exception {
@@ -241,5 +252,27 @@ public class TestDatasetService extends BaseTestServer {
 
     createPhysicalDS(namespaceService, "src1.sky1", DatasetType.PHYSICAL_DATASET);
     Assert.assertEquals(10, service.searchDatasets("sky").size());
+  }
+
+  @Test
+  public void testVersionDatasetKey() {
+    DatasetVersionMutator.VersionDatasetKey versionDatasetKey = new DatasetVersionMutator.VersionDatasetKey("path1/0123456789123456");
+    Assert.assertEquals(new DatasetPath("path1"), versionDatasetKey.getPath());
+    Assert.assertEquals(new DatasetVersion("0123456789123456"), versionDatasetKey.getVersion());
+
+    versionDatasetKey = new DatasetVersionMutator.VersionDatasetKey("path1/path2/0123456789123456");
+    Assert.assertEquals(new DatasetPath("path1/path2"), versionDatasetKey.getPath());
+    Assert.assertEquals(new DatasetVersion("0123456789123456"), versionDatasetKey.getVersion());
+
+    versionDatasetKey = new DatasetVersionMutator.VersionDatasetKey("path1/path2/path3/0123456789123456");
+    Assert.assertEquals(new DatasetPath("path1/path2/path3"), versionDatasetKey.getPath());
+    Assert.assertEquals(new DatasetVersion("0123456789123456"), versionDatasetKey.getVersion());
+  }
+
+  @Test
+  public void testVersionDatasetKeyFail() {
+    thrownException.expect(IllegalArgumentException.class);
+    DatasetVersionMutator.VersionDatasetKey versionDatasetKey = new DatasetVersionMutator.VersionDatasetKey("path1");
+    Assert.assertNotEquals(new DatasetPath("path1"), versionDatasetKey.getPath());
   }
 }

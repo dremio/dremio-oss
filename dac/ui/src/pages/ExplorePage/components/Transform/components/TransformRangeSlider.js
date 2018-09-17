@@ -29,7 +29,6 @@ export default class TransformRangeSlider extends Component {
     activeSlider: PropTypes.string,
     clientX: PropTypes.number,
     setActiveSlider: PropTypes.func,
-    stopSlide: PropTypes.func,
     dataQa: PropTypes.string
   };
 
@@ -37,9 +36,9 @@ export default class TransformRangeSlider extends Component {
     return props.activeSlider === props.position;
   }
 
-  startSlide() {
+  startSlide = () => {
     this.props.setActiveSlider(this.props.position);
-  }
+  };
 
   render() {
     if (this.props.offset === null) {
@@ -56,7 +55,8 @@ export default class TransformRangeSlider extends Component {
     };
     const sliderStyle = {
       ...styles.slider,
-      [position === POSITION_RIGHT ? 'left' : 'right']: -5
+      // move slidebar center to a middle of edge
+      [position === POSITION_RIGHT ? 'left' : 'right']: -(styles.slider.width / 2)
     };
 
     const pointerStyle = {
@@ -64,13 +64,9 @@ export default class TransformRangeSlider extends Component {
       [position === POSITION_RIGHT ? 'left' : 'right']: -3.5
     };
 
-    return <div
-      style={style}
-      onMouseDown={this.startSlide.bind(this)}
-      onMouseUp={this.props.stopSlide}
-    >
+    return <div style={style}>
       <div style={pointerStyle}></div>
-      <div style={sliderStyle} data-qa={dataQa}></div>
+      <div style={sliderStyle} data-qa={dataQa} onMouseDown={this.startSlide}></div>
     </div>;
   }
 }
