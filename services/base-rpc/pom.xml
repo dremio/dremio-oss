@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>2.1.6-SNAPSHOT</version>
+    <version>2.1.6-201809161906440178-edb5b4d</version>
   </parent>
   <artifactId>dremio-services-base-rpc</artifactId>
   <name>Services - Base RPC</name>
