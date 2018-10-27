@@ -20,31 +20,30 @@ import static com.dremio.dac.util.ClusterVersionUtils.fromClusterVersion;
 import static com.dremio.dac.util.ClusterVersionUtils.toClusterVersion;
 
 import java.io.File;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-
-import javax.inject.Provider;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.dremio.common.Version;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.proto.model.source.ClusterIdentity;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.support.SupportService;
-import com.dremio.dac.support.SupportService.SupportStoreCreator;
-import com.dremio.datastore.KVStore;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
-import com.google.common.base.Function;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Ordering;
 
 /**
  * Upgrade command.<br>
@@ -52,74 +51,93 @@ import com.google.common.collect.Ordering;
  * If no version is found, the tool assumes it's 1.0.6 as there is no way to identify versions prior to that anyway
  */
 public class Upgrade {
-  public static final UpgradeStats NO_UPGRADE = new UpgradeStats();
-
-  /**
-   * The list of registered upgrade tasks
-   */
-  public static final List<UpgradeTask> TASKS = ImmutableList.of(
-      new DatasetConfigUpgrade(),
-      new ReIndexAllStores(),
-      new MigrateAccelerationMeasures(),
-      new SetDatasetExpiry(),
-      new SetAccelerationRefreshGrace(),
-      new MarkOldMaterializationsAsDeprecated(),
-      new MoveFromAccelerationsToReflections(),
-      new DeleteInternalSources(),
-      new MoveFromAccelerationSettingsToReflectionSettings(),
-      new ConvertJoinInfo(),
-      new CompressHiveTableAttrs(),
-      new DeleteHistoryOfRenamedDatasets(),
-      new DeleteHive121BasedInputSplits(),
-      new MinimizeJobResultsMetadata(),
-      new UpdateExternalReflectionHash()
-  );
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Upgrade.class);
 
   /**
    * A {@code Version} ordering ignoring qualifiers for the sake of upgrade
    */
-  public static final Ordering<Version> UPGRADE_VERSION_ORDERING = new Ordering<Version>() {
-    @Override
-    public int compare(Version left, Version right) {
-      return ComparisonChain.start()
-          .compare(left.getMajorVersion(), right.getMajorVersion())
-          .compare(left.getMinorVersion(), right.getMinorVersion())
-          .compare(left.getPatchVersion(), right.getPatchVersion())
-          .compare(left.getBuildNumber(), right.getBuildNumber())
-          .result();
-    };
-  };
+  public static final Comparator<Version> UPGRADE_VERSION_ORDERING = Comparator
+      .comparing(Version::getMajorVersion)
+      .thenComparing(Version::getMinorVersion)
+      .thenComparing(Version::getPatchVersion)
+      .thenComparing(Version::getBuildNumber);
+
+  private final DACConfig dacConfig;
+  private final ScanResult classpathScan;
+  private final boolean verbose;
+
+  private final List<? extends UpgradeTask> upgradeTasks;
+  private final Optional<Version> tasksSmallestMinVersion;
+  private final Optional<Version> tasksGreatestMaxVersion;
+
+  public Upgrade(DACConfig dacConfig, ScanResult classPathScan, boolean verbose) {
+    this.dacConfig = dacConfig;
+    this.classpathScan = classPathScan;
+    this.verbose = verbose;
+
+    // Get all the upgrade tasks present in the classpath, correctly ordered
+    this.upgradeTasks = classPathScan.getImplementations(UpgradeTask.class).stream()
+      .map(clazz -> {
+        // All upgrade tasks should be valid classes accessible from Upgrade with a no-arg constructor
+        try {
+          final Constructor<? extends UpgradeTask> constructor = clazz.getConstructor();
+          return constructor.newInstance();
+        } catch (NoSuchMethodException e) {
+          if (verbose) {
+            System.out.printf("Ignoring class without public no-arg constructor %s.%n", clazz.getSimpleName());
+          }
+        } catch (InstantiationException e) {
+          if (verbose && clazz != UpgradeTask.class) {
+            System.out.printf("Ignoring abstract class %s.%n", clazz.getSimpleName());
+          }
+        } catch (IllegalAccessException e) {
+          if (verbose) {
+            System.out.printf("Ignoring class without public constructor %s.%n", clazz.getSimpleName());
+          }
+        } catch (InvocationTargetException e) {
+          if (verbose) {
+            System.out.printf("Ignoring class %s (failed during instantiation with message %s).%n",
+                clazz.getSimpleName(), e.getTargetException().getMessage());
+          }
+        }
+        return null;
+      })
+      // Filter out null values
+      .filter(Objects::nonNull)
+      .sorted()
+      .collect(Collectors.toList());
+
+    this.tasksSmallestMinVersion = this.upgradeTasks.stream()
+        .map(UpgradeTask::getMinVersion)
+        .min(UPGRADE_VERSION_ORDERING);
+
+    this.tasksGreatestMaxVersion = upgradeTasks.stream()
+        .map(UpgradeTask::getMaxVersion)
+        .max(UPGRADE_VERSION_ORDERING);
+
+  }
+
+  protected DACConfig getDACConfig() {
+    return dacConfig;
+  }
+
+  @VisibleForTesting
+  List<? extends UpgradeTask> getUpgradeTasks() {
+    return upgradeTasks;
+  }
 
   /**
-   * The smallest version of all the tasks' mininum versions
+   * The smallest version of all the tasks' minimum versions
    */
-  public static final Version TASKS_SMALLEST_MIN_VERSION = UPGRADE_VERSION_ORDERING.min(Iterables.transform(TASKS, new Function<UpgradeTask, Version>() {
-    @Override
-    public Version apply(UpgradeTask input) {
-      return input.getMinVersion();
-    }
-  }));
+  public Optional<Version> getTasksSmallestMinVersion() {
+    return tasksSmallestMinVersion;
+  }
 
   /**
    * The greatest version of all the tasks' max versions
    */
-  public static final Version TASKS_GREATEST_MAX_VERSION = UPGRADE_VERSION_ORDERING.max(Iterables.transform(TASKS, new Function<UpgradeTask, Version>() {
-    @Override
-    public Version apply(UpgradeTask input) {
-      return input.getMaxVersion();
-    }
-  }));
-
-  private final DACConfig dacConfig;
-  private final boolean verbose;
-
-  public Upgrade(DACConfig dacConfig, boolean verbose) {
-    this.dacConfig = dacConfig;
-    this.verbose = verbose;
-  }
-
-  public DACConfig getDacConfig() {
-    return dacConfig;
+  public Optional<Version> getTasksGreatestMaxVersion() {
+    return tasksGreatestMaxVersion;
   }
 
   private static Version retrieveStoreVersion(ClusterIdentity identity) {
@@ -127,31 +145,24 @@ public class Upgrade {
     return storeVersion != null ? storeVersion : UpgradeTask.VERSION_106;
   }
 
-  private static void updateStoreVersion(KVStore<String, ClusterIdentity> supportStore, ClusterIdentity identity) {
-    identity.setVersion(toClusterVersion(VERSION));
-    try {
-      supportStore.put(SupportService.CLUSTER_ID, identity);
-    } catch (Throwable e) {
-      throw new RuntimeException("Failed to update store version", e);
-    }
-  }
-
   protected void ensureUpgradeSupported(Version storeVersion) {
     // make sure we are not trying to downgrade
     Preconditions.checkState(UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) <= 0,
       "Downgrading from version %s to %s is not supported", storeVersion, VERSION);
-    // make sure we have upgrade tasks for the current KVStore version
-    Preconditions.checkState(UPGRADE_VERSION_ORDERING.compare(storeVersion, TASKS_SMALLEST_MIN_VERSION) >= 0,
-      "Cannot run upgrade tool on versions below %s", TASKS_SMALLEST_MIN_VERSION.getVersion());
+    tasksSmallestMinVersion.ifPresent(minVersion -> {
+      // make sure we have upgrade tasks for the current KVStore version
+      Preconditions.checkState(UPGRADE_VERSION_ORDERING.compare(storeVersion, minVersion) >= 0,
+          "Cannot run upgrade tool on versions below %s", minVersion.getVersion());
+    });
   }
 
-  public UpgradeStats run() throws Exception {
+  public void run() throws Exception {
     final String dbDir = dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING);
     final File dbFile = new File(dbDir);
 
     if (!dbFile.exists()) {
       System.out.println("No database found. Skipping upgrade");
-      return NO_UPGRADE;
+      return;
     }
 
     String[] listFiles = dbFile.list();
@@ -159,30 +170,31 @@ public class Upgrade {
     // A null value means dbFile is not a directory. Let the upgrade task handle it.
     if (listFiles != null && listFiles.length == 0) {
       System.out.println("No database found. Skipping upgrade");
-      return NO_UPGRADE;
+      return;
     }
-
-    final SabotConfig sabotConfig = dacConfig.getConfig().getSabotConfig();
-    final ScanResult classpathScan = ClassPathScanner.fromPrescan(sabotConfig);
 
     try (final KVStoreProvider storeProvider = new LocalKVStoreProvider(classpathScan, dbDir, false, true)) {
       storeProvider.start();
 
-      return run(sabotConfig, classpathScan, storeProvider);
+      run(storeProvider);
     }
   }
 
-  public UpgradeStats run(final SabotConfig sabotConfig, final ScanResult classpathScan,
-      final KVStoreProvider storeProvider) throws Exception {
-    final KVStore<String, ClusterIdentity> supportStore = storeProvider.getStore(SupportStoreCreator.class);
-    final ClusterIdentity identity = Preconditions.checkNotNull(supportStore.get(SupportService.CLUSTER_ID), "No Cluster Identity found");
+  public void run(final KVStoreProvider storeProvider) throws Exception {
+    final Optional<ClusterIdentity> identity = SupportService.getClusterIdentity(storeProvider);
 
-    final Version kvStoreVersion = retrieveStoreVersion(identity);
+    if (!identity.isPresent()) {
+      throw UserException.validationError().message("No Cluster Identity found").build(logger);
+    }
+
+    ClusterIdentity clusterIdentity = identity.get();
+
+    final Version kvStoreVersion = retrieveStoreVersion(clusterIdentity);
     System.out.println("KVStore version is " + kvStoreVersion.getVersion());
     ensureUpgradeSupported(kvStoreVersion);
 
     List<UpgradeTask> tasksToRun = new ArrayList<>();
-    for(UpgradeTask task: TASKS) {
+    for(UpgradeTask task: upgradeTasks) {
       if (kvStoreVersion.compareTo(task.getMaxVersion()) >= 0) {
         if (verbose) {
           System.out.println("Skipping " + task);
@@ -192,39 +204,33 @@ public class Upgrade {
       tasksToRun.add(task);
     }
 
-    final UpgradeStats result;
-    if (tasksToRun.isEmpty()) {
-      result = NO_UPGRADE;
-    } else {
+    if (!tasksToRun.isEmpty()) {
+      final SabotConfig sabotConfig = dacConfig.getConfig().getSabotConfig();
       final LogicalPlanPersistence lpPersistence = new LogicalPlanPersistence(sabotConfig, classpathScan);
-      final ConnectionReader connectionReader = new ConnectionReader(classpathScan);
+      final ConnectionReader connectionReader = ConnectionReader.of(classpathScan, sabotConfig);
 
-      final UpgradeContext context = new UpgradeContext(new Provider<KVStoreProvider>() {
-        @Override
-        public KVStoreProvider get() {
-          return storeProvider;
-        }
-      }, lpPersistence, connectionReader);
+      final UpgradeContext context = new UpgradeContext(storeProvider, lpPersistence, connectionReader);
 
       for (UpgradeTask task : tasksToRun) {
         System.out.println(task);
         task.upgrade(context);
       }
-
-      result = context.getUpgradeStats();
     }
 
-    updateStoreVersion(supportStore, identity);
-
-    return result;
+    try {
+      clusterIdentity.setVersion(toClusterVersion(VERSION));
+      SupportService.updateClusterIdentity(storeProvider, clusterIdentity);
+    } catch (Throwable e) {
+      throw new RuntimeException("Failed to update store version", e);
+    }
   }
 
   public static void main(String[] args) {
     final DACConfig dacConfig = DACConfig.newConfig();
+    final ScanResult classPathScan = ClassPathScanner.fromPrescan(dacConfig.getConfig().getSabotConfig());
     try {
-      Upgrade upgrade = new Upgrade(dacConfig, true);
-      UpgradeStats upgradeStats = upgrade.run();
-      System.out.println(upgradeStats);
+      Upgrade upgrade = new Upgrade(dacConfig, classPathScan, true);
+      upgrade.run();
     } catch (Exception e) {
       e.printStackTrace();
       System.err.println("Upgrade failed " + e);

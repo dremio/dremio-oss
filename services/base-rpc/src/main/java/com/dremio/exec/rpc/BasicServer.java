@@ -17,6 +17,9 @@ package com.dremio.exec.rpc;
 
 import java.io.IOException;
 import java.net.BindException;
+import java.util.concurrent.TimeUnit;
+
+import javax.net.ssl.SSLException;
 
 import org.apache.arrow.memory.BufferAllocator;
 
@@ -42,19 +45,21 @@ import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.concurrent.GlobalEventExecutor;
 
 /**
- * A server is bound to a port and is responsible for responding to various type of requests. In some cases, the inbound
- * requests will generate more than one outbound request.
+ * A server is bound to a port and is responsible for responding to various type of requests. In some cases,
+ * the inbound requests will generate more than one outbound request.
+ *
+ * TODO: Above comment seems incorrect.. with each request, the client sends a coordination id which is single-use.
+ *
+ * @param <T> rpc type
+ * @param <C> connection type
  */
 public abstract class BasicServer<T extends EnumLite, C extends RemoteConnection> extends RpcBus<T, C> {
-  final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
 
   protected static final String TIMEOUT_HANDLER = "timeout-handler";
-  protected static final String PROTOCOL_ENCODER = "protocol-encoder";
+  protected static final String MESSAGE_DECODER = "message-decoder";
 
   private final ServerBootstrap b;
   private final ChannelGroup allChannels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
-
-  private volatile boolean connect = false;
 
   public BasicServer(
       final RpcConfig rpcMapping,
@@ -65,28 +70,18 @@ public abstract class BasicServer<T extends EnumLite, C extends RemoteConnection
     b = new ServerBootstrap()
         .channel(TransportCheck.getServerSocketChannel())
         .option(ChannelOption.SO_BACKLOG, 1000)
-        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 30*1000)
+        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, (int) TimeUnit.SECONDS.toMillis(30))
         .option(ChannelOption.TCP_NODELAY, true)
         .option(ChannelOption.SO_REUSEADDR, true)
         .option(ChannelOption.SO_RCVBUF, 1 << 17)
         .option(ChannelOption.SO_SNDBUF, 1 << 17)
-        .group(eventLoopGroup) //
+        .group(eventLoopGroup)
         .childOption(ChannelOption.ALLOCATOR, alloc)
-
-        // .handler(new LoggingHandler(LogLevel.INFO))
-
         .childHandler(new ChannelInitializer<SocketChannel>() {
           @Override
           protected void initChannel(SocketChannel ch) throws Exception {
-//            logger.debug("Starting initialization of server connection.");
-
             BasicServer.this.initChannel(ch);
-
-            connect = true;
-//            logger.debug("Server connection initialization completed.");
           }
-
-
 
           @Override
           public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -94,12 +89,12 @@ public abstract class BasicServer<T extends EnumLite, C extends RemoteConnection
             super.channelActive(ctx);
           }
 
-
+          @Override
+          public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+            logger.warn("Failed to initialize a channel. Closing: {}", ctx.channel(), cause);
+            ctx.close();
+          }
         });
-
-//     if(TransportCheck.SUPPORTS_EPOLL){
-//       b.option(EpollChannelOption.SO_REUSEPORT, true); //
-//     }
   }
 
   /**
@@ -111,35 +106,40 @@ public abstract class BasicServer<T extends EnumLite, C extends RemoteConnection
    * which handles coding/decoding messages, handshaking, timeout and error handling based
    * on {@code RpcConfig} instance provided at construction time.
    *
-   * Subclasses can override it to add extra handlers if needed.
+   * On each call to this method, every handler added must be a new instance. As of now, the
+   * handlers cannot be shared across connections.
    *
-   * Note that this method might be called while the instance is still under construction.
+   * Subclasses can override it to add extra handlers if needed.
    *
    * @param ch the socket channel
    */
-  protected void initChannel(final SocketChannel ch) {
+  protected void initChannel(final SocketChannel ch) throws SSLException {
     C connection = initRemoteConnection(ch);
-    connection.setChannelCloseHandler(getCloseHandler(ch, connection));
+    connection.setChannelCloseHandler(newCloseListener(ch, connection));
 
     final ChannelPipeline pipeline = ch.pipeline();
     pipeline.addLast(PROTOCOL_ENCODER, new RpcEncoder("s-" + rpcConfig.getName()));
-    pipeline.addLast("message-decoder", getDecoder(connection.getAllocator()));
-    pipeline.addLast("handshake-handler", getHandshakeHandler(connection));
+    pipeline.addLast(MESSAGE_DECODER, newDecoder(connection.getAllocator()));
+    pipeline.addLast(HANDSHAKE_HANDLER, newHandshakeHandler(connection));
 
     if (rpcConfig.hasTimeout()) {
       pipeline.addLast(TIMEOUT_HANDLER,
-          new LogggingReadTimeoutHandler(connection, rpcConfig.getTimeout()));
+          new LoggingReadTimeoutHandler(connection, rpcConfig.getTimeout()));
     }
 
-    pipeline.addLast("message-handler", new InboundHandler(connection));
-    pipeline.addLast("exception-handler", new RpcExceptionHandler<>(connection));
+    pipeline.addLast(MESSAGE_HANDLER, new InboundHandler(connection));
+    pipeline.addLast(EXCEPTION_HANDLER, new RpcExceptionHandler<>(connection));
   }
 
-  private class LogggingReadTimeoutHandler extends ReadTimeoutHandler {
+  /**
+   * Closes a connection if no data was read on the channel for the given timeout.
+   */
+  private class LoggingReadTimeoutHandler extends ReadTimeoutHandler {
 
     private final C connection;
     private final int timeoutSeconds;
-    public LogggingReadTimeoutHandler(C connection, int timeoutSeconds) {
+
+    private LoggingReadTimeoutHandler(C connection, int timeoutSeconds) {
       super(timeoutSeconds);
       this.connection = connection;
       this.timeoutSeconds = timeoutSeconds;
@@ -147,60 +147,53 @@ public abstract class BasicServer<T extends EnumLite, C extends RemoteConnection
 
     @Override
     protected void readTimedOut(ChannelHandlerContext ctx) throws Exception {
-      logger.info("RPC connection {} timed out.  Timeout was set to {} seconds. Closing connection.", connection.getName(),
-          timeoutSeconds);
+      logger.info("RPC connection {} timed out.  Timeout was set to {} seconds. Closing connection.",
+          connection.getName(), timeoutSeconds);
       super.readTimedOut(ctx);
     }
-
   }
 
-  protected void removeTimeoutHandler() {
+  /**
+   * Return new message decoder to be added to channel pipeline.
+   *
+   * @param allocator allocator
+   * @return message decoder
+   */
+  protected abstract MessageDecoder newDecoder(BufferAllocator allocator);
 
-  }
+  /**
+   * Return new handshake handler to be added to channel pipeline.
+   *
+   * @param connection connection
+   * @return handshake handler
+   */
+  protected abstract ServerHandshakeHandler<?> newHandshakeHandler(C connection);
 
-  public abstract MessageDecoder getDecoder(BufferAllocator allocator);
-
-  protected abstract ServerHandshakeHandler<?> getHandshakeHandler(C connection);
-
-  protected static abstract class ServerHandshakeHandler<T extends MessageLite> extends AbstractHandshakeHandler<T> {
-
-    public ServerHandshakeHandler(EnumLite handshakeType, Parser<T> parser) {
-      super(handshakeType, parser);
-    }
-
-    @Override
-    protected void consumeHandshake(ChannelHandlerContext ctx, T inbound) throws Exception {
-      OutboundRpcMessage msg = new OutboundRpcMessage(RpcMode.RESPONSE, this.handshakeType, coordinationId,
-          getHandshakeResponse(inbound));
-      ctx.writeAndFlush(msg).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
-    }
-
-    public abstract MessageLite getHandshakeResponse(T inbound) throws Exception;
-
-  }
-
+  /**
+   * {@inheritDoc}
+   */
   @Override
-  protected MessageLite getResponseDefaultInstance(int rpcType) throws RpcException {
-    return null;
-  }
+  protected abstract Response handle(C connection, int rpcType, byte[] pBody, ByteBuf dBody) throws RpcException;
 
-  @Override
-  protected Response handle(C connection, int rpcType, byte[] pBody, ByteBuf dBody) throws RpcException {
-    return null;
-  }
-
-  @Override
-  public <SEND extends MessageLite, RECEIVE extends MessageLite> RpcFuture<RECEIVE> send(C connection, T rpcType,
-      SEND protobufBody, Class<RECEIVE> clazz, ByteBuf... dataBodies) {
+  /**
+   * See {@link RpcBus#send}.
+   */
+  @Override // overridden to expand visibility
+  public <SEND extends MessageLite, RECEIVE extends MessageLite>
+  RpcFuture<RECEIVE> send(C connection, T rpcType, SEND protobufBody, Class<RECEIVE> clazz, ByteBuf... dataBodies) {
     return super.send(connection, rpcType, protobufBody, clazz, dataBodies);
   }
 
-  @Override
-  public <SEND extends MessageLite, RECEIVE extends MessageLite> void send(RpcOutcomeListener<RECEIVE> listener,
-      C connection, T rpcType, SEND protobufBody, Class<RECEIVE> clazz, ByteBuf... dataBodies) {
-    super.send(listener, connection, rpcType, protobufBody, clazz, dataBodies);
-  }
-
+  /**
+   * Bind the server to a port on which the server reads and writes messages to.
+   * <p>
+   * If port hunting is disabled, the initial port is the port the server binds to, without retry in case of failures.
+   * If port hunting is enabled, this method tries to bind to a port starting from the initial port, until successful.
+   *
+   * @param initialPort      initial port
+   * @param allowPortHunting if port hunting is enabled
+   * @return the port that the server bound to
+   */
   public int bind(final int initialPort, boolean allowPortHunting) {
     int port = initialPort - 1;
     while (true) {
@@ -214,14 +207,13 @@ public abstract class BasicServer<T extends EnumLite, C extends RemoteConnection
         if (e instanceof BindException && allowPortHunting) {
           continue;
         }
-        throw UserException.resourceError( e )
-              .addContext( "Server", rpcConfig.getName())
-              .message( "Could not bind to port %s.", port )
-              .build(logger);
+        throw UserException.resourceError(e)
+            .addContext("Server", rpcConfig.getName())
+            .message("Could not bind to port %s.", port)
+            .build(logger);
       }
     }
 
-    connect = !connect;
     logger.info("[{}]: Server started on port {}.", rpcConfig.getName(), port);
     return port;
   }
@@ -236,6 +228,34 @@ public abstract class BasicServer<T extends EnumLite, C extends RemoteConnection
       Thread.currentThread().interrupt();
     }
     logger.info("[{}]: Server shutdown.", rpcConfig.getName());
+  }
+
+  /**
+   * Server handshake handler.
+   *
+   * @param <T> handshake type
+   */
+  protected static abstract class ServerHandshakeHandler<T extends MessageLite> extends AbstractHandshakeHandler<T> {
+
+    protected ServerHandshakeHandler(EnumLite handshakeType, Parser<T> parser) {
+      super(handshakeType, parser);
+    }
+
+    @Override
+    protected void consumeHandshake(ChannelHandlerContext ctx, T inbound) throws Exception {
+      OutboundRpcMessage msg = new OutboundRpcMessage(RpcMode.RESPONSE, this.handshakeType, coordinationId,
+          getHandshakeResponse(inbound));
+      ctx.writeAndFlush(msg).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
+    }
+
+    /**
+     * Returns the response for the given handshake request.
+     *
+     * @param inbound handshake request
+     * @return handshake response
+     * @throws Exception if handshake is unsuccessful for some reason
+     */
+    public abstract MessageLite getHandshakeResponse(T inbound) throws Exception;
   }
 
 }

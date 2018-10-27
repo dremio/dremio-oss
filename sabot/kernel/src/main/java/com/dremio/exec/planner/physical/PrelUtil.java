@@ -320,10 +320,10 @@ public class PrelUtil {
     }
 
     private PathSegment convertLiteral(RexLiteral literal) {
-      switch (literal.getType().getSqlTypeName()) {
-      case CHAR:
+      switch (literal.getType().getSqlTypeName().getFamily()) {
+      case CHARACTER:
         return new NameSegment(RexLiteral.stringValue(literal));
-      case INTEGER:
+      case NUMERIC:
         return new ArraySegment(RexLiteral.intValue(literal));
       default:
         return null;

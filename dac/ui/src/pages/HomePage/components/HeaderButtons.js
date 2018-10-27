@@ -17,12 +17,15 @@ import { Component } from 'react';
 import { Link } from 'react-router';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
-import classNames from 'classnames';
 import Immutable from 'immutable';
 import { injectIntl } from 'react-intl';
 
 import config from 'utils/config';
 import Art from 'components/Art';
+import { headerRightPadding } from '@app/uiTheme/radium/allSpacesAndAllSources';
+import { ENTITY_TYPES } from 'constants/Constants';
+import { WikiButton } from '@app/pages/HomePage/components/WikiButton';
+
 import HeaderButtonsMixin from 'dyn-load/pages/HomePage/components/HeaderButtonsMixin';
 
 @injectIntl
@@ -36,15 +39,30 @@ export class HeaderButtons extends Component {
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map),
     toggleVisibility: PropTypes.func.isRequired,
-    rootEntityType: PropTypes.string,
+    rootEntityType: PropTypes.oneOf(Object.values(ENTITY_TYPES)),
     user: PropTypes.string,
     rightTreeVisible: PropTypes.bool,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    onWiki: PropTypes.func,
+    isWikiShown: PropTypes.bool
   };
 
   static defaultProps = {
     entity: Immutable.Map()
   };
+
+  getButtonsForEntityType(entityType) {
+    switch (entityType) {
+    case ENTITY_TYPES.space:
+      return this.getSpaceSettingsButtons();
+    case ENTITY_TYPES.source:
+      return this.getSourceSettingsButtons().concat(this.getSourceButtons());
+    case ENTITY_TYPES.home:
+      return this.getHomeButtons();
+    default:
+      return [];
+    }
+  }
 
   getSourceButtons() {
     const { entity } = this.props;
@@ -72,33 +90,48 @@ export class HeaderButtons extends Component {
         isAdd: false
       });
     }
-
     return buttons;
   }
 
-  getFormatMessageIdByIconType(iconType) {
-    switch (iconType) {
-    case 'File':
-      return 'File.File';
-    case 'VirtualDataset':
-      return 'Dataset.VirtualDataset';
-    case 'Folder':
-      return 'Folder.Folder';
-    case 'FolderConvert':
-      return 'Folder.FolderConvert';
-    case 'Query':
-      return 'Job.Query';
-    case 'Settings':
-      return 'Common.Settings';
-    default:
-      return '';
+  getHomeButtons() {
+    const { location } = this.context;
+    const buttons = [];
+    buttons.push(
+      {
+        qa: 'add-folder',
+        iconType: 'Folder',
+        to: {...location, state: {modal: 'AddFolderModal'}},
+        isAdd: true
+      }
+    );
+    if (config.allowFileUploads) {
+      buttons.push(
+        {
+          qa: 'add-file',
+          iconType: 'File',
+          to: {...location, state: {modal: 'AddFileModal'}},
+          isAdd: true
+        }
+      );
     }
+    return buttons;
+  }
+
+  getIconAltText(iconType) {
+    const messages = {
+      File: 'File.File',
+      VirtualDataset: 'Dataset.VirtualDataset',
+      Folder: 'Folder.Folder',
+      FolderConvert: 'Folder.FolderConvert',
+      Query: 'Job.Query',
+      Settings: 'Common.Settings'
+    };
+    const iconMessageId = messages[iconType];
+    return (iconMessageId) ? this.props.intl.formatMessage({id: iconMessageId}) : '';
   }
 
   renderButton = (item, index) => {
-    const iconAlt = this.getFormatMessageIdByIconType(item.iconType)
-      ? this.props.intl.formatMessage({ id: this.getFormatMessageIdByIconType(item.iconType) })
-      : '';
+    const iconAlt = this.getIconAltText(item.iconType);
 
     return <Link
       className='button-white'
@@ -112,60 +145,30 @@ export class HeaderButtons extends Component {
         style={styles.addIcon}/>}
       <Art src={`${item.iconType}.svg`} alt={iconAlt} style={styles.typeIcon} />
     </Link>;
-  }
+  };
 
   render() {
-    const { location } = this.context;
-    const { rootEntityType, intl } = this.props;
+    const {
+      rootEntityType,
+      isWikiShown,
+      onWiki
+    } = this.props;
+    const buttonsForCurrentPage = this.getButtonsForEntityType(rootEntityType);
 
-    const headerButtonsHash = {
-      space: [
-        ...this.getSpaceSettingsButtons()
-      ],
-      source: [
-        ...this.getSourceSettingsButtons(),
-        ...this.getSourceButtons()
-      ],
-      home: [
-        {
-          qa: 'add-folder',
-          iconType: 'Folder',
-          to: {...location, state: {modal: 'AddFolderModal'}},
-          isAdd: true
-        }
-      ]
-    };
 
-    if (config.allowFileUploads) {
-      headerButtonsHash.home.push(
-        {
-          qa: 'add-file',
-          iconType: 'File',
-          to: {...location, state: {modal: 'AddFileModal'}},
-          isAdd: true
-        }
-      );
-    }
-
-    const buttonsForCurrentPage = headerButtonsHash[rootEntityType] || [];
-    const { rightTreeVisible } = this.props;
-    const buttonsClass = classNames('settings-button', {'active': rightTreeVisible});
-    const activityButton = (
-      <button
-        className={buttonsClass}
-        onClick={this.props.toggleVisibility}
-        style={[{display: rightTreeVisible ? 'none' : 'block'}, styles.activityBth]}>
-        <Art src='Expand.svg' alt={intl.formatMessage({ id: 'Common.Expand' })}/>
-      </button>
-    );
     return (
       <span className='main-settings-holder' style={styles.mainSettingsHolder}>
         {buttonsForCurrentPage.map(this.renderButton)}
-        {false && activityButton /* disabled until this is useful */}
+        <WikiButton key='wikiButton'
+          isSelected={isWikiShown}
+          onClick={onWiki}
+        />
       </span>
     );
   }
 }
+
+//TODO: refactor styles
 
 const styles = {
   addIcon: {
@@ -176,7 +179,29 @@ const styles = {
     height: 24
   },
   mainSettingsHolder: {
-    display: 'flex'
+    display: 'flex',
+    /* Currently we have following structure
+      // header has 5px padding on the right. See headerRightPadding in allSpacesAndAllSources.js
+      <header> // row layout
+        ...
+        <WikiButton /> // has 10px right padding, which is consistent with WikiContent (see below)
+      </header>
+      <content>
+        <LeftColumn />
+        // does not have right paddings
+        <RightColumn>
+          <WikiContent />
+        </RightColumn>
+      </content>
+      So visually we have
+      [WikiButton]|10px|5px
+      [WikiContent]|10px|0
+      which looks weird in terms of alignment
+      So I have to apply -5px margin here for alignment purposes
+      NOTE: this approach will work only if HeaderButtons are only used in BrowseTable.
+      At moment when I wrote this code, that was the case.
+    */
+    marginRight: -headerRightPadding
   },
   button: {
     background: '#dbe8ed',
@@ -193,9 +218,19 @@ const styles = {
     width: 54,
     paddingTop: 1
   },
-  activityBth: {
-    ':hover': {
-      opacity: '.7'
-    }
+  innerTextStyle: {
+    top: '-7px',
+    textAlign: 'left'
+  },
+  iconBox: {
+    width: 24,
+    height: 24
+  },
+  iconContainer: {
+    marginRight: 1,
+    lineHeight: '24px',
+    width: 24,
+    position: 'relative'
   }
 };
+

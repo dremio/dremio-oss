@@ -38,7 +38,7 @@ import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.rex.RexRangeRef;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.common.logical.data.NamedExpression;
@@ -170,10 +170,10 @@ public abstract class ProjectRelBase extends Project {
         final RexNode op1 = call.getOperands().get(1);
 
         if (op0 instanceof RexInputRef &&
-            op1 instanceof RexLiteral && ((RexLiteral) op1).getTypeName() == SqlTypeName.CHAR) {
+            op1 instanceof RexLiteral && ((RexLiteral) op1).getTypeName().getFamily() == SqlTypeFamily.CHARACTER) {
           return true;
         } else if (op0 instanceof RexCall &&
-            op1 instanceof RexLiteral && ((RexLiteral) op1).getTypeName() == SqlTypeName.CHAR) {
+            op1 instanceof RexLiteral && ((RexLiteral) op1).getTypeName().getFamily() == SqlTypeFamily.CHARACTER) {
           return op0.accept(this);
         }
       }

@@ -43,6 +43,7 @@ import com.dremio.dac.model.folder.FolderName;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.spaces.SpaceName;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
@@ -65,15 +66,18 @@ public class FolderResource {
 
   private final DatasetVersionMutator datasetService;
   private final NamespaceService namespaceService;
+  private final CollaborationHelper collaborationHelper;
   private final SpaceName spaceName;
 
   @Inject
   public FolderResource(
       DatasetVersionMutator datasetService,
       NamespaceService namespaceService,
+      CollaborationHelper collaborationHelper,
       @PathParam("space") SpaceName spaceName) {
     this.datasetService = datasetService;
     this.namespaceService = namespaceService;
+    this.collaborationHelper = collaborationHelper;
     this.spaceName = spaceName;
   }
 
@@ -133,7 +137,7 @@ public class FolderResource {
   }
 
   protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children) throws DatasetNotFoundException, NamespaceException {
-    return NamespaceTree.newInstance(datasetService, children, SPACE);
+    return NamespaceTree.newInstance(datasetService, children, SPACE, collaborationHelper);
   }
 
   @POST

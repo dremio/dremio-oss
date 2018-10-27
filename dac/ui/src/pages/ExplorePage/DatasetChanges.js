@@ -19,7 +19,7 @@ import Immutable from 'immutable';
 import { connect }   from 'react-redux';
 import { withRouter } from 'react-router';
 
-import { getDataset, getHistory } from '@app/selectors/explore';
+import { getDataset, getHistoryFromLocation } from '@app/selectors/explore';
 
 
 const mapStateToProp = (state, ownProps) => {
@@ -38,7 +38,7 @@ const mapStateToProp = (state, ownProps) => {
 
   return {
     datasetSql,
-    history: getHistory(state, query.tipVersion || query.version),
+    history: getHistoryFromLocation(state, location),
     currentSql: state.explore.view.get('currentSql')
   };
 };

@@ -32,6 +32,19 @@ import DatasetMenuMixin from 'dyn-load/components/Menus/HomePage/DatasetMenuMixi
 // but do not share a protocol/interface. This code *should* be able to
 // exist without any special casing.
 
+export const getSettingsLocation = (location, entity, entityType) => ({
+  ...location,
+  state: {
+    modal: 'DatasetSettingsModal',
+
+    // todo: normalize
+    entityId: entity.get('versionedResourcePath') // VDS
+      || entity.get('id'), // file, folder, PDS (see resourceDecorators)
+
+    entityType
+  }
+});
+
 @DatasetMenuMixin
 export class DatasetMenu extends Component {
   static contextTypes = {
@@ -50,13 +63,12 @@ export class DatasetMenu extends Component {
     showConfirmationDialog: PropTypes.func
   };
 
-  // Only tested for VDS
-  getGraphUrl() {
+  getMenuItemUrl(itemCode) {
     const { entity } = this.props;
     // todo: seems very brittle, and it should be a computed prop of the entity
-    const editUrl = entity.getIn(['links', 'edit']);
-    const parseUrl = urlParse(editUrl);
-    return `${parseUrl.pathname}/graph${parseUrl.query}`;
+    const url = entity.getIn(['links', 'query']);
+    const parseUrl = urlParse(url);
+    return `${parseUrl.pathname}/${itemCode}${parseUrl.query}`;
   }
 
   // only tested with VDS
@@ -87,18 +99,7 @@ export class DatasetMenu extends Component {
   getSettingsLocation() {
     const { entity, entityType } = this.props;
 
-    return {
-      ...this.context.location,
-      state: {
-        modal: 'DatasetSettingsModal',
-
-        // todo: normalize
-        entityId: entity.get('versionedResourcePath') // VDS
-          || entity.get('id'), // file, folder, PDS (see resourceDecorators)
-
-        entityType
-      }
-    };
+    return getSettingsLocation(this.context.location, entity, entityType);
   }
 
   // only tested with File, Folder

@@ -84,9 +84,10 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
   public PluginsManager(
       SabotContext context,
       KVStore<NamespaceKey, SourceInternalData> sourceDataStore,
-      SchedulerService scheduler
+      SchedulerService scheduler,
+      ConnectionReader reader
       ) {
-    this.reader = new ConnectionReader(context.getClasspathScan());
+    this.reader = reader;
     this.sourceDataStore = sourceDataStore;
     this.context = context;
     this.scheduler = scheduler;

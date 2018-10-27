@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (C) 2017-2018 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <g id="Icon/ExpandWiki" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="icon-box-24-copy-8">
+            <g>
+                <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
+                <g id="Group-7" transform="translate(12.000000, 12.500000) scale(-1, 1) translate(-12.000000, -12.500000) translate(4.000000, 5.000000)" stroke="#77818F" stroke-linecap="round" stroke-linejoin="round">
+                    <g id="Group-6" transform="translate(9.000000, 8.000000)">
+                        <polyline id="Line-3" points="1 6.5 6.5 6.5 6.5 1"></polyline>
+                        <path d="M6.5,6.5 L0.5,0.5" id="Line-4"></path>
+                    </g>
+                    <g id="Group-6-Copy" transform="translate(3.500000, 3.500000) scale(-1, -1) translate(-3.500000, -3.500000) ">
+                        <polyline id="Line-3" points="1 6.5 6.5 6.5 6.5 1"></polyline>
+                        <path d="M6.5,6.5 L0.5,0.5" id="Line-4"></path>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

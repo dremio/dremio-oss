@@ -72,7 +72,7 @@ public class TestUtilities {
       conf.path = "/";
       c.setConnectionConf(conf);
       c.setName("dfs");
-      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
       catalogImpl.getSystemUserCatalog().createSource(c);
     }
 
@@ -87,7 +87,7 @@ public class TestUtilities {
       conf.mutability = SchemaMutability.ALL;
       c.setConnectionConf(conf);
       c.setName("dfs_test");
-      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
       catalogImpl.getSystemUserCatalog().createSource(c);
     }
 
@@ -99,7 +99,7 @@ public class TestUtilities {
       conf.path = "/";
       c.setConnectionConf(conf);
       c.setName("dfs_root");
-      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
       catalogImpl.getSystemUserCatalog().createSource(c);
     }
 
@@ -111,7 +111,7 @@ public class TestUtilities {
       conf.path = "/";
       c.setConnectionConf(conf);
       c.setName("dacfs");
-      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
       catalogImpl.getSystemUserCatalog().createSource(c);
     }
 
@@ -131,7 +131,7 @@ public class TestUtilities {
     conf.isInternal = false;
     c.setName("cp");
     c.setConnectionConf(conf);
-    c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+    c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE);
     return c;
   }
 
@@ -166,6 +166,8 @@ public class TestUtilities {
       list.add(NamespaceServiceImpl.DAC_NAMESPACE);
       list.add(NamespaceServiceImpl.DATASET_SPLITS);
       list.add(CatalogServiceImpl.CATALOG_SOURCE_DATA_NAMESPACE);
+      list.add("wlmqueue");
+      list.add("rulesmanager");
       if(savedStores != null) {
         list.addAll(savedStores);
       }

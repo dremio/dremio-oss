@@ -64,14 +64,38 @@ public class ValueExpressions {
     return new DateExpression(localDate.atTime(LocalTime.MIDNIGHT).toInstant(ZoneOffset.UTC).toEpochMilli());
   }
 
+  /**
+   * Parse date given in format 'YYYY-MM-DD' to millis in UTC timezone
+   */
+  public static long getDate(String date) {
+    LocalDate localDate = LocalDate.parse(date, DateTimes.CALCITE_LOCAL_DATE_FORMATTER);
+    return localDate.atTime(LocalTime.MIDNIGHT).toInstant(ZoneOffset.UTC).toEpochMilli();
+  }
+
   public static LogicalExpression getTime(TimeString time) {
     LocalTime localTime = LocalTime.parse(time.toString(), DateTimes.CALCITE_LOCAL_TIME_FORMATTER);
     return new TimeExpression(Math.toIntExact(NANOSECONDS.toMillis(localTime.toNanoOfDay())));
   }
 
+  /**
+   * Parse time given in format 'hh:mm:ss' to millis in UTC timezone
+   */
+  public static int getTime(String time) {
+    LocalTime localTime = LocalTime.parse(time, DateTimes.CALCITE_LOCAL_TIME_FORMATTER);
+    return Math.toIntExact(NANOSECONDS.toMillis(localTime.toNanoOfDay()));
+  }
+
   public static LogicalExpression getTimeStamp(TimestampString timestamp) {
     LocalDateTime localDateTime = LocalDateTime.parse(timestamp.toString(), DateTimes.CALCITE_LOCAL_DATETIME_FORMATTER);
     return new TimeStampExpression(localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli());
+  }
+
+  /**
+   * Parse date given in format 'YYYY-MM-DD hh:mm:ss' to millis in UTC timezone
+   */
+  public static long getTimeStamp(String timestamp) {
+    LocalDateTime localDateTime = LocalDateTime.parse(timestamp, DateTimes.CALCITE_LOCAL_DATETIME_FORMATTER);
+    return localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli();
   }
 
   public static LogicalExpression getIntervalYear(int months) {

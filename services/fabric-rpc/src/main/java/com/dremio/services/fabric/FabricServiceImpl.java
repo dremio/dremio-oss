@@ -17,6 +17,7 @@ package com.dremio.services.fabric;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -25,7 +26,9 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.exec.rpc.EventLoopCloseable;
 import com.dremio.exec.rpc.RpcCommand;
 import com.dremio.exec.rpc.RpcConfig;
+import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.TransportCheck;
+import com.dremio.exec.rpc.ssl.SSLEngineFactory;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
@@ -42,36 +45,45 @@ public class FabricServiceImpl implements FabricService {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FabricServiceImpl.class);
 
   private final FabricMessageHandler handler = new FabricMessageHandler();
+
   private final String address;
   private final int initialPort;
   private final boolean allowPortHunting;
-  private final BufferAllocator allocator;
-  private final RpcConfig config;
-  private final EventLoopGroup eventLoop;
-  private final ConnectionManagerRegistry registry;
+  private final int threadCount;
+  private final BufferAllocator bootstrapAllocator;
+  private final long reservationInBytes;
+  private final long maxAllocationInBytes;
+
+  private final RpcConfig rpcConfig;
+
+  private BufferAllocator allocator;
+  private EventLoopGroup eventLoop;
+  private EventLoopCloseable eventLoopCloseable;
+  private ConnectionManagerRegistry registry;
+  private FabricServer server;
 
   private volatile int port = -1;
-  private volatile FabricServer server;
 
   public FabricServiceImpl(
       String address,
       int initialPort,
       boolean allowPortHunting,
-      int timeoutInSeconds,
       int threadCount,
-      Executor rpcHandleDispatcher,
-      BufferAllocator allocator,
+      BufferAllocator bootstrapAllocator,
       long reservationInBytes,
-      long maxAllocationInBytes) {
+      long maxAllocationInBytes,
+      int timeoutInSeconds,
+      Executor rpcHandleDispatcher
+  ) {
     this.address = address;
     this.initialPort = allowPortHunting ? initialPort + 333 : initialPort;
     this.allowPortHunting = allowPortHunting;
-    this.allocator = allocator.newChildAllocator("fabric-allocator", reservationInBytes, maxAllocationInBytes);
-    this.config = FabricRpcConfig.getMapping(timeoutInSeconds, rpcHandleDispatcher);
-    this.eventLoop = TransportCheck.createEventLoopGroup(threadCount, "FABRIC-");
-    this.registry = new ConnectionManagerRegistry(config, eventLoop, this.allocator, handler);
+    this.threadCount = threadCount;
+    this.bootstrapAllocator = bootstrapAllocator;
+    this.reservationInBytes = reservationInBytes;
+    this.maxAllocationInBytes = maxAllocationInBytes;
 
-    logger.info("fabric service has {} bytes reserved", reservationInBytes);
+    rpcConfig = FabricRpcConfig.getMapping(timeoutInSeconds, rpcHandleDispatcher, Optional.empty());
   }
 
   @Override
@@ -88,8 +100,18 @@ public class FabricServiceImpl implements FabricService {
 
   @Override
   public void start() throws Exception {
-    server = new FabricServer(address, handler, config, allocator, registry, eventLoop);
+    allocator = bootstrapAllocator.newChildAllocator("fabric-allocator", reservationInBytes, maxAllocationInBytes);
+    logger.info("fabric service has {} bytes reserved", reservationInBytes);
+
+    eventLoop = TransportCheck.createEventLoopGroup(threadCount, "FABRIC-");
+    eventLoopCloseable = new EventLoopCloseable(eventLoop);
+
+    registry = new ConnectionManagerRegistry(getRpcConfig(), eventLoop, allocator, handler, getSSLEngineFactory());
+
+    server = newFabricServer();
+
     port = server.bind(initialPort, allowPortHunting);
+
     registry.setIdentity(FabricIdentity.newBuilder()
         .setAddress(address)
         .setPort(port)
@@ -108,7 +130,35 @@ public class FabricServiceImpl implements FabricService {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(registry, new EventLoopCloseable(eventLoop), allocator);
+    AutoCloseables.close(server, registry, eventLoopCloseable, allocator);
+  }
+
+  protected Optional<SSLEngineFactory> getSSLEngineFactory() throws RpcException {
+    return Optional.empty();
+  }
+
+  protected FabricServer newFabricServer() throws Exception {
+    return new FabricServer(getAddress(), getHandler(), getRpcConfig(), getAllocator(), getRegistry(), getEventLoop());
+  }
+
+  protected FabricMessageHandler getHandler() {
+    return handler;
+  }
+
+  protected BufferAllocator getAllocator() {
+    return allocator;
+  }
+
+  protected RpcConfig getRpcConfig() {
+    return rpcConfig;
+  }
+
+  protected EventLoopGroup getEventLoop() {
+    return eventLoop;
+  }
+
+  protected ConnectionManagerRegistry getRegistry() {
+    return registry;
   }
 
   private static class CommandRunner implements FabricCommandRunner {

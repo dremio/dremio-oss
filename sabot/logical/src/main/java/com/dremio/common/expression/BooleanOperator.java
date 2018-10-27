@@ -50,4 +50,11 @@ public class BooleanOperator extends FunctionCall {
     return (int) (cost / i) ;
   }
 
+  public boolean isAnd() {
+    return getName().equals("booleanAnd");
+  }
+
+  public boolean isOr() {
+    return getName().equals("booleanOr");
+  }
 }

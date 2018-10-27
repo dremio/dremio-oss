@@ -26,6 +26,7 @@ import { performLoadDataset } from 'actions/explore/dataset/get';
 import { setCurrentSql } from 'actions/explore/view';
 import { resetViewState } from 'actions/resources';
 import { withDatasetChanges } from '@app/pages/ExplorePage/DatasetChanges';
+import { withHookProvider, withRouteLeaveSubscription } from '@app/containers/RouteLeave.js';
 
 import {
   updateSqlPartSize
@@ -41,18 +42,18 @@ import { hasDatasetChanged } from 'utils/datasetUtils';
 import { constructFullPathAndEncode, splitFullPath } from 'utils/pathUtils';
 
 import { EXPLORE_VIEW_ID } from 'reducers/explore/view'; // NOTE: typically want exploreViewState.get('viewId')
+import { PageTypes, pageTypeValuesSet } from '@app/pages/ExplorePage/pageTypes';
 
 import QlikStateModal from './components/modals/QlikStateModal';
 
 import ExplorePage from './ExplorePage';
 
 const HEIGHT_OF_AREA_MARGIN = 160;
-
-export const PAGE_TYPES = new Set(['default', 'details', 'graph']);
+const defaultPageType = PageTypes.default;
 
 export class ExplorePageControllerComponent extends Component {
   static propTypes = {
-    pageType: PropTypes.string,
+    pageType: PropTypes.string, // string, because we validate page type in receiveProps and render methods
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
     location: PropTypes.object.isRequired,
     sqlState: PropTypes.bool.isRequired,
@@ -73,12 +74,13 @@ export class ExplorePageControllerComponent extends Component {
     style: PropTypes.object,
     showConfirmationDialog: PropTypes.func,
     router: PropTypes.object,
+    addHasChangesHook: PropTypes.func, // (hasChangesCallback[: (nextLocation) => bool]) => void
     // provided by withDatasetChanges
     getDatasetChangeDetails: PropTypes.func.isRequired
   };
 
   static defaultProps = {
-    pageType: 'default'
+    pageType: defaultPageType
   };
 
   discardUnsavedChangesConfirmed = false;
@@ -98,19 +100,26 @@ export class ExplorePageControllerComponent extends Component {
 
   componentDidMount() {
     this.receiveProps(this.props);
+    if (this.props.addHasChangesHook) {
+      this.props.addHasChangesHook(this.shouldShowUnsavedChangesPopup);
+    }
   }
 
   componentWillReceiveProps(nextProps) {
     this.receiveProps(nextProps, this.props);
   }
 
+  isPageTypeValid(pageType) {
+    return pageTypeValuesSet.has(pageType);
+  }
+
   receiveProps(nextProps, prevProps = {}) {
-    if (!PAGE_TYPES.has(nextProps.pageType)) {
+    if (!this.isPageTypeValid(nextProps.pageType)) {
       nextProps.router.push('/');
     }
 
     if (nextProps.route.path !== (prevProps.route && prevProps.route.path)) {
-      this.props.router.setRouteLeaveHook(nextProps.route, this.routeWillLeave.bind(this));
+      //this.props.router.setRouteLeaveHook(nextProps.route, this.routeWillLeave.bind(this));
     }
 
     const datasetChanged = hasDatasetChanged(nextProps.dataset, prevProps.dataset);
@@ -191,7 +200,7 @@ export class ExplorePageControllerComponent extends Component {
     return false;
   }
 
-  shouldShowUnsavedChangesPopup(nextLocation) {
+  shouldShowUnsavedChangesPopup = (nextLocation) => {
     const {
       dataset,
       location,
@@ -231,7 +240,7 @@ export class ExplorePageControllerComponent extends Component {
       return true;
     }
     return historyChanged;
-  }
+  };
 
   didConfirmDiscardUnsavedChanges() {
     const { nextLocation } = this.state;
@@ -242,10 +251,13 @@ export class ExplorePageControllerComponent extends Component {
   }
 
   render() {
+    const {
+      pageType
+    } = this.props;
     return (
       <div style={this.props.style}>
         <ExplorePage
-          pageType={this.props.pageType}
+          pageType={this.isPageTypeValid(pageType) ? pageType : defaultPageType}
           dataset={this.props.dataset}
           history={this.props.history}
           setResizeProgressState={this.props.setResizeProgressState}
@@ -361,9 +373,9 @@ function mapStateToProps(state, ownProps) {
   };
 }
 
-export const ExplorePageController = withRouter(ExplorePageControllerComponent);
+export const ExplorePageController = withRouter(withRouteLeaveSubscription(ExplorePageControllerComponent));
 
-export default connect(mapStateToProps, {
+export default withHookProvider(connect(mapStateToProps, {
   performLoadDataset,
   setCurrentSql,
   resetViewState,
@@ -372,4 +384,4 @@ export default connect(mapStateToProps, {
   setResizeProgressState,
   updateRightTreeVisibility,
   showConfirmationDialog
-})(withDatasetChanges(ExplorePageController));
+})(withDatasetChanges(ExplorePageController)));

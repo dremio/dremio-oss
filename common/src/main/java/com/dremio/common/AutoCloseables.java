@@ -129,11 +129,18 @@ public final class AutoCloseables {
   public static class RollbackCloseable implements AutoCloseable {
 
     private boolean commit = false;
+    private final boolean reverse;
     private List<AutoCloseable> closeables;
 
-    public RollbackCloseable(AutoCloseable... closeables){
+    public RollbackCloseable(boolean reverse, AutoCloseable... closeables){
       this.closeables = new ArrayList<>(Arrays.asList(closeables));
+      this.reverse = reverse;
     }
+
+    public RollbackCloseable(AutoCloseable... closeables){
+      this(false, closeables);
+    }
+
 
     public <T extends AutoCloseable> T add(T t){
       closeables.add(t);
@@ -150,6 +157,10 @@ public final class AutoCloseables {
       }
     }
 
+    public List<AutoCloseable> getCloseables() {
+      return Collections.unmodifiableList(closeables);
+    }
+
     public void commit(){
       commit = true;
     }
@@ -157,6 +168,9 @@ public final class AutoCloseables {
     @Override
     public void close() throws Exception {
       if(!commit){
+        if(reverse) {
+          Collections.reverse(closeables);
+        }
         AutoCloseables.close(closeables);
       }
     }

@@ -132,22 +132,13 @@ public class DatasetsUtil {
   public static VirtualDatasetVersion toVirtualDatasetVersion(VirtualDatasetUI virtualDatasetUI) {
     final VirtualDatasetVersion vvds = new VirtualDatasetVersion();
     final DatasetConfig datasetConfig = new DatasetConfig();
-    final VirtualDataset virtualDataset = new VirtualDataset();
+    final VirtualDataset virtualDataset = toVirtualDataset(virtualDatasetUI);
 
     vvds.setLastTransform(virtualDatasetUI.getLastTransform());
     vvds.setState(virtualDatasetUI.getState());
     vvds.setPreviousVersion(virtualDatasetUI.getPreviousVersion());
     vvds.setNamed(virtualDatasetUI.getIsNamed());
     vvds.setDerivation(virtualDatasetUI.getDerivation());
-
-    virtualDataset.setContextList(virtualDatasetUI.getState().getContextList());
-    virtualDataset.setSql(virtualDatasetUI.getSql());
-    virtualDataset.setParentsList(virtualDatasetUI.getParentsList());
-    virtualDataset.setGrandParentsList(virtualDatasetUI.getGrandParentsList());
-    virtualDataset.setVersion(virtualDatasetUI.getVersion());
-    virtualDataset.setFieldOriginsList(virtualDatasetUI.getFieldOriginsList());
-    virtualDataset.setSqlFieldsList(virtualDatasetUI.getSqlFieldsList());
-    virtualDataset.setCalciteFieldsList(virtualDatasetUI.getCalciteFieldsList());
 
     datasetConfig.setName(virtualDatasetUI.getName());
     datasetConfig.setOwner(virtualDatasetUI.getOwner());
@@ -163,6 +154,22 @@ public class DatasetsUtil {
 
     vvds.setDataset(datasetConfig);
     return vvds;
+  }
+
+  public static VirtualDataset toVirtualDataset(VirtualDatasetUI virtualDatasetUI) {
+    final VirtualDataset virtualDataset = new VirtualDataset();
+
+    virtualDataset.setContextList(virtualDatasetUI.getState().getContextList());
+    virtualDataset.setSql(virtualDatasetUI.getSql());
+    virtualDataset.setParentsList(virtualDatasetUI.getParentsList());
+    virtualDataset.setGrandParentsList(virtualDatasetUI.getGrandParentsList());
+    virtualDataset.setVersion(virtualDatasetUI.getVersion());
+    virtualDataset.setFieldOriginsList(virtualDatasetUI.getFieldOriginsList());
+    virtualDataset.setSqlFieldsList(virtualDatasetUI.getSqlFieldsList());
+    virtualDataset.setCalciteFieldsList(virtualDatasetUI.getCalciteFieldsList());
+    virtualDataset.setSqlFieldsList(virtualDatasetUI.getSqlFieldsList());
+
+    return virtualDataset;
   }
 
   public static VirtualDatasetUI toVirtualDatasetUI(VirtualDatasetVersion vvds) {

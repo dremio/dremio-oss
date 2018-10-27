@@ -16,6 +16,8 @@
 package com.dremio.resource.basic;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -25,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.curator.CuratorConnectionLossException;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
@@ -35,10 +38,12 @@ import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.options.OptionManager;
 import com.dremio.resource.ResourceSchedulingProperties;
+import com.dremio.resource.ResourceSchedulingResult;
 import com.dremio.resource.ResourceSet;
 import com.dremio.resource.common.ResourceSchedulingContext;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.DistributedSemaphore;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -63,7 +68,7 @@ public class BasicResourceTest {
     basicProperties.setQueryCost(30000.0D);
     basicProperties.setQueueName("abc");
     basicProperties.setUser("bcd");
-    basicProperties.setTags(ImmutableList.of("tagvalue1", "tagvalue2", "tagvalue3"));
+    basicProperties.setTag("tagvalue1");
 
     Map<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> majorFIdToEndpoints = Maps.newHashMap();
 
@@ -126,8 +131,7 @@ public class BasicResourceTest {
     assertEquals("jdbc", basicProperties.getClientType());
     assertEquals("abc", basicProperties.getQueueName());
     assertEquals("bcd", basicProperties.getUser());
-    assertEquals(ImmutableList.of("tagvalue1", "tagvalue2", "tagvalue3"),
-      basicProperties.getTags());
+    assertEquals("tagvalue1", basicProperties.getTag());
 
     assertEquals(majorFIdToEndpoints, basicProperties.getResourceData());
   }
@@ -188,13 +192,13 @@ public class BasicResourceTest {
 
 
     final ResourceSet resourceSet =
-      resourceAllocator.allocate(resourceSchedulingContext, resourceSchedulingProperties).get();
+      resourceAllocator.allocate(resourceSchedulingContext, resourceSchedulingProperties).getResourceSetFuture().get();
 
     final ResourceSet resourceSet1 =
-      resourceAllocator.allocate(resourceSchedulingContext1, resourceSchedulingProperties).get();
+      resourceAllocator.allocate(resourceSchedulingContext1, resourceSchedulingProperties).getResourceSetFuture().get();
 
     try {
-        resourceAllocator.allocate(resourceSchedulingContext2, resourceSchedulingProperties).get();
+        resourceAllocator.allocate(resourceSchedulingContext2, resourceSchedulingProperties).getResourceSetFuture().get();
       fail("Should not be able to scheudle 3rd job with limit 2");
     } catch(ExecutionException e) {
       // should come here
@@ -204,16 +208,76 @@ public class BasicResourceTest {
     resourceSet.close();
 
     final ResourceSet resourceSet2 =
-      resourceAllocator.allocate(resourceSchedulingContext2, resourceSchedulingProperties).get();
+      resourceAllocator.allocate(resourceSchedulingContext2, resourceSchedulingProperties).getResourceSetFuture().get();
 
     resourceSet1.getResourceAllocations().forEach((v) -> assertEquals(4096, v.getMemory()));
     resourceSet1.close();
 
     resourceSet2.getResourceAllocations().forEach((v) -> assertEquals(4096, v.getMemory()));
     resourceSet2.close();
-
-
   }
+
+  @Test
+  public void testQueueingSemaphoreException() throws Exception {
+    final CoordinationProtos.NodeEndpoint nodeEndpoint = CoordinationProtos.NodeEndpoint.newBuilder()
+      .setAddress("host1")
+      .setFabricPort(1234)
+      .setUserPort(2345)
+      .setAvailableCores(3)
+      .setMaxDirectMemory(8 * 1024)
+      .setRoles(ClusterCoordinator.Role.toEndpointRoles(Sets.newHashSet(ClusterCoordinator.Role.EXECUTOR)))
+      .build();
+
+    final OptionManager optionManager = mock(OptionManager.class);
+
+    when(optionManager.getOption(BasicResourceConstants.ENABLE_QUEUE)).thenReturn(true);
+    when(optionManager.getOption(BasicResourceConstants.REFLECTION_ENABLE_QUEUE)).thenReturn(true);
+    when(optionManager.getOption(BasicResourceConstants.ENABLE_QUEUE_MEMORY_LIMIT)).thenReturn(true);
+    when(optionManager.getOption(BasicResourceConstants.SMALL_QUEUE_MEMORY_LIMIT)).thenReturn(4096L);
+    when(optionManager.getOption(BasicResourceConstants.LARGE_QUEUE_MEMORY_LIMIT)).thenReturn(Long.MAX_VALUE);
+    when(optionManager.getOption(BasicResourceConstants.QUEUE_THRESHOLD_SIZE)).thenReturn(30000000L);
+    when(optionManager.getOption(BasicResourceConstants.QUEUE_TIMEOUT)).thenReturn(1000L);
+    when(optionManager.getOption(BasicResourceConstants.REFLECTION_LARGE_QUEUE_SIZE)).thenReturn(1L);
+    when(optionManager.getOption(BasicResourceConstants.LARGE_QUEUE_SIZE)).thenReturn(10L);
+    when(optionManager.getOption(BasicResourceConstants.SMALL_QUEUE_SIZE)).thenReturn(2L);
+    when(optionManager.getOption(BasicResourceConstants.REFLECTION_SMALL_QUEUE_SIZE)).thenReturn(10L);
+
+
+    final UserBitShared.QueryId queryId2 = ExternalIdHelper.toQueryId(ExternalIdHelper.generateExternalId());
+
+    final ResourceSchedulingContext resourceSchedulingContext2 = createQueryContext(queryId2, optionManager,
+      nodeEndpoint);
+
+    final Map<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> endpoints = ImmutableMap.of(
+      0, ImmutableMap.of(nodeEndpoint, 2),
+      1, ImmutableMap.of(nodeEndpoint, 3),
+      2, ImmutableMap.of(nodeEndpoint, 1)
+    );
+
+    final ResourceSchedulingProperties resourceSchedulingProperties = new ResourceSchedulingProperties();
+    resourceSchedulingProperties.setResourceData(endpoints);
+    resourceSchedulingProperties.setQueryCost(112100D);
+
+    DistributedSemaphore mockLease = mock(DistributedSemaphore.class);
+    when(mockLease.acquire(1000L, TimeUnit.MILLISECONDS)).thenThrow(new CuratorConnectionLossException());
+
+    ClusterCoordinator mockClusterCoordinator = mock(ClusterCoordinator.class);
+    when(mockClusterCoordinator.getSemaphore("query.small", 2)).thenReturn(mockLease);
+
+    final BasicResourceAllocator resourceAllocator =
+      new BasicResourceAllocator(DirectProvider.wrap(mockClusterCoordinator));
+    resourceAllocator.start();
+
+    try {
+      resourceAllocator.allocate(resourceSchedulingContext2, resourceSchedulingProperties).getResourceSetFuture().get();
+      fail("Should not be able to schedule");
+    } catch(ExecutionException e) {
+      logger.error("ExecutionException cause: ", e.getCause());
+      // should come here
+    }
+    resourceAllocator.close();
+  }
+
 
   @Test
   public void testQueueingDisabledAllocations() throws Exception {
@@ -262,10 +326,22 @@ public class BasicResourceTest {
     resourceSchedulingProperties.setResourceData(endpoints);
     resourceSchedulingProperties.setQueryCost(112100D);
 
-    final ResourceSet resourceSet =
-      resourceAllocator.allocate(resourceSchedulingContext, resourceSchedulingProperties).get();
+    final ResourceSchedulingResult resourceSchedulingResult = resourceAllocator.allocate(resourceSchedulingContext,
+      resourceSchedulingProperties);
 
+    final ResourceSet resourceSet = resourceSchedulingResult.getResourceSetFuture().get();
     resourceSet.getResourceAllocations().forEach((v) -> assertEquals(4096, v.getMemory()));
+
+    assertNull(resourceSchedulingResult.getResourceSchedulingDecisionInfo().getRuleContent());
+    assertNull(resourceSchedulingResult.getResourceSchedulingDecisionInfo().getRuleId());
+    assertNull(resourceSchedulingResult.getResourceSchedulingDecisionInfo().getRuleName());
+    assertNotNull(resourceSchedulingResult.getResourceSchedulingDecisionInfo().getQueueName());
+    assertNotNull(resourceSchedulingResult.getResourceSchedulingDecisionInfo().getWorkloadClass());
+
+    assertEquals(UserBitShared.WorkloadClass.GENERAL,
+      resourceSchedulingResult.getResourceSchedulingDecisionInfo().getWorkloadClass());
+    assertEquals("SMALL", resourceSchedulingResult.getResourceSchedulingDecisionInfo().getQueueName());
+    assertEquals("SMALL", resourceSchedulingResult.getResourceSchedulingDecisionInfo().getQueueId());
   }
 
   private ResourceSchedulingContext createQueryContext(final UserBitShared.QueryId queryId,
@@ -275,7 +351,13 @@ public class BasicResourceTest {
 
       @Override
       public CoordExecRPC.QueryContextInformation getQueryContextInfo() {
-        return CoordExecRPC.QueryContextInformation.newBuilder().setQueryMaxAllocation(Long.MAX_VALUE).build();
+        return CoordExecRPC.QueryContextInformation.newBuilder()
+          .setQueryMaxAllocation(Long.MAX_VALUE)
+          .setPriority
+            (
+            CoordExecRPC.FragmentPriority.newBuilder().setWorkloadClass(UserBitShared.WorkloadClass.GENERAL).build()
+            )
+          .build();
       }
 
       @Override

@@ -270,6 +270,7 @@ public class RexToExpr {
           case INTEGER:
             return left.getChild(((BigDecimal)literal.getValue()).intValue());
           case CHAR:
+          case VARCHAR:
             return left.getChild(literal.getValue2().toString());
           default:
             // fall through

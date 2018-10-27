@@ -556,6 +556,9 @@
 
 ## Resource defined by class com.dremio.dac.resource.SystemResource
 
+ - GET /system/cluster-resource-info   
+   > `<=` [com.dremio.dac.resource.SystemResource$ResourceInfo](#class-comdremiodacresourcesystemresource$resourceinfo)   
+
  - GET /system/nodes   
    > `<=` java.util.List`<`[com.dremio.dac.proto.model.system.NodeInfo](#class-comdremiodacprotomodelsystemnodeinfo)`>`   
 
@@ -856,6 +859,10 @@
   },
   resourcePath: "abc",
   sql: "abc",
+  tags: [
+    "abc",
+    ...
+  ],
   versionedResourcePath: "abc",
 }
 ```
@@ -974,6 +981,7 @@
     "abc",
     ...
   ],
+  entityId: "abc",
   fullPath: [
     "abc",
     ...
@@ -1008,6 +1016,7 @@
       "abc",
       ...
     ],
+    entityId: "abc",
     fullPath: [
       "abc",
       ...
@@ -1186,6 +1195,7 @@
       "abc",
       ...
     ],
+    entityId: "abc",
     fullPath: [
       "abc",
       ...
@@ -1257,6 +1267,7 @@
       "abc",
       ...
     ],
+    entityId: "abc",
     fullPath: [
       "abc",
       ...
@@ -1317,6 +1328,7 @@
       "abc",
       ...
     ],
+    entityId: "abc",
     fullPath: [
       "abc",
       ...
@@ -1726,6 +1738,10 @@
         },
         resourcePath: "abc",
         sql: "abc",
+        tags: [
+          "abc",
+          ...
+        ],
         versionedResourcePath: "abc",
       },
       ...
@@ -1759,6 +1775,10 @@
         },
         name: "abc",
         queryable: true | false,
+        tags: [
+          "abc",
+          ...
+        ],
         urlPath: "abc",
       },
       ...
@@ -1800,6 +1820,10 @@
           abc: "abc", ...
         },
         resourcePath: "abc",
+        tags: [
+          "abc",
+          ...
+        ],
       },
       ...
     ],
@@ -1821,6 +1845,10 @@
   },
   name: "abc",
   queryable: true | false,
+  tags: [
+    "abc",
+    ...
+  ],
   urlPath: "abc",
   version: 1,
 }
@@ -2017,6 +2045,13 @@
   plansConsidered: 1,
   queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW",
   requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
+  resourceScheduling: {
+    queueId: "abc",
+    queueName: "abc",
+    ruleContent: "abc",
+    ruleId: "abc",
+    ruleName: "abc",
+  },
   resultsAvailable: true | false,
   snowflakeAccelerated: true | false,
   sql: "abc",
@@ -2187,6 +2222,10 @@
       },
       appId: "abc",
       client: "abc",
+      contextList: [
+        "abc",
+        ...
+      ],
       datasetPathList: [
         "abc",
         ...
@@ -2316,6 +2355,10 @@
         reflectionType: "abc",
       },
       originalCost: 1.0,
+      outputTableList: [
+        "abc",
+        ...
+      ],
       parentsList: [
         {
           datasetPathList: [
@@ -2332,6 +2375,15 @@
       ],
       queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW",
       requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
+      resourceSchedulingInfo: {
+        queueId: "abc",
+        queueName: "abc",
+        resourceSchedulingEnd: 1,
+        resourceSchedulingStart: 1,
+        ruleContent: "abc",
+        ruleId: "abc",
+        ruleName: "abc",
+      },
       resultMetadataList: [
         {
           footer: {
@@ -2511,6 +2563,10 @@
     abc: "abc", ...
   },
   resourcePath: "abc",
+  tags: [
+    "abc",
+    ...
+  ],
 }
 ```
 
@@ -2699,6 +2755,10 @@
         },
         resourcePath: "abc",
         sql: "abc",
+        tags: [
+          "abc",
+          ...
+        ],
         versionedResourcePath: "abc",
       },
       ...
@@ -2732,6 +2792,10 @@
         },
         name: "abc",
         queryable: true | false,
+        tags: [
+          "abc",
+          ...
+        ],
         urlPath: "abc",
       },
       ...
@@ -2756,6 +2820,10 @@
         },
         name: "abc",
         queryable: true | false,
+        tags: [
+          "abc",
+          ...
+        ],
         urlPath: "abc",
         version: 1,
       },
@@ -2794,6 +2862,10 @@
           abc: "abc", ...
         },
         resourcePath: "abc",
+        tags: [
+          "abc",
+          ...
+        ],
       },
       ...
     ],
@@ -2812,8 +2884,10 @@
   },
   metadataPolicy: {
     authTTLMillis: 1,
+    autoPromoteDatasets: true | false,
     datasetDefinitionExpireAfterMillis: 1,
     datasetDefinitionRefreshAfterMillis: 1,
+    deleteUnavailableDatasets: true | false,
     namesRefreshMillis: 1,
     updateMode: "PREFETCH" | "PREFETCH_QUERIED" | "INLINE",
   },
@@ -3021,6 +3095,10 @@
             },
             resourcePath: "abc",
             sql: "abc",
+            tags: [
+              "abc",
+              ...
+            ],
             versionedResourcePath: "abc",
           },
           ...
@@ -3054,6 +3132,10 @@
             },
             name: "abc",
             queryable: true | false,
+            tags: [
+              "abc",
+              ...
+            ],
             urlPath: "abc",
           },
           ...
@@ -3078,6 +3160,10 @@
             },
             name: "abc",
             queryable: true | false,
+            tags: [
+              "abc",
+              ...
+            ],
             urlPath: "abc",
             version: 1,
           },
@@ -3116,6 +3202,10 @@
               abc: "abc", ...
             },
             resourcePath: "abc",
+            tags: [
+              "abc",
+              ...
+            ],
           },
           ...
         ],
@@ -3134,8 +3224,10 @@
       },
       metadataPolicy: {
         authTTLMillis: 1,
+        autoPromoteDatasets: true | false,
         datasetDefinitionExpireAfterMillis: 1,
         datasetDefinitionRefreshAfterMillis: 1,
+        deleteUnavailableDatasets: true | false,
         namesRefreshMillis: 1,
         updateMode: "PREFETCH" | "PREFETCH_QUERIED" | "INLINE",
       },
@@ -3338,6 +3430,10 @@
         },
         resourcePath: "abc",
         sql: "abc",
+        tags: [
+          "abc",
+          ...
+        ],
         versionedResourcePath: "abc",
       },
       ...
@@ -3371,6 +3467,10 @@
         },
         name: "abc",
         queryable: true | false,
+        tags: [
+          "abc",
+          ...
+        ],
         urlPath: "abc",
       },
       ...
@@ -3395,6 +3495,10 @@
         },
         name: "abc",
         queryable: true | false,
+        tags: [
+          "abc",
+          ...
+        ],
         urlPath: "abc",
         version: 1,
       },
@@ -3433,6 +3537,10 @@
           abc: "abc", ...
         },
         resourcePath: "abc",
+        tags: [
+          "abc",
+          ...
+        ],
       },
       ...
     ],
@@ -3644,6 +3752,10 @@
         },
         resourcePath: "abc",
         sql: "abc",
+        tags: [
+          "abc",
+          ...
+        ],
         versionedResourcePath: "abc",
       },
       ...
@@ -3677,6 +3789,10 @@
         },
         name: "abc",
         queryable: true | false,
+        tags: [
+          "abc",
+          ...
+        ],
         urlPath: "abc",
       },
       ...
@@ -3701,6 +3817,10 @@
         },
         name: "abc",
         queryable: true | false,
+        tags: [
+          "abc",
+          ...
+        ],
         urlPath: "abc",
         version: 1,
       },
@@ -3739,6 +3859,10 @@
           abc: "abc", ...
         },
         resourcePath: "abc",
+        tags: [
+          "abc",
+          ...
+        ],
       },
       ...
     ],
@@ -3940,6 +4064,10 @@
             },
             resourcePath: "abc",
             sql: "abc",
+            tags: [
+              "abc",
+              ...
+            ],
             versionedResourcePath: "abc",
           },
           ...
@@ -3973,6 +4101,10 @@
             },
             name: "abc",
             queryable: true | false,
+            tags: [
+              "abc",
+              ...
+            ],
             urlPath: "abc",
           },
           ...
@@ -3997,6 +4129,10 @@
             },
             name: "abc",
             queryable: true | false,
+            tags: [
+              "abc",
+              ...
+            ],
             urlPath: "abc",
             version: 1,
           },
@@ -4035,6 +4171,10 @@
               abc: "abc", ...
             },
             resourcePath: "abc",
+            tags: [
+              "abc",
+              ...
+            ],
           },
           ...
         ],
@@ -4242,6 +4382,16 @@ any
 }
 ```
 
+## `class com.dremio.dac.resource.SystemResource$ResourceInfo`
+- Example:
+```
+{
+  averageExecutorCores: 1,
+  averageExecutorMemory: 1,
+  executorCount: 1,
+}
+```
+
 ## `class com.dremio.dac.service.admin.Setting`
 - Example:
 ```
@@ -4318,6 +4468,10 @@ any
   },
   name: "abc",
   queryable: true | false,
+  tags: [
+    "abc",
+    ...
+  ],
   urlPath: "abc",
 }
 ```
@@ -4538,6 +4692,7 @@ any
   id: {
     id: "abc",
   },
+  lastModified: 1,
   name: "abc",
   owner: "abc",
   physicalDataset: {

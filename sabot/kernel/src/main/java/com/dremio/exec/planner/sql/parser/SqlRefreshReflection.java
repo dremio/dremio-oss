@@ -37,7 +37,7 @@ public class SqlRefreshReflection extends SqlCall implements SqlToPlanHandler.Cr
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("REFRESH_REFLECTION", SqlKind.OTHER) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 3, "SqlRefreshReflection.createCall() has to get 3 operands!");
+      Preconditions.checkArgument(operands.length == 2, "SqlRefreshReflection.createCall() has to get 3 operands!");
       return new SqlRefreshReflection(
           pos,
           (SqlLiteral) operands[0],

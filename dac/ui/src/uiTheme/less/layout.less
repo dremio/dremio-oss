@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 @import "~@app/uiTheme/less/variables.less";
+@import "~@app/uiTheme/less/variables.complex.less";
 @import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/mixins.less";
 
 .align-left {
   text-align: left;
@@ -28,9 +30,17 @@
   background-color: @PALE_BLUE
 }
 
+.border-default {
+  border: @border-default;
+}
+
 .horizontal-content-padding {
   padding-left: @content-padding;
   padding-right: @content-padding;
+}
+
+.top-content-padding {
+  padding-top: @section-margin;
 }
 
 .flex-container {
@@ -65,4 +75,8 @@
 
 .border-radius-default {
   border-radius: 2px;
+}
+
+.clear-fix {
+  .clear-fix-mixin();
 }

@@ -38,17 +38,20 @@ public class PhysicalDataset implements AddressableResource {
   private final PhysicalDatasetResourcePath resourcePath;
   private final PhysicalDatasetName datasetName;
   private final Integer jobCount;
+  private final List<String> tags;
 
   @JsonCreator
   public PhysicalDataset(
     @JsonProperty("resourcePath") PhysicalDatasetResourcePath resourcePath,
     @JsonProperty("datasetName") PhysicalDatasetName datasetName,
     @JsonProperty("datasetConfig") PhysicalDatasetConfig datasetConfig,
-    @JsonProperty("jobCount") Integer jobCount) {
+    @JsonProperty("jobCount") Integer jobCount,
+    @JsonProperty("tags") List<String> tags) {
     this.resourcePath = resourcePath;
     this.datasetName = datasetName;
     this.datasetConfig = datasetConfig;
     this.jobCount = jobCount;
+    this.tags = tags;
   }
 
   @Override
@@ -80,5 +83,9 @@ public class PhysicalDataset implements AddressableResource {
       .addFilter(JobIndexKeys.QUERY_TYPE, JobIndexKeys.UI, JobIndexKeys.EXTERNAL);
     links.put("jobs", jobFilters.toUrl());
     return links;
+  }
+
+  public List<String> getTags() {
+    return tags;
   }
 }

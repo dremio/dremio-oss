@@ -44,7 +44,7 @@ import com.google.protobuf.ByteString;
 public class UserException extends RuntimeException {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UserException.class);
 
-  public static final String MEMORY_ERROR_MSG = "One or more nodes ran out of memory while executing the query.";
+  public static final String MEMORY_ERROR_MSG = "Query was cancelled because it exceeded the memory limits set by the administrator.";
 
   /**
    * Creates a new INVALID_DATASET_METADATA exception builder.

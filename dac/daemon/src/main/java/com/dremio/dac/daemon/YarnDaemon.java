@@ -15,10 +15,10 @@
  */
 package com.dremio.dac.daemon;
 
-import java.util.logging.LogManager;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
-import org.slf4j.bridge.SLF4JBridgeHandler;
-
+import com.dremio.common.JULBridge;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
@@ -32,6 +32,8 @@ import com.google.api.client.util.Throwables;
  * Starts the Dremio daemon in a YARN container and inject dependencies
  */
 public class YarnDaemon implements Runnable, AutoCloseable {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(YarnDaemon.class);
+
   static {
     /*
      * HBase client uses older version of Guava's Stopwatch API,
@@ -43,9 +45,7 @@ public class YarnDaemon implements Runnable, AutoCloseable {
     /*
      * Route JUL logging messages to SLF4J.
      */
-    LogManager.getLogManager().reset();
-    SLF4JBridgeHandler.removeHandlersForRootLogger();
-    SLF4JBridgeHandler.install();
+    JULBridge.configure();
   }
 
 
@@ -56,7 +56,12 @@ public class YarnDaemon implements Runnable, AutoCloseable {
   @Override
   public void run() {
     try (TimedBlock b = Timer.time("main")) {
-      DACConfig config = DACConfig.newConfig();
+
+      // create a temporary local write path
+      final Path localWritePath = Files.createTempDirectory("dremio-executor");
+      final DACConfig config = DACConfig.newConfig()
+          .writePath(localWritePath.toString());
+      logger.info("Local write path set to '{}'", localWritePath);
 
       final SabotConfig sabotConfig = config.getConfig().getSabotConfig();
       final DACModule module = sabotConfig.getInstance(DremioDaemon.DAEMON_MODULE_CLASS, DACModule.class, DACDaemonModule.class);

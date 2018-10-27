@@ -20,6 +20,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import javax.inject.Provider;
+
+import com.dremio.datastore.KVStoreProvider;
+import com.dremio.service.DirectProvider;
 import com.dremio.service.accelerator.proto.Acceleration;
 import com.dremio.service.accelerator.proto.AccelerationId;
 import com.dremio.service.accelerator.proto.Layout;
@@ -55,15 +59,16 @@ import com.google.common.collect.Sets;
  */
 public class MoveFromAccelerationsToReflections extends UpgradeTask {
   public MoveFromAccelerationsToReflections() {
-    super("Migrate from accelerations to reflections", VERSION_106, VERSION_150);
+    super("Migrate from accelerations to reflections", VERSION_106, VERSION_150, NORMAL_ORDER + 5);
   }
 
   @Override
   public void upgrade(UpgradeContext context) {
-    final AccelerationStore accelerationStore = new AccelerationStore(context.getKVStoreProvider());
-    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider().get());
-    final AccelerationEntryStore entryStore = new AccelerationEntryStore(context.getKVStoreProvider());
-    final ReflectionGoalsStore reflectionGoalsStore = new ReflectionGoalsStore(context.getKVStoreProvider());
+    final Provider<KVStoreProvider> provider = DirectProvider.wrap(context.getKVStoreProvider());
+    final AccelerationStore accelerationStore = new AccelerationStore(provider);
+    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider());
+    final AccelerationEntryStore entryStore = new AccelerationEntryStore(provider);
+    final ReflectionGoalsStore reflectionGoalsStore = new ReflectionGoalsStore(provider);
 
     accelerationStore.start();
     entryStore.start();

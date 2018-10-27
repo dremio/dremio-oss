@@ -119,7 +119,7 @@ export default class DatasetItemLabel extends Component {
           <FontIcon
             type={labelTypeIcon}
             ref='dataset'
-            iconStyle={{...iconStyle, verticalAlign: 'middle', opacity: showInfoIcon ? 0.65 : 1}}
+            iconStyle={{...iconStyle, verticalAlign: 'middle', flexShrink: 0, opacity: showInfoIcon ? 0.65 : 1}}
           />
           {showInfoIcon && <FontIcon
             ref='info'

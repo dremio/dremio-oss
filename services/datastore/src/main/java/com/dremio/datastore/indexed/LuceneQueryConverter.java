@@ -22,6 +22,7 @@ import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.FieldValueQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
@@ -97,6 +98,9 @@ public class LuceneQueryConverter {
 
     case DOES_NOT_EXIST:
       return toDoesNotExistQuery(query.getExists());
+
+    case BOOST:
+      return toBoostQuery(query.getBoost());
 
     default:
       throw new AssertionError("Unknown query type: " + query);
@@ -239,5 +243,9 @@ public class LuceneQueryConverter {
     builder.add(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD);
     builder.add(new FieldValueQuery(exists.getField()), BooleanClause.Occur.MUST_NOT);
     return builder.build();
+  }
+
+  private Query toBoostQuery(SearchQuery.Boost boost) {
+    return new BoostQuery(toLuceneQuery(boost.getClause()), boost.getBoost());
   }
 }

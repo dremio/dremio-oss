@@ -37,16 +37,26 @@ public class SqlRefreshTable extends SqlSystemCall {
       new SqlSpecialOperator("REFRESH_TABLE", SqlKind.OTHER) {
         @Override public SqlCall createCall(SqlLiteral functionQualifier,
             SqlParserPos pos, SqlNode... operands) {
-          return new SqlRefreshTable(pos, (SqlIdentifier) operands[0]);
+          return new SqlRefreshTable(pos,
+            (SqlIdentifier) operands[0],
+            (SqlLiteral) operands[1],
+            (SqlLiteral) operands[2],
+            (SqlLiteral) operands[3]);
         }
       };
 
   private SqlIdentifier table;
+  private SqlLiteral deleteUnavail;
+  private SqlLiteral forceUp;
+  private SqlLiteral promotion;
 
   /** Creates a SqlForgetTable. */
-  public SqlRefreshTable(SqlParserPos pos, SqlIdentifier table) {
+  public SqlRefreshTable(SqlParserPos pos, SqlIdentifier table, SqlLiteral deleteUnavail, SqlLiteral forceUp, SqlLiteral promotion) {
     super(pos);
     this.table = table;
+    this.deleteUnavail = deleteUnavail;
+    this.forceUp = forceUp;
+    this.promotion = promotion;
   }
 
   @Override public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
@@ -55,12 +65,53 @@ public class SqlRefreshTable extends SqlSystemCall {
     table.unparse(writer, leftPrec, rightPrec);
     writer.keyword("REFRESH");
     writer.keyword("METADATA");
+
+    if (deleteUnavail.getValue() != null) {
+      if (deleteUnavail.booleanValue()) {
+        writer.keyword("DELETE");
+        writer.keyword("WHEN");
+        writer.keyword("MISSING");
+      } else {
+        writer.keyword("MAINTAIN");
+        writer.keyword("WHEN");
+        writer.keyword("MISSING");
+      }
+    }
+
+    if (forceUp.getValue() != null) {
+      if (forceUp.booleanValue()) {
+        writer.keyword("FORCE");
+        writer.keyword("UPDATE");
+      } else {
+        writer.keyword("LAZY");
+        writer.keyword("UPDATE");
+      }
+    }
+
+    if (promotion.getValue() != null) {
+      if (promotion.booleanValue()) {
+        writer.keyword("AUTO");
+        writer.keyword("PROMOTION");
+      } else {
+        writer.keyword("AVOID");
+        writer.keyword("PROMOTION");
+      }
+    }
   }
 
   @Override public void setOperand(int i, SqlNode operand) {
     switch (i) {
       case 0:
         table = (SqlIdentifier) operand;
+        break;
+      case 1:
+        deleteUnavail = (SqlLiteral) operand;
+        break;
+      case 2:
+        forceUp = (SqlLiteral) operand;
+        break;
+      case 3:
+        promotion = (SqlLiteral) operand;
         break;
       default:
         throw new AssertionError(i);
@@ -72,9 +123,13 @@ public class SqlRefreshTable extends SqlSystemCall {
   }
 
   @Override public List<SqlNode> getOperandList() {
-    return ImmutableNullableList.<SqlNode>of(table);
+    return ImmutableNullableList.<SqlNode>of(table, deleteUnavail, forceUp, promotion);
   }
 
   public SqlIdentifier getTable() { return table; }
+  public SqlLiteral getDeleteUnavail() { return deleteUnavail; }
+  public SqlLiteral getForceUpdate() { return forceUp; }
+  public SqlLiteral getPromotion() { return promotion; }
+
 }
 

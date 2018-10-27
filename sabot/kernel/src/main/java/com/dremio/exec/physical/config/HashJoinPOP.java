@@ -25,20 +25,35 @@ import org.apache.calcite.rel.core.JoinRelType;
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractBase;
+import com.dremio.exec.physical.base.MemoryCalcConsidered;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.options.OptionManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.DoubleValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
+import com.dremio.options.TypeValidators.RangeDoubleValidator;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 
+@Options
 @JsonTypeName("hash-join")
-public class HashJoinPOP extends AbstractBase {
+public class HashJoinPOP extends AbstractBase implements MemoryCalcConsidered {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashJoinPOP.class);
+
+  public static final DoubleValidator JOIN_FACTOR = new RangeDoubleValidator("planner.op.hashjoin.factor", 0.0, 1000.0, 1.0d);
+  public static final BooleanValidator JOIN_BOUNDED = new BooleanValidator("planner.op.hashjoin.bounded", false);
+
+  public static final PositiveLongValidator LOWER_LIMIT = new PositiveLongValidator("planner.op.hashjoin.low_limit", Long.MAX_VALUE, 0);
+  public static final PositiveLongValidator UPPER_LIMIT = new PositiveLongValidator("planner.op.hashjoin.limit", Long.MAX_VALUE, Long.MAX_VALUE);
+
 
 
   private final PhysicalOperator left;
@@ -71,7 +86,9 @@ public class HashJoinPOP extends AbstractBase {
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
       Preconditions.checkArgument(children.size() == 2);
-      return new HashJoinPOP(children.get(0), children.get(1), conditions, joinType, vectorize);
+      HashJoinPOP hj = new HashJoinPOP(children.get(0), children.get(1), conditions, joinType, vectorize);
+      hj.setMaxAllocation(this.getMaxAllocation());
+      return hj;
   }
 
   @Override
@@ -115,4 +132,15 @@ public class HashJoinPOP extends AbstractBase {
   public int getOperatorType() {
     return CoreOperatorType.HASH_JOIN_VALUE;
   }
+
+  @Override
+  public boolean shouldBeMemoryBounded(OptionManager options) {
+    return options.getOption(JOIN_BOUNDED);
+  }
+
+  @Override
+  public double getMemoryFactor(OptionManager options) {
+    return options.getOption(JOIN_FACTOR);
+  }
+
 }

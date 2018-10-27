@@ -16,15 +16,18 @@
 package com.dremio.exec.util;
 
 import java.util.List;
+import java.util.Locale;
 
 import org.apache.arrow.vector.util.DateUtility;
 
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.CoordExecRPC.FragmentPriority;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.WorkloadClass;
+import com.dremio.exec.proto.UserBitShared.WorkloadType;
 import com.dremio.exec.proto.UserProtos.QueryPriority;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.google.common.collect.Lists;
 
 public class Utilities {
@@ -95,4 +98,55 @@ public class Utilities {
         .build();
   }
 
+  public static WorkloadType getWorkloadType(QueryPriority queryPriority, UserBitShared.RpcEndpointInfos clientInfos) {
+    if (queryPriority == null ||
+      queryPriority.getWorkloadType() == null ||
+      WorkloadType.UNKNOWN.equals(queryPriority.getWorkloadType())) {
+      return getByClientType(clientInfos);
+    }
+    return queryPriority.getWorkloadType();
+  }
+
+  public static UserBitShared.WorkloadType getByClientType(UserBitShared.RpcEndpointInfos clientInfos) {
+    if (clientInfos == null) {
+      return WorkloadType.UNKNOWN;
+    }
+
+    final String name = clientInfos.getName().toLowerCase(Locale.ROOT);
+    if (name.contains("jdbc") || name.contains("java")) {
+      return WorkloadType.JDBC;
+    }
+
+    if (name.contains("odbc") || name.contains("c++")) {
+      return WorkloadType.ODBC;
+    }
+
+    return WorkloadType.UNKNOWN;
+  }
+
+  public static String getHumanReadableWorkloadType(WorkloadType workloadType) {
+    switch(workloadType) {
+      case DDL:
+        return "DDL";
+      case INTERNAL_RUN:
+        return "Internal Run";
+      case INTERNAL_PREVIEW:
+        return "Internal Preview";
+      case JDBC:
+        return "JDBC";
+      case ODBC:
+        return "ODBC";
+      case ACCELERATOR:
+        return "Reflections";
+      case REST:
+        return "REST";
+      case UI_PREVIEW:
+        return "UI Preview";
+      case UI_RUN:
+        return "UI Run";
+      case UNKNOWN:
+      default:
+        return "Other";
+    }
+  }
 }

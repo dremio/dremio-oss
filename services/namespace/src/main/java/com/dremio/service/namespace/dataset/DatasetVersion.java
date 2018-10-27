@@ -21,6 +21,9 @@ import java.text.SimpleDateFormat;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Ticker;
 
 /**
  * The version of a dataset
@@ -31,13 +34,68 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * All versions created before a version should be lower than getUpperBound()
  */
 public class DatasetVersion implements Comparable<DatasetVersion> {
-
-  public static final DatasetVersion MIN_VERSION = new DatasetVersion(0);
-  public static final DatasetVersion MAX_VERSION = new DatasetVersion(Long.MAX_VALUE);
+  public static final DatasetVersion MIN_VERSION = DatasetVersion.fromExistingVersion(0L);
+  public static final DatasetVersion MAX_VERSION = DatasetVersion.fromExistingVersion(Long.MAX_VALUE);
   public static final DatasetVersion NONE = new DatasetVersion(-1, true);
+
+  private static final long ORIGIN;
+  private static final int BITS_FOR_RAND;
+  private static final long MASK;
+  static {
+    try {
+      ORIGIN = new SimpleDateFormat("yyyy-MM-dd").parse("2015-08-17").getTime();
+      long end = new SimpleDateFormat("yyyy-MM-dd").parse("2115-08-17").getTime();
+      BITS_FOR_RAND = Long.numberOfLeadingZeros(end - ORIGIN) - 1; // -1 to make sure it stays positive
+      MASK = (1 << BITS_FOR_RAND) - 1;
+    } catch (ParseException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private static final long MIN_TIMESTAMP = MIN_VERSION.getTimestamp();
+  private static final long MAX_TIMESTAMP = MAX_VERSION.getTimestamp();
 
   private final long value;
 
+  /**
+   * Creates a new unique dataset version.
+   *
+   * @return a unique dataset version
+   */
+  public static DatasetVersion newVersion() {
+    long t = System.currentTimeMillis();
+    long r = Holder.numberGenerator.nextLong();
+    return new DatasetVersion(t, r);
+  }
+
+  /**
+   * Creates a dataset version for a pre-existing version.
+   *
+   * @param version the pre-existing version
+   * @return a dataset version representing the passed in version
+   */
+  public static DatasetVersion fromExistingVersion(Long version) {
+    Preconditions.checkNotNull(version, "No dataset version provided");
+    return new DatasetVersion(version);
+  }
+
+  @VisibleForTesting
+  public static DatasetVersion forTesting(long t, long r) {
+    return new DatasetVersion(t, r);
+  }
+
+  @VisibleForTesting
+  public static DatasetVersion forTesting(Ticker ticker) {
+    long t = ticker.read();
+    long r = Holder.numberGenerator.nextLong();
+    return new DatasetVersion(t, r);
+  }
+
+  /**
+   * Creates a dataset version for a pre-existing version.
+   *
+   * @param version a pre-existing dataset version
+   */
   @JsonCreator
   public DatasetVersion(String version) {
     this(parseLong(version));
@@ -51,11 +109,11 @@ public class DatasetVersion implements Comparable<DatasetVersion> {
     }
   }
 
-  public DatasetVersion(long t, long r) {
+  private DatasetVersion(long t, long r) {
     this(versionValue(t, r));
   }
 
-  public DatasetVersion(long value) {
+  private DatasetVersion(long value) {
     this(value, false);
   }
 
@@ -96,12 +154,12 @@ public class DatasetVersion implements Comparable<DatasetVersion> {
   }
 
   public long getTimestamp() {
-    return (value >>> bitsForRand) + origin;
+    return (value >>> BITS_FOR_RAND) + ORIGIN;
   }
 
   public DatasetVersion getLowerBound() {
     long t = this.getTimestamp();
-    if (t == minTimestamp) {
+    if (t == MIN_TIMESTAMP) {
       return MIN_VERSION;
     }
     return new DatasetVersion(t - 1, 0L);
@@ -109,46 +167,24 @@ public class DatasetVersion implements Comparable<DatasetVersion> {
 
   public DatasetVersion getUpperBound() {
     long t = this.getTimestamp();
-    if (t == maxTimestamp) {
+    if (t == MAX_TIMESTAMP) {
       return MAX_VERSION;
     }
     return new DatasetVersion(t + 1, 0L);
   }
 
-  private static final long origin;
-  private static final int bitsForRand;
-  private static final long mask;
-  static {
-    try {
-      origin = new SimpleDateFormat("yyyy-MM-dd").parse("2015-08-17").getTime();
-      long end = new SimpleDateFormat("yyyy-MM-dd").parse("2115-08-17").getTime();
-      bitsForRand = Long.numberOfLeadingZeros(end - origin) - 1; // -1 to make sure it stays positive
-      mask = (1 << bitsForRand) - 1;
-    } catch (ParseException e) {
-      throw new RuntimeException(e);
-    }
-  }
-  private static final long minTimestamp = MIN_VERSION.getTimestamp();
-  private static final long maxTimestamp = MAX_VERSION.getTimestamp();
-
-  public static DatasetVersion newVersion() {
-    long t = System.currentTimeMillis();
-    long r = Holder.numberGenerator.nextLong();
-    return new DatasetVersion(t, r);
-  }
-
   private static long versionValue(long timestamp, long r) {
-    if (timestamp > maxTimestamp) {
+    if (timestamp > MAX_TIMESTAMP) {
       throw new IllegalArgumentException("timestamp is after max timestamp: " + timestamp);
     }
-    long t = timestamp - origin;
+    long t = timestamp - ORIGIN;
     if (t < 0) {
       throw new IllegalArgumentException("timestamp should be after origin: " + timestamp);
     }
-    if (Long.numberOfLeadingZeros(t) < bitsForRand) {
-      throw new IllegalArgumentException(String.format("timestamp should fit in the time range: %s %s %s", timestamp, Long.numberOfLeadingZeros(t), bitsForRand));
+    if (Long.numberOfLeadingZeros(t) < BITS_FOR_RAND) {
+      throw new IllegalArgumentException(String.format("timestamp should fit in the time range: %s %s %s", timestamp, Long.numberOfLeadingZeros(t), BITS_FOR_RAND));
     }
-    return (t << bitsForRand) | (r & mask);
+    return (t << BITS_FOR_RAND) | (r & MASK);
   }
 
   /*

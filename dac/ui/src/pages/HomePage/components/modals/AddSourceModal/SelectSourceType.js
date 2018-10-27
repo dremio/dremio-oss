@@ -19,7 +19,6 @@ import { injectIntl } from 'react-intl';
 import PropTypes from 'prop-types';
 
 import SelectConnectionButton from 'components/SelectConnectionButton';
-import { FLEX_START_WRAP } from 'uiTheme/radium/flexStyle';
 
 import 'pages/HomePage/components/modals/AddSourceModal/SelectSourceType.less';
 
@@ -69,11 +68,11 @@ export default class SelectSourceType extends Component {
     return (
       <div className='SelectSourceType'>
         <div className='main'>
-          <div className='source-type-section' style={FLEX_START_WRAP}>
+          <div className='source-type-section'>
             { this.renderSourceTypes(this.getEnabledSourceTypes(this.props.sourceTypes)) }
             { this.renderSampleSource() }
           </div>
-          <div className='source-type-section' style={FLEX_START_WRAP}>
+          <div className='source-type-section'>
             { this.renderSourceTypes(this.getDisabledSourceTypes(this.props.sourceTypes)) }
           </div>
         </div>

@@ -15,11 +15,15 @@
  */
 package com.dremio.services.fabric;
 
+import java.util.Optional;
+
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.rpc.BasicClient;
 import com.dremio.exec.rpc.ReconnectingConnection;
 import com.dremio.exec.rpc.RpcConfig;
+import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.rpc.ssl.SSLEngineFactory;
 import com.dremio.services.fabric.proto.FabricProto.FabricHandshake;
 import com.dremio.services.fabric.proto.FabricProto.FabricIdentity;
 
@@ -29,14 +33,15 @@ import io.netty.channel.EventLoopGroup;
  * Maintains connection between two particular daemons/sockets.
  */
 final class FabricConnectionManager extends ReconnectingConnection<FabricConnection, FabricHandshake> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FabricConnectionManager.class);
+//  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FabricConnectionManager.class);
 
   private final FabricIdentity remoteIdentity;
   private final FabricIdentity localIdentity;
   private final BufferAllocator allocator;
   private final EventLoopGroup eventLoop;
   private final FabricMessageHandler handler;
-  private RpcConfig rpcConfig;
+  private final RpcConfig rpcConfig;
+  private final Optional<SSLEngineFactory> engineFactory;
 
   public FabricConnectionManager(
       final RpcConfig rpcConfig,
@@ -44,7 +49,9 @@ final class FabricConnectionManager extends ReconnectingConnection<FabricConnect
       final FabricIdentity remoteIdentity,
       final FabricIdentity localIdentity,
       final EventLoopGroup eventLoop,
-      final FabricMessageHandler handler) {
+      final FabricMessageHandler handler,
+      Optional<SSLEngineFactory> engineFactory
+  ) {
     super(
         rpcConfig.getName(),
         FabricHandshake.newBuilder()
@@ -53,9 +60,6 @@ final class FabricConnectionManager extends ReconnectingConnection<FabricConnect
           .build(),
         remoteIdentity.getAddress(),
         remoteIdentity.getPort());
-    assert remoteIdentity != null : "Identity cannot be null.";
-    assert remoteIdentity.getAddress() != null && !remoteIdentity.getAddress().isEmpty(): "RemoteIdentity's server address cannot be null.";
-    assert remoteIdentity.getPort() > 0 : String.format("Fabric Port must be set to a port between 1 and 65k.  Was set to %d.", remoteIdentity.getPort());
 
     this.rpcConfig = rpcConfig;
     this.eventLoop = eventLoop;
@@ -63,12 +67,13 @@ final class FabricConnectionManager extends ReconnectingConnection<FabricConnect
     this.remoteIdentity = remoteIdentity;
     this.localIdentity = localIdentity;
     this.handler = handler;
+    this.engineFactory = engineFactory;
   }
 
   @Override
-  protected BasicClient<?, FabricConnection, FabricHandshake, ?> getNewClient() {
-    return new FabricClient(rpcConfig, eventLoop, allocator, remoteIdentity, localIdentity, handler, new CloseHandlerCreator());
+  protected BasicClient<?, FabricConnection, FabricHandshake, ?> getNewClient() throws RpcException {
+    return new FabricClient(rpcConfig, eventLoop, allocator, remoteIdentity, localIdentity, handler,
+        new CloseHandlerCreator(), engineFactory);
   }
-
 
 }

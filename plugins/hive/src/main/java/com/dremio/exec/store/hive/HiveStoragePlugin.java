@@ -25,7 +25,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -38,13 +37,12 @@ import org.apache.hadoop.security.AccessControlException;
 import org.apache.orc.OrcConf;
 import org.apache.thrift.TException;
 
-import com.dremio.common.VM;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
@@ -79,6 +77,7 @@ import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import io.protostuff.ByteString;
@@ -97,9 +96,9 @@ public class HiveStoragePlugin implements StoragePlugin {
   private final boolean isCoordinator;
   private final OptionManager options;
 
-  public HiveStoragePlugin(HiveStoragePluginConfig config, SabotContext context, String name) {
+  public HiveStoragePlugin(HiveConf hiveConf, SabotContext context, String name) {
     this.isCoordinator = context.isCoordinator();
-    this.hiveConf = createHiveConf(config);
+    this.hiveConf = hiveConf;
     this.name = name;
     this.sabotConfig = context.getConfig();
     this.options = context.getOptionManager();
@@ -172,7 +171,14 @@ public class HiveStoragePlugin implements StoragePlugin {
       return true;
     } catch (TException | ExecutionException | InvalidProtocolBufferException e) {
       throw UserException.dataReadError(e).message("Unable to connect to Hive metastore.").build(logger);
+    } catch (UncheckedExecutionException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof AuthorizerServiceException) {
+        throw UserException.dataReadError(e).message(cause.getMessage()).build(logger);
+      }
     }
+
+    return false;
   }
 
 
@@ -364,10 +370,15 @@ public class HiveStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public CheckResult checkReadSignature(ByteString key, final DatasetConfig datasetConfig) throws Exception {
+  public CheckResult checkReadSignature(ByteString key, final DatasetConfig datasetConfig, DatasetRetrievalOptions retrievalOptions) throws Exception {
     boolean newUpdateKey = false;
 
-    if (datasetConfig.getReadDefinition() != null && datasetConfig.getReadDefinition().getReadSignature() != null) {
+    if (retrievalOptions.forceUpdate() ||
+        datasetConfig.getReadDefinition() == null ||
+        datasetConfig.getReadDefinition().getReadSignature() == null) {
+      // for non fs tables always return true
+      newUpdateKey = true;
+    } else {
 
       final HiveTableXattr tableXattr = HiveTableXattr.parseFrom(datasetConfig.getReadDefinition().getExtendedProperty().toByteArray());
 
@@ -413,9 +424,6 @@ public class HiveStoragePlugin implements StoragePlugin {
         default:
           throw UserException.unsupportedError(new IllegalArgumentException("Invalid hive table status " + hiveTableStatus)).build(logger);
       }
-    } else {
-      // for non fs tables always return true
-      newUpdateKey = true;
     }
 
     if (newUpdateKey) {
@@ -467,7 +475,7 @@ public class HiveStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldConfig, boolean ignoreAuthErrors) throws Exception {
+  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldConfig, DatasetRetrievalOptions retrievalOptions) throws Exception {
     try {
       final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
       return DatasetBuilder.getDatasetBuilder(
@@ -475,7 +483,7 @@ public class HiveStoragePlugin implements StoragePlugin {
         getStorageUser(SystemUser.SYSTEM_USERNAME),
         datasetPath,
         false, // we can't assume the path is canonized, so we'll have to hit the source
-        ignoreAuthErrors,
+        retrievalOptions.ignoreAuthzErrors(),
         getStatsParams(),
         hiveConf,
         oldConfig);
@@ -501,19 +509,19 @@ public class HiveStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) {
+  public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions retrievalOptions) {
     final HiveClient client = getClient(user);
     final ImmutableList.Builder<SourceTableDefinition> accessors = ImmutableList.builder();
     try {
-      for(String dbName : client.getDatabases(ignoreAuthErrors)){
+      for(String dbName : client.getDatabases(retrievalOptions.ignoreAuthzErrors())) {
         try {
-          for(String table : client.getTableNames(dbName, ignoreAuthErrors)){
+          for(String table : client.getTableNames(dbName, retrievalOptions.ignoreAuthzErrors())) {
             DatasetBuilder builder = DatasetBuilder.getDatasetBuilder(
               client,
               getStorageUser(user),
               new NamespaceKey(ImmutableList.of(name, dbName, table)),
               true, // we got the path from HiveClient so it's safe to assume it's canonized
-              ignoreAuthErrors,
+              retrievalOptions.ignoreAuthzErrors(),
               getStatsParams(),
               hiveConf,
               null);
@@ -550,58 +558,6 @@ public class HiveStoragePlugin implements StoragePlugin {
     }
   }
 
-  private static HiveConf createHiveConf(HiveStoragePluginConfig config) {
-    final HiveConf hiveConf = new HiveConf();
-
-    final String metastoreURI = String.format("thrift://%s:%d", Preconditions.checkNotNull(config.hostname, "Hive hostname must be provided."), config.port);
-    hiveConf.set("hive.metastore.uris", metastoreURI);
-
-    if (config.enableSasl) {
-      hiveConf.set("hive.metastore.sasl.enabled", "true");
-      if (config.kerberosPrincipal != null) {
-        hiveConf.set("hive.metastore.kerberos.principal", config.kerberosPrincipal);
-      }
-    }
-
-    if(config.propertyList != null) {
-      for(Property prop : config.propertyList) {
-        hiveConf.set(prop.name, prop.value);
-        if(logger.isTraceEnabled()){
-          logger.trace("HiveConfig Override {}={}", prop.name, prop.value);
-        }
-      }
-    }
-
-    // Check if zero-copy has been set by user or configuration
-    boolean useZeroCopyNotSet = hiveConf.get(OrcConf.USE_ZEROCOPY.getAttribute()) == null
-        || hiveConf.get(HiveConf.ConfVars.HIVE_ORC_ZEROCOPY.varname) == null;
-    if (useZeroCopyNotSet) {
-      if (VM.isWindowsHost() || VM.isMacOSHost()) {
-        logger.debug("MacOS or Windows host detected. Not enabling ORC zero-copy feature");
-      } else {
-        String fs = hiveConf.get(FileSystem.FS_DEFAULT_NAME_KEY);
-        if (fs.regionMatches(true, 0, "maprfs", 0, 6)) {
-          // DX-12672: do not enable ORC zero-copy on MapRFS
-          logger.debug("MapRFS detected. Not enabling ORC zero-copy feature");
-        } else {
-          logger.debug("Linux host detected. Enabling ORC zero-copy feature");
-          hiveConf.setBoolean(HiveConf.ConfVars.HIVE_ORC_ZEROCOPY.varname, true);
-        }
-      }
-    } else {
-      boolean useZeroCopy = OrcConf.USE_ZEROCOPY.getBoolean(hiveConf);
-      if (useZeroCopy) {
-        logger.warn("ORC zero-copy feature has been manually enabled. This is not recommended.");
-      } else {
-        logger.error("ORC zero-copy feature has been manually disabled. This is not recommended and might cause memory issues");
-      }
-    }
-    // Configure zero-copy for ORC reader
-
-
-    return hiveConf;
-  }
-
   @Override
   public void close() {
   }
@@ -619,6 +575,9 @@ public class HiveStoragePlugin implements StoragePlugin {
       } catch (MetaException e) {
         throw Throwables.propagate(e);
       }
+
+      boolean useZeroCopy = OrcConf.USE_ZEROCOPY.getBoolean(hiveConf);
+      logger.info("ORC Zero-Copy {}.", useZeroCopy ? "enabled" : "disabled");
 
       clientsByUser = CacheBuilder
         .newBuilder()

@@ -18,7 +18,9 @@ package com.dremio.dac.model.namespace;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.dremio.dac.explore.model.Dataset;
 import com.dremio.dac.explore.model.DatasetName;
@@ -35,7 +37,9 @@ import com.dremio.dac.model.sources.PhysicalDatasetName;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.sources.PhysicalDatasetResourcePath;
 import com.dremio.dac.model.sources.SourceName;
+import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.util.DatasetsUtil;
@@ -43,6 +47,7 @@ import com.dremio.file.File;
 import com.dremio.file.FilePath;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceNotFoundException;
+import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.file.FileFormat;
@@ -58,6 +63,10 @@ import com.google.common.base.Preconditions;
  */
 public class NamespaceTree {
 
+  private static DatasetVersionMutator datasetService;
+  private static List<NameSpaceContainer> children;
+  private static Type rootEntityType;
+  private static CollaborationHelper collaborationService;
   // TODO For now we only implement list (single level lookups)
   private final List<Folder> folders;
   private final List<Dataset> datasets;
@@ -72,11 +81,14 @@ public class NamespaceTree {
   }
 
   // Spaces, home and sources are top level folders hence can never show in children.
-  public static NamespaceTree newInstance(final DatasetVersionMutator datasetService,
-      List<NameSpaceContainer> children, Type rootEntityType) throws NamespaceException, DatasetNotFoundException {
+  public static NamespaceTree newInstance(
+      final DatasetVersionMutator datasetService,
+      List<NameSpaceContainer> children,
+      Type rootEntityType,
+      CollaborationHelper collaborationService) throws NamespaceException, DatasetNotFoundException {
     NamespaceTree result = new NamespaceTree();
 
-    populateInstance(result, datasetService, children, rootEntityType);
+    populateInstance(result, datasetService, children, rootEntityType, collaborationService);
 
     return result;
   }
@@ -85,8 +97,23 @@ public class NamespaceTree {
       NamespaceTree tree,
       DatasetVersionMutator datasetService,
       List<NameSpaceContainer> children,
-      Type rootEntityType)
+      Type rootEntityType,
+      CollaborationHelper collaborationService)
       throws NamespaceException, DatasetNotFoundException {
+
+    // get a list of all ids so we can fetch all collaboration tags in one search
+    final Map<String, CollaborationTag> tags = new HashMap<>();
+    if (collaborationService != null) {
+      children.forEach(input -> {
+        tags.put(NamespaceUtils.getId(input), null);
+      });
+
+      final Iterable<Map.Entry<String, CollaborationTag>> tagsForIds = collaborationService.getTagsForIds(tags.keySet());
+      tagsForIds.forEach(input -> {
+        tags.put(input.getKey(), input.getValue());
+      });
+    }
+
     for (final NameSpaceContainer container: children) {
       switch (container.getType()) {
         case FOLDER: {
@@ -112,19 +139,21 @@ public class NamespaceTree {
                 vds.getSql(),
                 vds,
                 datasetService.getJobsCount(datasetPath.toNamespaceKey()),
-                rootEntityType
+                rootEntityType,
+                tags.get(datasetConfig.getId().getId())
               );
               break;
 
             case PHYSICAL_DATASET_HOME_FILE:
               final String fileDSId = container.getDataset().getId().getId();
-            final FileFormat fileFormat = FileFormat.getForFile(DatasetsUtil.toFileConfig(container.getDataset()));
-            tree.addFile(
+              final FileFormat fileFormat = FileFormat.getForFile(DatasetsUtil.toFileConfig(container.getDataset()));
+              tree.addFile(
                 fileDSId,
                 new FilePath(container.getFullPathList()),
                 fileFormat,
                 datasetService.getJobsCount(datasetPath.toNamespaceKey()), false, true,
-                fileFormat.getFileType() != FileType.UNKNOWN, datasetConfig.getType()
+                fileFormat.getFileType() != FileType.UNKNOWN, datasetConfig.getType(),
+                tags.get(fileDSId)
               );
               break;
 
@@ -132,12 +161,13 @@ public class NamespaceTree {
             case PHYSICAL_DATASET_SOURCE_FOLDER:
             case PHYSICAL_DATASET:
               PhysicalDatasetPath path = new PhysicalDatasetPath(datasetConfig.getFullPathList());
-              tree.addPhysicalDataset(new
-                      PhysicalDatasetResourcePath(new SourceName(container.getFullPathList().get(0)), path),
-                      new PhysicalDatasetName(path.getFileName().getName()),
-                      DatasetsUtil.toPhysicalDatasetConfig(container.getDataset()),
-                      datasetService.getJobsCount(datasetPath.toNamespaceKey())
-                  );
+              tree.addPhysicalDataset(
+                new PhysicalDatasetResourcePath(new SourceName(container.getFullPathList().get(0)), path),
+                new PhysicalDatasetName(path.getFileName().getName()),
+                DatasetsUtil.toPhysicalDatasetConfig(container.getDataset()),
+                datasetService.getJobsCount(datasetPath.toNamespaceKey()),
+                tags.get(container.getDataset().getId().getId())
+              );
               break;
 
             default:
@@ -172,13 +202,13 @@ public class NamespaceTree {
   }
 
   protected void addFile(String id, NamespacePath filePath, FileFormat fileFormat, Integer jobCount,
-      boolean isStaged, boolean isHomeFile, boolean isQueryable, DatasetType datasetType) {
+      boolean isStaged, boolean isHomeFile, boolean isQueryable, DatasetType datasetType, CollaborationTag collaborationTag) {
     final File file = File.newInstance(
         id,
         filePath,
         fileFormat,
         jobCount,
-        isStaged, isHomeFile, isQueryable
+        isStaged, isHomeFile, isQueryable, getTags(collaborationTag)
       );
       addFile(file);
   }
@@ -192,10 +222,16 @@ public class NamespaceTree {
       DatasetName datasetName,
       String sql,
       VirtualDatasetUI datasetConfig,
-      int jobCount, NameSpaceContainer.Type rootEntityType) throws NamespaceNotFoundException {
-    Dataset dataset = Dataset.newInstance(resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, jobCount);
+      int jobCount, NameSpaceContainer.Type rootEntityType,
+      CollaborationTag collaborationTag
+  ) throws NamespaceNotFoundException {
+    Dataset dataset = Dataset.newInstance(resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, jobCount, getTags(collaborationTag));
 
     addDataset(dataset);
+  }
+
+  protected List<String> getTags(CollaborationTag collaborationTag) {
+    return null == collaborationTag ? null : collaborationTag.getTagsList();
   }
 
   public void addPhysicalDataset(final PhysicalDataset rds) {
@@ -206,9 +242,10 @@ public class NamespaceTree {
       PhysicalDatasetResourcePath resourcePath,
       PhysicalDatasetName datasetName,
       PhysicalDatasetConfig datasetConfig,
-      Integer jobCount) throws NamespaceNotFoundException {
+      Integer jobCount,
+      CollaborationTag collaborationTag) throws NamespaceNotFoundException {
 
-    PhysicalDataset physicalDataset = new PhysicalDataset(resourcePath, datasetName, datasetConfig, jobCount);
+    PhysicalDataset physicalDataset = new PhysicalDataset(resourcePath, datasetName, datasetConfig, jobCount, getTags(collaborationTag));
 
     addPhysicalDataset(physicalDataset);
   }

@@ -26,6 +26,7 @@ import org.apache.hadoop.io.Writable;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.planner.logical.serialization.serializers.ImmutableCollectionSerializers;
 import com.dremio.exec.planner.logical.serialization.serializers.JavaSerializers;
 import com.dremio.exec.planner.logical.serialization.serializers.RelDataTypeSerializer;
@@ -38,11 +39,13 @@ import com.dremio.exec.planner.logical.serialization.serializers.TableMetadataSe
 import com.dremio.exec.planner.logical.serialization.serializers.WritableSerializer;
 import com.dremio.exec.store.RelOptNamespaceTable;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.factories.SerializerFactory;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.serializers.ExternalizableSerializer;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -95,6 +98,8 @@ public class RelSerializer {
     kryo.addDefaultSerializer(RelOptTableImpl.class, new RelOptTableImplSerializer(catalog));
     kryo.addDefaultSerializer(RelOptNamespaceTable.class, new RelOptNamespaceTableSerializer(catalog, context.getCluster()));
     kryo.addDefaultSerializer(TableMetadata.class, new TableMetadataSerializer(catalog));
+    kryo.addDefaultSerializer(SourceConfig.class, new ExternalizableSerializer());
+    kryo.addDefaultSerializer(ConnectionConf.class, new ExternalizableSerializer());
 
   }
 

@@ -17,9 +17,16 @@ package com.dremio.exec.physical.impl;
 
 import org.junit.Test;
 
+import com.dremio.common.util.DremioStringUtils;
 import com.dremio.sabot.BaseTestFunction;
 
 public class TestStringFunctions extends BaseTestFunction {
+  /**
+   * Returns the string 's' repeated 'n' times
+   */
+  private String repeat(String s, int n) {
+    return new String(new char[n]).replace("\0", s);
+  }
 
   @Test
   public void charLength(){
@@ -40,7 +47,8 @@ public class TestStringFunctions extends BaseTestFunction {
   public void hexConversion(){
     testFunctions(new Object[][]{
       {"to_hex(binary_string('\\\\x11\\\\x22'))", "1122"},
-      {"string_binary(from_hex('1112'))", "\\x11\\x12"}
+      {"string_binary(from_hex('1112'))", "\\x11\\x12"},
+      {"to_hex(repeatstr(binary_string('\\\\x11\\\\x22'),256))", repeat("1122", 256)},
     });
   }
 

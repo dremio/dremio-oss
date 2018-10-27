@@ -57,5 +57,5 @@ public interface JobStatusListener {
   /**
    * Called when the job was cancelled
    */
-  void jobCancelled();
+  void jobCancelled(String reason);
 }

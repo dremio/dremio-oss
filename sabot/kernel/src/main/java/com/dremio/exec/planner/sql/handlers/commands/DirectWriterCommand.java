@@ -16,22 +16,28 @@
 package com.dremio.exec.planner.sql.handlers.commands;
 
 import static com.dremio.exec.planner.physical.PlannerSettings.QUERY_RESULTS_STORE_TABLE;
+import static com.dremio.exec.planner.physical.PlannerSettings.STORE_QUERY_RESULTS;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
+import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.commons.lang3.text.StrTokenizer;
 
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.exec.planner.sql.ParserConfig;
 import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
@@ -63,6 +69,8 @@ import com.google.common.collect.ImmutableMap;
  */
 public class DirectWriterCommand<T> implements CommandRunner<Object> {
 
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DirectWriterCommand.class);
+
   private final SqlNode sqlNode;
   private final AttemptObserver observer;
   private final SqlDirectHandler<T> handler;
@@ -83,7 +91,7 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
   @Override
   public double plan() throws Exception {
     observer.planStart(sql);
-    observer.planValidated(new PojoDataType(handler.getResultType()).getRowType(JavaTypeFactoryImpl.INSTANCE), null, 0);
+    observer.planValidated(new PojoDataType(handler.getResultType()).getRowType(JavaTypeFactoryImpl.INSTANCE), sqlNode, 0);
     result = handler.toResult(sql, sqlNode);
     observer.planCompleted(null);
     return 1;
@@ -154,9 +162,37 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
   }
 
   private Writer getWriter(OptionManager options) throws IOException{
+    final StoreQueryResultsPolicy storeQueryResultsPolicy = Optional
+        .ofNullable(options.getOption(STORE_QUERY_RESULTS.getOptionName()))
+        .map(o -> StoreQueryResultsPolicy.valueOf(o.getStringVal().toUpperCase(Locale.ROOT)))
+        .orElse(StoreQueryResultsPolicy.NO);
+
+    // Verify that query results are stored
+    switch (storeQueryResultsPolicy) {
+    case NO:
+      return null;
+
+    case DIRECT_PATH:
+    case PATH_AND_ATTEMPT_ID:
+      // supported cases
+      break;
+
+    default:
+      logger.warn("Unknown query result store policy {}. Query results won't be saved", storeQueryResultsPolicy);
+      return null;
+    }
+
     final String storeTablePath = options.getOption(QUERY_RESULTS_STORE_TABLE.getOptionName()).getStringVal();
-    final List<String> storeTable = new StrTokenizer(storeTablePath, '.', ParserConfig.QUOTING.string.charAt(0))
-        .setIgnoreEmptyTokens(true).getTokenList();
+    final Quoting quoting = Optional.ofNullable(context.getSession().getInitialQuoting()).orElse(ParserConfig.QUOTING);
+    final List<String> storeTable =
+        new StrTokenizer(storeTablePath, '.', quoting.string.charAt(0))
+            .setIgnoreEmptyTokens(true)
+            .getTokenList();
+
+    if (storeQueryResultsPolicy == StoreQueryResultsPolicy.PATH_AND_ATTEMPT_ID) {
+      // QueryId is same as attempt id. Using its string form for the table name
+      storeTable.add(QueryIdHelper.getQueryId(context.getQueryId()));
+    }
 
     // Query results are stored in arrow format. If need arises, we can change
     // this to a configuration option.
@@ -191,6 +227,7 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
         null,
         context.getOptions(),
         context.getNamespaceService(),
+        null,
         NodeDebugContextProvider.NOOP,
         60000);
     return oc;

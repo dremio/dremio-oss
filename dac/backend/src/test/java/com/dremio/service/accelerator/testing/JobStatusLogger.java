@@ -56,7 +56,11 @@ public class JobStatusLogger implements JobStatusListener {
   }
 
   @Override
-  public void jobCancelled() {
+  public void jobCancelled(String reason) {
+    if (reason != null) {
+      logger.debug("Job cancelled for reason: {}", reason);
+      return;
+    }
     logger.debug("Job cancelled");
   }
 

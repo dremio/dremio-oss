@@ -24,6 +24,7 @@ import FontIcon from 'components/Icon/FontIcon';
 import DatasetsSearch from 'components/DatasetsSearch';
 import {loadSearchData} from 'actions/search';
 import { getSearchResult, getViewState } from 'selectors/resources';
+import { getSearchText } from '@app/selectors/search';
 import { bodyWhite } from 'uiTheme/radium/typography';
 
 @Radium
@@ -31,8 +32,10 @@ export class SearchItem extends Component {
   static propTypes = {
     loadSearchData: PropTypes.func,
     search: PropTypes.instanceOf(Immutable.List).isRequired,
-    searchViewState: PropTypes.instanceOf(Immutable.Map)
+    searchViewState: PropTypes.instanceOf(Immutable.Map),
+    searchText: PropTypes.string
   }
+  input = null; // ill store input ref
 
   constructor(props) {
     super(props);
@@ -47,11 +50,27 @@ export class SearchItem extends Component {
     clearTimeout(this.updateSearch);
   }
 
-  onInput = (evt) => {
+  componentWillUpdate(newProps) {
+    this.propsChange(this.props, newProps);
+  }
+
+  propsChange(prevProps, newProps) {
+    const {
+      searchText
+    } = newProps;
+
+    if (prevProps.searchText !== searchText && typeof searchText === 'string') {
+      this.input.value = searchText;
+      this.input.focus();
+      this.onInput(); // simulate text change
+    }
+  }
+
+  onInput = () => {
     this.setState({
-      anchorEl: evt.currentTarget
+      anchorEl: this.input
     });
-    const text = this.refs.input.value;
+    const text = this.input.value;
     clearTimeout(this.updateSearch);
     this.updateSearch = setTimeout(() => (this.startSearch(text)), 800);
   }
@@ -60,11 +79,13 @@ export class SearchItem extends Component {
     return (
       <div style={styles.searchItem} className='search-item'>
         <FontIcon
+          key='icon'
           type='SearchPaleNavy'
           theme={styles.fontIcon}/>
         <input
+          key='textInput'
           type='text'
-          ref='input'
+          ref={this.onInputRef}
           onInput={this.onInput}
           style={{...styles.searchInput, outline: 'none'}}/>
       </div>
@@ -77,13 +98,17 @@ export class SearchItem extends Component {
 
   handleSearchHide = () => {
     this.setState({searchVisible: false});
-    this.refs.input.value = '';
+    this.input.focus();
   }
 
   startSearch(text) {
     this.props.loadSearchData(text);
     this.setState({inputText: text});
     this.handleSearchShow();
+  }
+
+  onInputRef = input => {
+    this.input = input;
   }
 
   render() {
@@ -116,7 +141,8 @@ export class SearchItem extends Component {
 function mapStateToProps(state) {
   return {
     search: getSearchResult(state) || Immutable.List(),
-    searchViewState: getViewState(state, 'searchDatasets')
+    searchViewState: getViewState(state, 'searchDatasets'),
+    searchText: getSearchText(state)
   };
 }
 

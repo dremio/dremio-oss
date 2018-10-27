@@ -116,20 +116,15 @@ describe('TimeDot', () => {
       }, 1);
     });
 
-    it('should not hide popover while mouse in popover', (done) => {
+    it('should hide popover if cursor is moved to a popover', (done) => {
       target.simulate('mouseenter');
       target.simulate('mouseleave');
       popover.simulate('mouseenter');
 
       setTimeout(() => {
         wrapper.update();
-        expect(wrapper.find('Overlay').props().show).to.be.true;
-        popover.simulate('mouseleave');
-        setTimeout(() => {
-          wrapper.update();
-          expect(wrapper.find('Overlay').props().show).to.be.false;
-          done();
-        }, 1);
+        expect(wrapper.find('Overlay').props().show).to.be.false;
+        done();
       }, 1);
     });
 

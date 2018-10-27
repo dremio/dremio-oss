@@ -17,7 +17,12 @@ package com.dremio.dac.explore;
 
 import static com.dremio.dac.explore.DatasetTool.TMP_DATASET_PATH;
 
-import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import javax.annotation.security.RolesAllowed;
@@ -33,13 +38,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
-
-import org.threeten.bp.Duration;
-import org.threeten.bp.Instant;
-import org.threeten.bp.LocalTime;
-import org.threeten.bp.ZoneOffset;
-import org.threeten.bp.ZonedDateTime;
-import org.threeten.bp.format.DateTimeFormatter;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.annotations.RestResource;
@@ -68,10 +66,12 @@ import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.proto.model.dataset.AccelerationData;
 import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.FromTable;
+import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
+import com.dremio.dac.service.search.SearchContainer;
 import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ConnectionReader;
@@ -106,6 +106,7 @@ public class DatasetsResource {
   private final DatasetTool tool;
   private final ConnectionReader connectionReader;
   private final Catalog catalog;
+  private final CatalogServiceHelper catalogServiceHelper;
 
   @Inject
   public DatasetsResource(
@@ -115,20 +116,23 @@ public class DatasetsResource {
       QueryExecutor executor,
       ConnectionReader connectionReader,
       @Context SecurityContext securityContext,
-      Catalog catalog) {
-    this(namespaceService, datasetService, new DatasetTool(datasetService, jobsService, executor, securityContext), connectionReader, catalog);
+      Catalog catalog,
+      CatalogServiceHelper catalogServiceHelper) {
+    this(namespaceService, datasetService, new DatasetTool(datasetService, jobsService, executor, securityContext), connectionReader, catalog, catalogServiceHelper);
   }
 
   protected DatasetsResource(NamespaceService namespaceService,
       DatasetVersionMutator datasetService,
       DatasetTool tool,
       ConnectionReader connectionReader,
-      Catalog catalog) {
+      Catalog catalog,
+      CatalogServiceHelper catalogServiceHelper) {
     this.namespaceService = namespaceService;
     this.datasetService = datasetService;
     this.tool = tool;
     this.connectionReader = connectionReader;
     this.catalog = catalog;
+    this.catalogServiceHelper = catalogServiceHelper;
   }
 
   private InitialPreviewResponse newUntitled(DatasetPath fromDatasetPath, DatasetVersion newVersion)
@@ -238,10 +242,10 @@ public class DatasetsResource {
   @Path("search")
   @Produces(MediaType.APPLICATION_JSON)
   public DatasetSearchUIs searchDatasets(@QueryParam("filter") String filters, @QueryParam("sort") String sortColumn,
-                                         @QueryParam("order") SortOrder order) throws IOException, DatasetVersionNotFoundException {
+                                         @QueryParam("order") SortOrder order) throws NamespaceException, DatasetVersionNotFoundException {
     final DatasetSearchUIs datasets = new DatasetSearchUIs();
-    for (DatasetConfig datasetConfig : datasetService.searchDatasets(filters)) {
-      datasets.add(new DatasetSearchUI(datasetConfig));
+    for (SearchContainer searchEntity : catalogServiceHelper.searchByQuery(filters)) {
+      datasets.add(new DatasetSearchUI(searchEntity.getNamespaceContainer().getDataset()));
     }
     return datasets;
   }

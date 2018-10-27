@@ -43,8 +43,11 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.fs.Path;
+
 import com.dremio.datastore.WarningTimer;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.options.OptionManager;
 import com.dremio.service.job.proto.JobAttempt;
@@ -126,6 +129,7 @@ public class ReflectionManager implements Runnable {
   private final Set<ReflectionId> reflectionsToUpdate;
   private final WakeUpCallback wakeUpCallback;
   private final Supplier<ExpansionHelper> expansionHelper;
+  private final Path accelerationBasePath;
 
   private long lastWakeupTime;
 
@@ -148,6 +152,10 @@ public class ReflectionManager implements Runnable {
     this.reflectionsToUpdate = Preconditions.checkNotNull(reflectionsToUpdate, "reflections to update required");
     this.wakeUpCallback = Preconditions.checkNotNull(wakeUpCallback, "wakeup callback required");
     this.expansionHelper = Preconditions.checkNotNull(expansionHelper, "sqlConvertSupplier required");
+
+    final FileSystemPlugin accelerationPlugin = sabotContext.getCatalogService()
+      .getSource(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
+    accelerationBasePath = accelerationPlugin.getConfig().getPath();
   }
 
   @Override
@@ -538,7 +546,7 @@ public class ReflectionManager implements Runnable {
       logger.debug("cancelling materialization job {} for reflection {}", entry.getRefreshJobId().getId(), getId(entry));
       // even though the following method can block if the job's foreman is on a different node, it's not a problem here
       // as we always submit reflection jobs on the same node as the manager
-      jobsService.cancel(SYSTEM_USERNAME, entry.getRefreshJobId());
+      jobsService.cancel(SYSTEM_USERNAME, entry.getRefreshJobId(), "Reflection maintenance job cancellation");
     } catch (JobException e) {
       logger.warn("Failed to cancel refresh job updated reflection {}", getId(entry), e);
     }
@@ -571,7 +579,7 @@ public class ReflectionManager implements Runnable {
 
     try {
       final RefreshDoneHandler handler = new RefreshDoneHandler(entry, materialization, job,
-        namespaceService, materializationStore, dependencyManager, expansionHelper);
+        namespaceService, materializationStore, dependencyManager, expansionHelper, accelerationBasePath);
       final RefreshDecision decision = handler.handle();
 
       // no need to set the following attributes if we fail to handle the refresh
@@ -706,7 +714,9 @@ public class ReflectionManager implements Runnable {
     final JobDetails jobDetails = ReflectionUtils.computeJobDetails(job.getJobAttempt());
     final List<DataPartition> dataPartitions = computeDataPartitions(jobInfo);
     final MaterializationMetrics metrics = ReflectionUtils.computeMetrics(job);
-    final Refresh refresh = ReflectionUtils.createRefresh(materialization, seriesId, 0, -1, jobDetails, metrics, dataPartitions);
+    final List<String> refreshPath = ReflectionUtils.getRefreshPath(job.getJobId(), job.getData(), accelerationBasePath);
+    final Refresh refresh = ReflectionUtils.createRefresh(materialization.getReflectionId(), refreshPath, seriesId,
+      0, -1, jobDetails, metrics, dataPartitions);
     refresh.setCompacted(true);
 
     // no need to update entry lastSuccessfulRefresh, as it may only cause unnecessary refreshes on dependant reflections

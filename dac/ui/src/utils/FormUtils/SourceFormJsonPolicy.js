@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+import { pick } from 'lodash/object';
 import { SHARING_TAB_JSON_TEMPLATE } from 'dyn-load/constants/sourceTypes';
+import { DEFAULT_VLHF_DETAIL } from 'dyn-load/constants/vlh';
 import FormUtils from 'utils/FormUtils/FormUtils';
 import FormConfig from 'utils/FormUtils/FormConfig';
 import FormTabConfig from 'utils/FormUtils/FormTabConfig';
@@ -30,7 +32,6 @@ import PropertListConfig from 'utils/FormUtils/PropertyListConfig';
 import SharingWidgetConfig from 'utils/FormUtils/SharingWidgetConfig';
 import ValueListConfig from 'utils/FormUtils/ValueListConfig';
 
-const DEFAULT_VLHF_DETAIL = require('customData/vlhfDetail');
 
 export default class SourceFormJsonPolicy {
 
@@ -294,11 +295,6 @@ export default class SourceFormJsonPolicy {
           label: 'Name',
           focus: true,
           validate: {isRequired: true}
-        },
-        {
-          type: 'textarea',
-          propName: 'description',
-          label: 'Description'
         }
       ]
     };
@@ -316,18 +312,6 @@ export default class SourceFormJsonPolicy {
         }
       ]
     };
-    const METADATAREFRESH_TAB_JSON_TEMPLATE = {
-      name: 'Metadata Caching',
-      sections: [
-        {
-          elements: [
-            {
-              type: 'metadata_refresh'
-            }
-          ]
-        }
-      ]
-    };
 
     const functionalElements = functionalConfig.elements || [];
 
@@ -338,7 +322,7 @@ export default class SourceFormJsonPolicy {
     config.form.addTab(new FormTabConfig(ACCELERATION_TAB_JSON_TEMPLATE, functionalElements));
 
     // add Reflection Refresh tab based on config.metadataRefresh
-    this.addReflectionRefreshTab(config, METADATAREFRESH_TAB_JSON_TEMPLATE, functionalElements);
+    this.addReflectionRefreshTab(config, functionalElements);
 
     // add Sharing tab
     if (SHARING_TAB_JSON_TEMPLATE.name) {
@@ -396,16 +380,43 @@ export default class SourceFormJsonPolicy {
   }
 
 
-  static addReflectionRefreshTab(config, tabTemplate, functionalElements) {
+  static addReflectionRefreshTab(config, functionalElements) {
     if (!config.metadataRefresh) return;
 
+    const metadataRefreshEl = {
+      type: 'metadata_refresh'
+    };
+    const tabTemplate = {
+      name: 'Metadata',
+      sections: [
+        {
+          name: 'Dataset Handling',
+          elements: [{
+            type: 'checkbox',
+            label: la('Remove dataset definitions if underlying data is unavailable.'),
+            propName: 'metadataPolicy.deleteUnavailableDatasets',
+            value: true
+          }, config.metadataRefresh.isFileSystemSource && {
+            type: 'checkbox',
+            label: la('Automatically format files into physical datasets when users issue queries.'),
+            propName: 'metadataPolicy.autoPromoteDatasets',
+            value: false
+          }].filter(Boolean)
+        },
+        {
+          name: 'Metadata Refresh',
+          elements: [metadataRefreshEl]
+        }
+      ]
+    };
+
+    // Take only supported options
+    const policyInfo = pick(config.metadataRefresh, ['datasetDiscovery', 'authorization']);
+
     const tab = tabTemplate;
-    if (config.metadataRefresh.datasetDiscovery) {
-      tab.sections[0].elements[0].datasetDiscovery = true;
-    }
-    if (config.metadataRefresh.authorization) {
-      tab.sections[0].elements[0].authorization = true;
-    }
+    // we should alter object by reference, that is why Object.assign is used
+    Object.assign(metadataRefreshEl, policyInfo); // eslint-disable-line no-restricted-properties
+
     const tabConfig = new FormTabConfig(tab, functionalElements);
     config.form.addTab(tabConfig);
   }

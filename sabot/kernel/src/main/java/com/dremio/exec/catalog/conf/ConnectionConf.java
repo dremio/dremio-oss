@@ -15,12 +15,16 @@
  */
 package com.dremio.exec.catalog.conf;
 
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 
 import javax.inject.Provider;
 
-import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.StoragePlugin;
@@ -53,7 +57,7 @@ import io.protostuff.runtime.RuntimeSchema;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type")
 @JsonAutoDetect(fieldVisibility=Visibility.PUBLIC_ONLY, getterVisibility=Visibility.NONE, isGetterVisibility=Visibility.NONE, setterVisibility=Visibility.NONE)
-public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends StoragePlugin> implements AbstractConnectionConf {
+public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends StoragePlugin> implements AbstractConnectionConf, Externalizable {
 
   private transient final Schema<T> schema;
   public static final String USE_EXISTING_SECRET_VALUE = "$DREMIO_EXISTING_VALUE$";
@@ -138,8 +142,8 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
     }
   }
 
-  public static void registerSubTypes(ObjectMapper mapper, ScanResult scanResult) {
-    for(Class<?> c : scanResult.getAnnotatedClasses(SourceType.class)) {
+  public static void registerSubTypes(ObjectMapper mapper, ConnectionReader connectionReader) {
+    for (Class<?> c : connectionReader.getAllConnectionConfs().values()) {
       NamedType nt = new NamedType(c, c.getAnnotation(SourceType.class).value());
       mapper.registerSubtypes(nt);
     }
@@ -209,4 +213,19 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
   public boolean isInternal() {
     return false;
   }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public final void writeExternal(ObjectOutput out) throws IOException {
+    T obj = (T) this;
+    ProtobufIOUtil.writeDelimitedTo(out, obj, schema);
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public final void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    T obj = (T) this;
+    ProtobufIOUtil.mergeDelimitedFrom(in, obj, schema);
+  }
+
 }

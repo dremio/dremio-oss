@@ -15,44 +15,44 @@
  */
 package com.dremio.service.coordinator.zk;
 
+import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2;
 import org.apache.curator.framework.recipes.locks.Lease;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.service.coordinator.DistributedSemaphore;
 
-class ZkDistributedSemaphore implements DistributedSemaphore{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ZkDistributedSemaphore.class);
+class ZkDistributedSemaphore implements DistributedSemaphore {
+//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ZkDistributedSemaphore.class);
 
   private final InterProcessSemaphoreV2 semaphore;
 
-  public ZkDistributedSemaphore(CuratorFramework client, String path, int numberOfLeases) {
+  ZkDistributedSemaphore(CuratorFramework client, String path, int numberOfLeases) {
     this.semaphore = new InterProcessSemaphoreV2(client, path, numberOfLeases);
   }
 
   @Override
-  public DistributedLease acquire(long time, TimeUnit unit) throws Exception {
-    Lease lease = semaphore.acquire(time, unit);
-    if(lease != null){
-      return new LeaseHolder(lease);
-    }else{
-      return null;
+  public DistributedLease acquire(int permits, long time, TimeUnit unit) throws Exception {
+    Collection<Lease> leases = semaphore.acquire(permits, time, unit);
+    if (leases != null) {
+      return new LeasesHolder(leases);
     }
+    return null;
   }
 
-  private class LeaseHolder implements DistributedLease{
-    private Lease lease;
+  private class LeasesHolder implements DistributedLease {
+    private Collection<Lease> leases;
 
-    public LeaseHolder(Lease lease) {
-      super();
-      this.lease = lease;
+    LeasesHolder(Collection<Lease> leases) {
+      this.leases = leases;
     }
 
     @Override
     public void close() throws Exception {
-      lease.close();
+      AutoCloseables.close(leases);
     }
 
   }

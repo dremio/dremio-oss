@@ -47,6 +47,7 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.folder.FolderName;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.sources.SourceUI;
+import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.dac.model.spaces.SpaceName;
@@ -64,6 +65,7 @@ import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.jobs.SqlQuery;
@@ -263,6 +265,7 @@ public class SampleDataPopulator implements AutoCloseable {
       final NASConf nas = new NASConf();
       nas.path = path.toFile().getPath();
       source.setConfig(nas);
+      source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
       sourceService.registerSourceWithRuntime(source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
     }
 
@@ -273,6 +276,7 @@ public class SampleDataPopulator implements AutoCloseable {
       final NASConf nas = new NASConf();
       nas.path = path.toFile().getPath();
       source.setConfig(nas);
+      source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
       sourceService.registerSourceWithRuntime(source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
 
     }
@@ -284,6 +288,7 @@ public class SampleDataPopulator implements AutoCloseable {
       final NASConf nas = new NASConf();
       nas.path = "/";
       source.setConfig(nas);
+      source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
       sourceService.registerSourceWithRuntime(source.asSourceConfig(), SystemUser.SYSTEM_USERNAME);
     }
   }

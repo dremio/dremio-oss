@@ -20,6 +20,7 @@ import static java.lang.String.format;
 import java.io.IOException;
 import java.net.URI;
 import java.security.KeyStore;
+import java.util.Optional;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
@@ -41,14 +42,15 @@ import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserLoginSession;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.GenericErrorMessage;
-import com.dremio.dac.server.HttpsConnectorGenerator;
 import com.dremio.dac.server.tokens.TokenUtils;
 import com.dremio.dac.util.BackupRestoreUtil.BackupStats;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.exec.rpc.ssl.SSLConfigurator;
 import com.dremio.ssl.SSLHelper;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
@@ -127,15 +129,21 @@ public class Backup {
     }
   }
 
-  public static BackupStats createBackup(DACConfig dacConfig, String userName, String password, KeyStore trustStore, URI uri) throws IOException {
+  public static BackupStats createBackup(
+      DACConfig dacConfig,
+      String userName,
+      String password,
+      Optional<KeyStore> trustStore,
+      URI uri)
+      throws IOException {
     final JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
     provider.setMapper(JSONUtil.prettyMapper());
     ClientBuilder clientBuilder = ClientBuilder.newBuilder()
         .register(provider)
         .register(MultiPartFeature.class);
 
-    if (trustStore != null) {
-      clientBuilder.trustStore(trustStore);
+    if (trustStore.isPresent()) {
+      clientBuilder.trustStore(trustStore.get());
     } else {
       SSLContext sslContext = SSLHelper.newAllTrustingSSLContext("SSL");
       HostnameVerifier verifier = SSLHelper.newAllValidHostnameVerifier();
@@ -145,7 +153,7 @@ public class Backup {
 
     final Client client = clientBuilder.build();
     WebTarget target = client.target(format("%s://%s:%d",
-        dacConfig.webSSLEnabled ? "https" : "http", dacConfig.thisNode, dacConfig.getHttpPort())).path("apiv2");
+        dacConfig.webSSLEnabled() ? "https" : "http", dacConfig.thisNode, dacConfig.getHttpPort())).path("apiv2");
 
     final UserLogin userLogin = new UserLogin(userName, password);
     final UserLoginSession userLoginSession = readEntity(UserLoginSession.class, target.path("/login").request(JSON).buildPost(Entity.json(userLogin)));
@@ -172,7 +180,9 @@ public class Backup {
       }
       URI target = backupDir.toUri();
 
-      KeyStore trustStore = options.acceptAll ? null : new HttpsConnectorGenerator().getTrustStore(dacConfig.getConfig());
+      final Optional<KeyStore> trustStore = options.acceptAll
+          ? Optional.empty()
+          : new SSLConfigurator(dacConfig.getConfig(), DremioConfig.WEB_SSL_PREFIX, "web").getTrustStore();
 
       BackupStats backupStats = createBackup(dacConfig, options.userName, options.password, trustStore, target);
       System.out.println(format("Backup created at %s, dremio tables %d, uploaded files %d",

@@ -21,12 +21,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import com.typesafe.config.ConfigFactory;
+import com.dremio.test.TemporarySystemProperties;
 
 /**
  * Test Dremio Config.
  */
 public class TestDremioConfig {
+
+  @Rule
+  public final TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Rule
   public final ExpectedException exception = ExpectedException.none();
@@ -38,48 +41,36 @@ public class TestDremioConfig {
 
   @Test
   public void fileOverride() {
-    try(
-        ResetProp prop1 = new ResetProp(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL);
-        ResetProp prop2 = new ResetProp(DremioConfig.LOCAL_WRITE_PATH_STRING);
-        ResetProp prop3 = new ResetProp(DremioConfig.DB_PATH_STRING);
-        ResetProp prop4 = new ResetProp("dremd.write");
-        ) {
-      // clear relevant parameters.
-      prop1.set(null);
-      prop2.set(null);
-      prop3.set(null);
-      prop4.set(null);
-      DremioConfig config = DremioConfig.create(getClass().getResource("/test-dremio.conf"));
+    // clear relevant parameters.
+    properties.clear(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL);
+    properties.clear(DremioConfig.LOCAL_WRITE_PATH_STRING);
+    properties.clear(DremioConfig.DB_PATH_STRING);
+    properties.clear("dremd.write");
 
-      // check simple setting
-      assertEquals(false, config.getBoolean(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL));
+    DremioConfig config = DremioConfig.create(getClass().getResource("/test-dremio.conf"));
 
-      // check overriden setting that uses
-      assertEquals("/tmp/crazydir/db", config.getString(DremioConfig.DB_PATH_STRING));
-      assertEquals("pdfs:///tmp/crazydir/pdfs/accelerator", config.getString(DremioConfig.ACCELERATOR_PATH_STRING));
-    }
+    // check simple setting
+    assertEquals(false, config.getBoolean(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL));
+
+    // check overriden setting that uses
+    assertEquals("/tmp/crazydir/db", config.getString(DremioConfig.DB_PATH_STRING));
+    assertEquals("pdfs:///tmp/crazydir/pdfs/accelerator", config.getString(DremioConfig.ACCELERATOR_PATH_STRING));
   }
 
   @Test
   public void distOverride() {
-    try(
-        ResetProp prop1 = new ResetProp(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL);
-        ResetProp prop2 = new ResetProp(DremioConfig.LOCAL_WRITE_PATH_STRING);
-        ResetProp prop3 = new ResetProp(DremioConfig.DB_PATH_STRING);
-        ResetProp prop4 = new ResetProp("dremd.write");
-        ) {
-      // clear relevant parameters.
-      prop1.set(null);
-      prop2.set(null);
-      prop3.set(null);
-      prop4.set(null);
-      DremioConfig config = DremioConfig.create(getClass().getResource("/test-dremio4.conf"));
+    // clear relevant parameters.
+    properties.clear(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL);
+    properties.clear(DremioConfig.LOCAL_WRITE_PATH_STRING);
+    properties.clear(DremioConfig.DB_PATH_STRING);
+    properties.clear("dremd.write");
 
-      // check overriden setting that uses
-      assertEquals("/tmp/foobar/db", config.getString(DremioConfig.DB_PATH_STRING));
-      assertEquals("pdfs:///tmp/foobar/dist", config.getString(DremioConfig.DIST_WRITE_PATH_STRING));
-      assertEquals("pdfs:///tmp/foobar/dist/accelerator", config.getString(DremioConfig.ACCELERATOR_PATH_STRING));
-    }
+    DremioConfig config = DremioConfig.create(getClass().getResource("/test-dremio4.conf"));
+
+    // check overriden setting that uses
+    assertEquals("/tmp/foobar/db", config.getString(DremioConfig.DB_PATH_STRING));
+    assertEquals("pdfs:///tmp/foobar/dist", config.getString(DremioConfig.DIST_WRITE_PATH_STRING));
+    assertEquals("pdfs:///tmp/foobar/dist/accelerator", config.getString(DremioConfig.ACCELERATOR_PATH_STRING));
   }
 
   /**
@@ -88,18 +79,14 @@ public class TestDremioConfig {
    */
   @Test
   public void systemOverFile(){
-    try(
-        ResetProp prop1 = new ResetProp(DremioConfig.DB_PATH_STRING);
-        ) {
-      // clear relevant parameters.
-      final String path = "my.fave.path";
-      prop1.set(path);
+    // clear relevant parameters.
+    final String path = "my.fave.path";
+    properties.set(DremioConfig.DB_PATH_STRING, path);
 
-      DremioConfig config = DremioConfig.create(getClass().getResource("/test-dremio.conf"));
+    DremioConfig config = DremioConfig.create(getClass().getResource("/test-dremio.conf"));
 
-      // check simple setting
-      assertEquals(path, config.getString(DremioConfig.DB_PATH_STRING));
-    }
+    // check simple setting
+    assertEquals(path, config.getString(DremioConfig.DB_PATH_STRING));
   }
 
 
@@ -107,24 +94,20 @@ public class TestDremioConfig {
   public void arrayProperties() throws Exception {
     DremioConfig config = DremioConfig.create(getClass().getResource("/test-dremio3.conf"));
     String property = (config.getStringList(DremioConfig.SPILLING_PATH_STRING)).toString();
-    System.out.println(property);
-    try(
-      ResetProp prop1 = new ResetProp(DremioConfig.SPILLING_PATH_STRING);
-    ) {
-      // clear relevant parameters.
-      final String path = property;
-      prop1.set(path);
-      DremioConfig configNew = DremioConfig.create(getClass().getResource("/test-dremio.conf"));
-      assertEquals(path, configNew.getStringList(DremioConfig.SPILLING_PATH_STRING).toString());
-      assertEquals(config.getStringList(DremioConfig.SPILLING_PATH_STRING), configNew.getStringList(DremioConfig
+    // clear relevant parameters.
+    final String path = property;
+    properties.set(DremioConfig.SPILLING_PATH_STRING, path);
+    DremioConfig configNew = DremioConfig.create(getClass().getResource("/test-dremio.conf"));
+    assertEquals(path, configNew.getStringList(DremioConfig.SPILLING_PATH_STRING).toString());
+    assertEquals(config.getStringList(DremioConfig.SPILLING_PATH_STRING), configNew.getStringList(DremioConfig
         .SPILLING_PATH_STRING));
-    }
   }
 
   @Test
   public void badProperty() {
     exception.expect(RuntimeException.class);
     exception.expectMessage("mistyped-property");
+    @SuppressWarnings("unused")
     DremioConfig config = DremioConfig.create(getClass().getResource("/test-dremio2.conf"));
   }
 
@@ -146,10 +129,9 @@ public class TestDremioConfig {
   @Test
   public void legacySystemProp() {
     String name = "dremio_autoPort";
-    try(ResetProp prop = new ResetProp(name)) {
-      prop.set("true");
-      assertEquals(true, DremioConfig.create().getBoolean(DremioConfig.DEBUG_AUTOPORT_BOOL));
-    }
+
+    properties.set(name, "true");
+    assertEquals(true, DremioConfig.create().getBoolean(DremioConfig.DEBUG_AUTOPORT_BOOL));
   }
 
 
@@ -157,54 +139,21 @@ public class TestDremioConfig {
   public void newSystemProp() {
     String name = DremioConfig.DEBUG_AUTOPORT_BOOL;
 
-    try(ResetProp prop = new ResetProp(name)) {
+    // set setting one way so we make sure we don't depend on external settings.
+    properties.set(name, "false");
+    assertEquals(false, DremioConfig.create().getBoolean(name));
 
-      // set setting one way so we make sure we don't depend on external settings.
-      prop.set("false");
-      assertEquals(false, DremioConfig.create().getBoolean(name));
-
-      // now set the value the other way, to make sure we're actually changing something.
-      prop.set("true");
-      assertEquals(true, DremioConfig.create().getBoolean(name));
-
-    }
+    // now set the value the other way, to make sure we're actually changing something.
+    properties.set(name, "true");
+    assertEquals(true, DremioConfig.create().getBoolean(name));
   }
 
   @Test
   public void newSystemPropWithDependency() {
     String name = DremioConfig.LOCAL_WRITE_PATH_STRING;
 
-    try(ResetProp prop = new ResetProp(name)) {
-      // set setting one way so we make sure we don't depend on external settings.
-      prop.set("my.special.path");
-      assertEquals("my.special.path/db", DremioConfig.create().getString(DremioConfig.DB_PATH_STRING));
-    }
-  }
-
-  private class ResetProp implements AutoCloseable {
-
-    private final String original;
-    private final String property;
-
-    public ResetProp(String property){
-      this.property = property;
-      this.original = System.getProperty(property);
-    }
-
-    public void set(String value){
-      if(value == null){
-        System.clearProperty(property);
-      } else {
-        System.setProperty(property, value);
-      }
-      ConfigFactory.invalidateCaches();
-    }
-
-    @Override
-    public void close() {
-      set(original);
-      ConfigFactory.invalidateCaches();
-    }
-
+    // set setting one way so we make sure we don't depend on external settings.
+    properties.set(name, "my.special.path");
+    assertEquals("my.special.path/db", DremioConfig.create().getString(DremioConfig.DB_PATH_STRING));
   }
 }

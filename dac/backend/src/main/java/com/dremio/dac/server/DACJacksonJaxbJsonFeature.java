@@ -29,6 +29,7 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.explore.model.VirtualDatasetUIMixin;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.server.BootStrapContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
@@ -44,8 +45,8 @@ public class DACJacksonJaxbJsonFeature implements Feature {
     private final InputValidation validation = new InputValidation();
 
     @Inject
-    public DACJacksonJaxbJsonProvider(Configuration configuration, BootStrapContext context) {
-      this.setMapper(newObjectMapper(configuration, context.getClasspathScan()));
+    public DACJacksonJaxbJsonProvider(Configuration configuration, BootStrapContext context, ConnectionReader connectionReader) {
+      this.setMapper(newObjectMapper(configuration, context.getClasspathScan(), connectionReader));
     }
 
 
@@ -61,12 +62,12 @@ public class DACJacksonJaxbJsonFeature implements Feature {
       return o;
     }
 
-    protected ObjectMapper newObjectMapper(Configuration configuration, ScanResult scanResult) {
+    protected ObjectMapper newObjectMapper(Configuration configuration, ScanResult scanResult, ConnectionReader connectionReader) {
       Boolean property = PropertyHelper.getProperty(configuration, RestServerV2.JSON_PRETTYPRINT_ENABLE);
       final boolean prettyPrint = property != null && property;
 
       ObjectMapper mapper = prettyPrint ? JSONUtil.prettyMapper() : JSONUtil.mapper();
-      JSONUtil.registerStorageTypes(mapper, scanResult);
+      JSONUtil.registerStorageTypes(mapper, scanResult, connectionReader);
       mapper.addMixIn(VirtualDatasetUI.class, VirtualDatasetUIMixin.class);
 
       return mapper;

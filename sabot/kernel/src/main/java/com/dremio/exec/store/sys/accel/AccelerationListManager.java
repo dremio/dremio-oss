@@ -182,7 +182,7 @@ public interface AccelerationListManager extends Service {
     public final Long seriesId;
     public final String init_refresh_job_id;
     public final Integer series_ordinal;
-    public final String joinAnalysis;
+    public final String join_analysis;
     public final String state;
     public final String failure_msg;
     public final String data_partitions;
@@ -201,7 +201,7 @@ public interface AccelerationListManager extends Service {
       this.seriesId = seriesId;
       this.init_refresh_job_id = init_refresh_job_id;
       this.series_ordinal = series_ordinal;
-      this.joinAnalysis = joinAnalysis;
+      this.join_analysis = joinAnalysis;
       this.state = state;
       this.failure_msg = failureMsg;
       this.data_partitions = dataPartitions;

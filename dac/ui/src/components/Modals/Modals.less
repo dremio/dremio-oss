@@ -121,4 +121,27 @@
   .large-modal .modal-form-wrapper {
     overflow-y: auto;
   }
+
+  /** tall-modal */
+
+  .tall-modal .ReactModal__Content {
+    top: 0;
+    bottom: 80px;
+  }
+
+  .tall-modal .ReactModal__Content--after-open {
+    top: 40px;
+    bottom: 40px;
+    transition: all 150ms ease-in;
+  }
+
+  .tall-modal .ReactModal__Content--before-close {
+    top: 0;
+    bottom: 80px;
+    transition: all 150ms ease-in;
+  }
+
+  .tall-modal .modal-form-wrapper {
+    overflow-y: auto;
+  }
 }

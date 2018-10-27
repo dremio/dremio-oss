@@ -56,49 +56,53 @@ public class MajorTypeHelper {
     if (field.getType() instanceof ObjectType) {
       return Types.required(TypeProtos.MinorType.GENERIC_OBJECT);
     }
+    return getMajorTypeForArrowType(field.getType(), field.getChildren());
+  }
+
+  public static MajorType getMajorTypeForArrowType(ArrowType arrowType, List<Field> children) {
     MajorType.Builder builder = MajorType.newBuilder()
-            .setMinorType(getMinorTypeFromArrowMinorType(getMinorTypeForArrowType(field.getType())))
-            .setMode(DataMode.OPTIONAL);
-    ArrowTypeID fieldType = field.getType().getTypeID();
+      .setMinorType(getMinorTypeFromArrowMinorType(getMinorTypeForArrowType(arrowType)))
+      .setMode(DataMode.OPTIONAL);
+    ArrowTypeID fieldType = arrowType.getTypeID();
     switch(fieldType) {
-    case Decimal:
-      builder.setPrecision(((Decimal) field.getType()).getPrecision()).setScale(((Decimal) field.getType()).getScale());
-      break;
+      case Decimal:
+        builder.setPrecision(((Decimal) arrowType).getPrecision()).setScale(((Decimal) arrowType).getScale());
+        break;
 
-    case Utf8:
-    case Binary:
-      builder.setPrecision(CompleteType.DEFAULT_VARCHAR_PRECISION);
-      break;
+      case Utf8:
+      case Binary:
+        builder.setPrecision(CompleteType.DEFAULT_VARCHAR_PRECISION);
+        break;
 
-    case Timestamp:
-      TimeUnit unit = ((Timestamp) field.getType()).getUnit();
-      switch(unit) {
-      // Only MILLISECONDS is supported, but future-proofing
-      case SECOND:
-        builder.setPrecision(0);
+      case Timestamp:
+        TimeUnit unit = ((Timestamp) arrowType).getUnit();
+        switch(unit) {
+          // Only MILLISECONDS is supported, but future-proofing
+          case SECOND:
+            builder.setPrecision(0);
+            break;
+          case MILLISECOND:
+            builder.setPrecision(3);
+            break;
+          case MICROSECOND:
+            builder.setPrecision(6);
+            break;
+          case NANOSECOND:
+            builder.setPrecision(9);
+            break;
+          default:
+            throw new AssertionError("Arrow TimeUnit " + unit + "not supported");
+        }
         break;
-      case MILLISECOND:
-        builder.setPrecision(3);
+
+      case Union:
+        for (Field child : children) {
+          builder.addSubType(getMinorTypeFromArrowMinorType(getMinorTypeForArrowType(child.getType())));
+        }
         break;
-      case MICROSECOND:
-        builder.setPrecision(6);
-        break;
-      case NANOSECOND:
-        builder.setPrecision(9);
-        break;
+
       default:
-        throw new AssertionError("Arrow TimeUnit " + unit + "not supported");
-      }
-      break;
-
-    case Union:
-      for (Field child : field.getChildren()) {
-        builder.addSubType(getMinorTypeFromArrowMinorType(getMinorTypeForArrowType(child.getType())));
-      }
-      break;
-
-    default:
-      // Nothing
+        // Nothing
     }
     return builder.build();
   }
@@ -157,6 +161,8 @@ public class MajorTypeHelper {
     switch (arrowMinorType) {
     case TIMESTAMPMILLI:
       return TypeProtos.MinorType.TIMESTAMP;
+    case TIMESTAMPMILLITZ:
+      return TypeProtos.MinorType.TIMESTAMPTZ;
     case TIMEMILLI:
       return TypeProtos.MinorType.TIME;
     case DATEMILLI:

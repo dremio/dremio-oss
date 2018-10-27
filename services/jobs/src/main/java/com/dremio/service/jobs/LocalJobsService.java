@@ -28,6 +28,7 @@ import static com.dremio.service.jobs.JobIndexKeys.JOBID;
 import static com.dremio.service.jobs.JobIndexKeys.JOB_STATE;
 import static com.dremio.service.jobs.JobIndexKeys.PARENT_DATASET;
 import static com.dremio.service.jobs.JobIndexKeys.QUERY_TYPE;
+import static com.dremio.service.jobs.JobIndexKeys.QUEUE_NAME;
 import static com.dremio.service.jobs.JobIndexKeys.SPACE;
 import static com.dremio.service.jobs.JobIndexKeys.SQL;
 import static com.dremio.service.jobs.JobIndexKeys.START_TIME;
@@ -36,6 +37,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -59,8 +62,10 @@ import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
-import org.threeten.bp.Instant;
-import org.threeten.bp.temporal.ChronoUnit;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.map.annotate.JsonSerialize;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.DeferredException;
@@ -69,7 +74,6 @@ import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.ProtostuffUtil;
-import com.dremio.common.utils.SqlUtils;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
@@ -137,6 +141,7 @@ import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.LocalUserUtil;
 import com.dremio.options.OptionManager;
 import com.dremio.proto.model.attempts.AttemptReason;
+import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserSession;
@@ -153,6 +158,7 @@ import com.dremio.service.job.proto.JoinAnalysis;
 import com.dremio.service.job.proto.JoinInfo;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.job.proto.ResourceSchedulingInfo;
 import com.dremio.service.jobs.metadata.QueryMetadata;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -184,7 +190,10 @@ import io.protostuff.ByteString;
  * Submit and monitor jobs from DAC.
  */
 public class LocalJobsService implements JobsService {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LocalJobsService.class);
+  private static final Logger logger = LoggerFactory.getLogger(LocalJobsService.class);
+  private static final Logger QUERY_LOGGER = LoggerFactory.getLogger("query.logger");
+
+  private static final ObjectMapper MAPPER = createMapper();
 
   private static final int DISABLE_CLEANUP_VALUE = -1;
 
@@ -212,6 +221,7 @@ public class LocalJobsService implements JobsService {
   private final Provider<ForemenTool> foremenTool;
   private final Provider<CoordTunnelCreator> coordTunnelCreator;
   private final Provider<SchedulerService> schedulerService;
+  private final java.util.function.Function<? super Job, ? extends LoggedQuery> jobResultToLogEntryConverter;
   private final boolean isMaster;
 
   private NodeEndpoint identity;
@@ -232,6 +242,7 @@ public class LocalJobsService implements JobsService {
       final Provider<ForemenTool> foremenTool,
       final Provider<SabotContext> contextProvider,
       final Provider<SchedulerService> schedulerService,
+      final java.util.function.Function<? super Job, ? extends LoggedQuery> jobResultToLogEntryConverterProvider,
       final boolean isMaster
       ) {
     this.kvStoreProvider = kvStoreProvider;
@@ -239,6 +250,7 @@ public class LocalJobsService implements JobsService {
     this.queryExecutor = checkNotNull(queryExecutor);
     this.fileSystemPluginProvider = checkNotNull(fileSystemPluginProvider);
     this.bindingCreator = bindingCreator;
+    this.jobResultToLogEntryConverter = jobResultToLogEntryConverterProvider;
     this.runningJobs = new ConcurrentHashMap<>();
     this.contextProvider = contextProvider;
     this.foremenTool = foremenTool;
@@ -381,7 +393,7 @@ public class LocalJobsService implements JobsService {
             .setUsername(jobRequest.getUsername())
             .setSqlContext(jobRequest.getSqlQuery().getContext())
             .setInternalSingleThreaded(queryType == UI_INITIAL_PREVIEW)
-            .setQueryResultsStorePath(String.format("%s.%s", storageName, SqlUtils.quoteIdentifier(jobId.getId())))
+            .setQueryResultsStorePath(storageName)
             .setAllowPartitionPruning(queryType != QueryType.ACCELERATOR_EXPLAIN)
             .setExposeInternalSources(QueryTypeUtils.isInternal(queryType))
             .setSubstitutionSettings(jobRequest.getSubstitutionSettings())
@@ -395,6 +407,7 @@ public class LocalJobsService implements JobsService {
 
     final boolean isPrepare = queryType.equals(QueryType.PREPARE_INTERNAL);
     final WorkloadClass workloadClass = QueryTypeUtils.getWorkloadClassFor(queryType);
+    final UserBitShared.WorkloadType workloadType = QueryTypeUtils.getWorkloadType(queryType);
 
     final Object queryRequest;
     if (isPrepare) {
@@ -407,7 +420,8 @@ public class LocalJobsService implements JobsService {
           .setSource(SubmissionSource.LOCAL)
           .setPlan(jobRequest.getSqlQuery().getSql())
           .setPriority(QueryPriority.newBuilder()
-              .setWorkloadClass(workloadClass))
+              .setWorkloadClass(workloadClass)
+              .setWorkloadType(workloadType))
           .build();
     }
 
@@ -621,6 +635,9 @@ public class LocalJobsService implements JobsService {
       writer.write(DATASET_VERSION, jobInfo.getDatasetVersion());
       writer.write(START_TIME, jobInfo.getStartTime());
       writer.write(END_TIME, jobInfo.getFinishTime());
+      if (jobInfo.getResourceSchedulingInfo() != null && jobInfo.getResourceSchedulingInfo().getQueueName() != null) {
+        writer.write(QUEUE_NAME, jobInfo.getResourceSchedulingInfo().getQueueName());
+      }
 
       final Long duration = jobInfo.getStartTime() == null || jobInfo.getFinishTime() == null ? null :
           jobInfo.getFinishTime() - jobInfo.getStartTime();
@@ -947,7 +964,7 @@ public class LocalJobsService implements JobsService {
               break;
 
             case CANCELED:
-              this.statusListener.jobCancelled();
+              this.statusListener.jobCancelled(userResult.getReason());
               break;
 
             case FAILED:
@@ -967,6 +984,16 @@ public class LocalJobsService implements JobsService {
       }
 
       listeners.close(job);
+
+      logQuerySummary(job);
+    }
+  }
+
+  private void logQuerySummary(Job job) {
+    try {
+      QUERY_LOGGER.info(MAPPER.writeValueAsString(jobResultToLogEntryConverter.apply(job)));
+    } catch (IOException e) {
+      logger.error("Failure while recording query information to query log.", e);
     }
   }
 
@@ -1126,16 +1153,16 @@ public class LocalJobsService implements JobsService {
     @Override
     public void queryStarted(UserRequest query, String user) {
       job.getJobAttempt().setState(STARTING);
+      job.getJobAttempt().getInfo().setRequestType(query.getRequestType());
+      job.getJobAttempt().getInfo().setSql(query.getSql());
+      job.getJobAttempt().getInfo().setDescription(query.getDescription());
       storeJob(job);
+
+      statusListener.jobSubmitted(jobId);
 
       if (externalListenerManager != null) {
         externalListenerManager.queryUpdate(job);
       }
-
-      job.getJobAttempt().getInfo().setRequestType(query.getRequestType());
-      job.getJobAttempt().getInfo().setSql(query.getSql());
-      job.getJobAttempt().getInfo().setDescription(query.getDescription());
-      statusListener.jobSubmitted(jobId);
     }
 
     @Override
@@ -1212,6 +1239,22 @@ public class LocalJobsService implements JobsService {
     }
 
     @Override
+    public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
+      final JobInfo jobInfo = job.getJobAttempt().getInfo();
+      if (resourceSchedulingDecisionInfo != null) {
+        if (jobInfo.getResourceSchedulingInfo() == null) {
+          jobInfo.setResourceSchedulingInfo(new ResourceSchedulingInfo());
+        }
+        jobInfo.getResourceSchedulingInfo()
+          .setQueueName(resourceSchedulingDecisionInfo.getQueueName())
+          .setQueueId(resourceSchedulingDecisionInfo.getQueueId())
+          .setResourceSchedulingStart(resourceSchedulingDecisionInfo.getSchedulingStartTimeMs())
+          .setResourceSchedulingEnd(resourceSchedulingDecisionInfo.getSchedulingEndTimeMs());
+        storeJob(job);
+      }
+    }
+
+    @Override
     public void execStarted(QueryProfile profile) {
       try (TimedBlock b = Timer.time("execStarted")) {
         b.addID("attempt=" + attemptId);
@@ -1221,15 +1264,22 @@ public class LocalJobsService implements JobsService {
           jobInfo.setStartTime(profile.getStart());
 
           job.getJobAttempt().setState(JobState.RUNNING);
+
+          final QueryProfileParser profileParser = new QueryProfileParser(jobId, profile);
+          if (profile.getResourceSchedulingProfile() != null) {
+            if (jobInfo.getResourceSchedulingInfo() == null) {
+              jobInfo.setResourceSchedulingInfo(new ResourceSchedulingInfo());
+            }
+            jobInfo.getResourceSchedulingInfo().setQueueName(profile.getResourceSchedulingProfile().getQueueName());
+            jobInfo.getResourceSchedulingInfo().setQueueId(profile.getResourceSchedulingProfile().getQueueId());
+          }
+          job.getJobAttempt().setStats(profileParser.getJobStats());
+          job.getJobAttempt().setDetails(profileParser.getJobDetails());
           storeJob(job);
 
           if (externalListenerManager != null) {
             externalListenerManager.queryUpdate(job);
           }
-
-          final QueryProfileParser profileParser = new QueryProfileParser(jobId, profile);
-          job.getJobAttempt().setStats(profileParser.getJobStats());
-          job.getJobAttempt().setDetails(profileParser.getJobDetails());
         }
       } catch (IOException e) {
         exception.addException(e);
@@ -1368,11 +1418,19 @@ public class LocalJobsService implements JobsService {
 
   private void addAttemptToJob(Job job, QueryState state, QueryProfile profile) throws IOException {
 
-      job.getJobAttempt().setState(JobsServiceUtil.queryStatusToJobStatus(state));
-      final JobInfo jobInfo = job.getJobAttempt().getInfo();
+      final JobAttempt jobAttempt = job.getJobAttempt();
+      jobAttempt.setState(JobsServiceUtil.queryStatusToJobStatus(state));
+      final JobInfo jobInfo = jobAttempt.getInfo();
       final QueryProfileParser profileParser = new QueryProfileParser(job.getJobId(), profile);
       jobInfo.setStartTime(profile.getStart());
       jobInfo.setFinishTime(profile.getEnd());
+      if (profile.getResourceSchedulingProfile() != null) {
+        if (jobInfo.getResourceSchedulingInfo() == null) {
+          jobInfo.setResourceSchedulingInfo(new ResourceSchedulingInfo());
+        }
+        jobInfo.getResourceSchedulingInfo().setQueueName(profile.getResourceSchedulingProfile().getQueueName());
+        jobInfo.getResourceSchedulingInfo().setQueueId(profile.getResourceSchedulingProfile().getQueueId());
+      }
       if (state == QueryState.FAILED) {
         if (profile.hasError()) {
           jobInfo.setFailureInfo(profile.getError());
@@ -1381,8 +1439,10 @@ public class LocalJobsService implements JobsService {
           jobInfo.setDetailedFailureInfo(JobsServiceUtil.toFailureInfo(profile.getVerboseError()));
         }
       }
-      job.getJobAttempt().setStats(profileParser.getJobStats());
-      job.getJobAttempt().setDetails(profileParser.getJobDetails());
+      jobInfo.setOutputTableList(Arrays.asList(storageName, jobAttempt.getAttemptId()));
+
+      jobAttempt.setStats(profileParser.getJobStats());
+      jobAttempt.setDetails(profileParser.getJobDetails());
 
       storeJob(job);
 
@@ -1433,10 +1493,10 @@ public class LocalJobsService implements JobsService {
   }
 
   @Override
-  public void cancel(String username, JobId jobId) throws JobException {
+  public void cancel(String username, JobId jobId, String reason) throws JobException {
     final ForemenTool tool = this.foremenTool.get();
     final ExternalId id = ExternalIdHelper.toExternal(QueryIdHelper.getQueryIdFromString(jobId.getId()));
-    if(tool.cancel(id)){
+    if(tool.cancel(id, reason)){
       logger.debug("Job cancellation requested on current node.");
       return;
     }
@@ -1445,17 +1505,17 @@ public class LocalJobsService implements JobsService {
     final Job job = getJob(jobId);
     NodeEndpoint endpoint = job.getJobAttempt().getEndpoint();
     if(endpoint.equals(identity)){
-      throw new JobWarningException(jobId, "Unable to cancel job started on current node. It may have completed before cancellation was request.");
+      throw new JobWarningException(jobId, "Unable to cancel job started on current node. It may have completed before cancellation was requested.");
     }
 
     try{
       final CoordTunnel tunnel = coordTunnelCreator.get().getTunnel(JobsServiceUtil.toPB(endpoint));
-      Ack ack = tunnel.requestCancelQuery(id).checkedGet(15, TimeUnit.SECONDS);
+      Ack ack = tunnel.requestCancelQuery(id, reason).checkedGet(15, TimeUnit.SECONDS);
       if(ack.getOk()){
         logger.debug("Job cancellation requested on {}.", endpoint.getAddress());
         return;
       } else {
-        throw new JobWarningException(jobId, String.format("Unable to cancel job started on %s. It may have completed before cancellation was request.", endpoint.getAddress()));
+        throw new JobWarningException(jobId, String.format("Unable to cancel job started on %s. It may have completed before cancellation was requested.", endpoint.getAddress()));
       }
     }catch(TimeoutException | RpcException | RuntimeException e){
       logger.info("Unable to cancel remote job for external id: {}", ExternalIdHelper.toString(id), e);
@@ -1617,5 +1677,14 @@ public class LocalJobsService implements JobsService {
           .valueSerializer(QueryProfileSerializer.class)
           .build();
     }
+  }
+
+  private static ObjectMapper createMapper() {
+    ObjectMapper objectMapper = new ObjectMapper();
+
+    // skip NULL fields when serializing - for some reason annotation version doesn't work
+    objectMapper.setSerializationInclusion(JsonSerialize.Inclusion.NON_NULL);
+
+    return objectMapper;
   }
 }

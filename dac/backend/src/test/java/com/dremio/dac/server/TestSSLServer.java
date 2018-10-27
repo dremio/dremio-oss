@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.server;
 
+import static org.junit.Assert.assertEquals;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -34,6 +36,7 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.dac.daemon.DACDaemon;
+import com.dremio.exec.rpc.ssl.SSLConfigurator;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.test.DremioTest;
 
@@ -70,21 +73,21 @@ public class TestSSLServer extends BaseClientUtils {
     initClient(hostname);
 
     final Path keyStoreDirectory = Paths.get(localWritePathString,
-      HttpsConnectorGenerator.KEY_STORE_DIRECTORY);
+        SSLConfigurator.KEY_STORE_DIRECTORY);
     Assert.assertTrue(Files.exists(keyStoreDirectory));
-    Assert.assertEquals(Files.getPosixFilePermissions(keyStoreDirectory),
-      HttpsConnectorGenerator.KEY_STORE_DIRECTORY_PERMISSIONS);
+    assertEquals(Files.getPosixFilePermissions(keyStoreDirectory),
+        SSLConfigurator.KEY_STORE_DIRECTORY_PERMISSIONS);
 
     final Path keyStorePath = Paths.get(localWritePathString,
-      HttpsConnectorGenerator.KEY_STORE_DIRECTORY, HttpsConnectorGenerator.KEY_STORE_FILE);
+        SSLConfigurator.KEY_STORE_DIRECTORY, SSLConfigurator.KEY_STORE_FILE);
     Assert.assertTrue(Files.exists(keyStorePath));
-    Assert.assertEquals(Files.getPosixFilePermissions(keyStorePath),
-      HttpsConnectorGenerator.KEY_STORE_FILE_PERMISSIONS);
+    assertEquals(Files.getPosixFilePermissions(keyStorePath),
+        SSLConfigurator.KEY_STORE_FILE_PERMISSIONS);
 
-    final Path trustStorePath = Paths.get(localWritePathString, HttpsConnectorGenerator.TRUST_STORE_FILE);
+    final Path trustStorePath = Paths.get(localWritePathString, SSLConfigurator.TRUST_STORE_FILE);
     Assert.assertTrue(Files.exists(trustStorePath));
-    Assert.assertEquals(Files.getPosixFilePermissions(trustStorePath),
-      HttpsConnectorGenerator.TRUST_STORE_FILE_PERMISSIONS);
+    assertEquals(Files.getPosixFilePermissions(trustStorePath),
+        SSLConfigurator.TRUST_STORE_FILE_PERMISSIONS);
   }
 
   protected static void initClient(final String hostname) {
@@ -106,9 +109,8 @@ public class TestSSLServer extends BaseClientUtils {
   @AfterClass
   public static void shutdown() throws Exception {
     AutoCloseables.close(
-        new AutoCloseable() {
-          @Override
-          public void close() throws Exception {
+        () -> {
+          if (client != null) {
             client.close();
           }
         },

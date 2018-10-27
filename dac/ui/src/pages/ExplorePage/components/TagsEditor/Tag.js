@@ -16,11 +16,15 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
+import Art from '@app/components/Art';
 import {
   tag,
   selected,
   deletable,
-  deleteButton
+  deleteButton,
+  clickable,
+  textWrapper,
+  text as textClass
 } from './Tag.less';
 
 export class Tag extends Component {
@@ -30,16 +34,25 @@ export class Tag extends Component {
     readonly: PropTypes.bool,
     className: PropTypes.string,
     isSelected: PropTypes.bool,
+    daqa: PropTypes.string,
+    // true - use text as title,
+    // false - do not show title
+    // string - use provided string as a title
+    title: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
     //handlers
     onClick: PropTypes.func,
     deleteHandler: PropTypes.func
-  }
+  };
+
+  static defaultProps = {
+    title: true
+  };
 
   deleteClick = (e) => {
     e.stopPropagation();
 
     this.props.deleteHandler();
-  }
+  };
 
   render() {
     const {
@@ -48,20 +61,38 @@ export class Tag extends Component {
       deleteHandler,
       onClick,
       className,
-      isSelected
+      isSelected,
+      daqa,
+      title
     } = this.props;
     const isDeletable = !readonly && !!deleteHandler;
 
     // 'font-icon' and 'XBig' are global icon style classes
     const props = {
-      className: classNames(tag, isDeletable && deletable, isSelected && selected, 'font-icon', className),
-      onClick
+      className: classNames(tag, isDeletable && deletable, isSelected && selected,
+        onClick && clickable, // show pointer if onClick handler is provided
+        className),
+      onClick,
+      'data-qa': daqa
     };
+
+
+    // set title if title property is true or a string
+    if (title) {
+      props.title = title === true ? text : title;
+    }
 
     return (
       <div {...props}>
-        {text}
-        <div className={classNames(deleteButton, 'XBig')} onClick={isDeletable ? this.deleteClick : null}></div>
+        <span className={textWrapper}>
+          <span className={textClass}>
+            {text}
+          </span>
+        </span>
+        {
+          isDeletable &&
+          <Art src='XBig.svg' alt='delete' title  className={classNames(deleteButton)} onClick={this.deleteClick}/>
+        }
       </div>
     );
   }

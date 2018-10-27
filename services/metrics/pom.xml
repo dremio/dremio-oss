@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>2.1.6-201809161906440178-edb5b4d</version>
+    <version>3.0.0-201810262305460004-5c90d75</version>
   </parent>
   <artifactId>dremio-services-metrics</artifactId>
   <name>Services - Metrics</name>

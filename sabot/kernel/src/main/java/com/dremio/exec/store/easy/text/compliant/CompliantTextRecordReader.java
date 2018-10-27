@@ -30,6 +30,7 @@ import org.apache.arrow.vector.util.CallBack;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.poi.hssf.util.CellReference;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
@@ -164,7 +165,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
     InputStream hStream = dfs.openPossiblyCompressedStream(split.getPath());
     // create read buffer for input
     ArrowBuf readBufferInReader = this.context.getAllocator().buffer(READ_BUFFER);
-    TextInput hInput = new TextInput(settings, hStream, readBufferInReader, 0, split.getLength());
+    TextInput hInput = new TextInput(settings, hStream, readBufferInReader, 0, Math.min(READ_BUFFER, split.getLength()));
 
     // create work buffer for reader
     ArrowBuf whitespaceBufferInReader = this.context.getAllocator().buffer(WHITE_SPACE_BUFFER);
@@ -293,22 +294,13 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
    * This would internally close the input stream we are reading from.
    */
   @Override
-  public void close() {
+  public void close() throws Exception {
     try {
-      if (reader != null) {
-        reader.close();
-        reader = null;
-      }
-      if (readBuffer != null) {
-        readBuffer.close();
-        readBuffer = null;
-      }
-      if (whitespaceBuffer != null) {
-        whitespaceBuffer.close();
-        whitespaceBuffer = null;
-      }
-    } catch (IOException e) {
-      logger.warn("Exception while closing stream.", e);
+      AutoCloseables.close(reader, readBuffer, whitespaceBuffer);
+    } finally {
+      reader = null;
+      readBuffer = null;
+      whitespaceBuffer = null;
     }
   }
 

@@ -50,7 +50,7 @@ public class RootAllocatorFactory {
     final String previousProperty = System.getProperty(IO_NETTY_ALLOCATOR_USE_CACHE_FOR_ALL_THREADS_PROPERTY);
     try {
       System.setProperty(IO_NETTY_ALLOCATOR_USE_CACHE_FOR_ALL_THREADS_PROPERTY, "false");
-      return new DremioRootAllocator(Math.min(VM.getMaxDirectMemory(), config.getLong(TOP_LEVEL_MAX_ALLOC)));
+      return DremioRootAllocator.create(Math.min(VM.getMaxDirectMemory(), config.getLong(TOP_LEVEL_MAX_ALLOC)));
     } finally {
       if (previousProperty == null) {
         System.getProperties().remove(IO_NETTY_ALLOCATOR_USE_CACHE_FOR_ALL_THREADS_PROPERTY);

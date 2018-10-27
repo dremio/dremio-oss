@@ -17,7 +17,7 @@ package com.dremio.exec.planner.sql.handlers.commands;
 
 import java.util.Collection;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutionException;
 
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
@@ -25,13 +25,16 @@ import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared.WorkloadClass;
+import com.dremio.exec.util.Utilities;
+import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.resource.ResourceAllocator;
+import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.resource.ResourceSchedulingProperties;
+import com.dremio.resource.ResourceSchedulingResult;
 import com.dremio.resource.ResourceSet;
 import com.dremio.resource.basic.BasicResourceConstants;
 import com.dremio.resource.basic.QueueType;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.ListenableFuture;
 
 /**
  * Base class for Asynchronous queries.
@@ -46,6 +49,7 @@ public abstract class AsyncCommand<T> implements CommandRunner<T> {
   protected ResourceAllocator queryResourceManager;
   protected AttemptObserver observer;
   protected ResourceSet resourceSet;
+  protected ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo;
 
   public AsyncCommand(QueryContext context, ResourceAllocator queryResourceManager, AttemptObserver observer) {
     this.context = context;
@@ -93,10 +97,23 @@ public abstract class AsyncCommand<T> implements CommandRunner<T> {
     ResourceSchedulingProperties resourceSchedulingProperties = new ResourceSchedulingProperties();
     resourceSchedulingProperties.setResourceData(endpoints);
     resourceSchedulingProperties.setQueryCost(Double.valueOf(planCost));
-    // TODO set client type, workload type???
+    resourceSchedulingProperties.setQueryType(Utilities.getHumanReadableWorkloadType(context.getWorkloadType()));
 
-    ListenableFuture<ResourceSet> resourcesFuture = queryResourceManager.allocate(context, resourceSchedulingProperties);
-    resourceSet = resourcesFuture.get(15, TimeUnit.SECONDS);
+    long startTimeMs = System.currentTimeMillis();
+    ResourceSchedulingResult resourceSchedulingResult = queryResourceManager.allocate(context, resourceSchedulingProperties);
+    resourceSchedulingDecisionInfo = resourceSchedulingResult.getResourceSchedulingDecisionInfo();
+    resourceSchedulingDecisionInfo.setResourceSchedulingProperties(resourceSchedulingProperties);
+    resourceSchedulingDecisionInfo.setSchedulingStartTimeMs(startTimeMs);
+    observer.resourcesScheduled(resourceSchedulingDecisionInfo);
+    // should not put timeout, as we may be waiting for leases if query has to wait because queries concurrency limit
+    try {
+      resourceSet = resourceSchedulingResult.getResourceSetFuture().get();
+      resourceSchedulingDecisionInfo.setSchedulingEndTimeMs(System.currentTimeMillis());
+      observer.resourcesScheduled(resourceSchedulingDecisionInfo);
+    } catch (ExecutionException e) {
+      throw new ForemanSetupException("Unable to acquire slot for query.", e.getCause());
+    }
+
     return planningSet;
   }
 
@@ -107,6 +124,8 @@ public abstract class AsyncCommand<T> implements CommandRunner<T> {
 
   @Override
   public void close() throws Exception {
-    resourceSet.close();
+    if (resourceSet != null) {
+      resourceSet.close();
+    }
   }
 }

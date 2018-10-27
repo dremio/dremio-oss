@@ -62,7 +62,7 @@ public class TestReflectionsExecutorDown extends BaseTestReflection  {
     setDatasetAccelerationSettings(dsKey, 0, 0, true, true);
 
     // bring executor down
-    getExecutorDaemon().close();
+    closeExecutorDaemon();
 
     // create raw reflection
     final ReflectionId rawId = getReflectionService().create(new ReflectionGoal()

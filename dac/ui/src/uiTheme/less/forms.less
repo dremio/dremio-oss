@@ -44,6 +44,10 @@
   width: 600px
 }
 
+.tab-tall-sections {
+  width: 400px
+}
+
 .section-label {
   composes: common-title;
   color: @MID_GREY;
@@ -66,6 +70,12 @@
 
 .row-margin {
   margin-top: @row-content-margin;
+}
+
+.stacked-container {  
+  > *:not(:first-child) {
+    .row-margin;
+  }
 }
 
 .radio-stacked {

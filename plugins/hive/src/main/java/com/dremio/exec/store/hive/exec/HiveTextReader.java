@@ -39,6 +39,7 @@ import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.mapred.FileSplit;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.ScanFilter;
@@ -62,6 +63,7 @@ public class HiveTextReader extends HiveAbstractReader {
       final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
       final StructObjectInspector partitionOI, final ScanFilter filter) {
     super(tableAttr, split, projectedColumns, context, jobConf, tableSerDe, tableOI, partitionSerDe, partitionOI, filter);
+
   }
 
   @Override
@@ -73,7 +75,8 @@ public class HiveTextReader extends HiveAbstractReader {
     }
 
     key = reader.createKey();
-    skipRecordsInspector = new SkipRecordsInspector(jobConf, reader);
+    final FileSplit fileSplit = (FileSplit)inputSplit;
+    skipRecordsInspector = new SkipRecordsInspector(fileSplit.getStart(), jobConf, reader);
 
     if (!partitionOI.equals(finalOI)) {
       // If the partition and table have different schemas, create a converter
@@ -146,9 +149,11 @@ public class HiveTextReader extends HiveAbstractReader {
     // actualCount without headerCount, used to determine holderIndex
     private int tempCount;
 
-    protected SkipRecordsInspector(JobConf jobConf, RecordReader reader) {
+    protected SkipRecordsInspector(final long startOffsetOfSplit, final JobConf jobConf, RecordReader reader) {
+      /* for file read in multiple splits, header will be skipped only by reader working on first split */
       this.fileFormats = new HashSet<Object>(Arrays.asList(org.apache.hadoop.mapred.TextInputFormat.class.getName()));
-      this.headerCount = retrievePositiveIntProperty(jobConf, serdeConstants.HEADER_COUNT, 0);
+      this.headerCount = startOffsetOfSplit == 0 ? retrievePositiveIntProperty(jobConf, serdeConstants.HEADER_COUNT, 0) : 0;
+      /* todo: fix the skip footer problem with multiple splits */
       this.footerCount = retrievePositiveIntProperty(jobConf, serdeConstants.FOOTER_COUNT, 0);
       logger.debug("skipRecordInspector: fileFormat {}, headerCount {}, footerCount {}", this.fileFormats,
           this.headerCount, this.footerCount);

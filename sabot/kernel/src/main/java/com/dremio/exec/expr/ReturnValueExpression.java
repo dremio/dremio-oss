@@ -18,6 +18,7 @@ package com.dremio.exec.expr;
 import java.util.Iterator;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.EvaluationType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.google.common.collect.Iterators;
@@ -27,6 +28,7 @@ public class ReturnValueExpression implements LogicalExpression {
 
   private LogicalExpression child;
   private boolean returnTrueOnOne;
+  private final EvaluationType evaluationType;
 
   public ReturnValueExpression(LogicalExpression child) {
     this(child, true);
@@ -35,10 +37,27 @@ public class ReturnValueExpression implements LogicalExpression {
   public ReturnValueExpression(LogicalExpression child, boolean returnTrueOnOne) {
     this.child = child;
     this.returnTrueOnOne = returnTrueOnOne;
+    this.evaluationType = new EvaluationType();
+    addEvaluationType(EvaluationType.ExecutionType.JAVA);
   }
 
   public LogicalExpression getChild() {
     return child;
+  }
+
+  @Override
+  public boolean isEvaluationTypeSupported(EvaluationType.ExecutionType executionType) {
+    return evaluationType.isEvaluationTypeSupported(executionType);
+  }
+
+  @Override
+  public void addEvaluationType(EvaluationType.ExecutionType executionType) {
+    evaluationType.addEvaluationType(executionType);
+  }
+
+  @Override
+  public EvaluationType getEvaluationType() {
+    return evaluationType;
   }
 
   @Override

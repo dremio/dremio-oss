@@ -17,10 +17,12 @@ package com.dremio.dac.api;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -28,19 +30,24 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.util.TestTools;
+import com.dremio.dac.model.common.Field;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
+import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
@@ -199,16 +206,73 @@ public class TestCatalogResource extends BaseTestServer {
     vds = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(renamedVDS.getId())).buildPut(Entity.json(renamedVDS)), new GenericType<Dataset>() {});
 
     folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(), new GenericType<Folder>() {});
-    assertEquals(folder.getChildren().size(), 1);
-    assertEquals(folder.getChildren().get(0).getId(), vds.getId());
-    assertEquals(folder.getChildren().get(0).getPath().get(2), "myVDSRenamed");
+    assertEquals(1, folder.getChildren().size());
+    assertEquals(vds.getId(), folder.getChildren().get(0).getId());
+    assertEquals("myVDSRenamed", folder.getChildren().get(0).getPath().get(2));
+
+    // test changing sql
+    Dataset modifiedVDS = new Dataset(
+      vds.getId(),
+      vds.getType(),
+      vds.getPath(),
+      null,
+      null,
+      vds.getTag(),
+      null,
+      "select version from sys.version",
+      null,
+      null,
+      null
+    );
+    vds = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(modifiedVDS.getId())).buildPut(Entity.json(modifiedVDS)), new GenericType<Dataset>() {});
+    assertEquals(modifiedVDS.getSql(), vds.getSql());
+    assertNotEquals(modifiedVDS.getTag(), vds.getTag()); // make sure it stores a new version
+
+    // we currently doesn't allow deserializing of fields so manually check them
+    List<Field> fieldsFromDatasetConfig = DatasetsUtil.getFieldsFromDatasetConfig(newNamespaceService().findDatasetByUUID(vds.getId()));
+    assertEquals(1, fieldsFromDatasetConfig.size());
+    assertEquals("version", fieldsFromDatasetConfig.get(0).getName());
 
     // delete the vds
     expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(vds.getId())).buildDelete());
     folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(), new GenericType<Folder>() {});
-    assertEquals(folder.getChildren().size(), 0);
+    assertEquals(0, folder.getChildren().size());
 
     newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), Long.valueOf(space.getTag()));
+  }
+
+  @Test
+  public void testVDSConcurrency() throws Exception {
+    Space newSpace = new Space(null, "concurrency", null, null, null);
+    Space space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)), new GenericType<Space>() {});
+
+    int max = 5;
+
+    List<Thread> threads = new ArrayList<>();
+    for (int i = 1; i <= max; i++) {
+      threads.add(createVDSInSpace("vds" + i, space.getName(), "select " + i));
+    }
+
+    threads.forEach(Thread::start);
+
+    for (Thread thread : threads) {
+      thread.join();
+    }
+
+    // verify that the VDS were created with the correct SQL
+    for (int i = 1; i <= max; i++) {
+      DatasetConfig dataset = newNamespaceService().getDataset(new NamespaceKey(Arrays.asList(space.getName(), "vds" + i)));
+      assertEquals(dataset.getVirtualDataset().getSql(), "select " + i);
+    }
+
+    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), Long.valueOf(space.getTag()));
+  }
+
+  private Thread createVDSInSpace(String name, String spaceName, String sql) {
+    return new Thread(() -> {
+      Dataset newVDS = createVDS(Arrays.asList(spaceName, name), sql);
+      expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)));
+    });
   }
 
   @Test
@@ -319,9 +383,12 @@ public class TestCatalogResource extends BaseTestServer {
     String folderDatasetId = getFolderIdByName(dsFolder.getChildren(), "\"folderdataset\"");
     assertNotNull(folderDatasetId, "Failed to find folderdataset directory");
 
+    // we want to use the path that the backend gives us so fetch the full folder
+    folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildGet(), new GenericType<Folder>() {});
+
     TextFileConfig textFileConfig = new TextFileConfig();
     textFileConfig.setLineDelimiter("\n");
-    dataset = createPDS(CatalogServiceHelper.getPathFromInternalId(folderDatasetId), textFileConfig);
+    dataset = createPDS(folder.getPath(), textFileConfig);
 
     dataset = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(folderDatasetId))).buildPost(Entity.json(dataset)), new GenericType<Dataset>() {});
 
@@ -335,6 +402,190 @@ public class TestCatalogResource extends BaseTestServer {
     expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
 
     newNamespaceService().deleteSource(new NamespaceKey(source.getName()), Long.valueOf(source.getTag()));
+  }
+
+  @Test
+  public void testSourceMetadataRefresh() throws Exception {
+
+    // create a temporary copy of some test data
+    TemporaryFolder tempFolder = new TemporaryFolder();
+    tempFolder.create();
+    tempFolder.newFolder("json");
+
+    // Copys test data
+    String numbers_src = TestTools.getWorkingPath() + "/src/test/resources/json/numbers.json";
+    java.io.File numbers = new java.io.File(numbers_src);
+    java.io.File numbers_copy = tempFolder.newFile("json/numbers.json");
+    FileUtils.copyFile(numbers, numbers_copy);
+
+    NASConf nasConf = new NASConf();
+    nasConf.path = tempFolder.getRoot().getAbsolutePath();
+    Source newSource = new Source();
+    newSource.setName("catalog-test");
+    newSource.setType("NAS");
+    newSource.setConfig(nasConf);
+
+    Source source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),  new GenericType<Source>() {});
+
+    // browse to the json directory
+    String id = getFolderIdByName(source.getChildren(), "\"json\"");
+    assertNotNull(id, "Failed to find json directory");
+
+    // load the json dir
+    Folder folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildGet(), new GenericType<Folder>() {
+    });
+    assertEquals(folder.getChildren().size(), 1);
+
+    String fileId = null;
+
+    for (CatalogItem item : folder.getChildren()) {
+      List<String> path = item.getPath();
+      // get the numbers.json file
+      if (item.getType() == CatalogItem.CatalogItemType.FILE && path.get(path.size() - 1).equals("\"numbers.json\"")) {
+        fileId = item.getId();
+        break;
+      }
+    }
+
+    assertNotNull(fileId, "Failed to find numbers.json file");
+
+    // load the file
+    File file = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(fileId))).buildGet(), new GenericType<File>() {
+    });
+
+    // promote the file (dac/backend/src/test/resources/json/numbers.json)
+    Dataset dataset = createPDS(CatalogServiceHelper.getPathFromInternalId(file.getId()), new JsonFileConfig());
+
+    dataset = expectSuccess(
+      getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(fileId)))
+        .buildPost(Entity.json(dataset)),
+      new GenericType<Dataset>() { });
+
+    // load the dataset
+    dataset = expectSuccess(
+      getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(dataset.getId())).buildGet(),
+      new GenericType<Dataset>() { });
+
+    // verify listing
+    folder = expectSuccess(
+      getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(id)))
+        .buildGet(),
+      new GenericType<Folder>() { });
+    assertEquals(folder.getChildren().size(), 1);
+
+    // test metadata/refresh endpoint
+    CatalogResource.MetadataRefreshResponse response = new CatalogResource.MetadataRefreshResponse(false, false);
+
+    // test with wrong ID type (expect BAD_REQUEST)
+    expectStatus(Response.Status.BAD_REQUEST,
+      getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))
+        .path("metadata/refresh"))
+        .buildPost(Entity.json(response)));
+
+    // test with bad ID (expect NOT_FOUND)
+     expectStatus(Response.Status.NOT_FOUND,
+      getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(com.dremio.common.utils.PathUtils.encodeURIComponent("asdfasdf"))
+        .path("metadata/refresh"))
+        .buildPost(Entity.json(response)));
+
+    /*** test with promoted data ***/
+    response = expectSuccess(getBuilder(getPublicAPI(3)
+      .path(CATALOG_PATH)
+      .path(com.dremio.common.utils.PathUtils.encodeURIComponent(dataset.getId()))
+      .path("metadata/refresh"))
+      .buildPost(Entity.json(response)),
+      new GenericType<CatalogResource.MetadataRefreshResponse>() { });
+    assertTrue(response.getChanged());
+    assertFalse(response.getDeleted());
+
+    // test forceUpdate
+    response = expectSuccess(getBuilder(getPublicAPI(3)
+      .path(CATALOG_PATH)
+      .path(com.dremio.common.utils.PathUtils.encodeURIComponent(dataset.getId()))
+      .path("metadata/refresh")
+      .queryParam("forceUpdate", "true"))
+      .buildPost(Entity.json(response)),
+      new GenericType<CatalogResource.MetadataRefreshResponse>() { });
+    assertTrue(response.getChanged());
+    assertFalse(response.getDeleted());
+
+    // test deleteWhenMissing
+    response = expectSuccess(getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(dataset.getId()))
+        .path("metadata/refresh")
+        .queryParam("deleteWhenMissing", "true"))
+        .buildPost(Entity.json(response)),
+      new GenericType<CatalogResource.MetadataRefreshResponse>() { });
+    assertTrue(response.getChanged());
+    assertFalse(response.getDeleted());
+
+    // test autoPromotion
+    response = expectSuccess(getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(dataset.getId()))
+        .path("metadata/refresh")
+        .queryParam("autoPromotion", "true"))
+        .buildPost(Entity.json(response)),
+      new GenericType<CatalogResource.MetadataRefreshResponse>() { });
+    assertTrue(response.getChanged());
+    assertFalse(response.getDeleted());
+
+    // test all query params
+    response = expectSuccess(getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(dataset.getId()))
+        .path("metadata/refresh")
+        .queryParam("forceUpdate", "true")
+        .queryParam("deleteWhenMissing", "true")
+        .queryParam("autoPromotion", "true"))
+        .buildPost(Entity.json(response)),
+      new GenericType<CatalogResource.MetadataRefreshResponse>() { });
+    assertTrue(response.getChanged());
+    assertFalse(response.getDeleted());
+
+    // now delete the temporary folder
+    numbers_copy.delete();
+
+    // test keep missing metadata
+    response = expectSuccess(getBuilder(getPublicAPI(3)
+        .path(CATALOG_PATH)
+        .path(com.dremio.common.utils.PathUtils.encodeURIComponent(dataset.getId()))
+        .path("metadata/refresh")
+        .queryParam("forceUpdate", "false")
+        .queryParam("deleteWhenMissing", "false")
+        .queryParam("autoPromotion", "false"))
+        .buildPost(Entity.json(response)),
+      new GenericType<CatalogResource.MetadataRefreshResponse>() { });
+    assertFalse(response.getChanged());
+    assertFalse(response.getDeleted());
+
+    // test enabling metadata deletion when missing
+    response = expectSuccess(getBuilder(getPublicAPI(3)
+      .path(CATALOG_PATH)
+      .path(com.dremio.common.utils.PathUtils.encodeURIComponent(dataset.getId()))
+      .path("metadata/refresh")
+      .queryParam("forceUpdate", "false")
+      .queryParam("deleteWhenMissing", "true")
+      .queryParam("autoPromotion", "false"))
+      .buildPost(Entity.json(response)),
+    new GenericType<CatalogResource.MetadataRefreshResponse>() { });
+    assertTrue(response.getChanged());
+    assertTrue(response.getDeleted());
+
+    // cleanup
+    tempFolder.delete();
+    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildDelete());
   }
 
   @Test

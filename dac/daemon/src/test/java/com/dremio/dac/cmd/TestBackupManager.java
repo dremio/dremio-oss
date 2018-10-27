@@ -25,6 +25,7 @@ import java.io.File;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -150,7 +151,9 @@ public class TestBackupManager extends BaseTestServer {
 
     // take backup 2 using rest api
     final URI backupPath = BaseTestServer.folder1.newFolder().getAbsoluteFile().toURI();
-    Path backupDir2 = new Path(Backup.createBackup(dacConfig, DEFAULT_USERNAME, DEFAULT_PASSWORD, null,  backupPath).getBackupPath());
+    Path backupDir2 = new Path(
+        Backup.createBackup(dacConfig, DEFAULT_USERNAME, DEFAULT_PASSWORD, Optional.empty(), backupPath)
+            .getBackupPath());
 
     // destroy everything
     l(HomeFileTool.class).clearUploads();

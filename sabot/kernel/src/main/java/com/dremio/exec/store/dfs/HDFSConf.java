@@ -32,7 +32,7 @@ import com.dremio.exec.server.SabotContext;
 import io.protostuff.Tag;
 
 @SourceType("HDFS")
-public class HDFSConf extends FileSystemConf<HDFSConf, FileSystemPlugin> {
+public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   public enum ShortCircuitFlag {
     @Tag(1) @DisplayMetadata(label = "HDFS Default") SYSTEM,
     @Tag(2) @DisplayMetadata(label = "Enabled") ENABLED,
@@ -77,6 +77,11 @@ public class HDFSConf extends FileSystemConf<HDFSConf, FileSystemPlugin> {
   @DisplayMetadata(label = "Socket Path")
   public String shortCircuitSocketPath;
 
+  @Tag(8)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable exports into the source (CTAS and DROP)")
+  public boolean allowCreateDrop;
+
   @Override
   public Path getPath() {
     return new Path(rootPath);
@@ -99,7 +104,7 @@ public class HDFSConf extends FileSystemConf<HDFSConf, FileSystemPlugin> {
 
   @Override
   public SchemaMutability getSchemaMutability() {
-    return SchemaMutability.NONE;
+    return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
   }
 
   public ShortCircuitFlag getShortCircuitFlag() {
@@ -111,8 +116,8 @@ public class HDFSConf extends FileSystemConf<HDFSConf, FileSystemPlugin> {
   }
 
   @Override
-  public FileSystemPlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> idProvider) {
-    return new FileSystemPlugin(this, context, name, null, idProvider);
+  public HDFSStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> idProvider) {
+    return new HDFSStoragePlugin(this, context, name, null, idProvider);
   }
 
 }

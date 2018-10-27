@@ -17,6 +17,10 @@ package com.dremio.service.scheduler;
 
 import static org.junit.Assert.assertEquals;
 
+import java.time.DayOfWeek;
+import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -25,10 +29,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
-import org.threeten.bp.DayOfWeek;
-import org.threeten.bp.Instant;
-import org.threeten.bp.LocalTime;
-import org.threeten.bp.ZoneId;
 
 import com.google.common.collect.ImmutableList;
 

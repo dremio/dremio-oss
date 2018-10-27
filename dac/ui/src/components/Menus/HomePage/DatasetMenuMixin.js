@@ -53,6 +53,10 @@ export default function(input) {
         }
 
         {
+          <MenuItemLink href={this.getMenuItemUrl('wiki')} text={la('Catalog')}/>
+        }
+
+        {
           // EE has data graph menu item here
         }
 

@@ -19,6 +19,7 @@ import static com.dremio.service.namespace.dataset.DatasetVersion.MAX_VERSION;
 import static com.dremio.service.namespace.dataset.DatasetVersion.MIN_VERSION;
 import static java.lang.Long.MAX_VALUE;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.text.SimpleDateFormat;
@@ -27,6 +28,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.service.namespace.dataset.DatasetVersion;
+import com.google.common.base.Ticker;
 
 /**
  * DatasetVersion must work in a given range
@@ -50,8 +52,8 @@ public class TestDatasetVersion {
     SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd");
     long o = f.parse("2015-08-17").getTime();
     long e = f.parse("2154-12-29").getTime();
-    DatasetVersion v1 = new DatasetVersion(o, 0);
-    DatasetVersion v2 = new DatasetVersion(e, 0);
+    DatasetVersion v1 = DatasetVersion.forTesting(o, 0);
+    DatasetVersion v2 = DatasetVersion.forTesting(e, 0);
     Assert.assertEquals(o, v1.getTimestamp());
     Assert.assertEquals(e, v2.getTimestamp());
     Assert.assertTrue(v1.compareTo(v2) < 0);
@@ -82,5 +84,22 @@ public class TestDatasetVersion {
     Assert.assertEquals(MAX_VALUE, v2.getValue());
     Assert.assertEquals(MAX_VERSION, v2);
     Assert.assertTrue(MAX_VERSION.compareTo(MAX_VERSION.getUpperBound()) == 0);
+  }
+
+  @Test
+  public void testUniqueness() {
+    Ticker ticker = new Ticker() {
+      private final long millis = System.currentTimeMillis();
+
+      @Override
+      public long read() {
+        return millis;
+      }
+    };
+
+    DatasetVersion version1 = DatasetVersion.forTesting(ticker);
+    DatasetVersion version2 = DatasetVersion.forTesting(ticker);
+
+    assertNotEquals(version1, version2);
   }
 }

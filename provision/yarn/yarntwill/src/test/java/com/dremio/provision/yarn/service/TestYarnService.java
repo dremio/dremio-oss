@@ -54,6 +54,7 @@ import org.apache.twill.api.logging.LogEntry;
 import org.apache.twill.internal.DefaultTwillRunResources;
 import org.apache.twill.internal.RunIds;
 import org.apache.twill.internal.utils.Resources;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -85,6 +86,7 @@ import com.dremio.provision.yarn.DacDaemonYarnApplication;
 import com.dremio.provision.yarn.YarnController;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.test.DremioTest;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
@@ -93,6 +95,9 @@ import com.google.common.collect.Lists;
  */
 public class TestYarnService {
   //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestYarnService.class);
+
+  @Rule
+  public final TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Test
   public void testStartCluster() throws Exception {
@@ -108,7 +113,6 @@ public class TestYarnService {
     List<Property> propertyList = new ArrayList<>();
     propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
     propertyList.add(new Property(RM_HOSTNAME, "resource-manager"));
-    propertyList.add(new Property(DremioConfig.LOCAL_WRITE_PATH_STRING, "/data/mydata"));
     propertyList.add(new Property(DremioConfig.DIST_WRITE_PATH_STRING, "pdfs:///data/mydata/pdfs"));
     clusterConfig.setSubPropertyList(propertyList);
     cluster.setClusterConfig(clusterConfig);
@@ -117,12 +121,10 @@ public class TestYarnService {
 
     assertNotNull(yarnConfig.get(FS_DEFAULT_NAME_KEY));
     assertNotNull(yarnConfig.get(RM_HOSTNAME));
-    assertNotNull(yarnConfig.get(DremioConfig.LOCAL_WRITE_PATH_STRING));
     assertNotNull(yarnConfig.get(DremioConfig.DIST_WRITE_PATH_STRING));
 
     assertEquals("hdfs://name-node:8020", yarnConfig.get(FS_DEFAULT_NAME_KEY));
     assertEquals("resource-manager", yarnConfig.get(RM_HOSTNAME));
-    assertEquals("/data/mydata", yarnConfig.get(DremioConfig.LOCAL_WRITE_PATH_STRING));
     assertEquals("pdfs:///data/mydata/pdfs", yarnConfig.get(DremioConfig.DIST_WRITE_PATH_STRING));
 
     TwillController twillController = Mockito.mock(TwillController.class);
@@ -158,7 +160,6 @@ public class TestYarnService {
     List<Property> propertyList = new ArrayList<>();
     propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
     propertyList.add(new Property(RM_HOSTNAME, "resource-manager"));
-    propertyList.add(new Property(DremioConfig.LOCAL_WRITE_PATH_STRING, "/data/mydata"));
     propertyList.add(new Property(DremioConfig.DIST_WRITE_PATH_STRING, "pdfs:///data/mydata/pdfs"));
     clusterConfig.setSubPropertyList(propertyList);
     cluster.setClusterConfig(clusterConfig);
@@ -167,12 +168,10 @@ public class TestYarnService {
 
     assertNotNull(yarnConfig.get(FS_DEFAULT_NAME_KEY));
     assertNotNull(yarnConfig.get(RM_HOSTNAME));
-    assertNotNull(yarnConfig.get(DremioConfig.LOCAL_WRITE_PATH_STRING));
     assertNotNull(yarnConfig.get(DremioConfig.DIST_WRITE_PATH_STRING));
 
     assertEquals("hdfs://name-node:8020", yarnConfig.get(FS_DEFAULT_NAME_KEY));
     assertEquals("resource-manager", yarnConfig.get(RM_HOSTNAME));
-    assertEquals("/data/mydata", yarnConfig.get(DremioConfig.LOCAL_WRITE_PATH_STRING));
     assertEquals("pdfs:///data/mydata/pdfs", yarnConfig.get(DremioConfig.DIST_WRITE_PATH_STRING));
 
     assertEquals("/opt/mapr/conf/mapr.login.conf", yarnConfig.get(YarnDefaultsConfigurator.JAVA_LOGIN));
@@ -199,6 +198,8 @@ public class TestYarnService {
 
   }
 
+  private static final String MAPR_IMPALA_RA_THROTTLE = "MAPR_IMPALA_RA_THROTTLE";
+  private static final String MAPR_MAX_RA_STREAMS = "MAPR_MAX_RA_STREAMS";
   private static final String NETTY_MAX_DIRECT_MEMORY = "io.netty.maxDirectMemory";
 
   @Test
@@ -207,6 +208,9 @@ public class TestYarnService {
 
     YarnController controller = Mockito.mock(YarnController.class);
     YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
+
+    properties.clear(MAPR_IMPALA_RA_THROTTLE);
+    properties.clear(MAPR_MAX_RA_STREAMS);
 
     Cluster myCluster = createCluster();
     myCluster.getClusterConfig().setDistroType(DistroType.MAPR).setIsSecure(true);
@@ -220,6 +224,8 @@ public class TestYarnService {
     assertEquals("[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]", myYarnConfig.get(YarnDefaultsConfigurator
       .SPILL_PATH));
     assertEquals("0", myYarnConfig.get(NETTY_MAX_DIRECT_MEMORY));
+    assertNull(myYarnConfig.get(MAPR_IMPALA_RA_THROTTLE));
+    assertNull(myYarnConfig.get(MAPR_MAX_RA_STREAMS));
 
     Cluster myClusterOff = createCluster();
     myClusterOff.getClusterConfig().setDistroType(DistroType.MAPR).setIsSecure(false);
@@ -233,6 +239,50 @@ public class TestYarnService {
     assertEquals("[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]", myYarnConfigOff.get(YarnDefaultsConfigurator
       .SPILL_PATH));
     assertEquals("0", myYarnConfigOff.get(NETTY_MAX_DIRECT_MEMORY));
+    assertNull(myYarnConfigOff.get(MAPR_IMPALA_RA_THROTTLE));
+    assertNull(myYarnConfigOff.get(MAPR_MAX_RA_STREAMS));
+  }
+
+  @Test
+  public void testDistroMapRDefaultsWithMaprRAStreams() throws Exception {
+    assumeNonMaprProfile();
+
+    YarnController controller = Mockito.mock(YarnController.class);
+    YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
+
+    properties.set("MAPR_IMPALA_RA_THROTTLE", "");
+    properties.set("MAPR_MAX_RA_STREAMS", "123");
+
+    Cluster myCluster = createCluster();
+    myCluster.getClusterConfig().setDistroType(DistroType.MAPR).setIsSecure(true);
+    YarnConfiguration myYarnConfig = new YarnConfiguration();
+    yarnService.updateYarnConfiguration(myCluster, myYarnConfig);
+
+    assertEquals("/opt/mapr/conf/mapr.login.conf", myYarnConfig.get(YarnDefaultsConfigurator.JAVA_LOGIN));
+    assertEquals("false", myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT));
+    assertEquals("Client", myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT_CONFIG));
+    assertEquals("com.mapr.security.maprsasl.MaprSaslProvider", myYarnConfig.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
+    assertEquals("[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]", myYarnConfig.get(YarnDefaultsConfigurator
+      .SPILL_PATH));
+    assertEquals("0", myYarnConfig.get(NETTY_MAX_DIRECT_MEMORY));
+    assertEquals("", myYarnConfig.get(MAPR_IMPALA_RA_THROTTLE));
+    assertEquals("123", myYarnConfig.get(MAPR_MAX_RA_STREAMS));
+
+    Cluster myClusterOff = createCluster();
+    myClusterOff.getClusterConfig().setDistroType(DistroType.MAPR).setIsSecure(false);
+    YarnConfiguration myYarnConfigOff = new YarnConfiguration();
+    yarnService.updateYarnConfiguration(myClusterOff, myYarnConfigOff);
+
+    assertEquals("/opt/mapr/conf/mapr.login.conf", myYarnConfigOff.get(YarnDefaultsConfigurator.JAVA_LOGIN));
+    assertEquals("false", myYarnConfigOff.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT));
+    assertEquals("Client_simple", myYarnConfigOff.get(YarnDefaultsConfigurator.ZK_SASL_CLIENT_CONFIG));
+    assertEquals("com.mapr.security.simplesasl.SimpleSaslProvider", myYarnConfigOff.get(YarnDefaultsConfigurator.ZK_SASL_PROVIDER));
+    assertEquals("[\"maprfs:///var/mapr/local/${NM_HOST}/mapred/spill\"]", myYarnConfigOff.get(YarnDefaultsConfigurator
+      .SPILL_PATH));
+    assertEquals("0", myYarnConfigOff.get(NETTY_MAX_DIRECT_MEMORY));
+    assertEquals("", myYarnConfigOff.get(MAPR_IMPALA_RA_THROTTLE));
+    assertEquals("123", myYarnConfigOff.get(MAPR_MAX_RA_STREAMS));
+
   }
 
   @Test
@@ -331,7 +381,6 @@ public class TestYarnService {
       List<Property> propertyList = new ArrayList<>();
       propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
       propertyList.add(new Property(RM_HOSTNAME, "resource-manager"));
-      propertyList.add(new Property(DremioConfig.LOCAL_WRITE_PATH_STRING, "/data/mydata"));
       propertyList.add(new Property(DremioConfig.DIST_WRITE_PATH_STRING, "pdfs:///data/mydata/pdfs"));
       clusterConfig.setSubPropertyList(propertyList);
 
@@ -677,7 +726,6 @@ public class TestYarnService {
     List<Property> propertyList = new ArrayList<>();
     propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
     propertyList.add(new Property(RM_HOSTNAME, "resource-manager"));
-    propertyList.add(new Property(DremioConfig.LOCAL_WRITE_PATH_STRING, "/data/mydata"));
     propertyList.add(new Property(DremioConfig.DIST_WRITE_PATH_STRING, "pdfs:///data/mydata/pdfs"));
     RunId runId = RunIds.generate();
     clusterConfig.setSubPropertyList(propertyList);
@@ -723,7 +771,6 @@ public class TestYarnService {
     List<Property> propertyList = new ArrayList<>();
     propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
     propertyList.add(new Property(RM_HOSTNAME, "resource-manager"));
-    propertyList.add(new Property(DremioConfig.LOCAL_WRITE_PATH_STRING, "/data/mydata"));
     propertyList.add(new Property(DremioConfig.DIST_WRITE_PATH_STRING, "pdfs:///data/mydata/pdfs"));
     RunId runId = RunIds.generate();
     clusterConfig.setSubPropertyList(propertyList);
@@ -827,7 +874,6 @@ public class TestYarnService {
     List<Property> propertyList = new ArrayList<>();
     propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
     propertyList.add(new Property(RM_HOSTNAME, "resource-manager"));
-    propertyList.add(new Property(DremioConfig.LOCAL_WRITE_PATH_STRING, "/data/mydata"));
     propertyList.add(new Property(DremioConfig.DIST_WRITE_PATH_STRING, "pdfs:///data/mydata/pdfs"));
     clusterConfig.setSubPropertyList(propertyList);
     cluster.setClusterConfig(clusterConfig);

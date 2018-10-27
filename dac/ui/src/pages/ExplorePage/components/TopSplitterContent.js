@@ -22,11 +22,8 @@ import FontIcon from 'components/Icon/FontIcon';
 
 import { setResizeProgressState, updateSqlPartSize, toggleExploreSql } from './../../../actions/explore/ui';
 
-export const HEIGHT_STANDARD = 38;
-export const CONTROLS_HEIGHT = 42;
-const DRAG_TOP_MARGIN = 45;
 const MIN_SQL_HEIGHT = 80;
-const BOTTOM_OFFSET = 175;
+const BOTTOM_OFFSET = 175; // a space reserved for table part
 
 @Radium
 export class TopSplitterContent extends Component {
@@ -74,10 +71,10 @@ export class TopSplitterContent extends Component {
   }
 
   getHeight(sqlState, sqlSize) {
-    if (!sqlState) {
-      return HEIGHT_STANDARD;
+    if (!sqlState || sqlSize <= 0) {
+      return 0;
     }
-    return sqlSize > 0 ? sqlSize + CONTROLS_HEIGHT : sqlSize + HEIGHT_STANDARD;
+    return sqlSize;
   }
 
   doDrag(e) {
@@ -132,20 +129,18 @@ export class TopSplitterContent extends Component {
   render() {
     const { sqlState, sqlSize } = this.props;
     const { isDragInProgress, resizeLineTop } = this.state;
-    const top = resizeLineTop + DRAG_TOP_MARGIN;
-    let height = this.getHeight(sqlState, sqlSize);
+    const height = this.getHeight(sqlState, sqlSize);
+    const hideDragBar = !sqlState || isDragInProgress;
 
-    const isPhysicalDataset = false; //routeParams.resources === 'source' && location.query.mode === 'edit';
-    const hideDragBar = isPhysicalDataset || !sqlState || isDragInProgress;
-    if (isPhysicalDataset) {
-      height = HEIGHT_STANDARD;
-    }
     return (
       <div className='top-splitter-content' ref='topSplitter'
-        style={[ styles.base, { height }]}>
+        style={[ styles.base, {
+          height,
+          overflow: sqlState ? null : 'hidden' // needed to not let resizer flow out of the component
+        }]}>
         {this.props.children}
-        <div style={[styles.separatorLine, {display: isDragInProgress ? 'block' : 'none', top: top + 12}]}></div>
-        <div style={[styles.separatorBase, {visibility: hideDragBar ? 'hidden' : 'visible', top}]}
+        <div style={[styles.separatorLine, {display: isDragInProgress ? 'block' : 'none', top: resizeLineTop + 12}]}></div>
+        <div style={[styles.separatorBase, {visibility: hideDragBar ? 'hidden' : 'visible', top: resizeLineTop}]}
           onMouseDown={this.startDrag}>
           <FontIcon type='Bars' theme={styles.separator}/>
         </div>
@@ -164,7 +159,8 @@ const styles = {
   base: {
     position: 'relative',
     minHeight: 0,
-    backgroundColor: '#F5FCFF'
+    backgroundColor: '#F5FCFF',
+    flexShrink: 0 // do not allow to reduce a height
   },
   separatorBase: {
     position: 'absolute',

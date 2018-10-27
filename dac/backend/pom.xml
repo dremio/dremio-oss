@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>2.1.6-201809161906440178-edb5b4d</version>
+    <version>3.0.0-201810262305460004-5c90d75</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -267,6 +267,12 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-configuration</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
       <groupId>com.dremio.sabot</groupId>
       <artifactId>dremio-sabot-kernel</artifactId>
       <classifier>tests</classifier>
@@ -279,6 +285,11 @@
       <classifier>tests</classifier>
       <version>${project.version}</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-spill</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -363,16 +374,6 @@
       <artifactId>hibernate-validator</artifactId>
       <version>5.2.4.Final</version>
       <scope>compile</scope>
-    </dependency>
-
-    <!--
-      A backport of java.time API for Java6/7
-      To be removed when switching source to Java8
-    -->
-    <dependency>
-      <groupId>org.threeten</groupId>
-      <artifactId>threetenbp</artifactId>
-      <version>1.3.1</version>
     </dependency>
   </dependencies>
 
@@ -486,8 +487,24 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <configuration>
+          <protoSourceRoot>${basedir}/src/main/rpc</protoSourceRoot>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
-    
   </build>
   <profiles>
   <profile>

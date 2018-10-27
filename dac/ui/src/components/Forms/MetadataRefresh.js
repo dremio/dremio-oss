@@ -44,8 +44,6 @@ const AUTHORIZATION_TOOLTIP =
 const DEFAULT_DURATION_ONE_HOUR = 3600000;
 const DEFAULT_DURATION_THREE_HOUR = DEFAULT_DURATION_ONE_HOUR * 3;
 const DEFAULT_DURATION_ONE_DAY = DEFAULT_DURATION_ONE_HOUR * 24;
-const TTL_FIELDS = ['namesRefreshMillis', 'datasetDefinitionRefreshAfterMillis', 'datasetDefinitionExpireAfterMillis',
-  'authTTLMillis'];
 
 const MIN_TIME = 60 * 1000; // when changed, must update validation error text
 
@@ -106,17 +104,10 @@ export default class MetadataRefresh extends Component {
   static mapToFormFields(source) {
     const defaultValues = MetadataRefresh.defaultFormValues();
     const metadataPolicy = source && source.toJS().metadataPolicy || {};
-    const initialValue = {
+    return {
       ...defaultValues.metadataPolicy,
-      updateMode: metadataPolicy.updateMode || defaultValues.metadataPolicy.updateMode
+      ...metadataPolicy
     };
-    return TTL_FIELDS.reduce((fieldValues, ttlField) => {
-      const ttlSourceValue = metadataPolicy[ttlField];
-      if (ttlSourceValue) {
-        fieldValues[ttlField] = ttlSourceValue;
-      }
-      return fieldValues;
-    }, initialValue);
   }
 
   refreshModeOptions = [
@@ -126,7 +117,11 @@ export default class MetadataRefresh extends Component {
   ];
 
   render() {
-    const { fields: { metadataPolicy }, showDatasetDiscovery, showAuthorization } = this.props;
+    const {
+      fields: { metadataPolicy },
+      showDatasetDiscovery,
+      showAuthorization
+    } = this.props;
 
     // if INLINE, disable the datasetDefinitionRefreshAfterMillis field
     const disableFetchEvery = metadataPolicy.updateMode && metadataPolicy.updateMode.value === 'INLINE';

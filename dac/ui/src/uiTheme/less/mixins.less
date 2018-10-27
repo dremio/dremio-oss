@@ -15,11 +15,11 @@
  */
  @import "~@app/uiTheme/less/color-schema.less";
 
- .dragged-item-mixin() {  
-  background-color: @ACTIVE_DRAG_AREA;  
+ .dragged-item-mixin() {
+  background-color: @ACTIVE_DRAG_AREA;
   border: 1px solid @BORDER_ACTIVE_DRAG_AREA;
  }
- 
+
 .formLabel() {
   font-weight: 500;
   font-size: 12px;
@@ -29,6 +29,12 @@
 .fontBody() {
   font-size: 12px;
   color: @font-color1;
+}
+
+.h4-mixin() {
+  font-weight: 500;
+  font-size: 13px;
+  color: #333333;
 }
 
 .font-basic() {
@@ -51,4 +57,52 @@
   font-family: Menlo;
   font-size: 12px;
   color: @font-color1;
+}
+
+// grid system with overflow
+
+.grid-mixin() {
+  overflow: hidden;
+}
+
+.row-horizontal-padding-mixin(@cell-padding) {
+  margin-left: -@cell-padding / 2;
+  margin-right: -@cell-padding / 2;
+}
+
+.cell-horizontal-padding-mixin(@cell-padding) {
+  display: inline-block;
+  padding-left: @cell-padding / 2;
+  padding-right: @cell-padding / 2;
+}
+
+
+.row-vertical-padding-mixin(@cell-padding) {
+  margin-top: -@cell-padding / 2;
+  margin-bottom: -@cell-padding / 2;
+}
+
+.cell-vertical-padding-mixin(@cell-padding) {
+  display: inline-block;
+  padding-bottom: @cell-padding / 2;
+  padding-top: @cell-padding / 2;
+}
+
+.row-mixin(@horizontal-padding: 0, @vertical-padding: 0) {
+  .row-horizontal-padding-mixin(@horizontal-padding);
+  .row-vertical-padding-mixin(@vertical-padding);
+}
+
+.cell-mixin(@horizontal-padding: 0, @vertical-padding: 0) {
+  .cell-horizontal-padding-mixin(@horizontal-padding);
+  .cell-vertical-padding-mixin(@vertical-padding);
+}
+
+.clear-fix-mixin() {
+  &:after {
+    clear: both;
+    content: '';
+    display: table;
+    height: 0;
+  }
 }

@@ -16,6 +16,7 @@
 import { Component } from 'react';
 
 import PropTypes from 'prop-types';
+import classNames from 'classnames';
 
 import FormElement from 'components/Forms/FormElement';
 import HoverHelp from 'components/HoverHelp';
@@ -48,14 +49,14 @@ export default class FormSection extends Component {
       const layout = sectionConfig.getConfig().layout;
       const isLayoutRow = layout && layout === 'row';
       const groupStyleClass = (isLayoutRow) ? groupLayoutRow : flexColumnContainer;
-      const elementClass = (isLayoutRow) ? elementLayoutRow : {};
 
       return (
         <div className={groupStyleClass}>
           {
             sectionConfig.getDirectElements().map((elementConfig, index) => {
-              const fieldClass = (elementConfig.getConfig().size === 'half') ?
-                {...elementLayoutHalf, ...elementClass} : {...elementLayoutFull, ...elementClass};
+              const fieldClass = (elementConfig.getConfig().size === 'half')
+                ? classNames(elementLayoutHalf, isLayoutRow && elementLayoutRow)
+                : classNames(elementLayoutFull, isLayoutRow && elementLayoutRow);
               return (
                 <div key={index} className={fieldClass}>
                   <FormElement key={index} fields={fields} disabled={this.props.disabled} elementConfig={elementConfig}/>
@@ -112,7 +113,7 @@ export default class FormSection extends Component {
   }
 
   render() {
-    const { fields, sectionConfig, style, sectionLevel = 0 } = this.props;
+    const { fields, sectionConfig, style, disabled, sectionLevel = 0 } = this.props;
     const sectionConfigJson = (sectionConfig) ? sectionConfig.getConfig() : {};
     const help = sectionConfigJson.help;
     const link = sectionConfigJson.link;
@@ -139,6 +140,7 @@ export default class FormSection extends Component {
           <FormSection
             fields={fields}
             key={index}
+            disabled={disabled}
             sectionLevel={sectionLevel + 1}
             sectionConfig={subsection}/>
         ))
@@ -157,7 +159,7 @@ export default class FormSection extends Component {
 //TODO: refactor. iconStyle is passed deep into Art component hierarchy, which makes is hard to move to .less
 const styles = {
   iconStyle: {
-    margin: '15px 20px 0 10px',
+    margin: '0 20px 0 10px',
     width: 60,
     height: 60
   }

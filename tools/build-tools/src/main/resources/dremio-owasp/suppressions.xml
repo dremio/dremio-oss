@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.1.xsd">
+<!-- Dremio -->
+<suppress>
+   <notes><![CDATA[
+   incorrectly identified as hive/parquet dependencies
+   ]]></notes>
+   <gav regex="true">^com\.dremio\.contrib:dremio-hive-exec-shaded:.*$</gav>
+   <cpe>cpe:/a:apache:hive</cpe>
+   <cpe>cpe:/a:apache:hadoop</cpe>
+</suppress>
+<suppress>
+   <notes><![CDATA[
+   incorrectly identified as hadoop
+   (this artifacts contains extra native lib to be used with hadoop)
+   ]]></notes>
+   <gav regex="true">^org\.apache\.hadoop:hadoop-native-libraries:.*$</gav>
+   <cpe>cpe:/a:apache:hadoop</cpe>
+</suppress>
+<suppress>
+   <notes><![CDATA[
+   incorrectly identified as thread library from thread_project
+   ]]></notes>
+   <gav regex="true">^com\.dremio\.extras\.sabot:dremio-extra-sabot-scheduler:.*$</gav>
+   <cpe>cpe:/a:thread_project:thread</cpe>
+</suppress>
+
+<!-- 3rd party dependencies -->
+<!-- Avro -->
+<suppress>
+   <notes><![CDATA[
+   incorrectly identified as hadoop dependency
+   ]]></notes>
+   <gav regex="true">^org\.apache\.avro:avro-mapred:.*$</gav>
+   <cpe>cpe:/a:apache:hadoop</cpe>
+</suppress>
+
+<!-- Curator -->
+<suppress>
+   <notes><![CDATA[
+   incorrectly identified as zookeeper library
+   ]]></notes>
+   <gav regex="true">^org\.apache\.curator:curator-framework:.*$</gav>
+   <cpe>cpe:/a:apache:zookeeper</cpe>
+</suppress>
+
+<!-- DB2 -->
+<suppress>
+   <notes><![CDATA[
+   unrelated security issues because of version mismatch between server and driver
+   ]]></notes>
+   <gav regex="true">^com\.dremio\.jdbc:db2jcc4:.*$</gav>
+   <cve>CVE-2007-2582</cve>
+   <cve>CVE-2007-3676</cve>
+   <cve>CVE-2007-5090</cve>
+   <cve>CVE-2007-5652</cve>
+   <cve>CVE-2008-0699</cve>
+   <cve>CVE-2008-1998</cve>
+   <cve>CVE-2008-3958</cve>
+   <cve>CVE-2008-3959</cve>
+   <cve>CVE-2008-4691</cve>
+   <cve>CVE-2008-4692</cve>
+   <cve>CVE-2008-4693</cve>
+   <cve>CVE-2009-1239</cve>
+   <cve>CVE-2009-1905</cve>
+   <cve>CVE-2009-2858</cve>
+   <cve>CVE-2009-2859</cve>
+   <cve>CVE-2009-2860</cve>
+   <cve>CVE-2010-1560</cve>
+   <cve>CVE-2011-0731</cve>
+   <cve>CVE-2011-0757</cve>
+   <cve>CVE-2011-1373</cve>
+   <cve>CVE-2011-1846</cve>
+   <cve>CVE-2011-1847</cve>
+   <cve>CVE-2012-3324</cve>
+</suppress>
+
+<!-- Google Cloud Storage -->
+<suppress>
+   <notes><![CDATA[
+   incorrectly identified as hadoop dependency
+   ]]></notes>
+   <gav regex="true">^com\.google\.cloud\.bigdataoss:.*:.*$</gav>
+   <cpe>cpe:/a:apache:hadoop</cpe>
+</suppress>
+<suppress>
+   <notes><![CDATA[
+   incorrectly identified as grpc
+   ]]></notes>
+   <gav regex="true">^com\.google\.api\.grpc:proto-google-iam-v1:.*$</gav>
+   <cpe>cpe:/a:grpc:grpc</cpe>
+</suppress>
+
+<!-- HBase -->
+<suppress>
+   <notes><![CDATA[
+   incorrectly identified as hadoop dependency
+   ]]></notes>
+   <gav regex="true">^org\.apache\.hbase:hbase-hadoop.*-compat:.*$</gav>
+   <cpe>cpe:/a:apache:hadoop</cpe>
+</suppress>
+
+<!-- Hive -->
+<suppress>
+   <notes><![CDATA[
+   incorrectly identified as hbase dependency
+   ]]></notes>
+   <gav regex="true">^org\.apache\.hive:hive-hbase-handler:.*$</gav>
+   <cpe>cpe:/a:apache:hbase</cpe>
+</suppress>
+
+<!-- Lilith -->
+<suppress>
+   <notes><![CDATA[
+   incorrectly identified as logback
+   ]]></notes>
+   <gav regex="true">^de\.huxhorn\.lilith:de\.huxhorn\.lilith\.logback\..*:.*$</gav>
+   <cpe>cpe:/a:logback:logback</cpe>
+</suppress>
+
+<!-- MariaDB -->
+<suppress>
+   <notes><![CDATA[
+   file name: mariadb-java-client-1.6.2.jar
+   incorrectly identified as nodejs dependency
+   ]]></notes>
+   <sha1>47bd4f3c4c1ac105461b5014d80a6a30cf83a144</sha1>
+   <cve>CVE-2017-16046</cve>
+</suppress>
+
+<!-- Netty TCNative -->
+<suppress>
+   <notes><![CDATA[
+   file name: netty-tcnative-1.1.33.Fork24.jar
+   incorrectly identified as netty library
+   ]]></notes>
+   <sha1>bdb9ca4a4482b8e3b01557829a332ae6870ca733</sha1>
+   <cve>CVE-2014-3488</cve>
+   <cve>CVE-2015-2156</cve>
+</suppress>
+
+<!-- OpenHFT Affinity -->
+<suppress>
+   <notes><![CDATA[
+   incorrectly identified as thread_project:thread:3.1.7
+   ]]></notes>
+   <gav regex="true">^net\.openhft:affinity:.*$</gav>
+   <cpe>cpe:/a:thread_project:thread</cpe>
+</suppress>
+
+<!-- Parquet -->
+<suppress>
+   <notes><![CDATA[
+   incorrectly identified as hadoop dependency
+   ]]></notes>
+   <gav regex="true">^org\.apache\.parquet:parquet-hadoop.*:.*$</gav>
+   <cpe>cpe:/a:apache:hadoop</cpe>
+</suppress>
+
+<!-- Postgres -->
+<suppress>
+   <notes><![CDATA[
+   incorrectly identified as postgres server
+   (jdbc cpe: cpe:/a:postgresql:postgresql_jdbc_driver:*:*)
+   ]]></notes>
+   <gav regex="true">^org\.postgresql:postgresql:.*$</gav>
+   <cpe>cpe:/a:postgresql:postgresql</cpe>
+</suppress>
+
+
+<!-- Protobuf -->
+<suppress>
+   <notes><![CDATA[
+   does not impact protobuf-java
+   ]]></notes>
+   <gav regex="true">^com\.google\.protobuf:protobuf.*:.*$</gav>
+   <cve>CVE-2015-5237</cve>
+</suppress>
+
+<!-- SQL Server -->
+<suppress>
+   <notes><![CDATA[
+   unrelated security issues impacting server
+   ]]></notes>
+   <gav regex="true">^com\.dremio\.jdbc:microsoft-sqljdbc41:.*$</gav>
+   <cve>CVE-2001-0509</cve>
+   <cve>CVE-2007-5090</cve>
+   <cve>CVE-2012-1856</cve>
+   <cve>CVE-2012-2552</cve>
+   <cve>CVE-2014-4061</cve>
+   <cve>CVE-2015-1761</cve>
+   <cve>CVE-2015-1762</cve>
+   <cve>CVE-2015-1763</cve>
+</suppress>
+
+<!-- Stax -->
+<suppress>
+   <notes><![CDATA[
+   incorrectly identified as st dependency
+   ]]></notes>
+   <gav regex="true">^stax:stax-api:.*$</gav>
+   <cpe>cpe:/a:st_project:st</cpe>
+</suppress>
+
+<!-- Thrift -->
+<suppress>
+   <notes><![CDATA[
+   Thrift go vulnerability
+   ]]></notes>
+   <gav regex="true">^org\.apache\.thrift:.*:.*$</gav>
+   <cve>CVE-2016-5397</cve>
+</suppress>
+
+<!-- Twill -->
+<suppress>
+   <notes><![CDATA[
+   incorrectly identifed as zookeeper dependency
+   ]]></notes>
+   <gav regex="true">^org\.apache\.twill:twill-zookeeper:.*$</gav>
+   <cpe>cpe:/a:apache:zookeeper</cpe>
+</suppress>
+<suppress>
+   <notes><![CDATA[
+   incorrectly identifed as hadoop dependency
+   ]]></notes>
+   <gav regex="true">^org\.apache\.twill:twill-yarn:.*$</gav>
+   <cpe>cpe:/a:apache:hadoop</cpe>
+</suppress>
+
+<!-- ZooKeeper -->
+<suppress>
+   <notes><![CDATA[
+   file name: zookeeper-3.4.10.jar
+   https://issues.apache.org/jira/browse/ZOOKEEPER-1917
+   Fixed in Zookeeper 3.4.7
+   ]]></notes>
+   <sha1>08eebdbb7a9df83e02eaa42d0e5da0b57bf2e4da</sha1>
+   <cve>CVE-2014-0085</cve>
+</suppress>
+<suppress>
+   <notes><![CDATA[
+   file name: zookeeper-3.4.10.jar
+   https://issues.apache.org/jira/browse/ZOOKEEPER-1045
+   Fixed in ZooKeeper 3.4.10
+   ]]></notes>
+   <sha1>08eebdbb7a9df83e02eaa42d0e5da0b57bf2e4da</sha1>
+   <cve>CVE-2018-8012</cve>
+</suppress>
+
+
+</suppressions>
+

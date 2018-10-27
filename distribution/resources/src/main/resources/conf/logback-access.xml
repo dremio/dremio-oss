@@ -35,5 +35,14 @@
 
       <appender-ref ref="access-text" />
     </then>
+    <else>
+      <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+          <pattern>combined</pattern>
+        </encoder>
+      </appender>
+
+      <appender-ref ref="console"/>
+    </else>
   </if>
 </configuration>

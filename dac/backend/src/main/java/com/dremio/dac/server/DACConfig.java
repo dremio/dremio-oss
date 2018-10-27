@@ -55,7 +55,7 @@ public final class DACConfig {
       config.getBoolean(DremioConfig.DEBUG_ENABLED_BOOL),
       config.getBoolean(DremioConfig.DEBUG_ALLOW_TEST_APIS_BOOL),
       config.getBoolean(DremioConfig.WEB_ENABLED_BOOL),
-      config.getBoolean(DremioConfig.WEB_SSL_ENABLED_BOOL),
+      config.getBoolean(DremioConfig.WEB_SSL_PREFIX + DremioConfig.SSL_ENABLED),
       config.getBoolean(DremioConfig.DEBUG_PREPOPULATE_BOOL),
       config.getBoolean(DremioConfig.DEBUG_SINGLE_NODE_BOOL) ? ClusterMode.LOCAL : ClusterMode.DISTRIBUTED,
       config.getInt(DremioConfig.SERVER_PORT_INT),
@@ -136,7 +136,7 @@ public final class DACConfig {
   }
 
   public DACConfig webSSLEnabled(boolean webSSLEnabled) {
-    return with(DremioConfig.WEB_SSL_ENABLED_BOOL, webSSLEnabled);
+    return with(DremioConfig.WEB_SSL_PREFIX + DremioConfig.SSL_ENABLED, webSSLEnabled);
   }
 
   public DACConfig prepopulate(boolean prepopulate) {
@@ -181,6 +181,10 @@ public final class DACConfig {
 
   public DACConfig autoUpgrade(boolean value) {
     return with(DremioConfig.AUTOUPGRADE, value);
+  }
+
+  public boolean webSSLEnabled() {
+    return webSSLEnabled;
   }
 
   public ClusterMode getClusterMode() {

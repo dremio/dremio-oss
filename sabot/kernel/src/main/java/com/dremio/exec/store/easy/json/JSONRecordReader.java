@@ -68,7 +68,10 @@ public class JSONRecordReader extends AbstractRecordReader {
    * @param columns  pathnames of columns/subfields to read
    * @throws OutOfMemoryException
    */
-  public JSONRecordReader(final OperatorContext context, final String inputPath, final FileSystemWrapper fileSystem,
+  public JSONRecordReader(
+      final OperatorContext context,
+      final String inputPath,
+      final FileSystemWrapper fileSystem,
       final List<SchemaPath> columns) throws OutOfMemoryException {
     this(context, inputPath, null, fileSystem, columns);
   }

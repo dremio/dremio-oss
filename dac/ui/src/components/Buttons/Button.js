@@ -58,7 +58,7 @@ class Button extends Component {
     onClick: PropTypes.oneOfType([PropTypes.func, PropTypes.bool]),
     onClickDrop: PropTypes.func,
     iconStyle: PropTypes.object,
-    innerText: PropTypes.object,
+    innerTextStyle: PropTypes.object,
     onMouseDown: PropTypes.func,
     style: PropTypes.object,
     styles: PropTypes.oneOfType([PropTypes.array, PropTypes.object]),
@@ -84,14 +84,9 @@ class Button extends Component {
   }
 
   onClick(evt) {
-    const { items } = this.props;
-    if (this.props.onClick) {
-      if (!this.props.disable && items) {
-        this.props.onClick(this.state.updateBtnName);
-      }
-      if (!this.props.disable && !items) {
-        this.props.onClick(evt);
-      }
+    const { items, onClick, disable } = this.props;
+    if (onClick && !disable) {
+      onClick(items ? this.state.updateBtnName : evt);
     }
   }
 
@@ -146,7 +141,6 @@ class Button extends Component {
       ? (
         <FontIcon
           type={icon}
-          onClick={this.onClick}
           theme={{...styles.icon, ...this.props.iconStyle}}/>
       )
       : null;
@@ -161,7 +155,7 @@ class Button extends Component {
           onMouseDown={this.props.onMouseDown}
           onClick={this.onClick}>
           {iconBtn}
-          <span style={[styles.innerText, this.props.innerText]}>
+          <span style={[styles.innerText, this.props.innerTextStyle]}>
             {text || DEFAULT_TEXT_HASH.get(type)}
           </span>
         </button>

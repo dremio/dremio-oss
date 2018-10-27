@@ -56,8 +56,10 @@ import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.exec.planner.sql.parser.SqlRefreshReflection;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
+import com.dremio.exec.work.AttemptId;
 import com.dremio.options.OptionManager;
 import com.dremio.service.job.proto.ScanPath;
 import com.dremio.service.namespace.NamespaceKey;
@@ -181,10 +183,20 @@ public class RefreshHandler implements SqlToPlanHandler {
 
       final Rel drel = PrelTransformer.convertToDrel(config, initial);
       final Set<String> fields = ImmutableSet.copyOf(drel.getRowType().getFieldNames());
+
+      // Append the attempt number to the table path
+      final UserBitShared.QueryId queryId = config.getContext().getQueryId();
+      final AttemptId attemptId = AttemptId.of(queryId);
+
+      final List<String> tablePath = ImmutableList.of(
+        ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME,
+        reflectionId.getId(),
+        materialization.getId().getId() + "_" + attemptId.getAttemptNum());
+
       final Rel writerDrel = new WriterRel(drel.getCluster(), drel.getCluster().traitSet().plus(Rel.LOGICAL),
           drel, config.getConverter().getCatalog().createNewTable(
-              new NamespaceKey(ImmutableList.of(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME, reflectionId.getId(), materialization.getId().getId())),
-              getWriterOptions(0, goal, fields), ImmutableMap.<String, Object>of()
+              new NamespaceKey(tablePath),
+              getWriterOptions(0, goal, fields), ImmutableMap.of()
               ), initial.getRowType());
 
       final RelNode doubleWriter = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(), config.getContext(), writerDrel);

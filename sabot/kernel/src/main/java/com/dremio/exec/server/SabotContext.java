@@ -30,6 +30,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.KVStoreProvider;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.catalog.ViewCreatorFactory.ViewCreator;
 import com.dremio.exec.compile.CodeCompiler;
@@ -48,6 +49,7 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.spill.SpillService;
 import com.dremio.service.users.UserService;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
@@ -81,7 +83,8 @@ public class SabotContext implements AutoCloseable {
   private final Provider<ViewCreatorFactory> viewCreatorFactory;
   private final DremioConfig dremioConfig;
   private final BufferAllocator queryPlanningAllocator;
-
+  private final Provider<SpillService> spillService;
+  private final Provider<ConnectionReader> connectionReaderProvider;
   private final ClusterResourceInformation clusterInfo;
 
   public SabotContext(
@@ -106,7 +109,9 @@ public class SabotContext implements AutoCloseable {
       Provider<AccelerationListManager> accelerationListManager,
       Provider<CatalogService> catalogService,
       Provider<ViewCreatorFactory> viewCreatorFactory,
-      BufferAllocator queryPlanningAllocator
+      BufferAllocator queryPlanningAllocator,
+      Provider<SpillService> spillService,
+      Provider<ConnectionReader> connectionReaderProvider
       ) {
     this.dremioConfig = dremioConfig;
     this.config = config;
@@ -120,6 +125,7 @@ public class SabotContext implements AutoCloseable {
     this.lpPersistence = lpPersistence;
     this.accelerationManager = accelerationManager;
     this.accelerationListManager = accelerationListManager;
+    this.connectionReaderProvider = connectionReaderProvider;
 
     // Escaping 'this'
     this.reader = new PhysicalPlanReader(config, classpathScan, lpPersistence, endpoint, catalogService, this);
@@ -137,7 +143,7 @@ public class SabotContext implements AutoCloseable {
     this.catalogService = catalogService;
     this.viewCreatorFactory = viewCreatorFactory;
     this.queryPlanningAllocator = queryPlanningAllocator;
-
+    this.spillService = spillService;
     this.clusterInfo = new ClusterResourceInformation(coord);
   }
 
@@ -251,6 +257,18 @@ public class SabotContext implements AutoCloseable {
 
   public CatalogService getCatalogService() {
     return catalogService.get();
+  }
+
+  public SpillService getSpillService() {
+    return spillService.get();
+  }
+
+  public Provider<SpillService> getSpillServiceProvider() {
+    return spillService;
+  }
+
+  public Provider<ConnectionReader> getConnectionReaderProvider() {
+    return connectionReaderProvider;
   }
 
   public KVStoreProvider getKVStoreProvider() {

@@ -27,10 +27,11 @@ public class NodeWrapper {
     this.nodeQueryProfile = nodeQueryProfile;
   }
 
-  public static final String[] NODE_OVERVIEW_COLUMNS = {"Host Name", "Peak Memory"};
+  public static final String[] NODE_OVERVIEW_COLUMNS = {"Host Name", "Resource Waiting Time", "Peak Memory"};
 
   public void addSummary(TableBuilder tb) {
     tb.appendCell(nodeQueryProfile.getEndpoint().getAddress(), null);
+    tb.appendMillis(nodeQueryProfile.getTimeEnqueuedBeforeSubmitMs());
     tb.appendBytes(nodeQueryProfile.getMaxMemoryUsed(), null);
   }
 

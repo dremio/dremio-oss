@@ -15,13 +15,13 @@
  */
 package com.dremio.exec.store.hive;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.security.PrivilegedExceptionAction;
 import java.util.List;
+
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
@@ -30,7 +30,6 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAccessControlException;
 import org.apache.hadoop.hive.shims.Utils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.thrift.TException;
@@ -38,7 +37,6 @@ import org.apache.thrift.TException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 
 /**
@@ -90,6 +88,8 @@ public class HiveClient implements AutoCloseable {
           ImpersonationUtil.resolveUserName(userName), processUserMetaStoreClient, needDelegationToken);
       client.connect();
       return client;
+    } catch (RuntimeException e) {
+      throw e;
     } catch (final Exception e) {
       throw new RuntimeException("Failure setting up HiveMetaStore client.", e);
     }
@@ -224,6 +224,7 @@ public class HiveClient implements AutoCloseable {
             return table;
 
           case VIRTUAL_VIEW:
+            throw UserException.unsupportedError().message("Hive views are not supported").build(logger);
           case INDEX_TABLE:
           default:
             return null;

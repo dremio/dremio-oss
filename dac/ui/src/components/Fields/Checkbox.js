@@ -73,7 +73,7 @@ export default class Checkbox extends Component {
     const {
       style, label, dummyInputStyle,
       inputType, labelBefore,
-      disabled, className, inverted, renderDummyInput,
+      className, inverted, renderDummyInput,
       initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled,
       ...props
     } = this.props;
@@ -82,7 +82,7 @@ export default class Checkbox extends Component {
 
     // <input .../> should be before dummy input to '~' css selector work
     return (
-      <label className={classNames(['field', base, disabled && disabledCls, className])} key='container' style={style}>
+      <label className={classNames(['field', base, this.props.disabled && disabledCls, className])} key='container' style={style}>
         {labelBefore && labelSpan}
         <input type={inputType} style={{position: 'absolute', left: -10000}} {...props}/>
         {renderDummyInput ?

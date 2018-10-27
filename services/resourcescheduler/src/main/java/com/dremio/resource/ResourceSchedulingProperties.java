@@ -15,7 +15,6 @@
  */
 package com.dremio.resource;
 
-import java.util.List;
 import java.util.Map;
 
 import com.dremio.exec.proto.CoordinationProtos;
@@ -29,9 +28,9 @@ public class ResourceSchedulingProperties {
   private String userInfo;
   private Double queryCost;
   private String clientType;
-  private String workloadType;
+  private String queryType;
   private String queueName;
-  private List<String> tags;
+  private String tag;
   private Map<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> resourceData;
 
   public ResourceSchedulingProperties() {
@@ -74,12 +73,12 @@ public class ResourceSchedulingProperties {
     return this;
   }
 
-  public String getWorkloadType() {
-    return workloadType;
+  public String getQueryType() {
+    return queryType;
   }
 
-  public ResourceSchedulingProperties setWorkloadType(String workloadType) {
-    this.workloadType = workloadType;
+  public ResourceSchedulingProperties setQueryType(String queryType) {
+    this.queryType = queryType;
     return this;
   }
 
@@ -92,12 +91,12 @@ public class ResourceSchedulingProperties {
     return this;
   }
 
-  public List<String> getTags() {
-    return tags;
+  public String getTag() {
+    return tag;
   }
 
-  public ResourceSchedulingProperties setTags(List<String> tags) {
-    this.tags = tags;
+  public ResourceSchedulingProperties setTag(String tag) {
+    this.tag = tag;
     return this;
   }
 

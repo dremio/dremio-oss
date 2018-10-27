@@ -56,6 +56,63 @@ public class TestExampleQueries extends PlanTestBase {
   }
 
   @Test
+  public void stringLiteralFilter() throws Exception {
+    String sql = "WITH t1 \n" +
+      "     AS (SELECT 0    AS \"A\", \n" +
+      "                'No' AS \"B\" \n" +
+      "         FROM   (VALUES ROW(1)) \n" +
+      "         UNION ALL \n" +
+      "         SELECT 1     AS \"A\", \n" +
+      "                'Yes' AS \"B\" \n" +
+      "         FROM   (VALUES ROW(1))) \n" +
+      "SELECT * \n" +
+      "FROM   t1 \n" +
+      "WHERE  \"B\" = 'No'";
+    testBuilder()
+      .sqlQuery(sql)
+      .ordered()
+      .baselineColumns("A", "B")
+      .baselineValues(0, "No")
+      .go();
+  }
+
+  @Test
+  public void stringLiteralComparison() throws Exception {
+    String sql = "SELECT a = b as e FROM (VALUES('foo', 'foo'),('bar', 'bar ')) tbl(a, b)";
+    testBuilder()
+      .sqlQuery(sql)
+      .ordered()
+      .baselineColumns("e")
+      .baselineValues(true)
+      .baselineValues(false)
+      .go();
+  }
+
+  @Test
+  public void stringLiteralInClause() throws Exception {
+    String sql = "WITH t1 AS \n" +
+      "( \n" +
+      "       SELECT \n" +
+      "              CASE n_regionkey \n" +
+      "                     WHEN 0 THEN 'AFRICA' \n" +
+      "                     WHEN 1 THEN 'AMERICA' \n" +
+      "                     WHEN 2 THEN 'ASIA' \n" +
+      "                     ELSE 'OTHER' \n" +
+      "              END AS region \n" +
+      "       FROM   cp.\"tpch/nation.parquet\") \n" +
+      "SELECT count(*) cnt\n" +
+      "FROM   t1 \n" +
+      "WHERE  region IN ('ASIA')";
+
+    testBuilder()
+      .sqlQuery(sql)
+      .ordered()
+      .baselineColumns("cnt")
+      .baselineValues(5L)
+      .go();
+  }
+
+  @Test
   public void threeWayJoinWithImplicitCastInCondition() throws Exception {
     // just testing that this successfully plans
     test("select *\n" +
@@ -268,8 +325,8 @@ public class TestExampleQueries extends PlanTestBase {
   public void testValuesNullIf() throws Exception {
     String query = "SELECT id FROM (VALUES(''),('asdfkjhasdjkhgavdjhkgdvkjhg'),('aaaaa'),(''),('zzzzzzz'),('a'),('z'),('non-null-value')) tbl(id) WHERE NULLIF(id,'') IS NULL";
     testBuilder().sqlQuery(query).unOrdered().baselineColumns("id")
-      .baselineValues("                           ")
-      .baselineValues("                           ")
+      .baselineValues("")
+      .baselineValues("")
       .go();
   }
 
@@ -301,15 +358,6 @@ public class TestExampleQueries extends PlanTestBase {
     test("alter session set \"planner.enable_hashagg\" = true");
     test("select count(*) from cp.\"vector/complex/mixed.json\" group by a, typeof(a)");
     test("alter session set \"planner.enable_streamagg\" = true");
-  }
-
-  @Test
-  public void testValues() throws Exception {
-    String query = "SELECT id FROM (VALUES(''),('asdfkjhasdjkhgavdjhkgdvkjhg'),('aaaaa'),(''),('zzzzzzz'),('a'),('z'),('non-null-value')) tbl(id) WHERE NULLIF(id,'                           ') IS NULL";
-    testBuilder().sqlQuery(query).unOrdered().baselineColumns("id")
-      .baselineValues("                           ")
-      .baselineValues("                           ")
-      .go();
   }
 
   @Test

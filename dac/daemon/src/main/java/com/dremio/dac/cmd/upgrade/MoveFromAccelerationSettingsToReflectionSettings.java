@@ -36,13 +36,14 @@ import com.google.common.collect.Lists;
  */
 public class MoveFromAccelerationSettingsToReflectionSettings extends UpgradeTask {
   public MoveFromAccelerationSettingsToReflectionSettings() {
-    super("Migrate from acceleration settings to reflection settings", VERSION_106, VERSION_150);
+    super("Migrate from acceleration settings to reflection settings", VERSION_106, VERSION_150, NORMAL_ORDER + 7);
   }
 
   @Override
   public void upgrade(UpgradeContext context) {
-    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider().get());
-    final ReflectionSettings reflectionSettings = new ReflectionSettings(DirectProvider.wrap(namespaceService), context.getKVStoreProvider());
+    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider());
+    final ReflectionSettings reflectionSettings = new ReflectionSettings(DirectProvider.wrap(namespaceService),
+        DirectProvider.wrap(context.getKVStoreProvider()));
 
     List<SourceConfig> sources = namespaceService.getSources();
     for (SourceConfig sourceConfig : sources) {

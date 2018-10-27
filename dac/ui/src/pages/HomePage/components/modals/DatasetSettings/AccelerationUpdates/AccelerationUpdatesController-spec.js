@@ -29,7 +29,8 @@ describe('AccelerationUpdatesController', () => {
     minimalProps = {
       viewState: Immutable.fromJS({
         isInProgress: false
-      })
+      }),
+      updateViewState: () => {}
     };
     commonProps = {
       ...minimalProps,

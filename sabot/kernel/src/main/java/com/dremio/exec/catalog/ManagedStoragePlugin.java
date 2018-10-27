@@ -15,14 +15,14 @@
  */
 package com.dremio.exec.catalog;
 
+import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.inject.Provider;
 
-import org.threeten.bp.Instant;
-
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.ProtostuffUtil;
@@ -32,13 +32,14 @@ import com.dremio.exec.catalog.PluginsManager.IdProvider;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.options.OptionManager;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.CatalogService.UpdateType;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePlugin.CheckResult;
 import com.dremio.exec.store.StoragePlugin.UpdateStatus;
 import com.dremio.exec.store.StoragePluginRulesFactory;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -117,11 +118,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     this.sourceConfig = sourceConfig;
     this.conf = conf;
     this.metadataPolicy = sourceConfig.getMetadataPolicy() == null ? CatalogService.NEVER_REFRESH_POLICY : sourceConfig.getMetadataPolicy();
-    final Provider<Long> authTtlProvider = new Provider<Long>() {
-      @Override
-      public Long get() {
-        return ManagedStoragePlugin.this.metadataPolicy.getAuthTtlMs();
-      }};
+    final Provider<Long> authTtlProvider = () -> ManagedStoragePlugin.this.metadataPolicy.getAuthTtlMs();
 
     this.permissionsCache = new PermissionCheckCache(new StoragePluginProvider(), authTtlProvider, 2500);
     this.plugin = plugin;
@@ -189,8 +186,18 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
-  public ConnectionConf<?, ?> getConnectionConf(){
+  public ConnectionConf<?, ?> getConnectionConf() {
     return conf;
+  }
+
+  /**
+   * Gets dataset retrieval options as defined on the source.
+   *
+   * @return dataset retrieval options defined on the source
+   */
+  DatasetRetrievalOptions getDefaultRetrievalOptions() {
+    return DatasetRetrievalOptions.fromMetadataPolicy(metadataPolicy)
+        .withFallback(DatasetRetrievalOptions.DEFAULT);
   }
 
   public StoragePluginRulesFactory getRulesFactory() throws InstantiationException, IllegalAccessException {
@@ -382,10 +389,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
-  public UpdateStatus refreshDataset(NamespaceKey key, boolean force) {
+  public UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions) {
     try(AutoCloseableLock l = readLock()) {
       checkState();
-      return metadataManager.refreshDataset(key, force);
+      return metadataManager.refreshDataset(key, retrievalOptions);
     }
   }
 
@@ -398,10 +405,17 @@ public class ManagedStoragePlugin implements AutoCloseable {
   }
 
   public SourceTableDefinition getTable(NamespaceKey key, DatasetConfig datasetConfig, final boolean ignoreAuthErrors) throws Exception {
+    DatasetRetrievalOptions retrievalOptions = getDefaultRetrievalOptions().toBuilder()
+        .setIgnoreAuthzErrors(ignoreAuthErrors)
+        .build();
     try(AutoCloseableLock l = readLock()) {
       checkState();
       if (datasetConfig != null && datasetConfig.getReadDefinition() != null) {
-        final CheckResult res = plugin.checkReadSignature(datasetConfig.getReadDefinition().getReadSignature(), datasetConfig);
+        final CheckResult res = plugin.checkReadSignature(
+            datasetConfig.getReadDefinition().getReadSignature(),
+            datasetConfig,
+            retrievalOptions
+        );
         if (res.getStatus() == UpdateStatus.DELETED) {
           return null;
         } else if (res.getStatus() == UpdateStatus.CHANGED ||
@@ -410,11 +424,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
         }
       }
 
-      return plugin.getDataset(
-          key,
-          datasetConfig,
-          ignoreAuthErrors
-        );
+      return plugin.getDataset(key, datasetConfig, retrievalOptions);
     }
   }
 
@@ -557,8 +567,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
     try(AutoCloseableLock l = writeLock()) {
       state = SourceState.badState("Source is being shutdown.");
-      metadataManager.close();
-      plugin.close();
+      AutoCloseables.close(metadataManager, plugin);
     }
   }
 

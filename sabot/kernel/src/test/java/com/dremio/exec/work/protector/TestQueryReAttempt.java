@@ -16,6 +16,7 @@
 package com.dremio.exec.work.protector;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
@@ -34,7 +35,9 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.NoOutputLogger;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.GeneralRPCProtos;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
@@ -43,12 +46,13 @@ import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.options.OptionManager;
 import com.dremio.exec.testing.Controls;
 import com.dremio.exec.testing.ControlsInjectionUtil;
+import com.dremio.exec.work.AttemptId;
 import com.dremio.exec.work.user.LocalUserUtil;
+import com.dremio.options.OptionManager;
+import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.sabot.op.aggregate.hash.HashAggOperator;
-import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.google.common.collect.Sets;
@@ -195,8 +199,7 @@ public class TestQueryReAttempt extends BaseTestQuery {
       QueryWritableBatch firstBatch = createQueryWritableBatch(first);
       QueryWritableBatch convertedBatch = attemptHandler.convertIfNecessary(firstBatch);
 
-      assertTrue("first batch should pass through", firstBatch == convertedBatch);
-
+      assertSame("first batch should pass through", firstBatch, convertedBatch);
       release(firstBatch);
     }
 
@@ -218,6 +221,15 @@ public class TestQueryReAttempt extends BaseTestQuery {
 
       assertBatchCanBeLoaded(convertedBatch, first);
     }
+  }
+
+  @Test
+  public void testCTAS() {
+    OptionManager options = Mockito.mock(OptionManager.class);
+    ReAttemptHandler attemptHandler = new ExternalAttemptHandler(options);
+    AttemptId id = new AttemptId();
+    final UserException userException = UserException.memoryError(null).build(NoOutputLogger.INSTANCE);
+    assertEquals(AttemptReason.NONE, attemptHandler.isRecoverable(new ReAttemptContext(id, userException, false, true)));
   }
 
   private void assertBatchCanBeLoaded(QueryWritableBatch batch, List<ValueVector> original) throws Exception {

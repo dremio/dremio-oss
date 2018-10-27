@@ -36,6 +36,7 @@ message SearchQuery {
         TERM_DOUBLE = 14;
         EXISTS = 15;
         DOES_NOT_EXIST = 16;
+        BOOST = 17;
     }
 
     enum BooleanOp {
@@ -130,6 +131,11 @@ message SearchQuery {
       required string field = 1;
     }
 
+    message Boost {
+      required SearchQuery clause = 1;
+      required float       boost = 2;
+    }
+
     required Type           type = 1; 
     optional MatchAll       matchAll = 2;
     optional Boolean        boolean = 3;
@@ -146,6 +152,7 @@ message SearchQuery {
     optional TermFloat      termFloat = 14;
     optional TermDouble     termDouble = 15;
     optional Exists         exists = 16;
+    optional Boost          boost = 17;
 }
 
 enum SortOrder {

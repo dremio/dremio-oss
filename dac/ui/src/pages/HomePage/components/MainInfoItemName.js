@@ -32,7 +32,8 @@ export default class MainInfoItemName extends Component {
 
   static propTypes = {
     item: PropTypes.instanceOf(Immutable.Map).isRequired,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    onMount: PropTypes.func // takes width parameter
   };
 
   static contextTypes = {
@@ -41,6 +42,22 @@ export default class MainInfoItemName extends Component {
 
   constructor(props) {
     super(props);
+    this.wrap = null;
+  }
+
+  componentDidMount() {
+    const {onMount} = this.props;
+    if (onMount) {
+      onMount(this.getComponentWidth());
+    }
+  }
+
+  setWrapRef = (element) => {
+    this.wrap = element;
+  };
+
+  getComponentWidth() {
+    return this.wrap.clientWidth;
   }
 
   getHref(entity) {
@@ -111,7 +128,7 @@ export default class MainInfoItemName extends Component {
     const holderClass = fileType + '-path';
 
     return (
-      <div style={[styles.flexAlign, styles.base]} className={holderClass}>
+      <div style={[styles.flexAlign, styles.base]} className={holderClass} ref={this.setWrapRef}>
         <Link style={linkStyle} to={href}>
           {this.renderDatasetItemLabel()}
         </Link>
@@ -127,13 +144,14 @@ export default class MainInfoItemName extends Component {
 
 const styles = {
   base: {
-    width: 'calc(100% - 20px)'
+    maxWidth: 'calc(100% - 100px)' // reserve 100px for tags [IE 11]
   },
   fullPath: {
     marginLeft: 5
   },
   flexAlign: {
     display: 'flex',
+    //flex: '0 1', // should get rid ofthis for [IE 11]
     alignItems: 'center',
     maxWidth: '100%'
   },

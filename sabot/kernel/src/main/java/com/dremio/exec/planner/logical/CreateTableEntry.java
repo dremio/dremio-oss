@@ -22,6 +22,7 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
+import com.dremio.exec.store.dfs.GenericCreateTableEntry;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -32,7 +33,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property="type")
 @JsonSubTypes({ // TODO: hack until we merge "common" and "java-exec" modules (DRILL-507).
-    @Type(name = "filesystem", value = FileSystemCreateTableEntry.class)
+    @Type(name = "filesystem", value = FileSystemCreateTableEntry.class),
+    @Type(name = "generic", value = GenericCreateTableEntry.class)
 })
 public interface CreateTableEntry {
 

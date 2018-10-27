@@ -30,10 +30,9 @@ import com.google.protobuf.MessageLite;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.util.concurrent.GenericFutureListener;
 
 /**
- * Manager all connections between two particular bits.
+ * Manages connection between a pair of servers.
  */
 public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConnection, OUTBOUND_HANDSHAKE extends MessageLite>
     implements Closeable {
@@ -57,12 +56,18 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
     this.handshake = handshake;
   }
 
-  public ReconnectingConnection(OUTBOUND_HANDSHAKE handshake, String host, int port) {
-    this("unknown", handshake, host, port);
-  }
+  protected abstract BasicClient<?, CONNECTION_TYPE, OUTBOUND_HANDSHAKE, ?> getNewClient() throws RpcException;
 
-  protected abstract BasicClient<?, CONNECTION_TYPE, OUTBOUND_HANDSHAKE, ?> getNewClient();
-
+  /**
+   * Runs the RPC command on this connection. If the underlying connection is not active, a new connection is
+   * established, and the command is run (so the caller is unaware if the connection already exists). Although
+   * communication may be bi-directional, the host that initiates and successfully establishes the connection is the
+   * client in the pair.
+   *
+   * @param cmd command to run
+   * @param <R> (unused)
+   * @param <C> command type
+   */
   public <R extends MessageLite, C extends RpcCommand<R, CONNECTION_TYPE>> void runCommand(C cmd) {
 //    logger.info(String.format("Running command %s sending to host %s:%d", cmd, host, port));
     if (closed.get()) {
@@ -81,10 +86,10 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
       }
     }
 
-    /**
+    /*
      * We've arrived here without a connection, let's make sure only one of us makes a connection. (fyi, another
      * endpoint could create a reverse connection
-     **/
+     */
     synchronized (this) {
       connection = connectionHolder.get();
       if (connection != null) {
@@ -92,7 +97,14 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
 
       } else {
         logger.info("[{}]: No connection active, opening new connection to {}:{}.", name, host, port);
-        BasicClient<?, CONNECTION_TYPE, OUTBOUND_HANDSHAKE, ?> client = getNewClient();
+        final BasicClient<?, CONNECTION_TYPE, OUTBOUND_HANDSHAKE, ?> client;
+        try {
+          client = getNewClient();
+        } catch (RpcException e) {
+          logger.error("[{}]: Failed to create client to connect to {}:{}", name, host, port, e);
+          cmd.connectionFailed(FailureType.CONNECTION, e);
+          return;
+        }
         ConnectionListeningFuture<R, C> future = new ConnectionListeningFuture<R, C>(cmd);
         client.connectAsClient(future, handshake, host, port);
 //        logger.info("Connection available and active, command now being run inline.");

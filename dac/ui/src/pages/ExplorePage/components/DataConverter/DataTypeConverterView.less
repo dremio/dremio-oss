@@ -18,23 +18,23 @@
 
 .type-element {
 
-  :global {    
+  :global {
 
     .icon-type {
       // it is a dirty hack to align icons. todo think how to do that in better way
-      margin-bottom: -1px;      
+      margin-bottom: -1px;
       vertical-align: text-bottom;
       // end of hack ----------------
       display: inline-block;
       height: 18px;
-      width: 33px; // should be even to be really centered      
+      width: 33px; // should be even to be really centered
       background-position: center center;
       background-size: contain;
-    }   
+    }
   }
 }
 
-.select-left-aligned {  
+.select-left-aligned {
   .align-left;
   padding-left: 0;
 }
@@ -45,6 +45,7 @@
 .padding {
   composes: horizontal-content-padding from '@app/uiTheme/less/layout.less';
   padding-top: @section-margin;
+  padding-bottom: @section-margin;
 }
 
 .row-margin {

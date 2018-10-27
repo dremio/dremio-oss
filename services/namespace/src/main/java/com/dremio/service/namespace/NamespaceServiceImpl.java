@@ -30,11 +30,14 @@ import static java.lang.String.format;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -42,12 +45,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.KVStore.FindByRange;
@@ -62,8 +67,10 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
+import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
@@ -155,22 +162,80 @@ public class NamespaceServiceImpl implements NamespaceService {
   /**
    * Comparator for split ranges
    */
-  private static final Comparator<Range<String>> SPLIT_RANGE_COMPARATOR =
+  private static final Comparator<Range<DatasetSplitId>> SPLIT_RANGE_COMPARATOR =
       Comparator.comparing(Range::lowerEndpoint);
 
-  @Override
-  public int deleteSplitOrphans() {
-    final List<Range<String>> ranges = new ArrayList<>();
 
-    int itemsDeleted = 0;
+  @Override
+  public int deleteSplitOrphans(DatasetSplitId.SplitOrphansRetentionPolicy policy) {
+    final Map<String, SourceConfig> sourceConfigs = new HashMap<>();
+    final List<Range<DatasetSplitId>> ranges = new ArrayList<>();
+
+    // Iterate over all entries in the namespace to collect source
+    // and datasets with splits to create a map of the valid split ranges.
+    final Set<String> missingSources = new HashSet<>();
     for(Map.Entry<byte[], NameSpaceContainer> entry : namespace.find()) {
       NameSpaceContainer container = entry.getValue();
-      if(container.getType() == Type.DATASET && container.getDataset().getReadDefinition() != null && container.getDataset().getReadDefinition().getSplitVersion() != null) {
-        ranges.add(DatasetSplitId.getSplitStringRange(container.getDataset()));
+      switch(container.getType()) {
+      case SOURCE: {
+        final SourceConfig source = container.getSource();
+        sourceConfigs.put(source.getName(), source);
+        continue;
+      }
+
+      case DATASET:
+        final DatasetConfig dataset = container.getDataset();
+        final ReadDefinition readDefinition = dataset.getReadDefinition();
+        if (readDefinition == null || readDefinition.getSplitVersion() == null) {
+          continue;
+        }
+
+        // Create a range from now - expiration to future...
+        // Note that because entries are ordered, source should have been visited before the dataset
+        final MetadataPolicy metadataPolicy;
+        switch (dataset.getType()) {
+        case PHYSICAL_DATASET_HOME_FILE:
+        case PHYSICAL_DATASET_HOME_FOLDER:
+          // Home dataset. Home doesn't have a configurable metadata policy/never refreshes
+          metadataPolicy = null;
+          break;
+
+        case PHYSICAL_DATASET:
+        case PHYSICAL_DATASET_SOURCE_FILE:
+        case PHYSICAL_DATASET_SOURCE_FOLDER:
+          final String sourceName = dataset.getFullPathList().get(0);
+          SourceConfig source = sourceConfigs.get(sourceName);
+          if (source == null) {
+            if (missingSources.add(sourceName)) {
+              logger.info("Source {} not found for dataset {}. Considering it as orphaned", sourceName, PathUtils.constructFullPath(dataset.getFullPathList()));
+            }
+            continue;
+          }
+          metadataPolicy = source.getMetadataPolicy();
+          break;
+
+        case VIRTUAL_DATASET:
+          // Virtual datasets don't have splits
+          continue;
+
+        default:
+          logger.error("Unknown dataset type {}. Cannot check for orphan splits", dataset.getType());
+          continue;
+        }
+
+        Range<DatasetSplitId> versionRange = policy.apply(metadataPolicy, dataset);
+        // min version is based on when dataset definition would expire
+        // but it has to be at least positive
+        ranges.add(versionRange);
+
+        continue;
+
+      default:
+        continue;
       }
     }
 
-    // ranges need to be sorted for binary search to be working
+    // Ranges need to be sorted for binary search to be working
     Collections.sort(ranges, SPLIT_RANGE_COMPARATOR);
 
     // Some explanations:
@@ -181,23 +246,25 @@ public class NamespaceServiceImpl implements NamespaceService {
     // already present in the list (this is the insertion point, see Collections.binarySort
     // javadoc), which should be just after the corresponding dataset range as ranges items
     // are sorted based on their lower endpoint.
+    int elementCount = 0;
     for (Map.Entry<DatasetSplitId, DatasetSplit> e : splitsStore.find()) {
-      String id = e.getKey().getSplitId();
+      DatasetSplitId id = e.getKey();
       final int item = Collections.binarySearch(ranges, Range.singleton(id), SPLIT_RANGE_COMPARATOR);
 
       // we should never find a match since we're searching for a split key and that dataset
       // split range endpoints are excluded/not valid split keys
-      Preconditions.checkArgument(item < 0);
+      Preconditions.checkState(item < 0);
 
       final int insertionPoint = (-item) - 1;
       final int consideredRange = insertionPoint - 1; // since a normal match would come directly after the start range, we need to check the range directly above the insertion point.
 
       if (consideredRange < 0 || !ranges.get(consideredRange).contains(id)) {
         splitsStore.delete(e.getKey());
-        itemsDeleted++;
+        ++elementCount;
       }
     }
-    return itemsDeleted;
+
+    return elementCount;
   }
 
   /**
@@ -305,6 +372,12 @@ public class NamespaceServiceImpl implements NamespaceService {
   public void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, NamespaceAttribute... attributes) throws NamespaceException {
     dataset.setSchemaVersion(DatasetHelper.CURRENT_VERSION);
 
+    if (dataset.getVersion() == null && dataset.getCreatedAt() == null) {
+      dataset.setCreatedAt(System.currentTimeMillis());
+    }
+
+    dataset.setLastModified(System.currentTimeMillis());
+
     // ensure physical dataset has acceleration TTL
     final DatasetType type = dataset.getType();
     switch (type) {
@@ -347,7 +420,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     }
     final ImmutableMap.Builder<DatasetSplitId, DatasetSplit> builder = ImmutableMap.builder();
     for (DatasetSplit newSplit: newSplits) {
-      final DatasetSplitId splitId = new DatasetSplitId(dataset, newSplit, dataset.getReadDefinition().getSplitVersion());
+      final DatasetSplitId splitId = DatasetSplitId.of(dataset, newSplit, dataset.getReadDefinition().getSplitVersion());
       // for comparison purpose, use the last known split version
       newSplit.setSplitVersion(dataset.getReadDefinition().getSplitVersion());
       builder.put(splitId, newSplit);
@@ -386,7 +459,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     final List<DatasetSplitId> splitIds = Lists.newArrayList();
     // only if splits have changed update splits version and retry read definition on concurrent modification.
     for (DatasetSplit split : splits) {
-      final DatasetSplitId splitId = new DatasetSplitId(dataset, split, nextSplitVersion);
+      final DatasetSplitId splitId = DatasetSplitId.of(dataset, split, nextSplitVersion);
       split.setSplitVersion(nextSplitVersion);
       splitsStore.put(splitId, split);
       splitIds.add(splitId);
@@ -446,6 +519,14 @@ public class NamespaceServiceImpl implements NamespaceService {
     if (!Objects.equals(newConfig.getVersion(), existingConfig.getVersion())) {
       throw new ConcurrentModificationException("Source was already created.");
     }
+  }
+
+  @Override
+  public String getEntityIdByPath(NamespaceKey datasetPath) throws NamespaceException {
+    final List<NameSpaceContainer> entities = getEntities(Arrays.asList(datasetPath));
+    NameSpaceContainer entity = entities.get(0);
+
+    return entity != null ? NamespaceUtils.getId(entity) : null;
   }
 
   protected List<NameSpaceContainer> doGetEntities(List<NamespaceKey> lookupKeys) {
@@ -930,6 +1011,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     }
     datasetConfig.setName(newDatasetName);
     datasetConfig.setFullPathList(newDatasetPath.getPathComponents());
+    datasetConfig.setCreatedAt(System.currentTimeMillis());
     NamespaceEntity newValue = NamespaceEntity.toEntity(DATASET, newDatasetPath, datasetConfig, keyNormalization);
 
     datasetConfig.setVersion(null);
@@ -1212,4 +1294,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     return it.hasNext()?it.next().getValue():null;
   }
 
+  public static byte[] getKey(NamespaceKey key) {
+    return new NamespaceInternalKey(key).getKey();
+  }
 }

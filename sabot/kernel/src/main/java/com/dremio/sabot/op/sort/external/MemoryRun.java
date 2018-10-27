@@ -147,6 +147,11 @@ class MemoryRun implements AutoCloseable {
       return false;
     }
 
+    if (treeManager != null && (treeManager.getHyperBatch().size() >= 65535 || size >= 32768)) {
+      logger.debug("Memory Run: no room for storing new batch, failed to add batch");
+      return false;
+    }
+
     // copy size is BATCH_SIZE_MULTIPLIER worse case batch size since we have to
     // be careful of memory rounding. sv4 for sort output vector is the total
     // number of records x4 bytes per sv4 value. we need to reserve this here

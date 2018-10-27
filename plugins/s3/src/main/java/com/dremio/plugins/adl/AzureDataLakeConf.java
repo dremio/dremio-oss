@@ -15,7 +15,6 @@
  */
 package com.dremio.plugins.adl;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.inject.Provider;
@@ -24,12 +23,12 @@ import org.apache.hadoop.fs.Path;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
+import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemConf;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
@@ -42,7 +41,7 @@ import io.protostuff.Tag;
  * https://hadoop.apache.org/docs/current/hadoop-azure-datalake/index.html
  */
 @SourceType(value = "ADL", label = "Azure Data Lake Store")
-public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, FileSystemPlugin> {
+public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDataLakeStoragePlugin> {
 
   private static final List<String> UNIQUE_CONN_PROPS = ImmutableList.of(
       "dfs.adls.oauth2.client.id",
@@ -98,17 +97,26 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, FileSys
   @Tag(7)
   public List<Property> propertyList;
 
+  @Tag(8)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable exports into the source (CTAS and DROP)")
+  public boolean allowCreateDrop = false;
+
+  @Tag(9)
+  @DisplayMetadata(label = "Root Path")
+  public String rootPath = "/";
+
   @Override
-  public FileSystemPlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+  public AzureDataLakeStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     Preconditions.checkNotNull(accountName, "Account name must be set.");
     Preconditions.checkNotNull(clientId, "Client ID must be set.");
     Preconditions.checkNotNull(mode, "Authentication mode must be set.");
-    return new FileSystemPlugin(this, context, name, null, pluginIdProvider);
+    return new AzureDataLakeStoragePlugin(this, context, name, null, pluginIdProvider);
   }
 
   @Override
   public Path getPath() {
-    return new Path("/");
+    return new Path(rootPath);
   }
 
   @Override
@@ -118,47 +126,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, FileSys
 
   @Override
   public List<Property> getProperties() {
-    List<Property> properties = new ArrayList<>();
-
-    // configure hadoop fs implementation
-    properties.add(new Property("fs.adl.impl", "org.apache.hadoop.fs.adl.AdlFileSystem"));
-    properties.add(new Property("fs.AbstractFileSystem.adl.impl", "org.apache.hadoop.fs.adl.Adl"));
-    properties.add(new Property("fs.adl.impl.disable.cache", "true"));
-
-    // configure azure properties.
-    properties.add(new Property("dfs.adls.oauth2.client.id", clientId));
-
-    switch(mode) {
-    case CLIENT_KEY:
-      properties.add(new Property("dfs.adls.oauth2.access.token.provider.type", "ClientCredential"));
-
-      if(clientKeyPassword != null) {
-        properties.add(new Property("dfs.adls.oauth2.credential", clientKeyPassword));
-      }
-
-      if(clientKeyRefreshUrl != null) {
-        properties.add(new Property("dfs.adls.oauth2.refresh.url",  clientKeyRefreshUrl));
-      }
-
-      break;
-    case REFRESH_TOKEN:
-      properties.add(new Property("dfs.adls.oauth2.access.token.provider.type", "RefreshToken"));
-      if(refreshTokenSecret != null) {
-        properties.add(new Property("dfs.adls.oauth2.refresh.token", refreshTokenSecret));
-      }
-
-      break;
-    default:
-      throw new IllegalStateException("Unknown auth mode: " + mode);
-
-    }
-
-    // Properties are added in order so make sure that any hand provided properties override settings done via specific config
-    if(this.propertyList != null) {
-      properties.addAll(this.propertyList);
-    }
-
-    return properties;
+    return propertyList;
   }
 
   @Override
@@ -168,7 +136,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, FileSys
 
   @Override
   public SchemaMutability getSchemaMutability() {
-    return SchemaMutability.NONE;
+    return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
   }
 
   @Override

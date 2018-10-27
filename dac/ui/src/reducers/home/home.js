@@ -17,8 +17,10 @@ import { combineReducers } from 'redux';
 
 import config from './config';
 import recentDatasets from './recentDatasets';
+import wiki from './wiki';
 
 export default combineReducers({
   config,
-  recentDatasets
+  recentDatasets,
+  wiki
 });

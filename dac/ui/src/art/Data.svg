@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (C) 2017-2018 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <g id="Icon/Data" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round">
+        <g id="Group" transform="translate(4.000000, 4.000000)" stroke="#77818F">
+            <path d="M0.40032,3.27272727 L0.40032,12.7272727 C0.40032,14.3338182 3.80352,15.6363636 8.00032,15.6363636 C12.19712,15.6363636 15.60032,14.3338182 15.60032,12.7272727 L15.60032,3.27272727" id="Stroke-5085"></path>
+            <path d="M15.60032,9.45454545 C15.60032,11.0610909 12.19712,12.3636364 8.00032,12.3636364 C3.80352,12.3636364 0.40032,11.0610909 0.40032,9.45454545" id="Stroke-5084"></path>
+            <path d="M15.60032,6.18181818 C15.60032,7.78836364 12.19712,9.09090909 8.00032,9.09090909 C3.80352,9.09090909 0.40032,7.78836364 0.40032,6.18181818" id="Stroke-5083"></path>
+            <path d="M15.60048,3.09090909 C15.60048,4.59704545 12.19728,5.81818182 8.00048,5.81818182 C3.80368,5.81818182 0.40048,4.59704545 0.40048,3.09090909 C0.40048,1.58477273 3.80368,0.363636364 8.00048,0.363636364 C12.19728,0.363636364 15.60048,1.58477273 15.60048,3.09090909 L15.60048,3.09090909 Z" id="Stroke-5082"></path>
+        </g>
+    </g>
+</svg>

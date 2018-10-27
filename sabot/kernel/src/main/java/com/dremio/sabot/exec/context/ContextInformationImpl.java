@@ -15,6 +15,10 @@
  */
 package com.dremio.sabot.exec.context;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import com.dremio.exec.context.AdditionalContext;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 
@@ -26,6 +30,7 @@ public class ContextInformationImpl implements ContextInformation {
   private final String currentDefaultSchema;
   private final long queryStartTime;
   private final int rootFragmentTimeZone;
+  private final Map<Class<? extends AdditionalContext>, AdditionalContext> additionalInfo = new ConcurrentHashMap<>(1);
 
   public ContextInformationImpl(final UserCredentials userCredentials, final QueryContextInformation queryContextInfo) {
     this.queryUser = userCredentials.getUserName();
@@ -52,5 +57,20 @@ public class ContextInformationImpl implements ContextInformation {
   @Override
   public int getRootFragmentTimeZone() {
     return rootFragmentTimeZone;
+  }
+
+  @Override
+  public void registerAdditionalInfo(AdditionalContext object) {
+    // this event is rare and mostly once in the ContextInformation lifetime
+    // should be once per AdditionalContext type
+    AdditionalContext prevValue = additionalInfo.putIfAbsent(object.getClass(), object);
+    if (prevValue != null) {
+      throw new RuntimeException("Trying to set AdditionalContext of type: " + object.getClass() + " multiple times");
+    }
+  }
+
+  @Override
+  public <T extends AdditionalContext> T getAdditionalInfo(Class<T> claz) {
+    return (T) additionalInfo.get(claz);
   }
 }

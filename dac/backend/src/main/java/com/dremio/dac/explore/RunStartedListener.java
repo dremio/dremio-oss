@@ -55,7 +55,7 @@ public class RunStartedListener extends NoOpJobStatusListener {
   }
 
   @Override
-  public void jobCancelled() {
+  public void jobCancelled(String reason) {
     latch.countDown();
   }
 

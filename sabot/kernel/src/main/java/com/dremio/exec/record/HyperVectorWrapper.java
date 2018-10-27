@@ -16,6 +16,9 @@
 package com.dremio.exec.record;
 
 import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
@@ -32,7 +35,9 @@ import com.google.common.base.Preconditions;
 public class HyperVectorWrapper<T extends ValueVector> implements VectorWrapper<T>{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HyperVectorWrapper.class);
 
-  private T[] vectors;
+  private List<T> vectors = new ArrayList<>();
+  private T[] cachedVectors;
+  private boolean cachedVectorsValid;
   private Field field;
   private final boolean releasable;
 
@@ -42,14 +47,16 @@ public class HyperVectorWrapper<T extends ValueVector> implements VectorWrapper<
 
   public HyperVectorWrapper(Field f, T[] v, boolean releasable) {
     this.field = f;
-    this.vectors = v;
+    this.vectors.addAll(Arrays.asList(v));
+    this.cachedVectors = v;
     this.releasable = releasable;
+    this.cachedVectorsValid = true;
   }
 
   @SuppressWarnings("unchecked")
   @Override
   public Class<T> getVectorClass() {
-    return (Class<T>) vectors.getClass().getComponentType();
+    return (Class<T>) cachedVectors.getClass().getComponentType();
   }
 
   @Override
@@ -64,7 +71,11 @@ public class HyperVectorWrapper<T extends ValueVector> implements VectorWrapper<
 
   @Override
   public T[] getValueVectors() {
-    return vectors;
+    if (!cachedVectorsValid) {
+      cachedVectors = vectors.toArray(this.cachedVectors);
+      cachedVectorsValid = true;
+    }
+    return cachedVectors;
   }
 
   @Override
@@ -93,7 +104,7 @@ public class HyperVectorWrapper<T extends ValueVector> implements VectorWrapper<
       return this;
     }
 
-    ValueVector[] vectors = new ValueVector[this.vectors.length];
+    ValueVector[] vectors = new ValueVector[this.vectors.size()];
     int index = 0;
 
     for (ValueVector v : this.vectors) {
@@ -119,14 +130,14 @@ public class HyperVectorWrapper<T extends ValueVector> implements VectorWrapper<
   @Override
   @SuppressWarnings("unchecked")
   public VectorWrapper<T> cloneAndTransfer(BufferAllocator allocator, CallBack callback) {
-    if(vectors.length == 0){
-      return new HyperVectorWrapper<T>(field, vectors, false);
+    if(vectors.size() == 0){
+      return new HyperVectorWrapper<T>(field, (T[])vectors.toArray(), false);
     }else {
-      T[] newVectors = (T[]) Array.newInstance(vectors[0].getClass(), vectors.length);
-      for(int i =0; i < vectors.length; i++){
-        newVectors[i] = (T) vectors[i].getTransferPair(vectors[i].getField().getName(), allocator, callback).getTo();
+      T[] newVectors = (T[]) Array.newInstance(vectors.get(0).getClass(), vectors.size());
+      for(int i =0; i < vectors.size(); i++){
+        newVectors[i] = (T) vectors.get(i).getTransferPair(vectors.get(i).getField().getName(), allocator, callback).getTo();
       }
-      return new HyperVectorWrapper<T>(field, vectors, false);
+      return new HyperVectorWrapper<T>(field, (T[])vectors.toArray(), false);
     }
   }
 
@@ -136,14 +147,16 @@ public class HyperVectorWrapper<T extends ValueVector> implements VectorWrapper<
 
   @SuppressWarnings("unchecked")
   public void addVector(ValueVector v) {
-    Preconditions.checkArgument(v.getClass() == this.getVectorClass(), String.format("Cannot add vector type %s to hypervector type %s for field %s",
-      v.getClass(), this.getVectorClass(), v.getField()));
-    vectors = (T[]) ArrayUtils.add(vectors, v);// TODO optimize this so not copying every time
+    Preconditions.checkArgument(v.getClass() == this.getVectorClass(), "Cannot add vector type %s to hypervector type %s for field %s",
+      v.getClass(), this.getVectorClass(), v.getField());
+    vectors.add((T)v);
+    cachedVectorsValid = false;
   }
 
   @SuppressWarnings("unchecked")
   public void addVectors(ValueVector[] vv) {
-    vectors = (T[]) ArrayUtils.addAll(vectors, vv);
+    vectors.addAll(Arrays.asList((T[])vv));
+    cachedVectorsValid = false;
   }
 
   /**
@@ -155,11 +168,11 @@ public class HyperVectorWrapper<T extends ValueVector> implements VectorWrapper<
   public void transfer(VectorWrapper<?> destination) {
     Preconditions.checkArgument(destination instanceof HyperVectorWrapper);
     Preconditions.checkArgument(getField().getType().equals(destination.getField().getType()));
-    Preconditions.checkArgument(vectors.length == ((HyperVectorWrapper<?>)destination).vectors.length);
+    Preconditions.checkArgument(vectors.size() == ((HyperVectorWrapper<?>)destination).vectors.size());
 
-    ValueVector[] destionationVectors = ((HyperVectorWrapper<?>)destination).vectors;
-    for (int i = 0; i < vectors.length; ++i) {
-      vectors[i].makeTransferPair(destionationVectors[i]).transfer();
+    List<ValueVector> destionationVectors = (List<ValueVector>)(((HyperVectorWrapper<?>)destination).vectors);
+    for (int i = 0; i < vectors.size(); ++i) {
+      vectors.get(i).makeTransferPair(destionationVectors.get(i)).transfer();
     }
   }
 }

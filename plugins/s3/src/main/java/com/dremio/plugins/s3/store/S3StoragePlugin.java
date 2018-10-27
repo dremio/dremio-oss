@@ -15,32 +15,112 @@
  */
 package com.dremio.plugins.s3.store;
 
+import static org.apache.hadoop.fs.s3a.Constants.ACCESS_KEY;
+import static org.apache.hadoop.fs.s3a.Constants.MAXIMUM_CONNECTIONS;
+import static org.apache.hadoop.fs.s3a.Constants.SECRET_KEY;
+import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import javax.inject.Provider;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceTableDefinition;
+import com.google.common.base.Joiner;
 
 /**
  * S3 Extension of FileSystemStoragePlugin
  */
-public class S3StoragePlugin extends FileSystemPlugin {
+public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
+
+  private static final Logger logger = LoggerFactory.getLogger(S3StoragePlugin.class);
+
+  /**
+   * Controls how many parallel connections HttpClient spawns.
+   * Hadoop configuration property {@link org.apache.hadoop.fs.s3a.Constants#MAXIMUM_CONNECTIONS}.
+   */
+  public static final int DEFAULT_MAX_CONNECTIONS = 1000;
+  public static final String EXTERNAL_BUCKETS = "dremio.s3.external.buckets";
+  // Defines AWS_CREDENTIALS_PROVIDER because it is missing in org.apache.hadoop.fs.s3a.Constants for mapr profile
+  public static final String AWS_CREDENTIALS_PROVIDER = "fs.s3a.aws.credentials.provider";
+  public static final String ACCESS_KEY_PROVIDER = "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider";
+  public static final String EC2_METADATA_PROVIDER = "org.apache.hadoop.fs.s3a.SharedInstanceProfileCredentialsProvider";
+  public static final String NONE_PROVIDER = "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider";
 
   public S3StoragePlugin(S3PluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     super(config, context, name, null, idProvider);
+  }
+
+  @Override
+  protected List<Property> getProperties() {
+    final S3PluginConfig config = getConfig();
+    final List<Property> finalProperties = new ArrayList<>();
+    finalProperties.add(new Property(FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3:///"));
+    finalProperties.add(new Property("fs.dremioS3.impl", S3FileSystem.class.getName()));
+    finalProperties.add(new Property(MAXIMUM_CONNECTIONS, String.valueOf(DEFAULT_MAX_CONNECTIONS)));
+    finalProperties.add(new Property("fs.s3a.fast.upload", "true"));
+    finalProperties.add(new Property("fs.s3a.fast.upload.buffer", "disk"));
+    finalProperties.add(new Property("fs.s3a.fast.upload.active.blocks", "4")); // 256mb (so a single parquet file should be able to flush at once).
+    finalProperties.add(new Property("fs.s3a.threads.max", "24"));
+    finalProperties.add(new Property("fs.s3a.multipart.size", "67108864")); // 64mb
+    finalProperties.add(new Property("fs.s3a.max.total.tasks", "30"));
+
+    switch (config.credentialType) {
+      case ACCESS_KEY:
+        if (("".equals(config.accessKey)) || ("".equals(config.accessSecret))) {
+          throw UserException.validationError()
+            .message("Failure creating S3 connection. You must provide AWS Access Key and AWS Access Secret.")
+            .build(logger);
+        }
+        finalProperties.add(new Property(ACCESS_KEY, config.accessKey));
+        finalProperties.add(new Property(SECRET_KEY, config.accessSecret));
+        finalProperties.add(new Property(AWS_CREDENTIALS_PROVIDER, ACCESS_KEY_PROVIDER));
+        break;
+      case EC2_METADATA:
+        finalProperties.add(new Property(AWS_CREDENTIALS_PROVIDER, EC2_METADATA_PROVIDER));
+        break;
+      case NONE:
+        finalProperties.add(new Property(AWS_CREDENTIALS_PROVIDER, NONE_PROVIDER));
+        break;
+      default:
+        throw new RuntimeException("Failure creating S3 connection. Invalid credentials type.");
+    }
+
+    final List<Property> propertyList = super.getProperties();
+    if (propertyList != null && !propertyList.isEmpty()) {
+      finalProperties.addAll(propertyList);
+    }
+
+    finalProperties.add(new Property(SECURE_CONNECTIONS, String.valueOf(config.secure)));
+    if (config.externalBucketList != null && !config.externalBucketList.isEmpty()) {
+      finalProperties.add(new Property(EXTERNAL_BUCKETS, Joiner.on(",").join(config.externalBucketList)));
+    } else {
+      if (config.credentialType == S3PluginConfig.AuthenticationType.NONE) {
+        throw UserException.validationError()
+          .message("Failure creating S3 connection. You must provide one or more external buckets when you choose no authentication.")
+          .build(logger);
+      }
+    }
+
+    return finalProperties;
   }
 
   @Override
@@ -77,7 +157,7 @@ public class S3StoragePlugin extends FileSystemPlugin {
   }
 
   @Override
-  public Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) throws Exception {
+  public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions ignored) throws Exception {
     // have to do it to set correct FS_DEFAULT_NAME
     ensureDefaultName();
 

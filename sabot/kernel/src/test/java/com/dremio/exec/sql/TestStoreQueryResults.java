@@ -19,6 +19,7 @@ import static com.dremio.exec.util.ImpersonationUtil.getProcessUserName;
 import static java.lang.String.format;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 
@@ -34,7 +35,9 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.CloseableByteBuf;
 import com.dremio.common.DeferredException;
 import com.dremio.common.util.TestTools;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.protos.ExternalIdHelper;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.PlannerPhase;
@@ -73,13 +76,20 @@ public class TestStoreQueryResults extends BaseTestQuery {
     private final CountDownLatch latch = new CountDownLatch(1);
     private final DeferredException exception = new DeferredException();
     private final boolean checkPlanWriterDistribution;
+    private volatile AttemptId attemptId;
 
     TestQueryObserver(boolean checkPlanWriterDistribution) {
       this.checkPlanWriterDistribution = checkPlanWriterDistribution;
     }
 
+
+    public AttemptId getAttemptId() {
+      return attemptId;
+    }
+
     @Override
     public AttemptObserver newAttempt(AttemptId attemptId, AttemptReason reason) {
+      this.attemptId = attemptId;
       return new AbstractAttemptObserver() {
         @Override
         public void execDataArrived(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch result) {
@@ -150,13 +160,13 @@ public class TestStoreQueryResults extends BaseTestQuery {
     String storeTblName = "simpleQuery";
     String query = "SELECT n_nationkey, COUNT(*) AS \"total\" FROM cp.\"tpch/nation.parquet\" GROUP BY n_nationkey";
 
-    localQueryHelper(query, storeTblName);
+    String table = localQueryHelper(query, storeTblName);
 
     // Now try to query from the place where the above query results are stored
     testBuilder()
         .sqlQuery(
-            format("SELECT * FROM TABLE(%s.\"%s\"(type => 'arrow')) ORDER BY n_nationkey LIMIT 2",
-                TEMP_SCHEMA, storeTblName))
+            format("SELECT * FROM TABLE(%s(type => 'arrow')) ORDER BY n_nationkey LIMIT 2",
+                table))
         .unOrdered()
         .baselineColumns("n_nationkey", "total")
         .baselineValues(0, 1L)
@@ -171,12 +181,12 @@ public class TestStoreQueryResults extends BaseTestQuery {
     String storeTblName = "showTables";
     String query = "SHOW TABLES IN INFORMATION_SCHEMA";
 
-    localQueryHelper(query, storeTblName);
+    String showTables = localQueryHelper(query, storeTblName);
 
     // Now try to query from the place where the above query results are stored
     testBuilder()
         .sqlQuery(
-            format("SELECT * FROM TABLE(%s.\"%s\"(type => 'arrow')) ORDER BY TABLE_NAME", TEMP_SCHEMA, storeTblName))
+            format("SELECT * FROM TABLE(%s(type => 'arrow')) ORDER BY TABLE_NAME", showTables))
         .unOrdered()
         .baselineColumns("TABLE_SCHEMA", "TABLE_NAME")
         .baselineValues("INFORMATION_SCHEMA", "CATALOGS")
@@ -194,12 +204,12 @@ public class TestStoreQueryResults extends BaseTestQuery {
     String storeTblName = "setOption";
     String query = format("ALTER SESSION SET \"%s\"=false", PlannerSettings.HASHAGG.getOptionName());
 
-    localQueryHelper(query, storeTblName);
+    String options = localQueryHelper(query, storeTblName);
 
     // Now try to query from the place where the above query results are stored
     testBuilder()
         .sqlQuery(
-            format("SELECT * FROM TABLE(%s.\"%s\"(type => 'arrow'))", TEMP_SCHEMA, storeTblName))
+            format("SELECT * FROM TABLE(%s(type => 'arrow'))", options))
         .unOrdered()
         .baselineColumns("ok", "summary")
         .baselineValues(true, "planner.enable_hashagg updated.")
@@ -214,12 +224,12 @@ public class TestStoreQueryResults extends BaseTestQuery {
     String ctasTableName = "newTable";
     String ctasQuery = format("CREATE TABLE %s.%s AS SELECT * FROM cp.\"region.json\" ORDER BY region_id LIMIT 2", TEMP_SCHEMA, ctasTableName);
 
-    localQueryHelper(ctasQuery, ctasStoreTblName);
+    final String ctas = localQueryHelper(ctasQuery, ctasStoreTblName);
 
     // Now try to query from the place where the above query results are stored
     testBuilder()
         .sqlQuery(
-            format("SELECT count(*) as cnt FROM TABLE(%s.\"%s\"(type => 'arrow'))", TEMP_SCHEMA, ctasStoreTblName))
+            format("SELECT count(*) as cnt FROM TABLE(%s(type => 'arrow'))", ctas))
         .unOrdered()
         .baselineColumns("cnt")
         .baselineValues(1L)
@@ -227,12 +237,12 @@ public class TestStoreQueryResults extends BaseTestQuery {
 
     String dropTableStoreTblName = "drop";
     String dropTableQuery = format("DROP TABLE %s.%s", TEMP_SCHEMA, ctasTableName);
-    localQueryHelper(dropTableQuery, dropTableStoreTblName);
+    final String drop = localQueryHelper(dropTableQuery, dropTableStoreTblName);
 
     // Now try to query from the place where the above query results are stored
     testBuilder()
         .sqlQuery(
-            format("SELECT * FROM TABLE(%s.\"%s\"(type => 'arrow'))", TEMP_SCHEMA, dropTableStoreTblName))
+            format("SELECT * FROM TABLE(%s(type => 'arrow'))", drop))
         .unOrdered()
         .baselineColumns("ok", "summary")
         .baselineValues(true, "Table [dfs_test.newTable] dropped")
@@ -247,12 +257,12 @@ public class TestStoreQueryResults extends BaseTestQuery {
     String storeTblName = "explain";
     String query = "EXPLAIN PLAN FOR SELECT * FROM SYS.VERSION";
 
-    localQueryHelper(query, storeTblName);
+    final String explain = localQueryHelper(query, storeTblName);
 
     // Now try to query from the place where the above query results are stored
     testBuilder()
         .sqlQuery(
-            format("SELECT count(*) as cnt FROM TABLE(%s.\"%s\"(type => 'arrow'))", TEMP_SCHEMA, storeTblName))
+            format("SELECT count(*) as cnt FROM TABLE(%s(type => 'arrow'))", explain))
         .unOrdered()
         .baselineColumns("cnt")
         .baselineValues(1L)
@@ -272,11 +282,11 @@ public class TestStoreQueryResults extends BaseTestQuery {
     FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
   }
 
-  private static void localQueryHelper(String query, String storeTblName) throws Exception {
-    localQueryHelper(query, storeTblName, false);
+  private static String localQueryHelper(String query, String storeTblName) throws Exception {
+    return localQueryHelper(query, storeTblName, false);
   }
 
-  private static void localQueryHelper(String query, String storeTblName, boolean checkWriterDistributionTrait) throws Exception {
+  private static String localQueryHelper(String query, String storeTblName, boolean checkWriterDistributionTrait) throws Exception {
     LocalQueryExecutor localQueryExecutor = getLocalQueryExecutor();
 
     RunQuery queryCmd = RunQuery
@@ -303,5 +313,11 @@ public class TestStoreQueryResults extends BaseTestQuery {
     localQueryExecutor.submitLocalQuery(ExternalIdHelper.generateExternalId(), queryObserver, queryCmd, false, config);
 
     queryObserver.waitForCompletion();
+
+    return toTableName(TEMP_SCHEMA, storeTblName, queryObserver.getAttemptId());
+  }
+
+  private static String toTableName(String schema1, String schema2, final AttemptId id) {
+    return PathUtils.constructFullPath(Arrays.asList(schema1, schema2, QueryIdHelper.getQueryId(id.toQueryId())));
   }
 }

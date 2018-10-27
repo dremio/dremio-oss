@@ -24,3 +24,10 @@ export const AUTO_PREVIEW_DELAY = 1000;
 export const EXPLORE_PROGRESS_STATES = ['STARTED', 'NOT STARTED', 'RUNNING']; //TODO put back NOT_SUBMITTED when it's working
 export const CONTAINER_ENTITY_TYPES = new Set(['HOME', 'FOLDER', 'SPACE', 'SOURCE']);
 export const HOME_SPACE_NAME = `@home-${uuid.v4()}`; // better to have Symbol here, but there is several problems with it
+
+export const ENTITY_TYPES = {
+  home: 'home',
+  space: 'space',
+  source: 'source',
+  folder: 'folder'
+};

@@ -17,7 +17,6 @@ package com.dremio.sabot.task;
 
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.exec.proto.CoordExecRPC.FragmentPriority;
 import com.dremio.sabot.task.TaskManager.TaskHandle;
 import com.dremio.sabot.threads.AvailabilityCallback;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
@@ -74,31 +73,28 @@ public class AsyncTaskWrapper implements Task {
     }
   }
 
-  private final FragmentPriority priority;
+  private final SchedulingGroup<AsyncTaskWrapper> schedulingGroup;
   private final AsyncTask asyncTask;
   private final AutoCloseable cleaner;
   private SharedResourceType blockedOnResource;
 
   private final TaskDescriptorImpl taskDescriptor = new TaskDescriptorImpl();
 
-  public AsyncTaskWrapper(FragmentPriority priority, AsyncTask asyncTask, AutoCloseable cleaner) {
+  public AsyncTaskWrapper(SchedulingGroup<AsyncTaskWrapper> schedulingGroup, AsyncTask asyncTask, AutoCloseable cleaner) {
     super();
-    Preconditions.checkNotNull(priority);
-    Preconditions.checkNotNull(asyncTask);
-    Preconditions.checkNotNull(cleaner);
-    this.priority = priority;
-    this.asyncTask = asyncTask;
+    this.schedulingGroup = Preconditions.checkNotNull(schedulingGroup, "Scheduling group required");
+    this.asyncTask = Preconditions.checkNotNull(asyncTask);
     asyncTask.setTaskDescriptor(taskDescriptor);
+    this.cleaner = Preconditions.checkNotNull(cleaner);
 
-    this.cleaner = cleaner;
     for (int i = 0; i < WatchType.Size; i++) {
       watches[i] = Stopwatch.createUnstarted();
     }
     stateStarted();
   }
 
-  public FragmentPriority getPriority() {
-    return priority;
+  public SchedulingGroup<AsyncTaskWrapper> getSchedulingGroup() {
+    return schedulingGroup;
   }
 
   public void run() {
@@ -224,4 +220,10 @@ public class AsyncTaskWrapper implements Task {
   public void setTaskHandle(final TaskHandle<AsyncTaskWrapper> taskHandle) {
     taskDescriptor.setTaskHandle(taskHandle);
   }
+
+  @Override
+  public String toString() {
+    return asyncTask.toString();
+  }
+
 }

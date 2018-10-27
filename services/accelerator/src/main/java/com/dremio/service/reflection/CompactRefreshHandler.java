@@ -34,7 +34,6 @@ import org.apache.calcite.tools.ValidationException;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -151,7 +150,6 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
       if (refreshes.size() != 1) {
         throw SqlExceptionHelper.parseError("Invalid materialization", sql, compact.getParserPosition()).build(logger);
       }
-      final Refresh refresh = refreshes.get(0);
 
       Optional<Materialization> newMaterializationOpt = service.getMaterialization(new MaterializationId(compact.getNewMaterializationId()));
       if (!newMaterializationOpt.isPresent()) {
@@ -163,10 +161,7 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
 
       watch.reset();
 
-      final List<String> tableSchemaPath = ImmutableList.<String>builder()
-        .add(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME)
-        .addAll(PathUtils.toPathComponents(refresh.getPath()))
-        .build();
+      final List<String> tableSchemaPath = ReflectionUtils.getMaterializationPath(materialization);
 
       final PlanNormalizer planNormalizer = new PlanNormalizer(config);
       final RelNode initial = getPlan(config, tableSchemaPath, planNormalizer);

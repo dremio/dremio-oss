@@ -42,7 +42,7 @@ public class ITTestNestedSchemaChange extends ElasticBaseTestQuery {
 
   @Test
   public void testNewNestedColumn() throws Exception {
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 100; i++) {
       elastic.dataFromFile(schema, table, NEW_NESTED_COLUMN_1);
     }
     elastic.dataFromFile(schema, table, NEW_NESTED_COLUMN_2);
@@ -51,7 +51,7 @@ public class ITTestNestedSchemaChange extends ElasticBaseTestQuery {
       .sqlQuery(query)
       .ordered()
       .baselineColumns("a");
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 100; i++) {
       testBuilder.baselineValues(mapOf("b", mapOf("c1", 1L)));
     }
     testBuilder.baselineValues(mapOf("b", mapOf("c2", 2L)));

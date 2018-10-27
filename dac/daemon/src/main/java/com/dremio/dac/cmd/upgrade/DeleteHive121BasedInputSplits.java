@@ -31,12 +31,12 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
  */
 public class DeleteHive121BasedInputSplits extends UpgradeTask {
   public DeleteHive121BasedInputSplits() {
-    super("Deleting Hive 1.2.1 based InputSplits", VERSION_106, VERSION_2010);
+    super("Deleting Hive 1.2.1 based InputSplits", VERSION_106, VERSION_2010, NORMAL_ORDER + 11);
   }
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider().get());
+    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider());
 
     try {
       for (SourceConfig source : namespaceService.getSources()) {

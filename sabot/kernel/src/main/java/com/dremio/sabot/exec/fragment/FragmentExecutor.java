@@ -25,23 +25,22 @@ import java.util.Set;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.hadoop.security.UserGroupInformation;
 
-import com.dremio.common.CatastrophicFailure;
 import com.dremio.common.DeferredException;
+import com.dremio.common.ProcessExit;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.PhysicalPlanReader;
-import com.dremio.exec.proto.CoordExecRPC.FragmentPriority;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.options.OptionManager;
@@ -60,6 +59,8 @@ import com.dremio.sabot.exec.rpc.IncomingDataBatch;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.receiver.IncomingBuffers;
 import com.dremio.sabot.task.AsyncTask;
+import com.dremio.sabot.task.AsyncTaskWrapper;
+import com.dremio.sabot.task.SchedulingGroup;
 import com.dremio.sabot.task.Task.State;
 import com.dremio.sabot.task.TaskDescriptor;
 import com.dremio.sabot.threads.AvailabilityCallback;
@@ -68,6 +69,7 @@ import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.dremio.sabot.threads.sharedres.SharedResourcesContextImpl;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.NodeStatusListener;
+import com.dremio.service.spill.SpillService;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.SettableFuture;
 
@@ -156,7 +158,8 @@ public class FragmentExecutor {
       final FragmentTicket ticket,
       final CatalogService sources,
       DeferredException exception,
-      EventProvider eventProvider) {
+      EventProvider eventProvider,
+      SpillService spillService) {
     super();
     this.name = QueryIdHelper.getExecutorThreadName(fragment.getHandle());
     this.queryUserUgi = ImpersonationUtil.createProxyUgi(fragment.getCredentials().getUserName());
@@ -179,7 +182,7 @@ public class FragmentExecutor {
     this.deferredException = exception;
     this.sources = sources;
     this.workQueue = new FragmentWorkQueue(sharedResources.getGroup(WORK_QUEUE_RES_GRP));
-    this.buffers = new IncomingBuffers(deferredException, sharedResources.getGroup(PIPELINE_RES_GRP), workQueue, tunnelProvider, fragment, allocator, config);
+    this.buffers = new IncomingBuffers(deferredException, sharedResources.getGroup(PIPELINE_RES_GRP), workQueue, tunnelProvider, fragment, allocator, config, spillService);
     this.eventProvider = eventProvider;
     this.cancelled = SettableFuture.create();
   }
@@ -260,7 +263,7 @@ public class FragmentExecutor {
         transitionToFailed(e);
       } else {
         // we have a heap out of memory error. The JVM in unstable, exit.
-        CatastrophicFailure.exit(e, "Unable to handle out of memory condition in FragmentExecutor.", 2);
+        ProcessExit.exitHeap(e, 2);
       }
     } catch (Throwable e) {
       transitionToFailed(e);
@@ -538,8 +541,8 @@ public class FragmentExecutor {
     return fragment.getHandle();
   }
 
-  public FragmentPriority getPriority(){
-    return fragment.getPriority();
+  public SchedulingGroup<AsyncTaskWrapper> getSchedulingGroup() {
+    return ticket.getSchedulingGroup();
   }
 
   public AsyncTask asAsyncTask(){
@@ -634,6 +637,11 @@ public class FragmentExecutor {
     @Override
     public void setTaskDescriptor(TaskDescriptor descriptor) {
       taskDescriptor = descriptor;
+    }
+
+    @Override
+    public String toString() {
+      return QueryIdHelper.getQueryIdentifier(FragmentExecutor.this.fragment.getHandle());
     }
   }
 }

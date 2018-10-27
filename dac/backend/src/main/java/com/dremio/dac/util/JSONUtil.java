@@ -38,6 +38,7 @@ import com.dremio.dac.proto.model.dataset.TransformConvertCase;
 import com.dremio.dac.proto.model.dataset.TransformSorts;
 import com.dremio.dac.server.socket.SocketMessage;
 import com.dremio.datastore.Converter;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.User;
@@ -153,11 +154,11 @@ public class JSONUtil {
     return mapper.copy();
   }
 
-  public static ObjectMapper registerStorageTypes(ObjectMapper mapper, ScanResult scanResult) {
+  public static ObjectMapper registerStorageTypes(ObjectMapper mapper, ScanResult scanResult, ConnectionReader connectionReader) {
     registerSubtypes(mapper, LogicalOperatorBase.getSubTypes(scanResult));
     registerSubtypes(mapper, StoragePluginConfigBase.getSubTypes(scanResult));
     registerSubtypes(mapper, FormatPluginConfigBase.getSubTypes(scanResult));
-    ConnectionConf.registerSubTypes(mapper, scanResult);
+    ConnectionConf.registerSubTypes(mapper, connectionReader);
     return mapper;
   }
 

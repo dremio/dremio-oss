@@ -21,8 +21,9 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -44,6 +45,7 @@ import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -84,6 +86,7 @@ public class TestPluginsManager {
     );
     final NamespaceService mockNamespaceService = mock(NamespaceService.class);
 
+    final SabotConfig sabotConfig = SabotConfig.create();
     final SabotContext sabotContext = mock(SabotContext.class);
     // used in c'tor
     when(sabotContext.getClasspathScan())
@@ -113,7 +116,8 @@ public class TestPluginsManager {
         .thenReturn(Sets.newHashSet(ClusterCoordinator.Role.MASTER));
 
     KVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
-    plugins = new PluginsManager(sabotContext, sourceDataStore, mock(SchedulerService.class));
+    plugins = new PluginsManager(sabotContext, sourceDataStore, mock(SchedulerService.class),
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig));
     plugins.start();
   }
 
@@ -147,15 +151,24 @@ public class TestPluginsManager {
     public StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
       final StoragePlugin mockStoragePlugin = mock(StoragePlugin.class);
       try {
-        when(mockStoragePlugin.getDatasets(anyString(), anyBoolean()))
+        when(mockStoragePlugin.getDatasets(anyString(), any(DatasetRetrievalOptions.class)))
             .thenReturn(Collections.<SourceTableDefinition>emptyList());
 
-        when(mockStoragePlugin.checkReadSignature(BYTESTRING_DELETED, datasetConfig)).thenReturn(
-          StoragePlugin.CheckResult.DELETED);
-        when(mockStoragePlugin.checkReadSignature(BYTESTRING_UNCHANGED_WITHOUT_DATASET, datasetConfig)).thenReturn(
-          StoragePlugin.CheckResult.UNCHANGED);
-        when(mockStoragePlugin.checkReadSignature(BYTESTRING_UNCHANGED_WITH_DATASET, datasetConfig)).thenReturn(
-          new StoragePlugin.CheckResult() {
+        when(mockStoragePlugin.checkReadSignature(
+            eq(BYTESTRING_DELETED),
+            eq(datasetConfig),
+            any(DatasetRetrievalOptions.class)))
+            .thenReturn(StoragePlugin.CheckResult.DELETED);
+        when(mockStoragePlugin.checkReadSignature(
+            eq(BYTESTRING_UNCHANGED_WITHOUT_DATASET),
+            eq(datasetConfig),
+            any(DatasetRetrievalOptions.class)))
+            .thenReturn(StoragePlugin.CheckResult.UNCHANGED);
+        when(mockStoragePlugin.checkReadSignature(
+            eq(BYTESTRING_UNCHANGED_WITH_DATASET),
+            eq(datasetConfig),
+            any(DatasetRetrievalOptions.class)))
+            .thenReturn(new StoragePlugin.CheckResult() {
             @Override
             public StoragePlugin.UpdateStatus getStatus() {
               return StoragePlugin.UpdateStatus.UNCHANGED;
@@ -167,8 +180,11 @@ public class TestPluginsManager {
             }
           });
 
-        when(mockStoragePlugin.checkReadSignature(BYTESTRING_CHANGED, datasetConfig)).thenReturn(
-          new StoragePlugin.CheckResult() {
+        when(mockStoragePlugin.checkReadSignature(
+            eq(BYTESTRING_CHANGED),
+            eq(datasetConfig),
+            any(DatasetRetrievalOptions.class)))
+            .thenReturn(new StoragePlugin.CheckResult() {
             @Override
             public StoragePlugin.UpdateStatus getStatus() {
               return StoragePlugin.UpdateStatus.UNCHANGED;
@@ -180,8 +196,10 @@ public class TestPluginsManager {
             }
           });
 
-        when(mockStoragePlugin.getDataset(null, datasetConfig, false)).thenReturn(MOCK_TABLE_DEFINITION);
-        when(mockStoragePlugin.getState()).thenReturn(SourceState.GOOD);
+        when(mockStoragePlugin.getDataset(eq(null), eq(datasetConfig), any(DatasetRetrievalOptions.class)))
+            .thenReturn(MOCK_TABLE_DEFINITION);
+        when(mockStoragePlugin.getState())
+            .thenReturn(SourceState.GOOD);
 
       } catch (Exception ignored) {
         throw new IllegalStateException("will not throw");

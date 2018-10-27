@@ -59,13 +59,13 @@ import io.protostuff.ByteString;
 public class DatasetConfigUpgrade extends UpgradeTask {
 
   public DatasetConfigUpgrade() {
-    super("Upgrade Arrow Schema", VERSION_106, VERSION_210);
+    super("Upgrade Arrow Schema", VERSION_106, VERSION_210, FIRST_ORDER);
   }
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    Preconditions.checkArgument(context.getKVStoreProvider().get() instanceof LocalKVStoreProvider);
-    final LocalKVStoreProvider localStore = LocalKVStoreProvider.class.cast(context.getKVStoreProvider().get());
+    Preconditions.checkArgument(context.getKVStoreProvider() instanceof LocalKVStoreProvider);
+    final LocalKVStoreProvider localStore = LocalKVStoreProvider.class.cast(context.getKVStoreProvider());
 
     final KVStore<DatasetVersionMutator.VersionDatasetKey, VirtualDatasetVersion> vdsVersionStore =
       localStore.getStore(DatasetVersionMutator.VersionStoreCreator.class);

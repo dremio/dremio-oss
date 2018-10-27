@@ -41,7 +41,7 @@ public class HashJoinPrule extends JoinPruleBase {
   @Override
   public boolean matches(RelOptRuleCall call) {
     PlannerSettings settings = PrelUtil.getPlannerSettings(call.getPlanner());
-    return settings.isMemoryEstimationEnabled() || settings.isHashJoinEnabled();
+    return settings.isHashJoinEnabled();
   }
 
   @Override

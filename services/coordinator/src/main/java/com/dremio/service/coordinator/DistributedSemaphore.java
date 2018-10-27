@@ -27,12 +27,23 @@ public interface DistributedSemaphore {
    * @param time the duration to wait for the semaphore
    * @param unit the duration unit
    * @return the lease
-   * @throws Exception
    */
-  public DistributedLease acquire(long time, TimeUnit unit) throws Exception;
+  default DistributedLease acquire(long time, TimeUnit unit) throws Exception {
+    return acquire(1, time, unit);
+  }
+
+  /**
+   * Try to acquire multiple permits in the semaphore
+   *
+   * @param permits the number of permits to acquire, must be a positive integer
+   * @param time the duration to wait for the semaphore
+   * @param unit the duration unit
+   * @return the lease
+   */
+  DistributedLease acquire(int permits, long time, TimeUnit unit) throws Exception;
 
   /**
    * The semaphore lease
    */
-  public interface DistributedLease extends AutoCloseable{}
+  interface DistributedLease extends AutoCloseable {}
 }

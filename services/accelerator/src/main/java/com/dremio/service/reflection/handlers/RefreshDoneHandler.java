@@ -21,8 +21,10 @@ import static com.dremio.service.reflection.ReflectionUtils.getId;
 import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
+import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.sql.MaterializationExpander;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.service.job.proto.Acceleration.Substitution;
@@ -77,6 +79,7 @@ public class RefreshDoneHandler {
   private final NamespaceService namespaceService;
   private final MaterializationStore materializationStore;
   private final Supplier<ExpansionHelper> expansionHelper;
+  private final Path accelerationBasePath;
 
   private final ReflectionEntry reflection;
   private final Materialization materialization;
@@ -89,7 +92,8 @@ public class RefreshDoneHandler {
       NamespaceService namespaceService,
       MaterializationStore materializationStore,
       DependencyManager dependencyManager,
-      Supplier<ExpansionHelper> expansionHelper) {
+      Supplier<ExpansionHelper> expansionHelper,
+      Path accelerationBasePath) {
     this.reflection = Preconditions.checkNotNull(entry, "reflection entry required");
     this.materialization = Preconditions.checkNotNull(materialization, "materialization required");
     this.job = Preconditions.checkNotNull(job, "job required");
@@ -97,6 +101,7 @@ public class RefreshDoneHandler {
     this.dependencyManager = Preconditions.checkNotNull(dependencyManager, "dependencies required");
     this.materializationStore = materializationStore;
     this.expansionHelper = Preconditions.checkNotNull(expansionHelper, "expansion helper required");
+    this.accelerationBasePath = Preconditions.checkNotNull(accelerationBasePath, "acceleration base path required");
   }
 
   /**
@@ -219,11 +224,14 @@ public class RefreshDoneHandler {
     final long updateId = isFull ? -1L : getUpdateId(job.getJobId(), job.getData());
     final MaterializationMetrics metrics = ReflectionUtils.computeMetrics(job);
     final List<DataPartition> dataPartitions = ReflectionUtils.computeDataPartitions(job.getJobAttempt().getInfo());
-    final Refresh refresh = ReflectionUtils.createRefresh(materialization, decision.getSeriesId(),
+    final List<String> refreshPath = ReflectionUtils.getRefreshPath(job.getJobId(), job.getData(), accelerationBasePath);
+    final Refresh refresh = ReflectionUtils.createRefresh(reflection.getId(), refreshPath, decision.getSeriesId(),
       decision.getSeriesOrdinal(), updateId, details, metrics, dataPartitions);
 
     logger.trace("Refresh created: {}", refresh);
     materializationStore.save(refresh);
+
+    logger.debug("materialization {} was written to {}", ReflectionUtils.getId(materialization), PathUtils.constructFullPath(refreshPath));
   }
 
   private List<DataPartition> getDataPartitions() {

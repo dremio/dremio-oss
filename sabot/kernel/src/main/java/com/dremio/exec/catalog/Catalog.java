@@ -25,6 +25,7 @@ import org.apache.calcite.schema.Function;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.ischema.tables.TablesTable;
@@ -151,7 +152,9 @@ public interface Catalog {
 
   CreateTableEntry createNewTable(final NamespaceKey key, final WriterOptions writerOptions, final Map<String, Object> storageOptions);
 
-  boolean createView(final NamespaceKey key, View view) throws IOException;
+  boolean createView(final NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException;
+
+  void updateView(final NamespaceKey key, View view, NamespaceAttribute... attributes);
 
   void dropView(final NamespaceKey key) throws IOException;
 
@@ -164,7 +167,7 @@ public interface Catalog {
    */
   void createDataset(NamespaceKey key, com.google.common.base.Function<DatasetConfig, DatasetConfig> datasetMutator);
 
-  StoragePlugin.UpdateStatus refreshDataset(NamespaceKey key, boolean force);
+  StoragePlugin.UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions);
 
   SourceState refreshSourceStatus(NamespaceKey key) throws Exception;
 

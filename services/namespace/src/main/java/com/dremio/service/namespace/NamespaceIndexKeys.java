@@ -30,6 +30,5 @@ public interface NamespaceIndexKeys {
   IndexKey ENTITY_TYPE = new IndexKey("enttyp", "ENTITY_TYPE", Integer.class, SearchTypes.SearchFieldSorting.FieldType.INTEGER, false, false);
   // lower case path without escaping.
   IndexKey UNQUOTED_LC_PATH = new IndexKey("ulpth", "SEARCH_PATH_LC", String.class, SearchFieldSorting.FieldType.STRING, false, false);
-
-
+  IndexKey LAST_MODIFIED = new IndexKey("lastmodified", "LAST_MODIFIED", Long.class, SearchFieldSorting.FieldType.LONG, false, false);
 }

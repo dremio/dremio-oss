@@ -22,6 +22,7 @@ import { PALE_BLUE } from 'uiTheme/radium/colors';
 import FilterSelectMenu from 'components/Fields/FilterSelectMenu';
 import SelectMenu from 'components/Fields/SelectMenu';
 import FontIcon from 'components/Icon/FontIcon';
+import JobsFiltersMixin, { getSortItems } from 'dyn-load/pages/JobPage/components/JobsFilters/JobsFiltersMixin';
 
 import ContainsText from './ContainsText';
 import * as IntervalTypes from './StartTimeSelect/IntervalTypes';
@@ -43,20 +44,11 @@ const itemsForQueryTypeFilter = [ // todo: `la` loc not building correctly here
   {id: 'DOWNLOAD', label: ('Downloads'), default: false}
 ];
 
-const itemsForMoreFilter = [ // todo: `la` loc not building correctly here
-  {id: 'spc', label: ('Space'), filterName: 'spaces'}
-  //{id: 'usr', label: 'User', filterName: 'users'} //TODO uncomment when user filter will be needed
-];
-
-const sortItems = Immutable.fromJS([ // todo: `la` loc not building correctly here
-  {id: 'usr', label: ('User')},
-  {id: 'st', label: ('Start Time')},
-  {id: 'dur', label: ('Duration')},
-  {id: 'et', label: ('End Time')}
-]);
+const sortItems = Immutable.fromJS(getSortItems());
 
 @injectIntl
 @Radium
+@JobsFiltersMixin
 export default class JobsFilters extends Component {
   static contextTypes = {
     loggedInUser: PropTypes.object.isRequired
@@ -83,8 +75,8 @@ export default class JobsFilters extends Component {
     this.removeInfoFromFilter = this.removeInfoFromFilter.bind(this);
     this.toggleSortDirection = this.toggleSortDirection.bind(this);
     this.changeSortItem = this.changeSortItem.bind(this);
-    this.state = {
-      customFilters: Immutable.OrderedSet()
+    this.state = { //may be used in a mixin
+      queues: []
     };
     this.handleEnterText = this.handleEnterText.bind(this);
   }
@@ -94,21 +86,7 @@ export default class JobsFilters extends Component {
     if (this.context.loggedInUser.admin) {
       this.props.loadItemsForFilter('users');
     }
-  }
-
-  getMoreFilterItems() {
-    return itemsForMoreFilter.filter(item => {
-      const spaces = this.props.dataWithItemsForFilters.get('spaces');
-      //const users = this.props.dataWithItemsForFilters.get('users');
-      if (item.id === 'spc' && (!spaces || !spaces.length)) {
-        return false;
-      }
-      //TODO uncomment when user filter will be needed
-      /*if (item.id === 'usr' && (!users || !users.length)) {
-        return false;
-      }*/
-      return true;
-    });
+    this.prepareQueuesFilter();
   }
 
   getAllFilters() {
@@ -117,13 +95,12 @@ export default class JobsFilters extends Component {
     const startTime = queryState.getIn(['filters', 'st', 0]) || 0;
     const endTime = queryState.getIn(['filters', 'st', 1]) || 0;
     const selectedJst = queryState.getIn(['filters', 'jst']);
-    //const selectedSpc = queryState.getIn(['filters', 'spc']);
     const selectedQt = queryState.getIn(['filters', 'qt']);
     const selectedUsr = queryState.getIn(['filters', 'usr']);
+
     return [
       {
         value: 'st',
-        default: true,
         isVisible: true,
         node: (
           <StartTimeSelect
@@ -138,7 +115,6 @@ export default class JobsFilters extends Component {
       },
       {
         value: 'jst',
-        default: true,
         isVisible: true,
         node: (
           <FilterSelectMenu
@@ -155,7 +131,6 @@ export default class JobsFilters extends Component {
       },
       {
         value: 'qt',
-        default: true,
         isVisible: true,
         node: (
           <FilterSelectMenu
@@ -172,7 +147,6 @@ export default class JobsFilters extends Component {
       },
       {
         value: 'usr',
-        default: true,
         isVisible: this.props.dataWithItemsForFilters.get('users') &&
           this.props.dataWithItemsForFilters.get('users').length,
         node: (
@@ -189,27 +163,6 @@ export default class JobsFilters extends Component {
           />
         )
       }
-/*  Removed because this doesn't work at all (DX-5317)
-      {
-        value: 'spc',
-        default: true,
-        isVisible: this.props.dataWithItemsForFilters.get('spaces') &&
-          this.props.dataWithItemsForFilters.get('spaces').length,
-        node: (
-          <FilterSelectMenu
-            selectedToTop
-            searchPlaceholder='Search spaces'
-            onItemSelect={this.addInfoToFilter.bind(this, 'spc')}
-            onItemUnselect={this.removeInfoFromFilter.bind(this, 'spc')}
-            selectedValues={selectedSpc}
-            items={this.props.dataWithItemsForFilters.get('spaces')}
-            loadItemsForFilter={this.props.loadItemsForFilter.bind(this, 'spaces')}
-            label={intl.formatMessage({ id: 'Space.Space' })}
-            name='spc'
-          />
-        )
-      }
-*/
     ].filter(filter => filter.value !== 'usr' && !loggedInUser.admin || loggedInUser.admin);
   }
 
@@ -283,7 +236,7 @@ export default class JobsFilters extends Component {
   }
 
   renderDefaultFilters() {
-    return this.renderAllFilters(this.getAllFilters().filter(filter => filter.default));
+    return this.renderAllFilters(this.getAllFilters());
   }
 
   renderSortLabel() {

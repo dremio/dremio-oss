@@ -102,8 +102,10 @@ public final class JobIndexKeys {
   public static final IndexKey JOB_STATE = new IndexKey("jst", "JOB_STATE", String.class, null, true, false);
   public static final IndexKey SQL = new IndexKey("sql", "SQL", String.class, null, true, false);
   public static final IndexKey QUERY_TYPE = new IndexKey("qt", "QUERY_TYPE", String.class, null, false, false, QUERY_TYPE_FILTERS);
+  public static final IndexKey QUEUE_NAME = new IndexKey("qn", "QUEUE_NAME", String.class,
+    SearchFieldSorting.FieldType.STRING, true, false);
   // index all dataset this job accessed.
   public static final IndexKey ALL_DATASETS = new IndexKey("ads", "ALL_DATASETS", String.class, null, true, false);
   public static final FilterIndexMapping MAPPING = new FilterIndexMapping(JOBID, USER, SPACE, DATASET, DATASET_VERSION, START_TIME,
-    END_TIME, DURATION, PARENT_DATASET, JOB_STATE, SQL, QUERY_TYPE, ALL_DATASETS);
+    END_TIME, DURATION, PARENT_DATASET, JOB_STATE, SQL, QUERY_TYPE, QUEUE_NAME, ALL_DATASETS);
 }

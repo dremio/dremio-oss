@@ -105,7 +105,8 @@ public final class JobRequest {
         .setUser(username)
         .setStartTime(System.currentTimeMillis())
         .setDatasetPathList(datasetPathComponents)
-        .setResultMetadataList(new ArrayList<ArrowFileMetadata>());
+        .setResultMetadataList(new ArrayList<ArrowFileMetadata>())
+        .setContextList(sqlQuery.getContext());
 
     if (requestType == RequestType.MATERIALIZATION) {
         jobInfo.setMaterializationFor(materializationSummary);
@@ -195,7 +196,7 @@ public final class JobRequest {
 
     /**
      * Set the substitution settings for this job request.
-     * @param the substitution settings for this run.
+     * @param substitutionSettings the substitution settings for this run.
      * @return this builder.
      */
     public Builder setSubstitutionSettings(SubstitutionSettings substitutionSettings) {

@@ -99,7 +99,7 @@ public class PhysicalPlanReader {
 
     lpMapper.registerModule(deserModule);
 
-    ConnectionConf.registerSubTypes(lpMapper, scanResult);
+    ConnectionConf.registerSubTypes(lpMapper, context.getConnectionReaderProvider().get());
 
     Set<Class<? extends PhysicalOperator>> subTypes = PhysicalOperatorUtil.getSubTypes(scanResult);
     for (Class<? extends PhysicalOperator> subType : subTypes) {
@@ -107,7 +107,7 @@ public class PhysicalPlanReader {
     }
     final InjectableValues injectables = new InjectableValues.Std()
         .addValue(CatalogService.class, catalogService.get())
-        .addValue(ConnectionReader.class, new ConnectionReader(scanResult))
+        .addValue(ConnectionReader.class, context.getConnectionReaderProvider().get())
         .addValue(SabotContext.class, context)
         .addValue(NodeEndpoint.class, endpoint);
 

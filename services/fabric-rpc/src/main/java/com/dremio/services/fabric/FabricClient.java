@@ -15,16 +15,17 @@
  */
 package com.dremio.services.fabric;
 
+import java.util.Optional;
+
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.rpc.BasicClient;
 import com.dremio.exec.rpc.MessageDecoder;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
-import com.dremio.exec.rpc.RpcBus;
 import com.dremio.exec.rpc.RpcConfig;
-import com.dremio.exec.rpc.RpcConnectionHandler;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.rpc.ssl.SSLEngineFactory;
 import com.dremio.services.fabric.proto.FabricProto.FabricHandshake;
 import com.dremio.services.fabric.proto.FabricProto.FabricIdentity;
 import com.dremio.services.fabric.proto.FabricProto.FabricMessage;
@@ -48,7 +49,6 @@ class FabricClient extends BasicClient<RpcType, FabricConnection, FabricHandshak
   private final FabricConnectionManager.CloseHandlerCreator closeHandlerFactory;
   private final FabricIdentity localIdentity;
   private final BufferAllocator allocator;
-  private volatile FabricConnection connection;
 
   public FabricClient(
       RpcConfig config,
@@ -57,14 +57,18 @@ class FabricClient extends BasicClient<RpcType, FabricConnection, FabricHandshak
       FabricIdentity remoteIdentity,
       FabricIdentity localIdentity,
       FabricMessageHandler handler,
-      FabricConnectionManager.CloseHandlerCreator closeHandlerFactory) {
+      FabricConnectionManager.CloseHandlerCreator closeHandlerFactory,
+      Optional<SSLEngineFactory> engineFactory
+  ) throws RpcException {
     super(
         config,
         allocator.getAsByteBufAllocator(),
         eventLoop,
         RpcType.HANDSHAKE,
         FabricHandshake.class,
-        FabricHandshake.PARSER);
+        FabricHandshake.PARSER,
+        engineFactory
+    );
     this.localIdentity = localIdentity;
     this.remoteIdentity = remoteIdentity;
     this.handler = handler;
@@ -72,33 +76,21 @@ class FabricClient extends BasicClient<RpcType, FabricConnection, FabricHandshak
     this.allocator = allocator;
   }
 
-  @Override
-  protected void connectAsClient(RpcConnectionHandler<FabricConnection> connectionListener,
-      FabricHandshake handshakeValue, String host, int port) {
-    super.connectAsClient(connectionListener, handshakeValue, host, port);
-  }
-
   @SuppressWarnings("unchecked")
   @Override
   public FabricConnection initRemoteConnection(SocketChannel channel) {
-    this.connection = new FabricConnection(
-        "fabric client",
-        channel,
-        (RpcBus<RpcType, FabricConnection>) (RpcBus<?, ?>) this,
-        allocator);
-    return connection;
+    return new FabricConnection("fabric client", channel, this, allocator);
   }
 
   @Override
-  protected ChannelFutureListener getCloseHandler(SocketChannel ch, FabricConnection clientConnection) {
-    return closeHandlerFactory.getHandler(clientConnection, super.getCloseHandler(ch, clientConnection));
+  protected ChannelFutureListener newCloseListener(SocketChannel ch, FabricConnection connection) {
+    return closeHandlerFactory.getHandler(connection, super.newCloseListener(ch, connection));
   }
 
   @Override
   public MessageLite getResponseDefaultInstance(int rpcType) throws RpcException {
     return FabricMessage.getDefaultInstance();
   }
-
 
   @Override
   protected void handle(FabricConnection connection, int rpcType, byte[] pBody, ByteBuf dBody, ResponseSender sender)
@@ -124,7 +116,7 @@ class FabricClient extends BasicClient<RpcType, FabricConnection, FabricHandshak
   }
 
   @Override
-  public MessageDecoder getDecoder(BufferAllocator allocator) {
+  public MessageDecoder newDecoder(BufferAllocator allocator) {
     return new FabricProtobufLengthDecoder(allocator);
   }
 

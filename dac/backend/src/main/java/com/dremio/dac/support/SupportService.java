@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -47,6 +48,8 @@ import javax.ws.rs.core.Response.Status;
 
 import org.apache.arrow.vector.util.DateUtility;
 import org.apache.calcite.rel.RelNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.common.utils.ProtostuffUtil;
@@ -97,9 +100,15 @@ import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
+import com.dremio.services.configuration.ConfigurationStore;
+import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import com.google.common.net.MediaType;
+
+import io.protostuff.ByteString;
+import io.protostuff.LinkedBuffer;
+import io.protostuff.ProtostuffIOUtil;
 
 /**
  * Service responsible for generating cluster identity and upload data to Dremio
@@ -107,7 +116,7 @@ import com.google.common.net.MediaType;
  */
 @Options
 public class SupportService implements Service {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SupportService.class);
+  private static final Logger logger = LoggerFactory.getLogger(SupportService.class);
 
   public static final int TIMEOUT_IN_SECONDS = 5 * 60;
   public static final String DREMIO_LOG_PATH_PROPERTY = "dremio.log.path";
@@ -125,10 +134,13 @@ public class SupportService implements Service {
 
   public static final BooleanValidator OUTSIDE_COMMUNICATION_DISABLED = new BooleanValidator("dremio.ui.outside_communication_disabled", false);
 
-  public static final String NAME = "identity";
+  public static final String NAME = "support";
+
   public static final String LOGS_STORAGE_PLUGIN = "__logs";
   public static final String LOCAL_STORAGE_PLUGIN = "__support";
   public static final String CLUSTER_ID = "clusterId";
+  public static final String CLUSTER_IDENTITY = "clusterIdentity";
+
   private static final int PRE_TIME_BUFFER_MS = 5 * 1000;
   private static final int POST_TIME_BUFFER_MS = 10 * 1000;
 
@@ -139,7 +151,7 @@ public class SupportService implements Service {
   private final Provider<UserService> userService;
   private final Provider<CatalogService> catalogServiceProvider;
   private Path supportPath;
-  private KVStore<String, ClusterIdentity> store;
+  private ConfigurationStore store;
 
   private ClusterIdentity identity;
 
@@ -170,11 +182,17 @@ public class SupportService implements Service {
    */
   private ClusterIdentity storeIdentity(ClusterIdentity identity) {
     try{
-      store.put(CLUSTER_ID, identity);
+      ConfigurationEntry entry = new ConfigurationEntry();
+      entry.setType(CLUSTER_IDENTITY);
+      entry.setValue(convertClusterIdentityToByteString(identity));
+
+      store.put(CLUSTER_ID, entry);
       logger.info("New Cluster Identifier Generated: {}", identity.getIdentity());
     } catch(ConcurrentModificationException ex) {
       // someone else inserted the new cluster identifier before we were able to.
-      identity = store.get(CLUSTER_ID);
+      ConfigurationEntry entry = store.get(CLUSTER_ID);
+      ProtostuffIOUtil.mergeFrom(entry.getValue().toByteArray(), identity, ClusterIdentity.getSchema());
+
       if(identity == null){
         throw new IllegalStateException("Failed to retrieve or create cluster identity but identity is also not available.", ex);
       }
@@ -183,45 +201,56 @@ public class SupportService implements Service {
     return identity;
   }
 
-  @Override
-  public void start() throws Exception {
+  public static Optional<ClusterIdentity> getClusterIdentity(KVStoreProvider provider) {
+    ConfigurationStore store = new ConfigurationStore(provider);
+    return getClusterIdentityFromStore(store, provider);
+  }
 
-    store = kvStoreProvider.get().getStore(SupportStoreCreator.class);
+  private static Optional<ClusterIdentity> getClusterIdentityFromStore(ConfigurationStore store, KVStoreProvider provider) {
+    final ConfigurationEntry entry = store.get(SupportService.CLUSTER_ID);
 
-    ClusterIdentity identity = store.get(CLUSTER_ID);
-
-    if (identity == null) {
-      // this is a new cluster, generating a new cluster identifier.
-      identity = new ClusterIdentity()
-          .setIdentity(UUID.randomUUID().toString())
-          .setVersion(toClusterVersion(VERSION))
-          .setCreated(System.currentTimeMillis());
-      identity = storeIdentity(identity);
+    if (entry == null) {
+      Optional<ClusterIdentity> upgradedClusterIdentity = upgradeToNewSupportStore(provider);
+      return upgradedClusterIdentity;
     }
 
-    this.identity = identity;
-    FileSystemPlugin supportPlugin = catalogServiceProvider.get().getSource(LOCAL_STORAGE_PLUGIN);
-    Preconditions.checkNotNull(supportPlugin);
-    final String supportPathURI = supportPlugin.getConfig().getPath().toString();
-    supportPath = new File(supportPathURI).toPath();
+    try {
+      ClusterIdentity identity = ClusterIdentity.getSchema().newMessage();
+      ProtostuffIOUtil.mergeFrom(entry.getValue().toByteArray(), identity, ClusterIdentity.getSchema());
+      return Optional.ofNullable(identity);
+    } catch (Exception e) {
+      logger.info("failed to get cluster identity", e);
+      return Optional.empty();
+    }
+  }
+
+  private static Optional<ClusterIdentity> upgradeToNewSupportStore(KVStoreProvider provider) {
+    final KVStore<String, ClusterIdentity> oldSupportStore = provider.getStore(OldSupportStoreCreator.class);
+    ClusterIdentity clusterIdentity = oldSupportStore.get(CLUSTER_ID);
+
+    if (clusterIdentity != null) {
+      // we found an old support store cluster identity, migrate it to the new store
+      updateClusterIdentity(provider, clusterIdentity);
+    }
+
+    return Optional.ofNullable(clusterIdentity);
   }
 
   /**
-   * Support storage creator.
+   * Old support creator - used for upgrade
    */
-  public static class SupportStoreCreator implements StoreCreationFunction<KVStore<String, ClusterIdentity>> {
-
+  public static class OldSupportStoreCreator implements StoreCreationFunction<KVStore<String, ClusterIdentity>> {
     @Override
     public KVStore<String, ClusterIdentity> build(StoreBuildingFactory factory) {
       return factory.<String, ClusterIdentity>newStore()
-          .name(NAME)
-          .keySerializer(StringSerializer.class)
-          .valueSerializer(ClusterIdSerializer.class)
-          .versionExtractor(ClusterIdentityVersionExtractor.class)
-          .build();
+        .name("identity")
+        .keySerializer(StringSerializer.class)
+        .valueSerializer(ClusterIdSerializer.class)
+        .versionExtractor(ClusterIdentityVersionExtractor.class)
+        .build();
     }
-
   }
+
   /**
    * Serializer used for serializing cluster identity.
    */
@@ -229,14 +258,12 @@ public class SupportService implements Service {
     public ClusterIdSerializer() {
       super(ClusterIdentity.getSchema());
     }
-
   }
 
   /**
    * Version extractor used for dealing with cluster identity.
    */
   public static class ClusterIdentityVersionExtractor implements VersionExtractor<ClusterIdentity> {
-
     @Override
     public Long getVersion(ClusterIdentity value) {
       return value.getSerial();
@@ -253,7 +280,52 @@ public class SupportService implements Service {
     public void setVersion(ClusterIdentity value, Long version) {
       value.setSerial(version);
     }
+  }
 
+  public static void updateClusterIdentity(KVStoreProvider provider, ClusterIdentity identity) {
+    final KVStore<String, ConfigurationEntry> supportStore = provider.getStore(ConfigurationStore.ConfigurationStoreCreator.class);
+
+    final ConfigurationEntry entry = new ConfigurationEntry();
+    entry.setType(CLUSTER_IDENTITY);
+
+    ConfigurationEntry existingSupportEntry = supportStore.get(CLUSTER_ID);
+    if (existingSupportEntry != null) {
+      entry.setVersion(existingSupportEntry.getVersion());
+    }
+
+    entry.setValue(convertClusterIdentityToByteString(identity));
+    supportStore.put(CLUSTER_ID, entry);
+  }
+
+  private static ByteString convertClusterIdentityToByteString(ClusterIdentity identity) {
+    final LinkedBuffer buffer = LinkedBuffer.allocate();
+    byte[] bytes = ProtostuffIOUtil.toByteArray(identity, ClusterIdentity.getSchema(), buffer);
+    return ByteString.copyFrom(bytes);
+  }
+
+  @Override
+  public void start() throws Exception {
+    store = new ConfigurationStore(kvStoreProvider.get());
+
+    ClusterIdentity identity;
+    Optional<ClusterIdentity> clusterIdentity = getClusterIdentityFromStore(store, kvStoreProvider.get());
+
+    if (!clusterIdentity.isPresent()) {
+      // this is a new cluster, generating a new cluster identifier.
+      identity = new ClusterIdentity()
+          .setIdentity(UUID.randomUUID().toString())
+          .setVersion(toClusterVersion(VERSION))
+          .setCreated(System.currentTimeMillis());
+      identity = storeIdentity(identity);
+    } else {
+      identity = clusterIdentity.get();
+    }
+
+    this.identity = identity;
+    FileSystemPlugin supportPlugin = catalogServiceProvider.get().getSource(LOCAL_STORAGE_PLUGIN);
+    Preconditions.checkNotNull(supportPlugin);
+    final String supportPathURI = supportPlugin.getConfig().getPath().toString();
+    supportPath = new File(supportPathURI).toPath();
   }
 
   public DownloadDataResponse downloadSupportRequest(String userId, JobId jobId)
@@ -512,7 +584,7 @@ public class SupportService implements Service {
     }
 
     @Override
-    public void jobCancelled() {
+    public void jobCancelled(String reason) {
       latch.countDown();
     }
 

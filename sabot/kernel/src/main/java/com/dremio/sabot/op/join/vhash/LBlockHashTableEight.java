@@ -21,6 +21,7 @@ import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import com.dremio.sabot.op.common.ht2.HashComputation;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
@@ -87,11 +88,21 @@ public final class LBlockHashTableEight implements AutoCloseable {
     internalInit(LHashCapacities.capacity(this.config, initialSize, false));
   }
 
-  public int insert(long key) {
+  /**
+   * Insert key into the hash table
+   * @param key 64 bit key
+   * @param keyHash 32 bit hashvalue
+   * @return ordinal of insertion point
+   *
+   * Hashing is now done externally to the hash table. With support
+   * for spilling, the code that handles the input data (build or probe)
+   * computes hash.
+   */
+  public int insert(long key, int keyHash) {
     if(key == freeValue){
       changeFree();
     }
-    return getOrInsert(key, true);
+    return getOrInsert(key, true, keyHash);
   }
 
   /* Get the ordinal of null key
@@ -174,16 +185,26 @@ public final class LBlockHashTableEight implements AutoCloseable {
     return nullKeyOrdinal;
   }
 
-    public int get(long key) {
-      return getOrInsert(key, false);
+  /**
+   * Lookup key in the hash table
+   * @param key 64 bit key
+   * @param keyHash 32 bit hashvalue
+   * @return
+   *
+   * Hashing is now done externally to the hash table. With support
+   * for spilling, the code that handles the input data (build or probe)
+   * computes hash.
+   */
+  public int get(long key, int keyHash) {
+    return getOrInsert(key, false, keyHash);
   }
 
-  private final int getOrInsert(long key, boolean insertNew) {
+  private final int getOrInsert(long key, boolean insertNew, int keyHash) {
 
     long free = this.freeValue;
 
     final int capacityMask = this.capacityMask;
-    int index = SeparateKVLongKeyMixing.mix(key) & capacityMask;
+    int index = keyHash & capacityMask;
     int chunkIndex = index >>> BITS_IN_CHUNK;
     int valueIndex = (index & CHUNK_OFFSET_MASK);
     long addr = tableFixedAddresses[chunkIndex] + (valueIndex * BLOCK_WIDTH);
@@ -250,7 +271,8 @@ public final class LBlockHashTableEight implements AutoCloseable {
      */
     do {
       newFree = random.nextLong();
-    } while (newFree == oldFree || newFree == NULL_KEY_VALUE || getOrInsert(newFree, false) != NO_MATCH);
+    } while (newFree == oldFree || newFree == NULL_KEY_VALUE
+      || getOrInsert(newFree, false, (int)HashComputation.computeHash(newFree)) != NO_MATCH);
     return newFree;
   }
 

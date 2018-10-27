@@ -15,20 +15,13 @@
  */
 import { Component } from 'react';
 
+import { MEMORY_UNITS } from 'utils/numberFormatUtils';
 import MultiplierField from './MultiplierField';
-
-const MULTIPLIERS = new Map([ // todo: loc
-  ['B', 1024 ** 0],
-  ['KB', 1024 ** 1],
-  ['MB', 1024 ** 2],
-  ['GB', 1024 ** 3],
-  ['TB', 1024 ** 4]
-]);
 
 export default class ByteField extends Component {
   static propTypes = {}; // pass-thru
 
   render() {
-    return <MultiplierField {...this.props} unitMultipliers={MULTIPLIERS} />;
+    return <MultiplierField {...this.props} unitMultipliers={MEMORY_UNITS} />;
   }
 }

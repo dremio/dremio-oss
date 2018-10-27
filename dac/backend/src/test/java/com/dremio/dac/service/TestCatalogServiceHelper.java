@@ -55,6 +55,7 @@ import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
+import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ConnectionReader;
@@ -95,6 +96,7 @@ public class TestCatalogServiceHelper {
   private DatasetVersionMutator datasetVersionMutator;
   private HomeFileTool homeFileTool;
   private SabotContext sabotContext;
+  private SearchService searchService;
 
   @Before
   public void setup() {
@@ -106,6 +108,7 @@ public class TestCatalogServiceHelper {
     reflectionServiceHelper = mock(ReflectionServiceHelper.class);
     homeFileTool = mock(HomeFileTool.class);
     datasetVersionMutator = mock(DatasetVersionMutator.class);
+    searchService = mock(SearchService.class);
 
     Principal principal = mock(Principal.class);
     when(principal.getName()).thenReturn("user");
@@ -119,7 +122,8 @@ public class TestCatalogServiceHelper {
       sabotContext,
       reflectionServiceHelper,
       homeFileTool,
-      datasetVersionMutator
+      datasetVersionMutator,
+      searchService
     );
   }
 
@@ -241,6 +245,7 @@ public class TestCatalogServiceHelper {
       null,
       Dataset.DatasetType.PHYSICAL_DATASET,
       Arrays.asList("source", "path"),
+      null,
       null,
       null,
       null,

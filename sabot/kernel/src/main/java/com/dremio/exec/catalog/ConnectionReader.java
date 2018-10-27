@@ -15,98 +15,22 @@
  */
 package com.dremio.exec.catalog;
 
-import java.lang.reflect.Modifier;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.catalog.conf.ConnectionConf;
-import com.dremio.exec.catalog.conf.SourceType;
-import com.dremio.service.namespace.AbstractConnectionConf;
 import com.dremio.service.namespace.AbstractConnectionReader;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableMap;
-
-import io.protostuff.ByteString;
-import io.protostuff.LinkedBuffer;
-import io.protostuff.ProtobufIOUtil;
-import io.protostuff.ProtostuffIOUtil;
-import io.protostuff.Schema;
-import io.protostuff.runtime.RuntimeSchema;
+import com.google.common.base.Throwables;
 
 /**
  * Resolves concrete ConnectionConf types using Classpath Scanning.
  */
-public class ConnectionReader implements AbstractConnectionReader {
+public interface ConnectionReader extends AbstractConnectionReader {
 
-  private static final Logger logger = LoggerFactory.getLogger(ConnectionReader.class);
-
-  private static final ObjectMapper mapper = new ObjectMapper();
-
-  private final ImmutableMap<String, Schema<ConnectionConf<?, ?>>> schemaByName;
-
-  @SuppressWarnings("unchecked")
-  public ConnectionReader(ScanResult scanResult) {
-    ImmutableMap.Builder<String, Schema<ConnectionConf<?, ?>>> stringMap = ImmutableMap.builder();
-    for(Class<?> input : scanResult.getAnnotatedClasses(SourceType.class)) {
-      try {
-        if(Modifier.isAbstract(input.getModifiers())
-          || Modifier.isInterface(input.getModifiers())
-          || !ConnectionConf.class.isAssignableFrom(input)) {
-          logger.warn("Failure trying to recognize SourceConf for {}. Expected a concrete implementation of SourceConf.", input.getName());
-          continue;
-        }
-      } catch (Exception e) {
-        logger.warn("Failure trying to recognize SourceConf for {}", input.getName(), e);
-        continue;
-      }
-
-      SourceType type = input.getAnnotation(SourceType.class);
-      try {
-        Schema<ConnectionConf<?, ?>> schema = (Schema<ConnectionConf<?, ?>>) RuntimeSchema.getSchema(input);
-        stringMap.put(type.value(), schema);
-      } catch(Exception ex) {
-        throw new RuntimeException("failure trying to read source conf: " + input.getName(), ex);
-      }
-    }
-
-    schemaByName = stringMap.build();
-  }
-
-  @SuppressWarnings("unchecked")
-  @Override
-  public <T extends AbstractConnectionConf> T getConnectionConf(String typeName, ByteString bytesS) {
-    Schema<ConnectionConf<?, ?>> schema = schemaByName.get(typeName);
-    if(schema == null) {
-      throw new IllegalStateException(String.format("Unable to find handler for source of type [%s].", typeName));
-    }
-
-    ConnectionConf<?, ?> conf = schema.newMessage();
-    byte[] bytes = bytesS.toByteArray();
-    ProtobufIOUtil.mergeFrom(bytes, conf, schema);
-    return (T) conf;
-  }
-
-  public ConnectionConf<?, ?> getConnectionConf(SourceConfig config) {
-    Schema<ConnectionConf<?, ?>> schema = toSchema(config);
-    ConnectionConf<?, ?> conf = schema.newMessage();
-    byte[] bytes = config.getConfig().toByteArray();
-    ProtobufIOUtil.mergeFrom(bytes, conf, schema);
-    return conf;
-  }
-
-  private Schema<ConnectionConf<?, ?>> toSchema(SourceConfig config) {
-    String typeName = toType(config);
-    Schema<ConnectionConf<?, ?>> schema = schemaByName.get(typeName);
-    if(schema != null) {
-      return schema;
-    }
-
-    throw new IllegalStateException(String.format("Unable to find handler for source of type [%s].", typeName));
-  }
+  ConnectionConf<?, ?> getConnectionConf(SourceConfig config);
 
   /**
    * Returns the given source config as a string, without secret fields. Useful in error messages and debug logs.
@@ -114,36 +38,19 @@ public class ConnectionReader implements AbstractConnectionReader {
    * @param sourceConfig source config
    * @return source config as string, without secret fields
    */
-  String toStringWithoutSecrets(SourceConfig sourceConfig) {
-    try {
-      final byte[] bytes = ProtostuffIOUtil.toByteArray(sourceConfig, SourceConfig.getSchema(),
-          LinkedBuffer.allocate());
-      final SourceConfig clone = new SourceConfig();
-      ProtostuffIOUtil.mergeFrom(bytes, clone, SourceConfig.getSchema());
+  String toStringWithoutSecrets(SourceConfig sourceConfig);
 
-      final ConnectionConf<?, ?> conf = getConnectionConf(clone);
-      conf.clearSecrets();
-      clone.setConfig(null);
-
-      final StringBuilder sb = new StringBuilder();
-      sb.append("[source: ")
-          .append(clone.toString())
-          .append(", connection: ");
-      try {
-        sb.append(mapper.writeValueAsString(conf));
-      } catch (JsonProcessingException ignored) {
-        sb.append("<serialization_error>");
-      }
-      sb.append("]");
-
-      return sb.toString();
-    } catch (Exception e) {
-      return "failed to serialize: " + e.getMessage();
-    }
-  }
+  /**
+   * Get a map of all the available connection configuration classes
+   *
+   * The map key is the source type, and the value is the class representing the connection configuration
+   *
+   * @return an immutable map
+   */
+  Map<String, Class<? extends ConnectionConf<?, ?>>> getAllConnectionConfs();
 
   @SuppressWarnings("deprecation")
-  public static String toType(SourceConfig config) {
+  static String toType(SourceConfig config) {
     if(config.getType() != null) {
       return config.getType();
     }
@@ -155,5 +62,17 @@ public class ConnectionReader implements AbstractConnectionReader {
     throw new IllegalStateException(String.format("Unable to manage source of type: named: [%s], legacy enum: [%d].", config.getType(), config.getLegacySourceTypeEnum()));
   }
 
-
+  static ConnectionReader of(final ScanResult scanResult, final SabotConfig sabotConfig) {
+    try {
+      final Class<? extends ConnectionReader> clazz =
+        sabotConfig.getClass("dremio.connection.reader.class", ConnectionReader.class, ConnectionReaderImpl.class);
+      return (ConnectionReader)clazz.getMethod("makeReader", ScanResult.class).invoke(null, scanResult);
+    } catch (final InvocationTargetException e) {
+      Throwable cause = e.getCause() != null ? e.getCause() : e;
+      Throwables.throwIfUnchecked(cause);
+      throw new RuntimeException("Unable to instantiate ConnectionReader", cause);
+    } catch (final ReflectiveOperationException e) {
+      throw new RuntimeException("Unable to instantiate ConnectionReader", e);
+    }
+  }
 }

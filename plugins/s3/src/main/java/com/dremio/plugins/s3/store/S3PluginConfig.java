@@ -15,31 +15,21 @@
  */
 package com.dremio.plugins.s3.store;
 
-import static org.apache.hadoop.fs.s3a.Constants.ACCESS_KEY;
-import static org.apache.hadoop.fs.s3a.Constants.MAXIMUM_CONNECTIONS;
-import static org.apache.hadoop.fs.s3a.Constants.SECRET_KEY;
-import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
-
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.inject.Provider;
 
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
+import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
-import com.google.common.base.Joiner;
 
 import io.protostuff.Tag;
 
@@ -48,29 +38,33 @@ import io.protostuff.Tag;
  */
 @SourceType(value = "S3", label = "Amazon S3")
 public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlugin> {
-
-  private static final Logger logger = LoggerFactory.getLogger(S3PluginConfig.class);
   /**
-   * Controls how many parallel connections HttpClient spawns.
-   * Hadoop configuration property {@link org.apache.hadoop.fs.s3a.Constants#MAXIMUM_CONNECTIONS}.
+   * Authentication type.
+   * ACCESS_KEY uses credentials, EC2_METADATA uses IAM roles in EC2 instance and NONE access S3 as anonymous.
    */
-  public static final int DEFAULT_MAX_CONNECTIONS = 1000;
-  public static final String EXTERNAL_BUCKETS = "dremio.s3.external.buckets";
+  public enum AuthenticationType {
+    @Tag(1) @DisplayMetadata(label = "AWS Access Key") ACCESS_KEY,
+    @Tag(2) @DisplayMetadata(label = "EC2 Metadata") EC2_METADATA,
+    @Tag(3) @DisplayMetadata(label = "No Authentication") NONE;
+  }
 
   //  optional string access_key = 1;
   //  optional string access_secret = 2;
   //  optional bool secure = 3;
   //  repeated string external_bucket = 4;
   //  repeated Property property = 5;
+  //  optional bool allow_create_drop = 6;
+  //  optional string root_path = 7;
+  //  optional AuthenticationType credential_type = 8;
 
   @Tag(1)
   @DisplayMetadata(label = "AWS Access Key")
-  public String accessKey;
+  public String accessKey = "";
 
   @Tag(2)
   @Secret
   @DisplayMetadata(label = "AWS Access Secret")
-  public String accessSecret;
+  public String accessSecret = "";
 
   @Tag(3)
   @DisplayMetadata(label = "Encrypt connection")
@@ -83,6 +77,18 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   @Tag(5)
   public List<Property> propertyList;
 
+  @Tag(6)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable exports into the source (CTAS and DROP)")
+  public boolean allowCreateDrop;
+
+  @Tag(7)
+  @DisplayMetadata(label = "Root Path")
+  public String rootPath = "/";
+
+  @Tag(8)
+  public AuthenticationType credentialType = AuthenticationType.ACCESS_KEY;
+
   @Override
   public S3StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new S3StoragePlugin(this, context, name, pluginIdProvider);
@@ -90,7 +96,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
 
   @Override
   public Path getPath() {
-    return new Path("/");
+    return new Path(rootPath);
   }
 
   @Override
@@ -105,46 +111,11 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
 
   @Override
   public SchemaMutability getSchemaMutability() {
-    return SchemaMutability.NONE;
+    return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
   }
 
   @Override
   public List<Property> getProperties() {
-    final List<Property> finalProperties = new ArrayList<>();
-    finalProperties.add(new Property(FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3:///"));
-    finalProperties.add(new Property("fs.dremioS3.impl", S3FileSystem.class.getName()));
-    finalProperties.add(new Property(MAXIMUM_CONNECTIONS, String.valueOf(DEFAULT_MAX_CONNECTIONS)));
-    finalProperties.add(new Property("fs.s3a.fast.upload", "true"));
-    finalProperties.add(new Property("fs.s3a.fast.upload.buffer", "disk"));
-    finalProperties.add(new Property("fs.s3a.fast.upload.active.blocks", "4")); // 256mb (so a single parquet file should be able to flush at once).
-    finalProperties.add(new Property("fs.s3a.threads.max", "24"));
-    finalProperties.add(new Property("fs.s3a.multipart.size", "67108864")); // 64mb
-    finalProperties.add(new Property("fs.s3a.max.total.tasks", "30"));
-
-    if(accessKey != null){
-      finalProperties.add(new Property(ACCESS_KEY, accessKey));
-      finalProperties.add(new Property(SECRET_KEY, accessSecret));
-    } else {
-      // don't use Constants here as it breaks when using older MapR/AWS files.
-      finalProperties.add(new Property("fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider"));
-    }
-
-    if (propertyList != null && !propertyList.isEmpty()) {
-      finalProperties.addAll(propertyList);
-    }
-
-
-    finalProperties.add(new Property(SECURE_CONNECTIONS, String.valueOf(secure)));
-    if(externalBucketList != null && !externalBucketList.isEmpty()){
-      finalProperties.add(new Property(EXTERNAL_BUCKETS, Joiner.on(",").join(externalBucketList)));
-    }else {
-      if(accessKey == null){
-        throw UserException.validationError()
-          .message("Failure creating S3 connection. You must provide at least one of: (1) access key and secret key or (2) one or more external buckets.")
-          .build(logger);
-      }
-    }
-
-    return finalProperties;
+    return propertyList;
   }
 }

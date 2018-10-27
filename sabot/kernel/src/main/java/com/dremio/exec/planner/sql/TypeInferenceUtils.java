@@ -110,6 +110,8 @@ public class TypeInferenceUtils {
       //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL18)
       //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL28SPARSE)
       //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL38SPARSE)
+      // We will alias DECIMALs as DOUBLEs since Calcite can still return DECIMALs through literals.
+      .put(SqlTypeName.DECIMAL, TypeProtos.MinorType.FLOAT8)
 
       // (2) These 2 types are defined in the Dremio type system but have been turned off for now
       // .put(SqlTypeName.TINYINT, TypeProtos.MinorType.TINYINT)
@@ -124,6 +126,7 @@ public class TypeInferenceUtils {
   private static final ImmutableMap<String, SqlReturnTypeInference> funcNameToInference = ImmutableMap.<String, SqlReturnTypeInference> builder()
       .put("CONCAT", ConcatSqlReturnTypeInference.INSTANCE)
       .put("LENGTH", LengthSqlReturnTypeInference.INSTANCE)
+      .put("REPLACE", ReplaceSqlReturnTypeInference.INSTANCE)
       .put("LPAD", PadTrimSqlReturnTypeInference.INSTANCE)
       .put("RPAD", PadTrimSqlReturnTypeInference.INSTANCE)
       .put("LTRIM", PadTrimSqlReturnTypeInference.INSTANCE)
@@ -390,6 +393,24 @@ public class TypeInferenceUtils {
       // the second one is used to represent encoding type
       final boolean isNullable = opBinding.getOperandType(0).isNullable();
       return createCalciteTypeWithNullability(factory, sqlTypeName, isNullable, null);
+    }
+  }
+
+  private static class ReplaceSqlReturnTypeInference implements SqlReturnTypeInference {
+    private static final ReplaceSqlReturnTypeInference INSTANCE = new ReplaceSqlReturnTypeInference();
+
+    @Override
+    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+      final RelDataTypeFactory factory = opBinding.getTypeFactory();
+      final SqlTypeName sqlTypeName = SqlTypeName.VARCHAR;
+
+      for(int i = 0; i < opBinding.getOperandCount(); ++i) {
+        if(opBinding.getOperandType(i).isNullable()) {
+          return createCalciteTypeWithNullability(factory, sqlTypeName, true, null);
+        }
+      }
+
+      return createCalciteTypeWithNullability(factory, sqlTypeName, false, 65536);
     }
   }
 

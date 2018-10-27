@@ -79,6 +79,17 @@ export const largeModal = {
   }
 };
 
+export const tallModal = {
+  overlay,
+  content: {
+    ...modalContent,
+    width: '50%',
+    top: null,
+    bottom: null,
+    maxWidth: 440
+  }
+};
+
 export const modalBody = {
   display: 'flex',
   flexDirection: 'column',

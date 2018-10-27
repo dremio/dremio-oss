@@ -123,6 +123,7 @@ public class CatalogServiceImpl implements CatalogService {
   private final Provider<SchedulerService> scheduler;
   private final Provider<? extends Provider<ConnectionConf<?, ?>>> sysTableConfProvider;
   private final Provider<FabricService> fabric;
+  private final Provider<ConnectionReader> connectionReaderProvider;
 
   private KVStore<NamespaceKey, SourceInternalData> sourceDataStore;
   private NamespaceService systemNamespace;
@@ -136,13 +137,14 @@ public class CatalogServiceImpl implements CatalogService {
       Provider<SabotContext> context,
       Provider<SchedulerService> scheduler,
       Provider<? extends Provider<ConnectionConf<?, ?>>> sysTableConfProvider,
-      Provider<FabricService> fabric
+      Provider<FabricService> fabric,
+      Provider<ConnectionReader> connectionReaderProvider
       ) {
     this.context = context;
     this.scheduler = scheduler;
     this.sysTableConfProvider = sysTableConfProvider;
     this.fabric = fabric;
-
+    this.connectionReaderProvider = connectionReaderProvider;
   }
 
   @Override
@@ -151,7 +153,7 @@ public class CatalogServiceImpl implements CatalogService {
     this.allocator = context.getAllocator().newChildAllocator("catalog-protocol", 0, Long.MAX_VALUE);
     this.systemNamespace = context.getNamespaceService(SystemUser.SYSTEM_USERNAME);
     sourceDataStore = context.getKVStoreProvider().getStore(CatalogSourceDataCreator.class);
-    this.plugins = new PluginsManager(context, sourceDataStore, this.scheduler.get());
+    this.plugins = new PluginsManager(context, sourceDataStore, this.scheduler.get(), this.connectionReaderProvider.get());
     plugins.start();
     this.protocol =  new CatalogProtocol(allocator, new CatalogChangeListener(), context.getConfig());
     tunnelFactory = fabric.get().registerProtocol(protocol);

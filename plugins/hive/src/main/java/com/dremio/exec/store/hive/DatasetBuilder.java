@@ -30,6 +30,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -41,9 +42,11 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.io.AcidUtils;
 import org.apache.hadoop.hive.ql.io.RCFileInputFormat;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
+import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
 import org.apache.hadoop.hive.ql.metadata.HiveUtils;
@@ -56,6 +59,7 @@ import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.Reporter;
 import org.apache.thrift.TException;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -414,9 +418,12 @@ class DatasetBuilder implements SourceTableDefinition {
       long totalEstimatedRecords = 0;
 
       InputSplit[] inputSplits = format.getSplits(job, 1);
+      long inputSplitSizes[] = new long[inputSplits.length];
       double totalSize = 0;
-      for (final InputSplit inputSplit : inputSplits) {
-        totalSize += inputSplit.getLength();
+      for (int i = 0; i < inputSplits.length; i++) {
+        final long size = getInputSplitLength(inputSplits[i], job);
+        totalSize += size;
+        inputSplitSizes[i] = size;
       }
       int id = 0;
       for (final InputSplit inputSplit : inputSplits) {
@@ -431,16 +438,15 @@ class DatasetBuilder implements SourceTableDefinition {
         String splitKey =
             partition == null ? table.getSd().getLocation() + "__" + id : partition.getSd().getLocation() + "__" + id;
         split.setSplitKey(splitKey);
-        final long length = inputSplit.getLength();
+        final long length = inputSplitSizes[id];
         split.setSize(length);
         split.setPartitionValuesList(getPartitions(table, partition));
         split.setAffinitiesList(FluentIterable.of(
             inputSplit.getLocations()).transform((input) -> new Affinity().setHost(input).setFactor((double) length)
         ).toList());
 
-
-        long splitEstimatedRecords = findRowCountInSplit(statsParams, totalStats, inputSplit.getLength()/totalSize,
-            inputSplit.getLength(), format, estimatedRecordSize);
+        long splitEstimatedRecords = findRowCountInSplit(statsParams, totalStats, length/totalSize,
+            length, format, estimatedRecordSize);
         totalEstimatedRecords += splitEstimatedRecords;
         split.setRowCount(splitEstimatedRecords);
 
@@ -458,6 +464,68 @@ class DatasetBuilder implements SourceTableDefinition {
       } else {
         return new IOException("Failure while trying to get splits for table " + tableName, e);
       }
+    }
+  }
+
+  /**
+   * Helper method that returns the size of the {@link InputSplit}. For non-transactional tables, the size is straight
+   * forward. For transactional tables (currently only supported in ORC format), length need to be derived by
+   * fetching the file status of the delta files.
+   *
+   * Logic for this function is derived from {@link OrcInputFormat#getRecordReader(InputSplit, JobConf, Reporter)}
+   *
+   * @param split
+   * @param conf
+   * @return
+   * @throws IOException
+   */
+  private long getInputSplitLength(final InputSplit split, final Configuration conf) throws IOException {
+    if (!(split instanceof OrcSplit)) {
+      return split.getLength();
+    }
+
+    final OrcSplit orcSplit = (OrcSplit) split;
+
+    if (!orcSplit.isAcid()) {
+      return split.getLength();
+    }
+
+    try {
+      long size = 0;
+
+      final Path path = orcSplit.getPath();
+      final Path root;
+      final int bucket;
+
+      // If the split has a base, extract the base file size, bucket and root path info.
+      if (orcSplit.hasBase()) {
+        if (orcSplit.isOriginal()) {
+          root = path.getParent();
+        } else {
+          root = path.getParent().getParent();
+        }
+        size += orcSplit.getFileLength();
+        bucket = AcidUtils.parseBaseBucketFilename(orcSplit.getPath(), conf).getBucket();
+      } else {
+        root = path;
+        bucket = (int) orcSplit.getStart();
+      }
+
+      final Path[] deltas = AcidUtils.deserializeDeltas(root, orcSplit.getDeltas());
+      // go through each delta directory and add the size of the delta file belonging to the bucket to total split size
+      for (Path delta : deltas) {
+        final Path deltaFile = AcidUtils.createBucketFile(delta, bucket);
+        final FileSystem fs = deltaFile.getFileSystem(conf);
+        final FileStatus fileStatus = fs.getFileStatus(deltaFile);
+        size += fileStatus.getLen();
+      }
+
+      return size;
+    } catch (Exception e) {
+      logger.warn("Failed to derive the input split size of transactional Hive tables", e);
+      // return a non-zero number - we don't want the metadata fetch operation to fail. We could ask the customer to
+      // update the stats so that they can be used as part of the planning
+      return 1;
     }
   }
 

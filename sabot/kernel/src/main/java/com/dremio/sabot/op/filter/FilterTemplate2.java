@@ -31,11 +31,9 @@ public abstract class FilterTemplate2 implements Filterer{
   private SelectionVector2 outgoingSelectionVector;
   private SelectionVector2 incomingSelectionVector;
   private SelectionVectorMode svMode;
-  private TransferPair[] transfers;
 
   @Override
-  public void setup(FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing, TransferPair[] transfers) throws SchemaChangeException{
-    this.transfers = transfers;
+  public void setup(FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing) throws SchemaChangeException{
     this.outgoingSelectionVector = outgoing.getSelectionVector2();
     this.svMode = incoming.getSchema().getSelectionVectorMode();
 
@@ -50,12 +48,6 @@ public abstract class FilterTemplate2 implements Filterer{
       throw new UnsupportedOperationException();
     }
     doSetup(context, incoming, outgoing);
-  }
-
-  private void doTransfers(){
-    for(TransferPair t : transfers){
-      t.transfer();
-    }
   }
 
   public int filterBatch(int recordCount){
@@ -76,7 +68,6 @@ public abstract class FilterTemplate2 implements Filterer{
     default:
       throw new UnsupportedOperationException();
     }
-    doTransfers();
     return outputRecords;
   }
 

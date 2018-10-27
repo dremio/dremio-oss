@@ -15,11 +15,10 @@
  */
 package com.dremio.service.scheduler;
 
+import java.time.Instant;
+import java.time.temporal.TemporalAmount;
 import java.util.Collections;
 import java.util.Iterator;
-
-import org.threeten.bp.Instant;
-import org.threeten.bp.temporal.TemporalAmount;
 
 /**
  *

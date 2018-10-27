@@ -130,10 +130,10 @@ describe('JobsFilters', () => {
     it('should return false for User Filter if user is non-admin', () => {
       const wrapper =  shallow(<JobsFilters {...commonProps}/>, {context: { loggedInUser: {admin: true}}});
       const instance = wrapper.instance();
-      expect(instance.getAllFilters().filter(filter => filter.default)).to.have.length(4);
+      expect(instance.getAllFilters().filter(filter => filter.value === 'usr')).to.have.length(1);
 
       wrapper.setContext({ loggedInUser: {admin: false} });
-      expect(instance.getAllFilters().filter(filter => filter.default)).to.have.length(3);
+      expect(instance.getAllFilters().filter(filter => filter.value === 'usr')).to.have.length(0);
     });
   });
 });

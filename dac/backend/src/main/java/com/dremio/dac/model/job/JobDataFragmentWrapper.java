@@ -56,6 +56,7 @@ import com.google.common.collect.ImmutableMap;
  */
 @JsonSerialize(using=JobDataFragmentSerializer.class)
 public class JobDataFragmentWrapper implements JobDataFragment {
+
   private final int offsetInJobResults;
   private final com.dremio.service.jobs.JobDataFragment delegate;
   private final ImmutableList<Column> columns;
@@ -184,6 +185,8 @@ public class JobDataFragmentWrapper implements JobDataFragment {
    */
   public static class JobDataFragmentSerializer extends JsonSerializer<JobDataFragmentWrapper> {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobDataFragmentSerializer.class);
+
     @Override
     public void serialize(final JobDataFragmentWrapper data, JsonGenerator generator, SerializerProvider provider)
         throws IOException {
@@ -250,6 +253,14 @@ public class JobDataFragmentWrapper implements JobDataFragment {
 
         generator.writeEndArray();
         generator.writeEndObject();
+      } finally {
+        if(data.delegate instanceof ReleaseAfterSerialization) {
+          try {
+            data.delegate.close();
+          } catch (Exception e) {
+            logger.error("Failure while releasing job data.", e);
+          }
+        }
       }
     }
   }

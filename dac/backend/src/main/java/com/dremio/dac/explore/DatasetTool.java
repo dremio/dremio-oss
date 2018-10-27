@@ -600,7 +600,7 @@ public class DatasetTool {
   }
 
   protected DatasetUI newDataset(VirtualDatasetUI vds, DatasetVersion tipVersion) throws NamespaceException {
-    return DatasetUI.newInstance(vds, tipVersion);
+    return DatasetUI.newInstance(vds, tipVersion, datasetService.getNamespaceService());
   }
 
 }

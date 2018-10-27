@@ -41,7 +41,7 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.type.SqlTypeFamily;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
@@ -106,11 +106,11 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
 
           if(input instanceof RexLiteral){
             RexLiteral literal = (RexLiteral) input;
-            SqlTypeName name = literal.getTypeName();
+            SqlTypeFamily family = literal.getTypeName().getFamily();
             final byte[] value;
-            if(name.equals(SqlTypeName.CHAR)){
+            if(family.equals(SqlTypeFamily.CHARACTER)){
               value = ((String)literal.getValue2()).getBytes(StandardCharsets.UTF_8);
-            } else if(name.equals(SqlTypeName.BINARY)){
+            } else if(family.equals(SqlTypeFamily.BINARY)){
               value = ((byte[]) literal.getValue2());
             } else {
               throw failed();

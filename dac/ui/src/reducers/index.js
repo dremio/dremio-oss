@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { routerReducer } from 'react-router-redux';
-import { combineReducers }              from 'redux';
+import { combineReducers } from 'redux';
 import { reducer as formReducer } from 'redux-form';
 
 import { LOGOUT_USER_START, LOGIN_USER_SUCCESS, NO_USERS_ERROR } from 'actions/account';
@@ -42,6 +42,7 @@ import resources from './resources';
 import notification from './notification';
 import confirmation from './confirmation';
 import prodError from './prodError';
+import modulesState, { getData } from './modulesState';
 
 const appReducers = combineReducers({
   explore,
@@ -59,7 +60,8 @@ const appReducers = combineReducers({
   form: formReducer,
   routing: routerReducer,
   confirmation,
-  prodError
+  prodError,
+  modulesState
 });
 
 export default function rootReducer(state, action) {
@@ -97,3 +99,4 @@ export default function rootReducer(state, action) {
 
 export const getIsExplorePreviewMode = state => state.explore.view.get('isPreviewMode');
 export const getUser = state => state.account.get('user');
+export const getModuleState = (state, moduleKey) => getData(state.modulesState, moduleKey);

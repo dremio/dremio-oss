@@ -34,7 +34,6 @@ import PropertyListWrapper from 'components/Forms/Wrappers/PropertyListWrapper';
 import MetadataRefreshWrapper from 'components/Forms/Wrappers/MetadataRefreshWrapper';
 import SharingWrapper from 'components/Forms/Wrappers/SharingWrapper';
 
-
 describe('SourceFormJsonPolicy', () => {
 
   describe('makeFullPropName', () => {
@@ -357,8 +356,8 @@ describe('SourceFormJsonPolicy', () => {
       const config = SourceFormJsonPolicy.applyJsonPolicyToFormConfig(uiConfig, {});
       const section = config.form.getTabs()[0].getSections()[0];
       expect(section.getConfig().icon).to.equal('S3.svg');
+      expect(section.getDirectElements()).to.have.length(1); // only name should be presented
       expect(section.getDirectElements()[0].getPropName()).to.equal('name');
-      expect(section.getDirectElements()[1].getPropName()).to.equal('description');
     });
 
     it('should move loose elements to general tab',  () => {
@@ -378,16 +377,26 @@ describe('SourceFormJsonPolicy', () => {
       const numberOfTabs = (SHARING_TAB_JSON_TEMPLATE.name) ? 4 : 3;
       expect(config.form.getTabs().length).to.equal(numberOfTabs);
       expect(config.form.getTabs()[1].getName()).to.equal('Reflection Refresh');
-      expect(config.form.getTabs()[2].getName()).to.equal('Metadata Caching');
+      expect(config.form.getTabs()[2].getName()).to.equal('Metadata');
       if (numberOfTabs === 4) {
         expect(config.form.getTabs()[3].getName()).to.equal('Sharing');
       }
     });
 
+    const findConfigContainer = (configContainers, field, value) => configContainers.find((container) => {
+      return container.getConfig()[field] === value;
+    });
+
+    const getDataRefreshElement = form => {
+      const metadataTab = findConfigContainer(form.getTabs(), 'name', 'Metadata');
+      const refreshSection = findConfigContainer(metadataTab.getSections(), 'name', 'Metadata Refresh');
+      return findConfigContainer(refreshSection.getDirectElements(), 'type', 'metadata_refresh');
+    };
+
     it('should add refresh policy without datasetDiscovery and authorization', () => {
       uiConfig = {sourceType: 'S3', metadataRefresh: {}, form: new FormConfig({})};
       const config = SourceFormJsonPolicy.applyJsonPolicyToFormConfig(uiConfig, functionalConfig);
-      const element = config.form.getTabs()[2].getSections()[0].getDirectElements()[0];
+      const element = getDataRefreshElement(config.form);
       expect(element.getConfig().datasetDiscovery).to.be.undefined;
       expect(element.getConfig().authorization).to.be.undefined;
     });
@@ -395,7 +404,7 @@ describe('SourceFormJsonPolicy', () => {
     it('should add refresh policy with datasetDiscovery and authorization', () => {
       uiConfig = {sourceType: 'S3', metadataRefresh: {datasetDiscovery: true, authorization: true}, form: new FormConfig({})};
       const config = SourceFormJsonPolicy.applyJsonPolicyToFormConfig(uiConfig, functionalConfig);
-      const element = config.form.getTabs()[2].getSections()[0].getDirectElements()[0];
+      const element = getDataRefreshElement(config.form);
       expect(element.getConfig().datasetDiscovery).to.equal(true);
       expect(element.getConfig().authorization).to.equal(true);
     });

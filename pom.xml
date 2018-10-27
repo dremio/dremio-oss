@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-root</artifactId>
-  <version>2.1.6-201809161906440178-edb5b4d</version>
+  <version>3.0.0-201810262305460004-5c90d75</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Root</name>
@@ -38,9 +38,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.10.0-201809072309460111-effa235-dremio</arrow.version>
+    <arrow.version>0.10.0-201810032318010077-96f8a83-dremio</arrow.version>
     <avatica.version>1.11.0</avatica.version>
-    <calcite.version>1.16.0-201809101700460107-acbf677</calcite.version>
+    <calcite.version>1.16.0-201810181505000034-69f03c2</calcite.version>
     <db2jcc.version>4.23.42</db2jcc.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
@@ -64,6 +64,8 @@
     <metrics.version>4.0.2</metrics.version>
     <mariadb.connector.version>1.6.2</mariadb.connector.version>
     <netty.version>4.1.22.Final</netty.version>
+    <!-- latest is 2.0.17.Final as of 10/28/18, but we run into this https://github.com/line/armeria/pull/1278 -->
+    <netty.boringssl.version>2.0.10.Final</netty.boringssl.version>
     <parquet.version>1.8.1-fast-201808062344590567-7d04803</parquet.version>
     <postgresql.version>42.1.1.jre7</postgresql.version>
     <protobuf.version>2.5.0</protobuf.version>
@@ -82,6 +84,7 @@
     <elasticsearch.version>5.5.3</elasticsearch.version>
     <!-- Specify API versions to test ES against. -->
     <tests.elasticsearch.api.version>${elasticsearch.version}</tests.elasticsearch.api.version>
+    <tests.elasticsearch.mvn.plugin.version>6.8</tests.elasticsearch.mvn.plugin.version>
     <!-- IMPORTANT NOTE: always use the same version of lucene as elasticsearch -->
     <lucene.version>6.6.0</lucene.version>
 
@@ -456,6 +459,7 @@ limitations under the License.
             <exclude>**/.bzr</exclude>
             <exclude>**/.bzr/**</exclude>
             <exclude>**/.MySCMServerInfo</exclude>
+            <exclude>**/.dotfile</exclude>
             <exclude>**/.DS_Store</exclude>
             <exclude>**/.metadata</exclude>
             <exclude>**/.metadata/**</exclude>
@@ -736,6 +740,23 @@ limitations under the License.
               <version>${slf4j.version}</version>
             </dependency>
           </dependencies>
+        </plugin>
+        <plugin>
+          <groupId>org.owasp</groupId>
+          <artifactId>dependency-check-maven</artifactId>
+          <version>3.3.1</version>
+          <dependencies>
+            <dependency>
+              <groupId>com.dremio.tools</groupId>
+              <artifactId>dremio-build-tools</artifactId>
+              <version>${project.version}</version>
+            </dependency>
+          </dependencies>
+          <configuration>
+            <suppressionFiles>
+              <suppressionFile>dremio-owasp/suppressions.xml</suppressionFile>
+            </suppressionFiles>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>pl.project13.maven</groupId>
@@ -1187,6 +1208,11 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>com.dremio.plugin</groupId>
+        <artifactId>dremio-jdbc-plugin</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.plugin</groupId>
         <artifactId>dremio-pdfs-plugin</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1383,6 +1409,11 @@ limitations under the License.
         <artifactId>netty-transport-native-epoll</artifactId>
         <classifier>linux-x86_64</classifier>
         <version>${netty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-tcnative-boringssl-static</artifactId>
+        <version>${netty.boringssl.version}</version>
       </dependency>
       <dependency>
         <groupId>io.protostuff</groupId>
@@ -2526,11 +2557,6 @@ limitations under the License.
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-simple</artifactId>
         <version>${slf4j.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.threeten</groupId>
-        <artifactId>threetenbp</artifactId>
-        <version>1.3.3</version>
       </dependency>
       <dependency>
         <groupId>xerces</groupId>

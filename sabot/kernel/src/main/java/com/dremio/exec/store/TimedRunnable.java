@@ -176,7 +176,11 @@ public abstract class TimedRunnable<V> implements Runnable {
         if(excep == null){
           excep = e;
         }else{
-          excep.addSuppressed(e);
+          // DX-12673: HDFS client can send the same exception to all enqueued requests if there is a failure in
+          // establishing the connection. Add the request only if it is not the same instance.
+          if (excep != e) {
+            excep.addSuppressed(e);
+          }
         }
       }
     }

@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import FormUtils from 'utils/FormUtils/FormUtils';
 import FormElementConfig from 'utils/FormUtils/FormElementConfig';
 import MetadataRefresh from 'components/Forms/MetadataRefresh';
 import MetadataRefreshWrapper from 'components/Forms/Wrappers/MetadataRefreshWrapper';
@@ -34,7 +33,12 @@ export default class MetadataRefreshConfig extends FormElementConfig {
   }
 
   addInitValues(initValues) {
-    return FormUtils.addInitValueObj(initValues, MetadataRefresh.defaultFormValues());
+    //merge metadataPolicy defaults
+    initValues.metadataPolicy = {
+      ...initValues.metadataPolicy, // could be empty if source is not a file system
+      ...MetadataRefresh.defaultFormValues().metadataPolicy
+    };
+    return initValues;
   }
 
   addValidators(validations) {

@@ -17,14 +17,13 @@ package com.dremio.service.scheduler;
 
 import static java.lang.String.format;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Iterator;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.threeten.bp.Instant;
-import org.threeten.bp.temporal.ChronoUnit;
 
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.google.common.annotations.VisibleForTesting;

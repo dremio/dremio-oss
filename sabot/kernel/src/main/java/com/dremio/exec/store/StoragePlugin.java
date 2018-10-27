@@ -41,16 +41,23 @@ public interface StoragePlugin extends Service {
    *         datasets so namespace can determine when to retrieve and save
    *         properties.
    */
-  Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) throws Exception;
+  Iterable<SourceTableDefinition> getDatasets(
+      String user,
+      DatasetRetrievalOptions retrievalOptions
+  ) throws Exception;
 
   /**
    * Get dataset for given path and user.
    * @param datasetPath
    * @param oldDataset dataset information (currently used for format settings)
-   * @param ignoreAuthErrors
+   * @param retrievalOptions dataset retrieval options
    * @return The Source table definition associated with this key. If doesn't exist, return null.
    */
-  SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, boolean ignoreAuthErrors) throws Exception;
+  SourceTableDefinition getDataset(
+      NamespaceKey datasetPath,
+      DatasetConfig oldDataset,
+      DatasetRetrievalOptions retrievalOptions
+  ) throws Exception;
 
   /**
    * Whether an entity exists at the given path. This should be done using system user permissions.
@@ -181,10 +188,15 @@ public interface StoragePlugin extends Service {
    *
    * @param key
    * @param datasetConfig
+   * @param retrievalOptions
    * @return
    * @throws Exception
    */
-  CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig) throws Exception;
+  CheckResult checkReadSignature(
+      ByteString key,
+      DatasetConfig datasetConfig,
+      DatasetRetrievalOptions retrievalOptions
+  ) throws Exception;
 
   @Override
   void start() throws IOException;

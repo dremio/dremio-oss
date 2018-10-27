@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
@@ -101,6 +102,7 @@ public class BaseTestQuery extends ExecTest {
   private static final Random random = new Random();
   protected static FileSystem localFs;
 
+  protected static Properties defaultProperties = null;
 
   @SuppressWarnings("serial")
   private static final Properties TEST_CONFIGURATIONS = new Properties() {
@@ -309,7 +311,7 @@ public class BaseTestQuery extends ExecTest {
       }
     }
 
-    client = QueryTestUtil.createClient(config,  clusterCoordinator, MAX_WIDTH_PER_NODE, null);
+    client = QueryTestUtil.createClient(config,  clusterCoordinator, MAX_WIDTH_PER_NODE, defaultProperties);
 
     // turn off re-attempts, this needs to be set at the system level as many unit test will
     // reset the user session by restarting the client
@@ -781,4 +783,33 @@ public class BaseTestQuery extends ExecTest {
     }
   }
 
+  public static void validateResultsOutOfOrder(final String query, final String tag) throws Exception {
+    disableGlobalDictionary();
+    final FileStatus original = testAndGetResult(query, tag);
+    enableGlobalDictionary();
+    FileStatus withDict = testAndGetResult(query, tag);
+    boolean diff = false;
+    final HashMap<String, Void> lines = new HashMap<>();
+    try (FSDataInputStream in1 = localFs.open(original.getPath())) {
+      String line = null;
+      while ((line = in1.readLine()) != null) {
+        lines.put(line, null);
+      }
+    }
+    try (FSDataInputStream in2 = localFs.open(withDict.getPath())) {
+      String line = null;
+      while ((line = in2.readLine()) != null) {
+        if(!lines.containsKey(line)) {
+          diff = true;
+          break;
+        }
+      }
+    }
+    if (diff) {
+      fail(format("Results do not match original data: [%s], with global dictionary: [%s]", original.getPath(), withDict.getPath()));
+    } else {
+      localFs.delete(original.getPath().getParent(), true);
+      localFs.delete(withDict.getPath().getParent(), true);
+    }
+  }
 }

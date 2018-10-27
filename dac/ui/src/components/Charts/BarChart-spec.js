@@ -40,7 +40,7 @@ describe('BarChart', () => {
 
   it('should render tooltip if openTooltip is true', () => {
     const wrapper = shallow(<BarChart {...commonProps} />);
-    wrapper.setState({ openTooltip: true, index: 0 });
+    wrapper.setState({ hoverBarTooltipInfo: { position: {}, index: 0 } });
     expect(wrapper.find('ChartTooltip')).to.have.length(1);
   });
 

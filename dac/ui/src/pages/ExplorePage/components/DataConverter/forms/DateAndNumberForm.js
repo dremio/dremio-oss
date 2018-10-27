@@ -34,14 +34,16 @@ export class DateToNumberForm extends Component {
 
   render() {
     const {fields, submit} = this.props;
+    // radio button has much free space on top. To align radio label with top edge of a container, we have to add this negative margin
+    const radiosAlignmentStyle = { marginTop: -7};
     return (
       <TransformForm
         {...formWrapperProps(this.props)}
         onFormSubmit={submit}
         style={{ minHeight: 0 }}
         >
-        <div>
-          <Radio {...fields.format} className={radioStacked} label='Epoch' radioValue='EPOCH'/>
+        <div style={radiosAlignmentStyle}>
+          <Radio {...fields.format} className={radioStacked} label='Epoch' style={{ marginTop: 0 }} radioValue='EPOCH'/>
           <Radio {...fields.format} className={radioStacked} label='Excel' radioValue='EXCEL'/>
           <Radio {...fields.format} className={radioStacked} label='Julian' radioValue='JULIAN'/>
         </div>

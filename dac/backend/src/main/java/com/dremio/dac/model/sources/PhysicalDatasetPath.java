@@ -63,6 +63,11 @@ public class PhysicalDatasetPath extends NamespacePath {
     this.datasetType = DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
   }
 
+  public PhysicalDatasetPath(NamespacePath namespacePath, DatasetType datasetType) {
+    super(namespacePath.getRoot(), namespacePath.getFolderPath(), namespacePath.getLeaf());
+    this.datasetType = datasetType;
+  }
+
   public PhysicalDatasetPath(SourceFolderPath folderPath) {
     super(folderPath.getRoot(), folderPath.getFolderPath(), folderPath.getLeaf());
     this.datasetType = DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER;

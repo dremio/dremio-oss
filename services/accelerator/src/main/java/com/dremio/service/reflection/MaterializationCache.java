@@ -150,9 +150,11 @@ class MaterializationCache {
   private void updateEntry(Map<String, MaterializationDescriptor> cache, ExternalReflection entry) {
     try {
       final MaterializationDescriptor descriptor = provider.getDescriptor(entry);
-      final DremioRelOptMaterialization expanded = provider.expand(descriptor);
-      if (expanded != null) {
-        cache.put(entry.getId(), new CachedMaterializationDescriptor(descriptor, expanded));
+      if (descriptor != null) {
+        final DremioRelOptMaterialization expanded = provider.expand(descriptor);
+        if (expanded != null) {
+          cache.put(entry.getId(), new CachedMaterializationDescriptor(descriptor, expanded));
+        }
       }
     } catch (Exception e) {
       logger.warn("couldn't expand materialization {}", entry.getId(), e);

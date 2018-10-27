@@ -56,7 +56,7 @@ public class TestTpcdsSf1Leaks extends BaseTestQuery {
   @Test
   public void testSortSpill() throws Exception {
     final String query = "CREATE TABLE dfs_test.test PARTITION BY (ss_store_sk) LOCALSORT BY (ss_customer_sk) AS SELECT * FROM dfs_test.tpcds.store_sales";
-    setSessionOption(ExecConstants.MAX_QUERY_MEMORY_PER_NODE_KEY, "1000000000");
+    setSessionOption(ExecConstants.TEST_MEMORY_LIMIT.getOptionName(), "1000000000");
     testRunAndPrint(UserBitShared.QueryType.SQL, query);
   }
 

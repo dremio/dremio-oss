@@ -35,6 +35,8 @@ import './BrowseTable.less';
 @injectIntl
 export default class BrowseTable extends Component {
   static propTypes = {
+    rightSidebar: PropTypes.node,
+    rightSidebarExpanded: PropTypes.bool,
     tableData: PropTypes.instanceOf(Immutable.List),
     columns: PropTypes.array,
     title: PropTypes.node,
@@ -51,7 +53,7 @@ export default class BrowseTable extends Component {
     // pass thru to Table
     defaultSortBy: 'name',
     defaultSortDirection: SortDirection.ASC
-  }
+  };
 
   state = {
     filter: ''
@@ -78,7 +80,7 @@ export default class BrowseTable extends Component {
     this.setState({
       filter
     });
-  }
+  };
 
   filteredTableData = () => {
     const { filter } = this.state;
@@ -87,10 +89,10 @@ export default class BrowseTable extends Component {
       value = typeof value !== 'function' ? value : value.call(item.data[this.props.filterKey].value);
       return value.toLowerCase().includes(filter.trim().toLowerCase());
     });
-  }
+  };
 
   render() {
-    const { title, buttons, tableData, intl, ...passAlongProps } = this.props; // eslint-disable-line no-unused-vars
+    const { title, buttons, tableData, rightSidebar, rightSidebarExpanded, intl, ...passAlongProps } = this.props; // eslint-disable-line no-unused-vars
     invariant(
       !title || typeof title === 'string' || title.props.fullPath,
       'BrowseTable title must be string or BreadCrumbs.'
@@ -134,19 +136,23 @@ export default class BrowseTable extends Component {
                 {buttons}
               </div>
             </div>
-            <div className='move-info-wrap' style={{
-              ...allSpacesStyles.height,
-              overflow: 'hidden' // for FF (no worries, subsection will scroll)
-            }}>
-              <div className='table-wrap' style={allSpacesStyles.listContent}>
-                <StatefulTableViewer
-                  virtualized
-                  className='table'
-                  tableData={this.filteredTableData()}
-                  resetScrollTop={resetScrollTop}
-                  {...passAlongProps}
-                />
+            {/* minHeight is needed to not allow children flow over browser edge */}
+            <div style={{ display: 'flex', flex: 1, minHeight: 0}}>
+              <div className='move-info-wrap' style={{
+                ...allSpacesStyles.height,
+                overflow: 'hidden' // for FF (no worries, subsection will scroll)
+              }}>
+                <div className='table-wrap' style={allSpacesStyles.listContent}>
+                  <StatefulTableViewer
+                    virtualized
+                    className='table'
+                    tableData={this.filteredTableData()}
+                    resetScrollTop={resetScrollTop}
+                    {...passAlongProps}
+                  />
+                </div>
               </div>
+              {rightSidebarExpanded && rightSidebar}
             </div>
           </div>
         </div>

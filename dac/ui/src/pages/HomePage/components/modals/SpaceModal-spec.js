@@ -45,7 +45,7 @@ describe('SpaceModal', () => {
     const wrapper = shallow(<SpaceModal {...commonProps} entity={entity}/>);
     const formProps = wrapper.find(SpaceForm).props();
     expect(formProps.initialValues.name).to.equal(entity.get('name'));
-    expect(formProps.initialValues.description).to.equal(entity.get('description'));
+    expect(formProps.initialValues.description).to.be.empty; // we removed a description
     expect(formProps.editing).to.be.true;
   });
 

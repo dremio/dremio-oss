@@ -47,7 +47,7 @@ import com.dremio.test.DremioTest;
 public class TestSourceResource extends BaseTestServer {
   private static final String SOURCES_PATH = "/source/";
 
-  private final ConnectionReader reader = new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT);
+  private final ConnectionReader reader = ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
 
   @Test
   public void testListSources() throws Exception {

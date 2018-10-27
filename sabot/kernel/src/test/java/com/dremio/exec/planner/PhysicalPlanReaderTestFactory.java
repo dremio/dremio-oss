@@ -22,10 +22,12 @@ import org.mockito.Mockito;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.DirectProvider;
+import com.dremio.test.DremioTest;
 
 public class PhysicalPlanReaderTestFactory {
 
@@ -37,10 +39,13 @@ public class PhysicalPlanReaderTestFactory {
       SabotConfig c,
       ScanResult scanResult,
       Provider<CatalogService> catalogService) {
+    SabotContext sabotContext = Mockito.mock(SabotContext.class);
+    Mockito.when(sabotContext.getConnectionReaderProvider())
+      .thenReturn(DirectProvider.wrap(ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG)));
     return new PhysicalPlanReader(
         c, scanResult, new LogicalPlanPersistence(c, scanResult),
         CoordinationProtos.NodeEndpoint.getDefaultInstance(),
-        catalogService, Mockito.mock(SabotContext.class));
+        catalogService, sabotContext);
   }
   public static PhysicalPlanReader defaultPhysicalPlanReader(SabotConfig c, ScanResult scanResult) {
     return defaultPhysicalPlanReader(c, scanResult, DirectProvider.<CatalogService>wrap(null));

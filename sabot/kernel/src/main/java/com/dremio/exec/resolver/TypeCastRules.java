@@ -28,6 +28,7 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
+import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -579,7 +580,7 @@ public class TypeCastRules {
    * implicit cast > 0: cost associated with implicit cast. ==0: parms are
    * exactly same type of arg. No need of implicit.
    */
-  public static int getCost(List<CompleteType> argumentTypes, BaseFunctionHolder holder) {
+  public static int getCost(List<CompleteType> argumentTypes, AbstractFunctionHolder holder) {
     int cost = 0;
 
     if (argumentTypes.size() != holder.getParamCount()) {

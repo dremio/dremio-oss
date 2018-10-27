@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (C) 2017-2018 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <g id="Icon/Wiki" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="icon-box-24-copy-10">
+            <g>
+                <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
+                <g id="Icon/Data-Graph-Copy-3">
+                    <g id="icon-box-24-copy-7">
+                        <rect id="icon-box-24" x="0" y="0" width="24" height="24"></rect>
+                    </g>
+                    <g id="Group" transform="translate(5.000000, 3.000000)" stroke="#77818F" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon id="Stroke-2837" points="14.5 17.5 0.5 17.5 0.5 0.5 10.7666667 0.5 14.5 4.5"></polygon>
+                        <polyline id="Stroke-2838" points="10.5 0.5 10.5 4.5 14.5 4.5"></polyline>
+                    </g>
+                    <rect id="Rectangle-3-Copy" fill="#77818F" x="14" y="10" width="3" height="1"></rect>
+                    <rect id="Rectangle-6" fill="#77818F" x="8" y="8" width="1" height="3"></rect>
+                    <rect id="Rectangle-6-Copy" fill="#77818F" x="10" y="6" width="1" height="5"></rect>
+                    <rect id="Rectangle-6-Copy-2" fill="#77818F" x="12" y="9" width="1" height="2"></rect>
+                    <rect id="Rectangle-3-Copy-2" fill="#77818F" x="8" y="13" width="9" height="1"></rect>
+                    <rect id="Rectangle-3-Copy-3" fill="#77818F" x="8" y="16" width="9" height="1"></rect>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

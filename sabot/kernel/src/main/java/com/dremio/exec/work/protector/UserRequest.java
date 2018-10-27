@@ -19,6 +19,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.proto.UserBitShared.WorkloadClass;
+import com.dremio.exec.proto.UserBitShared.WorkloadType;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementReq;
 import com.dremio.exec.proto.UserProtos.GetCatalogsReq;
 import com.dremio.exec.proto.UserProtos.GetColumnsReq;
@@ -42,7 +43,9 @@ public class UserRequest {
 
   private static final long MAX_MEMORY_UTIL = 1_000_000;
 
-  private static final QueryPriority NRT = QueryPriority.newBuilder().setWorkloadClass(WorkloadClass.NRT).build();
+  private static final QueryPriority NRT = QueryPriority.newBuilder()
+    .setWorkloadClass(WorkloadClass.NRT)
+    .setWorkloadType(WorkloadType.DDL).build();
   private static final QueryPriority GENERAL = QueryPriority.newBuilder().setWorkloadClass(WorkloadClass.GENERAL).build();
 
   private final RpcType type;

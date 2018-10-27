@@ -19,9 +19,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executor;
 
-
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.utils.protos.QueryWritableBatch;
@@ -231,7 +233,7 @@ public class Foreman {
     QueryProfile profile = attemptManager.getQueryProfile();
     QueryState state = attemptManager.getState();
 
-    if (state == QueryState.RUNNING || state == QueryState.STARTING) {
+    if (state == QueryState.RUNNING || state == QueryState.STARTING || state == QueryState.ENQUEUED) {
       return Optional.of(profile);
     }
 
@@ -242,12 +244,12 @@ public class Foreman {
     return attemptId.getExternalId();
   }
 
-  public synchronized void cancel() {
+  public synchronized void cancel(String reason) {
     if (!canceled) {
       canceled = true;
 
       if (attemptManager != null) {
-        attemptManager.cancel();
+        attemptManager.cancel(reason);
       }
     }
   }
@@ -275,6 +277,7 @@ public class Foreman {
 
   private class Observer extends DelegatingAttemptObserver {
 
+    private boolean isCTAS = false;
     private boolean containsHashAgg = false;
 
     Observer(final AttemptObserver delegate) {
@@ -298,6 +301,12 @@ public class Foreman {
     }
 
     @Override
+    public void planValidated(RelDataType rowType, SqlNode node, long millisTaken) {
+      isCTAS = node.getKind() == SqlKind.CREATE_TABLE;
+      super.planValidated(rowType, node, millisTaken);
+    }
+
+    @Override
     public void planRelTransform(PlannerPhase phase, RelOptPlanner planner, RelNode before, RelNode after, long millisTaken) {
       if (phase == PlannerPhase.PHYSICAL) {
         containsHashAgg = containsHashAggregate(after);
@@ -307,6 +316,12 @@ public class Foreman {
 
     @Override
     public void attemptCompletion(UserResult result) {
+      // NOTE to developers: adhere to these invariants:
+      // (1) On last attempt, #execCompletion is invoked and #attemptCompletion is NOT invoked. The last attempt
+      //     maybe the first and only attempt.
+      // (2) #attemptCompletion is only invoked if there is going to be another attempt.
+      // TODO(DX-10101): Define the guarantee of #attemptCompletion or rework #attemptCompletion
+
       attemptManager = null; // make sure we don't pass cancellation requests to this attemptManager anymore
 
       final QueryState queryState = result.getState();
@@ -320,7 +335,7 @@ public class Foreman {
         } else {
           // and the attemptHandler allows the reattempt
           final AttemptReason reason = attemptHandler.isRecoverable(
-            new ReAttemptContext(attemptId, result.getException(), containsHashAgg));
+            new ReAttemptContext(attemptId, result.getException(), containsHashAgg, isCTAS));
           if (reason != AttemptReason.NONE) {
             super.attemptCompletion(result);
 

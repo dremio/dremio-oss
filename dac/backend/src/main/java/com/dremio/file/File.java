@@ -50,6 +50,8 @@ public class File {
   private final boolean isStaged;
   private final boolean isHomeFile;
 
+  private List<String> tags;
+
   @JsonCreator
   public File(
     @JsonProperty("id") String id,
@@ -58,7 +60,8 @@ public class File {
     @JsonProperty("jobCount") Integer jobCount,
     @JsonProperty("isStaged") boolean isStaged,
     @JsonProperty("isHomeFile") boolean isHomeFile,
-    @JsonProperty("queryable") boolean queryable) {
+    @JsonProperty("queryable") boolean queryable,
+    @JsonProperty("tags") List<String> tags) {
     this.id = id;
     this.fileFormat = fileFormat;
     this.filePath = File.parseUrlPath(urlPath);
@@ -66,11 +69,12 @@ public class File {
     this.isStaged = isStaged;
     this.isHomeFile = isHomeFile;
     this.queryable = queryable;
+    this.tags = tags;
   }
 
   public static File newInstance(String id, NamespacePath filePath, FileFormat fileFormat, Integer jobCount,
-      boolean isStaged, boolean isHomeFile, boolean isQueryable) {
-    return new File(id, filePath.toUrlPath(), new FileFormatUI(fileFormat, filePath), jobCount, isStaged, isHomeFile, isQueryable);
+      boolean isStaged, boolean isHomeFile, boolean isQueryable, List<String> tags) {
+    return new File(id, filePath.toUrlPath(), new FileFormatUI(fileFormat, filePath), jobCount, isStaged, isHomeFile, isQueryable, tags);
   }
 
   public boolean isQueryable() {
@@ -103,6 +107,14 @@ public class File {
 
   public boolean getIsHomeFile() {
     return isHomeFile;
+  }
+
+  public List<String> getTags() {
+    return tags;
+  }
+
+  public void setTags(List<String> tags) {
+    this.tags = tags;
   }
 
   public Map<String, String> getLinks() {

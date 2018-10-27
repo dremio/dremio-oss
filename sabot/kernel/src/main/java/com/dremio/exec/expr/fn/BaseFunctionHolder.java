@@ -40,8 +40,11 @@ import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionSyntax;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.sabot.exec.context.FunctionContext;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.sun.codemodel.JBlock;
 import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JInvocation;
@@ -66,6 +69,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
   private final ValueReference returnValue;
   private final FunctionInitializer initializer;
   private final boolean usesErrContext;
+  private final ImmutableList<CompleteType> paramTypes;
 
   public BaseFunctionHolder(
       FunctionAttributes attributes,
@@ -84,6 +88,12 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     this.returnValue = attributes.getReturnValue();
     this.derivation = attributes.getDerivation();
     this.initializer = initializer;
+
+    this.paramTypes = parameters == null ? ImmutableList.<CompleteType>of() : FluentIterable.of(parameters).transform(new Function<ValueReference, CompleteType>(){
+      @Override
+      public CompleteType apply(ValueReference input) {
+        return input.getType();
+      }}).toList();
 
     boolean usesErrContext = false;
     for (int i = 0; i < workspaceVars.length; i++) {
@@ -448,4 +458,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     return returnValue;
   }
 
+  public List<CompleteType> getParamTypes(){
+    return paramTypes;
+  }
 }

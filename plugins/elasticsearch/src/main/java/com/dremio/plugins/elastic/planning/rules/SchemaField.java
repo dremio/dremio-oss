@@ -466,6 +466,7 @@ public class SchemaField extends RexInputRef {
         }
 
       case CHAR:
+      case VARCHAR:
         return left.getChild(literal.getValue2().toString());
       default:
         // fall through

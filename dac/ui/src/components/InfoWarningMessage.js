@@ -64,7 +64,7 @@ class InfoWarningMessage extends Component {
           <div style={this.props.info ? {marginTop: 8} : {}}>{this.props.info}</div>
           <Button
             type={ButtonTypes.CUSTOM}
-            innerText={styles.innerText}
+            innerTextStyle={styles.innerText}
             text={this.props.buttonLabel}
             styles={[styles.button]}
             onClick={this.props.onClick}/>

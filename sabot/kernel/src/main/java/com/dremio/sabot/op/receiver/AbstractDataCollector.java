@@ -34,7 +34,9 @@ import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
+import com.dremio.service.spill.SpillService;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 
 public abstract class AbstractDataCollector implements DataCollector {
 
@@ -57,15 +59,16 @@ public abstract class AbstractDataCollector implements DataCollector {
    * @param context
    */
   public AbstractDataCollector(
-      SharedResourceGroup resourceGroup,
-      boolean isDiscrete,
-      Collector collector,
-      final int bufferCapacity,
-      BufferAllocator allocator,
-      SabotConfig config,
-      FragmentHandle handle,
-      FragmentWorkQueue workQueue,
-      TunnelProvider tunnelProvider) {
+    SharedResourceGroup resourceGroup,
+    boolean isDiscrete,
+    Collector collector,
+    final int bufferCapacity,
+    BufferAllocator allocator,
+    SabotConfig config,
+    FragmentHandle handle,
+    FragmentWorkQueue workQueue,
+    TunnelProvider tunnelProvider,
+    SpillService spillService) {
     Preconditions.checkNotNull(collector);
     this.config = collector;
     this.handle = handle;
@@ -91,21 +94,29 @@ public abstract class AbstractDataCollector implements DataCollector {
     if (isDiscrete) {
       buffers = new RawBatchBuffer[collector.getIncomingMinorFragmentCount()];
       List<IncomingMinorFragment> fragments = collector.getIncomingMinorFragmentList();
-      for (IncomingMinorFragment fragment : fragments) {
-        final String name = String.format("nway-recv-%s-%s:%d:%d", spooling ? "spool" : "mem", fragment.getEndpoint().getAddress(), collector.getOppositeMajorFragmentId(), fragment.getMinorFragment());
-        final SharedResource resource = resourceGroup.createResource(name, spooling ? SharedResourceType.NWAY_RECV_SPOOL_BUFFER : SharedResourceType.NWAY_RECV_MEM_BUFFER);
-        if (spooling) {
-          buffers[fragment.getMinorFragment()] = new SpoolingRawBatchBuffer(resource, config, workQueue, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), fragment.getMinorFragment());
-        } else {
-          buffers[fragment.getMinorFragment()] = new UnlimitedRawBatchBuffer(resource, config, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId());
+      try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable()){
+        for (IncomingMinorFragment fragment : fragments) {
+          final String name = String.format("nway-recv-%s-%s:%d:%d", spooling ? "spool" : "mem", fragment.getEndpoint().getAddress(), collector.getOppositeMajorFragmentId(), fragment.getMinorFragment());
+          final SharedResource resource = resourceGroup.createResource(name, spooling ? SharedResourceType.NWAY_RECV_SPOOL_BUFFER : SharedResourceType.NWAY_RECV_MEM_BUFFER);
+          final RawBatchBuffer buffer;
+          if (spooling) {
+            buffer = new SpoolingRawBatchBuffer(resource, config, workQueue, handle, spillService, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), fragment.getMinorFragment());
+          } else {
+            buffer = new UnlimitedRawBatchBuffer(resource, config, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId());
+          }
+          rollbackCloseable.add(buffer);
+          buffers[fragment.getMinorFragment()] = buffer;
         }
+        rollbackCloseable.commit();
+      } catch (Exception e) {
+        throw Throwables.propagate(e);
       }
     } else {
       buffers = new RawBatchBuffer[1];
       final String name = String.format("unordered-spooling-recv-%s-%d:*", spooling ? "spool" : "mem", collector.getOppositeMajorFragmentId());
       final SharedResource resource = resourceGroup.createResource(name, spooling ? SharedResourceType.UNORDERED_RECV_SPOOL_BUFFER : SharedResourceType.UNORDERED_RECV_MEM_BUFFER);
       if (spooling) {
-        buffers[0] = new SpoolingRawBatchBuffer(resource, config, workQueue, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), 0);
+        buffers[0] = new SpoolingRawBatchBuffer(resource, config, workQueue, handle, spillService, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), 0);
       } else {
         buffers[0] = new UnlimitedRawBatchBuffer(resource, config, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId());
       }
@@ -192,12 +203,12 @@ public abstract class AbstractDataCollector implements DataCollector {
     public void informUpstreamIfNecessary(){
       if(!done){
         final FinishedReceiver message = FinishedReceiver.newBuilder()
-            .setReceiver(handle)
-            .setSender(FragmentHandle.newBuilder()
-                .setQueryId(handle.getQueryId())
-                .setMajorFragmentId(config.getOppositeMajorFragmentId())
-                .setMinorFragmentId(sendingMinorFragmentId))
-            .build();
+          .setReceiver(handle)
+          .setSender(FragmentHandle.newBuilder()
+                       .setQueryId(handle.getQueryId())
+                       .setMajorFragmentId(config.getOppositeMajorFragmentId())
+                       .setMinorFragmentId(sendingMinorFragmentId))
+          .build();
         tunnelProvider.getExecTunnel(sendingNode).informReceiverFinished(message);
         done = true;
       }

@@ -129,6 +129,21 @@ message JobInfo {
   repeated string partitions = 24;
   repeated ScanPath scanPaths = 25;
   optional JoinAnalysis joinAnalysis = 27;
+  repeated string context = 28;
+  optional ResourceSchedulingInfo resource_scheduling_info = 29;
+  // Schema path to the output table. If not present, should assumed
+  // to be <storage-name>.<job-id>
+  repeated string output_table = 30;
+}
+
+message ResourceSchedulingInfo {
+  optional string queue_name = 1;
+  optional string queue_id = 2;
+  optional string rule_content = 3;
+  optional string rule_id = 4;
+  optional string rule_name = 5;
+  optional int64 resource_scheduling_start = 6;    // time, in ms, when resource scheduling started
+  optional int64 resource_scheduling_end = 7;      // time, in ms, when resource scheduling completed
 }
 
 message JoinTable {

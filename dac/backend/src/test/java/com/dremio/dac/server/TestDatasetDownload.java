@@ -109,10 +109,10 @@ public class TestDatasetDownload extends BaseTestServer {
     validateAllRows(readDataCsv(downloadDataResponse.getInput()));
   }
 
-  @Test // DX-6142
+  @Test // DX-6142 & DX-9432
   public void testDownloadWithLimitInDatasetSql() throws Exception {
     final DatasetPath dsPath = new DatasetPath("DG.testDS");
-    DatasetUI ds = createDatasetFromSQLAndSave(dsPath,"select * from DG.dsg1 LIMIT 10", asList("cp"));
+    DatasetUI ds = createDatasetFromSQLAndSave(dsPath,"select * from DG.dsg1 LIMIT 10 --- comment", asList("cp"));
 
     Job job = datasetService.prepareDownload(dsPath, ds.getDatasetVersion(), DownloadFormat.CSV, 50, SampleDataPopulator.DEFAULT_USER_NAME);
     job.getData().loadIfNecessary();

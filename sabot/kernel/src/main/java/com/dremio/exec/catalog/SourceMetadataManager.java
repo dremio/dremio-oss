@@ -17,6 +17,7 @@ package com.dremio.exec.catalog;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
+import java.time.Instant;
 import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.Set;
@@ -24,14 +25,13 @@ import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
-import org.threeten.bp.Instant;
-
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.concurrent.Runnables;
 import com.dremio.datastore.KVStore;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.CatalogService.UpdateType;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePlugin.CheckResult;
 import com.dremio.exec.store.StoragePlugin.UpdateStatus;
@@ -97,26 +97,16 @@ class SourceMetadataManager implements AutoCloseable {
       KVStore<NamespaceKey, SourceInternalData> sourceDataStore,
       final ManagedStoragePlugin msp
       ) {
-    super();
     this.scheduler = scheduler;
     this.isMaster = isMaster;
     this.sourceKey = msp.getName();
     this.systemUserNamespaceService = systemUserNamespaceService;
     this.sourceDataStore = sourceDataStore;
     this.msp = msp;
-    this.plugin = new Provider<StoragePlugin>() {
-      @Override
-      public StoragePlugin get() {
-        return msp.unwrap(StoragePlugin.class);
-      }};
+    this.plugin = () -> msp.unwrap(StoragePlugin.class);
     this.refreshTask = Runnables.combo(new RefreshTask());
-    this.saver = new DatasetSaver(systemUserNamespaceService,  new MetadataUpdateListener() {
-      @Override
-      public void metadataUpdated(NamespaceKey key) {
-        localUpdateTime.put(key, System.currentTimeMillis());
-      }
-    });
-
+    this.saver = new DatasetSaver(systemUserNamespaceService,
+        key -> localUpdateTime.put(key, System.currentTimeMillis()));
   }
 
   DatasetSaver getSaver() {
@@ -303,7 +293,8 @@ class SourceMetadataManager implements AutoCloseable {
     boolean changed = false;
 
     try {
-      for (SourceTableDefinition accessor : plugin.get().getDatasets(SYSTEM_USERNAME, false)) {
+      for (SourceTableDefinition accessor : plugin.get()
+          .getDatasets(SYSTEM_USERNAME, msp.getDefaultRetrievalOptions())) {
         // names only added, never removed. Removal can be done by the full refresh (refreshSource())
         if (!foundKeys.contains(accessor.getName()) && accessor.isSaveable()) {
           try {
@@ -338,8 +329,11 @@ class SourceMetadataManager implements AutoCloseable {
       metadataPolicy = msp.getMetadataPolicy();
     }
 
+    final DatasetRetrievalOptions retrievalOptions = DatasetRetrievalOptions.fromMetadataPolicy(metadataPolicy)
+        .withFallback(DatasetRetrievalOptions.DEFAULT);
+
     boolean refreshResult = false;
-    /**
+    /*
      * Assume everything in the namespace is deleted. As we discover the datasets from source, remove found entries
      * from these sets.
      */
@@ -368,10 +362,11 @@ class SourceMetadataManager implements AutoCloseable {
 
           if (plugin.get().datasetExists(foundKey)) {
             if (metadataPolicy.getDatasetUpdateMode() == UpdateMode.PREFETCH ||
-              (metadataPolicy.getDatasetUpdateMode() == UpdateMode.PREFETCH_QUERIED && config.getReadDefinition() != null)) {
+                (metadataPolicy.getDatasetUpdateMode() == UpdateMode.PREFETCH_QUERIED &&
+                    config.getReadDefinition() != null)) {
               if (config.getReadDefinition() == null) {
                 // this is currently a name only dataset. Get the read definition.
-                final SourceTableDefinition definition = plugin.get().getDataset(foundKey, config, false);
+                final SourceTableDefinition definition = plugin.get().getDataset(foundKey, config, retrievalOptions);
                 result = new CheckResult() {
                   @Override
                   public UpdateStatus getStatus() {
@@ -385,7 +380,8 @@ class SourceMetadataManager implements AutoCloseable {
                 };
               } else {
                 // have a read definition, need to check if it is up to date.
-                result = plugin.get().checkReadSignature(config.getReadDefinition().getReadSignature(), config);
+                result = plugin.get()
+                    .checkReadSignature(config.getReadDefinition().getReadSignature(), config, retrievalOptions);
               }
             }
           } else {
@@ -393,9 +389,13 @@ class SourceMetadataManager implements AutoCloseable {
           }
 
           if (result.getStatus() == UpdateStatus.DELETED) {
-            // TODO: handle exception
-            systemUserNamespaceService.deleteDataset(foundKey, config.getVersion());
-            refreshResult = true;
+            if (!retrievalOptions.deleteUnavailableDatasets()) {
+              logger.debug("Unavailable dataset '{}' will not be deleted", foundKey);
+            } else {
+              // TODO: handle exception
+              systemUserNamespaceService.deleteDataset(foundKey, config.getVersion());
+              refreshResult = true;
+            }
           } else {
             if (result.getStatus() == UpdateStatus.CHANGED) {
               saver.completeSave(result.getDataset(), config);
@@ -418,7 +418,7 @@ class SourceMetadataManager implements AutoCloseable {
         }
       }
 
-      for(SourceTableDefinition accessor : plugin.get().getDatasets(SYSTEM_USERNAME, false)){
+      for(SourceTableDefinition accessor : plugin.get().getDatasets(SYSTEM_USERNAME, retrievalOptions)) {
         if (cancelWork) {
           return refreshResult;
         }
@@ -497,7 +497,9 @@ class SourceMetadataManager implements AutoCloseable {
     }
   }
 
-  public UpdateStatus refreshDataset(NamespaceKey key, boolean force) {
+  UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions) {
+    retrievalOptions.withFallback(msp.getDefaultRetrievalOptions());
+
     DatasetConfig config = null;
     try {
       config = systemUserNamespaceService.getDataset(key);
@@ -507,11 +509,17 @@ class SourceMetadataManager implements AutoCloseable {
 
     SourceTableDefinition definition;
     try {
-      if(config != null && config.getReadDefinition() != null){
-        final CheckResult result = plugin.get().checkReadSignature(config.getReadDefinition().getReadSignature(), config);
+      if (config != null && config.getReadDefinition() != null) {
+        final CheckResult result = plugin.get()
+            .checkReadSignature(config.getReadDefinition().getReadSignature(), config, retrievalOptions);
 
-        switch(result.getStatus()){
+        switch (result.getStatus()) {
         case DELETED:
+          if (!retrievalOptions.deleteUnavailableDatasets()) {
+            logger.debug("Unavailable dataset '{}' will not be deleted", key);
+            return UpdateStatus.UNCHANGED;
+          }
+
           try {
             systemUserNamespaceService.deleteDataset(key, config.getVersion());
           } catch (NamespaceNotFoundException e) {
@@ -529,7 +537,7 @@ class SourceMetadataManager implements AutoCloseable {
         }
 
       } else {
-        definition = plugin.get().getDataset(key, config, false);
+        definition = plugin.get().getDataset(key, config, retrievalOptions);
       }
     } catch (Exception ex) {
       throw UserException.dataReadError(ex)
@@ -540,6 +548,11 @@ class SourceMetadataManager implements AutoCloseable {
     if (definition == null) {
 
       if (config != null) {
+        if (!retrievalOptions.deleteUnavailableDatasets()) {
+          logger.debug("Unavailable dataset '{}' will not be deleted", key);
+          return UpdateStatus.UNCHANGED;
+        }
+
         // unable to find request table in the plugin, but somehow the entry exists in namespace, so delete it
         try {
           systemUserNamespaceService.deleteDataset(key, config.getVersion());

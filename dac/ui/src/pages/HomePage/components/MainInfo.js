@@ -14,33 +14,48 @@
  * limitations under the License.
  */
 import { Component } from 'react';
+import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import DocumentTitle from 'react-document-title';
 import { injectIntl } from 'react-intl';
+import urlParse from 'url-parse';
 
 import MainInfoMixin from 'dyn-load/pages/HomePage/components/MainInfoMixin';
-
+import { loadWiki } from '@app/actions/home';
 import DatasetMenu from 'components/Menus/HomePage/DatasetMenu';
 import FolderMenu from 'components/Menus/HomePage/FolderMenu';
-import { UnformattedEntityMenu } from 'components/Menus/HomePage/UnformattedEntityMenu';
 
 import BreadCrumbs from 'components/BreadCrumbs';
 import { getRootEntityType } from 'utils/pathUtils';
 import SettingsBtn from 'components/Buttons/SettingsBtn';
 import FontIcon from 'components/Icon/FontIcon';
+import { ENTITY_TYPES } from 'constants/Constants';
+import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
+import Art from '@app/components/Art';
 
 import { tableStyles } from '../tableStyles';
 import BrowseTable from './BrowseTable';
 import { HeaderButtons } from './HeaderButtons';
-import MainInfoItemName from './MainInfoItemName';
+import MainInfoItemNameAndTag from './MainInfoItemNameAndTag';
+import WikiView from './WikiView';
+
+const shortcutBtnTypes = {
+  view: 'view',
+  wiki: 'wiki',
+  settings: 'settings'
+};
+
+const getEntityId = (props) => {
+  return props && props.entity ? props.entity.get('id') : null;
+};
 
 @injectIntl
 @Radium
 @MainInfoMixin
-export default class MainInfo extends Component {
+export class MainInfoView extends Component {
 
   static contextTypes = {
     location: PropTypes.object.isRequired
@@ -48,101 +63,133 @@ export default class MainInfo extends Component {
 
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map),
-    entityType: PropTypes.string,
+    entityType: PropTypes.oneOf(Object.values(ENTITY_TYPES)),
     viewState: PropTypes.instanceOf(Immutable.Map),
     updateRightTreeVisibility: PropTypes.func,
     rightTreeVisible: PropTypes.bool,
     isInProgress: PropTypes.bool,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    fetchWiki: PropTypes.func // (entityId) => Promise
   };
 
   static defaultProps = {
     viewState: Immutable.Map()
   };
 
-  getButtonsDataCell(dataType, name, item) {
-    const finalDataType = dataType || 'VIRTUAL_DATASET';
-    switch (finalDataType) {
+  state = {
+    isWikiShown: localStorageUtils.getWikiVisibleState()
+  };
+
+  componentDidMount() {
+    this.fetchWiki();
+  }
+
+  componentDidUpdate(prevProps) {
+    this.fetchWiki(prevProps);
+  }
+
+  fetchWiki(prevProps) {
+    const oldId = getEntityId(prevProps);
+    const newId = getEntityId(this.props);
+    if (newId && oldId !== newId) {
+      this.props.fetchWiki(newId);
+    }
+  }
+
+  getActionCell(item) {
+    return <ActionWrap>
+      {this.getActionCellButtons(item)}
+    </ActionWrap>;
+  }
+
+  getActionCellButtons(item) {
+    const dataType = item.get('fileType') || 'dataset';
+    switch (dataType) {
     case 'folder':
-      return this.getFolderActions(item);
-    case 'dataset':
-      return <ActionWrap>
-        {this.getSettingsBtnByType(<DatasetMenu entity={item} entityType='dataset'/>, item)}
-        {this.renderQueryButton(item)}
-      </ActionWrap>;
-    case 'raw':
-    case 'database':
-    case 'table':
-      return <ActionWrap>{this.renderQueryButton(item)}</ActionWrap>;
-    case 'VIRTUAL_DATASET': // todo: DRY with `dataset`, and why all caps?
-      return <ActionWrap>
-        {this.getSettingsBtnByType(<DatasetMenu entity={item} entityType='dataset'/>, item)}
-        {this.renderQueryButton(item)}
-      </ActionWrap>;
+      return this.getFolderActionButtons(item);
     case 'file':
-      return <ActionWrap>{this.getFileMenu(item, this.renderQueryButton(item))}</ActionWrap>;
-    case 'physicalDatasets': // todo: why is only this plural?
-      return <ActionWrap>
-        {this.getSettingsBtnByType(<DatasetMenu entity={item} entityType='physicalDataset'/>, item)}
-        {this.renderQueryButton(item)}
-      </ActionWrap>;
+      return this.getFileActionButtons(item);
+    case 'dataset':
+      return this.getShortcutButtons(item, dataType);
+    case 'physicalDatasets':
+      return this.getShortcutButtons(item, 'physicalDataset'); // entities collection uses type name without last 's'
+    // looks like 'raw', 'database', and 'table' are legacy entity types that are obsolete.
     default:
       throw new Error('unknown dataType');
     }
   }
 
-  getFolderActions(folder) {
-    if (folder.get('fileSystemFolder')) {
-      if (folder.get('queryable')) {
-        return <ActionWrap>
-          {this.getSettingsBtnByType(<DatasetMenu entity={folder} entityType='folder'/>, folder)}
-          {this.renderQueryButton(folder)}
-        </ActionWrap>;
-      }
-      return (
-        <ActionWrap>
-          {this.getSettingsBtnByType(<UnformattedEntityMenu entity={folder}/>, folder)}
-          {this.renderConvertButton(folder, {
-            icon: <FontIcon type='FolderConvert'/>,
-            to: {...this.context.location, state: {
+  getFolderActionButtons(folder) {
+    const isFileSystemFolder = !!folder.get('fileSystemFolder');
+    const isQueryAble = (folder.get('queryable'));
+
+    if (isFileSystemFolder && isQueryAble) {
+      return this.getShortcutButtons(folder, 'folder');
+    } else if (isFileSystemFolder) {
+      return ([
+        this.renderConvertButton(folder, {
+          icon: <FontIcon type='FolderConvert'/>,
+          to: {
+            ...this.context.location, state: {
               modal: 'DatasetSettingsModal',
               tab: 'format',
               entityType: folder.get('entityType'),
               entityId: folder.get('id'),
               query: {then: 'query'}
-            }}
-          })}
-        </ActionWrap>
-      );
+            }
+          }
+        })
+      ]);
     }
-
-    return <ActionWrap>{this.getSettingsBtnByType(<FolderMenu folder={folder}/>, folder)}</ActionWrap>;
+    return this.getSettingsBtnByType(<FolderMenu folder={folder}/>, folder);
   }
 
-  getFileMenu(file, queryBtn) {
-    if (file.get('queryable')) {
-      return <ActionWrap>
-        {this.getSettingsBtnByType(<DatasetMenu entity={file} entityType='file'/>, file)}
-        {queryBtn}
-      </ActionWrap>;
+  getFileActionButtons(file) {
+    const isQueryAble = (file.get('queryable'));
+    if (isQueryAble) {
+      return this.getShortcutButtons(file, 'file');
     }
-    return (
-      <div style={{display: 'flex'}}>
-        {this.getSettingsBtnByType(<UnformattedEntityMenu entity={file}/>, file)}
-        {this.renderConvertButton(file, {
-          icon: <FontIcon type='FileConvert'/>,
-          to: {...this.context.location, state: {
-            modal: 'DatasetSettingsModal',
-            tab: 'format',
-            entityType: file.get('entityType'),
-            entityId: file.get('id'),
-            queryable: file.get('queryable'),
-            fullPath: file.get('filePath'),
-            query: {then: 'query'}
-          }}
-        })}
-      </div>
-    );
+    // DX-12874 not queryable files should have only promote button
+    return ([
+      this.renderConvertButton(file, {
+        icon: <FontIcon type='FileConvert'/>,
+        to: {...this.context.location, state: {
+          modal: 'DatasetSettingsModal',
+          tab: 'format',
+          entityType: file.get('entityType'),
+          entityId: file.get('id'),
+          queryable: file.get('queryable'),
+          fullPath: file.get('filePath'),
+          query: {then: 'query'}
+        }}
+      })
+    ]);
+  }
+
+  // this method is targeted for dataset like entities: PDS, VDS and queriable files
+  getShortcutButtons(item, entityType) {
+    const allBtns = this.getShortcutButtonsData(item, entityType, shortcutBtnTypes);
+    return [...allBtns
+      // select buttons to be shown
+      .filter(btn => btn.isShown)
+      // return rendered link buttons
+      .map((btnType, index) => <Link to={btnType.link}  key={item.get('id') + index} className='main-settings-btn min-btn'>
+        <button className='settings-button' data-qa={btnType.type}>
+          {btnType.label}
+        </button>
+      </Link>),
+      this.getSettingsBtnByType(<DatasetMenu entity={item} entityType={entityType} />, item)
+    ];
+  }
+
+  getInlineIcon(iconSrc, alt) {
+    return <Art src={iconSrc} alt={alt} title style={{ height: 24, width: 24}} />;
+  }
+
+  getWikiButtonLink(item) {
+    const url = item.getIn(['links', 'query']);
+    const parseUrl = urlParse(url);
+    return `${parseUrl.pathname}/wiki${parseUrl.query}`;
   }
 
   getSettingsBtnByType(menu, item) {
@@ -152,28 +199,28 @@ export default class MainInfo extends Component {
         handleSettingsOpen={this.handleSettingsOpen.bind(this)}
         dataQa={item.get('name')}
         menu={menu}
-      />
+        hideArrowIcon>
+        {this.getInlineIcon('Ellipsis.svg', 'more')}
+      </SettingsBtn>
     );
   }
 
   getRow(item) {
-    //@TODO API for folders not correct, need to change
     const [name, jobs, action] = this.getTableColumns();
     const jobsCount = item.get('jobCount') || item.getIn(['extendedConfig', 'jobCount']) || la('—');
     return {
       rowClassName: item.get('name'),
       data: {
         [name.key]: {
-          node: () => <MainInfoItemName item={item}/>,
+          node: () => <MainInfoItemNameAndTag item={item}/>,
           value: item.get('name')
         },
         [jobs.key]: {
           node: () => <Link to={item.getIn(['links', 'jobs'])}>{jobsCount}</Link>,
           value: jobsCount
         },
-        // todo: fileType vs entityType?
         [action.key]: {
-          node: () => this.getButtonsDataCell(item.get('fileType'), item.get('name'), item)
+          node: () => this.getActionCell(item)
         }
       }
     };
@@ -183,12 +230,13 @@ export default class MainInfo extends Component {
     const { intl } = this.props;
     return [
       { key: 'name', title: intl.formatMessage({id: 'Common.Name'}), flexGrow: 1 },
-      { key: 'jobs', title: intl.formatMessage({id: 'Job.Jobs'}), style: tableStyles.digitColumn, width: 50 },
+      { key: 'jobs', title: intl.formatMessage({id: 'Job.Jobs'}), style: tableStyles.digitColumn, width: 40 },
       {
         key: 'action',
         title: intl.formatMessage({id: 'Common.Action'}),
         style: tableStyles.actionColumn,
-        width: 150,
+        width: 105,
+        className: 'row-buttons',
         disableSort: true
       }
     ];
@@ -233,18 +281,18 @@ export default class MainInfo extends Component {
     return false;
   }
 
+  toggleWikiShow = () => {
+    let newValue;
+    this.setState(prevState => ({
+      isWikiShown: (newValue = !prevState.isWikiShown)
+    }), () => {
+      localStorageUtils.setWikiVisibleState(newValue);
+    });
+  };
+
   toggleRightTree = () => {
     this.props.updateRightTreeVisibility(!this.props.rightTreeVisible);
-  }
-
-  renderQueryButton(item) {
-    const href = item.getIn(['links', 'query']);
-    return <Link to={href} className='main-settings-btn min-btn'>
-      <button className='settings-button'>
-        <FontIcon type='Query'/>
-      </button>
-    </Link>;
-  }
+  };
 
   render() {
     const { entity, viewState } = this.props;
@@ -255,6 +303,8 @@ export default class MainInfo extends Component {
       rootEntityType={getRootEntityType(entity.getIn(['links', 'self']))}
       rightTreeVisible={this.props.rightTreeVisible}
       toggleVisibility={this.toggleRightTree}
+      isWikiShown={this.state.isWikiShown}
+      onWiki={this.toggleWikiShow}
     />;
 
     return (
@@ -263,6 +313,8 @@ export default class MainInfo extends Component {
         buttons={buttons}
         key={pathname} /* trick to clear out the searchbox on navigation */
         columns={this.getTableColumns()}
+        rightSidebar={<WikiView item={entity} />}
+        rightSidebarExpanded={this.state.isWikiShown}
         tableData={this.getTableData()}
         viewState={viewState}
       >
@@ -311,3 +363,7 @@ function ActionWrap({children}) {
 ActionWrap.propTypes = {
   children: PropTypes.node
 };
+
+export default connect(null, dispatch => ({
+  fetchWiki: loadWiki(dispatch)
+}))(MainInfoView);

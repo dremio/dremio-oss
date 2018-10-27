@@ -37,6 +37,7 @@ import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
 public class DelegatingAttemptObserver implements AttemptObserver {
 
@@ -179,6 +180,11 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   @Override
   public void leafFragmentScheduling(long millisTaken) {
     observer.leafFragmentScheduling(millisTaken);
+  }
+
+  @Override
+  public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
+    observer.resourcesScheduled(resourceSchedulingDecisionInfo);
   }
 
   @Override

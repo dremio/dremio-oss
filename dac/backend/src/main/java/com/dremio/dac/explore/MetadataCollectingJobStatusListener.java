@@ -87,7 +87,7 @@ class MetadataCollectingJobStatusListener implements JobStatusListener {
   }
 
   @Override
-  public void jobCancelled() {
+  public void jobCancelled(String reason) {
     cancelled = true;
     releaseLatch();
   }

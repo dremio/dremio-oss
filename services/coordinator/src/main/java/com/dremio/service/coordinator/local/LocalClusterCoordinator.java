@@ -37,6 +37,7 @@ import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ServiceSet;
 import com.dremio.service.coordinator.ServiceSet.RegistrationHandle;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
@@ -184,25 +185,32 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
 
   private class LocalSemaphore implements DistributedSemaphore {
     private final Semaphore semaphore;
-    private final LocalLease localLease = new LocalLease();
+    private final LocalLease singleLease = new LocalLease(1);
 
-    public LocalSemaphore(final int size) {
+    LocalSemaphore(final int size) {
       semaphore = new Semaphore(size);
     }
 
     @Override
-    public DistributedLease acquire(final long timeout, final TimeUnit timeUnit) throws Exception {
-      if (!semaphore.tryAcquire(timeout, timeUnit)) {
+    public DistributedLease acquire(int permits, long timeout, TimeUnit timeUnit) throws Exception {
+      Preconditions.checkArgument(permits > 0, "permits must be a positive integer");
+      if (!semaphore.tryAcquire(permits, timeout, timeUnit)) {
         return null;
       } else {
-        return localLease;
+        return permits == 1 ? singleLease : new LocalLease(permits);
       }
     }
 
     private class LocalLease implements DistributedLease {
+      private final int permits;
+
+      LocalLease(int permits) {
+        this.permits = permits;
+      }
+
       @Override
       public void close() throws Exception {
-        semaphore.release();
+        semaphore.release(permits);
       }
     }
   }

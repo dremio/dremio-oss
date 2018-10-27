@@ -17,16 +17,14 @@ package com.dremio.exec;
 
 import static org.mockito.Mockito.when;
 
-import java.util.logging.LogManager;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.mockito.Mockito;
-import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.JULBridge;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
@@ -70,9 +68,7 @@ public class ExecTest extends DremioTest {
   }
 
   static {
-    LogManager.getLogManager().reset();
-    SLF4JBridgeHandler.removeHandlersForRootLogger();
-    SLF4JBridgeHandler.install();
+    JULBridge.configure();
   }
 
   @Before

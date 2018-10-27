@@ -122,7 +122,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     testPlanOneExcludedPattern(query, "DictionaryLookup");
     enableGlobalDictionary();
     testPlanSubstrPatternsInOrder(query, new String[] {"DictionaryLookup(decoded fields=[[city, state]])"}, null);
-    validateResults(query, "testSimpleGroupBy");
+    validateResultsOutOfOrder(query, "testSimpleGroupBy");
   }
 
   @Test

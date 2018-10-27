@@ -41,4 +41,38 @@ class SimpleDurationFormat {
       return String.format("%.3fs", seconds + milliSeconds/1000.0);
     }
   }
+
+  /**
+   * @param durationInNanos
+   */
+  static String formatNanos(long durationInNanos) {
+
+    if (durationInNanos < 1) {
+      return "0s";
+    }
+
+    final long days = TimeUnit.NANOSECONDS.toDays(durationInNanos);
+    final long hours = TimeUnit.NANOSECONDS.toHours(durationInNanos) - TimeUnit.DAYS.toHours(TimeUnit.NANOSECONDS.toDays(durationInNanos));
+    final long minutes = TimeUnit.NANOSECONDS.toMinutes(durationInNanos) - TimeUnit.HOURS.toMinutes(TimeUnit.NANOSECONDS.toHours(durationInNanos));
+    final long seconds = TimeUnit.NANOSECONDS.toSeconds(durationInNanos) - TimeUnit.MINUTES.toSeconds(TimeUnit.NANOSECONDS.toMinutes(durationInNanos));
+    final long milliSeconds = TimeUnit.NANOSECONDS.toMillis(durationInNanos) - TimeUnit.SECONDS.toMillis(TimeUnit.NANOSECONDS.toSeconds(durationInNanos));
+    final long microSeconds = TimeUnit.NANOSECONDS.toMicros(durationInNanos) - TimeUnit.MILLISECONDS.toMicros(TimeUnit.NANOSECONDS.toMillis(durationInNanos));
+    final long nanoSeconds = durationInNanos - TimeUnit.MICROSECONDS.toNanos(TimeUnit.NANOSECONDS.toMicros(durationInNanos));
+
+    if (days >= 1) {
+      return days + "d" + hours + "h" + minutes + "m";
+    } else if (hours >= 1) {
+      return hours + "h" + minutes + "m";
+    } else if (minutes >= 1) {
+      return minutes + "m" + seconds + "s";
+    } else if (seconds >= 1) {
+      return String.format("%.3fs", seconds + milliSeconds/1000.0);
+    } else if (milliSeconds >= 1) {
+      return milliSeconds + "ms";
+    } else if (microSeconds >= 1) {
+      return microSeconds + "us";
+    } else {
+      return nanoSeconds + "ns";
+    }
+  }
 }

@@ -345,6 +345,8 @@ describe('FormUtils', () => {
       // FormUtils.addInitValueForEditing(initValues, 'host', state);
       // expect(initValues.config.host).to.equal('www');
     });
+
+    //TODO test with multiplier
   });
 
   describe('getValidationsFromConfig', () => {

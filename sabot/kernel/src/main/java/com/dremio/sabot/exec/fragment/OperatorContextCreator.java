@@ -48,6 +48,7 @@ import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.service.namespace.NamespaceService;
 import com.google.common.base.Preconditions;
+import com.dremio.service.spill.SpillService;
 
 class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
 
@@ -63,13 +64,14 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
   private final NamespaceService namespaceService;
   private final OptionManager options;
   private final ExecutorService executor;
+  private final SpillService spillService;
   private final ContextInformation contextInformation;
   private final NodeDebugContextProvider nodeDebugContextProvider;
 
   public OperatorContextCreator(FragmentStats stats, BufferAllocator allocator, CodeCompiler compiler,
                                 SabotConfig config, FragmentHandle handle, ExecutionControls executionControls,
                                 FunctionLookupContext funcRegistry, NamespaceService namespaceService, OptionManager options,
-                                ExecutorService executor, ContextInformation contextInformation,
+                                ExecutorService executor, SpillService spillService, ContextInformation contextInformation,
                                 NodeDebugContextProvider nodeDebugContextProvider) {
     super();
     this.stats = stats;
@@ -83,6 +85,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     this.namespaceService = namespaceService;
     this.options = options;
     this.executor = executor;
+    this.spillService = spillService;
     this.contextInformation = contextInformation;
     this.nodeDebugContextProvider = nodeDebugContextProvider;
   }
@@ -120,6 +123,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
         contextInformation,
         options,
         namespaceService,
+        spillService,
         nodeDebugContextProvider,
         calculateTargetRecordSize(popConfig));
       operatorContexts.add(context);

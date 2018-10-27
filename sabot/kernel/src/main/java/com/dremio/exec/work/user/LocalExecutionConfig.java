@@ -15,15 +15,16 @@
  */
 package com.dremio.exec.work.user;
 
-import static com.dremio.options.OptionValue.OptionType.QUERY;
 import static com.dremio.options.OptionValue.createBoolean;
 import static com.dremio.options.OptionValue.createLong;
 import static com.dremio.options.OptionValue.createString;
+import static com.dremio.options.OptionValue.OptionType.QUERY;
 
 import java.util.List;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.options.OptionManager;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -98,7 +99,8 @@ public class LocalExecutionConfig implements OptionProvider {
     }
 
     // always store results
-    manager.setOption(createBoolean(QUERY, PlannerSettings.STORE_QUERY_RESULTS.getOptionName(), true));
+    manager.setOption(createString(QUERY, PlannerSettings.STORE_QUERY_RESULTS.getOptionName(),
+        StoreQueryResultsPolicy.PATH_AND_ATTEMPT_ID.name()));
     manager.setOption(createString(QUERY,
         PlannerSettings.QUERY_RESULTS_STORE_TABLE.getOptionName(), queryResultsStorePath));
 

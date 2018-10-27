@@ -87,19 +87,24 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     createOrUpdateSystemSource(catalogService, ns, AccelerationStoragePluginConfig.create(accelerationPath));
 
     createOrUpdateSystemSource(catalogService, ns,
-      InternalFileConf.create(DACDaemonModule.JOBS_STORAGEPLUGIN_NAME, resultsPath, SchemaMutability.SYSTEM_TABLE, CatalogService.NEVER_REFRESH_POLICY));
+      InternalFileConf.create(DACDaemonModule.JOBS_STORAGEPLUGIN_NAME, resultsPath, SchemaMutability.SYSTEM_TABLE,
+          CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE));
 
     createOrUpdateSystemSource(catalogService, ns,
-      InternalFileConf.create(DACDaemonModule.SCRATCH_STORAGEPLUGIN_NAME, scratchPath, SchemaMutability.USER_TABLE, CatalogService.NEVER_REFRESH_POLICY));
+      InternalFileConf.create(DACDaemonModule.SCRATCH_STORAGEPLUGIN_NAME, scratchPath, SchemaMutability.USER_TABLE,
+          CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE));
 
     createOrUpdateSystemSource(catalogService, ns,
-      InternalFileConf.create(DATASET_DOWNLOAD_STORAGE_PLUGIN, downloadPath, SchemaMutability.USER_TABLE, CatalogService.NEVER_REFRESH_POLICY));
+      InternalFileConf.create(DATASET_DOWNLOAD_STORAGE_PLUGIN, downloadPath, SchemaMutability.USER_TABLE,
+          CatalogService.NEVER_REFRESH_POLICY));
 
     createOrUpdateSystemSource(catalogService, ns,
-      InternalFileConf.create(LOGS_STORAGE_PLUGIN, logsPath, SchemaMutability.NONE, CatalogService.DEFAULT_METADATA_POLICY));
+      InternalFileConf.create(LOGS_STORAGE_PLUGIN, logsPath, SchemaMutability.NONE,
+          CatalogService.DEFAULT_METADATA_POLICY));
 
     createOrUpdateSystemSource(catalogService, ns,
-      InternalFileConf.create(LOCAL_STORAGE_PLUGIN, supportURI, SchemaMutability.SYSTEM_TABLE, CatalogService.NEVER_REFRESH_POLICY));
+      InternalFileConf.create(LOCAL_STORAGE_PLUGIN, supportURI, SchemaMutability.SYSTEM_TABLE,
+          CatalogService.NEVER_REFRESH_POLICY));
 
     return null;
   }

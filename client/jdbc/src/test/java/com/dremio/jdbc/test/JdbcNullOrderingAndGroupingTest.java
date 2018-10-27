@@ -17,10 +17,12 @@ package com.dremio.jdbc.test;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.test.TemporarySystemProperties;
 
 public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 //  private static final org.slf4j.Logger logger =
@@ -28,6 +30,9 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
 
   private static final String ONE_DAY_STR = "+000 01:00:00.000";
   private static final String TWO_DAYS_STR = "+000 02:00:00.000";
+
+  @ClassRule
+  public static final TemporarySystemProperties properties = new TemporarySystemProperties();
 
   // TODO:  Move this to where is covers more tests:  HACK: Disable Jetty
   // status(?) server so unit tests run (without Maven setup).

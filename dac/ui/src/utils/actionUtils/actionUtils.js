@@ -45,7 +45,14 @@ class ActionUtils {
       message,
       level: 'error'
     };
-  }
+  };
+
+  // added 'actionUtils_' in the begining to make it easier to find out source of action types during debugging
+  generateRequestActions = prefix => ({
+    start: `actionUtils_${prefix}_REQUEST_START`,
+    success: `actionUtils_${prefix}_REQUEST_SUCCESS`,
+    failure: `actionUtils_${prefix}_REQUEST_FAILURE`
+  })
 }
 
 const actionUtils = new ActionUtils();

@@ -46,6 +46,7 @@ import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.InitialDataPreviewResponse;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
@@ -95,6 +96,7 @@ public class DatasetResource {
   private final SecurityContext securityContext;
   private final DatasetPath datasetPath;
   private final NamespaceService namespaceService;
+  private final CollaborationHelper collaborationService;
   private ReflectionSettings reflectionSettings;
   private ReflectionServiceHelper reflectionServiceHelper;
 
@@ -105,6 +107,7 @@ public class DatasetResource {
     JobsService jobsService,
     @Context SecurityContext securityContext,
     ReflectionServiceHelper reflectionServiceHelper,
+    CollaborationHelper collaborationService,
     @PathParam("cpath") DatasetPath datasetPath) {
     this.datasetService = datasetService;
     this.namespaceService = namespaceService;
@@ -113,6 +116,7 @@ public class DatasetResource {
     this.datasetPath = datasetPath;
     this.reflectionSettings = reflectionServiceHelper.getReflectionSettings();
     this.reflectionServiceHelper = reflectionServiceHelper;
+    this.collaborationService = collaborationService;
   }
 
   @GET
@@ -269,9 +273,11 @@ public class DatasetResource {
     // Set a new version, name.
     ds.setFullPathList(datasetPath.toPathList());
     ds.setVersion(DatasetVersion.newVersion());
-    ds.setName(datasetPath.getDataset().getName());
+    ds.setName(datasetPath.getLeaf().getName());
     ds.setSavedVersion(null);
     ds.setId(null);
+    ds.setPreviousVersion(null);
+    ds.setOwner(securityContext.getUserPrincipal().getName());
     datasetService.putVersion(ds);
 
     try {
@@ -279,6 +285,11 @@ public class DatasetResource {
     } catch(NamespaceNotFoundException nfe) {
       throw new ClientErrorException(format("Parent folder %s doesn't exist", existingDatasetPath.toParentPath()), nfe);
     }
+
+    String fromEntityId = namespaceService.getEntityIdByPath(existingDatasetPath.toNamespaceKey());
+    String toEntityId = namespaceService.getEntityIdByPath(datasetPath.toNamespaceKey());
+    collaborationService.copyWiki(fromEntityId, toEntityId);
+    collaborationService.copyTags(fromEntityId, toEntityId);
 
     return newDataset(ds);
   }
@@ -326,6 +337,6 @@ public class DatasetResource {
   }
 
   protected DatasetUI newDataset(VirtualDatasetUI vds) throws NamespaceException {
-    return DatasetUI.newInstance(vds, null);
+    return DatasetUI.newInstance(vds, null, namespaceService);
   }
 }

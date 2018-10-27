@@ -47,7 +47,7 @@ import com.google.common.collect.Lists;
  */
 public class FileSelection {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FileSelection.class);
-  private static final String PATH_SEPARATOR = System.getProperty("file.separator");
+  public static final String PATH_SEPARATOR = System.getProperty("file.separator");
   private static final String WILD_CARD = "*";
 
   private final ImmutableList<FileStatus> statuses;
@@ -224,24 +224,23 @@ public class FileSelection {
     return new FileSelection(StatusType.EXPANDED, ImmutableList.of(status), status.getPath().toString());
   }
 
-  public static FileSelection create(final FileSystemWrapper fs, final List<String> fullPath) throws IOException {
+  public static Path getPathBasedOnFullPath(List<String> fullPath) {
     String parent = Joiner.on(PATH_SEPARATOR).join(fullPath.subList(0, fullPath.size() - 1));
     if (Strings.isNullOrEmpty(parent)) {
       parent = "/";
     }
     parent = Path.getPathWithoutSchemeAndAuthority(new Path(Path.SEPARATOR, parent)).toString();
     String path = PathUtils.removeQuotes(fullPath.get(fullPath.size() - 1));
-    return create(fs, parent, path);
+    return new Path(parent, removeLeadingSlash(path));
+  }
+
+  public static FileSelection create(final FileSystemWrapper fs, final List<String> fullPath) throws IOException {
+    return create(fs, getPathBasedOnFullPath(fullPath));
   }
 
   // Check if path is actually a full schema path
   public static FileSelection createWithFullSchema(final FileSystemWrapper fs, final String parent, final String fullSchemaPath) throws IOException {
     final Path combined = Path.mergePaths(new Path(parent), PathUtils.toFSPath(fullSchemaPath));
-    return create(fs, combined);
-  }
-
-  private static FileSelection create(final FileSystemWrapper fs, final String parent, final String path) throws IOException {
-    final Path combined = new Path(parent, removeLeadingSlash(path));
     return create(fs, combined);
   }
 

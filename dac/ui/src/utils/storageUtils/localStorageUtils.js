@@ -160,6 +160,14 @@ export class LocalStorageUtils {
     return localStorage.getItem('sqlState') === 'true';
   }
 
+  setWikiVisibleState(isWikiVisible) {
+    this._safeSave('isWikiVisible', isWikiVisible);
+  }
+
+  getWikiVisibleState() {
+    return localStorage.getItem('isWikiVisible') !== 'false'; // true is default value
+  }
+
   setDefaultSqlHeight(sqlHeight) {
     this._safeSave('sqlHeight', sqlHeight);
   }

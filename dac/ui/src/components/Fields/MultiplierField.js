@@ -31,8 +31,9 @@ export default class MultiplierField extends Component {
     touched: PropTypes.bool,
     disabled: PropTypes.bool, // todo: add a #readonly/readOnly(?) and switch existing uses of #disabled as appropriate)
     value: PropTypes.number,
+    valueMultiplier: PropTypes.number,
     style: PropTypes.object,
-    className: PropTypes.object,
+    className: PropTypes.string,
     unitMultipliers: PropTypes.instanceOf(Map).isRequired,
     min: PropTypes.number.isRequired // this UI only enforces the units displayed, your form should have its own validation (BE and/or FE)
   };
@@ -46,14 +47,25 @@ export default class MultiplierField extends Component {
   }
 
   handleTextChange = (value) => {
+    const {valueMultiplier, unitMultipliers, onChange} = this.props;
     const unit = this.getUnit();
     this.setState({unit}); // need to lock in the unit once the user starts making changes
-    this.props.onChange(+value * this.props.unitMultipliers.get(unit));
+
+    let valueWithMultipliers = +value * unitMultipliers.get(unit);
+    if (valueMultiplier) {
+      valueWithMultipliers /= valueMultiplier;
+    }
+    onChange(valueWithMultipliers);
   }
 
   handleSelectChange = (unit) => {
+    const {valueMultiplier, unitMultipliers, onChange} = this.props;
     // keep the same displayed number even when changing units (DX-9129)
-    this.props.onChange(this.getConvertedNumberForDisplay() * this.props.unitMultipliers.get(unit));
+    let valueWithMultipliers = this.getConvertedNumberForDisplay() * unitMultipliers.get(unit);
+    if (valueMultiplier) {
+      valueWithMultipliers /= valueMultiplier;
+    }
+    onChange(valueWithMultipliers);
     this.setState({unit});
   }
 
@@ -89,7 +101,9 @@ export default class MultiplierField extends Component {
   }
 
   getConvertedNumberForDisplay() {
-    let convertedValue = this.props.value / this.props.unitMultipliers.get(this.getUnit());
+    const {value, valueMultiplier, unitMultipliers} = this.props;
+    const valueWithMultiplier = (valueMultiplier) ? value * valueMultiplier : value;
+    let convertedValue = valueWithMultiplier / unitMultipliers.get(this.getUnit());
     if (Number.isNaN(convertedValue)) {
       convertedValue = 0;
     }

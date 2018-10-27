@@ -16,6 +16,7 @@
 import { CALL_API } from 'redux-api-middleware';
 
 import { API_URL_V2 } from 'constants/Api';
+import ApiUtils from 'utils/apiUtils/apiUtils';
 
 import folderSchema from 'schemas/folder';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
@@ -83,3 +84,64 @@ export function convertDatasetToFolder(entity, viewId) {
     return dispatch(fetchConvertDataset(entity, viewId));
   };
 }
+
+export const wikiActions = actionUtils.generateRequestActions('WIKI');
+
+const wikiSuccess = (dispatch, resolvePromise, wikiData, actionDetails) => {
+  const data = {
+    //default values
+    text: '',
+    version: null,
+    //--------------
+    ...wikiData
+  };
+  dispatch({
+    type: wikiActions.success,
+    ...data,
+    ...actionDetails
+  });
+  resolvePromise(data);
+};
+
+
+
+export const loadWiki = (dispatch) => entityId => {
+  if (!entityId) return;
+  const commonActionProps = { entityId };
+  dispatch({
+    type: wikiActions.start,
+    ...commonActionProps
+  });
+
+  return new Promise((resolve, reject) => {
+    ApiUtils.fetch(`catalog/${entityId}/collaboration/wiki`)
+    .then(response => response.json().then((wikiData) => {
+      wikiSuccess(dispatch, resolve, wikiData, commonActionProps);
+    }), async (response) => {
+      // no error message needed on 404 when wiki is not present for given id
+      if (response.status === 404) {
+        wikiSuccess(dispatch, resolve, {}, commonActionProps);
+        return;
+      }
+      const errorInfo = {
+        errorMessage: await ApiUtils.getErrorMessage(la('Wiki API returned an error'), response),
+        errorId: '' + Math.random()
+      };
+      dispatch({
+        type: wikiActions.failure,
+        ...errorInfo,
+        ...commonActionProps
+      });
+      reject(errorInfo);
+    });
+  });
+};
+
+export const WIKI_SAVED = 'WIKI_SAVED';
+export const wikiSaved = (entityId, text, version) => ({
+  type: WIKI_SAVED,
+  entityId,
+  text,
+  version
+});
+

@@ -34,15 +34,16 @@ import org.apache.hadoop.fs.FileSystem;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.DeferredException;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
 import com.dremio.sabot.op.sort.external.SpillManager;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
 import com.dremio.sabot.threads.sharedres.SharedResource;
+import com.dremio.service.spill.SpillService;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
@@ -94,7 +95,6 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
     SPILLED
   }
 
-  private final byte[] copyBuffer = new byte[64*1024];
   private final BufferAllocator allocator;
   private final long threshold;
   private final int oppositeId;
@@ -109,8 +109,11 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
   private final FragmentWorkQueue workQueue;
   private final DeferredException deferred = new DeferredException();
   private SpillManager spillManager;
+  private SpillService spillService;
 
-  public SpoolingRawBatchBuffer(SharedResource resource, final SabotConfig config, FragmentWorkQueue workQueue, FragmentHandle handle, BufferAllocator allocator, int fragmentCount, int oppositeId, int bufferIndex) {
+  public SpoolingRawBatchBuffer(SharedResource resource, final SabotConfig config, FragmentWorkQueue workQueue,
+                                FragmentHandle handle, SpillService spillService, BufferAllocator allocator,
+                                int fragmentCount, int oppositeId, int bufferIndex) {
     super(resource, config, handle, allocator, fragmentCount);
     final String name = String.format("%s:spoolingBatchBuffer", QueryIdHelper.getFragmentId(handle));
     this.allocator = allocator.newChildAllocator(name, ALLOCATOR_INITIAL_RESERVATION, ALLOCATOR_MAX_RESERVATION);
@@ -119,6 +122,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
     this.bufferIndex = bufferIndex;
     this.bufferQueue = new SpoolingBufferQueue();
     this.workQueue = workQueue;
+    this.spillService = spillService;
 
     workQueue.put(new Runnable() {
       @Override
@@ -137,7 +141,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
       final String id = String.format("spool-%s.%s.%s.%s.%s",
           qid, majorFragmentId, minorFragmentId, oppositeId, bufferIndex);
 
-      this.spillManager = new SpillManager(config, null, id, SPOOLING_CONFIG, "spooling sorted exchange");
+      this.spillManager = new SpillManager(config, null, id, SPOOLING_CONFIG, spillService, "spooling sorted exchange");
       this.spillFile = spillManager.getSpillFile("batches");
       outputStream = spillFile.create();
     } catch(Exception ex) {
@@ -382,7 +386,8 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
           FragmentRecordBatch header = FragmentRecordBatch.parseDelimitedFrom(stream);
           pos = stream.getPos();
           assert header != null : "header null after parsing from stream";
-          readIntoArrowBuf(stream, buf, bodyLength, copyBuffer);
+          // readIntoArrowBuf is a blocking operation. Safe to use COPY_BUFFER
+          readIntoArrowBuf(stream, buf, bodyLength);
           pos = stream.getPos();
           batch = new RawFragmentBatch(header, buf, null);
           long t = watch.elapsed(TimeUnit.MICROSECONDS);

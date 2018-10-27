@@ -33,19 +33,9 @@ public class CoreKVStoreImpl<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
   private final Serializer<KEY> keySerializer;
   private final Serializer<VALUE> valueSerializer;
   private final VersionExtractor<VALUE> versionExtractor;
-  private final Function<KVStoreTuple<KEY>, byte[]> keyToBytes = new Function<KVStoreTuple<KEY>, byte[]>() {
-    @Override
-    public byte[] apply(KVStoreTuple<KEY> input) {
-      return input.getSerializedBytes();
-    }
-  };
 
-  private final Function<byte[], KVStoreTuple<VALUE>> bytesToValue = new Function<byte[], KVStoreTuple<VALUE>>() {
-    @Override
-    public KVStoreTuple<VALUE> apply(byte[] input) {
-      return newValue().setSerializedBytes(input);
-    }
-  };
+  private final Function<KVStoreTuple<KEY>, byte[]> keyToBytes = KVStoreTuple::getSerializedBytes;
+  private final Function<byte[], KVStoreTuple<VALUE>> bytesToValue = input -> newValue().setSerializedBytes(input);
 
   public CoreKVStoreImpl(KVStore<byte[], byte[]> rawStore,
                      Serializer<KEY> keySerializer,
@@ -57,10 +47,12 @@ public class CoreKVStoreImpl<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
     this.versionExtractor = versionExtractor;
   }
 
+  @Override
   public KVStoreTuple<KEY> newKey() {
     return new KVStoreTuple<>(keySerializer);
   }
 
+  @Override
   public KVStoreTuple<VALUE> newValue() {
     return new KVStoreTuple<>(valueSerializer, versionExtractor);
   }
@@ -108,20 +100,12 @@ public class CoreKVStoreImpl<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
       .setStart(find.getStart().getSerializedBytes(), find.isStartInclusive())
       .setEnd(find.getEnd().getSerializedBytes(), find.isEndInclusive());
     final Iterable<Map.Entry<byte[], byte[]>> range = rawStore.find(convertedRange);
-    return Iterables.transform(range, new Function<Map.Entry<byte[], byte[]>, Map.Entry<KVStoreTuple<KEY>, KVStoreTuple<VALUE>>>() {
-      public Map.Entry<KVStoreTuple<KEY>, KVStoreTuple<VALUE>> apply(final Map.Entry<byte[], byte[]> input) {
-        return new CoreKVStoreEntry(input);
-      }
-    });
+    return Iterables.transform(range, CoreKVStoreEntry::new);
   }
 
   @Override
   public Iterable<Map.Entry<KVStoreTuple<KEY>, KVStoreTuple<VALUE>>> find() {
-    return Iterables.transform(rawStore.find(), new Function<Map.Entry<byte[], byte[]>, Map.Entry<KVStoreTuple<KEY>, KVStoreTuple<VALUE>>>() {
-      public Map.Entry<KVStoreTuple<KEY>, KVStoreTuple<VALUE>> apply(final Map.Entry<byte[], byte[]> input) {
-        return new CoreKVStoreEntry(input);
-      }
-    });
+    return Iterables.transform(rawStore.find(), CoreKVStoreEntry::new);
   }
 
   @Override

@@ -16,6 +16,7 @@
 import { shallow } from 'enzyme';
 
 import exploreUtils from 'utils/explore/exploreUtils';
+import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
 
 import TableControlsView from './TableControlsView';
 import { TableControls } from './TableControls';
@@ -32,11 +33,12 @@ describe('TableControls', () => {
     minimalProps = {
       performTransform: sinon.spy(),
       transformHistoryCheck: sinon.spy(),
-      isGraph: false,
+      pageType: PageTypes.default,
       sqlState: false,
       dataset: Immutable.Map({datasetVersion: '12345'}),
       sqlSize: 300,
       exploreViewState: Immutable.Map(),
+      collapseExploreSql: sinon.stub(),
       location: {
         pathname: 'loc'
       }

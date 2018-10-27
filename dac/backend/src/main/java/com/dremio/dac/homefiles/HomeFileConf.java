@@ -152,6 +152,7 @@ public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemSto
     return fs;
   }
 
+  @Override
   public boolean isInternal() {
     return true;
   }

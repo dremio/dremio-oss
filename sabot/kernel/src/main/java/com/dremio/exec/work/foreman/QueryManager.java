@@ -32,6 +32,7 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlanCaptureAttemptObserver;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
+import com.dremio.exec.planner.sql.handlers.commands.ResourceAllocationResultObserver;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodePhaseStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
@@ -39,6 +40,7 @@ import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.NodePhaseProfile;
@@ -53,6 +55,8 @@ import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.options.OptionList;
+import com.dremio.resource.ResourceSchedulingDecisionInfo;
+import com.dremio.resource.ResourceSchedulingProperties;
 import com.dremio.service.Pointer;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -80,6 +84,7 @@ class QueryManager {
   private final QueryContext context;
   private final CompletionListener completionListener;
   private final PlanCaptureAttemptObserver capturer;
+  private final ResourceAllocationResultObserver resourceAllocationResultObserver;
   private final Catalog catalog;
   private final OptionList nonDefaultOptions;
 
@@ -90,7 +95,7 @@ class QueryManager {
 
   // the following mutable variables are used to capture ongoing query status
   private long startPlanningTime;
-  private long endPlanningTime;
+  private long endPlanningTime;  // NB: tracks the end of both planning and resource scheduling. Name kept to match the profile object, which was kept intact for legacy reasons
   private long startTime;
   private long endTime;
 
@@ -115,6 +120,9 @@ class QueryManager {
     this.prepareId = prepareId;
     this.catalog = catalog;
     this.nonDefaultOptions = context.getNonDefaultOptions();
+
+    resourceAllocationResultObserver = new ResourceAllocationResultObserver();
+    observers.add(resourceAllocationResultObserver);
 
     capturer = new PlanCaptureAttemptObserver(verboseProfiles, includeDatasetProfiles, context.getFunctionRegistry(),
       context.getAccelerationManager().newPopulator());
@@ -295,7 +303,7 @@ class QueryManager {
 
 
 
-  public QueryProfile getQueryProfile(String description, QueryState state, UserException ex) {
+  public QueryProfile getQueryProfile(String description, QueryState state, UserException ex, String cancelreason) {
     final QueryProfile.Builder profileBuilder = QueryProfile.newBuilder()
         .setQuery(description)
         .setUser(context.getQueryUserName())
@@ -310,6 +318,9 @@ class QueryManager {
         .setFinishedFragments(finishedFragments.get())
         .setDremioVersion(DremioVersionInfo.getVersion());
 
+    if (cancelreason != null) {
+      profileBuilder.setCancelReason(cancelreason);
+    }
     if(prepareId.value != null){
       profileBuilder.setPrepareId(prepareId.value);
     }
@@ -319,6 +330,54 @@ class QueryManager {
     }
 
     UserResult.addError(ex, profileBuilder);
+
+    final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo =
+      resourceAllocationResultObserver.getResourceSchedulingDecisionInfo();
+
+    if (resourceSchedulingDecisionInfo != null) {
+      UserBitShared.ResourceSchedulingProfile.Builder resourceBuilder = UserBitShared.ResourceSchedulingProfile
+        .newBuilder();
+      if (resourceSchedulingDecisionInfo.getQueueId() != null) {
+        resourceBuilder.setQueueId(resourceSchedulingDecisionInfo.getQueueId());
+      }
+      if (resourceSchedulingDecisionInfo.getQueueName() != null) {
+        resourceBuilder.setQueueName(resourceSchedulingDecisionInfo.getQueueName());
+      }
+      if (resourceSchedulingDecisionInfo.getRuleContent() != null) {
+        resourceBuilder.setRuleContent(resourceSchedulingDecisionInfo.getRuleContent());
+      }
+      if (resourceSchedulingDecisionInfo.getRuleId() != null) {
+        resourceBuilder.setRuleId(resourceSchedulingDecisionInfo.getRuleId());
+      }
+      if (resourceSchedulingDecisionInfo.getRuleName() != null) {
+        resourceBuilder.setRuleName(resourceSchedulingDecisionInfo.getRuleName());
+      }
+      if (resourceSchedulingDecisionInfo.getRuleAction() != null) {
+        resourceBuilder.setRuleAction(resourceSchedulingDecisionInfo.getRuleAction());
+      }
+      final ResourceSchedulingProperties schedulingProperties = resourceSchedulingDecisionInfo
+        .getResourceSchedulingProperties();
+      if (schedulingProperties != null) {
+        UserBitShared.ResourceSchedulingProperties.Builder resourcePropsBuilder =
+          UserBitShared.ResourceSchedulingProperties.newBuilder();
+        if (schedulingProperties.getClientType() != null) {
+          resourcePropsBuilder.setClientType(schedulingProperties.getClientType());
+        }
+        if (schedulingProperties.getQueryType() != null) {
+          resourcePropsBuilder.setQueryType(schedulingProperties.getQueryType());
+        }
+        if (schedulingProperties.getQueryCost() != null) {
+          resourcePropsBuilder.setQueryCost(schedulingProperties.getQueryCost());
+        }
+        if (schedulingProperties.getTag() != null) {
+          resourcePropsBuilder.setTag(schedulingProperties.getTag());
+        }
+        resourceBuilder.setSchedulingProperties(resourcePropsBuilder);
+      }
+      resourceBuilder.setResourceSchedulingStart(resourceSchedulingDecisionInfo.getSchedulingStartTimeMs());
+      resourceBuilder.setResourceSchedulingEnd(resourceSchedulingDecisionInfo.getSchedulingEndTimeMs());
+      profileBuilder.setResourceSchedulingProfile(resourceBuilder);
+    }
 
     if (capturer != null) {
       profileBuilder.setAccelerationProfile(capturer.getAccelerationProfile());
@@ -556,7 +615,7 @@ class QueryManager {
           failedNodeList, QueryIdHelper.getQueryId(queryId));
 
         completionListener.failed(
-          new ForemanException(String.format("One more more nodes lost connectivity during query.  Identified nodes were [%s].",
+          new ForemanException(String.format("One or more nodes lost connectivity during query.  Identified nodes were [%s].",
             failedNodeList)));
       }
 
@@ -575,7 +634,9 @@ class QueryManager {
     for (NodePhaseStatus phaseStatus : status.getPhaseStatusList()) {
       reporters.get(phaseStatus.getMajorFragmentId()).updatePhaseStatus(endpoint, phaseStatus);
     }
-    nodeReporters.get(endpoint).updateMaxMemory(status.getMaxMemoryUsed());
+    nodeReporters.get(endpoint)
+      .updateMaxMemory(status.getMaxMemoryUsed())
+      .updateTimeEnqueuedBeforeSubmit(status.getTimeEnqueuedBeforeSubmitMs());
   }
 
   private class MajorFragmentReporter {
@@ -611,19 +672,28 @@ class QueryManager {
   private class NodeReporter {
     private final NodeEndpoint endpoint;
     private long maxMemory;
+    private long timeEnqueuedBeforeSubmitMs;
 
     public NodeReporter(NodeEndpoint endpoint) {
       this.endpoint = endpoint;
-      this.maxMemory = 0;
+      this.maxMemory = 0L;
+      this.timeEnqueuedBeforeSubmitMs = 0L;
     }
 
     public void add(NodeQueryProfile.Builder builder){
       builder.setEndpoint(endpoint);
       builder.setMaxMemoryUsed(maxMemory);
+      builder.setTimeEnqueuedBeforeSubmitMs(timeEnqueuedBeforeSubmitMs);
     }
 
-    public void updateMaxMemory(long maxMemory) {
+    public NodeReporter updateMaxMemory(long maxMemory) {
       this.maxMemory = maxMemory;
+      return this;
+    }
+
+    public NodeReporter updateTimeEnqueuedBeforeSubmit(long value) {
+      this.timeEnqueuedBeforeSubmitMs = value;
+      return this;
     }
   }
 

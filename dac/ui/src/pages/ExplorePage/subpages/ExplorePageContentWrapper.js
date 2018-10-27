@@ -16,14 +16,19 @@
 import { Component } from 'react';
 import Immutable from 'immutable';
 import pureRender from 'pure-render-decorator';
+import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
-import Radium from 'radium';
+import classNames from 'classnames';
 
 import DataGraph from 'dyn-load/pages/ExplorePage/subpages/datagraph/DataGraph';
 import DetailsWizard from 'components/Wizards/DetailsWizard';
 import { HISTORY_PANEL_SIZE } from 'uiTheme/radium/sizes';
+import { WHITE } from 'uiTheme/radium/colors.js';
 
 import { RECOMMENDED_JOIN } from 'constants/explorePage/joinTabs';
+import { Wiki } from '@app/pages/ExplorePage/components/Wiki/Wiki';
+import { PageTypes, pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
+import { getDatasetEntityId } from '@app/selectors/explore';
 
 import ExploreTableController from './../components/ExploreTable/ExploreTableController';
 import JoinTables from './../components/ExploreTable/JoinTables';
@@ -31,16 +36,20 @@ import TableControls from './../components/TableControls';
 import ExplorePageUpperContent from './ExplorePageUpperContent';
 
 import SqlErrorSection from './../components/SqlEditor/SqlErrorSection';
+import {
+  base,
+  bottomContent
+} from './ExplorePageContentWrapper.less';
 
 
 const EXPLORE_DRAG_TYPE = 'explorePage';
 
 @pureRender
-@Radium
 class ExplorePageContentWrapper extends Component {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
-    pageType: PropTypes.string.isRequired,
+    entityId: PropTypes.string,
+    pageType: pageTypesProp.isRequired,
     rightTreeVisible: PropTypes.bool.isRequired,
     sqlSize: PropTypes.number.isRequired,
     sqlState: PropTypes.bool.isRequired,
@@ -55,37 +64,15 @@ class ExplorePageContentWrapper extends Component {
 
   constructor(props) {
     super(props);
-    this.renderUpperContent = this.renderUpperContent.bind(this);
+    this.renderUpperContent = this.getUpperContent.bind(this);
     this.getBottomContent = this.getBottomContent.bind(this);
     this.getControlsBlock = this.getControlsBlock.bind(this);
   }
 
   getBottomContent() {
-    const {dataset, pageType, location} = this.props;
+    const {dataset, pageType, location, entityId} = this.props;
     const locationQuery = location.query;
-    const hash = {
-      table: (
-        <ExploreTableController
-          pageType={pageType}
-          dataset={dataset}
-          dragType={EXPLORE_DRAG_TYPE}
-          location={location}
-          sqlSize={this.props.sqlSize}
-          sqlState={this.props.sqlState}
-          rightTreeVisible={this.props.rightTreeVisible}
-          exploreViewState={this.props.exploreViewState}
-        />
-      ),
-      graph: (
-        DataGraph && <DataGraph
-          ref='gridTable'
-          dragType={EXPLORE_DRAG_TYPE}
-          dataset={dataset}
-          sqlState={this.props.sqlState}
-          rightTreeVisible={this.props.rightTreeVisible}
-        />
-      )
-    };
+
     if (locationQuery.type === 'JOIN' && locationQuery.joinTab !== RECOMMENDED_JOIN) {
       return (
         <JoinTables
@@ -98,47 +85,100 @@ class ExplorePageContentWrapper extends Component {
         />
       );
     }
-    return hash[pageType] || hash.table;
+
+    switch (pageType) {
+    case PageTypes.graph:
+      return (DataGraph && <DataGraph
+        ref='gridTable'
+        dragType={EXPLORE_DRAG_TYPE}
+        dataset={dataset}
+        sqlState={this.props.sqlState}
+        rightTreeVisible={this.props.rightTreeVisible}
+      />);
+    case PageTypes.wiki: {
+      // should allow edit a wiki only if we receive a entity id and permissions allow this.
+      // If we do not receive permissions object, that means the current user is admin (CE)
+      const isWikiEditAllowed = entityId && dataset.getIn(['permissions', 'canManageWiki'], true);
+
+      return <Wiki
+        entityId={entityId}
+        isEditAllowed={isWikiEditAllowed}
+        className={bottomContent} />;
+    }
+    case PageTypes.default:
+    case PageTypes.details:
+      return (<ExploreTableController //todo uncomment this after tests
+        pageType={pageType}
+        dataset={dataset}
+        dragType={EXPLORE_DRAG_TYPE}
+        location={location}
+        sqlSize={this.props.sqlSize}
+        sqlState={this.props.sqlState}
+        rightTreeVisible={this.props.rightTreeVisible}
+        exploreViewState={this.props.exploreViewState}
+      />);
+    default:
+      throw new Error(`Not supported page type: '${pageType}'`);
+    }
   }
 
   getControlsBlock() {
-    if (this.props.pageType === 'default' || this.props.pageType === 'graph') {
+    const {
+      pageType
+    } = this.props;
+
+    switch (pageType) {
+    case PageTypes.graph:
+    case PageTypes.details:
+    case PageTypes.wiki:
+      return;
+    case PageTypes.default:
       return <TableControls
         dataset={this.props.dataset}
         sqlSize={this.props.sqlSize}
         location={this.props.location}
-        isGraph={this.props.pageType === 'graph'}
+        pageType={this.props.pageType}
         sqlState={this.props.sqlState}
         rightTreeVisible={this.props.rightTreeVisible}
         exploreViewState={this.props.exploreViewState}
       />;
+    default:
+      throw new Error(`not supported page type; '${pageType}'`);
     }
   }
 
-  renderUpperContent() {
+  getUpperContent() {
     const { props } = this;
-    if (props.pageType === 'details') {
+    const { pageType } = props;
+
+    switch (pageType) {
+    case PageTypes.details:
       return <DetailsWizard
         dataset={props.dataset}
         location={props.location}
         startDrag={props.startDrag}
         dragType={EXPLORE_DRAG_TYPE}
-        exploreViewState={this.props.exploreViewState}
+        exploreViewState={props.exploreViewState}
       />;
+    case PageTypes.default:
+    case PageTypes.graph:
+    case PageTypes.wiki:
+      return (
+        <ExplorePageUpperContent
+          dataset={props.dataset}
+          pageType={props.pageType}
+          rightTreeVisible={props.rightTreeVisible}
+          sqlSize={props.sqlSize}
+          sqlState={props.sqlState}
+          dragType={EXPLORE_DRAG_TYPE}
+          toggleRightTree={props.toggleRightTree}
+          startDrag={props.startDrag}
+          exploreViewState={this.props.exploreViewState}
+        />
+      );
+    default:
+      throw new Error(`not supported page type; '${pageType}'`);
     }
-    return (
-      <ExplorePageUpperContent
-        dataset={props.dataset}
-        pageType={props.pageType}
-        rightTreeVisible={props.rightTreeVisible}
-        sqlSize={props.sqlSize}
-        sqlState={props.sqlState}
-        dragType={EXPLORE_DRAG_TYPE}
-        toggleRightTree={props.toggleRightTree}
-        startDrag={props.startDrag}
-        exploreViewState={this.props.exploreViewState}
-      />
-    );
   }
 
   render() {
@@ -147,8 +187,8 @@ class ExplorePageContentWrapper extends Component {
       : styles.tableViewerStyleFull;
 
     return (
-      <div className='table-parent' style={[styles.base, styles.tableParent, tableViewerStyle]}>
-        {this.renderUpperContent()}
+      <div className={classNames('table-parent', base)} style={tableViewerStyle}>
+        {this.getUpperContent()}
         <div className='table-control-wrap' style={styles.tableControlWrap}>
           {this.getControlsBlock()}
           <SqlErrorSection
@@ -162,18 +202,17 @@ class ExplorePageContentWrapper extends Component {
   }
 }
 
-export default ExplorePageContentWrapper;
+export default connect((state, { location }) => ({
+  entityId: getDatasetEntityId(state, location)
+}))(ExplorePageContentWrapper);
 
 const styles = {
-  base: {
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column'
-  },
   tableControlWrap: {
     display: 'flex',
     flexDirection: 'column',
-    flexGrow: 1
+    flexGrow: 1,
+    background: WHITE,
+    overflowY: 'auto'
   },
   tableViewerStyleShort: {
     width: '100%'

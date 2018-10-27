@@ -35,12 +35,16 @@ import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.VarCharVector;
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 
+import java.time.LocalDate;
+
 class CustomerGenerator extends TpchGenerator {
   public static final int SCALE_BASE = 150_000;
   private static final int ACCOUNT_BALANCE_MIN = -99999;
   private static final int ACCOUNT_BALANCE_MAX = 999999;
   private static final int ADDRESS_AVERAGE_LENGTH = 25;
   private static final int COMMENT_AVERAGE_LENGTH = 73;
+  private static final int YEAR_MIN = 1900;
+  private static final int YEAR_MAX = 2050;
 
   private final RandomAlphaNumeric addressRandom = randomAlphaNumeric(881155353, ADDRESS_AVERAGE_LENGTH);
   private final RandomBoundedInt nationKeyRandom =  randomBoundedInt(1489529863, 0, DISTRIBUTIONS.getNations().size() - 1);;
@@ -48,6 +52,8 @@ class CustomerGenerator extends TpchGenerator {
   private final RandomBoundedInt accountBalanceRandom = randomBoundedInt(298370230, ACCOUNT_BALANCE_MIN, ACCOUNT_BALANCE_MAX);
   private final RandomString marketSegmentRandom = randomString(1140279430, DISTRIBUTIONS.getMarketSegments());
   private final RandomText commentRandom = randomText(1335826707, TEXT_POOL, COMMENT_AVERAGE_LENGTH);
+  private final RandomBoundedInt yearRandom = randomBoundedInt(298370321, YEAR_MIN,
+    YEAR_MAX);
 
   private final BigIntVector customerKey;
   private final BigIntVector nationKey;
@@ -58,6 +64,7 @@ class CustomerGenerator extends TpchGenerator {
   private final VarCharVector phone;
   private final VarCharVector marketSegment;
   private final VarCharVector comment;
+  private final VarCharVector date;
 
   public CustomerGenerator(BufferAllocator allocator, GenerationDefinition def, int partitionIndex, String...includedColumns) {
     super(TpchTable.CUSTOMER, allocator, def, partitionIndex, includedColumns);
@@ -71,6 +78,7 @@ class CustomerGenerator extends TpchGenerator {
     this.accountBalance = int8("c_acctbal");
     this.marketSegment = varChar("c_mktsegment");
     this.comment = varChar("c_comment");
+    this.date = varChar("c_date");
 
     finalizeSetup();
   }
@@ -88,6 +96,7 @@ class CustomerGenerator extends TpchGenerator {
     set(outputIndex, phone, phoneRandom.nextValue(nationKey));
     set(outputIndex, marketSegment, marketSegmentRandom.nextValue());
     set(outputIndex, comment, commentRandom.nextValue());
+    set(outputIndex, date, LocalDate.of(yearRandom.nextValue(),1,1).toString());
   }
 
 }

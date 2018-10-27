@@ -28,13 +28,13 @@ import com.google.common.base.Preconditions;
 public class ReIndexAllStores extends UpgradeTask {
 
   public ReIndexAllStores() {
-    super("Re index all stores", VERSION_106, VERSION_210);
+    super("Re index all stores", VERSION_106, VERSION_210, URGENT_ORDER);
   }
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    Preconditions.checkArgument(context.getKVStoreProvider().get() instanceof LocalKVStoreProvider);
-    final LocalKVStoreProvider localStore = LocalKVStoreProvider.class.cast(context.getKVStoreProvider().get());
+    Preconditions.checkArgument(context.getKVStoreProvider() instanceof LocalKVStoreProvider);
+    final LocalKVStoreProvider localStore = LocalKVStoreProvider.class.cast(context.getKVStoreProvider());
 
     StreamSupport.stream(localStore.spliterator(), false)
         .filter(storeWithId -> storeWithId.getStore() instanceof CoreIndexedStore)

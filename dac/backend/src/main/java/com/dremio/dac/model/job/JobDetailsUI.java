@@ -40,6 +40,7 @@ import com.dremio.service.job.proto.JobStats;
 import com.dremio.service.job.proto.MaterializationSummary;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.job.proto.ResourceSchedulingInfo;
 import com.dremio.service.job.proto.TableDatasetProfile;
 import com.dremio.service.job.proto.TopOperation;
 import com.dremio.service.jobs.Job;
@@ -84,42 +85,44 @@ public class JobDetailsUI {
   private final Boolean resultsAvailable;
   private final MaterializationSummary materializationFor;
   private final AccelerationDetailsUI acceleration;
+  private final ResourceSchedulingUI resourceScheduling;
 
   @JsonCreator
   public JobDetailsUI(
-      @JsonProperty("jobId") JobId jobId,
-      @JsonProperty("queryType") QueryType queryType,
-      @JsonProperty("datasetPathList") List<String> datasetPathList,
-      @JsonProperty("parentsList") List<ParentDatasetInfo> parentsList,
-      @JsonProperty("state") JobState state,
-      @JsonProperty("startTime") Long startTime,
-      @JsonProperty("endTime") Long endTime,
-      @JsonProperty("user") String user,
-      @JsonProperty("jobType") RequestType requestType,
-      @JsonProperty("accelerated") boolean isAccelerated,
-      @JsonProperty("snowflakeAccelerated") boolean snowflakeAccelerated,
-      @JsonProperty("plansConsidered") Integer plansConsidered,
-      @JsonProperty("timeSpentInPlanning") Long timeSpentInPlanning,
-      @JsonProperty("waitInClient") Long waitInClient,
-      @JsonProperty("dataVolume") Long dataVolume,
-      @JsonProperty("outputRecords") Long outputRecords,
-      @JsonProperty("peakMemory") Long peakMemory,
-      @JsonProperty("tableDatasetProfiles") List<TableDatasetProfile> tableDatasetProfiles,
-      @JsonProperty("fsDatasetProfiles") List<FileSystemDatasetProfile> fsDatasetProfiles,
-      @JsonProperty("topOperations") List<TopOperation> topOperations,
-      @JsonProperty("paginationUrl") String paginationUrl,
-      @JsonProperty("attemptDetails") List<AttemptDetailsUI> attemptDetails,
-      @JsonProperty("attemptsSummary") String attemptsSummary,
-      @JsonProperty("downloadUrl") String downloadUrl,
-      @JsonProperty("failureInfo") JobFailureInfo failureInfo,
-      @JsonProperty("sql") String sql,
-      @JsonProperty("description") String description,
-      @JsonProperty("stats") JobStats stats,
-      @JsonProperty("datasetType") DatasetType datasetType,
-      @JsonProperty("datasetVersion") String datasetVersion,
-      @JsonProperty("resultsAvailable") Boolean resultsAvailable,
-      @JsonProperty("materializationFor") MaterializationSummary materializationFor,
-      @JsonProperty("acceleration") AccelerationDetailsUI acceleration) {
+    @JsonProperty("jobId") JobId jobId,
+    @JsonProperty("queryType") QueryType queryType,
+    @JsonProperty("datasetPathList") List<String> datasetPathList,
+    @JsonProperty("parentsList") List<ParentDatasetInfo> parentsList,
+    @JsonProperty("state") JobState state,
+    @JsonProperty("startTime") Long startTime,
+    @JsonProperty("endTime") Long endTime,
+    @JsonProperty("user") String user,
+    @JsonProperty("jobType") RequestType requestType,
+    @JsonProperty("accelerated") boolean isAccelerated,
+    @JsonProperty("snowflakeAccelerated") boolean snowflakeAccelerated,
+    @JsonProperty("plansConsidered") Integer plansConsidered,
+    @JsonProperty("timeSpentInPlanning") Long timeSpentInPlanning,
+    @JsonProperty("waitInClient") Long waitInClient,
+    @JsonProperty("dataVolume") Long dataVolume,
+    @JsonProperty("outputRecords") Long outputRecords,
+    @JsonProperty("peakMemory") Long peakMemory,
+    @JsonProperty("tableDatasetProfiles") List<TableDatasetProfile> tableDatasetProfiles,
+    @JsonProperty("fsDatasetProfiles") List<FileSystemDatasetProfile> fsDatasetProfiles,
+    @JsonProperty("topOperations") List<TopOperation> topOperations,
+    @JsonProperty("paginationUrl") String paginationUrl,
+    @JsonProperty("attemptDetails") List<AttemptDetailsUI> attemptDetails,
+    @JsonProperty("attemptsSummary") String attemptsSummary,
+    @JsonProperty("downloadUrl") String downloadUrl,
+    @JsonProperty("failureInfo") JobFailureInfo failureInfo,
+    @JsonProperty("sql") String sql,
+    @JsonProperty("description") String description,
+    @JsonProperty("stats") JobStats stats,
+    @JsonProperty("datasetType") DatasetType datasetType,
+    @JsonProperty("datasetVersion") String datasetVersion,
+    @JsonProperty("resultsAvailable") Boolean resultsAvailable,
+    @JsonProperty("materializationFor") MaterializationSummary materializationFor,
+    @JsonProperty("acceleration") AccelerationDetailsUI acceleration,
+    @JsonProperty("resourceScheduling") ResourceSchedulingUI resourceScheduling) {
     this.jobId = jobId;
     this.queryType = queryType;
     this.datasetPathList = datasetPathList;
@@ -153,6 +156,7 @@ public class JobDetailsUI {
     this.resultsAvailable = resultsAvailable;
     this.materializationFor = materializationFor;
     this.acceleration = acceleration;
+    this.resourceScheduling = resourceScheduling;
   }
 
   public static JobDetailsUI of(Job job) {
@@ -286,8 +290,21 @@ public class JobDetailsUI {
         datasetVersion,
         resultsAvailable,
         Util.last(attempts).getInfo().getMaterializationFor(),
-        toUI(accelerationDetails)
+        toUI(accelerationDetails),
+        toRUI(attempts.get(0).getInfo().getResourceSchedulingInfo())
     );
+  }
+
+  public static ResourceSchedulingUI toRUI(ResourceSchedulingInfo resourceSchedulingInfo) {
+    if (resourceSchedulingInfo == null) {
+      return null;
+    }
+    return new ResourceSchedulingUI(
+      resourceSchedulingInfo.getQueueId(),
+      resourceSchedulingInfo.getQueueName(),
+      resourceSchedulingInfo.getRuleId(),
+      resourceSchedulingInfo.getRuleName(),
+      resourceSchedulingInfo.getRuleContent());
   }
 
   public JobId getJobId() {
@@ -420,5 +437,9 @@ public class JobDetailsUI {
 
   public boolean isSnowflakeAccelerated() {
     return snowflakeAccelerated;
+  }
+
+  public ResourceSchedulingUI getResourceScheduling() {
+    return resourceScheduling;
   }
 }

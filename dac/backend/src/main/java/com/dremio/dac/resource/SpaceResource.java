@@ -46,6 +46,7 @@ import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
@@ -71,6 +72,7 @@ public class SpaceResource {
 
   private final NamespaceService namespaceService;
   private final DatasetVersionMutator datasetService;
+  private final CollaborationHelper collaborationService;
   private final SpaceName spaceName;
   private final SpacePath spacePath;
 
@@ -78,9 +80,11 @@ public class SpaceResource {
   public SpaceResource(
       NamespaceService namespaceService,
       DatasetVersionMutator datasetService,
+      CollaborationHelper collaborationService,
       @PathParam("spaceName") SpaceName spaceName) {
     this.namespaceService = namespaceService;
     this.datasetService = datasetService;
+    this.collaborationService = collaborationService;
     this.spaceName = spaceName;
     this.spacePath = new SpacePath(spaceName);
   }
@@ -142,11 +146,12 @@ public class SpaceResource {
       datasetPath.getDataset(),
       vds.getSql(),
       vds,
-      datasetService.getJobsCount(datasetPath.toNamespaceKey())
+      datasetService.getJobsCount(datasetPath.toNamespaceKey()),
+      null
     );
   }
 
   protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children) throws DatasetNotFoundException, NamespaceException {
-    return NamespaceTree.newInstance(datasetService, children, SPACE);
+    return NamespaceTree.newInstance(datasetService, children, SPACE, collaborationService);
   }
 }

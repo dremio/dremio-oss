@@ -90,7 +90,6 @@ import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.explain.PrelSequencer;
 import com.dremio.exec.planner.physical.visitor.ComplexToJsonPrelVisitor;
@@ -100,7 +99,6 @@ import com.dremio.exec.planner.physical.visitor.GlobalDictionaryVisitor;
 import com.dremio.exec.planner.physical.visitor.InsertHashProjectVisitor;
 import com.dremio.exec.planner.physical.visitor.InsertLocalExchangeVisitor;
 import com.dremio.exec.planner.physical.visitor.JoinPrelRenameVisitor;
-import com.dremio.exec.planner.physical.visitor.MemoryEstimationVisitor;
 import com.dremio.exec.planner.physical.visitor.RelUniqifier;
 import com.dremio.exec.planner.physical.visitor.SelectionVectorPrelVisitor;
 import com.dremio.exec.planner.physical.visitor.SimpleLimitExchangeRemover;
@@ -117,7 +115,6 @@ import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
 import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValue;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonConverter;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -506,30 +503,6 @@ public class PrelTransformer {
     }
     QueryContext context = config.getContext();
     OptionManager queryOptions = context.getOptions();
-
-    if (context.getPlannerSettings().isMemoryEstimationEnabled()
-        && !MemoryEstimationVisitor.enoughMemory(phyRelNode, queryOptions, context.getActiveEndpoints().size())) {
-      log("Not enough memory for this plan", phyRelNode, logger, null);
-      logger.debug("Re-planning without hash operations.");
-
-      // TODO(DX-5912): disable hash join after merge join is implemented
-      // queryOptions.setOption(OptionValue.createBoolean(OptionValue.OptionType.QUERY,
-      // PlannerSettings.HASHJOIN.getOptionName(), false));
-      queryOptions.setOption(OptionValue.createBoolean(OptionValue.OptionType.QUERY, PlannerSettings.HASHAGG.getOptionName(), false));
-
-      try {
-        final RelNode relNode = transform(config, PlannerType.VOLCANO, PlannerPhase.PHYSICAL, drel, traits, true);
-        phyRelNode = (Prel) relNode.accept(new PrelFinalizer());
-      } catch (RelOptPlanner.CannotPlanException ex) {
-        logger.error(ex.getMessage());
-
-        if(JoinUtils.checkCartesianJoin(drel, new ArrayList<Integer>(), new ArrayList<Integer>(), Lists.<Boolean>newArrayList())) {
-          throw new UnsupportedRelOperatorException("This query cannot be planned possibly due to either a cartesian join or an inequality join");
-        } else {
-          throw ex;
-        }
-      }
-    }
 
     /* The order of the following transformations is important */
     final Stopwatch finalPrelTimer = Stopwatch.createStarted();

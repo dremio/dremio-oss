@@ -23,13 +23,13 @@ import com.google.common.base.Optional;
  * Tool for interacting with the foremen manager.
  */
 public interface ForemenTool {
-  boolean cancel(ExternalId id);
+  boolean cancel(ExternalId id, String reason);
   Optional<QueryProfile> getProfile(ExternalId id);
 
   ForemenTool NO_OP = new ForemenTool(){
 
     @Override
-    public boolean cancel(ExternalId id) {
+    public boolean cancel(ExternalId id, String reason) {
       return false;
     }
 

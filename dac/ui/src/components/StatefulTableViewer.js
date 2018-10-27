@@ -84,7 +84,8 @@ const styles = {
   base: {
     display: 'flex',
     flexDirection: 'column',
-    height: '100%'
+    height: '100%',
+    position: 'relative' // needed for correct positioning of .empty-message
   },
   emptyTable: {
     width: '100%'

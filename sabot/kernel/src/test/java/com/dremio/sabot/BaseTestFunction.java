@@ -80,6 +80,7 @@ public class BaseTestFunction extends BaseTestOperator {
       try {
         validateSingle(p, ProjectOperator.class, input.toGenerator(getTestAllocator()), output, DEFAULT_BATCH);
       } catch(AssertionError | Exception e) {
+        e.printStackTrace();
         throw new RuntimeException("Failure while testing function using code compilation.", e);
       }
 
@@ -124,7 +125,7 @@ public class BaseTestFunction extends BaseTestOperator {
 //
 //  }
 
-  private class FieldExpressionCollector extends AbstractExprVisitor<Void, Void, RuntimeException> {
+  public class FieldExpressionCollector extends AbstractExprVisitor<Void, Void, RuntimeException> {
 
     private Set<String> paths = new HashSet<>();
 

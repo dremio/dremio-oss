@@ -104,7 +104,7 @@ public class JobResource {
   @Produces(APPLICATION_JSON)
   public NotificationResponse cancel(@PathParam("jobId") String jobId) throws JobResourceNotFoundException {
     try {
-      jobsService.cancel(securityContext.getUserPrincipal().getName(), new JobId(jobId));
+      jobsService.cancel(securityContext.getUserPrincipal().getName(), new JobId(jobId), "User Request based Job Cancellation");
       return new NotificationResponse(ResponseType.OK, "Job cancellation requested");
     } catch(JobNotFoundException e) {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);

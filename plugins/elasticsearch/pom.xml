@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugin</groupId>
-    <version>2.1.6-201809161906440178-edb5b4d</version>
+    <version>3.0.0-201810262305460004-5c90d75</version>
   </parent>
 
   <artifactId>dremio-elasticsearch-plugin</artifactId>
@@ -177,7 +177,7 @@
       <plugin>
         <groupId>com.github.alexcojocaru</groupId>
         <artifactId>elasticsearch-maven-plugin</artifactId>
-        <version>6.5</version>
+        <version>${tests.elasticsearch.mvn.plugin.version}</version>
         <configuration>
           <version>${tests.elasticsearch.api.version}</version>
           <clusterName>test</clusterName>

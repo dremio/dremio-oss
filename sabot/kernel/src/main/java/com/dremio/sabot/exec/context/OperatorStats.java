@@ -299,6 +299,10 @@ public class OperatorStats {
     longMetrics.put(metric.metricId(), value);
   }
 
+  public long getLongStat(MetricDef metric){
+    return longMetrics.get(metric.metricId());
+  }
+
   public void setDoubleStat(MetricDef metric, double value){
     doubleMetrics.put(metric.metricId(), value);
   }

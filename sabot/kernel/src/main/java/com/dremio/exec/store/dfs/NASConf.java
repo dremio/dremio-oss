@@ -24,6 +24,7 @@ import org.hibernate.validator.constraints.NotBlank;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
+import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
@@ -32,7 +33,7 @@ import com.google.common.collect.ImmutableList;
 import io.protostuff.Tag;
 
 @SourceType("NAS")
-public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin> {
+public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin<NASConf>> {
 
   // optional string path = 1;
 
@@ -40,6 +41,11 @@ public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin> {
   @Tag(1)
   @DisplayMetadata(label = "Mount Path")
   public String path;
+
+  @Tag(2)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable exports into the source (CTAS and DROP)")
+  public boolean allowCreateDrop;
 
   @Override
   public Path getPath() {
@@ -63,12 +69,12 @@ public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin> {
 
   @Override
   public SchemaMutability getSchemaMutability() {
-    return SchemaMutability.NONE;
+    return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
   }
 
   @Override
-  public FileSystemPlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new FileSystemPlugin(this, context, name, null, pluginIdProvider);
+  public FileSystemPlugin<NASConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+    return new FileSystemPlugin<>(this, context, name, null, pluginIdProvider);
   }
 
 

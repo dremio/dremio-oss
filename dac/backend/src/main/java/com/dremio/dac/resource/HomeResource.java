@@ -69,6 +69,7 @@ import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.model.namespace.NamespaceTree;
+import com.dremio.dac.model.sources.FormatTools;
 import com.dremio.dac.model.spaces.Home;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
@@ -76,6 +77,7 @@ import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.InputValidation;
 import com.dremio.dac.server.UIOptions;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
@@ -124,6 +126,7 @@ public class HomeResource {
   private final DatasetVersionMutator datasetService;
   private final SecurityContext securityContext;
   private final JobsService jobsService;
+  private final CollaborationHelper collaborationService;
   private final HomeName homeName;
   private final HomePath homePath;
   private final DatasetsResource datasetsResource;
@@ -131,6 +134,7 @@ public class HomeResource {
   private final CatalogServiceHelper catalogServiceHelper;
   private final Catalog catalog;
   private final SabotContext sabotContext;
+  private final FormatTools formatTools;
 
   @Inject
   public HomeResource(
@@ -143,18 +147,22 @@ public class HomeResource {
     CatalogServiceHelper catalogServiceHelper,
     Catalog catalog,
     SabotContext sabotContext,
+    CollaborationHelper collaborationService,
+    FormatTools formatTools,
     @PathParam("homeName") HomeName homeName) {
     this.namespaceService = namespaceService;
     this.datasetService = datasetService;
     this.securityContext = securityContext;
     this.jobsService = jobsService;
     this.datasetsResource = datasetsResource;
+    this.collaborationService = collaborationService;
     this.homeName = homeName;
     this.homePath = new HomePath(homeName);
     this.fileStore = fileStore;
     this.catalogServiceHelper = catalogServiceHelper;
     this.catalog = catalog;
     this.sabotContext = sabotContext;
+    this.formatTools = formatTools;
   }
 
   protected Dataset newDataset(DatasetResourcePath resourcePath,
@@ -163,12 +171,12 @@ public class HomeResource {
       String sql,
       VirtualDatasetUI datasetConfig,
       int jobCount) {
-    return Dataset.newInstance(resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, jobCount);
+    return Dataset.newInstance(resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, jobCount, null);
   }
 
   protected File newFile(String id, NamespacePath filePath, FileFormat fileFormat, Integer jobCount,
       boolean isStaged, boolean isHomeFile, boolean isQueryable, DatasetType datasetType) throws Exception {
-    return File.newInstance(id, filePath, fileFormat, jobCount, isStaged, isHomeFile, isQueryable);
+    return File.newInstance(id, filePath, fileFormat, jobCount, isStaged, isHomeFile, isQueryable, null);
   }
 
   protected Folder newFolder(FolderPath folderPath, FolderConfig folderConfig, NamespaceTree contents) throws NamespaceNotFoundException {
@@ -180,7 +188,7 @@ public class HomeResource {
   }
 
   protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children) throws DatasetNotFoundException, NamespaceException {
-    return NamespaceTree.newInstance(datasetService, children, HOME);
+    return NamespaceTree.newInstance(datasetService, children, HOME, collaborationService);
   }
 
   @GET
@@ -312,12 +320,30 @@ public class HomeResource {
   @Consumes(MediaType.APPLICATION_JSON)
   public JobDataFragment previewFormatSettingsStaging(FileFormat fileFormat, @PathParam("path") String path)
     throws FileNotFoundException, SourceNotFoundException {
+
     FilePath filePath = FilePath.fromURLPath(homeName, path);
-    logger.info("filePath: " + filePath.toPathString());
+    logger.debug("filePath: " + filePath.toPathString());
     // use file's location directly to query file
     String fileLocation = PathUtils.toDottedPath(new org.apache.hadoop.fs.Path(fileFormat.getLocation()));
     SqlQuery query = new SqlQuery(format("select * from table(%s.%s (%s)) limit 500",
         SqlUtils.quoteIdentifier(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), fileLocation, fileFormat.toTableOptions()), securityContext.getUserPrincipal().getName());
+    JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .setQueryType(QueryType.UI_INITIAL_PREVIEW)
+        .build(), NoOpJobStatusListener.INSTANCE));
+    return job.getData().truncate(500);
+  }
+
+  @POST
+  @Path("file_preview/{path: .*}")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.APPLICATION_JSON)
+  public JobDataFragment previewFormatSettings(FileFormat fileFormat, @PathParam("path") String path)
+      throws FileNotFoundException, SourceNotFoundException {
+    FilePath filePath = FilePath.fromURLPath(homeName, path);
+    logger.debug("filePath: " + filePath.toPathString());
+    // TODO, this should be moved to dataset resource and be paginated.
+    SqlQuery query = new SqlQuery(format("select * from table(%s (%s)) limit 500", filePath.toPathString(), fileFormat.toTableOptions()), securityContext.getUserPrincipal().getName());
     JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
         .setSqlQuery(query)
         .setQueryType(QueryType.UI_INITIAL_PREVIEW)
@@ -413,22 +439,6 @@ public class HomeResource {
     return new FileFormatUI(FileFormat.getForFile(newConfig), filePath);
   }
 
-  @POST
-  @Path("file_preview/{path: .*}")
-  @Produces(MediaType.APPLICATION_JSON)
-  @Consumes(MediaType.APPLICATION_JSON)
-  public JobDataFragment previewFormatSettings(FileFormat fileFormat, @PathParam("path") String path)
-      throws FileNotFoundException, SourceNotFoundException {
-    FilePath filePath = FilePath.fromURLPath(homeName, path);
-    logger.info("filePath: " + filePath.toPathString());
-    // TODO, this should be moved to dataset resource and be paginated.
-    SqlQuery query = new SqlQuery(format("select * from table(%s (%s)) limit 500", filePath.toPathString(), fileFormat.toTableOptions()), securityContext.getUserPrincipal().getName());
-    JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(query)
-        .setQueryType(QueryType.UI_INITIAL_PREVIEW)
-        .build(), NoOpJobStatusListener.INSTANCE));
-    return job.getData().truncate(500);
-  }
 
   @GET
   @Path("/folder/{path: .*}")

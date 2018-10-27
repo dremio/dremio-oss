@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
-import javax.inject.Provider;
-
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
@@ -26,29 +24,22 @@ import com.dremio.exec.catalog.ConnectionReader;
  */
 public class UpgradeContext {
 
-  private final Provider<KVStoreProvider> kvStoreProvider;
+  private final KVStoreProvider kvStoreProvider;
   private final LogicalPlanPersistence lpPersistence;
   private final ConnectionReader connectionReader;
 
-  private final UpgradeStats stats;
-
-  UpgradeContext(Provider<KVStoreProvider> kvStoreProvider, LogicalPlanPersistence lpPersistence, ConnectionReader connectionReader) {
+  UpgradeContext(KVStoreProvider kvStoreProvider, LogicalPlanPersistence lpPersistence, ConnectionReader connectionReader) {
     this.kvStoreProvider = kvStoreProvider;
     this.lpPersistence = lpPersistence;
     this.connectionReader = connectionReader;
-    stats = new UpgradeStats();
   }
 
-  public Provider<KVStoreProvider> getKVStoreProvider() {
+  public KVStoreProvider getKVStoreProvider() {
     return kvStoreProvider;
   }
 
   public LogicalPlanPersistence getLpPersistence() {
     return lpPersistence;
-  }
-
-  public UpgradeStats getUpgradeStats() {
-    return stats;
   }
 
   public ConnectionReader getConnectionReader() {

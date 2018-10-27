@@ -19,7 +19,8 @@ import * as ActionTypes from 'actions/search';
 
 const initialState = Immutable.fromJS({
   searchDatasets: [],
-  hideRequest: true
+  hideRequest: true,
+  searchText: null // string
 });
 
 export default function search(state = initialState, action) {
@@ -30,6 +31,10 @@ export default function search(state = initialState, action) {
   case ActionTypes.HIDE_BAR_REQUEST:
     return state.set('hideRequest', true);
 
+  case ActionTypes.NEW_SEARCH_REQUEST:
+    return state.set('searchText', action.text);
+  case ActionTypes.NEW_SEARCH_REQUEST_CLEANUP:
+    return state.delete('searchText');
   default:
     return state;
   }

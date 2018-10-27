@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.Iterator;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.EvaluationType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
@@ -27,9 +28,27 @@ public class HoldingContainerExpression implements LogicalExpression{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HoldingContainerExpression.class);
 
   final HoldingContainer container;
+  private final EvaluationType evaluationType;
 
   public HoldingContainerExpression(HoldingContainer container) {
     this.container = container;
+    this.evaluationType = new EvaluationType();
+    addEvaluationType(EvaluationType.ExecutionType.JAVA);
+  }
+
+  @Override
+  public boolean isEvaluationTypeSupported(EvaluationType.ExecutionType executionType) {
+    return evaluationType.isEvaluationTypeSupported(executionType);
+  }
+
+  @Override
+  public void addEvaluationType(EvaluationType.ExecutionType executionType) {
+    evaluationType.addEvaluationType(executionType);
+  }
+
+  @Override
+  public EvaluationType getEvaluationType() {
+    return evaluationType;
   }
 
   @Override

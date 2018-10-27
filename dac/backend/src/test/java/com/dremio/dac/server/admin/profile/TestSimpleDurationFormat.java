@@ -61,5 +61,15 @@ public class TestSimpleDurationFormat {
   public void testCompactManyDayHourMin() {
     validateDurationFormat(45453420 + 20*86400000, "20d12h37m");
   }
+
+  @Test
+  public void testFormatNanos() {
+    assertEquals("123us", SimpleDurationFormat.formatNanos(123456));
+    assertEquals("456ns", SimpleDurationFormat.formatNanos(456));
+    assertEquals("825ms", SimpleDurationFormat.formatNanos(825435267));
+    assertEquals("1.825s", SimpleDurationFormat.formatNanos(1825435267));
+    assertEquals("30m45s", SimpleDurationFormat.formatNanos(1845825435267L));
+    assertEquals("1h20m", SimpleDurationFormat.formatNanos(4845825435267L));
+  }
 }
 

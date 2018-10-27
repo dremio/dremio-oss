@@ -52,23 +52,52 @@ import io.netty.util.concurrent.GenericFutureListener;
  * The Rpc Bus deals with incoming and outgoing communication and is used on both the server and the client side of a
  * system.
  *
- * @param <T>
+ * @param <T> rpc type
+ * @param <C> connection type
  */
 public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> implements Closeable {
   final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
 
+  protected static final String PROTOCOL_ENCODER = "protocol-encoder";
+  protected static final String HANDSHAKE_HANDLER = "handshake-handler";
+  protected static final String MESSAGE_HANDLER = "message-handler";
+  protected static final String EXCEPTION_HANDLER = "exception-handler";
+
   private static final OutboundRpcMessage PONG = new OutboundRpcMessage(RpcMode.PONG, 0, 0, Acks.OK);
-  private static final boolean ENABLE_SEPARATE_THREADS = "true".equals(System.getProperty("dremio.enable_rpc_offload", "false"));
+  private static final boolean ENABLE_SEPARATE_THREADS =
+      "true".equals(System.getProperty("dremio.enable_rpc_offload", "false"));
 
   public static final long RPC_DELAY_WARNING_THRESHOLD =
       Integer.parseInt(System.getProperty("dremio.exec.rpcDelayWarning", "500"));
 
+  /**
+   * Return default instance for the given rpc value.
+   *
+   * @param rpcType rpc value
+   * @return default instance
+   * @throws RpcException if rpc value is not supported
+   */
   protected abstract MessageLite getResponseDefaultInstance(int rpcType) throws RpcException;
 
-  protected void handle(C connection, int rpcType, byte[] pBody, ByteBuf dBody, ResponseSender sender) throws RpcException{
+  protected void handle(C connection, int rpcType, byte[] pBody, ByteBuf dBody, ResponseSender sender)
+      throws RpcException {
     sender.send(handle(connection, rpcType, pBody, dBody));
   }
 
+  /**
+   * Process the inbound {@param pBody message} of {@param rpcType} from {@param connection peer connection}, and
+   * return a response. The message may have {@param dBody data payload}.
+   *
+   * @param connection connection
+   * @param rpcType    rpc type
+   * @param pBody      protobuf body
+   * @param dBody      data body
+   * @return response
+   * @throws RpcException if there is an error in handling the request. If a {@link UserRpcException} is thrown,
+   *                      the error message will be conveyed to the peer. If an {@link Exception} is thrown,
+   *                      the error maybe conveyed to the peer. Any other {@link Throwable} will cause the connection
+   *                      to be dropped (see {@link RpcExceptionHandler}).
+   */
   protected abstract Response handle(C connection, int rpcType, byte[] pBody, ByteBuf dBody) throws RpcException;
 
   protected final RpcConfig rpcConfig;
@@ -81,24 +110,39 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
         .histogram(rpcConfig.getName() + "-send-durations-ms");
   }
 
-  <SEND extends MessageLite, RECEIVE extends MessageLite> RpcFuture<RECEIVE> send(C connection, T rpcType,
-      SEND protobufBody, Class<RECEIVE> clazz, ByteBuf... dataBodies) {
+  <SEND extends MessageLite, RECEIVE extends MessageLite>
+  RpcFuture<RECEIVE> send(C connection, T rpcType, SEND protobufBody, Class<RECEIVE> clazz, ByteBuf... dataBodies) {
     RpcFutureImpl<RECEIVE> rpcFuture = new RpcFutureImpl<>();
     this.send(rpcFuture, connection, rpcType, protobufBody, clazz, dataBodies);
     return rpcFuture;
   }
 
-  public <SEND extends MessageLite, RECEIVE extends MessageLite> void send(RpcOutcomeListener<RECEIVE> listener, C connection, T rpcType,
-      SEND protobufBody, Class<RECEIVE> clazz, ByteBuf... dataBodies) {
+  public <SEND extends MessageLite, RECEIVE extends MessageLite>
+  void send(RpcOutcomeListener<RECEIVE> listener, C connection, T rpcType, SEND protobufBody, Class<RECEIVE> clazz,
+            ByteBuf... dataBodies) {
     send(listener, connection, rpcType, protobufBody, clazz, false, dataBodies);
   }
 
-  public <SEND extends MessageLite, RECEIVE extends MessageLite> void send(RpcOutcomeListener<RECEIVE> listener, C connection, T rpcType,
+  /**
+   * Send a {@param protobufBody message} of {@param rpcType} to the peer over the given {@param connection}, and
+   * register a {@param listener} that will be invoked when the peer responds to the message. The message may include
+   * {@param dataBodies} as additional load.
+   *
+   * @param listener         listener to invoke on response to this message
+   * @param connection       connection
+   * @param rpcType          request message type
+   * @param protobufBody     request message to send
+   * @param clazz            response message type
+   * @param allowInEventLoop if the message can be sent in the rpc thread
+   * @param dataBodies       data bodies
+   * @param <SEND>           request proto type
+   * @param <RECEIVE>        response proto type
+   */
+  public <SEND extends MessageLite, RECEIVE extends MessageLite>
+  void send(RpcOutcomeListener<RECEIVE> listener, C connection, T rpcType,
       SEND protobufBody, Class<RECEIVE> clazz, boolean allowInEventLoop, ByteBuf... dataBodies) {
-    Preconditions
-        .checkArgument(
-            allowInEventLoop || !connection.inEventLoop(),
-            "You attempted to send while inside the rpc event thread.  This isn't allowed because sending will block if the channel is backed up.");
+    Preconditions.checkArgument(allowInEventLoop || !connection.inEventLoop(),
+        "You attempted to send while inside the rpc event thread. This isn't allowed because sending will block if the channel is backed up.");
 
     boolean completed = false;
 
@@ -161,8 +205,15 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
 
   }
 
-  protected ChannelFutureListener getCloseHandler(SocketChannel channel, C clientConnection) {
-    return new ChannelClosedHandler(clientConnection, channel);
+  /**
+   * Create a listener to listen to channel close event.
+   *
+   * @param channel    channel
+   * @param connection connection
+   * @return channel close listener
+   */
+  protected ChannelFutureListener newCloseListener(SocketChannel channel, C connection) {
+    return new ChannelClosedHandler(connection, channel);
   }
 
 
@@ -218,7 +269,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
       }
     }
 
-    void sendFailure(UserRpcException e){
+    public void sendFailure(UserRpcException e){
       sendFailure(e, true);
     }
 

@@ -35,6 +35,7 @@ import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
+import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.record.NamespaceUpdater;
@@ -53,6 +54,8 @@ import com.dremio.sabot.exec.ExecToCoordTunnelCreator;
 import com.dremio.sabot.exec.FragmentWorkManager.ExecConnectionCreator;
 import com.dremio.sabot.exec.QueriesClerk;
 import com.dremio.sabot.exec.QueriesClerk.FragmentTicket;
+import com.dremio.sabot.exec.QueryStarter;
+import com.dremio.sabot.exec.QueryTicket;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.exec.context.FragmentStats;
@@ -62,6 +65,7 @@ import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.threads.sharedres.SharedResourceManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.spill.SpillService;
 import com.google.common.base.Preconditions;
 
 /**
@@ -92,6 +96,7 @@ public class FragmentExecutorBuilder {
   private final CatalogService sources;
   private final ContextInformationFactory contextInformationFactory;
   private final NodeDebugContextProvider nodeDebugContextProvider;
+  private final SpillService spillService;
 
   public FragmentExecutorBuilder(
       QueriesClerk clerk,
@@ -108,6 +113,7 @@ public class FragmentExecutorBuilder {
       ContextInformationFactory contextInformationFactory,
       FunctionImplementationRegistry functions,
       NodeDebugContextProvider nodeDebugContextProvider,
+      SpillService spillService,
       Set<ClusterCoordinator.Role> roles) {
     this.clerk = clerk;
     this.config = config;
@@ -126,9 +132,23 @@ public class FragmentExecutorBuilder {
     this.sources = sources;
     this.contextInformationFactory = contextInformationFactory;
     this.nodeDebugContextProvider = nodeDebugContextProvider;
+    this.spillService = spillService;
   }
 
-  public FragmentExecutor build(PlanFragment fragment, EventProvider eventProvider) throws Exception {
+  /**
+   * Obtains a query ticket, then starts the query with this query ticket
+   *
+   * The query might be built and started in the calling thread, *or*, it might be built and started by a worker thread
+   */
+  public void buildAndStartQuery(final PlanFragment firstFragment, final SchedulingInfo schedulingInfo,
+                                 final QueryStarter queryStarter) {
+    clerk.buildAndStartQuery(firstFragment, schedulingInfo, queryStarter);
+  }
+
+  public FragmentExecutor build(final QueryTicket queryTicket,
+                                final PlanFragment fragment,
+                                final EventProvider eventProvider,
+                                final SchedulingInfo schedulingInfo) throws Exception {
 
     final AutoCloseableList services = new AutoCloseableList();
 
@@ -145,7 +165,7 @@ public class FragmentExecutorBuilder {
       }
 
       final FragmentHandle handle = fragment.getHandle();
-      final FragmentTicket ticket = services.protect(clerk.newFragmentTicket(fragment));
+      final FragmentTicket ticket = services.protect(clerk.newFragmentTicket(queryTicket, fragment, schedulingInfo));
       logger.debug("Getting initial memory allocation of {}", fragment.getMemInitial());
       logger.debug("Fragment max allocation: {}", fragment.getMemMax());
 
@@ -196,6 +216,7 @@ public class FragmentExecutorBuilder {
           namespace,
           fragmentOptions,
           executorService,
+          spillService,
           contextInfo,
           nodeDebugContextProvider);
 
@@ -225,7 +246,8 @@ public class FragmentExecutorBuilder {
           ticket,
           sources,
           exception,
-          eventProvider
+          eventProvider,
+          spillService
           );
 
       commit.commit();

@@ -17,6 +17,7 @@ package com.dremio.sabot.rpc;
 
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
 
 /**
@@ -24,7 +25,10 @@ import com.dremio.exec.rpc.RpcException;
  */
 public interface CoordToExecHandler {
 
-  void startFragments(InitializeFragments fragments) throws RpcException;
+  /**
+   * Start the fragments, then send an OK response through the sender
+   */
+  void startFragments(InitializeFragments fragments, ResponseSender sender) throws RpcException;
 
   void cancelFragment(FragmentHandle fragments) throws RpcException;
 }

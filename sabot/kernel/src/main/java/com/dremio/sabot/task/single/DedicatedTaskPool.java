@@ -21,6 +21,9 @@ import java.util.concurrent.Executors;
 import com.dremio.config.DremioConfig;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.task.AsyncTaskWrapper;
+import com.dremio.sabot.task.GroupManager;
+import com.dremio.sabot.task.SchedulingGroup;
+import com.dremio.sabot.task.TaskManager;
 import com.dremio.sabot.task.TaskPool;
 import com.dremio.sabot.task.TaskPoolFactory;
 
@@ -54,5 +57,28 @@ public class DedicatedTaskPool implements TaskPool {
     executorService.shutdownNow();
   }
 
+  @Override
+  public GroupManager<AsyncTaskWrapper> getGroupManager() {
+    return DUMMY_GROUP_MANAGER;
+  }
 
+  /**
+   * Dummy implementation of {@link GroupManager}
+   */
+  public static final GroupManager<AsyncTaskWrapper> DUMMY_GROUP_MANAGER = weight -> new DummySchedulingGroup();
+
+  /**
+   * Dummy implementation of {@link SchedulingGroup} that throws {@link IllegalStateException}
+   */
+  private static class DummySchedulingGroup implements SchedulingGroup<AsyncTaskWrapper> {
+    @Override
+    public SchedulingGroup<AsyncTaskWrapper> addGroup(long weight) {
+      throw new IllegalStateException("Shouldn't be called with DedicatedTaskPool");
+    }
+
+    @Override
+    public TaskManager.TaskHandle<AsyncTaskWrapper> addTask(AsyncTaskWrapper asyncTaskWrapper, long weight) {
+      throw new IllegalStateException("Shouldn't be called with DedicatedTaskPool");
+    }
+  }
 }

@@ -51,6 +51,8 @@ public class Dataset implements AddressableResource {
 
   private final HistoryItem lastHistoryItem;
 
+  private final List<String> tags;
+
   @JsonCreator
   public Dataset(
       @JsonProperty("id") String id,
@@ -60,7 +62,8 @@ public class Dataset implements AddressableResource {
       @JsonProperty("sql") String sql,
       @JsonProperty("datasetConfig") VirtualDatasetUI datasetConfig,
       @JsonProperty("lastHistoryItem") HistoryItem lastHistoryItem,
-      @JsonProperty(value = "jobCount", defaultValue = "0") int jobCount) {
+      @JsonProperty(value = "jobCount", defaultValue = "0") int jobCount,
+      @JsonProperty("tags") List<String> tags) {
     this.id = id;
     this.resourcePath = resourcePath;
     this.versionedResourcePath = versionedResourcePath;
@@ -69,17 +72,19 @@ public class Dataset implements AddressableResource {
     this.datasetConfig = datasetConfig;
     this.lastHistoryItem = lastHistoryItem;
     this.jobCount = jobCount;
+    this.tags = tags;
   }
 
   public static Dataset newInstance(
-      DatasetResourcePath resourcePath,
-      DatasetVersionResourcePath versionedResourcePath,
-      DatasetName datasetName,
-      String sql,
-      VirtualDatasetUI datasetConfig,
-      int jobCount) {
+    DatasetResourcePath resourcePath,
+    DatasetVersionResourcePath versionedResourcePath,
+    DatasetName datasetName,
+    String sql,
+    VirtualDatasetUI datasetConfig,
+    int jobCount,
+    List<String> tags) {
     // The history item is populated only after transform
-    return new Dataset(datasetConfig.getId(), resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, null, jobCount);
+    return new Dataset(datasetConfig.getId(), resourcePath, versionedResourcePath, datasetName, sql, datasetConfig, null, jobCount, tags);
   }
 
   public int getJobCount() {
@@ -109,6 +114,10 @@ public class Dataset implements AddressableResource {
 
   public String getId() {
     return id;
+  }
+
+  public List<String> getTags() {
+    return tags;
   }
 
   /**

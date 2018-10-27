@@ -27,13 +27,20 @@ public class VariableBlockVector implements AutoCloseable {
 
   private final BufferAllocator allocator;
   private final int fieldCount;
+  private final boolean allowExpansion;
   private ArrowBuf buf;
 
   public VariableBlockVector(BufferAllocator allocator, int fieldCount) {
-    super();
+    this(allocator, fieldCount, 0, true);
+  }
+
+  public VariableBlockVector(BufferAllocator allocator, int fieldCount, int initialSizeInBytes, boolean allowExpansion) {
     this.allocator = allocator;
     this.fieldCount = fieldCount;
+    this.allowExpansion = allowExpansion;
     this.buf = allocator.buffer(0);
+    resizeBuffer(initialSizeInBytes);
+    reset();
   }
 
   public long getMemoryAddress(){
@@ -54,16 +61,25 @@ public class VariableBlockVector implements AutoCloseable {
    * @return true if the buffer was expanded (meaning one needs to reread the memory address).
    */
   public boolean ensureAvailableDataSpace(int sizeInBytes){
+    if (!allowExpansion) {
+      throw new RuntimeException("This buffer has fixed capacity. Not allowed to expand");
+    }
+
     if(buf.capacity() < sizeInBytes){
-      int targetSize = Numbers.nextPowerOfTwo(sizeInBytes);
-      final ArrowBuf oldBuf = buf;
-      buf = allocator.buffer(targetSize);
-      PlatformDependent.copyMemory(oldBuf.memoryAddress(), buf.memoryAddress(), oldBuf.capacity());
-      oldBuf.release();
+      resizeBuffer(sizeInBytes);
       return true;
     }
 
     return false;
+  }
+
+  private void resizeBuffer(int sizeInBytes) {
+    int targetSize = Numbers.nextPowerOfTwo(sizeInBytes);
+    final ArrowBuf oldBuf = buf;
+    buf = allocator.buffer(targetSize);
+    PlatformDependent.copyMemory(oldBuf.memoryAddress(), buf.memoryAddress(), oldBuf.capacity());
+    buf.writerIndex(oldBuf.writerIndex());
+    oldBuf.release();
   }
 
   @VisibleForTesting
@@ -79,4 +95,17 @@ public class VariableBlockVector implements AutoCloseable {
     }
   }
 
+  public void reset() {
+    buf.readerIndex(0);
+    buf.writerIndex(0);
+    buf.setZero(0, buf.capacity());
+  }
+
+  int getCapacity() {
+    return buf != null ? buf.capacity() : 0;
+  }
+
+  public int getBufferLength() {
+    return buf.writerIndex();
+  }
 }

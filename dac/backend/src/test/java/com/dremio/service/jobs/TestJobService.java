@@ -66,6 +66,7 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.job.proto.ResourceSchedulingInfo;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
@@ -201,7 +202,9 @@ public class TestJobService extends BaseTestServer {
             .setSpace(space)
             .setStartTime(start)
             .setFinishTime(end)
-            .setQueryType(queryType);
+            .setQueryType(queryType)
+            .setResourceSchedulingInfo(new ResourceSchedulingInfo().setQueueName("SMALL")
+                                                                    .setRuleName("ruleSmall"));
 
     final JobAttempt jobAttempt =
         new JobAttempt()

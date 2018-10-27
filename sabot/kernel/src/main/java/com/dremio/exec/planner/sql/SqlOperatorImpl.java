@@ -19,6 +19,7 @@ package com.dremio.exec.planner.sql;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
@@ -57,7 +58,9 @@ public class SqlOperatorImpl extends SqlFunction {
 
   public SqlOperatorImpl(String name, int argCountMin, int argCountMax, boolean isDeterministic,
       boolean isDynamic, SqlReturnTypeInference sqlReturnTypeInference, SqlSyntax syntax) {
-    super(new SqlIdentifier(name, SqlParserPos.ZERO),
+    super(name,
+        null,
+        SqlKind.OTHER_FUNCTION,
         sqlReturnTypeInference,
         null,
         Checker.getChecker(argCountMin, argCountMax),

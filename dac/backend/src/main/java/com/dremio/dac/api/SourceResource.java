@@ -18,6 +18,7 @@ package com.dremio.dac.api;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.util.List;
+import java.util.Optional;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
@@ -36,12 +37,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.service.errors.ServerErrorException;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.namespace.NamespaceException;
@@ -171,14 +172,12 @@ public class SourceResource {
   @RolesAllowed("admin")
   @Path("/type")
   public ResponseList<SourceTypeTemplate> getSourceTypes() {
+    final ConnectionReader connectionReader = sabotContext.getConnectionReaderProvider().get();
     final ResponseList<SourceTypeTemplate> types = new ResponseList<>();
-    final ScanResult classpathScan = sabotContext.getClasspathScan();
 
-    for(Class<?> input : classpathScan.getAnnotatedClasses(SourceType.class)) {
-      SourceType type = input.getAnnotation(SourceType.class);
-
+    for(Class<? extends ConnectionConf<?, ?>> input : connectionReader.getAllConnectionConfs().values()) {
       // we can't use isInternal as its not a static method, instead we only list configurable sources
-      if (type.configurable()) {
+      if (isConfigurable(input)) {
         types.add(SourceTypeTemplate.fromSourceClass(input, false));
       }
     }
@@ -191,16 +190,17 @@ public class SourceResource {
   @RolesAllowed("admin")
   @Path("/type/{name}")
   public SourceTypeTemplate getSourceByType(@PathParam("name") String name) {
-    ScanResult classpathScan = sabotContext.getClasspathScan();
+    final ConnectionReader connectionReader = sabotContext.getConnectionReaderProvider().get();
+    Optional<Class<? extends ConnectionConf<?, ?>>> connectionConf = Optional.ofNullable(connectionReader.getAllConnectionConfs().get(name));
+    return connectionConf
+        .filter(this::isConfigurable)
+        .map(sourceClass -> SourceTypeTemplate.fromSourceClass(sourceClass, true))
+        .orElseThrow(() -> new NotFoundException(String.format("Could not find source of type [%s]", name)));
+  }
 
-    for(Class<?> input : classpathScan.getAnnotatedClasses(SourceType.class)) {
-      SourceType type = input.getAnnotation(SourceType.class);
-      if (type.configurable() && type.value().equals(name)) {
-        return SourceTypeTemplate.fromSourceClass(input, true);
-      }
-    }
-
-    throw new NotFoundException(String.format("Could not find source of type [%s]", name));
+  private boolean isConfigurable(Class<? extends ConnectionConf<?, ?>> clazz) {
+    SourceType type = clazz.getAnnotation(SourceType.class);
+    return type != null && type.configurable();
   }
 
   @VisibleForTesting

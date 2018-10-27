@@ -42,11 +42,15 @@ import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.model.namespace.NamespaceTree;
+import com.dremio.dac.model.sources.FormatTools;
 import com.dremio.dac.model.sources.PhysicalDataset;
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
+import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
@@ -61,6 +65,7 @@ import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
 import com.dremio.service.namespace.file.proto.XlsFileConfig;
+import com.google.common.base.Charsets;
 
 /**
  * Tests to create, update and execute queries on physical datasets..
@@ -77,6 +82,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
       SourceUI source = new SourceUI();
       source.setName("dacfs_test");
       source.setConfig(nas);
+      source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
       sourceService.registerSourceWithRuntime(source);
 //      namespaceService.addOrUpdateSource(new SourcePath(new SourceName(nas.getName())).toNamespaceKey(), nas.asSourceConfig());
     }
@@ -231,7 +237,6 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testCommaSeparatedCsvTrimHeader() throws Exception {
-    final JobsService jobsService = l(JobsService.class);
     TextFileConfig fileConfig = new TextFileConfig();
     fileConfig.setFieldDelimiter(",");
     // we set the wrong delimiter to test the header trimming
@@ -253,6 +258,16 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertEquals(3, data2.getColumns().size());
     // with header trimming turned off, we should see the \r character
     assertEquals("address\r", data2.getColumns().get(2).getName());
+  }
+
+  @Test
+  public void testSchemaChangeExit() throws Exception {
+    String fileUrlPath = getUrlPath("/datasets/schemachange");
+    JsonFileConfig jsonFileConfig = new JsonFileConfig();
+    doc("preview json source file");
+    JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_preview" + fileUrlPath)).buildPost(Entity.json(jsonFileConfig)), JobDataFragment.class);
+    assertEquals(1, data.getReturnedRowCount());
+    assertEquals(1, data.getColumns().size());
   }
 
   @Test
@@ -411,13 +426,37 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertEquals(0, (long) ns.getFiles().get(2).getJobCount());
   }
 
+
+  @Test
+  public void testTsvDetect() throws Exception {
+    populateInitialData();
+
+    File folder1 = new File(getPopulator().getPath().toFile(), "tmp/_dac2/folderTSV");
+    Files.createDirectories(folder1.toPath());
+    Files.write(new File(folder1, "file.tsv").toPath(), "a\tf\nc\td".getBytes(Charsets.UTF_8));
+    String folderFormatUrl = "/source/LocalFS1/file_format/tmp/_dac2/folderTSV/file.tsv";
+    FileFormatUI defaultFormat = expectSuccess(getBuilder(getAPIv2().path(folderFormatUrl)).buildGet(), FileFormatUI.class);
+    assertEquals(FileType.TEXT, defaultFormat.getFileFormat().getFileType());
+    assertEquals(false, defaultFormat.getFileFormat().getIsFolder());
+    assertEquals(folderFormatUrl, defaultFormat.getLinks().get("self"));
+  }
+
+
   @Test
   public void testPhysicalDatasetSourceFolders() throws Exception {
     populateInitialData();
 
-    Files.createDirectories(new File(getPopulator().getPath().toFile(), "tmp/_dac/folder1").toPath());
-    Files.createDirectories(new File(getPopulator().getPath().toFile(), "tmp/_dac/folder2").toPath());
-    Files.createDirectories(new File(getPopulator().getPath().toFile(), "tmp/_dac/folder3").toPath());
+    File folder1 = new File(getPopulator().getPath().toFile(), "tmp/_dac/folder1");
+    Files.createDirectories(folder1.toPath());
+    Files.write(new File(folder1, "file.txt").toPath(), "a|f\nc|d".getBytes(Charsets.UTF_8));
+
+    File folder2 = new File(getPopulator().getPath().toFile(), "tmp/_dac/folder2");
+    Files.createDirectories(folder2.toPath());
+    Files.write(new File(folder2, "file.txt").toPath(), "a|f\nc|d".getBytes(Charsets.UTF_8));
+
+    File folder3 = new File(getPopulator().getPath().toFile(), "tmp/_dac/folder3");
+    Files.createDirectories(folder3.toPath());
+    Files.write(new File(folder3, "file.txt").toPath(), "a|f\nc|d".getBytes(Charsets.UTF_8));
 
     doc("get default format for folder");
     String folderFormatUrl = "/source/LocalFS1/folder_format/tmp/_dac/folder1";
@@ -495,7 +534,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
     expectSuccess(getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1").queryParam("version", fileFormat1.getVersion())).buildDelete());
 
     FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/LocalFS1/folder_format/tmp/_dac/folder1")).buildGet(), FileFormatUI.class).getFileFormat();
-    assertEquals(FileType.UNKNOWN, fileFormat.getFileType());
+    assertEquals(FileType.TEXT, fileFormat.getFileType());
 
     folder = expectSuccess(getBuilder(getAPIv2().path("/source/LocalFS1/folder/tmp/_dac")).buildGet(), Folder.class);
     ns = folder.getContents();
@@ -719,6 +758,31 @@ public class TestPhysicalDatasets extends BaseTestServer {
   }
 
   @Test
+  public void testCompressedGZ() throws Exception {
+    String filePath = getUrlPath("/datasets/compressed/test.json.gz");
+    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath)).buildGet(),
+      FileFormatUI.class).getFileFormat();
+    assertEquals(FileType.JSON, fileFormat.getFileType());
+  }
+
+  @Test
+  public void testCompressedZip() throws Exception {
+    String filePath = getUrlPath("/datasets/compressed/test.json.zip");
+    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath)).buildGet(),
+      FileFormatUI.class).getFileFormat();
+    assertEquals(FileType.JSON, fileFormat.getFileType());
+  }
+
+  @Test
+  public void testIgnoreHiddenFile() throws Exception {
+    String filePath = getUrlPath("/datasets/folderdataset/");
+    FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildGet(),
+      FileFormatUI.class).getFileFormat();
+    assertEquals(FileType.TEXT, fileFormat.getFileType());
+
+  }
+
+  @Test
   public void testDefaultFileFormatForCsvFile() throws Exception {
     String filePath = getUrlPath("/datasets/csv/comma.csv");
     FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + filePath)).buildGet(),
@@ -755,7 +819,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
     doc("preview data for source file");
     JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/" + fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
     assertEquals(23, data.getColumns().size());
-    assertEquals(500, data.getReturnedRowCount());
+    assertEquals(getCurrentDremioDaemon().getBindingProvider().lookup(SabotContext.class).getOptionManager().getOption(FormatTools.TARGET_RECORDS), data.getReturnedRowCount());
   }
 
   @Test

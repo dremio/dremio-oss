@@ -54,6 +54,7 @@ import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
@@ -97,6 +98,12 @@ import io.protostuff.ByteString;
  */
 public class TestCatalogServiceImpl {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestCatalogServiceImpl.class);
+
+  private static final String HOSTNAME = "localhost";
+  private static final int THREAD_COUNT = 2;
+  private static final long RESERVATION = 0;
+  private static final long MAX_ALLOCATION = Long.MAX_VALUE;
+  private static final int TIMEOUT = 0;
 
   private static MockUpPlugin mockUpPlugin;
 
@@ -168,13 +175,15 @@ public class TestCatalogServiceImpl {
         .thenReturn(Sets.newHashSet(ClusterCoordinator.Role.MASTER, ClusterCoordinator.Role.COORDINATOR));
 
     pool = new CloseableThreadPool("catalog-test");
-    fabricService = new FabricServiceImpl("localhost", 45678, true, 0, 2, pool, allocator, 0, Long.MAX_VALUE);
+    fabricService = new FabricServiceImpl(HOSTNAME, 45678, true, THREAD_COUNT, allocator, RESERVATION, MAX_ALLOCATION,
+        TIMEOUT, pool);
 
     catalogService = new CatalogServiceImpl(
         DirectProvider.wrap(sabotContext),
         DirectProvider.wrap((SchedulerService) new LocalSchedulerService(1)),
         DirectProvider.wrap(new SystemTablePluginConfigProvider()),
-        DirectProvider.wrap(fabricService));
+        DirectProvider.wrap(fabricService),
+        DirectProvider.wrap(ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig)));
     catalogService.start();
 
     mockUpPlugin = new MockUpPlugin();
@@ -471,13 +480,13 @@ public class TestCatalogServiceImpl {
     }
 
     @Override
-    public Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) {
+    public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions retrievalOptions) {
       return datasets;
     }
 
     @Override
     public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset,
-                                            boolean ignoreAuthErrors) {
+                                            DatasetRetrievalOptions retrievalOptions) {
       for (SourceTableDefinition definition : datasets) {
         if (Objects.equal(datasetPath, definition.getName())) {
           return definition;
@@ -527,7 +536,7 @@ public class TestCatalogServiceImpl {
     }
 
     @Override
-    public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig) {
+    public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig, DatasetRetrievalOptions retrievalOptions) {
       return CheckResult.UNCHANGED;
     }
 

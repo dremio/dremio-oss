@@ -30,6 +30,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.arrow.vector.util.Text;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -37,7 +38,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
@@ -51,6 +52,7 @@ import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.job.proto.JobAttempt;
+import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobStats;
 import com.dremio.service.job.proto.MaterializationSummary;
@@ -84,6 +86,7 @@ import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
+import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionMeasureField;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.proto.RefreshId;
@@ -143,7 +146,7 @@ public class ReflectionUtils {
       Materialization materialization, String sql, JobStatusListener jobStatusListener) {
     final SqlQuery query = new SqlQuery(sql, SYSTEM_USERNAME);
     NamespaceKey datasetPathList = new NamespaceKey(namespaceService.findDatasetByUUID(entry.getDatasetId()).getFullPathList());
-    DatasetVersion datasetVersion = new DatasetVersion(entry.getDatasetVersion());
+    DatasetVersion datasetVersion = DatasetVersion.fromExistingVersion(entry.getDatasetVersion());
     MaterializationSummary materializationSummary = new MaterializationSummary()
       .setDatasetId(entry.getDatasetId())
       .setReflectionId(entry.getId().getId())
@@ -168,7 +171,6 @@ public class ReflectionUtils {
       materialization.getReflectionId().getId(),
       materialization.getId().getId()
     );
-
   }
 
   public static boolean isTerminal(MaterializationState state) {
@@ -519,13 +521,13 @@ public class ReflectionUtils {
     }).toList();
   }
 
-  public static Refresh createRefresh(Materialization materialization, final long seriesId, final int seriesOrdinal,
+  public static Refresh createRefresh(ReflectionId reflectionId, List<String> refreshPath, final long seriesId, final int seriesOrdinal,
       final long updateId, JobDetails details, MaterializationMetrics metrics, List<DataPartition> dataPartitions) {
-    final String path = StringUtils.join(Iterables.skip(getMaterializationPath(materialization), 1), "/");
+    final String path = PathUtils.getPathJoiner().join(Iterables.skip(refreshPath, 1));
 
     return new Refresh()
       .setId(new RefreshId(UUID.randomUUID().toString()))
-      .setReflectionId(materialization.getReflectionId())
+      .setReflectionId(reflectionId)
       .setPartitionList(dataPartitions)
       .setMetrics(metrics)
       .setCreatedAt(System.currentTimeMillis())
@@ -534,6 +536,22 @@ public class ReflectionUtils {
       .setSeriesOrdinal(seriesOrdinal)
       .setPath(path)
       .setJob(details);
+  }
+
+  public static List<String> getRefreshPath(final JobId jobId, final JobData jobData, final Path accelerationBasePath) {
+    // extract written path from writer's metadata
+    JobDataFragment data = jobData.range(0, 1);
+    Text text = (Text) Preconditions.checkNotNull(data.extractValue(RecordWriter.PATH_COLUMN, 0),
+      "Empty write path for job %s", jobId.getId());
+
+    // relative path to the acceleration base path
+    final String path = PathUtils.relativePath(new Path(text.toString()), accelerationBasePath);
+
+    // extract first 2 components of the path "<reflection-id>."<modified-materialization-id>"
+    List<String> components = PathUtils.toPathComponents(path);
+    Preconditions.checkState(components.size() >= 2, "Refresh path %s is incomplete", path);
+
+    return ImmutableList.of(ACCELERATOR_STORAGEPLUGIN_NAME, components.get(0), components.get(1));
   }
 
   public static JobDetails computeJobDetails(final JobAttempt jobAttempt) {

@@ -34,6 +34,9 @@ public class UIMetadataPolicy {
   private final long datasetDefinitionRefreshAfterMillis;
   private final long datasetDefinitionExpireAfterMillis;
 
+  private final boolean deleteUnavailableDatasets;
+  private final boolean autoPromoteDatasets;
+
   /**
    * Enumeration describing the types of updates available.
    */
@@ -74,13 +77,17 @@ public class UIMetadataPolicy {
       @JsonProperty("namesRefreshMillis") long namesRefreshMillis,
       @JsonProperty("authTTLMillis") long authTTLMillis,
       @JsonProperty("datasetDefinitionRefreshAfterMillis") long datasetDefinitionRefreshAfterMillis,
-      @JsonProperty("datasetDefinitionExpireAfterMillis") long datasetDefinitionExpireAfterMillis) {
+      @JsonProperty("datasetDefinitionExpireAfterMillis") long datasetDefinitionExpireAfterMillis,
+      @JsonProperty("deleteUnavailableDatasets") Boolean deleteUnavailableDatasets,
+      @JsonProperty("autoPromoteDatasets") Boolean autoPromoteDatasets) {
     super();
     this.updateMode = updateMode;
     this.namesRefreshMillis = namesRefreshMillis;
     this.authTTLMillis = authTTLMillis;
     this.datasetDefinitionRefreshAfterMillis = datasetDefinitionRefreshAfterMillis;
     this.datasetDefinitionExpireAfterMillis = datasetDefinitionExpireAfterMillis;
+    this.deleteUnavailableDatasets = !Boolean.FALSE.equals(deleteUnavailableDatasets); // true, unless 'false'
+    this.autoPromoteDatasets = Boolean.TRUE.equals(autoPromoteDatasets); // false, unless 'true'
   }
 
   public static UIMetadataPolicy getDefaultUimetadataPolicy() {
@@ -107,6 +114,10 @@ public class UIMetadataPolicy {
     return datasetDefinitionExpireAfterMillis;
   }
 
+  public boolean getDeleteUnavailableDatasets() { return deleteUnavailableDatasets; }
+
+  public boolean getAutoPromoteDatasets() { return autoPromoteDatasets; }
+
   public static UIMetadataPolicy of(MetadataPolicy policy){
     if(policy == null){
       return DEFAULT_UIMETADATA_POLICY;
@@ -116,16 +127,20 @@ public class UIMetadataPolicy {
         policy.getNamesRefreshMs(),
         policy.getAuthTtlMs(),
         policy.getDatasetDefinitionRefreshAfterMs(),
-        policy.getDatasetDefinitionExpireAfterMs()
-        );
+        policy.getDatasetDefinitionExpireAfterMs(),
+        policy.getDeleteUnavailableDatasets(),
+        policy.getAutoPromoteDatasets()
+    );
   }
 
-  public MetadataPolicy asMetadataPolicy(){
+  public MetadataPolicy asMetadataPolicy() {
     return new MetadataPolicy()
         .setDatasetUpdateMode(updateMode.asUpdateMode())
         .setNamesRefreshMs(namesRefreshMillis)
         .setAuthTtlMs(authTTLMillis)
+        .setDeleteUnavailableDatasets(deleteUnavailableDatasets)
         .setDatasetDefinitionRefreshAfterMs(datasetDefinitionRefreshAfterMillis)
-        .setDatasetDefinitionExpireAfterMs(datasetDefinitionExpireAfterMillis);
+        .setDatasetDefinitionExpireAfterMs(datasetDefinitionExpireAfterMillis)
+        .setAutoPromoteDatasets(autoPromoteDatasets);
   }
 }

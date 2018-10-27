@@ -19,7 +19,7 @@ import static java.lang.String.format;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
+import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.StreamSupport;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -36,12 +37,15 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.GlobFilter;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IOUtils;
-import org.rocksdb.ColumnFamilyHandle;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.perf.Timer;
+import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.datastore.KVStoreProvider.DocumentConverter;
+import com.dremio.datastore.indexed.CommitWrapper;
 import com.dremio.datastore.indexed.CoreIndexedStoreImpl;
+import com.dremio.datastore.indexed.LuceneSearchIndex;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -58,11 +62,13 @@ import com.google.common.collect.Sets;
  * Service that manages creation and management of various store types.
  */
 public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Iterable<CoreStoreProviderImpl.StoreWithId>  {
-
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CoreStoreProviderImpl.class);
+
+  private static final boolean REINDEX_ON_CRASH_DISABLED = Boolean.getBoolean("dremio.catalog.disable_reindex_on_crash");
+
   public static final String MEMORY_MODE_OPTION = "dremio.debug.kv.force";
 
-  static enum ForcedMemoryMode {DEFAULT, DISK, MEMORY};
+  enum ForcedMemoryMode {DEFAULT, DISK, MEMORY}
   static final ForcedMemoryMode MODE;
 
   static {
@@ -85,10 +91,9 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
   private static final String METADATA_FILE_SUFFIX = "_metadata.json";
   private static final String METADATA_FILES_DIR = "metadata";
   private static final GlobFilter METADATA_FILES_GLOB = DataStoreUtils.getGlobFilter(METADATA_FILE_SUFFIX);
+  private static final String ALARM = ".indexing";
 
   private final ConcurrentMap<String, StoreWithId> idToStore = new ConcurrentHashMap<>();
-
-  private final ConcurrentMap<byte[], ColumnFamilyHandle> handles = new ConcurrentHashMap<>();
 
   private final boolean timed;
   private final boolean inMemory;
@@ -96,8 +101,11 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
   private final boolean disableOCC;
   private final IndexManager indexManager;
   private final ByteStoreManager byteManager;
-  private final AtomicBoolean closed = new AtomicBoolean(false);
+  private final StoreMetadataManager storeMetadataManager;
+  private final String baseDirectory;
   private final File metaDataFilesDir;
+
+  private final AtomicBoolean closed = new AtomicBoolean(false);
 
   private final Set<String> storeNames = Sets.newConcurrentHashSet();
 
@@ -133,12 +141,14 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
         }
       });
 
+  private File alarmFile;
 
-  public CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed) {
+  @VisibleForTesting
+  CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed) {
     this(baseDirectory, inMemory, timed, true, false);
   }
 
-  public CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed, boolean validateOCC, boolean disableOCC) {
+  CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed, boolean validateOCC, boolean disableOCC) {
     super();
     switch(MODE){
     case DISK:
@@ -156,23 +166,65 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
     this.inMemory = inMemory;
 
     this.byteManager = new ByteStoreManager(baseDirectory, inMemory);
-    this.indexManager = new IndexManager(baseDirectory, inMemory);
+    this.storeMetadataManager = new StoreMetadataManager(byteManager);
+    this.indexManager = new IndexManager(
+        baseDirectory,
+        inMemory,
+        storeName -> {
+          // 1. get the transaction number on #open
+          final long transactionNumber = byteManager.getLatestTransactionNumber();
+          // 2. then the op (commit) goes here
+          return new CommitWrapper.CommitCloser() {
+            @Override
+            protected void onClose() {
+              // 3. set the transaction number on #close
+              storeMetadataManager.setLatestTransactionNumber(storeName, transactionNumber);
+            }
+          };
+        }
+    );
 
+    this.baseDirectory = baseDirectory;
     this.metaDataFilesDir = new File(baseDirectory, METADATA_FILES_DIR);
   }
 
   @Override
   public void start() throws Exception {
     metaDataFilesDir.mkdirs();
+
     byteManager.start();
+    storeMetadataManager.start();
     indexManager.start();
   }
 
+  void recoverIfPreviouslyCrashed() throws Exception {
+    alarmFile = new File(baseDirectory, ALARM);
+
+    if (!REINDEX_ON_CRASH_DISABLED && alarmFile.exists()) {
+      logger.info("Dremio was not stopped properly, so the indexes need to be synced with the stores. This may take a while..");
+
+      try (TimedBlock ignored = Timer.time("reindexing stores on crash")) {
+        if (!reIndexDelta()) {
+          logger.info("Unable to reindex partially, so reindexing fully. This may take even longer..");
+          reIndexFull();
+        }
+      }
+
+      logger.info("Finished syncing indexes with stores.");
+    } else {
+      Files.createFile(alarmFile.toPath());
+    }
+
+    storeMetadataManager.allowUpdates();
+  }
+
   /**
-   * reIndex a specific store
-   * @param id
+   * Reindex store with the given id.
+   *
+   * @param id store id
+   * @return number of re-indexed entries
    */
-  public int reIndex(String id) {
+  int reIndex(String id) {
     CoreKVStore<?, ?> kvStore = getStore(id);
     if (kvStore instanceof CoreIndexedStore<?, ?>) {
       return ((CoreIndexedStore<?, ?>)kvStore).reindex();
@@ -182,19 +234,61 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
     }
   }
 
+  /**
+   * For stores with indexes, perform a full reindex.
+   */
+  private void reIndexFull() {
+    StreamSupport.stream(spliterator(), false)
+        .filter(storeWithId -> storeWithId.getStore() instanceof CoreIndexedStore)
+        .map(StoreWithId::getId)
+        .forEach(this::reIndex);
+  }
+
+  /**
+   * For stores with indexes, replay updates, starting from the most recent persisted transaction number, from
+   * the {@link CoreIndexedStore key-value stores} on to their respective indexes.
+   *
+   * @return true iff partial reindexing was successful
+   */
+  private boolean reIndexDelta() {
+    final long lowest = storeMetadataManager.getLowestTransactionNumber();
+    if (lowest == Long.MAX_VALUE) {
+      logger.info("Could not deduce transaction number to replay from");
+      return false;
+    }
+
+    logger.debug("Replaying updates from {} on indexes", lowest);
+    final ReIndexer reIndexer = new ReIndexer(indexManager, idToStore);
+    try {
+      byteManager.replaySince(lowest, reIndexer);
+    } catch (DatastoreException e) {
+      logger.warn("Partial reindexing failed from {}", lowest, e);
+      return false;
+    }
+
+    logger.debug("Partial re-indexing metrics:\n{}", reIndexer.getMetrics());
+    return true;
+  }
+
   @VisibleForTesting
   KVStore<byte[], byte[]> getDB(String name) {
     return byteManager.getStore(name);
   }
 
-  public Iterator<StoreWithId> iterator(){
+  @Override
+  public Iterator<StoreWithId> iterator() {
     return Iterators.unmodifiableIterator(stores.asMap().values().iterator());
   }
 
   @Override
   public synchronized void close() throws Exception {
-    if(closed.compareAndSet(false, true)){
+    if(closed.compareAndSet(false, true)) {
       AutoCloseables.close(indexManager, byteManager);
+      if (alarmFile != null && !alarmFile.delete()) {
+        logger.warn("Failed to remove alarm file. Dremio will reindex internal stores on next start up.");
+      } else {
+        logger.trace("Deleted alarm file.");
+      }
     }
   }
 
@@ -300,10 +394,10 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
     @SuppressWarnings("unchecked")
     public FinalStoreBuilderConfig(StoreBuilderConfig config) {
       name = Preconditions.checkNotNull(config.getName(), "Name must be defined");
-      keySerializer = getInstance(config.getKeySerializerClassName(), Serializer.class, true);
-      valueSerializer = getInstance(config.getValueSerializerClassName(), Serializer.class, true);
-      documentConverter = getInstance(config.getDocumentConverterClassName(), DocumentConverter.class, false);
-      versionExtractor = getInstance(config.getVersionExtractorClassName(), VersionExtractor.class, false);
+      keySerializer = DataStoreUtils.getInstance(config.getKeySerializerClassName(), Serializer.class, true);
+      valueSerializer = DataStoreUtils.getInstance(config.getValueSerializerClassName(), Serializer.class, true);
+      documentConverter = DataStoreUtils.getInstance(config.getDocumentConverterClassName(), DocumentConverter.class, false);
+      versionExtractor = DataStoreUtils.getInstance(config.getVersionExtractorClassName(), VersionExtractor.class, false);
     }
 
     public boolean hasDocumentConverter() {
@@ -316,38 +410,16 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
     }
   }
 
-  /**
-   * Convert a class name to an instance.
-   * @param className The class name to load.
-   * @param clazz The expected class type.
-   * @param failOnEmpty Whether to fail or return null if no value is given.
-   * @return The newly created instance (or null if !failOnEmpty and emptry string used).
-   */
-  @SuppressWarnings("unchecked")
-  private static <T> T getInstance(String className, Class<T> clazz, boolean failOnEmpty){
-    if(className == null || className.isEmpty()) {
-      if(failOnEmpty){
-        throw new DatastoreException(String.format("Failure trying to resolve class for expected type of %s. The provided class name was either empty or null.", clazz.getName()));
-      }
-      return null;
-    } else {
-      try{
-        final Class<?> outcome = Class.forName(Preconditions.checkNotNull(className));
-        Preconditions.checkArgument(clazz.isAssignableFrom(outcome));
-        Constructor<?> constructor = outcome.getDeclaredConstructor();
-        constructor.setAccessible(true);
-        return (T) constructor.newInstance();
-      } catch(Exception ex) {
-        throw new DatastoreException(String.format("Failure while trying to load class named %s which should be a subclass of %s. ", className, clazz.getName()));
-      }
-    }
-  }
-
   private CoreKVStore<Object, Object> getCoreStore(FinalStoreBuilderConfig builderConfig) {
 
     final ByteStore rawStore = byteManager.getStore(builderConfig.name);
 
-    final CoreKVStore<Object, Object> coreKVStore = new CoreKVStoreImpl<>(rawStore, builderConfig.keySerializer, builderConfig.valueSerializer, builderConfig.versionExtractor);
+    final CoreKVStore<Object, Object> coreKVStore =
+        new CoreKVStoreImpl<>(
+            rawStore,
+            builderConfig.keySerializer,
+            builderConfig.valueSerializer,
+            builderConfig.versionExtractor);
     if (!disableOCC && builderConfig.hasVersionExtractor()) {
       return new OCCStore<>(coreKVStore, !validateOCC);
     } else {
@@ -443,5 +515,9 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
     byteManager.deleteEverything(skipNames);
     indexManager.deleteEverything(skipNames);
 
+  }
+
+  public LuceneSearchIndex getIndex(String name) {
+    return indexManager.getIndex(name);
   }
 }

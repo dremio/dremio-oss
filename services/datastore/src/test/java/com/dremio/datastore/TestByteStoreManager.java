@@ -15,29 +15,41 @@
  */
 package com.dremio.datastore;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.util.AbstractMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.DisableOnDebug;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 
+import com.google.common.collect.Lists;
+
 /**
  * Tests for {@code ByteStoreManager}
  */
 public class TestByteStoreManager {
+
+  @Rule
+  public final ExpectedException thrownException = ExpectedException.none();
 
   @Rule
   public final TestRule timeout = new DisableOnDebug(Timeout.seconds(60));
@@ -125,6 +137,160 @@ public class TestByteStoreManager {
       // RocksDB is now closed, lock should be freed
       tt.started.await();
       assertTrue("RocksDB lock not released properly", tt.result.get());
+    }
+  }
+
+  private static byte[] getBytes(String string) {
+    return string.getBytes(StandardCharsets.UTF_8);
+  }
+
+  private enum ReplayType {
+    ADD,
+    DELETE
+  }
+
+  @Test
+  public void replaySince() throws Exception {
+    String dbPath = temporaryFolder.newFolder().getAbsolutePath();
+
+    try (ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
+      bsm.start();
+
+      final String storeName = "test-store";
+      ByteStore bs = bsm.getStore(storeName);
+      final long txn = bsm.getLatestTransactionNumber();
+
+      final byte[] one = getBytes("one");
+      final byte[] two = getBytes("two");
+      bs.put(one, getBytes("1"));
+      bs.put(one, getBytes("2"));
+      bs.put(two, getBytes("3"));
+      bs.put(two, getBytes("3"));
+      bs.delete(one);
+
+      final List<ReplayType> updates = Lists.newArrayList();
+      final List<Map.Entry<byte[], byte[]>> entries = Lists.newArrayList();
+      bsm.replaySince(txn, new ReplayHandler() {
+        @Override
+        public void put(String tableName, byte[] key, byte[] value) {
+          assertEquals(tableName, storeName);
+          updates.add(ReplayType.ADD);
+          entries.add(new AbstractMap.SimpleEntry<>(key, value));
+        }
+
+        @Override
+        public void delete(String tableName, byte[] key) {
+          assertEquals(tableName, storeName);
+          updates.add(ReplayType.DELETE);
+          entries.add(new AbstractMap.SimpleEntry<>(key, null));
+        }
+      });
+
+      assertEquals(updates.size(), 5);
+      assertEquals(entries.size(), 5);
+
+      assertEquals(updates.get(0), ReplayType.ADD);
+      assertArrayEquals(entries.get(0).getKey(), one);
+      assertArrayEquals(entries.get(0).getValue(), getBytes("1"));
+
+      assertEquals(updates.get(1), ReplayType.ADD);
+      assertArrayEquals(entries.get(1).getKey(), one);
+      assertArrayEquals(entries.get(1).getValue(), getBytes("2"));
+
+      assertEquals(updates.get(2), ReplayType.ADD);
+      assertArrayEquals(entries.get(2).getKey(), two);
+      assertArrayEquals(entries.get(2).getValue(), getBytes("3"));
+
+      assertEquals(updates.get(3), ReplayType.ADD);
+      assertArrayEquals(entries.get(3).getKey(), two);
+      assertArrayEquals(entries.get(3).getValue(), getBytes("3"));
+
+      assertEquals(updates.get(4), ReplayType.DELETE);
+      assertArrayEquals(entries.get(4).getKey(), one);
+      assertEquals(entries.get(4).getValue(), null);
+    }
+  }
+
+  @Test
+  public void replayAnother() throws Exception {
+    String dbPath = temporaryFolder.newFolder().getAbsolutePath();
+
+    try (ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
+      bsm.start();
+
+      final String storeName = "test-store";
+      ByteStore bs = bsm.getStore(storeName);
+
+      final byte[] one = getBytes("one");
+      final byte[] two = getBytes("two");
+      bs.put(one, getBytes("1"));
+      bs.put(one, getBytes("2"));
+      bs.put(two, getBytes("3")); // this will be replayed as well!
+
+      final long txn = bsm.getLatestTransactionNumber();
+      bs.put(two, getBytes("3"));
+      bs.delete(one);
+
+      final List<ReplayType> updates = Lists.newArrayList();
+      final List<Map.Entry<byte[], byte[]>> entries = Lists.newArrayList();
+      bsm.replaySince(txn, new ReplayHandler() {
+        @Override
+        public void put(String tableName, byte[] key, byte[] value) {
+          assertEquals(tableName, storeName);
+          updates.add(ReplayType.ADD);
+          entries.add(new AbstractMap.SimpleEntry<>(key, value));
+        }
+
+        @Override
+        public void delete(String tableName, byte[] key) {
+          assertEquals(tableName, storeName);
+          updates.add(ReplayType.DELETE);
+          entries.add(new AbstractMap.SimpleEntry<>(key, null));
+        }
+      });
+
+      assertEquals(updates.size(), 3);
+      assertEquals(entries.size(), 3);
+
+      assertEquals(updates.get(0), ReplayType.ADD);
+      assertArrayEquals(entries.get(0).getKey(), two);
+      assertArrayEquals(entries.get(0).getValue(), getBytes("3"));
+
+      assertEquals(updates.get(1), ReplayType.ADD);
+      assertArrayEquals(entries.get(1).getKey(), two);
+      assertArrayEquals(entries.get(1).getValue(), getBytes("3"));
+
+      assertEquals(updates.get(2), ReplayType.DELETE);
+      assertArrayEquals(entries.get(2).getKey(), one);
+      assertEquals(entries.get(2).getValue(), null);
+    }
+  }
+
+  @Test
+  @Ignore // the exception is not propagated
+  public void closeNicelyOnThrow() throws Exception {
+    thrownException.expect(RuntimeException.class);
+
+    String dbPath = temporaryFolder.newFolder().getAbsolutePath();
+    try (ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
+      bsm.start();
+
+      final String storeName = "test-store";
+      ByteStore bs = bsm.getStore(storeName);
+      final long txn = bsm.getLatestTransactionNumber();
+
+      bs.put(getBytes("one"), getBytes("1"));
+
+      bsm.replaySince(txn, new ReplayHandler() {
+        @Override
+        public void put(String tableName, byte[] key, byte[] value) {
+          throw new RuntimeException("troll");
+        }
+
+        @Override
+        public void delete(String tableName, byte[] key) {
+        }
+      });
     }
   }
 }

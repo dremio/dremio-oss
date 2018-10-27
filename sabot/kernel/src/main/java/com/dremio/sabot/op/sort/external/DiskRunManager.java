@@ -60,6 +60,7 @@ import com.dremio.exec.vector.CopyUtil;
 import com.dremio.sabot.op.copier.Copier;
 import com.dremio.sabot.op.copier.CopierOperator;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
+import com.dremio.service.spill.SpillService;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -118,7 +119,8 @@ public class DiskRunManager implements AutoCloseable {
       List<Ordering> orderings,
       BatchSchema dataSchema,
       boolean compressSpilledBatch,
-      ExternalSortTracer tracer
+      ExternalSortTracer tracer,
+      SpillService spillService
       ) throws Exception {
     try (RollbackCloseable rollback = new RollbackCloseable()) {
       this.targetRecordCount = targetRecordCount;
@@ -143,7 +145,7 @@ public class DiskRunManager implements AutoCloseable {
       final String id = String.format("esort-%s.%s.%s.%s", QueryIdHelper.getQueryId(handle.getQueryId()),
           handle.getMajorFragmentId(), handle.getMinorFragmentId(), operatorId
       );
-      this.spillManager = new SpillManager(config, optionManager, id, conf, "sort spilling");
+      this.spillManager = new SpillManager(config, optionManager, id, conf, spillService, "sort spilling");
       rollback.add(this.spillManager);
 
       rollback.commit();

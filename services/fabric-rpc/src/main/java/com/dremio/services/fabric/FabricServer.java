@@ -47,7 +47,7 @@ class FabricServer extends BasicServer<RpcType, FabricConnection>{
   private volatile Integer port;
   private volatile FabricIdentity localIdentity;
 
-  public FabricServer(
+  FabricServer(
       String address,
       FabricMessageHandler handler,
       RpcConfig config,
@@ -65,7 +65,6 @@ class FabricServer extends BasicServer<RpcType, FabricConnection>{
     this.handler = handler;
     this.address = address;
   }
-
 
   @Override
   public int bind(int initialPort, boolean allowPortHunting) {
@@ -92,12 +91,11 @@ class FabricServer extends BasicServer<RpcType, FabricConnection>{
 
   @Override
   public FabricConnection initRemoteConnection(SocketChannel channel) {
-    return new FabricConnection("control server", channel, this, allocator);
+    return new FabricConnection("fabric server", channel, this, allocator);
   }
 
-
   @Override
-  protected ServerHandshakeHandler<FabricHandshake> getHandshakeHandler(final FabricConnection connection) {
+  protected ServerHandshakeHandler<FabricHandshake> newHandshakeHandler(final FabricConnection connection) {
     return new ServerHandshakeHandler<FabricHandshake>(RpcType.HANDSHAKE, FabricHandshake.PARSER) {
 
       @Override
@@ -130,7 +128,7 @@ class FabricServer extends BasicServer<RpcType, FabricConnection>{
   }
 
   @Override
-  public MessageDecoder getDecoder(BufferAllocator allocator) {
+  protected MessageDecoder newDecoder(BufferAllocator allocator) {
     return new FabricProtobufLengthDecoder(allocator);
   }
 

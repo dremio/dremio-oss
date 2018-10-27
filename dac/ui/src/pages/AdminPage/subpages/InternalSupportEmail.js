@@ -22,8 +22,8 @@ export const RESERVED = [
 
 const InternalSupportEmail = (props) => {
   return (
-    <div>
-      <h3 style={{margin:'15px 0 0'}}>{la('Internal Support Email')}</h3>
+    <div style={{padding: '10px 0 20px', borderBottom: '1px solid hsla(0, 0%, 0%, 0.1)'}}>
+      <h3>{la('Internal Support Email')}</h3>
       <div style={props.descriptionStyle}>
         {la('Note: Users will see changes when they next reload.')}
       </div>

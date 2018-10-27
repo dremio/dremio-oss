@@ -28,6 +28,7 @@ import com.dremio.exec.store.schedule.AssignmentCreator;
 import com.dremio.exec.store.schedule.AssignmentCreator2;
 import com.dremio.exec.store.schedule.CompleteWork;
 import com.dremio.exec.store.schedule.HardAssignmentCreator;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
@@ -106,6 +107,12 @@ public class Wrapper {
   public void addAllocation(PhysicalOperator pop) {
     initialAllocation += pop.getInitialAllocation();
 //    logger.debug("Incrementing initialAllocation by {} to {}. Pop: {}", pop.getInitialAllocation(), initialAllocation, pop);
+  }
+
+  @VisibleForTesting
+  public void overrideEndpoints(List<NodeEndpoint> endpoints) {
+    endpointsAssigned = true;
+    this.endpoints.addAll(endpoints);
   }
 
   public void assignEndpoints(ParallelizationParameters parameters, List<NodeEndpoint> assignedEndpoints) throws

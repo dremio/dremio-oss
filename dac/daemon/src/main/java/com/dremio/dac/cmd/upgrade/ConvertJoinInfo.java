@@ -46,12 +46,12 @@ import com.google.common.collect.ImmutableList;
 public class ConvertJoinInfo extends UpgradeTask {
 
   public ConvertJoinInfo() {
-    super("Convert Join Info", VERSION_106, VERSION_150);
+    super("Convert Join Info", VERSION_106, VERSION_150, NORMAL_ORDER + 8);
   }
 
   @Override
   public void upgrade(UpgradeContext context) {
-    IndexedStore<JobId, JobResult> store = context.getKVStoreProvider().get().getStore(JobsStoreCreator.class);
+    IndexedStore<JobId, JobResult> store = context.getKVStoreProvider().getStore(JobsStoreCreator.class);
 
     for (Entry<JobId, JobResult> entry : store.find()) {
       try {

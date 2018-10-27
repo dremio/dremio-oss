@@ -22,9 +22,6 @@ describe('ui actions', () => {
     it('verify existence of SET_SQL_EDITOR_SIZE', () => {
       expect(Actions.SET_SQL_EDITOR_SIZE).to.not.be.undefined;
     });
-    it('verify existence of RESET_GRID_COLUMNS_WIDTH', () => {
-      expect(Actions.RESET_GRID_COLUMNS_WIDTH).to.not.be.undefined;
-    });
     it('verify existence of TOGGLE_EXPLORE_SQL', () => {
       expect(Actions.TOGGLE_EXPLORE_SQL).to.not.be.undefined;
     });
@@ -35,11 +32,6 @@ describe('ui actions', () => {
       const size = 20;
       const expectedResult = { type: Actions.SET_SQL_EDITOR_SIZE, size };
       expect(Actions.updateSqlPartSize(size)).to.eql(expectedResult);
-    });
-    it('test results of calling of function resetGridColumnWidth', () => {
-      const size = 20;
-      const expectedResult = { type: Actions.RESET_GRID_COLUMNS_WIDTH, tableName: size };
-      expect(Actions.resetGridColumnWidth(size)).to.eql(expectedResult);
     });
     it('test results of calling of function toggleExploreSql', () => {
       const expectedResult = { type: Actions.TOGGLE_EXPLORE_SQL};

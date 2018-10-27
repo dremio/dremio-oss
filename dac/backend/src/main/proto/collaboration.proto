@@ -25,6 +25,7 @@ message CollaborationTag {
   required string entityId = 2;
   repeated string tags = 3;
   optional int64 version = 4;
+  optional uint64 lastModified = 5;
 }
 
 message CollaborationWiki {

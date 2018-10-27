@@ -30,13 +30,11 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.arrow.vector.AllocationHelper;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.NullableStructWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
@@ -59,10 +57,10 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.WritableBatch;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotNode;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
-import com.dremio.exec.server.SabotContext;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
@@ -182,7 +180,7 @@ public class TestVectorAccessibleSerializable extends ExecTest {
         NullableStructWriter mapWriter = mapVector.getWriter();
         for (int i = 0; i < records; i++) {
           intVector.set(i, intBaseValue + i);
-          float8Vector.set(i, doubleBaseValue + (double)i);
+          float8Vector.set(i, doubleBaseValue + i);
 
           mapWriter.setPosition(i);
           byte[] bytes = ("varchar" + i).getBytes();
@@ -207,7 +205,7 @@ public class TestVectorAccessibleSerializable extends ExecTest {
 
         for (int i = 0; i < records; i++) {
           assertEquals(intBaseValue + i, intVector.get(i));
-          assertEquals(doubleBaseValue + (double)i, float8Vector.get(i), 0);
+          assertEquals(doubleBaseValue + i, float8Vector.get(i), 0);
           assertEquals(
               mapOf(
                   "varchar", "varchar" + i,
@@ -258,7 +256,7 @@ public class TestVectorAccessibleSerializable extends ExecTest {
           if (o instanceof Integer) {
             assertEquals(intBaseValue + i, ((Integer) o).intValue());
           } else if (o instanceof  Double) {
-            assertEquals(doubleBaseValue + (double)i, ((Double) o).doubleValue(), 0);
+            assertEquals(doubleBaseValue + i, ((Double) o).doubleValue(), 0);
           } else {
             assertEquals(
                 mapOf(
@@ -275,11 +273,10 @@ public class TestVectorAccessibleSerializable extends ExecTest {
 
   @Test
   public void testReadIntoArrowBuf() throws Exception {
-    final byte[] copyBuffer = new byte[64*1024];
     try (final ArrowBuf buffer = allocator.buffer(256)) {
       final InputStream inputStream = mock(InputStream.class);
       when(inputStream.read(any(byte[].class))).thenReturn(0);
-      readIntoArrowBuf(inputStream, buffer, 0, copyBuffer);
+      readIntoArrowBuf(inputStream, buffer, 0);
       assertEquals(0, buffer.writerIndex());
     }
 
@@ -297,7 +294,7 @@ public class TestVectorAccessibleSerializable extends ExecTest {
           return Math.min(length, byteBuf.length);
         }
       });
-      readIntoArrowBuf(inputStream, buffer, 256, copyBuffer);
+      readIntoArrowBuf(inputStream, buffer, 256);
       assertEquals(256, buffer.writerIndex());
       for(int i=0; i<256; i++) {
         assertEquals((byte)i, buffer.getByte(i));
@@ -322,7 +319,7 @@ public class TestVectorAccessibleSerializable extends ExecTest {
           return i;
         }
       });
-      readIntoArrowBuf(inputStream, buffer, 256, copyBuffer);
+      readIntoArrowBuf(inputStream, buffer, 256);
       assertEquals(256, buffer.writerIndex());
       for(int i=0; i<256; i++) {
         assertEquals((byte)(i%20), buffer.getByte(i));
@@ -333,7 +330,7 @@ public class TestVectorAccessibleSerializable extends ExecTest {
       final InputStream inputStream = mock(InputStream.class);
       when(inputStream.read(any(byte[].class), any(int.class), any(int.class))).thenReturn(-1);
       try {
-        readIntoArrowBuf(inputStream, buffer, 256, copyBuffer);
+        readIntoArrowBuf(inputStream, buffer, 256);
         fail("Expected above call to fail");
       } catch (EOFException ex) {
         /* expected*/

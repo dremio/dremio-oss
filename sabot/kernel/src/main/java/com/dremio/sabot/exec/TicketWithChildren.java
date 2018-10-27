@@ -37,23 +37,23 @@ public class TicketWithChildren implements AutoCloseable {
   }
 
   public void reserve() {
-    Preconditions.checkState(!closed, "Trying to reserve from a closed ticket");
+    Preconditions.checkState(!closed, "Trying to reserve from a closed ticket: %s", allocator.getName());
     childCount.incrementAndGet();
   }
 
   public BufferAllocator getAllocator() {
-    Preconditions.checkState(!closed, "Trying to access a closed ticket");
+    Preconditions.checkState(!closed, "Trying to access a closed ticket: %s", allocator.getName());
     return allocator;
   }
 
   public boolean release() {
-    Preconditions.checkState(!closed, "Trying to release from a closed ticket");
+    Preconditions.checkState(!closed, "Trying to release from a closed ticket: %s", allocator.getName());
     return childCount.decrementAndGet() == 0;
   }
 
   @Override
   public void close() throws Exception {
-    Preconditions.checkState(!closed, "Trying to close an already closed ticket");
+    Preconditions.checkState(!closed, "Trying to close an already closed ticket: %s", allocator.getName());
     closed = true;
     allocator.close();
   }

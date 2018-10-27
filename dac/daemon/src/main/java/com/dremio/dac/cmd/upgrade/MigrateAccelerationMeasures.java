@@ -18,12 +18,15 @@ package com.dremio.dac.cmd.upgrade;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.inject.Provider;
+
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 
 import com.dremio.dac.util.DatasetsUtil;
+import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.serialization.JacksonSerializer;
@@ -31,6 +34,7 @@ import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.sys.PersistentStore;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.options.OptionValue;
+import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -50,32 +54,37 @@ import com.dremio.service.reflection.store.ReflectionGoalsStore;
  * Upgrade task to migrate old reflection measures to the new ones
  */
 public class MigrateAccelerationMeasures extends UpgradeTask {
-  MigrateAccelerationMeasures() {
-    super("Migrate acceleration measures types", VERSION_150, VERSION_210);
+  public MigrateAccelerationMeasures() {
+    super("Migrate acceleration measures types", VERSION_150, VERSION_210, NORMAL_ORDER + 1);
   }
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
     System.out.println("  Checking if min/max measures were enabled...");
-    final KVPersistentStoreProvider kvPersistentStoreProvider = new KVPersistentStoreProvider(context.getKVStoreProvider());
-    final PersistentStore<OptionValue> options = kvPersistentStoreProvider.getOrCreateStore(SystemOptionManager.STORE_NAME, SystemOptionManager.OptionStoreCreator.class, new JacksonSerializer<>(context.getLpPersistence().getMapper(), OptionValue.class));
+    try (final KVPersistentStoreProvider kvPersistentStoreProvider = new KVPersistentStoreProvider(
+        DirectProvider.wrap(context.getKVStoreProvider()))) {
+      final PersistentStore<OptionValue> options = kvPersistentStoreProvider.getOrCreateStore(
+          SystemOptionManager.STORE_NAME, SystemOptionManager.OptionStoreCreator.class,
+          new JacksonSerializer<>(context.getLpPersistence().getMapper(), OptionValue.class));
 
-    // check if the old min/max option was set - can be null if the option was not changed from the default (true)
-    final OptionValue optionValue = options.get("accelerator.enable_min_max");
+      // check if the old min/max option was set - can be null if the option was not changed from the default (true)
+      final OptionValue optionValue = options.get("accelerator.enable_min_max");
 
-    if (optionValue == null || optionValue.getBoolVal()) {
-      System.out.println("  Min/max measures were enabled, migrating aggregate reflections...");
-      migrateGoals(context);
-    } else {
-      System.out.println("  Min/max measures were disabled, skipping");
+      if (optionValue == null || optionValue.getBoolVal()) {
+        System.out.println("  Min/max measures were enabled, migrating aggregate reflections...");
+        migrateGoals(context);
+      } else {
+        System.out.println("  Min/max measures were disabled, skipping");
+      }
     }
   }
 
   private void migrateGoals(UpgradeContext context) {
-    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider().get());
-    final ReflectionGoalsStore reflectionGoalsStore = new ReflectionGoalsStore(context.getKVStoreProvider());
-    final ReflectionEntriesStore reflectionEntriesStore = new ReflectionEntriesStore(context.getKVStoreProvider());
-    final MaterializationStore materializationStore = new MaterializationStore(context.getKVStoreProvider());
+    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider());
+    final Provider<KVStoreProvider> provider = DirectProvider.wrap(context.getKVStoreProvider());
+    final ReflectionGoalsStore reflectionGoalsStore = new ReflectionGoalsStore(provider);
+    final ReflectionEntriesStore reflectionEntriesStore = new ReflectionEntriesStore(provider);
+    final MaterializationStore materializationStore = new MaterializationStore(provider);
 
     for (ReflectionGoal reflectionGoal : reflectionGoalsStore.getAll()) {
       try {

@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.SimpleIntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.hadoop.fs.BlockLocation;
@@ -204,15 +205,13 @@ public class UnifiedParquetReader implements RecordReader {
 
   @Override
   public void allocate(Map<String, ValueVector> vectorMap) throws OutOfMemoryException {
-    if (delegates.size() <= 1) {
-      for (RecordReader delegateReader : delegates) {
-        delegateReader.allocate(vectorMap);
+    for(ValueVector v : vectorMap.values()){
+      if(v instanceof FixedWidthVector){
+        ((FixedWidthVector) v).allocateNew(context.getTargetBatchSize());
+      } else {
+        v.allocateNew();
       }
-      return;
     }
-    Preconditions.checkArgument(delegates.size() == 2);
-    delegates.get(0).allocate(vectorizedMap);
-    delegates.get(1).allocate(nonVectorizedMap);
   }
 
   @Override

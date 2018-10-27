@@ -94,6 +94,7 @@ public class HiveRulesFactory extends StoragePluginTypeRulesFactory {
       this.filter = filter;
     }
 
+    @Override
     public RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq) {
       if(tableMetadata.getSplitCount() == 0){
         return planner.getCostFactory().makeInfiniteCost();
@@ -116,6 +117,7 @@ public class HiveRulesFactory extends StoragePluginTypeRulesFactory {
       return filter != null ? filter.getCostAdjustment() : super.getCostAdjustmentFactor();
     }
 
+    @Override
     protected double getFilterReduction(){
       if(filter != null){
         double selectivity = 0.15d;
@@ -195,7 +197,7 @@ public class HiveRulesFactory extends StoragePluginTypeRulesFactory {
     public void onMatch(RelOptRuleCall call) {
       HiveScanDrel scan = call.rel(0);
       if(scan.getTableMetadata().getSplitCount() == 0){
-        call.transformTo(new EmptyRel(scan.getCluster(), scan.getTraitSet(), scan.getRowType(), scan.getBatchSchema()));
+        call.transformTo(new EmptyRel(scan.getCluster(), scan.getTraitSet(), scan.getRowType(), scan.getProjectedSchema()));
       }
     }
 
@@ -250,6 +252,7 @@ public class HiveRulesFactory extends StoragePluginTypeRulesFactory {
       return pw;
     }
 
+    @Override
     protected double getFilterReduction(){
       if(filter != null){
         return 0.15d;

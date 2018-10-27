@@ -38,12 +38,12 @@ public class PhysicalPlanCommand extends AsyncCommand<Object> {
   private ExecutionPlan exec;
 
   public PhysicalPlanCommand(
-      CoordToExecTunnelCreator tunnelCreator,
-      QueryContext context,
-      PhysicalPlanReader reader,
-      AttemptObserver observer,
-      ByteString plan,
-      ResourceAllocator queryResourceManager) {
+    CoordToExecTunnelCreator tunnelCreator,
+    QueryContext context,
+    PhysicalPlanReader reader,
+    AttemptObserver observer,
+    ByteString plan,
+    ResourceAllocator queryResourceManager) {
     super(context, queryResourceManager, observer);
     this.tunnelCreator = tunnelCreator;
     this.context = context;
@@ -63,7 +63,7 @@ public class PhysicalPlanCommand extends AsyncCommand<Object> {
 
   @Override
   public Object execute() throws Exception {
-    FragmentStarter starter = new FragmentStarter(tunnelCreator);
+    FragmentStarter starter = new FragmentStarter(tunnelCreator, resourceSchedulingDecisionInfo);
     starter.start(exec, observer);
     return null;
   }

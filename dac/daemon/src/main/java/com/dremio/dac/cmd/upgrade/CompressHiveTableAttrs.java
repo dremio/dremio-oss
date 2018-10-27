@@ -34,13 +34,13 @@ import io.protostuff.ByteString;
  * Rewrite hive dataset config entries to compress the read definitions
  */
 class CompressHiveTableAttrs extends UpgradeTask {
-  CompressHiveTableAttrs() {
-    super("Compressing Hive Table attributes", VERSION_106, VERSION_203);
+  public CompressHiveTableAttrs() {
+    super("Compressing Hive Table attributes", VERSION_106, VERSION_203, NORMAL_ORDER + 9);
   }
 
   @Override
   public void upgrade(UpgradeContext context) {
-    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider().get());
+    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider());
     try {
       for (SourceConfig source : namespaceService.getSources()) {
         if (!"HIVE".equalsIgnoreCase(ConnectionReader.toType(source))) {

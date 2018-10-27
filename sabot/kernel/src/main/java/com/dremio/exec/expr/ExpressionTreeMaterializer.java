@@ -17,6 +17,10 @@ package com.dremio.exec.expr;
 
 import java.util.List;
 
+import com.dremio.common.expression.EvaluationType;
+import com.dremio.sabot.op.llvm.expr.GandivaPushdownSieve;
+import com.dremio.exec.ExecConstants;
+import com.dremio.options.OptionManager;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -45,7 +49,7 @@ import com.google.common.collect.Lists;
 
 public class ExpressionTreeMaterializer {
 
-  // private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionTreeMaterializer.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionTreeMaterializer.class);
 
   private ExpressionTreeMaterializer() {
   };
@@ -87,17 +91,60 @@ public class ExpressionTreeMaterializer {
 
   public static LogicalExpression materialize(LogicalExpression expr, BatchSchema schema, ErrorCollector errorCollector, FunctionLookupContext functionLookupContext,
       boolean allowComplexWriterExpr) {
-    LogicalExpression out =  expr.accept(new ExpressionMaterializationVisitor(schema, errorCollector, allowComplexWriterExpr), functionLookupContext);
+    return materialize(null, expr, schema, errorCollector, functionLookupContext, allowComplexWriterExpr);
+  }
+
+  public static LogicalExpression materialize(OptionManager optionManager,
+                                              LogicalExpression expr,
+                                              BatchSchema schema,
+                                              ErrorCollector errorCollector,
+                                              FunctionLookupContext functionLookupContext,
+                                              boolean allowComplexWriterExpr) {
+    LogicalExpression out = expr.accept(new ExpressionMaterializationVisitor(schema, errorCollector, allowComplexWriterExpr), functionLookupContext);
 
     if (!errorCollector.hasErrors()) {
       out = out.accept(ConditionalExprOptimizer.INSTANCE, null);
     }
 
     if (out instanceof NullExpression) {
-      return new TypedNullConstant(CompleteType.INT);
-    } else {
-      return out;
+      out = new TypedNullConstant(CompleteType.INT);
     }
+
+    String strCodeGenOption = EvaluationType.CodeGenOption.Java.toString();
+    if (optionManager != null) {
+      strCodeGenOption = optionManager.getOption(ExecConstants.INTERNAL_EXEC_OPTION_KEY).getStringVal();
+    }
+
+    EvaluationType.CodeGenOption codeGenOption = EvaluationType.CodeGenOption.getCodeGenOption(strCodeGenOption);
+    switch (codeGenOption) {
+      case Gandiva:
+      case GandivaOnly:
+        return checkGandivaExecution(codeGenOption, schema, out);
+      case Java:
+      default:
+        return out;
+    }
+  }
+
+  private static LogicalExpression checkGandivaExecution(EvaluationType.CodeGenOption codeGenOption,
+                                                         BatchSchema schema,
+                                                         LogicalExpression expr) {
+    GandivaPushdownSieve gandivaPushdownSieve = new GandivaPushdownSieve();
+    gandivaPushdownSieve.canEvaluate(schema.getSelectionVectorMode(), expr);
+
+    if (codeGenOption == EvaluationType.CodeGenOption.Gandiva) {
+      return expr;
+    }
+
+    // Gandiva only
+    if (expr.isEvaluationTypeSupported(EvaluationType.ExecutionType.GANDIVA)) {
+      return expr;
+    }
+
+    // Should not reach here in production code. Gandiva only option should be used only for testing
+    // The projector and filter will throw exception while running if this happens
+    logger.info("Materializer returning null because codegen option is GandivaOnly and the expression cannot be evaluated in Gandiva {}", expr);
+    return null;
   }
 
   public static LogicalExpression convertToNullableType(LogicalExpression fromExpr, MinorType toType, FunctionLookupContext functionLookupContext, ErrorCollector errorCollector) {

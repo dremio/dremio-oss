@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import Immutable  from 'immutable';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
@@ -28,7 +27,7 @@ import './AdminPage.less'; // TODO to Vasyl, need to use Radium for each child c
 @pureRender
 class AdminPageView extends Component {
   static propTypes = {
-    menuItems: PropTypes.instanceOf(Immutable.List),
+    sections: PropTypes.arrayOf(PropTypes.object),
     children: PropTypes.node,
     routeParams: PropTypes.object,
     location: PropTypes.object.isRequired,
@@ -40,15 +39,15 @@ class AdminPageView extends Component {
   }
 
   render() {
-    const { location, style, children, menuItems } = this.props;
+    const { location, style, children, sections } = this.props;
     return (
       <div id='admin-page' style={style}>
         <MainHeader />
         <div className='page-content'>
           <UserNavigation
-            menuItems={menuItems}
+            sections={sections}
             location={location}
-            title={la('Admin')} />
+          />
           <div className='main-content' style={styles.mainContent}>
             {children}
           </div>

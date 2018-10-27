@@ -278,7 +278,7 @@ public final class QBlockHashTable implements AutoCloseable {
   private void addDataBlocks(){
 
     // make sure can fit the next batch.
-    listener.resized(currentOrdinal + MAX_VALUES_PER_BATCH);
+    listener.addBatch();
 
     try(RollbackCloseable rollbackable = new RollbackCloseable()) {
 
@@ -512,7 +512,7 @@ public final class QBlockHashTable implements AutoCloseable {
     try(RollbackCloseable rollbackable = new RollbackCloseable()) {
 
       for(int i =0; i < batches; i++){
-        newControlBlocks[i] = new ControlBlock(allocator);
+        newControlBlocks[i] = new ControlBlock(allocator, MAX_VALUES_PER_BATCH);
         rollbackable.add(newControlBlocks[i]);
         tableControlAddresses[i] = newControlBlocks[i].getMemoryAddress();
 
@@ -530,11 +530,4 @@ public final class QBlockHashTable implements AutoCloseable {
     }
     initTimer.stop();
   }
-
-  public void unpivot(int batchIndex, int count){
-    Unpivots.unpivot(pivot, fixedBlocks[batchIndex], variableBlocks[batchIndex], count);
-  }
-
-
-
 }

@@ -17,7 +17,7 @@
 
 import './commonGlobalVariables';
 import { Component } from 'react';
-import en from 'locales/en.json';
+import en from 'dyn-load/locales/en.json';
 import 'url-search-params-polyfill';
 import mockCssModules from 'mock-css-modules';
 

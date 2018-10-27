@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>2.1.6-201809161906440178-edb5b4d</version>
+    <version>3.0.0-201810262305460004-5c90d75</version>
   </parent>
 
   <artifactId>dremio-jdbc-driver</artifactId>
@@ -104,6 +104,10 @@
           <artifactId>koloboke-impl-jdk6-7</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>org.codehaus.jackson</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
           <groupId>com.fasterxml.jackson.dataformat</groupId>
           <artifactId>jackson-dataformat-yaml</artifactId>
         </exclusion>
@@ -160,32 +164,20 @@
           <groupId>org.eclipse.jetty</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>parquet-hadoop</artifactId>
+          <artifactId>*</artifactId>
           <groupId>org.apache.parquet</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>parquet-column</artifactId>
-          <groupId>org.apache.parquet</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>infinispan-core</artifactId>
+          <artifactId>*</artifactId>
           <groupId>org.infinispan</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>asm-util</artifactId>
+          <artifactId>*</artifactId>
           <groupId>org.ow2.asm</groupId>
         </exclusion>
         <exclusion>
           <artifactId>codemodel</artifactId>
           <groupId>com.sun.codemodel</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>asm-commons</artifactId>
-          <groupId>org.ow2.asm</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>infinispan-tree</artifactId>
-          <groupId>org.infinispan</groupId>
         </exclusion>
         <exclusion>
           <artifactId>jetty-util</artifactId>
@@ -260,6 +252,10 @@
           <groupId>com.dremio.services</groupId>
         </exclusion>
         <exclusion>
+          <artifactId>dremio-services-resourcescheduler</artifactId>
+          <groupId>com.dremio.services</groupId>
+        </exclusion>
+        <exclusion>
           <artifactId>dremio-services-fabric-rpc</artifactId>
           <groupId>com.dremio.services</groupId>
         </exclusion>
@@ -304,8 +300,16 @@
           <groupId>com.esotericsoftware</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>pentaho-aggdesigner-algorithm</artifactId>
+          <artifactId>*</artifactId>
           <groupId>org.pentaho</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>*</artifactId>
+          <groupId>org.apache.calcite</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>*</artifactId>
+          <groupId>net.hydromatic</groupId>
         </exclusion>
         <exclusion>
           <artifactId>jpam</artifactId>
@@ -322,6 +326,18 @@
         <exclusion>
           <artifactId>procyon-compilertools</artifactId>
           <groupId>org.bitbucket.mstrobel</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>hibernate-validator</artifactId>
+          <groupId>org.hibernate</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jcommander</artifactId>
+          <groupId>com.beust</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>*</artifactId>
+          <groupId>org.apache.avro</groupId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -533,10 +549,6 @@
               <exclude>org.rocksdb:rocksdbjni</exclude>
               <exclude>org.slf4j:jcl-over-slf4j</exclude>
               <exclude>io.protostuff:*</exclude>
-              <exclude>org.apache.calcite:calcite-core</exclude>
-              <exclude>org.apache.calcite:calcite-linq4j</exclude>
-              <exclude>org.pentaho:*</exclude>
-              <exclude>org.msgpack:*</exclude>
               <exclude>xerces:*</exclude>
               <exclude>xalan:*</exclude>
               <exclude>org.apache.avro:*</exclude>
@@ -553,11 +565,9 @@
               <exclude>com.twitter:*</exclude>
               <exclude>org.apache.parquet:*</exclude>
               <exclude>javax.inject:*</exclude>
-              <exclude>com.beust:*</exclude>
               <exclude>jline:*</exclude>
               <exclude>io.netty:netty:jar:3.7.0.Final</exclude>
               <exclude>org.xerial.snappy:*</exclude>
-              <exclude>org.apache.avro:*</exclude>
               <exclude>org.tukaani:*</exclude>
               <exclude>org.apache.velocity:*</exclude>
               <exclude>net.hydromatic:linq4j</exclude>
@@ -576,6 +586,7 @@
               <exclude>com.dremio.distribution:dremio-distribution-resources</exclude>
               <exclude>com.yahoo.datasketches:*</exclude>
               <exclude>com.esri.geometry:*</exclude>
+              <exclude>org.antlr:*</exclude>
             </excludes>
           </artifactSet>
           <relocations>
@@ -586,10 +597,9 @@
             <relocation><pattern>com.dremio.sabot.</pattern><shadedPattern>cdjd.com.dremio.sabot.</shadedPattern></relocation>
             <relocation><pattern>com.dremio.service.</pattern><shadedPattern>cdjd.com.dremio.service.</shadedPattern></relocation>
             <relocation><pattern>com.dremio.services.</pattern><shadedPattern>cdjd.com.dremio.services.</shadedPattern></relocation>
+            <relocation><pattern>com.dremio.metrics.</pattern><shadedPattern>cdjd.com.dremio.metrics.</shadedPattern></relocation>
 
             <!-- Move dependencies out of path -->
-            <relocation><pattern>antlr.</pattern><shadedPattern>cdjd.antlr.</shadedPattern></relocation>
-            <relocation><pattern>antlr.</pattern><shadedPattern>cdjd.antlr.</shadedPattern></relocation>
             <relocation><pattern>io.</pattern><shadedPattern>cdjd.io.</shadedPattern></relocation>
             <relocation><pattern>javacc.</pattern><shadedPattern>cdjd.javacc.</shadedPattern></relocation>
             <relocation><pattern>java_cup.</pattern><shadedPattern>cdjd.java_cup.</shadedPattern></relocation>
@@ -608,14 +618,11 @@
             <relocation><pattern>org.joda.</pattern><shadedPattern>cdjd.org.joda.</shadedPattern></relocation>
             <relocation><pattern>org.json.</pattern><shadedPattern>cdjd.org.json.</shadedPattern></relocation>
             <relocation><pattern>org.mockito.</pattern><shadedPattern>cdjd.org.mockito.</shadedPattern></relocation>
-            <relocation><pattern>org.msgpack.</pattern><shadedPattern>cdjd.org.msgpack.</shadedPattern></relocation>
             <relocation><pattern>org.objectweb.</pattern><shadedPattern>cdjd.org.objectweb.</shadedPattern></relocation>
             <relocation><pattern>org.objensis.</pattern><shadedPattern>cdjd.org.objensis.</shadedPattern></relocation>
-            <relocation><pattern>org.pentaho.</pattern><shadedPattern>cdjd.org.pentaho.</shadedPattern></relocation>
             <relocation><pattern>org.reflections.</pattern><shadedPattern>cdjd.org.reflections.</shadedPattern></relocation>
             <relocation><pattern>org.tukaani.</pattern><shadedPattern>cdjd.org.tukaani.</shadedPattern></relocation>
             <relocation><pattern>org.xerial.</pattern><shadedPattern>cdjd.org.xerial.</shadedPattern></relocation>
-            <relocation><pattern>com.beust.</pattern><shadedPattern>cdjd.com.beust.</shadedPattern></relocation>
             <relocation><pattern>com.carrotsearch.</pattern><shadedPattern>cdjd.com.carrotsearch.</shadedPattern></relocation>
             <relocation><pattern>com.codahale.</pattern><shadedPattern>cdjd.com.codahale.</shadedPattern></relocation>
             <relocation><pattern>com.dyuproject.</pattern><shadedPattern>cdjd.com.dyuproject.</shadedPattern></relocation>
@@ -624,7 +631,6 @@
             <relocation><pattern>com.thoughtworks.</pattern><shadedPattern>cdjd.com.thoughtworks.</shadedPattern></relocation>
             <relocation><pattern>com.typesafe.</pattern><shadedPattern>cdjd.com.typesafe.</shadedPattern></relocation>
             <relocation><pattern>com.univocity.</pattern><shadedPattern>cdjd.com.univocity.</shadedPattern></relocation>
-            <relocation><pattern>org.apache.avro.</pattern><shadedPattern>cdjd.org.apache.avro.</shadedPattern></relocation>
             <relocation><pattern>org.apache.bcel.</pattern><shadedPattern>cdjd.org.apache.bcel.</shadedPattern></relocation>
             <relocation><pattern>org.apache.arrow.</pattern><shadedPattern>cdjd.org.apache.arrow.</shadedPattern></relocation>
             <relocation><pattern>org.apache.calcite.</pattern><shadedPattern>cdjd.org.apache.calcite.</shadedPattern></relocation>
@@ -642,87 +648,126 @@
             <relocation><pattern>org.apache.xmlcommons.</pattern><shadedPattern>cdjd.org.apache.xmlcommons.</shadedPattern></relocation>
             <relocation><pattern>org.apache.xpath.</pattern><shadedPattern>cdjd.org.apache.xpath.</shadedPattern></relocation>
             <relocation><pattern>org.apache.zookeeper.</pattern><shadedPattern>cdjd.org.apache.zookeeper.</shadedPattern></relocation>
+            <!-- Entries to relocate netty native libraries  -->
+            <relocation><pattern>META-INF.native.libnetty_</pattern><shadedPattern>META-INF.native.libcdjd_netty_</shadedPattern></relocation>
+            <relocation><pattern>META-INF.native.netty_</pattern><shadedPattern>META-INF.native.cdjd_netty_</shadedPattern></relocation>
+
           </relocations>
           <transformers>
             <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
               <resource>sabot-module.conf</resource>
             </transformer>
           </transformers>
-         <filters>
-           <filter>
-             <artifact>org.*:*</artifact>
-             <excludes>
-               <exclude>META-INF/**</exclude>
-             </excludes>
-           </filter>
-           <filter>
-             <artifact>com.fasterxml.*:*</artifact>
-             <excludes>
-               <exclude>META-INF/**</exclude>
-             </excludes>
-           </filter>
-           <filter>
-             <artifact>*:*</artifact>
-             <excludes>
-               <exclude>**/logback.xml</exclude>
-               <exclude>**/LICENSE.txt</exclude>
-               <exclude>**/*.java</exclude>
-               <exclude>META-INF/ASL2.0</exclude>
-               <exclude>META-INF/NOTICE.txt</exclude>
-               <exclude>META-INF/sabot-module-scan/**</exclude>
-               <exclude>META-INF/jboss-beans.xml</exclude>
-               <exclude>META-INF/license/**</exclude>
-               <exclude>META-INF/maven/**</exclude>
-               <exclude>META-INF/native/**</exclude>
-               <exclude>META-INF/services/com.fasterxml.*</exclude>
-               <exclude>META-INF/services/javax.ws.*</exclude>
-               <exclude>META-INF/**/*.properties</exclude>
-               <exclude>**/org.codehaus.commons.compiler.properties</exclude>
-               <exclude>**/*.SF</exclude>
-               <exclude>**/*.RSA</exclude>
-               <exclude>**/*.DSA</exclude>
-               <exclude>**/*.proto</exclude>
-               <exclude>javax/**</exclude>
-               <exclude>rest/**</exclude>
-               <exclude>*.tokens</exclude>
-               <exclude>checkstyle-*.xml</exclude>
-               <exclude>codegen/**</exclude>
-               <exclude>bootstrap-storage-plugins.json</exclude>
-               <exclude>org/apache/parquet/**</exclude>
-               <exclude>com/google/common/collect/Tree*</exclude>
-               <exclude>com/google/common/collect/Standard*</exclude>
-               <exclude>org/apache/lucene/**</exclude>
-               <exclude>com/dremio/concurrent/**</exclude>
-               <exclude>com/dremio/exec/expr/annotations/**</exclude>
-               <exclude>com/dremio/exec/expr/fn/**</exclude>
-               <exclude>com/dremio/exec/proto/beans/**</exclude>
-               <exclude>com/dremio/exec/compile/**</exclude>
-               <exclude>com/dremio/exec/planner/**</exclude>
-               <exclude>com/dremio/exec/physical/**</exclude>
-               <exclude>com/dremio/exec/store/**</exclude>
-               <exclude>com/dremio/exec/server/rest/**</exclude>
-               <exclude>com/dremio/exec/rpc/data/**</exclude>
-               <exclude>com/dremio/exec/rpc/control/**</exclude>
-               <exclude>com/dremio/dac/**</exclude>
-               <exclude>com/dremio/lucene/**</exclude>
-               <exclude>com/dremio/parquet/**</exclude>
-               <exclude>com/dremio/proto/**</exclude>
-               <exclude>com/dremio/sabot/driver/**</exclude>
-               <exclude>com/dremio/sabot/exec/context/**</exclude>
-               <exclude>com/dremio/sabot/exec/fragment/**</exclude>
-               <exclude>com/dremio/sabot/op/**</exclude>
-               <exclude>com/dremio/sabot/task/**</exclude>
-               <exclude>com/dremio/sabot/threads/**</exclude>
-               <exclude>com/dremio/ssl/**</exclude>
-               <exclude>com/github/slugify/**</exclude>
-               <exclude>com/clearspring/**</exclude>
-               <exclude>org/apache/commons/math/**</exclude>
-               <exclude>it/unimi/dsi/fastutil/**</exclude>
-               <exclude>org/w3c/**</exclude>
-               <exclude>org/xml/**</exclude>
-             </excludes>
-           </filter>
-         </filters>
+          <filters>
+            <filter>
+              <artifact>org.apache.calcite.avatica:*</artifact>
+              <excludes>
+                <exclude>org/apache/calcite/avatica/org/apache/http/**</exclude>
+                <exclude>org/apache/calcite/avatica/org/apache/commons/codec/**</exclude>
+              </excludes>
+            </filter>
+            <filter>
+              <artifact>org.*:*</artifact>
+              <excludes>
+                <exclude>META-INF/**</exclude>
+              </excludes>
+            </filter>
+            <filter>
+              <artifact>com.fasterxml.*:*</artifact>
+              <excludes>
+                <exclude>META-INF/**</exclude>
+              </excludes>
+            </filter>
+            <filter>
+              <artifact>*:*</artifact>
+              <excludes>
+                <exclude>**/logback.xml</exclude>
+                <exclude>**/LICENSE.txt</exclude>
+                <exclude>**/*.java</exclude>
+                <exclude>META-INF/ASL2.0</exclude>
+                <exclude>META-INF/NOTICE.txt</exclude>
+                <exclude>META-INF/sabot-module-scan/**</exclude>
+                <exclude>META-INF/jboss-beans.xml</exclude>
+                <exclude>META-INF/license/**</exclude>
+                <exclude>META-INF/maven/**</exclude>
+                <exclude>META-INF/services/com.fasterxml.*</exclude>
+                <exclude>META-INF/services/javax.ws.*</exclude>
+                <exclude>META-INF/**/*.properties</exclude>
+                <exclude>**/org.codehaus.commons.compiler.properties</exclude>
+                <exclude>**/*.SF</exclude>
+                <exclude>**/*.RSA</exclude>
+                <exclude>**/*.DSA</exclude>
+                <exclude>**/*.proto</exclude>
+                <exclude>javax/**</exclude>
+                <exclude>rest/**</exclude>
+                <exclude>*.tokens</exclude>
+                <exclude>checkstyle-*.xml</exclude>
+                <exclude>codegen/**</exclude>
+                <exclude>bootstrap-storage-plugins.json</exclude>
+                <exclude>org/apache/parquet/**</exclude>
+                <exclude>com/google/common/collect/Tree*</exclude>
+                <exclude>com/google/common/collect/Standard*</exclude>
+                <exclude>org/apache/lucene/**</exclude>
+                <exclude>org/apache/arrow/gandiva/**</exclude>
+                <exclude>com/dremio/common/expression/fn/**</exclude>
+                <exclude>com/dremio/common/expression/parser/**</exclude>
+                <exclude>com/dremio/common/expression/visitor/**</exclude>
+                <exclude>com/dremio/common/logical/**</exclude>
+                <exclude>com/dremio/concurrent/**</exclude>
+                <exclude>com/dremio/exec/catalog/**</exclude>
+                <exclude>com/dremio/exec/dotfile/**</exclude>
+                <exclude>com/dremio/exec/expr/annotations/**</exclude>
+                <exclude>com/dremio/exec/expr/fn/**</exclude>
+                <exclude>com/dremio/exec/expr/ops/**</exclude>
+                <exclude>com/dremio/exec/expr/resolver/**</exclude>
+                <exclude>com/dremio/exec/proto/beans/**</exclude>
+                <exclude>com/dremio/exec/compile/**</exclude>
+                <exclude>com/dremio/exec/planner/**</exclude>
+                <exclude>com/dremio/exec/physical/**</exclude>
+                <exclude>com/dremio/exec/proto/Catalog*</exclude>
+                <exclude>com/dremio/exec/proto/Exec*</exclude>
+                <exclude>com/dremio/exec/proto/Reflection*</exclude>
+                <exclude>com/dremio/exec/proto/SchemaCatalog*</exclude>
+                <exclude>com/dremio/exec/proto/SchemaExec*</exclude>
+                <exclude>com/dremio/exec/proto/SchemaReflection*</exclude>
+                <exclude>com/dremio/exec/store/**</exclude>
+                <exclude>com/dremio/exec/rpc/Coord*</exclude>
+                <exclude>com/dremio/exec/rpc/Exec*</exclude>
+                <exclude>com/dremio/exec/rpc/data/**</exclude>
+                <exclude>com/dremio/exec/rpc/control/**</exclude>
+                <exclude>com/dremio/exec/server/**</exclude>
+                <exclude>com/dremio/exec/testing/**</exclude>
+                <exclude>com/dremio/exec/work/**</exclude>
+                <exclude>com/dremio/dac/**</exclude>
+                <exclude>com/dremio/lucene/**</exclude>
+                <exclude>com/dremio/options/**</exclude>
+                <exclude>com/dremio/parquet/**</exclude>
+                <exclude>com/dremio/plugins/**</exclude>
+                <exclude>com/dremio/proto/**</exclude>
+                <exclude>com/dremio/resource/**</exclude>
+                <exclude>com/dremio/reflection/**</exclude>
+                <exclude>com/dremio/sabot/driver/**</exclude>
+                <exclude>com/dremio/sabot/exec/**</exclude>
+                <exclude>com/dremio/sabot/op/**</exclude>
+                <exclude>com/dremio/sabot/task/**</exclude>
+                <exclude>com/dremio/sabot/threads/**</exclude>
+                <exclude>com/dremio/services/fabric/**</exclude>
+                <exclude>com/dremio/ssl/**</exclude>
+                <exclude>com/github/slugify/**</exclude>
+                <exclude>com/clearspring/**</exclude>
+                <exclude>com/hubspot/jackson/**</exclude>
+                <exclude>edu/umd/cs/findbugs/**</exclude>
+                <exclude>org/apache/commons/math/**</exclude>
+                <exclude>it/unimi/dsi/fastutil/**</exclude>
+                <exclude>org/w3c/**</exclude>
+                <exclude>org/xml/**</exclude>
+                <exclude>libgandiva_jni.*</exclude>
+                <exclude>libgandiva_helpers.*</exclude>
+                <exclude>irhelpers.bc</exclude>
+                <exclude>mozilla/**</exclude>
+              </excludes>
+            </filter>
+          </filters>
         </configuration>
       </plugin>
 
@@ -741,15 +786,15 @@
                 <requireFilesSize>
                   <message>
 
-                  The file dremio-jdbc-driver-${project.version}.jar is outside the expected size range.
+                    The file dremio-jdbc-driver-${project.version}.jar is outside the expected size range.
 
-                  This is likely due to you adding new dependencies to a java-exec and not updating the excludes in this module. This is important as it minimizes the size of the dependency of Dremio application users.
+                    This is likely due to you adding new dependencies to a sabot-kernel and not updating the excludes in this module. This is important as it minimizes the size of the dependency of Dremio application users.
 
                   </message>
                   <maxsize>29000000</maxsize>
                   <minsize>15000000</minsize>
                   <files>
-                   <file>${project.build.directory}/dremio-jdbc-driver-${project.version}.jar</file>
+                    <file>${project.build.directory}/dremio-jdbc-driver-${project.version}.jar</file>
                   </files>
                 </requireFilesSize>
               </rules>

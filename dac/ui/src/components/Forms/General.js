@@ -19,13 +19,12 @@ import PropTypes from 'prop-types';
 
 import { section, sectionTitle, formRow } from 'uiTheme/radium/forms';
 
-import { FieldWithError, TextField, TextArea } from 'components/Fields';
+import { FieldWithError, TextField } from 'components/Fields';
 import AccelerationSection from 'components/Forms/AccelerationSection';
 
 import { applyValidators, isRequired } from 'utils/validation';
 
 import GeneralMixin from 'dyn-load/components/Forms/GeneralMixin';
-import { inputSpacing as inputSpacingCssValue} from '@app/uiTheme/less/variables.less';
 
 @GeneralMixin
 export default class General extends Component {
@@ -49,13 +48,12 @@ export default class General extends Component {
   }
 
   render() {
-    const { fields: { name, description }, editing } = this.props;
+    const { fields: { name }, editing } = this.props;
 
     // TextFields have a set width, so we override them using flexes here to use all the available space
     const fieldWithErrorStyle = {display: 'flex', flex: 1, flexDirection: 'column'};
     const fieldWithErrorDivStyle = {display: 'flex', flex: 1};
     const textStyle = {flex: 1, width: '100%'};
-    const textAreaStyle = {flex: 1, width: '100%', marginRight: inputSpacingCssValue}; //todo consider removing of right margin here
 
     return (
       <div>
@@ -66,14 +64,6 @@ export default class General extends Component {
               style={fieldWithErrorStyle}>
               <div style={fieldWithErrorDivStyle}>
                 <TextField initialFocus {...name} disabled={editing} style={textStyle}/>
-              </div>
-            </FieldWithError>
-          </div>
-          <div style={{display: 'flex'}}>
-            <FieldWithError label={la('Description')}
-              style={fieldWithErrorStyle}>
-              <div style={fieldWithErrorDivStyle}>
-                <TextArea {...description} style={textAreaStyle}/>
               </div>
             </FieldWithError>
           </div>

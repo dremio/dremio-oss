@@ -201,7 +201,6 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
 
     private static final ImmutableMap<String, String> commonBaseYarnDefaultProps = ImmutableMap.<String, String> builder()
       .putAll(commonBaseYarnDefaultPropsShow)
-      .putAll(createMaprFSDefaultProps())
       .put(CLASSPATH_JARS, APP_CLASSPATH)
       .build();
 
@@ -254,6 +253,7 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
       public Map<String, String> getAllDefaults() {
         return ImmutableMap.<String, String> builder()
           .putAll(baseYarnDefaultPropsSecurityOn)
+          .putAll(createMaprFSDefaultProps())
           .putAll(createNettyDefaultProps())
           .build();
       }
@@ -273,6 +273,7 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
     public Map<String, String> getAllDefaults() {
       return ImmutableMap.<String, String> builder()
           .putAll(baseYarnDefaultPropsSecurityOff)
+          .putAll(createMaprFSDefaultProps())
           .putAll(createNettyDefaultProps())
           .build();
     }

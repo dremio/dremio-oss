@@ -46,35 +46,36 @@ export const PROVISION_MANAGERS = [ // todo: loc
         field: 'spillDirectories'
       }
     ]
-  },
-  {
-    clusterType: 'MESOS',
-    label: 'Mesos',
-    iconType: 'Mesos',
-    connected: false
-  },
-  {
-    clusterType: 'KUBERNETES',
-    label: 'Kubernetes',
-    iconType: 'Kubernetes',
-    connected: false
-  },
-  {
-    clusterType: 'AMAZON',
-    label: 'Amazon EC2',
-    iconType: 'Amazon',
-    connected: false
-  },
-  {
-    clusterType: 'GCE',
-    label: 'Google Cloud Platform',
-    iconType: 'GCE',
-    connected: false
-  },
-  {
-    clusterType: 'AZURE',
-    label: 'Microsoft Azure',
-    iconType: 'Azure',
-    connected: false
   }
+  // , Temporary removed from the UI per DX-12716
+  // {
+  //   clusterType: 'MESOS',
+  //   label: 'Mesos',
+  //   iconType: 'Mesos',
+  //   connected: false
+  // },
+  // {
+  //   clusterType: 'KUBERNETES',
+  //   label: 'Kubernetes',
+  //   iconType: 'Kubernetes',
+  //   connected: false
+  // },
+  // {
+  //   clusterType: 'AMAZON',
+  //   label: 'Amazon EC2',
+  //   iconType: 'Amazon',
+  //   connected: false
+  // },
+  // {
+  //   clusterType: 'GCE',
+  //   label: 'Google Cloud Platform',
+  //   iconType: 'GCE',
+  //   connected: false
+  // },
+  // {
+  //   clusterType: 'AZURE',
+  //   label: 'Microsoft Azure',
+  //   iconType: 'Azure',
+  //   connected: false
+  // }
 ];

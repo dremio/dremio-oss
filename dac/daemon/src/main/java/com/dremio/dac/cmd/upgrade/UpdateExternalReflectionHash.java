@@ -17,6 +17,7 @@ package com.dremio.dac.cmd.upgrade;
 
 import java.util.stream.StreamSupport;
 
+import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
@@ -33,14 +34,14 @@ public class UpdateExternalReflectionHash extends UpgradeTask {
   private NamespaceService namespace;
   private ExternalReflectionStore store;
 
-  UpdateExternalReflectionHash() {
-    super("Update External Reflections", VERSION_106, VERSION_210);
+  public UpdateExternalReflectionHash() {
+    super("Update External Reflections", VERSION_106, VERSION_210, NORMAL_ORDER + 13);
   }
 
   @Override
   public void upgrade(UpgradeContext context) {
-    namespace = new NamespaceServiceImpl(context.getKVStoreProvider().get());
-    store = new ExternalReflectionStore(context.getKVStoreProvider());
+    namespace = new NamespaceServiceImpl(context.getKVStoreProvider());
+    store = new ExternalReflectionStore(DirectProvider.wrap(context.getKVStoreProvider()));
 
     final Iterable<ExternalReflection> reflections = store.getExternalReflections();
     StreamSupport.stream(reflections.spliterator(), false)

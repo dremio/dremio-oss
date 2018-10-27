@@ -48,6 +48,7 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.CatalogService.UpdateType;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.StoragePlugin.UpdateStatus;
 import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.util.ImpersonationUtil;
@@ -574,11 +575,11 @@ public class TestHiveStorage extends HiveTestBase {
 
     DatasetConfig datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.db1.kv_db1")));
     assertEquals(UpdateStatus.UNCHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
-        datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
+        datasetConfig.getReadDefinition().getReadSignature(), datasetConfig, DatasetRetrievalOptions.DEFAULT).getStatus());
 
     datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".partition_with_few_schemas")));
     assertEquals(UpdateStatus.UNCHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
-      datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
+      datasetConfig.getReadDefinition().getReadSignature(), datasetConfig, DatasetRetrievalOptions.DEFAULT).getStatus());
 
     new File(hiveTest.getWhDir() + "/db1.db/kv_db1", "000000_0").setLastModified(System.currentTimeMillis());
 
@@ -588,11 +589,11 @@ public class TestHiveStorage extends HiveTestBase {
 
       datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.db1.kv_db1")));
       assertEquals(UpdateStatus.CHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
-        datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
+        datasetConfig.getReadDefinition().getReadSignature(), datasetConfig, DatasetRetrievalOptions.DEFAULT).getStatus());
 
       datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".partition_with_few_schemas")));
       assertEquals(UpdateStatus.CHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
-        datasetConfig.getReadDefinition().getReadSignature(), datasetConfig).getStatus());
+        datasetConfig.getReadDefinition().getReadSignature(), datasetConfig, DatasetRetrievalOptions.DEFAULT).getStatus());
     } finally {
       newFile.delete();
     }

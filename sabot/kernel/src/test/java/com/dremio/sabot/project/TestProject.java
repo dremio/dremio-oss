@@ -59,6 +59,22 @@ public class TestProject extends BaseTestOperator {
         );
 
     validateSingle(conf, ProjectOperator.class, TpchTable.REGION, 0.1, expected);
-
   }
+
+
+  @Test
+  public void nativeSum() throws Exception {
+    Project conf = new Project(Arrays.asList(n("r_regionkey + r_regionkey", "sum")), null);
+    final Table expected = t(
+        th("sum"),
+        tr(0L),
+        tr(2L),
+        tr(4L),
+        tr(6L),
+        tr(8L)
+        );
+
+    validateSingle(conf, ProjectOperator.class, TpchTable.REGION, 0.1, expected);
+  }
+
 }

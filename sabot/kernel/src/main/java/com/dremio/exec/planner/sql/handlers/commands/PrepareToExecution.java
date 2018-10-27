@@ -37,8 +37,8 @@ public class PrepareToExecution extends AsyncCommand<Object> {
   private ExecutionPlan exec;
 
   public PrepareToExecution(PreparedPlan plan, QueryContext context, AttemptObserver observer,
-      PhysicalPlanReader reader,
-      CoordToExecTunnelCreator tunnelCreator, ResourceAllocator queryResourceManager) {
+                            PhysicalPlanReader reader,
+                            CoordToExecTunnelCreator tunnelCreator, ResourceAllocator queryResourceManager) {
     super(context, queryResourceManager, observer);
     this.plan = plan;
     this.context = context;
@@ -58,7 +58,7 @@ public class PrepareToExecution extends AsyncCommand<Object> {
 
   @Override
   public Object execute() throws Exception {
-    FragmentStarter starter = new FragmentStarter(tunnelCreator);
+    FragmentStarter starter = new FragmentStarter(tunnelCreator, resourceSchedulingDecisionInfo);
     starter.start(exec, observer);
     return null;
   }

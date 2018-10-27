@@ -16,30 +16,44 @@
 package com.dremio.dac.service;
 
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.job.JobDataFragmentWrapper;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.service.job.proto.JobAttempt;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobResult;
+import com.dremio.service.job.proto.JobState;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobDataFragment;
 import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.jobs.JobResultsStore;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
+import com.dremio.test.UserExceptionMatcher;
 
 /**
  * Tests for job results store.
  */
 public class TestJobResultsStore extends BaseTestServer {
+
+  @Rule
+  public final ExpectedException exception = ExpectedException.none();
 
   @Before
   public void setup() throws Exception {
@@ -81,5 +95,21 @@ public class TestJobResultsStore extends BaseTestServer {
       }
       assertTrue("Missing row numbered [" + i + "] from " + JSONUtil.toString(new JobDataFragmentWrapper(0, storedResult)), found);
     }
+  }
+
+  @Test
+  public void testCancelBeforeLoadingJob() throws Exception {
+    exception.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.DATA_READ,
+      "Could not load results as the query was canceled"));
+
+    final JobResultsStore jobResultsStore = mock(JobResultsStore.class);
+    JobResult jobResult = new JobResult();
+    JobAttempt jobAttempt = new JobAttempt();
+    jobAttempt.setState(JobState.CANCELED);
+    List<JobAttempt> attempts = new ArrayList<JobAttempt>();
+    attempts.add(jobAttempt);
+    jobResult.setAttemptsList(attempts);
+    when(jobResultsStore.loadJobData(new JobId("Canceled Job"),jobResult,0,0)).thenCallRealMethod();
+    jobResultsStore.loadJobData(new JobId("Canceled Job"),jobResult,0,0);
   }
 }

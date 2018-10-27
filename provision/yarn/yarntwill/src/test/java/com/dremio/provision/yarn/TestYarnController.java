@@ -38,6 +38,7 @@ import org.apache.twill.api.logging.LogEntry;
 import org.apache.twill.api.logging.LogThrowable;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -46,6 +47,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.provision.Property;
 import com.dremio.provision.PropertyType;
 import com.dremio.provision.yarn.service.YarnDefaultsConfigurator;
+import com.dremio.test.TemporarySystemProperties;
 
 /**
  * Test YarnController
@@ -88,6 +90,9 @@ public class TestYarnController {
 
 
 
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
+
   @Test
   public void testYarnController() throws Exception {
     assumeNonMaprProfile();
@@ -108,7 +113,6 @@ public class TestYarnController {
     String jvmOptions = yarnController.prepareCommandOptions(yarnConfiguration, propertyList);
     logger.info("JVMOptions: {}", jvmOptions);
 
-    assertTrue(jvmOptions.contains(" -Dpaths.local=/data/mydata"));
     assertTrue(jvmOptions.contains(" -Dpaths.dist=pdfs:///data/mydata/pdfs"));
     assertTrue(jvmOptions.contains(" -Xmx4096"));
     assertTrue(jvmOptions.contains(" -XX:MaxDirectMemorySize=5120m"));
@@ -480,7 +484,6 @@ public class TestYarnController {
     YarnConfiguration yarnConfiguration = new YarnConfiguration();
     yarnConfiguration.set(FS_DEFAULT_NAME_KEY, fsURL);
     yarnConfiguration.set(RM_HOSTNAME, rmHost);
-    yarnConfiguration.set(DremioConfig.LOCAL_WRITE_PATH_STRING, "/data/mydata");
     yarnConfiguration.set(DremioConfig.DIST_WRITE_PATH_STRING, "pdfs:///data/mydata/pdfs");
     yarnConfiguration.set(DremioConfig.YARN_JVM_OPTIONS, " -Xmx4096");
     yarnConfiguration.set(DacDaemonYarnApplication.YARN_CONTAINER_COUNT, "3");

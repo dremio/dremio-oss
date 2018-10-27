@@ -49,6 +49,10 @@ export default function grid(state = getInitialState(), action) {
   case ActionTypes.TOGGLE_EXPLORE_SQL: {
     return updateExploreSql(state, !state.get('sqlState'));
   }
+  case ActionTypes.COLLAPSE_EXPLORE_SQL:
+    // do not use here updateExploreSql, as this action is used to collapse editor by default
+    // and this state should not be saved.
+    return state.set('sqlState', false);
   case ActionTypes.EXPAND_EXPLORE_SQL: {
     return updateExploreSql(state, true);
   }

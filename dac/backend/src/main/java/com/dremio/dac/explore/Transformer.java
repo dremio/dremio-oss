@@ -55,7 +55,7 @@ import com.google.common.collect.Lists;
 /**
  * Tool class for applying transformations
  */
-class Transformer {
+public class Transformer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Transformer.class);
 
   public static final String VALUE_PLACEHOLDER = "value";
@@ -162,8 +162,7 @@ class Transformer {
    * @throws DatasetNotFoundException
    * @throws NamespaceException
    */
-  @VisibleForTesting
-  VirtualDatasetUI transformWithExtract(DatasetVersion newVersion, DatasetPath path, VirtualDatasetUI baseDataset, TransformBase transform) throws DatasetNotFoundException, NamespaceException{
+  public VirtualDatasetUI transformWithExtract(DatasetVersion newVersion, DatasetPath path, VirtualDatasetUI baseDataset, TransformBase transform) throws DatasetNotFoundException, NamespaceException{
     final ExtractTransformActor actor = new ExtractTransformActor(baseDataset.getState(), false, username(), executor);
     final TransformResult result = transform.accept(actor);
     if (!actor.hasMetadata()) {
@@ -286,6 +285,9 @@ class Transformer {
     );
   }
 
+  /**
+   * DatasetAndJob
+   */
   public static class DatasetAndJob {
     private final JobUI job;
     private final VirtualDatasetUI dataset;

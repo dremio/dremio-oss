@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.UUID;
 
 import javax.inject.Provider;
+import javax.net.ssl.SSLException;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.avatica.util.Quoting;
@@ -58,10 +59,10 @@ import com.dremio.exec.rpc.RemoteConnection;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcCompatibilityEncoder;
+import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.rpc.UserRpcException;
-import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.foreman.TerminationListenerRegistry;
 import com.dremio.exec.work.protector.UserConnectionResponseHandler;
@@ -92,22 +93,23 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   private static final org.slf4j.Logger CONNECTION_LOGGER = org.slf4j.LoggerFactory.getLogger("com.dremio.ConnectionLog");
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UserRPCServer.class);
 
+  private static final String RPC_COMPATIBILITY_ENCODER = "rpc-compatibility-encoder";
+  private static final String DRILL_COMPATIBILITY_ENCODER = "backward-compatibility-encoder";
+
   private final Provider<UserWorker> worker;
   private final Provider<SabotContext> dbContext;
   private final InboundImpersonationManager impersonationManager;
   private final BufferAllocator allocator;
 
   UserRPCServer(
-      BootStrapContext context,
+      RpcConfig rpcConfig,
       Provider<SabotContext> dbContext,
       Provider<UserWorker> worker,
       BufferAllocator allocator,
       EventLoopGroup eventLoopGroup,
       InboundImpersonationManager impersonationManager
       ) {
-    super(UserRpcConfig.getMapping(context.getConfig(), context.getExecutor()),
-        allocator.getAsByteBufAllocator(),
-        eventLoopGroup);
+    super(rpcConfig, allocator.getAsByteBufAllocator(), eventLoopGroup);
     this.worker = worker;
     this.dbContext = dbContext;
     this.allocator = allocator;
@@ -115,10 +117,10 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   }
 
   @Override
-  protected void initChannel(final SocketChannel ch) {
+  protected void initChannel(final SocketChannel ch) throws SSLException {
     // configure the main pipeline
     super.initChannel(ch);
-    ch.pipeline().addLast(new RpcCompatibilityEncoder());
+    ch.pipeline().addLast(RPC_COMPATIBILITY_ENCODER, new RpcCompatibilityEncoder());
   }
 
   @Override
@@ -133,6 +135,13 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   }
 
   @Override
+  protected Response handle(UserClientConnectionImpl connection, int rpcType, byte[] pBody, ByteBuf dBody)
+      throws RpcException {
+    // there are two #handle methods, since the other one is overridden, this is never invoked
+    throw new IllegalStateException("UserRPCServer#handle must not be invoked without ResponseSender");
+  }
+
+  @Override
   protected void handle(UserClientConnectionImpl connection, int rpcType, byte[] pBody, ByteBuf dBody,
       ResponseSender responseSender) throws RpcException {
     final UserWorker worker = this.worker.get();
@@ -144,7 +153,8 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
       try {
         final RunQuery query = RunQuery.PARSER.parseFrom(pBody);
         UserRequest request = new UserRequest(RpcType.RUN_QUERY, query);
-        final QueryId queryId = ExternalIdHelper.toQueryId(worker.submitWork(connection.getSession(), new UserConnectionResponseHandler(connection), request, registry));
+        final QueryId queryId = ExternalIdHelper.toQueryId(worker.submitWork(connection.getSession(),
+            new UserConnectionResponseHandler(connection), request, registry));
         responseSender.send(new Response(RpcType.QUERY_HANDLE, queryId));
         break;
       } catch (InvalidProtocolBufferException e) {
@@ -314,7 +324,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
     }
 
     void disableReadTimeout() {
-      getChannel().pipeline().remove(BasicServer.TIMEOUT_HANDLER);
+      getChannel().pipeline().remove(TIMEOUT_HANDLER);
     }
 
     void setUser(final UserToBitHandshake inbound) throws IOException {
@@ -346,10 +356,11 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
       } else {
         infoMsg += "\tUser Properties: \n";
         UserProperties props = inbound.getProperties();
-        for(int i =0; i < props.getPropertiesCount(); i++){
+        for (int i = 0; i < props.getPropertiesCount(); i++) {
           Property p = props.getProperties(i);
-          if(p.getKey().equalsIgnoreCase("password")){
-              continue;
+          final String key = p.getKey().toLowerCase();
+          if (key.contains("password") || key.contains("pwd")) {
+            continue;
           }
           infoMsg += "\t\t" + p.getKey() + "=" + p.getValue() + "\n";
         }
@@ -461,9 +472,9 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   }
 
   @Override
-  protected ChannelFutureListener getCloseHandler(SocketChannel channel,
-                                                  final UserClientConnectionImpl clientConnection) {
-    final ChannelFutureListener delegate = super.getCloseHandler(channel, clientConnection);
+  protected ChannelFutureListener newCloseListener(SocketChannel channel,
+                                                   final UserClientConnectionImpl connection) {
+    final ChannelFutureListener delegate = super.newCloseListener(channel, connection);
     return new ChannelFutureListener(){
 
       @Override
@@ -471,13 +482,13 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
         try {
           delegate.operationComplete(future);
         } finally {
-            CONNECTION_LOGGER.info("[{}] Connection Closed", clientConnection.uuid.toString());
+            CONNECTION_LOGGER.info("[{}] Connection Closed", connection.uuid);
         }
       }};
   }
 
   @Override
-  protected ServerHandshakeHandler<UserToBitHandshake> getHandshakeHandler(final UserClientConnectionImpl connection) {
+  protected ServerHandshakeHandler<UserToBitHandshake> newHandshakeHandler(final UserClientConnectionImpl connection) {
 
     return new ServerHandshakeHandler<UserToBitHandshake>(RpcType.HANDSHAKE, UserToBitHandshake.PARSER){
 
@@ -540,17 +551,18 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
           final RecordBatchFormat recordBatchFormat = connection.session.getRecordBatchFormat();
           respBuilder.setRecordBatchFormat(recordBatchFormat);
 
+          // Note that the allocators created below are used for backward compatibility encoding. The encoder is
+          // responsible for closing the allocator during its removal; this ensures any outstanding buffers in
+          // Netty pipeline are released BEFORE the allocator is closed.
+          // See BackwardsCompatibilityEncoder#handlerRemoved
           switch (recordBatchFormat) {
           case DRILL_1_0: {
-            // This allocator is used for backward compatibility encoding. Note that the encoder is responsible for
-            // closing the allocator during it's removal; this ensures any outstanding buffers in Netty pipeline
-            // are released BEFORE the allocator is closed. See BackwardsCompatibilityEncoder#handlerRemoved
             final BufferAllocator bcAllocator = allocator.newChildAllocator(connection.uuid.toString()
                 + "-backward-compatibility-allocator", 0, Long.MAX_VALUE);
             logger.debug("Adding backwards compatibility encoder");
             connection.getChannel()
             .pipeline()
-            .addAfter(PROTOCOL_ENCODER, "backward-compatibility-encoder",
+            .addAfter(PROTOCOL_ENCODER, DRILL_COMPATIBILITY_ENCODER,
                 new BackwardsCompatibilityEncoder(new DrillBackwardsCompatibilityHandler(bcAllocator)));
           }
           break;
@@ -566,7 +578,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
             logger.debug("Adding dremio 09 backwards compatibility encoder");
             connection.getChannel()
             .pipeline()
-            .addAfter(PROTOCOL_ENCODER, "dremio09-backward",
+            .addAfter(PROTOCOL_ENCODER, UserRpcUtils.DREMIO09_COMPATIBILITY_ENCODER,
                 new BackwardsCompatibilityEncoder(new Dremio09BackwardCompatibilityHandler(bcAllocator)));
           }
           break;
@@ -613,7 +625,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   }
 
   @Override
-  public MessageDecoder getDecoder(BufferAllocator allocator) {
+  protected MessageDecoder newDecoder(BufferAllocator allocator) {
     return new UserProtobufLengthDecoder(allocator);
   }
 

@@ -124,7 +124,7 @@ public class CopyingFilteringReader implements RecordReader {
     final SelectionVector2 filteredSV2 = new SelectionVector2(context.getAllocator());
     final SV2Holder sv2Holder = new SV2Holder(filteredSV2);
     this.filter = cg.getCodeGenerator().getImplementationClass();
-    filter.setup(context.getClassProducer().getFunctionContext(), readerOutput, sv2Holder, new TransferPair[0]);
+    filter.setup(context.getClassProducer().getFunctionContext(), readerOutput, sv2Holder);
 
     // generate a copier that takes as input the reader output (along with the filtered SV2) and copies the data to the copyOutput
     final VectorAccessible copyInput = new ContainerAndSV2(readerOutput, filteredSV2);

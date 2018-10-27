@@ -41,6 +41,11 @@ import io.netty.buffer.ArrowBuf;
  */
 public class BaseTestFabric {
 
+  protected static final int THREAD_COUNT = 2;
+  protected static final long RESERVATION = 0;
+  protected static final long MAX_ALLOCATION = Long.MAX_VALUE;
+  protected static final int TIMEOUT = 300;
+
   @VisibleForTesting protected BufferAllocator allocator;
   @VisibleForTesting protected CloseableThreadPool pool;
   @VisibleForTesting protected FabricServiceImpl fabric;
@@ -48,15 +53,23 @@ public class BaseTestFabric {
   @VisibleForTesting protected final String address = "localhost";
 
   // some default values for a simple protocol.
-  @VisibleForTesting protected final QueryId expectedQ = QueryId.newBuilder().setPart1(random.nextLong()).setPart2(random.nextLong()).build();
-  @VisibleForTesting protected final NodeEndpoint expectedD = NodeEndpoint.newBuilder().setAddress("a random value")
-      .setFabricPort(random.nextInt()).setUserPort(random.nextInt()).build();
+  @VisibleForTesting protected final QueryId expectedQ = QueryId.newBuilder()
+      .setPart1(random.nextLong())
+      .setPart2(random.nextLong())
+      .build();
+
+  @VisibleForTesting protected final NodeEndpoint expectedD = NodeEndpoint.newBuilder()
+      .setAddress("a random value")
+      .setFabricPort(random.nextInt())
+      .setUserPort(random.nextInt())
+      .build();
 
   @Before
   public void setupServer() throws Exception{
     allocator = new RootAllocator(20 * 1024 * 1024);
     pool = new CloseableThreadPool("test-fabric");
-    fabric = new FabricServiceImpl(address, 45678, true, 300, 2, pool, allocator, 0, Long.MAX_VALUE);
+    fabric = new FabricServiceImpl(address, 45678, true, THREAD_COUNT, allocator, RESERVATION,
+        MAX_ALLOCATION, TIMEOUT, pool);
     fabric.start();
   }
 

@@ -38,12 +38,12 @@ import com.google.common.base.Preconditions;
  * Doesn't reuse document
  *
  */
-final class SimpleDocumentWriter implements DocumentWriter {
+public final class SimpleDocumentWriter implements DocumentWriter {
   private static final int MAX_STRING_LENGTH = 30000;
 
   private final Document doc;
 
-  SimpleDocumentWriter(Document doc) {
+  public SimpleDocumentWriter(Document doc) {
     this.doc = doc;
   }
 

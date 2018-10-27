@@ -74,6 +74,7 @@ message DatasetConfig {
   optional ReadDefinition read_definition = 12; 
   optional int32 schema_version = 13 [default = 0]; 
   optional bytes record_schema = 14; // batch schema
+  optional int64 lastModified = 15;
 }
 
 // view info

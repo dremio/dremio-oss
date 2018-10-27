@@ -32,7 +32,7 @@ public class DatasetSplitIdSerializer extends Serializer<DatasetSplitId> {
 
   @Override
   public DatasetSplitId fromJson(String v) throws IOException {
-    return new DatasetSplitId(StringSerializer.INSTANCE.fromJson(v));
+    return DatasetSplitId.of(StringSerializer.INSTANCE.fromJson(v));
   }
 
   @Override
@@ -42,6 +42,6 @@ public class DatasetSplitIdSerializer extends Serializer<DatasetSplitId> {
 
   @Override
   public DatasetSplitId revert(byte[] v) {
-    return new DatasetSplitId(StringSerializer.INSTANCE.revert(v));
+    return DatasetSplitId.of(StringSerializer.INSTANCE.revert(v));
   }
 }

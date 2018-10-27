@@ -15,10 +15,15 @@
  */
 package com.dremio.exec.physical.impl.writer;
 
+import static org.junit.Assert.assertTrue;
+
+import java.util.List;
+
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.ExecConstants;
+import com.dremio.sabot.rpc.user.QueryDataBatch;
 
 public class TestPartitionCreation extends BaseTestQuery {
 
@@ -160,6 +165,21 @@ public class TestPartitionCreation extends BaseTestQuery {
     test("create table dfs_test.mypart1 DISTRIBUTE BY (kind) LOCALSORT BY (NAME) STORE AS (type => 'TEXT', fieldDelimiter => ',') as select * from sys.options");
     test("create table dfs_test.mypart2 PARTITION BY (TYPE) DISTRIBUTE BY (kind) LOCALSORT BY (NAME) STORE AS (type => 'TEXT', fieldDelimiter => ',') as select * from sys.options");
     test("create table dfs_test.mypart3 PARTITION BY (kind) STORE AS (type => 'TEXT', fieldDelimiter => ',') as select * from sys.options");
+  }
+
+  @Test
+  public void testDistributionBuckets() throws Exception {
+    List<QueryDataBatch> result = testSqlWithResults("create table dfs_test.options_name DISTRIBUTE BY (name) STORE AS (type => 'TEXT', fieldDelimiter => ',') as select * from sys.options");
+
+    // Expect DISTRIBUTE BY to give multiple rows, i.e. multiple files
+    int recordCount = 0;
+    for (QueryDataBatch batch: result) {
+      recordCount += batch.getHeader().getDef().getRecordCount();
+      batch.close();
+    }
+
+    assertTrue(recordCount > 1);
+
   }
 
 }

@@ -25,6 +25,7 @@ import org.apache.hadoop.hbase.client.Connection;
 
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
@@ -59,7 +60,7 @@ public class HBaseStoragePlugin implements StoragePlugin, Service {
   }
 
   @Override
-  public Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) throws Exception {
+  public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions ignored) throws Exception {
     try (Admin admin = connection.getConnection().getAdmin()) {
       return FluentIterable.of(admin.listTableNames()).transform(new Function<TableName, SourceTableDefinition>(){
         @Override
@@ -84,7 +85,7 @@ public class HBaseStoragePlugin implements StoragePlugin, Service {
   }
 
   @Override
-  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, boolean ignoreAuthErrors) throws Exception {
+  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, DatasetRetrievalOptions ignored) throws Exception {
     if(!datasetExists(datasetPath)) {
       return null;
     }
@@ -154,7 +155,7 @@ public class HBaseStoragePlugin implements StoragePlugin, Service {
   }
 
   @Override
-  public CheckResult checkReadSignature(ByteString key, final DatasetConfig datasetConfig) throws Exception {
+  public CheckResult checkReadSignature(ByteString key, final DatasetConfig datasetConfig, DatasetRetrievalOptions ignored) throws Exception {
     final NamespaceKey namespaceKey = new NamespaceKey(datasetConfig.getFullPathList());
     if(!datasetExists(namespaceKey)) {
       return CheckResult.DELETED;

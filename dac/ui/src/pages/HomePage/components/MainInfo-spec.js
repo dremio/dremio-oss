@@ -17,10 +17,9 @@ import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 import DatasetMenu from 'components/Menus/HomePage/DatasetMenu';
 import FolderMenu from 'components/Menus/HomePage/FolderMenu';
-import { UnformattedEntityMenu } from 'components/Menus/HomePage/UnformattedEntityMenu';
-import MainInfo from './MainInfo';
+import { MainInfoView as MainInfo } from './MainInfo';
 
-describe('MainInfo', () => {
+describe('MainInfoView', () => {
 
   let minimalProps;
   let commonProps;
@@ -64,7 +63,7 @@ describe('MainInfo', () => {
         fileSystemFolder: true,
         queryable: true
       });
-      instance.getFolderActions(folder);
+      instance.getFolderActionButtons(folder);
 
       expect(instance.getSettingsBtnByType).to.have.been.calledWith(<DatasetMenu entity={folder} entityType='folder'/>);
     });
@@ -76,25 +75,9 @@ describe('MainInfo', () => {
         fileSystemFolder: true,
         queryable: true
       });
-      instance.getFolderActions(folder);
+      instance.getFolderActionButtons(folder);
 
       expect(instance.getSettingsBtnByType).to.have.been.calledWith(<DatasetMenu entity={folder} entityType='folder'/>);
-    });
-
-    it('should show button for convert folder to folder-as-dataset', () => {
-      const instance = shallow(<MainInfo {...commonProps}/>, { context }).instance();
-      sinon.stub(instance, 'getSettingsBtnByType');
-      const folder = Immutable.fromJS({
-        fileSystemFolder: true,
-        queryable: false,
-        entityType: 'folder',
-        id: 1
-      });
-      instance.getFolderActions(folder);
-
-      expect(instance.getSettingsBtnByType).to.have.been.calledWith(
-        <UnformattedEntityMenu entity={folder}/>
-      );
     });
 
     it('should show settings button for folder', () => {
@@ -104,7 +87,7 @@ describe('MainInfo', () => {
         fileSystemFolder: false,
         queryable: false
       });
-      instance.getFolderActions(folder);
+      instance.getFolderActionButtons(folder);
 
       expect(instance.getSettingsBtnByType).to.have.been.calledWith(<FolderMenu folder={folder}/>);
     });

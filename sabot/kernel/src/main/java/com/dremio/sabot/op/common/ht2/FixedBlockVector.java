@@ -27,15 +27,22 @@ public class FixedBlockVector implements AutoCloseable {
 
   private final BufferAllocator allocator;
   private final int blockWidth;
+  private final boolean allowExpansion;
   private ArrowBuf buf;
   private int capacity;
 
   public FixedBlockVector(BufferAllocator allocator, int blockWidth) {
-    super();
+    this(allocator, blockWidth, 0, true);
+  }
+
+  public FixedBlockVector(BufferAllocator allocator, int blockWidth, int initialCapacity, boolean allowExpansion) {
     this.allocator = allocator;
     this.blockWidth = blockWidth;
+    this.allowExpansion = allowExpansion;
     this.buf = allocator.buffer(0);
     this.capacity = 0;
+    resizeBuffer(initialCapacity);
+    resetPositions();
   }
 
   public long getMemoryAddress(){
@@ -53,44 +60,59 @@ public class FixedBlockVector implements AutoCloseable {
   public void allocateNoClear(int count){
     buf.release();
     buf = allocator.buffer(count * blockWidth);
+    resetPositions();
   }
 
   public void ensureAvailableBlocks(int count){
-    if(count > capacity){
-      final int blockWidth = this.blockWidth;
-      final int sizeInBytes = Numbers.nextPowerOfTwo(count * blockWidth);
-      final ArrowBuf oldBuf = buf;
-      buf = allocator.buffer(sizeInBytes);
-
-      // since blockWidth has to be a power of two and count
-      final long firstBlock = buf.memoryAddress() + (capacity * blockWidth);
-      final int maxBytes = blockWidth * count;
-      final long maxBlock = buf.memoryAddress() + maxBytes;
-      for(long l = firstBlock; l < maxBlock; l+= 8){
-        PlatformDependent.putLong(l, 0);
-      }
-
-      int remain = maxBytes % 8;
-      if(remain != 0){
-        buf.setZero(maxBytes - remain, remain);
-      }
-
-      PlatformDependent.copyMemory(oldBuf.memoryAddress(), buf.memoryAddress(), capacity * blockWidth);
-
-      oldBuf.release();
-      this.capacity = count;
+    if (!allowExpansion) {
+      throw new RuntimeException("This buffer has fixed capacity. Not allowed to expand");
     }
+
+    if(count > capacity){
+      resizeBuffer(count);
+    }
+  }
+
+  private void resizeBuffer(int newCapacity) {
+    final int blockWidth = this.blockWidth;
+    final int sizeInBytes = Numbers.nextPowerOfTwo(newCapacity * blockWidth);
+    final ArrowBuf oldBuf = buf;
+    buf = allocator.buffer(sizeInBytes);
+    final int oldCapacity = this.capacity;
+
+    fillZeros(buf.memoryAddress() + oldCapacity * blockWidth, (newCapacity - oldCapacity) * blockWidth);
+
+    PlatformDependent.copyMemory(oldBuf.memoryAddress(), buf.memoryAddress(), oldCapacity * blockWidth);
+
+    buf.writerIndex(oldBuf.writerIndex());
+    oldBuf.release();
+    this.capacity = newCapacity;
+  }
+
+  private void fillZeros(long startAddr, int length) {
+    long c = startAddr;
+    final long endAddr = startAddr + length;
+    while(c < endAddr) {
+      PlatformDependent.putLong(c, 0);
+      c += 8;
+    }
+
+    int remain = length % 8;
+    if(remain != 0){
+      for(int i = 0; i < remain ; i++) {
+        PlatformDependent.putByte(endAddr - i, (byte)0);
+      }
+    }
+  }
+
+  public void reset() {
+    resetPositions();
+    buf.setZero(0, buf.capacity());
   }
 
   @VisibleForTesting
   ArrowBuf getUnderlying(){
     return buf;
-  }
-
-  public byte[] asBytes(int count){
-    byte[] bytes = new byte[count * blockWidth];
-    buf.getBytes(0, bytes);
-    return bytes;
   }
 
   @Override
@@ -101,5 +123,16 @@ public class FixedBlockVector implements AutoCloseable {
     }
   }
 
+  private void resetPositions() {
+    buf.readerIndex(0);
+    buf.writerIndex(0);
+  }
 
+  public int getBufferLength() {
+    return buf.writerIndex();
+  }
+
+  int getCapacity() {
+    return buf != null ? buf.capacity() : 0;
+  }
 }

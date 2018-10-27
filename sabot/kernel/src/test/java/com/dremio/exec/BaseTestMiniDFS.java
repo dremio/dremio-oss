@@ -104,7 +104,7 @@ public class BaseTestMiniDFS extends PlanTestBase {
     final SourceConfig config = new SourceConfig();
     config.setName(MINIDFS_STORAGE_PLUGIN_NAME);
     config.setConnectionConf(conf);
-    config.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
+    config.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE);
     ((CatalogServiceImpl) catalogService).getSystemUserCatalog().createSource(config);
   }
 

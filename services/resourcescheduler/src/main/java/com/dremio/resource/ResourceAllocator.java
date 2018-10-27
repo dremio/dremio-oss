@@ -18,7 +18,6 @@ package com.dremio.resource;
 import com.dremio.resource.common.ResourceSchedulingContext;
 import com.dremio.resource.exception.ResourceAllocationException;
 import com.dremio.service.Service;
-import com.google.common.util.concurrent.ListenableFuture;
 
 /**
  * Interface to deal with Query lifecycle from resourcing prospective
@@ -32,6 +31,25 @@ public interface ResourceAllocator extends Service {
    * @return
    * @throws ResourceAllocationException
    */
-  ListenableFuture<ResourceSet> allocate(final ResourceSchedulingContext queryContext,
-                                         final ResourceSchedulingProperties resourceSchedulingProperties);
+  ResourceSchedulingResult allocate(final ResourceSchedulingContext queryContext,
+                                    final ResourceSchedulingProperties resourceSchedulingProperties);
+
+  ResourceAllocator ResourceAllocatorNOOP = new ResourceAllocator(){
+    @Override
+    public void close() throws Exception {
+
+    }
+
+    @Override
+    public void start() throws Exception {
+
+    }
+
+    @Override
+    public ResourceSchedulingResult allocate(ResourceSchedulingContext queryContext, ResourceSchedulingProperties resourceSchedulingProperties) {
+      throw new UnsupportedOperationException();
+    }
+  };
+
+
 }

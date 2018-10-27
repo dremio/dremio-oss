@@ -19,6 +19,7 @@ import java.util.Locale;
 
 import com.dremio.exec.proto.UserBitShared.RpcEndpointInfos;
 import com.dremio.exec.proto.UserBitShared.WorkloadClass;
+import com.dremio.exec.proto.UserBitShared.WorkloadType;
 import com.dremio.service.job.proto.QueryType;
 
 /**
@@ -146,5 +147,35 @@ final class QueryTypeUtils {
     }
 
     return QueryType.UNKNOWN;
+  }
+
+  public static WorkloadType getWorkloadType(final QueryType queryType) {
+    switch(queryType) {
+      case UI_PREVIEW:
+        return WorkloadType.UI_PREVIEW;
+      case UI_INTERNAL_PREVIEW:
+      case UI_INITIAL_PREVIEW:
+        return WorkloadType.INTERNAL_PREVIEW;
+      case UI_RUN:
+      case UI_EXPORT:
+        return WorkloadType.UI_RUN;
+      case UI_INTERNAL_RUN:
+        return WorkloadType.INTERNAL_RUN;
+      case JDBC:
+        return WorkloadType.JDBC;
+      case ODBC:
+        return WorkloadType.ODBC;
+      case REST:
+        return WorkloadType.REST;
+      case ACCELERATOR_DROP:
+      case PREPARE_INTERNAL:
+        return WorkloadType.DDL;
+      case ACCELERATOR_CREATE:
+      case ACCELERATOR_EXPLAIN:
+        return WorkloadType.ACCELERATOR;
+      case UNKNOWN:
+      default:
+        return WorkloadType.UNKNOWN;
+    }
   }
 }

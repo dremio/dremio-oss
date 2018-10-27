@@ -30,15 +30,18 @@ export default class DurationWrapper extends Component {
   };
 
   render() {
-    const {elementConfig, field} = this.props;
+    const {elementConfig, field, disabled} = this.props;
+    const { value, ...fieldProps } = field;
+    const adjustedValue = (value === '') ? 0 : value;
     const disableIf = elementConfig.getConfig().disableIf;
     const relatedElement = disableIf
       && FormUtils.getFieldByComplexPropName(this.props.fields, disableIf.propName);
-    const isDisabled = !!relatedElement && relatedElement.value === disableIf.value;
+    const isDisabled = disabled || !!relatedElement && relatedElement.value === disableIf.value;
     return (
       <div>
         <div className={durationLabel}>{elementConfig.getConfig().label}</div>
-        <DurationField {...field}
+        <DurationField {...fieldProps}
+          value={adjustedValue}
           min={FormUtils.getMinDuration(elementConfig.getConfig().minOption)}
           disabled={isDisabled}
           className={durationBody}/>

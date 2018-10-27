@@ -34,16 +34,18 @@ public class UserResult {
   private final QueryState state;
   private final QueryProfile profile;
   private final UserException exception;
+  private final String reason;
 
   private QueryResult result;
 
   public UserResult(Object extraValue, QueryId queryId, QueryState state, QueryProfile profile,
-                    UserException exception) {
+                    UserException exception, String reason) {
     this.extraValue = extraValue;
     this.queryId = queryId;
     this.state = state;
     this.profile = profile;
     this.exception = exception;
+    this.reason = reason;
   }
 
   public QueryResult toQueryResult() {
@@ -74,6 +76,10 @@ public class UserResult {
     return exception;
   }
 
+  public String getReason() {
+    return reason;
+  }
+
   @SuppressWarnings("unchecked")
   public <X> X unwrap(Class<X> clazz) {
     Preconditions.checkNotNull(extraValue, "Extra value is not available.");
@@ -88,7 +94,7 @@ public class UserResult {
   }
 
   public UserResult withNewQueryId(QueryId newQueryId) {
-    return new UserResult(extraValue, newQueryId, state, profile, exception);
+    return new UserResult(extraValue, newQueryId, state, profile, exception, reason);
   }
 
   public UserResult withException(Exception ex) {
@@ -109,7 +115,7 @@ public class UserResult {
       profile = addError(exception, builder).build();
     }
 
-    return new UserResult(extraValue, queryId, QueryState.FAILED, profile, exception);
+    return new UserResult(extraValue, queryId, QueryState.FAILED, profile, exception, reason);
   }
 
   public static QueryProfile.Builder addError(UserException ex, QueryProfile.Builder profileBuilder) {

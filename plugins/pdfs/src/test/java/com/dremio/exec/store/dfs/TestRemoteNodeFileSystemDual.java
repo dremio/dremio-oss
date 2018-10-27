@@ -60,6 +60,12 @@ import com.google.common.collect.FluentIterable;
  */
 public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
 
+  private static final String HOSTNAME = "localhost";
+  private static final int THREAD_COUNT = 2;
+  private static final long RESERVATION = 0;
+  private static final long MAX_ALLOCATION = Long.MAX_VALUE;
+  private static final int TIMEOUT = 0;
+
   @ClassRule public static final  TemporaryFolder temporaryFolder = new TemporaryFolder();
   @Rule public final ExpectedException exception = ExpectedException.none();
 
@@ -121,7 +127,8 @@ public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
     public ServiceHolder(BufferAllocator allocator, Provider<Iterable<NodeEndpoint>> nodeProvider, PDFSMode mode, String name) throws Exception{
       this.allocator = allocator.newChildAllocator(name, 0, Long.MAX_VALUE);
       pool = new CloseableThreadPool(name);
-      fabric = new FabricServiceImpl("localhost", 9970, true, 0, 2, pool, this.allocator, 0, Long.MAX_VALUE);
+      fabric = new FabricServiceImpl(HOSTNAME, 9970, true, THREAD_COUNT, this.allocator, RESERVATION,
+          MAX_ALLOCATION, TIMEOUT, pool);
       fabric.start();
 
       endpoint = NodeEndpoint.newBuilder()

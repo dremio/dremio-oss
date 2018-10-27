@@ -445,4 +445,15 @@ public final class SearchQueryUtils {
             .addAllClauses(queries))
         .build();
   }
+
+  public static final SearchQuery newBoost(SearchQuery query, float boost) {
+    return SearchQuery.newBuilder()
+      .setType(SearchQuery.Type.BOOST)
+      .setBoost(
+        SearchQuery.Boost.newBuilder()
+          .setClause(query)
+          .setBoost(boost)
+      )
+      .build();
+  }
 }

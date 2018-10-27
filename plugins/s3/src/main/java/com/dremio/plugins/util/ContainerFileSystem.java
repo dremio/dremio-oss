@@ -34,12 +34,17 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.ListAccessor;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.util.RemoteIterators;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -339,6 +344,35 @@ public abstract class ContainerFileSystem extends FileSystem {
     return getFileSystemForPath(f).fs().delete(pathWithoutContainer(f), recursive);
   }
 
+
+  @Override
+  public RemoteIterator<LocatedFileStatus> listLocatedStatus(Path f) throws FileNotFoundException, IOException {
+    return super.listLocatedStatus(f);
+  }
+
+  @Override
+  protected RemoteIterator<LocatedFileStatus> listLocatedStatus(Path f, final PathFilter filter) throws FileNotFoundException, IOException {
+    final String container = getContainer(f);
+    final PathFilter alteredFilter = (path) -> {
+      return filter.accept(transform(path, container));
+    };
+
+    return RemoteIterators.transform(
+        ListAccessor.listLocatedFileStatus(getFileSystemForPath(f).fs(), pathWithoutContainer(f), alteredFilter),
+        t -> new LocatedFileStatus(ContainerFileSystem.transform(t, container), t.getBlockLocations())
+        );
+  }
+
+  @Override
+  public RemoteIterator<LocatedFileStatus> listFiles(Path f, boolean recursive) throws FileNotFoundException, IOException {
+    final String container = getContainer(f);
+    return RemoteIterators.transform(
+        getFileSystemForPath(f).fs().listFiles(pathWithoutContainer(f), recursive),
+        t -> new LocatedFileStatus(ContainerFileSystem.transform(t, container), t.getBlockLocations())
+        );
+  }
+
+
   @Override
   public FileStatus[] listStatus(final Path f) throws FileNotFoundException, IOException {
     if (isRoot(f)) {
@@ -394,10 +428,22 @@ public abstract class ContainerFileSystem extends FileSystem {
 
   }
 
-  private static FileStatus transform(FileStatus input, String containerName) {
-    String relativePath = removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(input.getPath()).toString());
+  /**
+   * Transform remote path to local.
+   * @param path
+   * @param containerName
+   * @return
+   */
+  private static Path transform(Path path, String containerName) {
+    String relativePath = removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString());
     Path containerPath  = new Path(Path.SEPARATOR + containerName);
-    Path fullPath = Strings.isNullOrEmpty(relativePath) ? containerPath : new Path(containerPath, relativePath);
+    return Strings.isNullOrEmpty(relativePath) ? containerPath : new Path(containerPath, relativePath);
+  }
+
+  /**
+   * Transform remote file status to local.
+   */
+  private static FileStatus transform(FileStatus input, String containerName) {
     return new FileStatus(input.getLen(),
             input.isDirectory(),
             input.getReplication(),
@@ -407,7 +453,7 @@ public abstract class ContainerFileSystem extends FileSystem {
             input.getPermission(),
             input.getOwner(),
             input.getGroup(),
-            fullPath);
+            transform(input.getPath(), containerName));
   }
 
   @Override

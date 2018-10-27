@@ -15,7 +15,7 @@
  */
 package com.dremio.dac.service.collaboration;
 
-import java.util.Iterator;
+
 import java.util.Map;
 
 import org.apache.commons.collections.map.HashedMap;
@@ -23,8 +23,8 @@ import org.apache.commons.collections.map.HashedMap;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.datastore.IndexedStore;
+import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.StoreBuildingFactory;
 import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.StringSerializer;
@@ -43,6 +43,7 @@ public class CollaborationTagStore {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CollaborationTagStore.class);
 
   public static final IndexKey ENTITY_ID = new IndexKey("id", "ENTITY_ID", String.class, null, false, false);
+  public static final IndexKey LAST_MODIFIED = new IndexKey("lastModified", "LAST_MODIFIED", Long.class, null, false, false);
 
   private static final String TAGS_STORE = "collaboration_tags";
   private final Supplier<IndexedStore<String, CollaborationTag>> tagsStore;
@@ -57,18 +58,25 @@ public class CollaborationTagStore {
   public void save(CollaborationTag tag) {
     validateTag(tag);
 
+    tag.setLastModified(System.currentTimeMillis());
+
     tagsStore.get().put(tag.getEntityId(), tag);
   }
 
   public Optional<CollaborationTag> getTagsForEntityId(String id) {
-    final IndexedStore.FindByCondition findByCondition = new IndexedStore.FindByCondition()
-      .setOffset(0)
-      .setLimit(1)
-      .setCondition(SearchQueryUtils.newTermQuery(ENTITY_ID, id));
-    Iterable<Map.Entry<String, CollaborationTag>> entries = tagsStore.get().find(findByCondition);
+    return Optional.fromNullable(tagsStore.get().get(id));
+  }
 
-    Iterator<Map.Entry<String, CollaborationTag>> iterator = entries.iterator();
-    return iterator.hasNext() ? Optional.fromNullable(iterator.next().getValue()) : Optional.absent();
+  public Iterable<Map.Entry<String, CollaborationTag>> find() {
+    return tagsStore.get().find();
+  }
+
+  public void delete(String id) {
+    tagsStore.get().delete(id);
+  }
+
+  public Iterable<Map.Entry<String, CollaborationTag>> find(FindByCondition condition) {
+    return tagsStore.get().find(condition);
   }
 
   private void validateTag(CollaborationTag collaborationTag) {
@@ -136,6 +144,7 @@ public class CollaborationTagStore {
     @Override
     public void convert(KVStoreProvider.DocumentWriter writer, String id, CollaborationTag record) {
       writer.write(ENTITY_ID, record.getEntityId());
+      writer.write(LAST_MODIFIED, record.getLastModified());
     }
   }
 }

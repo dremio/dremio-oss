@@ -274,6 +274,16 @@
         "postcss-value-parser": "3.3.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
+        "js-base64": {
+          "version": "2.3.2",
+          "integrity": "sha512-Y2/+DnfJJXT1/FCwUebUhLWb3QihxiSC42+ctHLGogmW2jPY6LCapMdFZXRvVP2z6qyKW7s6qncE/9gSqZiArw==",
+          "dev": true
+        },
         "postcss": {
           "version": "5.2.18",
           "integrity": "sha512-zrUjRRe1bpXKsX1qAJNJjqZViErVuyEkMTRrwu4ud4sbTtIBRmtaYDrHmcGgmrbsW3MHfmtIf+vJumgQn+PrXg==",
@@ -283,13 +293,6 @@
             "js-base64": "2.3.2",
             "source-map": "0.5.6",
             "supports-color": "3.2.3"
-          },
-          "dependencies": {
-            "js-base64": {
-              "version": "2.3.2",
-              "integrity": "sha512-Y2/+DnfJJXT1/FCwUebUhLWb3QihxiSC42+ctHLGogmW2jPY6LCapMdFZXRvVP2z6qyKW7s6qncE/9gSqZiArw==",
-              "dev": true
-            }
           }
         },
         "supports-color": {
@@ -298,13 +301,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -1575,11 +1571,6 @@
             "caniuse-lite": "1.0.30000745",
             "electron-to-chromium": "1.3.24"
           }
-        },
-        "caniuse-lite": {
-          "version": "1.0.30000745",
-          "integrity": "sha1-INb+3hFXpJNRM1ApRvx+DmuIDaU=",
-          "dev": true
         }
       }
     },
@@ -2056,10 +2047,24 @@
       "integrity": "sha1-slmmFzej5IxPtLaxvETt6yZM1CI=",
       "dev": true
     },
+    "caniuse-lite": {
+      "version": "1.0.30000745",
+      "integrity": "sha1-INb+3hFXpJNRM1ApRvx+DmuIDaU=",
+      "dev": true
+    },
     "caseless": {
       "version": "0.12.0",
       "integrity": "sha1-G2gcIf+EAzyCZUMJBolCDRhxUdw=",
       "dev": true
+    },
+    "center-align": {
+      "version": "0.1.3",
+      "integrity": "sha1-qg0yYptu6XIgBBHL1EYckHvCt60=",
+      "dev": true,
+      "requires": {
+        "align-text": "0.1.4",
+        "lazy-cache": "1.0.4"
+      }
     },
     "chai": {
       "version": "3.5.0",
@@ -2319,6 +2324,13 @@
     "codemirror": {
       "version": "5.30.0",
       "integrity": "sha512-pfJV/7fLAUUenuGK3iANkQu1AxNLuWpeF7HV6YFDjSBMp53F8FTa2F6oPs9NKAHFweT2m08usmXUIA+7sohdew=="
+    },
+    "codemirror-spell-checker": {
+      "version": "1.1.2",
+      "integrity": "sha1-HGYPkIlIPMtRE7m6nKGcP0mTNx4=",
+      "requires": {
+        "typo-js": "1.0.3"
+      }
     },
     "color": {
       "version": "0.11.4",
@@ -2699,6 +2711,11 @@
         "source-list-map": "2.0.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -2713,23 +2730,14 @@
             "js-base64": "2.4.3",
             "source-map": "0.5.6",
             "supports-color": "3.2.3"
-          },
-          "dependencies": {
-            "supports-color": {
-              "version": "3.2.3",
-              "integrity": "sha1-ZawFBLOVQXHYpklGsq48u4pfVPY=",
-              "dev": true,
-              "requires": {
-                "has-flag": "1.0.0"
-              },
-              "dependencies": {
-                "has-flag": {
-                  "version": "1.0.0",
-                  "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-                  "dev": true
-                }
-              }
-            }
+          }
+        },
+        "supports-color": {
+          "version": "3.2.3",
+          "integrity": "sha1-ZawFBLOVQXHYpklGsq48u4pfVPY=",
+          "dev": true,
+          "requires": {
+            "has-flag": "1.0.0"
           }
         }
       }
@@ -2821,6 +2829,11 @@
         "postcss-zindex": "2.2.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "postcss": {
           "version": "5.2.18",
           "integrity": "sha512-zrUjRRe1bpXKsX1qAJNJjqZViErVuyEkMTRrwu4ud4sbTtIBRmtaYDrHmcGgmrbsW3MHfmtIf+vJumgQn+PrXg==",
@@ -2838,13 +2851,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -3768,8 +3774,8 @@
       "dev": true
     },
     "fast-deep-equal": {
-      "version": "1.0.0",
-      "integrity": "sha1-liVqO8l1WV6zbYLpkp0GDYk0Of8=",
+      "version": "1.1.0",
+      "integrity": "sha1-wFNHeBfIa1HaqFPIHgWbcz0CNhQ=",
       "dev": true
     },
     "fast-json-stable-stringify": {
@@ -4201,11 +4207,6 @@
             "json-schema-traverse": "0.3.1",
             "json-stable-stringify": "1.0.1"
           }
-        },
-        "fast-deep-equal": {
-          "version": "1.1.0",
-          "integrity": "sha1-wFNHeBfIa1HaqFPIHgWbcz0CNhQ=",
-          "dev": true
         }
       }
     },
@@ -5475,6 +5476,10 @@
       "integrity": "sha1-douOecAJvytk/ugG4ip7HEGQyZA=",
       "dev": true
     },
+    "marked": {
+      "version": "0.4.0",
+      "integrity": "sha512-tMsdNBgOsrUophCAFQl0XPe6Zqk/uy9gnue+jIIKhykO51hxyu6uNx7zBPy0+y/WKYVZZMspV9YeXLNdKk+iYw=="
+    },
     "material-ui": {
       "version": "0.16.4",
       "integrity": "sha1-sf9OpXBpqJYRt+Aqg9R8ZJ4Tx5g=",
@@ -5785,6 +5790,11 @@
             "fastparse": "1.1.1"
           }
         },
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -5807,23 +5817,6 @@
             "js-base64": "2.4.3",
             "source-map": "0.5.6",
             "supports-color": "3.2.3"
-          },
-          "dependencies": {
-            "supports-color": {
-              "version": "3.2.3",
-              "integrity": "sha1-ZawFBLOVQXHYpklGsq48u4pfVPY=",
-              "dev": true,
-              "requires": {
-                "has-flag": "1.0.0"
-              },
-              "dependencies": {
-                "has-flag": {
-                  "version": "1.0.0",
-                  "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-                  "dev": true
-                }
-              }
-            }
           }
         },
         "source-list-map": {
@@ -5837,6 +5830,14 @@
           "dev": true,
           "requires": {
             "loader-utils": "1.1.0"
+          }
+        },
+        "supports-color": {
+          "version": "3.2.3",
+          "integrity": "sha1-ZawFBLOVQXHYpklGsq48u4pfVPY=",
+          "dev": true,
+          "requires": {
+            "has-flag": "1.0.0"
           }
         }
       }
@@ -8037,14 +8038,12 @@
           "requires": {
             "caniuse-lite": "1.0.30000756",
             "electron-to-chromium": "1.3.27"
-          },
-          "dependencies": {
-            "caniuse-lite": {
-              "version": "1.0.30000756",
-              "integrity": "sha1-PacBwVIbn6uHAExt58l/pH2+qtI=",
-              "dev": true
-            }
           }
+        },
+        "caniuse-lite": {
+          "version": "1.0.30000756",
+          "integrity": "sha1-PacBwVIbn6uHAExt58l/pH2+qtI=",
+          "dev": true
         },
         "chalk": {
           "version": "2.3.0",
@@ -8343,6 +8342,11 @@
         "reduce-css-calc": "1.3.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -8365,13 +8369,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -8411,14 +8408,16 @@
               "dev": true,
               "requires": {
                 "has-flag": "3.0.0"
+              },
+              "dependencies": {
+                "has-flag": {
+                  "version": "3.0.0",
+                  "integrity": "sha1-tdRU3CGZriJWmfNGfloH87lVuv0=",
+                  "dev": true
+                }
               }
             }
           }
-        },
-        "has-flag": {
-          "version": "3.0.0",
-          "integrity": "sha1-tdRU3CGZriJWmfNGfloH87lVuv0=",
-          "dev": true
         },
         "postcss": {
           "version": "6.0.13",
@@ -8472,6 +8471,13 @@
               "dev": true,
               "requires": {
                 "has-flag": "3.0.0"
+              },
+              "dependencies": {
+                "has-flag": {
+                  "version": "3.0.0",
+                  "integrity": "sha1-tdRU3CGZriJWmfNGfloH87lVuv0=",
+                  "dev": true
+                }
               }
             }
           }
@@ -8493,11 +8499,6 @@
             "color-name": "1.1.3",
             "simple-swizzle": "0.2.2"
           }
-        },
-        "has-flag": {
-          "version": "3.0.0",
-          "integrity": "sha1-tdRU3CGZriJWmfNGfloH87lVuv0=",
-          "dev": true
         },
         "postcss": {
           "version": "6.0.13",
@@ -8909,6 +8910,11 @@
         "postcss-value-parser": "3.3.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -8931,13 +8937,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -8951,6 +8950,11 @@
         "postcss-value-parser": "3.3.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -8973,13 +8977,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -9222,14 +9219,16 @@
               "dev": true,
               "requires": {
                 "has-flag": "3.0.0"
+              },
+              "dependencies": {
+                "has-flag": {
+                  "version": "3.0.0",
+                  "integrity": "sha1-tdRU3CGZriJWmfNGfloH87lVuv0=",
+                  "dev": true
+                }
               }
             }
           }
-        },
-        "has-flag": {
-          "version": "3.0.0",
-          "integrity": "sha1-tdRU3CGZriJWmfNGfloH87lVuv0=",
-          "dev": true
         },
         "postcss": {
           "version": "6.0.13",
@@ -9313,6 +9312,11 @@
         "postcss": "5.2.18"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -9335,13 +9339,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -9354,6 +9351,11 @@
         "postcss": "5.2.18"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -9376,13 +9378,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -9395,6 +9390,11 @@
         "postcss": "5.2.18"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -9417,13 +9417,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -9436,6 +9429,11 @@
         "postcss": "5.2.18"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -9458,13 +9456,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -9478,6 +9469,11 @@
         "uniqs": "2.0.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -9500,13 +9496,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -9520,6 +9509,11 @@
         "uniqid": "4.1.1"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -9542,13 +9536,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -9587,14 +9574,16 @@
               "dev": true,
               "requires": {
                 "has-flag": "3.0.0"
+              },
+              "dependencies": {
+                "has-flag": {
+                  "version": "3.0.0",
+                  "integrity": "sha1-tdRU3CGZriJWmfNGfloH87lVuv0=",
+                  "dev": true
+                }
               }
             }
           }
-        },
-        "has-flag": {
-          "version": "3.0.0",
-          "integrity": "sha1-tdRU3CGZriJWmfNGfloH87lVuv0=",
-          "dev": true
         },
         "postcss": {
           "version": "6.0.13",
@@ -10001,6 +9990,11 @@
         "postcss-value-parser": "3.3.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -10023,13 +10017,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -10042,6 +10029,11 @@
         "postcss": "5.2.18"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -10064,13 +10056,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -10087,6 +10072,11 @@
         "vendors": "1.0.1"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -10109,13 +10099,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -10135,6 +10118,11 @@
         "postcss-value-parser": "3.3.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -10157,13 +10145,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -10177,6 +10158,11 @@
         "postcss-value-parser": "3.3.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -10199,13 +10185,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -10221,6 +10200,11 @@
         "uniqs": "2.0.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -10243,13 +10227,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -10265,6 +10242,11 @@
         "postcss-selector-parser": "2.2.3"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -10287,13 +10269,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -10589,6 +10564,11 @@
         "postcss": "5.2.18"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -10611,13 +10591,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -10633,6 +10606,11 @@
         "postcss-value-parser": "3.3.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -10655,13 +10633,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -10675,6 +10646,11 @@
         "postcss-value-parser": "3.3.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -10697,13 +10673,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -10830,6 +10799,11 @@
         "postcss-value-parser": "3.3.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -10852,13 +10826,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -10871,6 +10838,11 @@
         "postcss": "5.2.18"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -10893,13 +10865,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -10914,6 +10879,11 @@
         "postcss-value-parser": "3.3.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -10936,13 +10906,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -11148,6 +11111,11 @@
         "svgo": "0.7.2"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -11170,13 +11138,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -11191,6 +11152,11 @@
         "uniqs": "2.0.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -11213,13 +11179,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -11239,6 +11198,11 @@
         "uniqs": "2.0.0"
       },
       "dependencies": {
+        "has-flag": {
+          "version": "1.0.0",
+          "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
+          "dev": true
+        },
         "js-base64": {
           "version": "2.4.3",
           "integrity": "sha512-H7ErYLM34CvDMto3GbD6xD0JLUGYXR3QTcH6B/tr4Hi/QpSThnCsIp+Sy5FRTw3B0d6py4HcNkW7nO/wdtGWEw==",
@@ -11261,13 +11225,6 @@
           "dev": true,
           "requires": {
             "has-flag": "1.0.0"
-          },
-          "dependencies": {
-            "has-flag": {
-              "version": "1.0.0",
-              "integrity": "sha1-nZ55MWXOAXoA8AQYxD+UKnsdEfo=",
-              "dev": true
-            }
           }
         }
       }
@@ -11338,19 +11295,11 @@
       }
     },
     "prop-types-extra": {
-      "version": "1.0.1",
-      "integrity": "sha1-pXvUgQ6C0no/9DF+zBtK0AX3moI=",
+      "version": "1.1.0",
+      "integrity": "sha512-QFyuDxvMipmIVKD2TwxLVPzMnO4e5oOf1vr3tJIomL8E7d0lr6phTHd5nkPhFIzTD1idBLLEPeylL9g+rrTzRg==",
       "requires": {
+        "react-is": "16.4.1",
         "warning": "3.0.0"
-      },
-      "dependencies": {
-        "warning": {
-          "version": "3.0.0",
-          "integrity": "sha1-MuU3fLVy3kqwR1O9+IIcAe1gW3w=",
-          "requires": {
-            "loose-envify": "1.3.1"
-          }
-        }
       }
     },
     "proxy-addr": {
@@ -11644,6 +11593,13 @@
           "version": "3.2.1",
           "integrity": "sha1-MgPgf+0he9H0JLAZc1WC/Deyglo="
         },
+        "prop-types-extra": {
+          "version": "1.0.1",
+          "integrity": "sha1-pXvUgQ6C0no/9DF+zBtK0AX3moI=",
+          "requires": {
+            "warning": "3.0.0"
+          }
+        },
         "react-overlays": {
           "version": "0.7.2",
           "integrity": "sha512-QVTLyKqgq6fzOk+JM9DFPh6Fzf7o5jQiuucqYkMNauDEvQd/oGDSboFgeoGnQWlskrJ3KF88zUGqQCDFGSDXog==",
@@ -11777,6 +11733,10 @@
         "invariant": "2.2.2"
       }
     },
+    "react-is": {
+      "version": "16.4.1",
+      "integrity": "sha512-xpb0PpALlFWNw/q13A+1aHeyJyLYCg0/cCHPUA43zYluZuIPHaHL3k8OBsTgQtxqW0FhyDEMvi8fZ/+7+r4OSQ=="
+    },
     "react-json-tree": {
       "version": "git+https://github.com/dremio/react-json-tree.git#b1b65751427a123aaaa978b7e0e0fe9ad79ef862",
       "requires": {
@@ -11844,7 +11804,7 @@
         "classnames": "2.2.5",
         "dom-helpers": "3.2.1",
         "prop-types": "15.6.0",
-        "prop-types-extra": "1.0.1",
+        "prop-types-extra": "1.1.0",
         "react-transition-group": "2.2.1",
         "warning": "3.0.0"
       },
@@ -11944,6 +11904,15 @@
           "version": "1.0.2",
           "integrity": "sha512-zlVXeVUKvo+HEv1e2KQF/csyeMKx2oHvatQ9l6XjCUj3agvC8XGf6R9HvIPDSmp8FNPvx7b5kaEJTRi7CqxtEw=="
         }
+      }
+    },
+    "react-sortable-hoc": {
+      "version": "0.8.3",
+      "integrity": "sha512-vt2qQ9DnPLjGZ9osM2jBULdi7WfFXtYVuHvjHX8o2em7Rcla9FXIG60aWFbvvpFC1iXyATw5PWZX0B57EUOYfQ==",
+      "requires": {
+        "babel-runtime": "6.25.0",
+        "invariant": "2.2.2",
+        "prop-types": "15.6.0"
       }
     },
     "react-svg-core": {
@@ -12651,6 +12620,14 @@
       "integrity": "sha1-x3PF/iJoolV42SU5qCp6XOU77aY=",
       "dev": true
     },
+    "right-align": {
+      "version": "0.1.3",
+      "integrity": "sha1-YTObci/mo1FWiSENJOFMlhSGE+8=",
+      "dev": true,
+      "requires": {
+        "align-text": "0.1.4"
+      }
+    },
     "rimraf": {
       "version": "2.6.2",
       "integrity": "sha512-lreewLK/BlghmxtfH36YYVg1i8IAce4TI7oao75I1g245+6BctqTVQiBP3YUJ9C6DQOXJmkYR9X9fCLtCOJc5w==",
@@ -12741,6 +12718,13 @@
             "fast-deep-equal": "1.0.0",
             "json-schema-traverse": "0.3.1",
             "json-stable-stringify": "1.0.1"
+          },
+          "dependencies": {
+            "fast-deep-equal": {
+              "version": "1.0.0",
+              "integrity": "sha1-liVqO8l1WV6zbYLpkp0GDYk0Of8=",
+              "dev": true
+            }
           }
         }
       }
@@ -12893,6 +12877,15 @@
           "integrity": "sha1-wt/DhquqDD4zxI2z/ocFnmkGXv0=",
           "dev": true
         }
+      }
+    },
+    "simplemde": {
+      "version": "1.11.2",
+      "integrity": "sha1-ojo12XjSxA7wfewAjJLwcNjggOM=",
+      "requires": {
+        "codemirror": "5.30.0",
+        "codemirror-spell-checker": "1.1.2",
+        "marked": "0.4.0"
       }
     },
     "sinon": {
@@ -13373,6 +13366,10 @@
       "integrity": "sha1-hnrHTjhkGHsdPUfZlqeOxciDB3c=",
       "dev": true
     },
+    "typo-js": {
+      "version": "1.0.3",
+      "integrity": "sha1-VNjrx5SfGngQkItgAsaEFSbJnVo="
+    },
     "ua-parser-js": {
       "version": "0.7.14",
       "integrity": "sha1-EQ1T+kw/MmwSEpK76skE0uAzh8o="
@@ -13712,34 +13709,10 @@
           "integrity": "sha1-YXmX/F9gV2iUxDX5QNgZ4TW4B2I=",
           "dev": true
         },
-        "cliui": {
-          "version": "2.1.0",
-          "integrity": "sha1-S0dXYP+AJkx2LDoXGQMukcf+oNE=",
-          "dev": true,
-          "requires": {
-            "center-align": "0.1.3",
-            "right-align": "0.1.3",
-            "wordwrap": "0.0.2"
-          },
-          "dependencies": {
-            "center-align": {
-              "version": "0.1.3",
-              "integrity": "sha1-qg0yYptu6XIgBBHL1EYckHvCt60=",
-              "dev": true,
-              "requires": {
-                "align-text": "0.1.4",
-                "lazy-cache": "1.0.4"
-              }
-            },
-            "right-align": {
-              "version": "0.1.3",
-              "integrity": "sha1-YTObci/mo1FWiSENJOFMlhSGE+8=",
-              "dev": true,
-              "requires": {
-                "align-text": "0.1.4"
-              }
-            }
-          }
+        "camelcase": {
+          "version": "1.2.1",
+          "integrity": "sha1-m7UwTS4LVmmLLHWLCKPqqdqlijk=",
+          "dev": true
         },
         "fast-deep-equal": {
           "version": "1.1.0",
@@ -13780,10 +13753,15 @@
                 "window-size": "0.1.0"
               },
               "dependencies": {
-                "camelcase": {
-                  "version": "1.2.1",
-                  "integrity": "sha1-m7UwTS4LVmmLLHWLCKPqqdqlijk=",
-                  "dev": true
+                "cliui": {
+                  "version": "2.1.0",
+                  "integrity": "sha1-S0dXYP+AJkx2LDoXGQMukcf+oNE=",
+                  "dev": true,
+                  "requires": {
+                    "center-align": "0.1.3",
+                    "right-align": "0.1.3",
+                    "wordwrap": "0.0.2"
+                  }
                 }
               }
             }

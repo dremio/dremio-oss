@@ -32,9 +32,12 @@ export default class AccountPage extends Component {
 
   constructor(props) {
     super(props);
-    this.menuItems = Immutable.fromJS([
-      {name: la('General Information'), url: '/account/info'}
-    ]);
+    this.sections = [ {
+      title: la('Account Settings'),
+      items: [
+        {name: la('General Information'), url: '/account/info'}
+      ]
+    }];
   }
 
   render() {
@@ -43,8 +46,8 @@ export default class AccountPage extends Component {
         <MainHeader />
         <div className='page-content'>
           <UserNavigation
-            menuItems={this.menuItems}
-            title={la('Account Settings')}/>
+            sections={this.sections}
+          />
           <div className='main-content'>
             {this.props.children}
           </div>

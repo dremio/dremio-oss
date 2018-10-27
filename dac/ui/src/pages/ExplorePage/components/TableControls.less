@@ -15,7 +15,7 @@
  */
 
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
-    
+
   .table-viewer-short{
     .table-controls{
       width: ~"calc(100% - 275px)";
@@ -26,6 +26,7 @@
     margin-top: 11px;
     margin-left: 20px;
     height: 50px;
+    flex-shrink: 0; // do not allow to reduce the height
     display: flex;
     justify-content: space-between;
     position: relative;
@@ -213,13 +214,8 @@
 
       .controls {
         margin-right: 4px;
-        min-width: 300px;
         overflow: visible;
         height: 24px;
-
-        .control-wrap{
-          min-width: 300px;
-        }
       }
 
       .setting-item {

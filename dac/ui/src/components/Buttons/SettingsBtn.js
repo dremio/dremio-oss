@@ -34,11 +34,14 @@ export default class SettingsBtn extends Component {
     handleSettingsClose: PropTypes.func,
     handleSettingsOpen: PropTypes.func,
     hasDropdown: PropTypes.bool,
+    hideArrowIcon: PropTypes.bool,
+    children: PropTypes.node,
     style: PropTypes.object
   };
 
   static defaultProps = {
     hasDropdown: true,
+    children: <FontIcon type='Settings' />,
     classStr: 'main-settings-btn min-btn'
   };
 
@@ -72,7 +75,13 @@ export default class SettingsBtn extends Component {
   }
 
   render() {
-    const { hasDropdown, classStr, style } = this.props;
+    const {
+      hasDropdown,
+      classStr,
+      style,
+      hideArrowIcon,
+      children
+    } = this.props;
     const wrapClasses = classNames(classStr, {'active': this.state.open});
     return (
       <span className={wrapClasses} ref='settingsWrap'>
@@ -82,8 +91,8 @@ export default class SettingsBtn extends Component {
           onClick={this.handleTouchTap}
           style={[styles.button, style]}
         >
-          <FontIcon type='Settings'/>
-          {hasDropdown && <FontIcon
+          {children}
+          {hasDropdown && !hideArrowIcon && <FontIcon
             type='Arrow-Down-Small'
             theme={{Icon: {width: 12, backgroundPosition: '-7px 50%'}}}
           />}

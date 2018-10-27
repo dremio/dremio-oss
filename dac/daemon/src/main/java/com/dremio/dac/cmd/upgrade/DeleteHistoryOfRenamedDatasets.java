@@ -31,14 +31,13 @@ import com.google.common.collect.Maps;
 public class DeleteHistoryOfRenamedDatasets extends UpgradeTask {
 
   public DeleteHistoryOfRenamedDatasets() {
-    super("Delete history of renamed datasets", VERSION_106, VERSION_210);
+    super("Delete history of renamed datasets", VERSION_106, VERSION_210, NORMAL_ORDER + 10);
   }
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
     final KVStore<VersionDatasetKey, VirtualDatasetVersion> datasetVersions =
-        context.getKVStoreProvider().get()
-            .getStore(VersionStoreCreator.class);
+        context.getKVStoreProvider().getStore(VersionStoreCreator.class);
 
     final Map<VersionDatasetKey, VirtualDatasetVersion> renamedDatasets = Maps.newHashMap();
     for (final Map.Entry<VersionDatasetKey, VirtualDatasetVersion> datasetVersion : datasetVersions.find()) {

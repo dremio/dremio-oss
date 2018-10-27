@@ -23,6 +23,7 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.fn.FunctionHolder;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
+import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.sun.codemodel.JVar;
 
 public abstract class AbstractFunctionHolder implements FunctionHolder {
@@ -55,4 +56,23 @@ public abstract class AbstractFunctionHolder implements FunctionHolder {
   public boolean usesErrContext() {
     return false;
   }
+
+  /*
+   * Is this a decimal function.
+   * @return true if yes
+   */
+  public abstract boolean checkPrecisionRange();
+
+  /**
+   * Does this function always return the same type, no matter the inputs?
+   * @return true if yes
+   */
+  public abstract boolean isReturnTypeIndependent();
+
+  /**
+   * Returns how the method handles null inputs.
+   * For e.g. isNotNull would be NULL_NEVER, add(a+b) would NULL IF NULL.
+   * @return the appropriate null handling for the method.
+   */
+  public abstract FunctionTemplate.NullHandling getNullHandling();
 }

@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.rpc.user;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
 
@@ -43,17 +44,19 @@ import com.dremio.exec.proto.UserProtos.RpcType;
 import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.proto.UserProtos.UserToBitHandshake;
 import com.dremio.exec.rpc.RpcConfig;
+import com.dremio.exec.rpc.ssl.SSLConfig;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 
 public class UserRpcConfig {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UserRpcConfig.class);
 
-  public static RpcConfig getMapping(SabotConfig config, Executor executor) {
+  public static RpcConfig getMapping(SabotConfig config, Executor executor, Optional<SSLConfig> sslConfig) {
     return RpcConfig.newBuilder()
         .name("USER")
         .timeout(config.getInt(ExecConstants.USER_RPC_TIMEOUT))
         .executor(executor)
+        .sslConfig(sslConfig)
         .add(RpcType.HANDSHAKE, UserToBitHandshake.class, RpcType.HANDSHAKE, BitToUserHandshake.class) // user to bit
         .add(RpcType.RUN_QUERY, RunQuery.class, RpcType.QUERY_HANDLE, QueryId.class) // user to bit
         .add(RpcType.CANCEL_QUERY, QueryId.class, RpcType.ACK, Ack.class) // user to bit

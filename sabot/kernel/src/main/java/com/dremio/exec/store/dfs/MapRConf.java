@@ -34,7 +34,7 @@ import com.google.common.collect.Lists;
 import io.protostuff.Tag;
 
 @SourceType(value = "MAPRFS", label = "MapR-FS")
-public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin> {
+public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf>> {
 
   //  optional string cluster_name = 1;
   //  optional bool enableImpersonation = 2 [default = false];
@@ -63,6 +63,11 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin> {
   @DisplayMetadata(label = "Root Path")
   public String rootPath = "/";
 
+  @Tag(6)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable exports into the source (CTAS and DROP)")
+  public boolean allowCreateDrop;
+
   @Override
   public Path getPath() {
     return new Path(rootPath);
@@ -86,12 +91,12 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin> {
 
   @Override
   public SchemaMutability getSchemaMutability() {
-    return SchemaMutability.NONE;
+    return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
   }
 
   @Override
-  public FileSystemPlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new FileSystemPlugin(this, context, name, null, pluginIdProvider);
+  public FileSystemPlugin<MapRConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+    return new FileSystemPlugin<>(this, context, name, null, pluginIdProvider);
   }
 
 }

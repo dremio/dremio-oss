@@ -52,6 +52,7 @@ import com.dremio.common.expression.parser.ExprParser.parse_return;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.logical.data.Order;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.config.DremioConfig;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.ExecTest;
@@ -101,6 +102,7 @@ import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
+import com.dremio.sabot.op.common.spill.SpillServiceOptionsImpl;
 import com.dremio.sabot.op.receiver.RawFragmentBatchProvider;
 import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.dremio.sabot.op.spi.BatchStreamProvider;
@@ -112,6 +114,9 @@ import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator.State;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.scheduler.SchedulerService;
+import com.dremio.service.spill.SpillService;
+import com.dremio.service.spill.SpillServiceImpl;
 import com.dremio.test.DremioTest;
 
 import io.airlift.tpch.GenerationDefinition.TpchTable;
@@ -198,6 +203,29 @@ public class BaseTestOperator extends ExecTest {
   }
 
   /**
+   * Helper class to return a pair of results from a function.
+   */
+  private class Pair<First, Second> implements AutoCloseable {
+    public final First first;
+    public final Second second;
+
+    public Pair(First first, Second second) {
+      this.first = first;
+      this.second = second;
+    }
+
+    @Override
+    public void close() throws Exception {
+      if (first instanceof AutoCloseable) {
+        ((AutoCloseable) first).close();
+      }
+      if (second instanceof AutoCloseable) {
+        ((AutoCloseable) second).close();
+      }
+    }
+  };
+
+  /**
    * Create a new operator described by the provided operator class. Test harness will automatically create a test allocator. Test will automatically close operator created using this method.
    * @param clazz The operator class mapped to the PhysicalOperator provided.
    * @param pop SqlOperatorImpl configuration
@@ -210,6 +238,14 @@ public class BaseTestOperator extends ExecTest {
   }
 
   protected <T extends Operator> T newOperator(Class<T> clazz, PhysicalOperator pop, int targetBatchSize, TunnelProvider tunnelProvider, final RawFragmentBatchProvider[]... batchProviders) throws Exception {
+    return newOperatorWithStats(clazz, pop, targetBatchSize, tunnelProvider, batchProviders).first;
+  }
+
+  protected <T extends Operator> Pair<T, OperatorStats> newOperatorWithStats(Class<T> clazz, PhysicalOperator pop, int targetBatchSize, final RawFragmentBatchProvider[]... batchProviders) throws Exception {
+    return newOperatorWithStats(clazz, pop, targetBatchSize, null, batchProviders);
+  }
+
+  protected <T extends Operator> Pair<T, OperatorStats> newOperatorWithStats(Class<T> clazz, PhysicalOperator pop, int targetBatchSize, TunnelProvider tunnelProvider, final RawFragmentBatchProvider[]... batchProviders) throws Exception {
 
     final BatchStreamProvider provider = new BatchStreamProvider(){
 
@@ -246,7 +282,7 @@ public class BaseTestOperator extends ExecTest {
 
     if(clazz.isAssignableFrom(o.getClass())){
       // make sure that the set of closeables that should be cleaned in finally are empty since we were succesful.
-      return (T) o;
+      return new Pair((T) o, context.getStats());
     }else{
       throw new RuntimeException(String.format("Unable to convert from expected operator of type %s to type %s.", o.getClass().getName(), clazz.getName()));
     }
@@ -304,13 +340,23 @@ public class BaseTestOperator extends ExecTest {
       this.registry = registry;
     }
 
-    protected FunctionLookupContext getFunctionLookupContext(){
+    public FunctionLookupContext getFunctionLookupContext(){
       return functionLookup;
     }
 
     protected OperatorContextImpl getNewOperatorContext(BufferAllocator child, PhysicalOperator pop, int targetBatchSize) throws Exception {
       OperatorStats stats = new OperatorStats(new OpProfileDef(1, 1, 1), child);
       final NamespaceService namespaceService = new NamespaceServiceImpl(testContext.storeProvider);
+      final DremioConfig dremioConfig = DremioConfig.create(null, config);
+      final SchedulerService schedulerService = Mockito.mock(SchedulerService.class);
+      final SpillService spillService = new SpillServiceImpl(dremioConfig, new SpillServiceOptionsImpl(options),
+        new Provider<SchedulerService>() {
+          @Override
+          public SchedulerService get() {
+            return schedulerService;
+          }
+        }
+      );
       final FragmentHandle handle = FragmentHandle.newBuilder()
         .setQueryId(new AttemptId().toQueryId())
         .setMinorFragmentId(0)
@@ -321,7 +367,7 @@ public class BaseTestOperator extends ExecTest {
           handle,
           pop,
           child,
-          child,
+          allocator,
           compiler,
           stats,
           ec,
@@ -330,6 +376,7 @@ public class BaseTestOperator extends ExecTest {
           contextInformation,
           options,
           namespaceService,
+          spillService,
           NodeDebugContextProvider.NOOP,
           targetBatchSize);
     }
@@ -483,6 +530,11 @@ public class BaseTestOperator extends ExecTest {
     }
   }
 
+  protected <T extends SingleInputOperator> OperatorStats runSingle(PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, int batchSize) throws Exception {
+    TpchGenerator generator = TpchGenerator.singleGenerator(table, scale, getTestAllocator());
+    return validateSingle(pop, clazz, generator, null, batchSize, null);
+  }
+
   protected <T extends SingleInputOperator> void validateSingle(PhysicalOperator pop, Class<T> clazz, TpchTable table, double scale, Fixtures.Table result) throws Exception {
     assertSingleInput(pop, clazz, table, scale, null, 4095, result);
   }
@@ -508,14 +560,18 @@ public class BaseTestOperator extends ExecTest {
     validateSingle(pop, clazz, generator, result, batchSize, null);
   }
 
-  private <T extends SingleInputOperator> void validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, Fixtures.Table result, int batchSize, Long expected) throws Exception {
+  private <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, Fixtures.Table result, int batchSize, Long expected) throws Exception {
     long recordCount = 0;
     final List<RecordBatchData> data = new ArrayList<>();
+    OperatorStats stats;
+
     try(
-        T op = newOperator(clazz, pop, batchSize);
+        Pair<T, OperatorStats> pair = newOperatorWithStats(clazz, pop, batchSize);
         Generator closeable = generator;
         ){
 
+      T op = pair.first;
+      stats = pair.second;
       final VectorAccessible output = op.setup(generator.getOutput());
       int count;
       while(op.getState() != State.DONE && (count = generator.next(batchSize)) != 0){
@@ -553,6 +609,8 @@ public class BaseTestOperator extends ExecTest {
     } finally {
       AutoCloseables.close(data);
     }
+
+    return stats;
   }
 
   /**

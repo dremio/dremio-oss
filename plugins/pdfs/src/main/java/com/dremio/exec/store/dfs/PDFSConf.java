@@ -33,7 +33,7 @@ import io.protostuff.Tag;
  * Internally used config for PDFS. Test purposes only.
  */
 @SourceType(value = "PDFS", configurable = false)
-public class PDFSConf extends FileSystemConf<PDFSConf, FileSystemPlugin> {
+public class PDFSConf extends FileSystemConf<PDFSConf, FileSystemPlugin<PDFSConf>> {
 
   @Tag(1)
   public String path;
@@ -64,8 +64,8 @@ public class PDFSConf extends FileSystemConf<PDFSConf, FileSystemPlugin> {
   }
 
   @Override
-  public FileSystemPlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new FileSystemPlugin(this, context, name, null, pluginIdProvider);
+  public FileSystemPlugin<PDFSConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+    return new FileSystemPlugin<>(this, context, name, null, pluginIdProvider);
   }
 
 }

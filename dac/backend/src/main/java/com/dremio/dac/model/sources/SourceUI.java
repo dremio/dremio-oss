@@ -310,6 +310,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     source.setAccelerationRefreshPeriod(sourceConfig.getAccelerationRefreshPeriod());
     source.setAccelerationGracePeriod(sourceConfig.getAccelerationGracePeriod());
     source.setAccelerationNeverExpire(sourceConfig.getAccelerationNeverExpire());
+    source.setAccelerationNeverRefresh(sourceConfig.getAccelerationNeverRefresh());
     source.setId(sourceConfig.getId().getId());
     return source;
   }

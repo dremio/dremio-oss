@@ -15,10 +15,10 @@
  */
 package com.dremio.exec.work.protector;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.work.AttemptId;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Context for reattempting.
@@ -28,12 +28,14 @@ public class ReAttemptContext {
   private final AttemptId attemptId;
   private final UserException exception;
   private final boolean containsHashAggregate;
+  private final boolean isCTAS;
 
   ReAttemptContext(AttemptId attemptId, UserException exception,
-                   boolean containsHashAggregate) {
+                   boolean containsHashAggregate, boolean isCTAS) {
     this.attemptId = checkNotNull(attemptId);
     this.exception = exception;
     this.containsHashAggregate = containsHashAggregate;
+    this.isCTAS = isCTAS;
   }
 
   public AttemptId getAttemptId() {
@@ -46,5 +48,9 @@ public class ReAttemptContext {
 
   public boolean containsHashAggregate() {
     return containsHashAggregate;
+  }
+
+  public boolean isCTAS() {
+    return isCTAS;
   }
 }

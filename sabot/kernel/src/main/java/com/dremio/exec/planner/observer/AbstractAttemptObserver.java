@@ -37,6 +37,7 @@ import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
 public abstract class AbstractAttemptObserver implements AttemptObserver {
 
@@ -160,5 +161,9 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
 
   @Override
   public void tablesCollected(Iterable<DremioTable> tables) {
+  }
+
+  @Override
+  public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
   }
 }

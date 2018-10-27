@@ -58,6 +58,8 @@ public class Folder {
 
   private final NamespaceTree contents;
 
+  private final List<String> tags;
+
   @JsonCreator
   public Folder(
     @JsonProperty("id") String id,
@@ -69,7 +71,8 @@ public class Folder {
     @JsonProperty("extendedConfig") ExtendedConfig extendedConfig,
     @JsonProperty("version") Long version,
     @JsonProperty("fileformat") FileFormat fileFormat,
-    @JsonProperty("contents") NamespaceTree contents) {
+    @JsonProperty("contents") NamespaceTree contents,
+    @JsonProperty("tags") List<String> tags) {
     this.id = id;
     this.folderPath = Folder.parseUrlPath(urlPath);
     this.name = name;
@@ -80,6 +83,7 @@ public class Folder {
     this.version = version;
     this.fileFormat = fileFormat;
     this.contents = contents;
+    this.tags = tags;
   }
 
   public String getId() {
@@ -120,6 +124,10 @@ public class Folder {
 
   public Long getVersion() {
     return version;
+  }
+
+  public List<String> getTags() {
+    return tags;
   }
 
   public Map<String, String> getLinks() {
@@ -194,16 +202,16 @@ public class Folder {
   }
 
   public static Folder newInstance(FolderPath folderPath, FolderConfig folderConfig, NamespaceTree contents, boolean isQueryable, boolean isFileSystemFolder) {
-    return newInstance(folderPath, folderConfig, null, contents, isQueryable, isFileSystemFolder);
+    return newInstance(folderPath, folderConfig, null, contents, isQueryable, isFileSystemFolder, null);
   }
 
   public static Folder newInstance(SourceFolderPath folderPath, FolderConfig folderConfig, FileFormat fileFormat, NamespaceTree contents, boolean isQueryable, boolean isFileSystemFolder) {
-    return newInstance((NamespacePath) folderPath, folderConfig, fileFormat, contents, isQueryable, isFileSystemFolder);
+    return newInstance((NamespacePath) folderPath, folderConfig, fileFormat, contents, isQueryable, isFileSystemFolder, null);
   }
 
-  protected static Folder newInstance(NamespacePath folderPath, FolderConfig folderConfig, FileFormat fileFormat, NamespaceTree contents, boolean isQueryable, boolean isFileSystemFolder) {
+  protected static Folder newInstance(NamespacePath folderPath, FolderConfig folderConfig, FileFormat fileFormat, NamespaceTree contents, boolean isQueryable, boolean isFileSystemFolder, List<String> tags) {
     String id = folderConfig.getId() == null ? folderPath.toUrlPath() : folderConfig.getId().getId();
     return new Folder(id, folderConfig.getName(), folderPath.toUrlPath(), folderConfig.getIsPhysicalDataset(),
-        isFileSystemFolder, isQueryable, folderConfig.getExtendedConfig(), folderConfig.getVersion(), fileFormat, contents);
+        isFileSystemFolder, isQueryable, folderConfig.getExtendedConfig(), folderConfig.getVersion(), fileFormat, contents, tags);
   }
 }

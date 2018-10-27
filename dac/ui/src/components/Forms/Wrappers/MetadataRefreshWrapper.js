@@ -31,7 +31,8 @@ export default class MetadataRefreshWrapper extends Component {
       <MetadataRefresh
         fields={fields}
         showDatasetDiscovery={datasetDiscovery}
-        showAuthorization={authorization}/>
+        showAuthorization={authorization}
+      />
     );
   }
 }

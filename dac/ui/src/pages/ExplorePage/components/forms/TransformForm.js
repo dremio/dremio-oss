@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Children, Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
@@ -148,16 +148,18 @@ export class TransformForm extends Component {
       <form onSubmit={onFormSubmit ? handleSubmit(onFormSubmit) : null} ref='form' style={{ height: '100%' }}>
         {error && <Message messageType='error' message={error.message} messageId={error.id} />}
         <div style={{ position: 'relative' }}>
-          <ViewStateWrapper
-            className={content}
-            viewState={viewState}
-            spinnerStyle={styles.spinner}
-            hideChildrenWhenInProgress
-            style={{ ...styles.formBody, ...style }}>
-            <FormProgressWrapper submitting={submitting}>
-              {children}
-            </FormProgressWrapper>
-          </ViewStateWrapper>
+          {
+            Children.count(children) > 0 && <ViewStateWrapper
+              className={content}
+              viewState={viewState}
+              spinnerStyle={styles.spinner}
+              hideChildrenWhenInProgress
+              style={{ ...styles.formBody, ...style }}>
+              <FormProgressWrapper submitting={submitting}>
+                {children}
+              </FormProgressWrapper>
+            </ViewStateWrapper>
+          }
           <DefaultWizardFooter {...this.props} />
         </div>
       </form>

@@ -25,3 +25,8 @@ message KVStoreInfo {
   optional string documentConverterClassName = 4;
   optional string versionExtractorClassName = 5;
 }
+
+message StoreMetadata {
+  optional string table_name = 1;
+  optional int64 latest_transaction_number = 2 [default = 0];
+}

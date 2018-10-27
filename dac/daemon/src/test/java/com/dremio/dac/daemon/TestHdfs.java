@@ -141,6 +141,7 @@ public class TestHdfs extends BaseTestMiniDFS {
       hdfsConfig.port = port;
       SourceConfig source = new SourceConfig();
       source.setName(SOURCE_NAME);
+      source.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE);
       source.setConnectionConf(hdfsConfig);
       source.setId(new EntityId(SOURCE_ID));
       source.setDescription(SOURCE_DESC);

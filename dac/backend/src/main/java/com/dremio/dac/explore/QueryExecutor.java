@@ -138,7 +138,7 @@ public class QueryExecutor {
     return table.getRowType(SqlTypeFactoryImpl.INSTANCE).getFieldNames();
   }
 
-  // TODO, this should be moved to dataset resource and be paginated.
+  @Deprecated
   public JobDataFragment previewPhysicalDataset(String table, FileFormat formatOptions) {
     SqlQuery query = new SqlQuery(format("select * from table(%s (%s))", table, formatOptions.toTableOptions()), null, context.getUserPrincipal().getName());
     // We still need to truncate the results to 500 as the preview physical datasets doesn't support pagination yet

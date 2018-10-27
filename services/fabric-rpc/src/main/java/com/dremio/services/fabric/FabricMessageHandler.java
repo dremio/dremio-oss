@@ -26,6 +26,7 @@ import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcBus;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.proto.FabricProto.FabricIdentity;
 import com.dremio.services.fabric.proto.FabricProto.FabricMessage;
@@ -104,6 +105,11 @@ class FabricMessageHandler {
         .build();
 
       innerSender.send(new Response(RpcType.MESSAGE, message, r.dBodies));
+    }
+
+    @Override
+    public void sendFailure(UserRpcException e) {
+      innerSender.sendFailure(e);
     }
 
   }

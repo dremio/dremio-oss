@@ -25,6 +25,8 @@ import java.util.List;
 
 import javax.inject.Named;
 
+import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
+import com.dremio.sabot.op.common.hashtable.HashTableStats;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.FixedWidthVector;
@@ -52,7 +54,6 @@ import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.common.hashtable.ChainedHashTable;
 import com.dremio.sabot.op.common.hashtable.HashTable;
 import com.dremio.sabot.op.common.hashtable.HashTableConfig;
-import com.dremio.sabot.op.common.hashtable.HashTableStats;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
@@ -75,7 +76,7 @@ public abstract class HashAggTemplate implements HashAggregator {
   private Field[] materializedValueFields;
 
   private OperatorStats stats;
-  private HashTableStats htStats;
+  private HashTableStats hashTableStats;
   private FunctionContext context;
   private final Constructor<BatchHolder> innerConstructor;
 
@@ -225,7 +226,7 @@ public abstract class HashAggTemplate implements HashAggregator {
           "expressions.");
     }
 
-    this.htStats = new HashTableStats(stats);
+    this.hashTableStats = new HashTableStats();
     this.stats = stats;
     this.allocator = allocator;
     this.incoming = incoming;
@@ -293,7 +294,19 @@ public abstract class HashAggTemplate implements HashAggregator {
       bh.updateAggrValues(vectorIndex, idxWithinBatch);
     }
 
-    htStats.update(this.htable);
+    updateStats();
+  }
+
+  private void updateStats() {
+    if (htable == null) {
+      return;
+    }
+    final OperatorStats stats = this.stats;
+    htable.getStats(hashTableStats);
+    stats.setLongStat(HashAggStats.Metric.NUM_BUCKETS, hashTableStats.numBuckets);
+    stats.setLongStat(HashAggStats.Metric.NUM_ENTRIES, hashTableStats.numEntries);
+    stats.setLongStat(HashAggStats.Metric.NUM_RESIZING, hashTableStats.numResizing);
+    stats.setLongStat(HashAggStats.Metric.RESIZING_TIME, hashTableStats.resizingTime);
   }
 
   private void allocateOutgoing(int records) {

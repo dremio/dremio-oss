@@ -76,6 +76,7 @@ import javax.ws.rs.core.Response.Status;
 
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.dac.explore.model.CellPOJO;
@@ -87,7 +88,6 @@ import com.dremio.dac.explore.model.ColumnForCleaning;
 import com.dremio.dac.explore.model.CreateFromSQL;
 import com.dremio.dac.explore.model.DataPOJO;
 import com.dremio.dac.explore.model.DatasetPath;
-import com.dremio.dac.explore.model.DatasetSearchUIs;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.DatasetUIWithHistory;
 import com.dremio.dac.explore.model.DatasetVersionResourcePath;
@@ -116,6 +116,7 @@ import com.dremio.dac.explore.model.extract.Selection;
 import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.sources.SourceUI;
+import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.dac.model.spaces.Space;
@@ -181,11 +182,13 @@ import com.dremio.dac.proto.model.dataset.TransformSplitByDataType;
 import com.dremio.dac.proto.model.dataset.TransformTrim;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
+import com.dremio.dac.resource.SystemResource;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.dac.util.DatasetsUtil.ExtractRuleVisitor;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobRequest;
@@ -199,6 +202,7 @@ import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.Origin;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.space.proto.HomeConfig;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -207,6 +211,9 @@ import com.google.common.collect.Lists;
  * Explore integration tests
  */
 public class TestServerExplore extends BaseTestServer {
+
+  @Rule
+  public final TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Before
   public void setup() throws Exception {
@@ -376,6 +383,7 @@ public class TestServerExplore extends BaseTestServer {
     SourceUI source = new SourceUI();
     source.setName("testNAS");
     source.setConfig(nas);
+    source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
 
     final SourceService sourceService = newSourceService();
     sourceService.registerSourceWithRuntime(source);
@@ -1954,25 +1962,6 @@ public class TestServerExplore extends BaseTestServer {
   }
 
   @Test
-  public void testSearchDatasets() throws Exception {
-    // create dataset
-    DatasetUI dataset = createDatasetFromParentAndSave("calculatedField", "cp.\"tpch/supplier.parquet\"");
-
-    // make some thransform
-    DatasetUI dataset2 = transform(dataset, new TransformAddCalculatedField("baz", "s_address", "1", true)).getDataset();
-
-    // check that search works right
-    DatasetSearchUIs datasets = search("calculatedField");
-    assertEquals(1, datasets.size());
-
-    // check that there is no tmp datasets in search, because the above call (createDatasetFromParentAndSave) creates
-    // new_untitled dataset in dataset versions table but not in namespace.
-    DatasetSearchUIs datasets2 = search("tmp");
-
-    assertEquals(0, datasets2.size());
-  }
-
-  @Test
   public void testNodeActivity() {
     Nodes nodes =  expectSuccess(getBuilder(getAPIv2().path("/system/nodes"))
             .buildGet(), Nodes.class);
@@ -1982,6 +1971,13 @@ public class TestServerExplore extends BaseTestServer {
       assertEquals("green", nodes.get(0).getStatus());
       assertEquals(1, nodes.size());
     }
+  }
+
+  @Test
+  public void testMemoryActivity() {
+    SystemResource.ResourceInfo resourceInfo =  expectSuccess(getBuilder(getAPIv2().path("/system/cluster-resource-info"))
+      .buildGet(), SystemResource.ResourceInfo.class);
+    assertNotNull(resourceInfo);
   }
 
   @Test
@@ -2315,6 +2311,7 @@ public class TestServerExplore extends BaseTestServer {
     SourceUI source = new SourceUI();
     source.setName("testNAS");
     source.setConfig(nas);
+    source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
 
     final SourceService sourceService = newSourceService();
     sourceService.registerSourceWithRuntime(source);
@@ -2323,5 +2320,32 @@ public class TestServerExplore extends BaseTestServer {
 
     // Now try to query the table as "testNAS.datasets"."users.json"
     createDatasetFromSQL("SELECT * FROM \"testNAS.datasets\".\"users.json\"", asList("cp"));
+  }
+
+  @Test
+  public void testReapplyForCopiedRenamedMovedDataset() throws Exception {
+    expectSuccess(getBuilder(getAPIv2().path("space/space1")).buildPut(Entity.json(new Space(null, "space1", null, null, null, 0, null))), Space.class);
+    expectSuccess(getBuilder(getAPIv2().path("space/space2")).buildPut(Entity.json(new Space(null, "space2", null, null, null, 0, null))), Space.class);
+
+    //create dataset
+    DatasetPath datasetPath = new DatasetPath("space1.ds1");
+    createDatasetFromParentAndSave(datasetPath, "cp.\"tpch/supplier.parquet\"");
+
+    //copy existing dataset
+    final DatasetUI dsCopied = expectSuccess(getBuilder(getAPIv2().path("dataset/space1.ds1-copied/copyFrom/space1.ds1")).
+      buildPut(Entity.json(new VirtualDatasetUI())), DatasetUI.class);
+    final DatasetUI dsGetCopied = getDataset(getDatasetPath(dsCopied));
+
+    //rename copied dataset
+    final DatasetUI dsPutRenamed = rename(getDatasetPath(dsGetCopied), "ds1-copied-renamed");
+
+    //move copied and renamed dataset
+    DatasetPath renamedDatasetPath = getDatasetPath(dsPutRenamed);
+    final DatasetPath newDest = new DatasetPath("space2.ds1-copied-moved");
+    final DatasetUI dsPutMoved = move(renamedDatasetPath, newDest);
+
+    //should success to edit original sql for a dataset that is copied, moved, and renamed
+    final DatasetUI testDS = createDatasetFromParent("space2.ds1-copied-moved").getDataset();
+    expectSuccess(reapplyInvocation(getDatasetVersionPath(testDS)));
   }
 }

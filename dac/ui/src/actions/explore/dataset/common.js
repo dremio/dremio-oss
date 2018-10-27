@@ -16,6 +16,9 @@
 import { CALL_API } from 'redux-api-middleware';
 import { push, replace } from 'react-router-redux';
 import urlParse from 'url-parse';
+import { collapseExploreSql } from '@app/actions/explore/ui';
+import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
+import { getPathPart, changePageTypeInUrl } from '@app/pages/ExplorePage/pageTypeUtils';
 
 import { API_URL_V2 } from 'constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
@@ -75,8 +78,26 @@ export function navigateToNextDataset(response, {replaceNav, linkName, isSaveAs,
   return (dispatch, getStore) => {
     const location = getStore().routing.locationBeforeTransitions;
     const { tipVersion } = location.query || {};
-    //if isGraphLink is true then means user should be redirected to dataset graph
-    const isGraphLink = location.pathname.substr(-6) === '/graph';
+    let targetPageType = PageTypes.default;
+    let keepQuery = false;
+    let collapseSqlEditor = false;
+
+    //for graph and wiki we have to keep query parameters and redirect to corresponding page
+    for (const pageType of [PageTypes.graph, PageTypes.wiki]) {
+      const urlPart = getPathPart(pageType);
+      //check if url ends with page type
+      if (location.pathname.endsWith(urlPart)) {
+        targetPageType = pageType;
+        keepQuery = true;
+        collapseSqlEditor = true; // collapse an editor for wiki and graph pages
+        break;
+      }
+    }
+
+    if (collapseSqlEditor) {
+      dispatch(collapseExploreSql());
+    }
+
     const payload = response.payload || Immutable.Map();
     const resultId = payload.get('result');
     const nextDataset = payload.getIn(['entities', 'datasetUI', resultId]);
@@ -92,9 +113,10 @@ export function navigateToNextDataset(response, {replaceNav, linkName, isSaveAs,
 
     const mode = isSaveAs ? 'edit' : location.query && location.query.mode;
     const jobId = _getNextJobId(fullDataset);
-    const pathname = isGraphLink ? `${parsedLink.pathname}/graph` : parsedLink.pathname;
+    const pathname = changePageTypeInUrl(PageTypes.default, // self link should always be for default page
+      parsedLink.pathname, targetPageType);
     const query = {
-      ...(isGraphLink ? location.query : {}), // Initial dataset request will navigate. Need to not clobber graph query params.
+      ...(keepQuery ? location.query : {}), // Initial dataset request will navigate. Need to not clobber graph query params.
       ...parsedLink.query,
       ...(jobId ? { jobId } : {}),
       ...(mode ? { mode } : {}),

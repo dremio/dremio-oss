@@ -20,9 +20,29 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 @JsonPropertyOrder({ "type" })
 public abstract class LogicalExpressionBase implements LogicalExpression {
+  private final EvaluationType evaluationType;
 
   protected LogicalExpressionBase() {
     super();
+    this.evaluationType = new EvaluationType();
+    // Set default execution type to Java
+    // Supported types can be added later
+    addEvaluationType(EvaluationType.ExecutionType.JAVA);
+  }
+
+  @Override
+  public boolean isEvaluationTypeSupported(EvaluationType.ExecutionType executionType) {
+    return evaluationType.isEvaluationTypeSupported(executionType);
+  }
+
+  @Override
+  public void addEvaluationType(EvaluationType.ExecutionType executionType) {
+    evaluationType.addEvaluationType(executionType);
+  }
+
+  @Override
+  public EvaluationType getEvaluationType() {
+    return evaluationType;
   }
 
   protected void i(StringBuilder sb, int indent) {

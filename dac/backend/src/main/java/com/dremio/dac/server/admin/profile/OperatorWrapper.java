@@ -30,6 +30,7 @@ import com.dremio.exec.proto.UserBitShared.MetricDef;
 import com.dremio.exec.proto.UserBitShared.MetricValue;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
+import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
 import com.google.common.base.Preconditions;
 
 /**
@@ -145,7 +146,8 @@ public class OperatorWrapper {
       return "";
     }
 
-    Integer[] metricIds = OperatorMetricRegistry.getMetricIds(coreOperatorTypeMetricsMap, operatorType.getNumber());
+    final String[] metricNames = OperatorMetricRegistry.getMetricNames(operatorType.getNumber());
+    final Integer[] metricIds = OperatorMetricRegistry.getMetricIds(coreOperatorTypeMetricsMap, operatorType.getNumber());
 
     if (metricIds.length == 0) {
       return "";
@@ -174,25 +176,65 @@ public class OperatorWrapper {
         null);
 
 
+      final boolean isHashAgg = operatorType.getNumber() == CoreOperatorType.HASH_AGGREGATE_VALUE;
+      final boolean toSkip = isHashAgg && renderingOldProfiles(op);
       final Number[] values = new Number[metricIds.length];
       for (final MetricValue metric : op.getMetricList()) {
-        Optional<Integer> columnIndex = Optional.ofNullable(metricIdToMetricTableColumnIndex.get(metric.getMetricId()));
-        columnIndex.ifPresent(index -> {
+        int metricId = metric.getMetricId();
+        if (toSkip) {
+          /* working with older profiles (that have more stat columns), so
+           * get the correct ordinal to index the values array
+           * for storing the metric IDs for rendering.
+           */
+          metricId = HashAggStats.getCorrectOrdinalForOlderProfiles(metricId);
           if (metric.hasLongValue()) {
-            values[index] = metric.getLongValue();
+            values[metricId] = metric.getLongValue();
           } else if (metric.hasDoubleValue()) {
-            values[index] = metric.getDoubleValue();
+            values[metricId] = metric.getDoubleValue();
           }
-        });
+        } else {
+          Optional<Integer> columnIndex = Optional.ofNullable(metricIdToMetricTableColumnIndex.get(metric.getMetricId()));
+          columnIndex.ifPresent(index -> {
+            if (metric.hasLongValue()) {
+              values[index] = metric.getLongValue();
+            } else if (metric.hasDoubleValue()) {
+              values[index] = metric.getDoubleValue();
+            }
+          });
+        }
       }
+
+      int count = 0;
       for (final Number value : values) {
         if (value != null) {
-          builder.appendFormattedNumber(value, null);
+          if (isHashAgg && metricNames[count].contains("TIME")) {
+            /* format elapsed time related metrics correctly as string (using hrs, mins, secs, us, ns as applicable) */
+            builder.appendNanosWithUnit(value.longValue());
+          } else {
+            builder.appendFormattedNumber(value, null);
+          }
         } else {
           builder.appendCell("", null);
         }
+
+        count++;
       }
     }
     return builder.build();
+  }
+
+  private boolean renderingOldProfiles(OperatorProfile op) {
+    final List<MetricValue> metricValues = op.getMetricList();
+    for (MetricValue metric : metricValues) {
+      final int metricId = metric.getMetricId();
+      if (metricId == HashAggStats.SKIP_METRIC_START) {
+        /* if the ordinal (metric id) to skip is indeed present
+         * in the serialized profile that we are trying to render
+         * then we are definitely working with new profiles
+         */
+        return false;
+      }
+    }
+    return true;
   }
 }

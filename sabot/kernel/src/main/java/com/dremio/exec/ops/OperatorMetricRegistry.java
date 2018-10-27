@@ -18,6 +18,9 @@ package com.dremio.exec.ops;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 
+import com.dremio.sabot.op.common.hashtable.HashTableStats;
+import com.dremio.sabot.op.filter.FilterStats;
+import com.dremio.sabot.op.project.ProjectorStats;
 import org.apache.commons.lang3.ArrayUtils;
 
 import com.dremio.exec.proto.UserBitShared;
@@ -26,7 +29,8 @@ import com.dremio.exec.proto.UserBitShared.CoreOperatorTypeMetricsMap;
 import com.dremio.exec.proto.UserBitShared.MetricsDef;
 import com.dremio.exec.store.parquet.ParquetRecordWriter;
 import com.dremio.sabot.exec.context.MetricDef;
-import com.dremio.sabot.op.common.hashtable.HashTableStats;
+import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
+import com.dremio.sabot.op.join.vhash.HashJoinStats;
 import com.dremio.sabot.op.receiver.merging.MergingReceiverOperator;
 import com.dremio.sabot.op.receiver.unordered.UnorderedReceiverOperator;
 import com.dremio.sabot.op.scan.ScanOperator;
@@ -56,13 +60,15 @@ public class OperatorMetricRegistry {
     register(builder, CoreOperatorType.HASH_PARTITION_SENDER_VALUE, PartitionSenderOperator.Metric.class);
     register(builder, CoreOperatorType.MERGING_RECEIVER_VALUE, MergingReceiverOperator.Metric.class);
     register(builder, CoreOperatorType.UNORDERED_RECEIVER_VALUE, UnorderedReceiverOperator.Metric.class);
-    register(builder, CoreOperatorType.HASH_AGGREGATE_VALUE, HashTableStats.Metric.class);
-    register(builder, CoreOperatorType.HASH_JOIN_VALUE, HashTableStats.Metric.class);
+    register(builder, CoreOperatorType.HASH_AGGREGATE_VALUE, HashAggStats.Metric.class);
+    register(builder, CoreOperatorType.HASH_JOIN_VALUE, HashJoinStats.Metric.class);
     register(builder, CoreOperatorType.EXTERNAL_SORT_VALUE, ExternalSortOperator.Metric.class);
     register(builder, CoreOperatorType.HIVE_SUB_SCAN_VALUE, ScanOperator.Metric.class);
     register(builder, CoreOperatorType.PARQUET_ROW_GROUP_SCAN_VALUE, ScanOperator.Metric.class);
     register(builder, CoreOperatorType.PARQUET_WRITER_VALUE, ParquetRecordWriter.Metric.class);
     register(builder, CoreOperatorType.ARROW_WRITER_VALUE, WriterOperator.Metric.class);
+    register(builder, CoreOperatorType.PROJECT_VALUE, ProjectorStats.Metric.class);
+    register(builder, CoreOperatorType.FILTER_VALUE, FilterStats.Metric.class);
     CORE_OPERATOR_TYPE_METRICS_MAP = builder.build();
   }
 

@@ -39,7 +39,7 @@ public class TestRootAllocator {
 
   @Before
   public void setup() {
-    rootAllocator = new DremioRootAllocator(16 * 1024);
+    rootAllocator = DremioRootAllocator.create(16 * 1024);
   }
 
   @After
@@ -65,7 +65,7 @@ public class TestRootAllocator {
   @Test
   public void testRootWithChildrenLimit() throws Exception {
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
-      "out of memory",
+      "Query was cancelled because it exceeded the memory limits set by the administrator.",
       "Allocator(ROOT)", "Allocator(child1)", "Allocator(child2)"));
     try (BufferAllocator child1 = rootAllocator.newChildAllocator("child1", 0, 4 * 1024);
          BufferAllocator child2 = rootAllocator.newChildAllocator("child2", 0, 8 * 1024)) {
@@ -79,7 +79,7 @@ public class TestRootAllocator {
   @Test
   public void testRootWithChildrenSize() throws Exception {
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
-      "out of memory",
+      "Query was cancelled because it exceeded the memory limits set by the administrator.",
       "Allocator(ROOT)", "Allocator(child1)", "Allocator(child2)"));
     try (BufferAllocator child1 = rootAllocator.newChildAllocator("child1", 0, 12 * 1024);
          BufferAllocator child2 = rootAllocator.newChildAllocator("child2", 0, 12 * 1024);
@@ -94,7 +94,7 @@ public class TestRootAllocator {
   @Test
   public void testRootWithGrandchildren() throws Exception {
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
-      "out of memory",
+      "Query was cancelled because it exceeded the memory limits set by the administrator.",
       "Allocator(ROOT)", "Allocator(child1)", "Allocator(child2)"));
     try (BufferAllocator child1 = rootAllocator.newChildAllocator("child1", 0, 12 * 1024);
          BufferAllocator child2 = rootAllocator.newChildAllocator("child2", 0, 12 * 1024)) {

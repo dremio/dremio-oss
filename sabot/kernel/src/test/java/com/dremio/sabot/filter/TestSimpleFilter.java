@@ -48,6 +48,26 @@ public class TestSimpleFilter extends BaseTestOperator {
   }
 
   @Test
+  public void simpleFilter2() throws Exception {
+
+    Filter f = new Filter(null, toExpr("c0 < c1"), 1f);
+    Table input = t(
+      th("c0", "c1"),
+      tr(35, 45),
+      tr(8, 6),
+      tr(22, 23)
+    );
+
+    Table output = t(
+      th("c0","c1"),
+      tr(35, 45),
+      tr(22, 23)
+    );
+
+    validateSingle(f, FilterOperator.class, input, output);
+  }
+
+  @Test
   public void varcharFilter() throws Exception {
 
     Filter f = new Filter(null, toExpr("like(c0, 'hell%')"), 1f);

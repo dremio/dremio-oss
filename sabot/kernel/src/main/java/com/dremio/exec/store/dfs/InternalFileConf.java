@@ -37,7 +37,7 @@ import io.protostuff.Tag;
  * Source type used for internal purposes.
  */
 @SourceType(value = "INTERNAL", configurable = false)
-public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSystemPlugin>{
+public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSystemPlugin<InternalFileConf>>{
 
   @Tag(1)
   public String connection;
@@ -83,8 +83,8 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
   }
 
   @Override
-  public FileSystemPlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new FileSystemPlugin(this, context, name, null, pluginIdProvider);
+  public FileSystemPlugin<InternalFileConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+    return new FileSystemPlugin<>(this, context, name, null, pluginIdProvider);
   }
 
   public InternalFileConf() {
@@ -145,6 +145,7 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
     return !connection.startsWith("classpath:");
   }
 
+  @Override
   public boolean isInternal() {
     return isInternal;
   }

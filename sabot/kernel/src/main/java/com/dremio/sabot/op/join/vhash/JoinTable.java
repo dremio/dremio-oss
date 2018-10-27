@@ -44,4 +44,6 @@ public interface JoinTable extends AutoCloseable {
    * Report the details of the trace
    */
   public String traceReport();
+  public long getBuildHashComputationTime(TimeUnit unit);
+  public long getProbeHashComputationTime(TimeUnit unit);
 }

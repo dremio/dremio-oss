@@ -18,6 +18,9 @@ package com.dremio.exec.planner.sql.handlers.commands;
 import static com.dremio.exec.planner.physical.PlannerSettings.REUSE_PREPARE_HANDLES;
 import static com.dremio.exec.planner.physical.PlannerSettings.STORE_QUERY_RESULTS;
 
+import java.util.Locale;
+import java.util.Optional;
+
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
@@ -25,6 +28,7 @@ import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
@@ -78,7 +82,6 @@ import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
-import com.dremio.options.OptionValue;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.service.Pointer;
 import com.google.common.base.Preconditions;
@@ -184,7 +187,8 @@ public class CommandCreator {
                             .getCredentials()
                             .getUserName()));
                 }
-                return new PrepareToExecution(plan, context, observer, dbContext.getPlanReader(), tunnelCreator, queryResourceManager);
+                return new PrepareToExecution(plan, context, observer, dbContext.getPlanReader(), tunnelCreator,
+                  queryResourceManager);
               }
             }
 
@@ -332,8 +336,11 @@ public class CommandCreator {
       this.prepare = prepare;
       this.sql = sql;
 
-      OptionValue value = context.getOptions().getOption(STORE_QUERY_RESULTS.getOptionName());
-      this.storeResults = value != null && value.getBoolVal();
+      final StoreQueryResultsPolicy storeQueryResultsPolicy = Optional
+          .ofNullable(context.getOptions().getOption(STORE_QUERY_RESULTS.getOptionName()))
+          .map(o -> StoreQueryResultsPolicy.valueOf(o.getStringVal().toUpperCase(Locale.ROOT)))
+          .orElse(StoreQueryResultsPolicy.NO);
+      this.storeResults = storeQueryResultsPolicy != StoreQueryResultsPolicy.NO;
     }
 
     // handlers in handlers.direct package

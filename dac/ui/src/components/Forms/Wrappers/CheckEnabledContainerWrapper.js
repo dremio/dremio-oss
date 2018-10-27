@@ -21,14 +21,16 @@ import PropTypes from 'prop-types';
 export default class CheckEnabledContainerWrapper extends Component {
   static propTypes = {
     elementConfig: PropTypes.object,
-    fields: PropTypes.object
+    fields: PropTypes.object,
+    disabled: PropTypes.bool
   };
 
   render() {
-    const {elementConfig, fields} = this.props;
+    const {elementConfig, disabled, fields} = this.props;
     return (
       <CheckEnabledContainer
         fields={fields}
+        mainCheckboxIsDisabled={disabled}
         elementConfig={elementConfig}/>
     );
   }

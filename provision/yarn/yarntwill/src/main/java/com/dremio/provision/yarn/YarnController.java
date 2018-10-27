@@ -180,8 +180,7 @@ public class YarnController {
     final Map<String, String> systemOptions = Maps.newHashMap();
 
     basicJVMOptions.put(DremioConfig.ZOOKEEPER_QUORUM, zkStr);
-    basicJVMOptions.put(DremioConfig.LOCAL_WRITE_PATH_STRING, yarnConfiguration.get(DremioConfig.LOCAL_WRITE_PATH_STRING,
-      dremioConfig.getString(DremioConfig.LOCAL_WRITE_PATH_STRING)));
+    // note that DremioConfig.LOCAL_WRITE_PATH_STRING is unset; YarnDaemon creates the local write path on startup
     basicJVMOptions.put(DremioConfig.DIST_WRITE_PATH_STRING, yarnConfiguration.get(DremioConfig.DIST_WRITE_PATH_STRING,
       dremioConfig.getString(DremioConfig.DIST_WRITE_PATH_STRING)));
     basicJVMOptions.put("dremio.classpath.scanning.cache.enabled", "false");

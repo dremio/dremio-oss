@@ -17,20 +17,34 @@ import { merge, get, set } from 'lodash/object';
 import { applyValidators, isRequired, isNumber, isWholeNumber } from 'utils/validation';
 import { getCreatedSource } from 'selectors/resources';
 
-
 export default class FormUtils {
 
-  static getMinDuration(intervalCode) {
+  static DURATIONS= {
     // interval durations in milliseconds
-    const durations = {
-      millisecond: 0,
-      second: 1000,
-      minute: 60 * 1000,
-      hour: 60 * 60 * 1000,
-      day: 24 * 60 * 60 * 1000,
-      week: 7 * 24 * 60 * 60 * 1000
-    };
-    return durations[intervalCode];
+    millisecond: 0,
+    second: 1000,
+    minute: 60 * 1000,
+    hour: 60 * 60 * 1000,
+    day: 24 * 60 * 60 * 1000,
+    week: 7 * 24 * 60 * 60 * 1000
+  };
+
+  static MEMORY_UNITS = {
+    // memory units in bytes
+    KB: 1024,
+    MB: 1024 ** 2,
+    GB: 1024 ** 3,
+    TB: 1024 ** 4
+  };
+
+  static noop = () => {};
+
+  static getMinDuration(intervalCode) {
+    return FormUtils.DURATIONS[intervalCode];
+  }
+
+  static getMinByte(unitCode, scaleToByteUnitCode) {
+    return FormUtils.MEMORY_UNITS[unitCode];
   }
 
   static deepCopyConfig(config) {
@@ -193,10 +207,12 @@ export default class FormUtils {
    * @param value
    * @returns {*} - mutated initValues or new object if initValues was not defined.
    */
-  static addInitValue(initValues, path, value) {
+  static addInitValue(initValues, path, value, multiplier) {
     if (!path) return initValues;
 
-    set(initValues, path, value);
+    const adjustedValue = (multiplier && value instanceof Number) ? value * multiplier : value;
+
+    set(initValues, path, adjustedValue);
     return initValues;
   }
 

@@ -37,6 +37,8 @@ import { saveDataset, saveAsDataset } from 'actions/explore/dataset/save';
 import { performTransform, transformHistoryCheck } from 'actions/explore/dataset/transform';
 import { runDataset, performTransformAndRun } from 'actions/explore/dataset/run';
 import { showConfirmationDialog } from 'actions/confirmation';
+import { PageTypeButtons } from '@app/pages/ExplorePage/components/PageTypeButtons';
+import { pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
 
 import { startDownloadDataset } from 'actions/explore/download';
 import { performNextAction, NEXT_ACTIONS } from 'actions/explore/nextAction';
@@ -69,7 +71,7 @@ export const QLIK_TOOL_NAME = 'Qlik Sense';
 export class ExploreInfoHeader extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
-    pageType: PropTypes.string,
+    pageType: pageTypesProp,
     toggleRightTree: PropTypes.func.isRequired,
     grid: PropTypes.object,
     space: PropTypes.object,
@@ -359,7 +361,7 @@ export class ExploreInfoHeader extends PureComponent {
     return (
       <DatasetItemLabel
         customNode={ // todo: string replace loc
-          <div>
+          <div className='flexbox-truncate-text-fix'>
             <div style={{...style.dbName, ...formLabel}} data-qa={nameForDisplay}>
               <EllipsedText style={nameStyle} text={`${nameForDisplay}${isEditedDataset ? edited : ''}`}>
                 <span>{nameForDisplay}</span>
@@ -390,7 +392,6 @@ export class ExploreInfoHeader extends PureComponent {
   }
 
   renderLeftPartOfHeader(dataset) {
-    const fullPath = ExploreInfoHeader.getFullPathListForDisplay(dataset);
     if (!dataset.get('datasetType')) {
       return <div style={style.leftPart}/>;
     }
@@ -401,12 +402,7 @@ export class ExploreInfoHeader extends PureComponent {
             {this.renderDatasetLabel(dataset)}
           </div>
         </div>
-        {this.isCreatedAndNamedDataset() &&
-          <DatasetAccelerationButton
-            style={{ marginLeft: 20 }}
-            fullPath={fullPath}
-            isEditedDataset={this.isEditedDataset()}/>
-        }
+        <PageTypeButtons dataQa='page-type-buttons' selectedPageType={this.props.pageType} dataset={dataset} />
       </div>
     );
   }
@@ -430,11 +426,18 @@ export class ExploreInfoHeader extends PureComponent {
     const datasetColumns = this.props.tableColumns.map(column => column.get('type')).toJS();
 
     const mustSaveAs = dataset.getIn(['fullPath', 0]) === 'tmp';
+    const fullPath = ExploreInfoHeader.getFullPathListForDisplay(dataset);
 
     return (
       <div className={classes} style={[style.base, isInProgress && style.disabledStyle]}>
         {this.renderLeftPartOfHeader(dataset)}
         <div className='right-part'>
+          {this.isCreatedAndNamedDataset() &&
+            <DatasetAccelerationButton
+              style={{ marginLeft: 20 }}
+              fullPath={fullPath}
+              isEditedDataset={this.isEditedDataset()}/>
+          }
           <ExploreSettingsButton dataset={dataset} disabled={!this.shouldEnableSettingsButton()}/>
           <DropdownButton
             className='download-button'
@@ -517,7 +520,7 @@ const style = {
   base: {
     display: 'flex',
     justifyContent: 'space-between',
-    height: 38,
+    height: 52,
     padding: 0,
     margin: 0,
     borderBottom: 'none',
@@ -547,9 +550,10 @@ const style = {
   },
   leftWrap: {
     display: 'flex',
-    maxWidth: 360,
+    maxWidth: 250,
     flexWrap: 'wrap',
-    userSelect: 'text'
+    userSelect: 'text',
+    marginRight: 50 // distance between a title and navigation buttons
   },
   leftPart: {
     display: 'flex',

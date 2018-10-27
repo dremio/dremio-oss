@@ -136,11 +136,9 @@ export default class JobsContent extends Component {
   handleStartResize = () => this.setState({ isResizing: true })
 
   handleEndResize = () => {
-    if (this.getActiveJob() && this.getActiveJob().size) {
-      this.setState({
-        isResizing: false,
-        width: typeof this.state.left === 'number' ? this.state.left - SEPARATOR_WIDTH : this.state.width });
-    }
+    this.setState({
+      isResizing: false,
+      width: typeof this.state.left === 'number' ? this.state.left - SEPARATOR_WIDTH : this.state.width });
   }
 
   handleResizeJobs(e) {

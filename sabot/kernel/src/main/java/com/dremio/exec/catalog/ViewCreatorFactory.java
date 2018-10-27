@@ -37,6 +37,15 @@ public interface ViewCreatorFactory extends Service {
     void createView(List<String> path, String sql, List<String> sqlContext, NamespaceAttribute... attributes);
 
     /**
+     * Updates a view
+     * @param path
+     * @param sql
+     * @param sqlContext
+     * @param attributes
+     */
+    void updateView(List<String> path, String sql, List<String> sqlContext, NamespaceAttribute... attributes);
+
+    /**
      * Drops a view
      * @param path
      */

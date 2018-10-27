@@ -52,6 +52,13 @@ message FragmentStatus {
 // Coordinator > Executor
 message InitializeFragments {
   repeated PlanFragment fragment = 1;
+  optional SchedulingInfo scheduling_info = 2;
+}
+
+message SchedulingInfo {
+  optional string queue_id = 1;
+  optional exec.shared.WorkloadClass workload_class = 2;
+  optional bytes additional_info = 3;
 }
 
 message CancelFragments {
@@ -113,6 +120,8 @@ message NodeQueryStatus {
   optional NodeEndpoint endpoint = 2;
   repeated NodePhaseStatus phase_status = 3;
   optional int64 max_memory_used = 4;
+  optional int64 time_enqueued_before_submit_ms = 5;  // Time spent enqueued after query arrived at executor, and before
+                                                      // being submitted for execution. Measured in milliseconds
 }
 
 message NodePhaseStatus {

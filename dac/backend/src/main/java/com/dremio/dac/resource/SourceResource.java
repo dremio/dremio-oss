@@ -44,6 +44,7 @@ import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
+import com.dremio.dac.model.sources.FormatTools;
 import com.dremio.dac.model.sources.PhysicalDataset;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.sources.SourceName;
@@ -60,6 +61,7 @@ import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.server.ContextService;
 import com.dremio.file.File;
 import com.dremio.file.SourceFilePath;
 import com.dremio.service.namespace.BoundedDatasetCount;
@@ -96,6 +98,8 @@ public class SourceResource {
   private final DatasetsResource datasetsResource;
   private final ConnectionReader cReader;
   private final Catalog catalog;
+  private final FormatTools formatTools;
+  private final ContextService context;
 
   @Inject
   public SourceResource(
@@ -107,7 +111,9 @@ public class SourceResource {
       SecurityContext securityContext,
       DatasetsResource datasetsResource,
       ConnectionReader cReader,
-      Catalog catalog
+      Catalog catalog,
+      FormatTools formatTools,
+      ContextService context
       ) throws SourceNotFoundException {
     this.namespaceService = namespaceService;
     this.reflectionService = reflectionService;
@@ -119,6 +125,8 @@ public class SourceResource {
     this.executor = executor;
     this.cReader = cReader;
     this.catalog = catalog;
+    this.formatTools = formatTools;
+    this.context = context;
   }
 
   protected SourceUI newSource(SourceConfig config) throws Exception {
@@ -196,23 +204,54 @@ public class SourceResource {
     return sourceService.getPhysicalDataset(sourceName, datasetPath);
   }
 
+  private boolean useFastPreview() {
+    return context.get().getOptionManager().getOption(FormatTools.FAST_PREVIEW);
+  }
+
   @GET
   @Path("/file/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
   public File getFile(@PathParam("path") String path)
       throws SourceNotFoundException, NamespaceException, PhysicalDatasetNotFoundException {
+    if (useFastPreview()) {
+      return sourceService.getFileDataset(sourceName, asFilePath(path), null);
+    }
+
     sourceService.checkSourceExists(sourceName);
 
     final SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
     return sourceService.getFileDataset(sourceName, filePath, null);
   }
 
+  /**
+   * Check if source exists then convert inner path plus source name to SourceFilePath.
+   * @param path
+   * @return
+   * @throws SourceNotFoundException
+   * @throws NamespaceException
+   */
+  private SourceFolderPath asFolderPath(String path) throws SourceNotFoundException, NamespaceException {
+    sourceService.checkSourceExists(sourceName);
+    return SourceFolderPath.fromURLPath(sourceName, path);
+  }
+
+  private SourceFilePath asFilePath(String path) throws SourceNotFoundException, NamespaceException {
+    sourceService.checkSourceExists(sourceName);
+    return SourceFilePath.fromURLPath(sourceName, path);
+  }
+
   // format settings on a file.
   @GET
   @Path("/file_format/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
-  public FileFormatUI getFormatSettings(@PathParam("path") String path)
+  public FileFormatUI getFileFormatSettings(@PathParam("path") String path)
       throws SourceNotFoundException, NamespaceException  {
+
+    if (useFastPreview()) {
+      SourceFilePath filePath = asFilePath(path);
+      return new FileFormatUI(formatTools.getOrDetectFormat(filePath, DatasetType.PHYSICAL_DATASET_SOURCE_FILE), filePath);
+    }
+
     sourceService.checkSourceExists(sourceName);
     SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
     FileFormat fileFormat;
@@ -224,6 +263,7 @@ public class SourceResource {
       fileFormat = sourceService.getDefaultFileFormat(sourceName, filePath);
     }
     return new FileFormatUI(fileFormat, filePath);
+
   }
 
   @PUT
@@ -251,10 +291,27 @@ public class SourceResource {
   @Path("/file_preview/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
-  public JobDataFragment previewFileFormat(FileFormat fileFormat, @PathParam("path") String path)
-      throws SourceFileNotFoundException, SourceNotFoundException {
+  public JobDataFragment previewFileFormat(FileFormat format, @PathParam("path") String path)
+      throws SourceFileNotFoundException, SourceNotFoundException, NamespaceException {
+    if (useFastPreview()) {
+      return formatTools.previewData(format, asFilePath(path), false);
+    }
     SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
-    return executor.previewPhysicalDataset(filePath.toString(), fileFormat);
+    return executor.previewPhysicalDataset(filePath.toString(), format);
+  }
+
+  @POST
+  @Path("/folder_preview/{path: .*}")
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.APPLICATION_JSON)
+  public JobDataFragment previewFolderFormat(FileFormat format, @PathParam("path") String path)
+    throws SourceFileNotFoundException, SourceNotFoundException, NamespaceException {
+    if (useFastPreview()) {
+      return formatTools.previewData(format, asFolderPath(path), false);
+    }
+
+    SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
+    return executor.previewPhysicalDataset(folderPath.toString(), format);
   }
 
   @DELETE
@@ -280,6 +337,11 @@ public class SourceResource {
   @Produces(MediaType.APPLICATION_JSON)
   public FileFormatUI getFolderFormat(@PathParam("path") String path)
       throws PhysicalDatasetNotFoundException, NamespaceException, SourceNotFoundException, IOException {
+    if (useFastPreview()) {
+      SourceFolderPath folderPath = asFolderPath(path);
+      return new FileFormatUI(formatTools.getOrDetectFormat(folderPath, DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER), folderPath);
+    }
+
     SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
     sourceService.checkSourceExists(folderPath.getSourceName());
 
@@ -292,16 +354,6 @@ public class SourceResource {
       fileFormat = sourceService.getDefaultFileFormat(sourceName, folderPath, securityContext.getUserPrincipal().getName());
     }
     return new FileFormatUI(fileFormat, folderPath);
-  }
-
-  @POST
-  @Path("/folder_preview/{path: .*}")
-  @Produces(MediaType.APPLICATION_JSON)
-  @Consumes(MediaType.APPLICATION_JSON)
-  public JobDataFragment previewFolderFormat(FileFormat fileFormat, @PathParam("path") String path)
-    throws SourceFileNotFoundException, SourceNotFoundException {
-    SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
-    return executor.previewPhysicalDataset(folderPath.toString(), fileFormat);
   }
 
   @PUT

@@ -16,6 +16,7 @@
 import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
+import { domUtils } from '@app/utils/domUtils';
 import BarChart from 'components/Charts/BarChart';
 
 import TransformRangeSlider, { POSITION_LEFT, POSITION_RIGHT } from './TransformRangeSlider';
@@ -61,6 +62,7 @@ export default class TransformRangeGraph extends Component {
   }
 
   setActiveSlider(slider) {
+    domUtils.disableSelection();
     this.setState({
       activeSlider: slider
     });
@@ -79,9 +81,17 @@ export default class TransformRangeGraph extends Component {
     if (activeSlider) {
       const offset = this.container ? this.container.getBoundingClientRect().x : 0;
       this.setState({
-        [`${activeSlider}RangeOffset`]: event.clientX - offset
+        [`${activeSlider}RangeOffset`]: Math.min(Math.max(event.clientX - offset, 0), this.props.width)
       });
     }
+  }
+
+  getActiveSliderPosition() {
+    const { activeSlider } = this.state;
+    if (activeSlider) {
+      return this.state[`${activeSlider}RangeOffset`];
+    }
+    return null;
   }
 
   stopSlide() {
@@ -97,6 +107,7 @@ export default class TransformRangeGraph extends Component {
       }
 
       this.setActiveSlider(null);
+      domUtils.enableSelection();
     }
   }
 
@@ -114,13 +125,13 @@ export default class TransformRangeGraph extends Component {
 
     const { activeSlider, leftRangeOffset, rightRangeOffset } = this.state;
     return (
-      <div onMouseMove={this.moveSlider} onMouseUp={this.stopSlide} onMouseLeave={this.stopSlide} style={[style]}
+      <div onMouseMove={this.moveSlider} onMouseUp={this.stopSlide} style={[style]}
         ref={this.onRef}>
         <BarChart
           type={columnType}
           data={data}
           width={width}
-          blockTooltips={!!activeSlider}
+          sliderX={this.getActiveSliderPosition()}
         />
         <TransformRangeSlider
           blockStyle={{

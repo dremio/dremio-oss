@@ -15,18 +15,19 @@
  */
 import { Component } from 'react';
 import PropTypes from 'prop-types';
-import { List } from 'immutable';
+import ImmutablePropTypes from 'react-immutable-proptypes';
 import classNames from 'classnames';
 import keyCodes from '@app/constants/Keys.json';
 import {
   container,
   input as inputCls,
   tagElement as tagElementCls,
-  cursor,
   tagWrapper,
   cursorPlaceholder
 } from './Tags.less';
 import { Tag } from './Tag';
+
+
 
 // component consist of 2 main sections:
 // 1) Tags section. The section where tags are displayed
@@ -35,17 +36,20 @@ import { Tag } from './Tag';
 export class TagsView extends Component {
   static propTypes = {
     placeholder: PropTypes.string,
-    tags: PropTypes.instanceOf(List).isRequired,
+    tags: ImmutablePropTypes.listOf(PropTypes.string).isRequired,
+    className: PropTypes.string,
 
-    onAddTag: PropTypes.func.isRequired, // (tagName: string)
-    onRemoveTag: PropTypes.func.isRequired, // (tagName: string)
-    onChange: PropTypes.func // function () {} is called, when tag is added or removed
-  }
+    //if this handler is not provided, then input for new tags will not be displayed
+    onAddTag: PropTypes.func, // (tagName: string) => void
+    // If this handler is not provided, then x button for tags will not be displayed
+    onRemoveTag: PropTypes.func, // (tagName: string) => Promise
+    onTagClick: PropTypes.func, // (tagName: string) => void
+    onChange: PropTypes.func // () => void is called, when tag is added or removed
+  };
 
   state = {
     value: '', // value of input
-    tagCursorPosition: -1, // a zero-base index of a tag, before which a cursor is located in tags section. -1 means that cursor in an input.
-    selectedTagIndex: -1 // a zero-base index of a selected tag. -1 means there are no selected tag.
+    selectedTagIndex: -1 // a zero-base index of a selected tag. -1 means that cursor in an input.
   }
 
   handleTextChange = (e) => {
@@ -64,19 +68,20 @@ export class TagsView extends Component {
 
     onAddTag(newTag);
     this.setState({
-      value: '', // string was transformed to a tags
-      selectedTagIndex: -1 // deselects selected tag, if there is any. Product manager asked this
+      value: '' // string was transformed to a tags
     });
     this.onChange();
   }
+
+  showInputField = () => !!this.props.onAddTag;
 
   onKeyDown = (e) => {
     const {
       tags
     } = this.props;
+
     const {
       selectedTagIndex,
-      tagCursorPosition,
       value
     } = this.state;
     const areTagsFocused = this.areTagsFocused();
@@ -98,12 +103,16 @@ export class TagsView extends Component {
       break;
     case keyCodes.END:
     case keyCodes.DOWN:
-      this.setInputPosition(this.input.value.length);
+      if (this.showInputField()) {
+        this.setInputPosition(this.input.value.length);
+      } else {
+        this.moveCursorToTags(tags.size - 1);
+      }
       break;
     case keyCodes.LEFT:
       if (areTagsFocused) {
         this.moveCursorToTags(-1, { isRelative: true });
-      } else if (this.input.selectionStart === 0) {
+      } else if (this.showInputField() && this.input.selectionStart === 0) {
         this.moveCursorToTags(tags.size - 1);
       }
       break;
@@ -114,24 +123,16 @@ export class TagsView extends Component {
       //else do nothing. Default input behaviour is ok
       break;
     case keyCodes.BACKSPACE:
-      if (areTagsFocused || this.input.selectionStart === 0) {
-        if (selectedTagIndex >= 0) {
-          this.removeTag(selectedTagIndex);
-        } else {
-          const pos = areTagsFocused ? tagCursorPosition : tags.size;
-          if (pos > 0) {
-            this.selectTag(pos - 1);
-          }
-        }
+      if (areTagsFocused) {
+        this.removeTag(selectedTagIndex);
+      // cursor in the begining of the input and nothing is selected
+      } else if (this.showInputField() && this.input.selectionStart === 0 && this.input.selectionEnd === 0) {
+        this.moveCursorToTags(tags.size - 1);
       }
       break;
     case keyCodes.DELETE:
       if (areTagsFocused) {
-        if (selectedTagIndex >= 0) {
-          this.removeTag(selectedTagIndex);
-        } else {
-          this.selectTag(tagCursorPosition);
-        }
+        this.removeTag(selectedTagIndex, true);
       }
       break;
     default:
@@ -144,35 +145,30 @@ export class TagsView extends Component {
   }
 
   areTagsFocused() {
-    return this.state.tagCursorPosition >= 0;
+    return this.state.selectedTagIndex >= 0;
   }
 
   // this method manages a cursor position inside tags section
   // positionOrOffset - a cursor position that should be set or offset relative to current cursor position
   moveCursorToTags(positionOrOffset, {
-      isRelative = false,
-      resetTagSelection = true
+      isRelative = false
     } = {}) {
     let focusInput = false;
     this.setState((
       /* state */ {
-        tagCursorPosition
+        selectedTagIndex
       },
       /* props */ {
         tags
       }) => {
       const cnt = tags.size;
-      const cursorPosition = isRelative ? tagCursorPosition + positionOrOffset : positionOrOffset; // a cursor position to be set
+      const cursorPosition = isRelative ? selectedTagIndex + positionOrOffset : positionOrOffset; // a cursor position to be set
 
-      focusInput = cnt === 0 || cnt <= cursorPosition; // indidcates if an input should be selected after cursor position move. This may happen if position > number of tags. Or if there are no tags at all.
+      focusInput = this.showInputField() && (cnt === 0 || cnt <= cursorPosition); // indidcates if an input should be selected after cursor position move. This may happen if position > number of tags. Or if there are no tags at all.
 
       const newState = {
-        tagCursorPosition: focusInput ? -1 : Math.max(cursorPosition, 0)
+        selectedTagIndex: focusInput ? -1 : Math.min(Math.max(cursorPosition, 0), cnt - 1)
       };
-
-      if (resetTagSelection) {
-        newState.selectedTagIndex = -1;
-      }
 
       return newState;
     }, () => {
@@ -182,28 +178,21 @@ export class TagsView extends Component {
           this.setInputPosition(0);
         }, 0);
       } else {
-        this.input.blur();
+        if (this.showInputField()) {
+          this.input.blur();
+        }
         this.tagsContainer.focus();
       }
     });
   }
 
-  selectTag = (index, moveCursor) => {
-    this.setState({
-      selectedTagIndex: index
-    });
-    if (moveCursor) {
-      this.moveCursorToTags(index, { resetTagSelection: false });
-    }
-  }
-
-  removeTag = (index) => {
+  removeTag = async (index, selectNext) => {
     const {
       onRemoveTag,
       tags
     } = this.props;
-    onRemoveTag(tags.get(index));
-    this.moveCursorToTags(index);
+    await onRemoveTag(tags.get(index));
+    this.moveCursorToTags(selectNext ? index : (index - 1));
 
     this.onChange();
   }
@@ -218,14 +207,20 @@ export class TagsView extends Component {
     }
   }
 
+  focus() {
+    if (!this.showInputField()) return;
+    this.input.focus();
+  }
+
   setInputPosition(position) {
+    if (!this.showInputField()) return;
     this.input.focus();
     this.input.selectionStart = this.input.selectionEnd = position;
   }
 
   focusInput = () => {
     this.setState({
-      tagCursorPosition: -1
+      selectedTagIndex: -1
     });
   }
 
@@ -237,15 +232,23 @@ export class TagsView extends Component {
     this.tagsContainer = element;
   }
 
+  onTagClick = (tag) => {
+    const { onTagClick } = this.props;
+
+    if (onTagClick) {
+      onTagClick(tag);
+    }
+  };
+
   render() {
     const {
       tags,
-      placeholder
+      placeholder,
+      className
     } = this.props;
     const {
       value,
-      selectedTagIndex,
-      tagCursorPosition
+      selectedTagIndex
     } = this.state;
 
     const tagElements = [];
@@ -254,24 +257,24 @@ export class TagsView extends Component {
       // I have to wrap this element to a span, as for multiline case tags has to go on new line with cursor placeholder.
       // This will keep left padding consistent.
       tagElements.push(<span key={`w_${i}`} className={tagWrapper}>
-        <div key={`cursor_${i}`}
-          onClick={() => this.moveCursorToTags(i)}
-          className={classNames(cursorPlaceholder, i === tagCursorPosition && cursor)}
+        <div key={`cursor_${i}`} className={cursorPlaceholder}
           ></div>
         <Tag key={`tag_${i}`}
           className={tagElementCls}
           text={t}
+          daqa={`tag-pill-${t}`}
+          deleteHandler={this.props.onRemoveTag ? () => this.removeTag(i) : null}
+          onClick={() => this.onTagClick(t)}
           isSelected={i === selectedTagIndex}
-          deleteHandler={() => this.removeTag(i)}
-          onClick={() => this.selectTag(i, true)}
           />
       </span>);
     });
 
     return (
-      <div className={container} tabIndex={0} onKeyDown={this.onKeyDown} ref={this.onTagsRef}>
+      <div className={classNames(container, className)} tabIndex={0} onKeyDown={this.onKeyDown} ref={this.onTagsRef} data-qa='tagsContainer'>
         {tagElements}
-        <input type='text'
+        {
+          this.showInputField() && <input type='text'
           tabIndex={0}
           placeholder={placeholder || la('Add tag')}
           ref={this.onInputRef}
@@ -280,6 +283,7 @@ export class TagsView extends Component {
           onChange={this.handleTextChange}
           maxLength={128} // restriction according to spec
           onFocus={this.focusInput} />
+        }
       </div>
     );
   }

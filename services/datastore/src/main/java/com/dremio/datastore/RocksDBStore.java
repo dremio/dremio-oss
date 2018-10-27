@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -143,6 +144,8 @@ class RocksDBStore implements ByteStore {
   private final AtomicLong gcIterators = new AtomicLong(0);
   private final AtomicLong closedIterators = new AtomicLong(0);
 
+  private final AtomicBoolean closed = new AtomicBoolean(false);
+
   public RocksDBStore(String name, ColumnFamilyDescriptor family, ColumnFamilyHandle handle, RocksDB db, int stripes) {
     super();
     this.family = family;
@@ -161,6 +164,12 @@ class RocksDBStore implements ByteStore {
 
     if (COLLECT_METRICS) {
       registerMetrics();
+    }
+  }
+
+  private void throwIfClosed() {
+    if (closed.get()) {
+      throw new DatastoreFatalException(String.format("'%s' store is already closed", name));
     }
   }
 
@@ -277,6 +286,7 @@ class RocksDBStore implements ByteStore {
   @Override
   public byte[] get(byte[] key) {
     try (AutoCloseableLock ac = sharedLock(key)) {
+      throwIfClosed();
       return db.get(handle, key);
     } catch (RocksDBException e) {
       throw wrap(e);
@@ -328,6 +338,10 @@ class RocksDBStore implements ByteStore {
 
   @Override
   public void close() throws IOException {
+    if (!closed.compareAndSet(false, true)) {
+      return;
+    }
+
     if (COLLECT_METRICS) {
       MetricUtils.removeAllMetricsThatStartWith(MetricRegistry.name(METRICS_PREFIX, name));
     }
@@ -381,6 +395,7 @@ class RocksDBStore implements ByteStore {
     }
 
     try (AutoCloseableLock ac = sharedLock(key)) {
+      throwIfClosed();
       db.put(handle, key, value);
     } catch (RocksDBException e) {
       throw wrap(e);
@@ -404,6 +419,7 @@ class RocksDBStore implements ByteStore {
     }
 
     try (AutoCloseableLock ac = exclusiveLock(key)) {
+      throwIfClosed();
       byte[] oldValue = db.get(handle, key);
       if (!Arrays.equals(oldValue, expectedOldValue)) {
         return false;
@@ -418,6 +434,7 @@ class RocksDBStore implements ByteStore {
   @Override
   public boolean contains(byte[] key) {
     try (AutoCloseableLock ac = sharedLock(key)) {
+      throwIfClosed();
       return db.get(handle, key) != null;
     } catch (RocksDBException e) {
       throw wrap(e);
@@ -427,6 +444,7 @@ class RocksDBStore implements ByteStore {
   @Override
   public void delete(byte[] key) {
     try (AutoCloseableLock ac = sharedLock(key)) {
+      throwIfClosed();
       db.delete(handle, key);
     } catch (RocksDBException e) {
       throw wrap(e);
@@ -436,6 +454,7 @@ class RocksDBStore implements ByteStore {
   @Override
   public boolean checkAndDelete(byte[] key, byte[] expectedOldValue) {
     try (AutoCloseableLock ac = exclusiveLock(key)) {
+      throwIfClosed();
       byte[] oldValue = db.get(handle, key);
       if (!Arrays.equals(oldValue, expectedOldValue)) {
         return false;
@@ -477,6 +496,7 @@ class RocksDBStore implements ByteStore {
 
     @Override
     public Iterator<Entry<byte[], byte[]>> iterator() {
+      throwIfClosed(); // check not needed during iteration as the underlying iterator is closed when store is closed
       FindByRangeIterator iterator = new FindByRangeIterator(db, handle, range);
 
       // Create a new reference which will self register

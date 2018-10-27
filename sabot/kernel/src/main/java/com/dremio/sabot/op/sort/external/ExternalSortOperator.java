@@ -158,9 +158,9 @@ public class ExternalSortOperator implements SingleInputOperator {
       final boolean compressSpilledBatch = context.getOptions().getOption(ExecConstants.EXTERNAL_SORT_COMPRESS_SPILL_FILES);
 
       this.diskRuns = new DiskRunManager(context.getConfig(), context.getOptions(), targetBatchSize, targetBatchSizeInBytes,
-          context.getFragmentHandle(), config.getOperatorId(), context.getClassProducer(), allocator,
-          config.getOrderings(), incoming.getSchema(), compressSpilledBatch, tracer
-      );
+                                         context.getFragmentHandle(), config.getOperatorId(), context.getClassProducer(), allocator,
+                                         config.getOrderings(), incoming.getSchema(), compressSpilledBatch, tracer,
+                                         context.getSpillService());
       rollback.add(this.diskRuns);
 
       tracer.setTargetBatchSize(targetBatchSize);

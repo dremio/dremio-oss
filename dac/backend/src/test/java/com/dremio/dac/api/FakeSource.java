@@ -32,6 +32,7 @@ import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
@@ -105,12 +106,12 @@ public class FakeSource extends ConnectionConf<FakeSource, StoragePlugin> {
     }
 
     @Override
-    public Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) throws Exception {
+    public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions retrievalOptions) throws Exception {
       return Collections.emptyList();
     }
 
     @Override
-    public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, boolean ignoreAuthErrors) throws Exception {
+    public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, DatasetRetrievalOptions retrievalOptions) throws Exception {
       return null;
     }
 
@@ -150,7 +151,7 @@ public class FakeSource extends ConnectionConf<FakeSource, StoragePlugin> {
     }
 
     @Override
-    public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig) throws Exception {
+    public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig, DatasetRetrievalOptions retrievalOptions) throws Exception {
       return null;
     }
 

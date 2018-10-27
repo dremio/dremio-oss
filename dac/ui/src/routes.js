@@ -21,6 +21,8 @@ import { UserIsAuthenticated, UserIsAdmin } from 'utils/authWrappers';
 import Acceleration from 'dyn-load/pages/AdminPage/subpages/acceleration/Acceleration';
 import Roles from 'dyn-load/pages/AdminPage/subpages/Roles';
 import Votes from 'dyn-load/pages/AdminPage/subpages/Votes';
+import Queues from 'dyn-load/pages/AdminPage/subpages/WLM/Queues';
+import QAssignments from 'dyn-load/pages/AdminPage/subpages/WLM/QAssignments';
 
 import App from './containers/App';
 
@@ -127,6 +129,8 @@ export default (
           <Route path='/admin/provisioning' component={Provisioning} />
           <Route path='/admin/support' component={Support} />
           <Route path='/admin/votes' component={Votes} />
+          <Route path='/admin/queues' component={Queues} />
+          <Route path='/admin/rules' component={QAssignments} />
         </Route>
       </Route>
     </Route>

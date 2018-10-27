@@ -17,6 +17,7 @@ package com.dremio.exec.planner.sql.handlers.commands;
 
 import java.io.InputStream;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -80,22 +81,19 @@ class ExecutionPlanCreator {
     PlanningSet planningSet
   ) throws ExecutionSetupException {
 
-    // TODO Deal with sort memory allocations???
-    // control memory settings for sorts.
-    MemoryAllocationUtilities.setupSortMemoryAllocations(plan, queryContext.getOptions(),
-      queryContext.getClusterResourceInformation());
-
     final Root rootOperator = plan.getRoot();
     final Fragment rootOperatorFragment = rootOperator.accept(MakeFragmentsVisitor.INSTANCE, null);
 
-    Collection<NodeEndpoint> currentActiveEndpoints = ResourceAllocationUtils.convertAllocationsToSet(allocationSet.getResourceAllocations());
+    final Collection<NodeEndpoint> currentAllocationEndpoints = ResourceAllocationUtils.convertAllocationsToSet(allocationSet.getResourceAllocations());
+
+    final Collection<NodeEndpoint> currentActiveAllocationEndpoints = intersectEndpoints(currentAllocationEndpoints, queryContext.getActiveEndpoints());
 
     Collection<NodeEndpoint> reparallelCollection = ResourceAllocationUtils.reParallelizeEndPoints(
-      currentActiveEndpoints,
+      currentActiveAllocationEndpoints,
       ResourceAllocationUtils.getEndPointsToSet(planningSet)
     );
 
-    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer, currentActiveEndpoints);
+    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer, currentActiveAllocationEndpoints);
 
     if (!reparallelCollection.isEmpty()) {
       // to replace missing nodes with ones we have
@@ -111,14 +109,26 @@ class ExecutionPlanCreator {
     Map<Integer, Map<NodeEndpoint, Long>> majorFragEndPointAllocations =
       ResourceAllocationUtils.convertAllocations(allocationSet.getResourceAllocations());
 
-
-    // pass all query, session and non-default system options to the fragments
-    final OptionList fragmentOptions = queryContext.getNonDefaultOptions();
-
     // if we got 100% of what we asked no need to re-parallelize
     // just assign fragments using received memory
     // call planningSet.updateWithAllocations();
     planningSet.updateWithAllocations(majorFragEndPointAllocations);
+
+    // TODO: DX-12930
+    // since we know that allocations are currently simple and thus each fragment gets the same as
+    // the total per node, we can grab one random allocation.
+    final long queryPerNodeFromResourceAllocator =  allocationSet.getResourceAllocations().iterator().next().getMemory();
+
+    // set bounded memory for all bounded memory operations
+    MemoryAllocationUtilities.setupBoundedMemoryAllocations(
+        plan,
+        queryContext.getOptions(),
+        queryContext.getClusterResourceInformation(),
+        planningSet,
+        queryPerNodeFromResourceAllocator);
+
+    // pass all query, session and non-default system options to the fragments
+    final OptionList fragmentOptions = queryContext.getNonDefaultOptions();
 
     final List<PlanFragment> planFragments = parallelizer.getFragments(
       fragmentOptions,
@@ -153,10 +163,6 @@ class ExecutionPlanCreator {
     if(endpoints.isEmpty()){
       throw UserException.resourceError().message("No executors currently available.").build(logger);
     }
-
-    // control memory settings for sorts.
-     MemoryAllocationUtilities.setupSortMemoryAllocations(plan, queryContext.getOptions(),
-         queryContext.getClusterResourceInformation());
 
     final Root rootOperator = plan.getRoot();
     final Fragment rootOperatorFragment = rootOperator.accept(MakeFragmentsVisitor.INSTANCE, null);
@@ -234,5 +240,14 @@ class ExecutionPlanCreator {
         logger.trace(sb.toString());
       }
     }
+  }
+
+  /**
+   * Intersects two sets of node endpoints. Returns the endpoints that are in both sets
+   */
+  private static Collection<NodeEndpoint> intersectEndpoints(Collection<NodeEndpoint> a, Collection<NodeEndpoint> b) {
+    Collection<NodeEndpoint> result = new HashSet<>(a);
+    result.retainAll(b);
+    return result;
   }
 }

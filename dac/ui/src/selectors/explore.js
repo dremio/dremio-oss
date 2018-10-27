@@ -66,9 +66,43 @@ export function getApproximate(state, datasetVersion) {
   return entities.getIn(['fullDataset', datasetVersion, 'approximate']);
 }
 
+const getDatasetVersionFromLocation = (location) => location.query && location.query.version;
+
 function _getDatasetFromLocation(state, location) {
-  return getDatasetData(state, location.query && location.query.version);
+  return getDatasetData(state, getDatasetVersionFromLocation(location));
 }
+
+export const getDatasetEntityId = (state, location) => {
+  const datasetVersion = getDatasetVersionFromLocation(location);
+  const dataset = getDataset(state, datasetVersion);
+  return dataset ? dataset.get('entityId') : null;
+};
+
+export const getHistoryFromLocation = (state, location) => {
+  const { query } = location || {};
+  //tipVersion is used to get history. If by some reason tipVersion is not provided use
+  // version (data set version) as fallback
+  return getHistory(state, query.tipVersion || query.version);
+};
+
+// For now it is decided to show wiki and graph links only in following cases
+// 1) Dataset edit mode - show
+// 2) Creation of vds based on other data set - show only if we in original data set version (last
+// history dot)
+export const isWikAvailable = (state, location) => {
+  const history = getHistoryFromLocation(state, location);
+  const lastItemId = history ? history.get('items').last() : null;
+  const {
+   query: {
+     version,
+     mode
+    }
+  } = location;
+
+  return getDatasetEntityId(state, location) &&
+    (mode === 'edit' ||
+    version === lastItemId);
+};
 
 function getDatasetData(state, version) {
   const { entities } = state.resources;

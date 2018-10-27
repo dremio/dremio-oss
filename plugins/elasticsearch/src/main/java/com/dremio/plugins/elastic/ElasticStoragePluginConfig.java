@@ -32,7 +32,6 @@ import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.protostuff.Schema;
 import io.protostuff.Tag;
@@ -123,7 +122,7 @@ public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePlu
 
   @Tag(15)
   @NotMetadataImpacting
-  @JsonIgnore
+  @DisplayMetadata(label = "If the number of records returned from Elasticsearch is less than the expected number, warn instead of failing the query")
   public boolean warnOnRowCountMismatch = false;
 
   public ElasticStoragePluginConfig() {

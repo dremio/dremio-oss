@@ -71,6 +71,7 @@ import com.dremio.dac.explore.model.DatasetVersionResourcePath;
 import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.explore.model.HistogramValue;
 import com.dremio.dac.explore.model.History;
+import com.dremio.dac.explore.model.HistoryItem;
 import com.dremio.dac.explore.model.InitialDownloadResponse;
 import com.dremio.dac.explore.model.InitialPendingTransformResponse;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
@@ -197,7 +198,32 @@ public class DatasetVersionResource {
 
   private VirtualDatasetUI getDatasetConfig() throws DatasetVersionNotFoundException {
     if (virtualDatasetUI == null) {
-      virtualDatasetUI = datasetService.getVersion(datasetPath, version);
+      try {
+        virtualDatasetUI = datasetService.getVersion(datasetPath, version);
+      } catch (DatasetNotFoundException e) {
+        try {
+          // For history, the UI will request the tip dataset path and the version of the history item, which may
+          // actually be referencing another dataset that we derived from.  Therefore, if we fail to find a
+          // dataset/version combo, check the history of the tip dataset and search for any entry that matches the
+          // specified version.
+          VirtualDatasetUI rootDataset = datasetService.get(datasetPath);
+
+          History history = tool.getHistory(datasetPath, rootDataset.getVersion());
+          for (HistoryItem historyItem : history.getItems()) {
+            if (version.equals(historyItem.getDatasetVersion())) {
+              virtualDatasetUI = datasetService.get(historyItem.getDataset(), version);
+              break;
+            }
+          }
+
+          // could not find it in history, rethrow original exception
+          if (virtualDatasetUI == null) {
+            throw e;
+          }
+        } catch (NamespaceException nsException) {
+          throw e;
+        }
+      }
     }
     return virtualDatasetUI;
   }
@@ -205,12 +231,13 @@ public class DatasetVersionResource {
   private Dataset getCurrentDataset() throws DatasetVersionNotFoundException, DatasetNotFoundException, NamespaceException {
     VirtualDatasetUI config = getDatasetConfig();
     return Dataset.newInstance(
-        new DatasetResourcePath(datasetPath),
-        new DatasetVersionResourcePath(datasetPath, version),
-        new DatasetName(config.getName()),
-        config.getSql(),
-        config,
-        datasetService.getJobsCount(datasetPath.toNamespaceKey())
+      new DatasetResourcePath(datasetPath),
+      new DatasetVersionResourcePath(datasetPath, version),
+      new DatasetName(config.getName()),
+      config.getSql(),
+      config,
+      datasetService.getJobsCount(datasetPath.toNamespaceKey()),
+     null
     );
   }
 
@@ -306,7 +333,7 @@ public class DatasetVersionResource {
   }
 
   protected DatasetUI newDataset(VirtualDatasetUI vds, DatasetVersion tipVersion) throws NamespaceException {
-    return DatasetUI.newInstance(vds, null);
+    return DatasetUI.newInstance(vds, null, datasetService.getNamespaceService());
   }
   /**
    * Return complete results of a dataset version. Response contains a pagination URL to fetch the data in chunks.

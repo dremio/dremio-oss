@@ -40,12 +40,15 @@ import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.proto.model.system.NodeInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 
 /**
@@ -68,6 +71,59 @@ public class SystemResource {
     this.jobsService = jobsService;
     this.securityContext = securityContext;
     this.context = context;
+  }
+
+  @GET
+  @Path("/cluster-resource-info")
+  @Produces(MediaType.APPLICATION_JSON)
+  public ResourceInfo getClusterResourceInformation() {
+    ClusterResourceInformation clusterResourceInformation =
+      context.get().getClusterResourceInformation();
+
+    ResourceInfo result;
+    try {
+      result = new ResourceInfo(
+        clusterResourceInformation.getAverageExecutorMemory(),
+        clusterResourceInformation.getAverageExecutorCores(context.get().getOptionManager()),
+        clusterResourceInformation.getExecutorNodeCount()
+      );
+    } catch(IllegalStateException e) {
+      // if we don't executors yet we should not throw exception here
+      result = new ResourceInfo(0L, 0L, 0);
+    }
+    return result;
+  }
+
+  /**
+   * MemoryInfo struct to pass back to the client
+   */
+  public static class ResourceInfo {
+    private final Long averageExecutorMemory;
+    private final Long averageExecutorCores;
+    private final Integer executorCount;
+
+    @JsonCreator
+    public ResourceInfo(
+      @JsonProperty("averageExecutorMemory") Long averageExecutorMemory,
+      @JsonProperty("averageExecutorCores") Long averageExecutorCores,
+      @JsonProperty("executorCount") Integer executorCount
+    ) {
+      this.averageExecutorMemory = averageExecutorMemory;
+      this.averageExecutorCores = averageExecutorCores;
+      this.executorCount = executorCount;
+    }
+
+    public Long getAverageExecutorMemory() {
+      return averageExecutorMemory;
+    }
+
+    public Long getAverageExecutorCores() {
+      return averageExecutorCores;
+    }
+
+    public Integer getExecutorCount() {
+      return executorCount;
+    }
   }
 
   @GET

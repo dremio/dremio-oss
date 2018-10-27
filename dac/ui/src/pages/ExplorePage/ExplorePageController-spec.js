@@ -147,13 +147,6 @@ describe('ExplorePageController', () => {
       expect(commonProps.resetViewState).to.be.called;
       expect(commonProps.setCurrentSql).to.be.calledWith({sql: undefined});
     });
-    it('should call router.setRouteLeaveHook only if route has changed', () => {
-      instance.componentWillReceiveProps(props);
-      expect(props.router.setRouteLeaveHook).to.not.be.called;
-      props = {...props, route: { path: '/:resources' }};
-      instance.componentWillReceiveProps(props);
-      expect(props.router.setRouteLeaveHook).to.be.called;
-    });
 
     it('should redirect to / if props/.pageType is invalid', () => {
       instance.componentWillReceiveProps({...props, pageType: 'foo'});

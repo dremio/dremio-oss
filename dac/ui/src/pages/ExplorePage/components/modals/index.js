@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export EditColumnsModal from './EditColumnsModal/EditColumnsModal';
 export QlikStateModal from './QlikStateModal';
 export SaveAsDatasetModal from './SaveAsDatasetModal';
 export DatasetSettingsModal from 'pages/HomePage/components/modals/DatasetSettings/DatasetSettingsModal';

@@ -24,6 +24,7 @@ import org.apache.calcite.tools.Frameworks;
 import org.apache.calcite.tools.Planner;
 import org.junit.Test;
 
+import com.dremio.exec.context.AdditionalContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.ConvertletTable;
 import com.dremio.exec.planner.sql.parser.CompoundIdentifierConverter;
@@ -62,6 +63,16 @@ public class TestSqlBracketlessSyntax {
           @Override
           public int getRootFragmentTimeZone() {
             return 0;
+          }
+
+          @Override
+          public void registerAdditionalInfo(AdditionalContext object) {
+
+          }
+
+          @Override
+          public <T extends AdditionalContext> T getAdditionalInfo(Class<T> claz) {
+            return null;
           }
         }))
         .build();

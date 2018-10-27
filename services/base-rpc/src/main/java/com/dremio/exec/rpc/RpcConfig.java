@@ -16,8 +16,10 @@
 package com.dremio.exec.rpc;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 
+import com.dremio.exec.rpc.ssl.SSLConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -25,21 +27,28 @@ import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
 
 public class RpcConfig {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RpcConfig.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RpcConfig.class);
 
   private final String name;
   private final int timeout;
   private final Map<EnumLite, RpcMessageType<?, ?, ?>> sendMap;
   private final Map<Integer, RpcMessageType<?, ?, ?>> receiveMap;
   private final Executor executor;
+  private final Optional<SSLConfig> sslConfig;
 
-  private RpcConfig(String name, Map<EnumLite, RpcMessageType<?, ?, ?>> sendMap,
-      Map<Integer, RpcMessageType<?, ?, ?>> receiveMap, int timeout, Executor executor) {
+  private RpcConfig(
+      String name,
+      Map<EnumLite, RpcMessageType<?, ?, ?>> sendMap,
+      Map<Integer, RpcMessageType<?, ?, ?>> receiveMap,
+      int timeout,
+      Executor executor,
+      Optional<SSLConfig> sslConfig) {
     this.name = name;
     this.timeout = timeout;
     this.sendMap = ImmutableMap.copyOf(sendMap);
     this.receiveMap = ImmutableMap.copyOf(receiveMap);
     this.executor = executor;
+    this.sslConfig = sslConfig;
   }
 
   public String getName() {
@@ -56,6 +65,10 @@ public class RpcConfig {
 
   public Executor getExecutor() {
     return executor;
+  }
+
+  public Optional<SSLConfig> getSSLConfig() {
+    return sslConfig;
   }
 
   public boolean checkReceive(int rpcType, Class<?> receiveClass) {
@@ -159,6 +172,8 @@ public class RpcConfig {
     private String name;
     private int timeout = -1;
     private Executor executor;
+    private Optional<SSLConfig> sslConfig = Optional.empty();
+
     private Map<EnumLite, RpcMessageType<?, ?, ?>> sendMap = Maps.newHashMap();
     private Map<Integer, RpcMessageType<?, ?, ?>> receiveMap = Maps.newHashMap();
 
@@ -175,7 +190,8 @@ public class RpcConfig {
       return this;
     }
 
-    public <SEND extends MessageLite, RECEIVE extends MessageLite, T extends EnumLite>  RpcConfigBuilder add(T sendEnum, Class<SEND> send, T receiveEnum, Class<RECEIVE> rec) {
+    public <SEND extends MessageLite, RECEIVE extends MessageLite, T extends EnumLite>
+    RpcConfigBuilder add(T sendEnum, Class<SEND> send, T receiveEnum, Class<RECEIVE> rec) {
       RpcMessageType<SEND, RECEIVE, T> type = new RpcMessageType<SEND, RECEIVE, T>(sendEnum, send, receiveEnum, rec);
       this.sendMap.put(sendEnum, type);
       this.receiveMap.put(receiveEnum.getNumber(), type);
@@ -187,10 +203,16 @@ public class RpcConfig {
       return this;
     }
 
+    public RpcConfigBuilder sslConfig(Optional<SSLConfig> sslConfig) {
+      assert sslConfig != null;
+      this.sslConfig = sslConfig;
+      return this;
+    }
+
     public RpcConfig build() {
       Preconditions.checkArgument(timeout > -1, "Timeout must be a positive number or zero for disabled.");
       Preconditions.checkArgument(name != null, "RpcConfig name must be set.");
-      return new RpcConfig(name, sendMap, receiveMap, timeout, executor);
+      return new RpcConfig(name, sendMap, receiveMap, timeout, executor, sslConfig);
     }
 
   }

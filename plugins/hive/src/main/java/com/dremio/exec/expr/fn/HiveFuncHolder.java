@@ -17,6 +17,7 @@ package com.dremio.exec.expr.fn;
 
 import java.util.List;
 
+import com.dremio.exec.expr.annotations.FunctionTemplate;
 import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge;
@@ -123,6 +124,21 @@ public class HiveFuncHolder extends AbstractFunctionHolder {
   @Override
   public int getParamCount() {
     return argTypes.length;
+  }
+
+  @Override
+  public boolean checkPrecisionRange() {
+    throw new UnsupportedOperationException("Hive Functions do not support these.");
+  }
+
+  @Override
+  public boolean isReturnTypeIndependent() {
+    throw new UnsupportedOperationException("Hive Functions do not support these.");
+  }
+
+  @Override
+  public FunctionTemplate.NullHandling getNullHandling() {
+    throw new UnsupportedOperationException("Hive Functions do not support these.");
   }
 
   /**

@@ -15,9 +15,11 @@
  */
 package com.dremio.dac.service.errors;
 
+import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.sources.PhysicalDatasetResourcePath;
 import com.dremio.dac.model.sources.SourceName;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 
 /**
  * Throw when Physical Dataset not present in namespace.
@@ -25,21 +27,28 @@ import com.dremio.dac.model.sources.SourceName;
 public class PhysicalDatasetNotFoundException extends NotFoundException {
   private static final long serialVersionUID = 1L;
 
-  private final SourceName sourceName;
-  private final PhysicalDatasetPath physicalDatasetPath;
+  private final NamespacePath path;
 
-  public PhysicalDatasetNotFoundException(SourceName sourceName, PhysicalDatasetPath physicalDatasetPath,  Exception error) {
-    super(new PhysicalDatasetResourcePath(sourceName, physicalDatasetPath),
-      "physical dataset " + physicalDatasetPath.toPathString(), error);
-    this.sourceName = sourceName;
-    this.physicalDatasetPath = physicalDatasetPath;
+  public PhysicalDatasetNotFoundException(
+      SourceName sourceName,
+      PhysicalDatasetPath physicalDatasetPath,
+      Exception error) {
+    super(
+        new PhysicalDatasetResourcePath(sourceName, physicalDatasetPath),
+        "physical dataset " + physicalDatasetPath.toPathString(),
+        error);
+    this.path = physicalDatasetPath;
   }
 
-  public SourceName getSourceName() {
-    return sourceName;
+  public PhysicalDatasetNotFoundException(
+      NamespacePath pdp,
+      DatasetType type,
+      Exception error) {
+    super(new PhysicalDatasetResourcePath(pdp, type), "physical dataset " + pdp.toPathString(), error);
+    this.path = new PhysicalDatasetPath(pdp, type);
   }
 
-  public PhysicalDatasetPath getPhysicalDatasetPath() {
-    return physicalDatasetPath;
+  public NamespacePath getPath() {
+    return path;
   }
 }

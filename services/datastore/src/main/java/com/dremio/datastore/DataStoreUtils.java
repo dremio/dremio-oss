@@ -18,8 +18,11 @@ package com.dremio.datastore;
 import static java.lang.String.format;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 
 import org.apache.hadoop.fs.GlobFilter;
+
+import com.google.common.base.Preconditions;
 
 /**
  * Utilities for datastore and other applications
@@ -28,11 +31,11 @@ public final class DataStoreUtils {
 
   public static KVStoreInfo toInfo(StoreBuilderConfig builderConfig) {
     return new KVStoreInfo()
-      .setTablename(builderConfig.getName())
-      .setKeySerializerClassName(builderConfig.getKeySerializerClassName())
-      .setValueSerializerClassName(builderConfig.getValueSerializerClassName())
-      .setDocumentConverterClassName(builderConfig.getDocumentConverterClassName())
-      .setVersionExtractorClassName(builderConfig.getVersionExtractorClassName());
+        .setTablename(builderConfig.getName())
+        .setKeySerializerClassName(builderConfig.getKeySerializerClassName())
+        .setValueSerializerClassName(builderConfig.getValueSerializerClassName())
+        .setDocumentConverterClassName(builderConfig.getDocumentConverterClassName())
+        .setVersionExtractorClassName(builderConfig.getVersionExtractorClassName());
   }
 
   public static StoreBuilderConfig toBuilderConfig(KVStoreInfo kvStoreMetadata) {
@@ -50,6 +53,40 @@ public final class DataStoreUtils {
       return new GlobFilter(format("*%s", suffix));
     } catch (IOException ioe) {
       throw new RuntimeException(ioe);
+    }
+  }
+
+  /**
+   * Convert a class name to an instance.
+   *
+   * @param className   The class name to load.
+   * @param clazz       The expected class type.
+   * @param failOnEmpty Whether to fail or return null if no value is given.
+   * @return The newly created instance (or null if !failOnEmpty and emptry string used).
+   */
+  @SuppressWarnings("unchecked")
+  static <T> T getInstance(String className, Class<T> clazz, boolean failOnEmpty) {
+    if (className == null || className.isEmpty()) {
+      if (failOnEmpty) {
+        throw new DatastoreException(String.format(
+            "Failure trying to resolve class for expected type of %s. The provided class name was either empty or null.",
+            clazz.getName()));
+      }
+
+      return null;
+    } else {
+      try {
+        final Class<?> outcome = Class.forName(Preconditions.checkNotNull(className));
+        Preconditions.checkArgument(clazz.isAssignableFrom(outcome));
+        Constructor<?> constructor = outcome.getDeclaredConstructor();
+        constructor.setAccessible(true);
+        return (T) constructor.newInstance();
+      } catch (Exception ex) {
+        throw new DatastoreException(String.format(
+            "Failure while trying to load class named %s which should be a subclass of %s. ",
+            className,
+            clazz.getName()));
+      }
     }
   }
 

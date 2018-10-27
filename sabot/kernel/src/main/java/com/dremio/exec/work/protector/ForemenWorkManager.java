@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.utils.protos.ExternalIdHelper;
@@ -58,6 +57,7 @@ import com.dremio.exec.work.user.LocalExecutionConfig;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.OptionProvider;
 import com.dremio.options.OptionManager;
+import com.dremio.resource.QueryCancelTool;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.sabot.rpc.ExecToCoordHandler;
 import com.dremio.sabot.rpc.Protocols;
@@ -142,6 +142,12 @@ public class ForemenWorkManager implements Service, SafeExit {
     final FabricRunnerFactory coordFactory = fabric.get()
         .registerProtocol(new CoordProtocol(dbContext.get().getAllocator(), tool, dbContext.get().getConfig()));
     bindingCreator.bindSelf(new CoordTunnelCreator(coordFactory));
+
+    final QueryCancelTool queryCancelTool = new QueryCancelToolImpl();
+    succeeded = bindingCreator.bindIfUnbound(QueryCancelTool.class, queryCancelTool);
+    if (!succeeded) {
+      bindingCreator.replace(QueryCancelTool.class, queryCancelTool);
+    }
 
     // accept enduser rpc requests (replaces noop implementation).
     bindingCreator.bind(UserWorker.class, new UserWorkerImpl(dbContext.get().getOptionManager(), pool));
@@ -246,7 +252,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
       @Override
       public void operationComplete(Future<Void> future) throws Exception {
-        foreman.cancel();
+        foreman.cancel(null);
       }
     }
 
@@ -286,9 +292,13 @@ public class ForemenWorkManager implements Service, SafeExit {
   }
 
   public boolean cancel(ExternalId externalId) {
+    return cancel(externalId, null);
+  }
+
+  public boolean cancel(ExternalId externalId, String reason) {
     final ManagedForeman managed = externalIdToForeman.get(externalId);
     if (managed != null) {
-      managed.foreman.cancel();
+      managed.foreman.cancel(reason);
       return true;
     }
 
@@ -496,8 +506,8 @@ public class ForemenWorkManager implements Service, SafeExit {
   private class ForemenToolImpl implements ForemenTool {
 
     @Override
-    public boolean cancel(ExternalId id) {
-      return ForemenWorkManager.this.cancel(id);
+    public boolean cancel(ExternalId id, String reason) {
+      return ForemenWorkManager.this.cancel(id, reason);
     }
 
     @Override
@@ -508,6 +518,14 @@ public class ForemenWorkManager implements Service, SafeExit {
       }
 
       return managed.foreman.getCurrentProfile();
+    }
+  }
+
+  private class QueryCancelToolImpl implements QueryCancelTool {
+
+    @Override
+    public boolean cancel(ExternalId id, String reason) {
+      return ForemenWorkManager.this.cancel(id, reason);
     }
   }
 }

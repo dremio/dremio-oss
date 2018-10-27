@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import com.google.common.base.Preconditions;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.FieldVector;
 import com.dremio.sabot.op.common.ht2.PivotBuilder.FieldMode;
@@ -33,9 +34,10 @@ public class Unpivots {
 
   private Unpivots(){}
 
-  public static void unpivotBits1(long srcFixedAddr, int blockWidth, final long target, final int bitByteOffset, final int bitOffset, int count){
+  private static void unpivotBits1(long srcFixedAddr, int blockWidth, final long target,
+      final int bitByteOffset, final int bitOffset, final int start, final int count){
 
-    final long startAddr = srcFixedAddr + bitByteOffset;
+    final long startAddr = srcFixedAddr + (start * blockWidth) + bitByteOffset;
     long maxAddr = startAddr + (count * blockWidth);
     int targetIndex = 0;
 
@@ -47,8 +49,9 @@ public class Unpivots {
     }
   }
 
-  public static void unpivotBytes4(final long srcFixedAddr, final int blockWidth, final long target, final int byteOffset, int count) {
-    final long startAddr = srcFixedAddr;
+  private static void unpivotBytes4(final long srcFixedAddr, final int blockWidth,
+      final long target, final int byteOffset, final int start, final int count) {
+    final long startAddr = srcFixedAddr + (start * blockWidth);
     long maxAddr = startAddr + (count * blockWidth);
     long targetAddr = target;
 
@@ -58,8 +61,9 @@ public class Unpivots {
     }
   }
 
-  public static void unpivotBytes8(final long srcFixedAddr, final int blockWidth, final long target, final int byteOffset, int count) {
-    final long startAddr = srcFixedAddr;
+  private static void unpivotBytes8(final long srcFixedAddr, final int blockWidth,
+      final long target, final int byteOffset, final int start, final int count) {
+    final long startAddr = srcFixedAddr + (start * blockWidth);
     long maxAddr = startAddr + (count * blockWidth);
     long targetAddr = target;
 
@@ -69,8 +73,9 @@ public class Unpivots {
     }
   }
 
-  public static void unpivotBytes16(final long srcFixedAddr, final int blockWidth, final long target, final int byteOffset, int count) {
-    final long startAddr = srcFixedAddr;
+  private static void unpivotBytes16(final long srcFixedAddr, final int blockWidth,
+      final long target, final int byteOffset, final int start, final int count) {
+    final long startAddr = srcFixedAddr + (start * blockWidth);
     long maxAddr = startAddr + (count * blockWidth);
     long targetAddr = target;
 
@@ -80,9 +85,10 @@ public class Unpivots {
     }
   }
 
-  public static void unpivotVariable(final long srcFixedAddr, final long srcVarAddr, final int blockWidth, FieldVector[] targets, int count) {
+  private static void unpivotVariable(final long srcFixedAddr, final long srcVarAddr, final long maxVarAddr,
+                                      final int blockWidth, final FieldVector[] targets, final int start, final int count) {
     final int dataWidth = blockWidth - LBlockHashTable.VAR_OFFSET_SIZE;
-    final long startVarOffset = srcFixedAddr + dataWidth;
+    final long startVarOffset = srcFixedAddr + (blockWidth * start) + dataWidth;
     final long maxAddr = startVarOffset + (count * blockWidth);
     final long srcVarAddrBase = srcVarAddr;
     final int fieldCount = targets.length;
@@ -123,9 +129,9 @@ public class Unpivots {
 
         // copy variable data.
         long offsetAddr = offsetAddrs[i];
-        int start = PlatformDependent.getInt(offsetAddr);
+        int startIdx = PlatformDependent.getInt(offsetAddr);
         offsetAddr +=4;
-        PlatformDependent.putInt(offsetAddr, start + len);
+        PlatformDependent.putInt(offsetAddr, startIdx + len);
         PlatformDependent.copyMemory(varPos, target, len);
         offsetAddrs[i] = offsetAddr;
         targetAddrs[i] += len;
@@ -138,12 +144,13 @@ public class Unpivots {
     }
   }
 
-  public static void unpivot(PivotDef pivot, final FixedBlockVector fixedVector, final VariableBlockVector variableVector, final int count){
+  public static void unpivot(PivotDef pivot, final FixedBlockVector fixedVector,
+      final VariableBlockVector variableVector, final int start, final int count){
     final int blockWidth = pivot.getBlockWidth();
     final int totalBitCount = pivot.getBitCount();
     int bitCount = pivot.getBitCount();
     for(FieldVector v : pivot.getOutputVectors()){
-      AllocationHelper.allocate(v, LBlockHashTable.MAX_VALUES_PER_BATCH, 15);
+      AllocationHelper.allocate(v, (count - start), 15);
     }
     List<ArrowBuf> bitBufs = new ArrayList<>();
     for(VectorPivotDef v : pivot.getVectorPivots()){
@@ -155,24 +162,27 @@ public class Unpivots {
     }
     final long fixedAddr = fixedVector.getMemoryAddress();
     final long variableAddr = variableVector.getMemoryAddress();
+    final long maxVariableAddr = variableVector.getMaxMemoryAddress();
 
     // unpivots bit arrays
     for(int i =0; i < bitCount; i++){
-      unpivotBits1(fixedAddr, blockWidth, bitBufs.get(totalBitCount - bitCount + i).memoryAddress(), (i/32), i, count);
+      unpivotBits1(fixedAddr, blockWidth, bitBufs.get(totalBitCount - bitCount + i).memoryAddress(), (i/32), i, start, count);
     }
 
     // unpivot fixed values.
     for(VectorPivotDef def : pivot.getNonBitFixedPivots()){
       switch(def.getType()){
       case FOUR_BYTE:
-        unpivotBytes4(fixedAddr, blockWidth, def.getOutgoingVector().getDataBufferAddress(), def.getOffset(), count);
+        final long buf4ByteAddr = def.getOutgoingVector().getFieldBuffers().get(1).memoryAddress();
+        unpivotBytes4(fixedAddr, blockWidth, buf4ByteAddr, def.getOffset(), start, count);
         break;
       case EIGHT_BYTE:
-        unpivotBytes8(fixedAddr, blockWidth, def.getOutgoingVector().getDataBufferAddress(), def.getOffset(), count);
+        final long buf8ByteAddr = def.getOutgoingVector().getFieldBuffers().get(1).memoryAddress();
+        unpivotBytes8(fixedAddr, blockWidth, buf8ByteAddr, def.getOffset(), start, count);
         break;
-
       case SIXTEEN_BYTE:
-        unpivotBytes16(fixedAddr, blockWidth, def.getOutgoingVector().getFieldBuffers().get(1).memoryAddress(), def.getOffset(), count);
+        final long buf16ByteAddr = def.getOutgoingVector().getFieldBuffers().get(1).memoryAddress();
+        unpivotBytes16(fixedAddr, blockWidth, buf16ByteAddr, def.getOffset(), start, count);
         break;
       default:
         throw new IllegalStateException();
@@ -186,7 +196,7 @@ public class Unpivots {
         return input.getOutgoingVector();
       }}).toArray(FieldVector.class);
 
-    unpivotVariable(fixedAddr, variableAddr, blockWidth, varVectors, count);
+    unpivotVariable(fixedAddr, variableAddr, maxVariableAddr, blockWidth, varVectors, start, count);
   }
 
   public static long[] addresses(Collection<FieldVector> vectors){

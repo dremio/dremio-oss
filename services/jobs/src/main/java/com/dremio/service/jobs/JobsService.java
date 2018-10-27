@@ -174,9 +174,10 @@ public interface JobsService extends Service {
    *
    * @param username The user causing the cancellation (to be used for security verification)
    * @param jobId    The job id to cancel
+   * @param reason   Reason why job is cancelled
    * @return The outcome of the cancellation attempt. (Cancellation is asynchronous.)
    */
-  void cancel(String username, JobId jobId) throws JobException;
+  void cancel(String username, JobId jobId, String reason) throws JobException;
 
   /**
    * Register a listener that listens for events associated with a particular job.

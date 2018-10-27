@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.Iterator;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.EvaluationType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.visitors.ExprVisitor;
@@ -28,10 +29,12 @@ public class ValueVectorReadExpression implements LogicalExpression{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ValueVectorReadExpression.class);
 
   private final TypedFieldId fieldId;
-
+  private final EvaluationType evaluationType;
 
   public ValueVectorReadExpression(TypedFieldId tfId){
     this.fieldId = tfId;
+    this.evaluationType = new EvaluationType();
+    addEvaluationType(EvaluationType.ExecutionType.JAVA);
   }
 
   public boolean hasReadPath(){
@@ -49,6 +52,22 @@ public class ValueVectorReadExpression implements LogicalExpression{
   public boolean isSuperReader(){
     return fieldId.isHyperReader();
   }
+
+  @Override
+  public boolean isEvaluationTypeSupported(EvaluationType.ExecutionType executionType) {
+    return evaluationType.isEvaluationTypeSupported(executionType);
+  }
+
+  @Override
+  public void addEvaluationType(EvaluationType.ExecutionType executionType) {
+    evaluationType.addEvaluationType(executionType);
+  }
+
+  @Override
+  public EvaluationType getEvaluationType() {
+    return evaluationType;
+  }
+
   @Override
   public CompleteType getCompleteType() {
     return fieldId.getFinalType();

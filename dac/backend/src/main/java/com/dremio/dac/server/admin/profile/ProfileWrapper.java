@@ -143,7 +143,62 @@ public class ProfileWrapper {
       return "Still planning";
     }
 
-    return NUMBER_FORMAT.format(profile.getPlanningEnd() - profile.getPlanningStart()) + "ms";
+    // Starting from 3.0, the planning time includes the resource queueing time. Thus, correcting for it when resource scheduling time exists
+    long planningPlusSchedulingTime = profile.getPlanningEnd() - profile.getPlanningStart();
+
+    UserBitShared.ResourceSchedulingProfile r = profile.getResourceSchedulingProfile();
+    if (r == null || r.getResourceSchedulingStart() == 0 || r.getResourceSchedulingEnd() == 0) {
+      return NUMBER_FORMAT.format(planningPlusSchedulingTime) + "ms";
+    }
+    long schedulingTime = r.getResourceSchedulingEnd() - r.getResourceSchedulingStart();
+
+    return NUMBER_FORMAT.format(planningPlusSchedulingTime - schedulingTime) + "ms";
+  }
+
+  @SuppressWarnings("unused")
+  public String getQueueTime() {
+    UserBitShared.ResourceSchedulingProfile r = profile.getResourceSchedulingProfile();
+    if (r == null || r.getResourceSchedulingStart() == 0 || r.getResourceSchedulingEnd() == 0) {
+      return "";
+    }
+    return NUMBER_FORMAT.format(r.getResourceSchedulingEnd() - r.getResourceSchedulingStart()) + "ms";
+  }
+
+  @SuppressWarnings("unused")
+  public String getResourceSchedulingOverview() {
+    UserBitShared.ResourceSchedulingProfile r = profile.getResourceSchedulingProfile();
+    if (r == null) {
+      return "";
+    }
+    DescriptionListBuilder dlb = new DescriptionListBuilder();
+    if (r.hasQueueName()) {
+      dlb.addItem("Queue Name:", r.getQueueName());
+    }
+    if (r.hasQueueId()) {
+      dlb.addItem("Queue Id:", r.getQueueId());
+    }
+    if (r.hasRuleName()) {
+      dlb.addItem("Rule Name:", r.getRuleName());
+    }
+    if (r.hasRuleId()) {
+      dlb.addItem("Rule Id:", r.getRuleId());
+    }
+    if (r.hasRuleContent()) {
+      dlb.addItem("Rule Content:", r.getRuleContent());
+    }
+    if (r.hasRuleAction()) {
+      dlb.addItem("Rule Action:", r.getRuleAction());
+    }
+    if (r.hasSchedulingProperties()) {
+      UserBitShared.ResourceSchedulingProperties rsp = r.getSchedulingProperties();
+      if (rsp.hasQueryCost()) {
+        dlb.addItem("Query Cost:", String.format("%.0f", rsp.getQueryCost()));
+      }
+      if (rsp.hasQueryType()) {
+        dlb.addItem("Query Type:", rsp.getQueryType());
+      }
+    }
+    return dlb.build();
   }
 
   @SuppressWarnings("unused")

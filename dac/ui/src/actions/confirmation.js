@@ -31,7 +31,7 @@ export function hideConfirmationDialog() {
   return { type: HIDE_CONFIRMATION_DIALOG };
 }
 
-export function showUnsavedChangesConfirmDialog({text, confirm}) {
+export function showUnsavedChangesConfirmDialog({text, confirm }) {
   return (dispatch) => dispatch(showConfirmationDialog({
     title: la('Unsaved Changes'),
     confirmText: la('Leave'),

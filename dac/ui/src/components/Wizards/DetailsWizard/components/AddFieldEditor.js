@@ -46,7 +46,7 @@ export class AddFieldEditor extends Component {
     style: PropTypes.object
   };
   static defaultProps = {
-    sqlHeight: 150,
+    sqlHeight: 112,
     blockHeight: 112
   };
 

@@ -16,11 +16,12 @@
 package com.dremio.exec.work.protector;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
-import com.dremio.options.OptionManager;
-import com.dremio.exec.work.AttemptId;
-import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
+import com.dremio.exec.work.AttemptId;
+import com.dremio.options.OptionManager;
+import com.dremio.proto.model.attempts.AttemptReason;
+import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
 import com.google.common.base.Preconditions;
 
 /**
@@ -66,8 +67,24 @@ abstract class BaseAttemptHandler implements ReAttemptHandler {
       return AttemptReason.NONE; // we exceeded max allowed attempts
     }
 
+    // CTAS operations are not recoverable until DX-13363 is fixed
+    if (context.isCTAS()) {
+      logger.info("{}: CREATE TABLE queries cannot be reattempted", attemptId);
+      return AttemptReason.NONE;
+    }
+
     final UserException ex = context.getException();
     if (ex.getErrorType() == ErrorType.OUT_OF_MEMORY) {
+      if (context.containsHashAggregate()) {
+        if (ex.getContextStrings().size() > 2 && ex.getContextStrings().get(1).equals(VectorizedHashAggOperator.OUT_OF_MEMORY_MSG)) {
+          /* Vectorized Hash Agg should never run out of memory except when the setup fails during preallocation
+           * and if that happens then instead of reattempting with StreamingAgg, we should report the problem back
+           * to user so that query can be re-issued with potentially more memory.
+           */
+          logger.info("{}: couldn't recover from an out of memory failure in vectorized hash agg");
+          return AttemptReason.NONE;
+        }
+      }
       if (!context.containsHashAggregate() || recoveringFromOOM
         // TODO(DX-5912): check this condition after merge join is implemented
         // || !options.getOption(PlannerSettings.HASHJOIN)

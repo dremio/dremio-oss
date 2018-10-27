@@ -18,20 +18,39 @@ package com.dremio.sabot.op.common.ht2;
 import org.apache.arrow.memory.BufferAllocator;
 
 import io.netty.buffer.ArrowBuf;
+import io.netty.util.internal.PlatformDependent;
 
 public class ControlBlock implements AutoCloseable {
-
-  private static final int SIZE = LBlockHashTable.MAX_VALUES_PER_BATCH * LBlockHashTable.CONTROL_WIDTH;
-
   private ArrowBuf buf;
 
-  public ControlBlock(BufferAllocator allocator){
-    this.buf = allocator.buffer(SIZE);
+  public ControlBlock(final BufferAllocator allocator, final int maxValuesPerBatch){
+    this.buf = allocator.buffer(maxValuesPerBatch * LBlockHashTable.CONTROL_WIDTH);
 
   }
 
   public long getMemoryAddress(){
     return buf.memoryAddress();
+  }
+
+  public void reset() {
+    if (buf != null) {
+      buf.readerIndex(0);
+      buf.writerIndex(0);
+
+      long c = buf.memoryAddress();
+      final long endAddr = c + buf.capacity();
+      while(c < endAddr) {
+        PlatformDependent.putLong(c, 0);
+        c += 8;
+      }
+
+      int remain = buf.capacity() % 8;
+      if(remain != 0){
+        for(int i = 0; i < remain ; i++) {
+          PlatformDependent.putByte(endAddr - i, (byte)0);
+        }
+      }
+    }
   }
 
   @Override

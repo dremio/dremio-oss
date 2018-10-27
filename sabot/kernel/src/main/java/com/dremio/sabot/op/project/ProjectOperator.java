@@ -17,7 +17,15 @@ package com.dremio.sabot.op.project;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import com.dremio.sabot.op.project.ProjectorStats.Metric;
+import com.google.common.base.Stopwatch;
+import com.dremio.common.expression.EvaluationType;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.server.options.ShadowOptionManager;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.FixedWidthVector;
@@ -26,7 +34,6 @@ import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.TransferPair;
-
 import com.carrotsearch.hppc.IntHashSet;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -58,6 +65,8 @@ import com.dremio.exec.record.VectorAccessibleComplexWriter;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.op.llvm.NativeProjectEvaluator;
+import com.dremio.sabot.op.llvm.NativeProjectorBuilder;
 import com.dremio.sabot.op.project.Projector.ComplexWriterCreator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.collect.Lists;
@@ -67,21 +76,32 @@ public class ProjectOperator implements SingleInputOperator {
 
   private final Project config;
   private final OperatorContext context;
+  private final OptionManager projectorOptions;
+  private String curExecOption;
   private final VectorContainer outgoing;
 
   private VectorAccessible incoming;
   private State state = State.NEEDS_SETUP;
   private Projector projector;
   private List<ValueVector> allocationVectors;
+  private NativeProjectEvaluator nativeProjectEvaluator;
   private final List<ComplexWriter> complexWriters = new ArrayList<>();
   private int recordsConsumedCurrentBatch;
   private BatchSchema initialSchema;
+  private Stopwatch javaCodeGenWatch = Stopwatch.createUnstarted();
+  private Stopwatch gandivaCodeGenWatch = Stopwatch.createUnstarted();
+  private boolean debugCodegenMessages;
 
   public static enum EvalMode {DIRECT, COMPLEX, EVAL};
 
   public ProjectOperator(final OperatorContext context, final Project config) throws OutOfMemoryException {
     this.config = config;
     this.context = context;
+    this.projectorOptions = new ShadowOptionManager(context.getOptions());
+    this.projectorOptions.setOption(OptionValue.createString(
+      OptionValue.OptionType.QUERY, ExecConstants.INTERNAL_EXEC_OPTION_KEY, this.projectorOptions.getOption(ExecConstants.QUERY_EXEC_OPTION)));
+    this.curExecOption = this.projectorOptions.getOption(ExecConstants.INTERNAL_EXEC_OPTION_KEY).getStringVal();
+    this.debugCodegenMessages = (EvaluationType.CodeGenOption.getCodeGenOption(this.curExecOption) != EvaluationType.CodeGenOption.DEFAULT);
     this.outgoing = context.createOutputVectorContainer();
   }
 
@@ -95,16 +115,17 @@ public class ProjectOperator implements SingleInputOperator {
     this.incoming = incoming;
     this.allocationVectors = Lists.newArrayList();
     final List<NamedExpression> exprs = getExpressionList();
-    final List<TransferPair> transfers = Lists.newArrayList();
+    final List<TransferPair> transfers = new ArrayList<>();
+    final NativeProjectorBuilder nativeProjectorBuilder = NativeProjectEvaluator.builder(incoming);
 
     final ClassGenerator<Projector> cg = context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
 
     final IntHashSet transferFieldIds = new IntHashSet();
 
+    int numberOfExpressionsExecutedInGandiva = 0;
     for (int i = 0; i < exprs.size(); i++) {
       final NamedExpression namedExpression = exprs.get(i);
-
-      final LogicalExpression expr = context.getClassProducer().materializeAndAllowComplex(namedExpression.getExpr(), incoming);
+      final LogicalExpression expr = context.getClassProducer().materializeAndAllowComplex(projectorOptions, namedExpression.getExpr(), incoming);
       final Field outputField = expr.getCompleteType().toField(namedExpression.getRef());
 
       switch(getEvalMode(incoming, expr, transferFieldIds)){
@@ -133,6 +154,20 @@ public class ProjectOperator implements SingleInputOperator {
         final ValueVector vector = outgoing.addOrGet(outputField);
         allocationVectors.add(vector);
         final TypedFieldId fid = outgoing.getValueVectorId(SchemaPath.getSimplePath(outputField.getName()));
+
+        if (expr.isEvaluationTypeSupported(EvaluationType.ExecutionType.GANDIVA)) {
+          if (this.debugCodegenMessages) {
+            logger.info("Switching to LLVM for options {} for evaluation of expression {}", this.curExecOption, expr);
+          }
+          numberOfExpressionsExecutedInGandiva++;
+          nativeProjectorBuilder.add(expr, vector);
+          break;
+        }
+
+        // if that isn't possible, fall back.
+        if (this.debugCodegenMessages) {
+          logger.info("Switching to Java for options {} for evaluation of expression {}", this.curExecOption, expr);
+        }
         final boolean useSetSafe = !(vector instanceof FixedWidthVector);
         final ValueVectorWriteExpression write = new ValueVectorWriteExpression(fid, expr, useSetSafe);
         final HoldingContainer hc = cg.addExpr(write, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
@@ -159,6 +194,10 @@ public class ProjectOperator implements SingleInputOperator {
     state = State.CAN_CONSUME;
     initialSchema = outgoing.getSchema();
 
+    gandivaCodeGenWatch.start();
+    this.nativeProjectEvaluator = nativeProjectorBuilder.build(incoming.getSchema(), context.getStats());
+    gandivaCodeGenWatch.stop();
+    javaCodeGenWatch.start();
     this.projector = cg.getCodeGenerator().getImplementationClass();
     projector.setup(
         context.getFunctionContext(),
@@ -175,6 +214,14 @@ public class ProjectOperator implements SingleInputOperator {
           }
         }
         );
+    javaCodeGenWatch.stop();
+    context.getStats().addLongStat(Metric.JAVA_BUILD_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    context.getStats().addLongStat(Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    context.getStats().addLongStat(Metric.GANDIVA_EXPRESSIONS, numberOfExpressionsExecutedInGandiva);
+    context.getStats().addLongStat(Metric.JAVA_EXPRESSIONS,
+      exprs.size() - numberOfExpressionsExecutedInGandiva);
+    gandivaCodeGenWatch.reset();
+    javaCodeGenWatch.reset();
     return outgoing;
   }
 
@@ -189,7 +236,14 @@ public class ProjectOperator implements SingleInputOperator {
   public int outputData() throws Exception {
     state.is(State.CAN_PRODUCE);
     allocateNew();
+
+    gandivaCodeGenWatch.start();
+    nativeProjectEvaluator.evaluate(recordsConsumedCurrentBatch);
+    gandivaCodeGenWatch.stop();
+    javaCodeGenWatch.start();
     projector.projectRecords(recordsConsumedCurrentBatch);
+    javaCodeGenWatch.stop();
+
     setValueCount(recordsConsumedCurrentBatch);
     outgoing.setRecordCount(recordsConsumedCurrentBatch);
 
@@ -218,7 +272,11 @@ public class ProjectOperator implements SingleInputOperator {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(outgoing);
+    AutoCloseables.close(outgoing, nativeProjectEvaluator);
+    context.getStats().addLongStat(Metric.JAVA_EVALUATE_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    context.getStats().addLongStat(Metric.GANDIVA_EVALUATE_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    javaCodeGenWatch.reset();
+    gandivaCodeGenWatch.reset();
   }
 
 

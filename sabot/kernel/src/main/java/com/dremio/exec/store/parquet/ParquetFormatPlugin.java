@@ -24,15 +24,22 @@ import java.util.regex.Pattern;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
+import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.ParquetFileWriter;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.AbstractWriter;
+import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
@@ -40,6 +47,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.ClassPathFileSystem;
+import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.BaseFormatPlugin;
 import com.dremio.exec.store.dfs.BasicFormatMatcher;
@@ -49,13 +57,17 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.MagicString;
+import com.dremio.exec.store.parquet2.ParquetRowiseReader;
 import com.dremio.exec.util.GlobalDictionaryBuilder;
+import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.writer.WriterOperator;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.file.proto.DictionaryEncodedColumns;
 import com.dremio.service.namespace.file.proto.FileUpdateKey;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
 public class ParquetFormatPlugin extends BaseFormatPlugin {
@@ -130,6 +142,120 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
     return new ParquetGroupScanUtils(userName, selection, plugin, this, selection.getSelectionRoot(), columns, schema,
       globalDictionaryColumns, null);
   }
+
+  @Override
+  public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper fs, FileStatus status) throws ExecutionSetupException {
+    try {
+      return new PreviewReader(context, fs, status);
+    } catch (IOException e) {
+      throw new ExecutionSetupException(e);
+    }
+  }
+
+  /**
+   * A parquet reader that combines individual row groups into a single stream for preview purposes.
+   */
+  private class PreviewReader implements RecordReader {
+
+    private final OperatorContext context;
+    private final FileSystemWrapper fs;
+    private final FileStatus status;
+    private final ParquetMetadata footer;
+    private final ParquetReaderUtility.DateCorruptionStatus dateStatus;
+    private final SchemaDerivationHelper schemaHelper;
+    private final InputStreamProvider streamProvider;
+
+    private int currentIndex = -1;
+    private OutputMutator output;
+    private RecordReader current;
+
+    public PreviewReader(
+        OperatorContext context,
+        FileSystemWrapper fs,
+        FileStatus status
+        ) throws IOException {
+      super();
+      this.context = context;
+      this.fs = fs;
+      this.status = status;
+      this.footer = ParquetFileReader.readFooter(fsPlugin.getFsConf(), status, ParquetMetadataConverter.NO_FILTER);
+      this.dateStatus = ParquetReaderUtility.detectCorruptDates(footer, GroupScan.ALL_COLUMNS, getConfig().autoCorrectCorruptDates);
+      this.schemaHelper = SchemaDerivationHelper.builder()
+          .readInt96AsTimeStamp(context.getOptions().getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR))
+          .dateCorruptionStatus(dateStatus)
+          .build();
+      this.streamProvider = new InputStreamProvider(fs, status.getPath(), false);
+    }
+
+    @Override
+    public void close() throws Exception {
+      AutoCloseables.close(current, streamProvider);
+    }
+
+    @Override
+    public void setup(OutputMutator output) throws ExecutionSetupException {
+      this.output = output;
+      nextReader();
+    }
+
+    private void nextReader() {
+      AutoCloseables.closeNoChecked(current);
+      current = null;
+
+      currentIndex++;
+
+      if(currentIndex == footer.getBlocks().size()) {
+        return;
+      }
+
+      current = new ParquetRowiseReader(
+          context,
+          footer,
+          currentIndex,
+          status.getPath().toString(),
+          GroupScan.ALL_COLUMNS,
+          fs,
+          schemaHelper,
+          streamProvider
+          );
+      try {
+        current.setup(output);
+      } catch (ExecutionSetupException e) {
+        throw Throwables.propagate(e);
+      }
+    }
+
+    @Override
+    public void allocate(Map<String, ValueVector> vectorMap) throws OutOfMemoryException {
+      current.allocate(vectorMap);
+    }
+
+    @Override
+    public int next() {
+      if(current == null) {
+        return 0;
+      }
+
+      int records = current.next();
+      while(records == 0) {
+        nextReader();
+        if(current == null) {
+          return 0;
+        }
+        records = current.next();
+      }
+
+      return records;
+    }
+
+    @Override
+    public SchemaChangeMutator getSchemaChangeMutator() {
+      return current.getSchemaChangeMutator();
+    }
+
+  }
+
+
 
   @Override
   public String getName(){

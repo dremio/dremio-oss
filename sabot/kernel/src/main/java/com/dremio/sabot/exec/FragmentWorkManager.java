@@ -28,7 +28,6 @@ import org.apache.curator.utils.CloseableExecutorService;
 import com.codahale.metrics.Gauge;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.ExtendedLatch;
-import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -53,8 +52,6 @@ import com.dremio.sabot.exec.rpc.ExecTunnel;
 import com.dremio.sabot.rpc.CoordToExecHandler;
 import com.dremio.sabot.rpc.Protocols;
 import com.dremio.sabot.task.TaskPool;
-import com.dremio.sabot.task.TaskPoolFactory;
-import com.dremio.sabot.task.TaskPools;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -71,21 +68,22 @@ public class FragmentWorkManager implements Service, SafeExit {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentWorkManager.class);
 
   private final BootStrapContext context;
-  private final DremioConfig config;
   private final Provider<NodeEndpoint> identity;
   private final Provider<SabotContext> dbContext;
   private final BindingCreator bindingCreator;
   private final Provider<FabricService> fabricServiceProvider;
   private final Provider<CatalogService> sources;
   private final Provider<ContextInformationFactory> contextInformationFactory;
+  private final Provider<WorkloadTicketDepot> workloadTicketDepotProvider;
 
   private FragmentStatusThread statusThread;
   private ThreadsStatsCollector statsCollectorThread;
 
-  private TaskPool pool;
+  private final Provider<TaskPool> pool;
   private FragmentExecutors fragmentExecutors;
   private SabotContext bitContext;
   private BufferAllocator allocator;
+  private WorkloadTicketDepot ticketDepot;
   private QueriesClerk clerk;
   private ExecutorService executor;
   private CloseableExecutorService closeableExecutor;
@@ -95,26 +93,26 @@ public class FragmentWorkManager implements Service, SafeExit {
 
   public FragmentWorkManager(
       final BootStrapContext context,
-      final DremioConfig config,
       Provider<NodeEndpoint> identity,
       final Provider<SabotContext> dbContext,
       final Provider<FabricService> fabricServiceProvider,
       final Provider<CatalogService> sources,
       final Provider<ContextInformationFactory> contextInformationFactory,
-      final BindingCreator bindingCreator
+      final Provider<WorkloadTicketDepot> workloadTicketDepotProvider,
+      final BindingCreator bindingCreator,
+      final Provider<TaskPool> taskPool
       ) {
     this.context = context;
-    this.config = config;
     this.identity = identity;
     this.sources = sources;
     this.fabricServiceProvider = fabricServiceProvider;
     this.dbContext = dbContext;
     this.bindingCreator = bindingCreator;
     this.contextInformationFactory = contextInformationFactory;
-  }
+    this.workloadTicketDepotProvider = workloadTicketDepotProvider;
+    this.pool = taskPool;
 
-  public WorkStats getWorkStats() {
-    return new WorkStatsImpl();
+    bindingCreator.bind(WorkStats.class, new WorkStatsImpl());
   }
 
   /**
@@ -139,7 +137,7 @@ public class FragmentWorkManager implements Service, SafeExit {
 
     @Override
     public Iterable<TaskPool.ThreadInfo> getSlicingThreads() {
-      return pool.getSlicingThreads();
+      return pool.get().getSlicingThreads();
     }
 
     /**
@@ -242,11 +240,6 @@ public class FragmentWorkManager implements Service, SafeExit {
 
     bitContext = dbContext.get();
 
-    final OptionManager options = bitContext.getOptionManager();
-
-    final TaskPoolFactory factory = TaskPools.newFactory(context.getConfig());
-    this.pool = factory.newInstance(options, config);
-
     this.executor = Executors.newCachedThreadPool();
     this.closeableExecutor = new CloseableExecutorService(executor);
 
@@ -258,7 +251,8 @@ public class FragmentWorkManager implements Service, SafeExit {
 
     final ExecToCoordTunnelCreator creator = new ExecToCoordTunnelCreator(fabricServiceProvider.get().getProtocol(Protocols.COORD_TO_EXEC));
 
-    this.clerk = new QueriesClerk(context.getAllocator(), context.getConfig(), creator);
+    this.ticketDepot = workloadTicketDepotProvider.get();
+    this.clerk = new QueriesClerk(ticketDepot, creator);
 
     final ExitCallback callback = new ExitCallback() {
       @Override
@@ -267,7 +261,7 @@ public class FragmentWorkManager implements Service, SafeExit {
       }
     };
 
-    fragmentExecutors = new FragmentExecutors(creator, callback, pool, bitContext.getOptionManager());
+    fragmentExecutors = new FragmentExecutors(creator, callback, pool.get(), bitContext.getOptionManager());
 
     final ExecConnectionCreator connectionCreator = new ExecConnectionCreator(fabricServiceProvider.get().registerProtocol(new ExecProtocol(bitContext.getConfig(), allocator, fragmentExecutors)));
 
@@ -286,11 +280,11 @@ public class FragmentWorkManager implements Service, SafeExit {
         contextInformationFactory.get(),
         bitContext.getFunctionImplementationRegistry(),
         context.getNodeDebugContextProvider(),
+        bitContext.getSpillService(),
         ClusterCoordinator.Role.fromEndpointRoles(identity.get().getRoles()));
 
     // register coord/exec message handling.
     bindingCreator.replace(CoordToExecHandler.class, new CoordToExecHandlerImpl(identity.get(), fragmentExecutors, builder));
-    bindingCreator.bind(WorkStats.class, new WorkStatsImpl());
 
     statusThread = new FragmentStatusThread(fragmentExecutors, clerk, creator);
     statusThread.start();
@@ -327,7 +321,7 @@ public class FragmentWorkManager implements Service, SafeExit {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(statusThread, statsCollectorThread, closeableExecutor, pool, fragmentExecutors, clerk, allocator);
+    AutoCloseables.close(statusThread, statsCollectorThread, closeableExecutor, fragmentExecutors, allocator);
   }
 
 }

@@ -16,11 +16,13 @@
 package com.dremio.datastore.indexed;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -55,7 +57,7 @@ public class TestLuceneIndexer {
 
   @Test
   public void testSearchIndex() throws Exception {
-    try (LuceneSearchIndex index = new LuceneSearchIndex("", "test", true)) {
+    try (LuceneSearchIndex index = new LuceneSearchIndex(null, "test", true, CommitWrapper.NO_OP)) {
 
       final Document doc1 = new Document();
       doc1.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef("1".getBytes()), Store.YES));
@@ -202,7 +204,7 @@ public class TestLuceneIndexer {
   @Test
   @Ignore
   public void testSearcherManager() throws Exception {
-    try (LuceneSearchIndex index = new LuceneSearchIndex("", "multithreaded-search", true)) {
+    try (LuceneSearchIndex index = new LuceneSearchIndex(null, "multithreaded-search", true, CommitWrapper.NO_OP)) {
 
       final Map<String, String> data = Maps.newConcurrentMap();
       final Writer writer = new Writer(data, index);
@@ -241,27 +243,27 @@ public class TestLuceneIndexer {
 
   @Test
   public void testIndexClose() throws Exception {
-    try (LuceneSearchIndex index = new LuceneSearchIndex(folder.getRoot(), "close", false)) {
+    try (LuceneSearchIndex index = new LuceneSearchIndex(folder.getRoot(), "close", false, CommitWrapper.NO_OP)) {
       final Document doc1 = new Document();
       doc1.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef("1".getBytes()), Store.YES));
       doc1.add(new StringField("user", "u1", Field.Store.YES));
       index.add(doc1);
     }
 
-    try (LuceneSearchIndex index = new LuceneSearchIndex(folder.getRoot(), "close", false)) {
+    try (LuceneSearchIndex index = new LuceneSearchIndex(folder.getRoot(), "close", false, CommitWrapper.NO_OP)) {
       final Document doc2 = new Document();
       doc2.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef("2".getBytes()), Store.YES));
       doc2.add(new StringField("user", "u2", Field.Store.YES));
       index.add(doc2);
     }
-    try (LuceneSearchIndex index = new LuceneSearchIndex(folder.getRoot(), "close", false)) {
+    try (LuceneSearchIndex index = new LuceneSearchIndex(folder.getRoot(), "close", false, CommitWrapper.NO_OP)) {
       final Document doc3 = new Document();
       doc3.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef("3".getBytes()), Store.YES));
       doc3.add(new StringField("user", "u3", Field.Store.YES));
       index.add(doc3);
     }
 
-    try (LuceneSearchIndex index = new LuceneSearchIndex(folder.getRoot(), "close", false)) {
+    try (LuceneSearchIndex index = new LuceneSearchIndex(folder.getRoot(), "close", false, CommitWrapper.NO_OP)) {
 
       List<Document> documents = index.searchForDocuments(new TermQuery(new Term("user", "u1")), 100, new Sort());
       assertEquals(1, documents.size());
@@ -277,5 +279,30 @@ public class TestLuceneIndexer {
     }
   }
 
+  @Test
+  public void commitWrapper() throws Exception {
+    final AtomicInteger opens = new AtomicInteger(0);
+    final AtomicInteger closes = new AtomicInteger(0);
+    final CommitWrapper commitWrapper = storeName -> {
+      opens.incrementAndGet();
+      return new CommitWrapper.CommitCloser() {
+        @Override
+        protected void onClose() {
+          closes.incrementAndGet();
+        }
+      };
+    };
+    try (LuceneSearchIndex index =
+             new LuceneSearchIndex(null, "commit-wrapper", true, commitWrapper)) { // commit#1
+      final Document doc1 = new Document();
+      doc1.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef("1".getBytes()), Store.YES));
+      doc1.add(new StringField("user", "u1", Field.Store.YES));
+      index.add(doc1);
+      index.delete(); // commit#2
+    } // commit#3
+
+    assertTrue(opens.get() >= 3); // committer thread might commit as well
+    assertEquals(opens.get(), closes.get());
+  }
 }
 

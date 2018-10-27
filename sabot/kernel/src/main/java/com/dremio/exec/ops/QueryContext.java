@@ -44,6 +44,7 @@ import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.QueryId;
+import com.dremio.exec.proto.UserBitShared.WorkloadType;
 import com.dremio.exec.proto.UserProtos.QueryPriority;
 import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
@@ -90,7 +91,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   private final OperatorTable table;
 
   private final QueryContextInformation queryContextInfo;
-  private final ContextInformation contextInformation;
+  protected ContextInformation contextInformation;
 
   private final BufferAllocator allocator;
   private final BufferManager bufferManager;
@@ -104,6 +105,9 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   /* Stores error contexts registered with this function context **/
   private int nextErrorContextId = 0;
   private final List<FunctionErrorContext> errorContexts;
+  protected final QueryPriority queryPriority;
+  protected final Predicate<DatasetConfig> datasetValidityChecker;
+  protected final WorkloadType workloadType;
 
   /*
    * Flag to indicate if close has been called, after calling close the first
@@ -136,6 +140,9 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     this.plannerSettings.setNumEndPoints(sabotContext.getExecutors().size());
     this.table = new OperatorTable(sabotContext.getFunctionImplementationRegistry());
 
+    this.queryPriority = priority;
+    this.workloadType = Utilities.getWorkloadType(queryPriority, session.getClientInfos());
+    this.datasetValidityChecker = datasetValidityChecker;
     this.queryContextInfo = Utilities.createQueryContextInfo(session.getDefaultSchemaName(), priority, maxAllocation);
     this.contextInformation = new ContextInformationImpl(session.getCredentials(), queryContextInfo);
 
@@ -319,6 +326,10 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
 
   public NamespaceService getNamespaceService() {
     return namespaceService;
+  }
+
+  public WorkloadType getWorkloadType() {
+    return workloadType;
   }
 
   @Override

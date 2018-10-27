@@ -17,10 +17,14 @@ package com.dremio.exec.store.dfs.easy;
 
 import java.io.IOException;
 import java.util.List;
+
+import org.apache.hadoop.fs.FileStatus;
+
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.physical.base.AbstractWriter;
+import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.ScanStats;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -102,6 +106,18 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
       FileSystemWrapper dfs,
       EasyDatasetSplitXAttr splitAttributes,
       List<SchemaPath> columns) throws ExecutionSetupException;
+
+
+
+  @Override
+  public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper dfs, FileStatus status) throws ExecutionSetupException {
+    EasyDatasetSplitXAttr attr = new EasyDatasetSplitXAttr()
+        .setPath(status.getPath().toString())
+        .setStart(0L)
+        .setLength(status.getLen());
+
+    return getRecordReader(context, dfs, attr, GroupScan.ALL_COLUMNS);
+  }
 
   public RecordWriter getRecordWriter(OperatorContext context, EasyWriter writer) throws IOException{
     throw new UnsupportedOperationException("unimplemented");

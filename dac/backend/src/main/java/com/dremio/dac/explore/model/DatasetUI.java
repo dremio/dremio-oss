@@ -34,6 +34,7 @@ import com.dremio.file.SourceFilePath;
 import com.dremio.service.jobs.JobIndexKeys;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
@@ -48,6 +49,7 @@ import com.google.common.collect.ImmutableMap;
 public class DatasetUI {
 
   private final String id;
+  private String entityId;
   private final String sql;
   private final List<String> context;
   // full path to use when making transforms on this dataset like transforms
@@ -67,7 +69,11 @@ public class DatasetUI {
   private final Map<String, String> links;
   private final Map<String, String> apiLinks;
 
-  public static DatasetUI newInstance(VirtualDatasetUI vds, DatasetVersion tipVersion) throws NamespaceException {
+  public static DatasetUI newInstance(
+    VirtualDatasetUI vds,
+    DatasetVersion tipVersion,
+    NamespaceService namespaceService) throws NamespaceException {
+
     Boolean isUnsaved = (vds.getIsNamed() != null) ? !vds.getIsNamed() : null;
     List<String> fullPath = vds.getFullPathList();
     List<String> displayFullPath;
@@ -100,9 +106,17 @@ public class DatasetUI {
     String sql = vds.getSql();
     List<String> context = vds.getState().getContextList();
 
+    String entityId = null;
+
+    if (namespaceService != null) {
+      entityId = namespaceService.getEntityIdByPath(new NamespaceKey(displayFullPath));
+    }
+
     return new DatasetUI(vds.getId(), sql, context, fullPath, displayFullPath, vds.getSavedVersion(), vds.getVersion(),
         null, null, canReapply, datasetType,
-        createLinks(fullPath, displayFullPath, vds.getVersion(), isUnsavedDirectPhysicalDataset), createApiLinks(fullPath, displayFullPath, datasetType, vds.getVersion(), isUnsaved, isDerivedDirectly));
+        createLinks(fullPath, displayFullPath, vds.getVersion(), isUnsavedDirectPhysicalDataset),
+        createApiLinks(fullPath, displayFullPath, datasetType, vds.getVersion(), isUnsaved, isDerivedDirectly),
+        /* entityId */ entityId);
   }
 
   @JsonCreator
@@ -119,7 +133,8 @@ public class DatasetUI {
       @JsonProperty("canReapply") Boolean canReapply,
       @JsonProperty("datasetType") DatasetType datasetType,
       @JsonProperty("links") Map<String, String> links,
-      @JsonProperty("apiLinks") Map<String, String> apiLinks) {
+      @JsonProperty("apiLinks") Map<String, String> apiLinks,
+      @JsonProperty("entityId") String entityId) {
     this.id = id;
     this.sql = sql;
     this.context = context;
@@ -133,6 +148,7 @@ public class DatasetUI {
     this.datasetType = datasetType;
     this.links = links != null ? ImmutableMap.copyOf(links) : ImmutableMap.<String, String> of();
     this.apiLinks = apiLinks != null ? ImmutableMap.copyOf(apiLinks) : ImmutableMap.<String, String> of();
+    this.entityId = entityId;
   }
 
   /**
@@ -216,6 +232,8 @@ public class DatasetUI {
   public Map<String, String> getApiLinks() {
     return apiLinks;
   }
+
+  public String getEntityId() { return entityId; }
 
   // TODO make this consistent with DatasetSummary.getLinks. In ideal case, both methods should use the same util method
   public static Map<String, String> createLinks(List<String> fullPath, List<String> displayFullPath, DatasetVersion datasetVersion, boolean isUnsavedDirectPhysicalDataset) {

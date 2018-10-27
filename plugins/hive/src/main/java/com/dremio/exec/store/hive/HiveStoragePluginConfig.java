@@ -15,69 +15,69 @@
  */
 package com.dremio.exec.store.hive;
 
-import java.util.List;
-
 import javax.inject.Provider;
 
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
+
 import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
-import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 
 import io.protostuff.Tag;
 
 @SourceType(value = "HIVE", label = "Hive")
-public class HiveStoragePluginConfig extends ConnectionConf<HiveStoragePluginConfig, HiveStoragePlugin> {
+public class HiveStoragePluginConfig extends BaseHiveStoragePluginConfig<HiveStoragePluginConfig, HiveStoragePlugin> {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveStoragePluginConfig.class);
 
+  /**
+   * Type of authorization used for this source
+   */
+  public enum AuthorizationType {
+    @Tag(1) @DisplayMetadata(label = "Storage Based with User Impersonation") STORAGE,
+    @Tag(2) @DisplayMetadata(label = "SQL Based") SQL,
+  }
+
+  //  Note: Tags 1-5 come from BaseHiveStoragePluginConf
   //  optional string hostname = 1;
   //  optional int32 port = 2 [default = 9083];
   //  optional bool enableSasl = 3 [default = false];
   //  optional string kerberosPrincipal = 4;
   //  repeated Property property = 5;
+  //  optional bool authType = 6;
 
   /*
-   * Hostname where Hive metastore server is running
+   * Specify the authorization type.
    */
-  @Tag(1)
-  @DisplayMetadata(label = "Hive Metastore Host")
-  public String hostname;
-
-  /*
-   * Listening port of Hive metastore server
-   */
-  @Tag(2)
-  @DisplayMetadata(label = "Port")
-  public int port = 9083;
-
-  /*
-   * Is kerberos authentication enabled on metastore services?
-   */
-  @Tag(3)
-  @DisplayMetadata(label = "Enable SASL")
-  public boolean enableSasl = false;
-
-  /*
-   * Kerberos principal name of metastore servers if kerberos authentication is enabled
-   */
-  @Tag(4)
-  @DisplayMetadata(label = "Hive Kerberos Principal")
-  public String kerberosPrincipal;
-
-  /*
-   * List of configuration properties.
-   */
-  @Tag(5)
-  public List<Property> propertyList;
+  @Tag(6)
+  @DisplayMetadata(label = "Client")
+  public AuthorizationType authType = AuthorizationType.STORAGE;
 
   public HiveStoragePluginConfig() {
   }
 
   @Override
   public HiveStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new HiveStoragePlugin(this, context, name);
+    return new HiveStoragePlugin(addAuthenticationSettings(createHiveConf(this), this), context, name);
   }
 
-
+  protected static HiveConf addAuthenticationSettings(HiveConf hiveConf, HiveStoragePluginConfig config) {
+    switch(config.authType) {
+      case STORAGE:
+        // populate hiveConf with default authorization values
+        break;
+      case SQL:
+        // Turn on sql-based authorization
+        hiveConf.set(ConfVars.HIVE_AUTHORIZATION_ENABLED.varname, "true");
+        hiveConf.set(ConfVars.HIVE_AUTHENTICATOR_MANAGER.varname, "org.apache.hadoop.hive.ql.security.ProxyUserAuthenticator");
+        hiveConf.set(ConfVars.HIVE_AUTHORIZATION_MANAGER.varname, "org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdHiveAuthorizerFactory");
+        hiveConf.set(ConfVars.HIVE_SERVER2_ENABLE_DOAS.varname, "false");
+        break;
+      default:
+        // Code should not reach here
+        throw new UnsupportedOperationException("Unknown authorization type " + config.authType);
+    }
+    return hiveConf;
+  }
 }

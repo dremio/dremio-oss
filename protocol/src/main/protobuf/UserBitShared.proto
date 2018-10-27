@@ -65,10 +65,31 @@ message RpcEndpointInfos {
 }
 
 enum WorkloadClass {
-  REALTIME = 1; // Reserved for internal use. 
+  REALTIME = 1; // Reserved for internal use.
   NRT = 2; // for things like UI submission.
   GENERAL = 3; // standard pool.
   BACKGROUND = 4;
+  ADVANCED = 5;
+}
+
+/**
+ * To keep track of Workload Types
+ * needed in the context of resource scheduling
+ * WorkloadType provides more granularity then WorkloadClass
+ * in terms of resource allocation of a query
+ * while WorkloadClass provides very coarse division
+ */
+enum WorkloadType {
+  UNKNOWN = 1;
+  UI_PREVIEW = 2;
+  UI_RUN = 3;
+  JDBC = 4;
+  ODBC = 5;
+  REST = 6;
+  INTERNAL_PREVIEW = 7;
+  INTERNAL_RUN = 8;
+  ACCELERATOR = 9;
+  DDL = 10;
 }
 
 message DremioPBError{
@@ -303,6 +324,27 @@ message QueryProfile {
   repeated NodeQueryProfile node_profile = 31;
   optional string dremio_version = 32;
   optional CoreOperatorTypeMetricsMap operator_type_metrics_map = 33;
+  optional ResourceSchedulingProfile resource_scheduling_profile = 34;
+  optional string cancel_reason = 35;
+}
+
+message ResourceSchedulingProfile {
+  optional string queue_name = 1;
+  optional string queue_id = 2;
+  optional string rule_content = 3;
+  optional string rule_id = 4;
+  optional string rule_name = 5;
+  optional string rule_action = 6;
+  optional ResourceSchedulingProperties scheduling_properties = 7;
+  optional int64 resource_scheduling_start = 8;    // time, in ms, when resource scheduling started
+  optional int64 resource_scheduling_end = 9;      // time, in ms, when resource scheduling completed
+}
+
+message ResourceSchedulingProperties {
+  optional double query_cost = 1;
+  optional string client_type = 2;
+  optional string query_type = 3;
+  optional string tag = 4;
 }
 
 message AccelerationProfile {
@@ -447,6 +489,8 @@ message NodePhaseProfile {
 message NodeQueryProfile {
   optional NodeEndpoint endpoint = 1;
   optional int64 max_memory_used = 2;
+  optional int64 time_enqueued_before_submit_ms = 3;  // Time spent enqueued after query arrived at executor, and before
+                                                      // being submitted for execution. Measured in milliseconds
 }
 
 message MetricValue {

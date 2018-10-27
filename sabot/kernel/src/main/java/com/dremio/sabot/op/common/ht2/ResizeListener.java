@@ -16,8 +16,29 @@
 package com.dremio.sabot.op.common.ht2;
 
 public interface ResizeListener {
-  public static ResizeListener NO_OP = new ResizeListener() {public void resized(int newCapacity) {}};
+  public static ResizeListener NO_OP = new ResizeListener() {
+    public void addBatch() {}
 
-  void resized(int newCapacity);
+    @Override
+    public void resetToMinimumSize() throws Exception {}
 
+    @Override
+    public void revertResize() {}
+
+    @Override
+    public void commitResize() {}
+
+    @Override
+    public void verifyBatchCount(int batches) { }
+  };
+
+  void addBatch();
+
+  void resetToMinimumSize() throws Exception;
+
+  void revertResize();
+
+  void commitResize();
+
+  void verifyBatchCount(int batches);
 }

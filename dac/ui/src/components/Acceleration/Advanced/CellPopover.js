@@ -220,7 +220,7 @@ export default class CellPopover extends Component {
           />
           <MenuItem
             onClick={() => this.props.onSelectMenuItem(cellType.dimension, granularityValue.date)}
-            primaryText={la('Date')} style={styles.menuItem}
+            primaryText={la('Date')}
             style={currentCell.value === granularityValue.date ? styles.menuItemSelected : styles.menuItem}
           />
         </div>
@@ -353,7 +353,7 @@ const styles = {
     padding: '0 10px'
   },
   measureMenuHeader: {
-      ...formLabel
+    ...formLabel
   },
   measureMenuItem: {
     marginTop: 7

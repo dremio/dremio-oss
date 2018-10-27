@@ -71,7 +71,6 @@ export class SpaceModal extends Component {
       return <SpaceForm
         initialValues={{
           name: entity.get('name'),
-          description: entity.get('description'),
           version: entity.get('version'),
           id: entity.get('id'),
           ...initialFormValues

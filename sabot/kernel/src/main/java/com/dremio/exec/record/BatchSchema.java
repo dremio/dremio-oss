@@ -677,4 +677,8 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     }
     return mergedList;
   }
+
+  public static BatchSchema of(Field...fields) {
+    return new BatchSchema(SelectionVectorMode.NONE, ImmutableList.copyOf(fields));
+  }
 }

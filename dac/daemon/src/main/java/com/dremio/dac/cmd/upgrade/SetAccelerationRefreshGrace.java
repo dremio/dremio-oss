@@ -25,6 +25,7 @@ import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.sys.PersistentStore;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.options.OptionValue;
+import com.dremio.service.DirectProvider;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -49,12 +50,13 @@ import com.google.common.collect.Lists;
 public class SetAccelerationRefreshGrace extends UpgradeTask {
   private static final long HOUR_IN_MS = TimeUnit.HOURS.toMillis(1);
 
-  SetAccelerationRefreshGrace() {
-    super("Setting acceleration refresh and grace policy", VERSION_109, VERSION_120);
+  public SetAccelerationRefreshGrace() {
+    super("Setting acceleration refresh and grace policy", VERSION_109, VERSION_120, NORMAL_ORDER + 3);
   }
 
+  @Override
   public void upgrade(UpgradeContext context) {
-    final NamespaceService namespace = new NamespaceServiceImpl(context.getKVStoreProvider().get());
+    final NamespaceService namespace = new NamespaceServiceImpl(context.getKVStoreProvider());
     boolean needToEnableSubHourPolicies = false;
 
     for (SourceConfig sourceConfig : namespace.getSources()) {
@@ -100,10 +102,14 @@ public class SetAccelerationRefreshGrace extends UpgradeTask {
 
     // if user had sub-hour TTL, enable sub-hour acceleration policies
     if (needToEnableSubHourPolicies) {
-      KVPersistentStoreProvider kvPersistentStoreProvider = new KVPersistentStoreProvider(context.getKVStoreProvider());
-      try {
-        PersistentStore<OptionValue> options = kvPersistentStoreProvider.getOrCreateStore(SystemOptionManager.STORE_NAME, SystemOptionManager.OptionStoreCreator.class, new JacksonSerializer<>(context.getLpPersistence().getMapper(), OptionValue.class));
-        options.put(ReflectionOptions.ENABLE_SUBHOUR_POLICIES.getOptionName(), OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ReflectionOptions.ENABLE_SUBHOUR_POLICIES.getOptionName(), true));
+
+      try(KVPersistentStoreProvider kvPersistentStoreProvider = new KVPersistentStoreProvider(
+          DirectProvider.wrap(context.getKVStoreProvider()))) {
+        PersistentStore<OptionValue> options = kvPersistentStoreProvider.getOrCreateStore(
+            SystemOptionManager.STORE_NAME, SystemOptionManager.OptionStoreCreator.class,
+            new JacksonSerializer<>(context.getLpPersistence().getMapper(), OptionValue.class));
+        options.put(ReflectionOptions.ENABLE_SUBHOUR_POLICIES.getOptionName(), OptionValue.createBoolean(
+            OptionValue.OptionType.SYSTEM, ReflectionOptions.ENABLE_SUBHOUR_POLICIES.getOptionName(), true));
         options.close();
       } catch (Exception e) {
         System.out.println("Could not enable sub-hour policies: " + e);

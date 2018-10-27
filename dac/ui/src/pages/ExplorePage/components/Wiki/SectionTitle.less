@@ -1,0 +1,59 @@
+/*
+ * Copyright (C) 2017-2018 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ @import "~@app/uiTheme/less/color-schema.less";
+ @import "~@app/uiTheme/less/variables.complex.less";
+ @import "~@app/pages/ExplorePage/components/Wiki/Wiki.variables.less";
+
+.section {
+  composes: clear-fix from '@app/uiTheme/less/layout.less';
+  composes: row-of-inputs-spacing from '@app/uiTheme/less/forms.less';
+  display: flex;
+  align-items: center;
+  border-bottom: @collaboration-border;
+  height: @wiki-title-height;
+}
+
+.title {
+  composes: h2 from '@app/uiTheme/css/typography.css';
+  color: #666666; // taken from design sketch file
+  flex: 1;
+}
+
+.button-container {
+  composes: row-of-inputs-spacing from '@app/uiTheme/less/forms.less';
+  display: flex;
+  align-items: baseline;
+}
+
+.custom-button {
+  @color: rgba(0, 0, 0, 0.04);
+  border-radius: 2px;
+  box-shadow: 0 1px rgba(0, 0, 0, 0.05);
+
+  height: 28px;
+  width: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: @color;
+
+  &:hover {
+    background: fade(@color, 10%);;
+  }
+}

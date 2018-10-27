@@ -44,15 +44,15 @@ public class HandlerToExec extends AsyncCommand<Object> {
   private ExecutionPlan exec;
 
   public HandlerToExec(
-      CoordToExecTunnelCreator tunnelCreator,
-      QueryContext context,
-      PhysicalPlanReader reader,
-      AttemptObserver observer,
-      String sql,
-      SqlNode sqlNode,
-      SqlToPlanHandler handler,
-      SqlHandlerConfig config,
-      ResourceAllocator queryResourceManager) {
+    CoordToExecTunnelCreator tunnelCreator,
+    QueryContext context,
+    PhysicalPlanReader reader,
+    AttemptObserver observer,
+    String sql,
+    SqlNode sqlNode,
+    SqlToPlanHandler handler,
+    SqlHandlerConfig config,
+    ResourceAllocator queryResourceManager) {
     super(context, queryResourceManager, observer);
     this.tunnelCreator = tunnelCreator;
     this.reader = reader;
@@ -76,7 +76,7 @@ public class HandlerToExec extends AsyncCommand<Object> {
 
   @Override
   public Object execute() throws Exception {
-    FragmentStarter starter = new FragmentStarter(tunnelCreator);
+    FragmentStarter starter = new FragmentStarter(tunnelCreator, resourceSchedulingDecisionInfo);
     starter.start(exec, observer);
     return null;
   }

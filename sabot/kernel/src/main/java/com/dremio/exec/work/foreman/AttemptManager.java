@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.work.foreman;
 
-import java.util.Date;
 import java.util.Set;
 
 import org.codehaus.jackson.map.ObjectMapper;
 
-import com.dremio.common.CatastrophicFailure;
 import com.dremio.common.EventProcessor;
+import com.dremio.common.ProcessExit;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
@@ -99,6 +98,7 @@ public class AttemptManager implements Runnable {
   private final SabotContext sabotContext;
   private final Cache<Long, PreparedPlan> plans;
   private volatile QueryState state;
+  private String cancelReason;
 
   private final StateSwitch stateSwitch = new StateSwitch();
   private final AttemptResult foremanResult = new AttemptResult();
@@ -161,12 +161,12 @@ public class AttemptManager implements Runnable {
 
     @Override
     public void succeeded() {
-      addToEventQueue(QueryState.COMPLETED, null);
+      addToEventQueue(QueryState.COMPLETED, null, null);
     }
 
     @Override
     public void failed(Exception ex) {
-      addToEventQueue(QueryState.FAILED, ex);
+      addToEventQueue(QueryState.FAILED, ex, null);
     }
 
   }
@@ -212,13 +212,13 @@ public class AttemptManager implements Runnable {
     @Override
     public void failed(RpcException paramRpcException) {
       ackit();
-      addToEventQueue(QueryState.FAILED, paramRpcException);
+      addToEventQueue(QueryState.FAILED, paramRpcException, null);
     }
 
     @Override
     public void interrupted(InterruptedException paramInterruptedException) {
       ackit();
-      addToEventQueue(QueryState.CANCELED, paramInterruptedException);
+      addToEventQueue(QueryState.CANCELED, paramInterruptedException, null);
     }
 
     @Override
@@ -243,16 +243,17 @@ public class AttemptManager implements Runnable {
   }
 
   public QueryProfile getQueryProfile() {
-    return queryManager.getQueryProfile(queryRequest.getDescription(), state, null);
+    return queryManager.getQueryProfile(queryRequest.getDescription(), state, null, cancelReason);
   }
 
   /**
    * Cancel the query. Asynchronous -- it may take some time for all remote fragments to be
    * terminated.
    */
-  public void cancel() {
+  public void cancel(String reason) {
     // Note this can be called from outside of run() on another thread, or after run() completes
-    addToEventQueue(QueryState.CANCELED, null);
+    cancelReason = reason;
+    addToEventQueue(QueryState.CANCELED, null, reason);
   }
 
   /**
@@ -290,27 +291,27 @@ public class AttemptManager implements Runnable {
         Preconditions.checkState(command instanceof AsyncCommand, "Asynchronous query must be an AsyncCommand");
         command.plan();
         if(queuingEnabled){
-          moveToState(QueryState.STARTING, null);
+          moveToState(QueryState.STARTING, null, null);
         }
         extraResultData = command.execute();
         break;
 
       case SYNC_QUERY:
         if (queuingEnabled) {
-          moveToState(QueryState.STARTING, null);
+          moveToState(QueryState.STARTING, null, null);
         }
         command.plan();
         extraResultData = command.execute();
-        addToEventQueue(QueryState.COMPLETED, null);
+        addToEventQueue(QueryState.COMPLETED, null, null);
         break;
 
       case SYNC_RESPONSE:
         if (queuingEnabled) {
-          moveToState(QueryState.STARTING, null);
+          moveToState(QueryState.STARTING, null, null);
         }
         command.plan();
         extraResultData = command.execute();
-        addToEventQueue(QueryState.COMPLETED, null);
+        addToEventQueue(QueryState.COMPLETED, null, null);
         break;
 
       default:
@@ -318,25 +319,25 @@ public class AttemptManager implements Runnable {
       }
       commandDescription = command.getDescription();
 
-      moveToState(QueryState.RUNNING, null);
+      moveToState(QueryState.RUNNING, null, null);
 
       injector.injectChecked(queryContext.getExecutionControls(), "run-try-end", ForemanException.class);
     } catch (final UserException | ForemanException e) {
-      moveToState(QueryState.FAILED, e);
+      moveToState(QueryState.FAILED, e, null);
     } catch (final OutOfMemoryError e) {
       if (e instanceof OutOfDirectMemoryError || "Direct buffer memory".equals(e.getMessage())) {
-        moveToState(QueryState.FAILED, UserException.memoryError(e).build(logger));
+        moveToState(QueryState.FAILED, UserException.memoryError(e).build(logger), null);
       } else {
         /*
          * FragmentExecutors use a NodeStatusListener to watch out for the death of their query's AttemptManager. So, if we
          * die here, they should get notified about that, and cancel themselves; we don't have to attempt to notify
          * them, which might not work under these conditions.
          */
-        CatastrophicFailure.exit(e, "Unable to handle out of memory condition in AttemptManager.", 1);
+        ProcessExit.exitHeap(e, 1);
       }
     } catch (Throwable ex) {
       moveToState(QueryState.FAILED,
-          new ForemanException("Unexpected exception during fragment initialization: " + ex.getMessage(), ex));
+          new ForemanException("Unexpected exception during fragment initialization: " + ex.getMessage(), ex), null);
 
     } finally {
       /*
@@ -359,7 +360,7 @@ public class AttemptManager implements Runnable {
       try {
         stateSwitch.start();
       } catch (Exception e) {
-        moveToState(QueryState.FAILED, e);
+        moveToState(QueryState.FAILED, e, null);
       }
 
       // restore the thread's original name
@@ -494,23 +495,6 @@ public class AttemptManager implements Runnable {
       }
     }
 
-    private void logQuerySummary() {
-      try {
-        LoggedQuery q = new LoggedQuery(
-            queryIdString,
-            queryContext.getQueryContextInfo().getDefaultSchemaName(),
-            queryRequest.getDescription(),
-            new Date(queryContext.getQueryContextInfo().getQueryStartTime()),
-            new Date(System.currentTimeMillis()),
-            state,
-            queryContext.getSession().getCredentials().getUserName(),
-            commandDescription);
-        QUERY_LOGGER.info(MAPPER.writeValueAsString(q));
-      } catch (Exception e) {
-        logger.error("Failure while recording query information to query log.", e);
-      }
-    }
-
     @Override
     public void close() {
       Preconditions.checkState(!isClosed);
@@ -521,9 +505,6 @@ public class AttemptManager implements Runnable {
 
       logger.debug(queryIdString + ": cleaning up.");
       injector.injectPause(queryContext.getExecutionControls(), "foreman-cleanup", logger);
-
-      // log the query summary
-      logQuerySummary();
 
       sabotContext.getClusterCoordinator()
           .getServiceSet(ClusterCoordinator.Role.EXECUTOR)
@@ -557,7 +538,7 @@ public class AttemptManager implements Runnable {
       try {
         // send whatever result we ended up with
         final UserResult result = new UserResult(extraResultData, queryId, resultState,
-          queryManager.getQueryProfile(queryRequest.getDescription(), state, uex), uex);
+          queryManager.getQueryProfile(queryRequest.getDescription(), state, uex, cancelReason), uex, cancelReason);
         observers.attemptCompletion(result);
       } catch(final Exception e) {
         addException(e);
@@ -578,10 +559,12 @@ public class AttemptManager implements Runnable {
   private static class StateEvent {
     final QueryState newState;
     final Exception exception;
+    final String reason;
 
-    StateEvent(final QueryState newState, final Exception exception) {
+    StateEvent(final QueryState newState, final Exception exception, final String reason) {
       this.newState = newState;
       this.exception = exception;
+      this.reason = reason;
     }
   }
 
@@ -591,7 +574,7 @@ public class AttemptManager implements Runnable {
    * @param newState the state to move to
    * @param exception if not null, the exception that drove this state transition (usually a failure)
    */
-  private void moveToState(final QueryState newState, final Exception exception) {
+  private void moveToState(final QueryState newState, final Exception exception, final String reason) {
     logger.debug(queryIdString + ": State change requested {} --> {}", state, newState,
       exception);
     switch (state) {
@@ -611,7 +594,7 @@ public class AttemptManager implements Runnable {
       case STARTING:
         if (newState == QueryState.RUNNING) {
           recordNewState(QueryState.RUNNING);
-          observers.execStarted(queryManager.getQueryProfile(queryRequest.getDescription(), newState, null));
+          observers.execStarted(queryManager.getQueryProfile(queryRequest.getDescription(), newState, null, cancelReason));
           return;
         }
 
@@ -694,26 +677,25 @@ public class AttemptManager implements Runnable {
 
   private class StateSwitch extends EventProcessor<StateEvent> {
 
-    void addEvent(final QueryState newState, final Exception exception) {
-      sendEvent(new StateEvent(newState, exception));
+    void addEvent(final QueryState newState, final Exception exception, final String reason) {
+      sendEvent(new StateEvent(newState, exception, reason));
     }
 
     @Override
     protected void processEvent(StateEvent event) {
-      moveToState(event.newState, event.exception);
+      moveToState(event.newState, event.exception, event.reason);
     }
   }
 
-  void addToEventQueue(final QueryState newState, final Exception exception) {
-    stateSwitch.addEvent(newState, exception);
+  void addToEventQueue(final QueryState newState, final Exception exception, final String reason) {
+    stateSwitch.addEvent(newState, exception, reason);
   }
 
   public void fail(Exception exception) {
-    moveToState(QueryState.FAILED, exception);
+    moveToState(QueryState.FAILED, exception, null);
   }
 
   private void recordNewState(final QueryState newState) {
     state = newState;
   }
-
  }

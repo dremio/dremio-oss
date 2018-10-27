@@ -71,6 +71,7 @@ message UserProperties {
 
 message QueryPriority {
   optional exec.shared.WorkloadClass workload_class = 1 [default = GENERAL];
+  optional exec.shared.WorkloadType workload_type = 2;
 }
 
 message UserToBitHandshake {

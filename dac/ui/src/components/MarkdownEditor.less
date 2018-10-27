@@ -1,0 +1,282 @@
+/*
+ * Copyright (C) 2017-2018 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+@import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/variables.complex.less";
+@import "~@app/uiTheme/less/mixins.less";
+@import "~@app/pages/ExplorePage/components/Wiki/Wiki.variables.less";
+@import "./MarkdownEditor.mixins.less";
+
+@_toolbar-content-height: 40px;
+@_toolbar-height: @_toolbar-content-height + @wiki-title-margin; // a default toobar height
+
+.editor {
+  background: white;
+
+  // markdown element styles -------------------
+
+  @line-height: 25px;
+  @font-size: 12px;
+  @diff: @line-height - @font-size;
+  line-height: @line-height;
+  font-size: @font-size;
+
+  :global {
+
+    // h1 = 22px
+    .generate-headers(@i: 1) when (@i <= 5) {
+      h@{i}, .CodeMirror .CodeMirror-code .cm-header-@{i} {
+        .formLabel();
+        @_size: 22px - 2px * (@i - 1);
+        font-size: @_size;
+        line-height: max(@_size + @diff, @line-height);
+      }
+      .generate-headers(@i + 1);
+    }
+
+    .generate-headers();
+
+    em, .cm-em {
+      font-style: italic;
+    }
+    strong, .cm-strong {
+      font-weight: bold;
+    }
+
+    @identation-size: 19px;
+
+    ul, ol {
+      padding-left: @identation-size;
+    }
+    ol {
+      list-style: decimal;
+    }
+
+    ul {
+      list-style: disc;
+    }
+
+    blockquote {
+      @border-width: 3px;
+      padding-left: @identation-size - @border-width;
+      // color schema is taken from github
+      border-left: @border-width solid #dfe2e5;
+      color: #6a737d;;
+    }
+  }
+
+  // -------------------------------------------
+
+  :global {
+
+    .editor-toolbar {
+      background: white;
+      margin-bottom: @wiki-title-margin;
+      padding: 0;
+      border: none;
+      border-bottom: @collaboration-border;
+      height: @_toolbar-content-height;
+      &:before {
+        display: none;
+      }
+
+      @size: 24px;
+      @icon-size: 12px;
+      a {
+        width: @size;
+        height: @size;
+        background: @icon-button-hover-bg;
+        border-radius: 0;
+
+        font-size: @icon-size;
+        &:before {
+          line-height: @size;
+        }
+      }
+
+      i.separator {
+        background: @icon-button-hover-bg;
+        margin: 0;
+        border: none;
+        padding: 0 2px;
+        position: relative;
+
+        &:before {
+          content: '';
+          position: absolute;
+          display: block;
+          width: 2px;
+          height: @icon-size + 2px;
+          // center separator vertically
+          top: 50%;
+          transform: translateY(-50%);
+          //---------------------------
+          background: @COLLABORATION_BORDER;
+        }
+      }
+
+      opacity: 1;
+      &:hover {
+        opacity: 1;
+      }
+
+      .clear-fix-mixin();
+    }
+
+    .CodeMirror, .CodeMirror-scroll {
+      min-height: 0;
+    }
+
+    // approximate values that are taken from designer's sketch file
+    @vert-padding: 15px;
+    @horiz-padding: 15px;
+    //--------------------------------------------------------------
+    @native-scroll-size: 16px; // manually calculated value
+
+
+    .CodeMirror {
+      border: @collaboration-border;
+      padding: 0; // reset pading in container. Padding would be applied to CodeMirror-lines
+    }
+
+    .max-width() {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .editor-preview, .editor-preview-side {
+      overflow-x: hidden; // to avoid horizontal scroll in IE.
+      margin: 0 !important;
+      padding: @vert-padding @horiz-padding;
+      .max-width();
+    }
+
+    .CodeMirror-lines { // paddding for edit mode
+      padding: @vert-padding + 15px @horiz-padding + 15px;
+      .max-width();
+    }
+
+    // code mirror use a container with class to render a content.
+    // code mirror force this element to show both scroll bars (overflow: scroll) and
+    // hides them from viewable zone using negative margins
+    // so if we alter code mirror inner padding, we should change these negative margins to make sure,
+    // that scroll bars are not visible
+    .CodeMirror-scroll {
+      margin-bottom: -(@vert-padding + @native-scroll-size);
+      margin-right: -(@horiz-padding + @native-scroll-size);
+    }
+
+    .mde-background-mixin(#FFF);
+  }
+}
+
+.read-mode {
+  :global {
+    .editor-toolbar {
+      display: none; // hide a toolbar in a read mode
+    }
+
+    .CodeMirror-fullscreen {
+      top: 0; // as toolbar is hidden
+    }
+
+    .CodeMirror {
+      border: none;
+    }
+  }
+
+  &.fit-to-parent :global(.CodeMirror) {
+    height: 100%; // as toolbar is hidden
+  }
+}
+
+// we should force editor to fit to content in read mode
+.read-mode:not(.fit-to-parent) { // this logic should not be applied for case, when editor is fit to a parent
+  :global {
+    .CodeMirror {
+      // reset border and padding, as preview already has it
+      padding: 0;
+
+      // hide every element in code mirror container, except preview
+      > *:not(.editor-preview) {
+        display: none;
+        visibility: hidden;
+      }
+    }
+
+    //switch a preview from absolute positioning to static and make height to be adjusted to content
+    .editor-preview {
+      height: auto;
+      position: static;
+    }
+  }
+}
+
+.fit-to-parent {
+  height: 100%;
+
+  :global(.CodeMirror) { // make code mirror fill the res of available space
+    height: ~"calc(100% - @{_toolbar-height})";
+    min-height: 0;
+  }
+}
+
+.custom-text-button {
+  @padding: 5px;
+  float: right;
+  padding-left: @padding;
+  padding-right: @padding;
+}
+
+.button-text(@text) {
+  &:after {
+    content: @text;
+  }
+}
+
+:global(.editor-toolbar) {
+  a.custom-text-button {
+    width: auto; // for standard menu items width is fixed to 30px, so we have to reset this style for custom text buttons
+    line-height: 30px; // a default height of toolbar buttons
+    display: flex;
+    align-items: baseline;
+  }
+
+  :global {
+    //hide standard menus: full screen, side by side, preview. These menu are replaced with custom button. Icon fa-arrows-alt is reused for custom dremio menu.
+    .fa-arrows-alt:not(.dremio-menu), .fa-columns, .fa-eye {
+      display: none
+    }
+  }
+}
+
+:global(.editor-toolbar.fullscreen .fa-eye) { // hide preview menu in full screen mode, as it should be always side by side
+  display: none;
+}
+
+.save-button {
+  composes: custom-text-button;
+  .button-text("Save");
+}
+
+.cancel-button {
+  composes: custom-text-button;
+  .button-text("Cancel");
+}
+
+// export for js
+:export {
+  toolbar-height: @_toolbar-height;
+}

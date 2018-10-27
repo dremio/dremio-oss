@@ -17,8 +17,6 @@ package com.dremio.sabot.op.join.hash;
 
 import static com.dremio.sabot.op.common.hashtable.HashTable.BUILD_RECORD_LINK_SIZE;
 
-import io.netty.buffer.ArrowBuf;
-import io.netty.util.internal.PlatformDependent;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -50,12 +48,13 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
-import com.dremio.sabot.op.common.hashtable.ChainedHashTable;
-import com.dremio.sabot.op.common.hashtable.Comparator;
-import com.dremio.sabot.op.common.hashtable.HashTable;
-import com.dremio.sabot.op.common.hashtable.HashTableConfig;
-import com.dremio.sabot.op.common.hashtable.HashTableStats;
 import com.dremio.sabot.op.common.hashtable.HashTable.BatchAddedListener;
+import com.dremio.sabot.op.common.hashtable.HashTable;
+import com.dremio.sabot.op.common.hashtable.HashTableStats;
+import com.dremio.sabot.op.common.hashtable.ChainedHashTable;
+import com.dremio.sabot.op.common.hashtable.HashTableConfig;
+import com.dremio.sabot.op.join.vhash.HashJoinStats;
+import com.dremio.sabot.op.common.hashtable.Comparator;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.sabot.op.join.vhash.VectorizedHashJoinOperator;
 import com.dremio.sabot.op.spi.DualInputOperator;
@@ -64,6 +63,9 @@ import com.google.common.collect.Lists;
 import com.sun.codemodel.JExpr;
 import com.sun.codemodel.JExpression;
 import com.sun.codemodel.JVar;
+
+import io.netty.buffer.ArrowBuf;
+import io.netty.util.internal.PlatformDependent;
 
 public class HashJoinOperator implements DualInputOperator {
 
@@ -94,7 +96,7 @@ public class HashJoinOperator implements DualInputOperator {
   private final OperatorStats stats;
   private final List<JoinCondition> conditions;
   private final List<Comparator> comparators;
-  private final HashTableStats htStats;
+  private final HashTableStats hashTableStats;
 
   // A structure that parallels the
   private final List<ArrowBuf> startIndices = new ArrayList<>();
@@ -131,7 +133,7 @@ public class HashJoinOperator implements DualInputOperator {
     this.joinType = popConfig.getJoinType();
     this.conditions = popConfig.getConditions();
     this.stats = context.getStats();
-    this.htStats = new HashTableStats(stats);
+    this.hashTableStats = new HashTableStats();
 
     List<Comparator> comparators = Lists.newArrayListWithExpectedSize(conditions.size());
     for (int i=0; i<conditions.size(); i++) {
@@ -188,7 +190,19 @@ public class HashJoinOperator implements DualInputOperator {
     hyperContainer.addBatch(VectorContainer.getTransferClone(right, context.getAllocator()));
     // completed processing a batch, increment batch index
     buildBatchIndex++;
-    htStats.update(hashTable);
+    updateStats();
+  }
+
+  private void updateStats() {
+    if (hashTable == null) {
+      return;
+    }
+    final OperatorStats stats = this.stats;
+    hashTable.getStats(hashTableStats);
+    stats.setLongStat(HashJoinStats.Metric.NUM_BUCKETS, hashTableStats.numBuckets);
+    stats.setLongStat(HashJoinStats.Metric.NUM_ENTRIES, hashTableStats.numEntries);
+    stats.setLongStat(HashJoinStats.Metric.NUM_RESIZING, hashTableStats.numResizing);
+    stats.setLongStat(HashJoinStats.Metric.RESIZING_TIME_NANOS, hashTableStats.resizingTime);
   }
 
   @Override

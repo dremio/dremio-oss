@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 import {getUserName} from 'selectors/account';
+import * as fromWiki from '@app/reducers/home/wiki';
+
+const rootSelector = state => state.home;
 
 export function getHomeForCurrentUser(state) {
   const userName = getUserName(state);
@@ -32,3 +35,10 @@ export function getHomeForCurrentUser(state) {
     }
   });
 }
+
+export const isWikiPresent = (state, entityId) => !!fromWiki.getWiki(rootSelector(state).wiki, entityId);
+export const isWikiLoaded = (state, entityId) => fromWiki.isWikiLoaded(rootSelector(state).wiki, entityId);
+export const getWikiValue = (state, entityId) => fromWiki.getWiki(rootSelector(state).wiki, entityId);
+export const getWikiVersion = (state, entityId) => fromWiki.getWikiVersion(rootSelector(state).wiki, entityId);
+export const isWikiLoading = (state, entityId) => fromWiki.isWikiLoading(rootSelector(state).wiki, entityId);
+export const getErrorInfo = (state, entityId) => fromWiki.getErrorInfo(rootSelector(state).wiki, entityId);

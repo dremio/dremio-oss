@@ -43,6 +43,9 @@ public interface LogicalExpression extends Iterable<LogicalExpression>{
   static final Logger logger = LoggerFactory.getLogger(LogicalExpression.class);
 
   abstract CompleteType getCompleteType();
+  public boolean isEvaluationTypeSupported(EvaluationType.ExecutionType executionType);
+  public void addEvaluationType(EvaluationType.ExecutionType executionType);
+  public EvaluationType getEvaluationType();
 
   <T, V, E extends Exception> T accept(ExprVisitor<T, V, E> visitor, V value) throws E;
 

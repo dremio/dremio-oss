@@ -25,13 +25,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import javax.inject.Provider;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
+import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
@@ -42,6 +46,10 @@ import com.dremio.sabot.exec.rpc.AckSender;
 import com.dremio.sabot.op.receiver.RawFragmentBatch;
 import com.dremio.sabot.op.receiver.SpoolingRawBatchBuffer;
 import com.dremio.sabot.threads.sharedres.SharedResource;
+import com.dremio.service.scheduler.SchedulerService;
+import com.dremio.service.spill.DefaultSpillServiceOptions;
+import com.dremio.service.spill.SpillService;
+import com.dremio.service.spill.SpillServiceImpl;
 
 import io.netty.buffer.ArrowBuf;
 
@@ -65,22 +73,33 @@ public class TestSpoolingBuffer extends ExecTest {
     }).when(queue).put(any(Runnable.class));
 
     SabotConfig config = SabotConfig.create();
-    try (BufferAllocator spoolingAllocator = new RootAllocator(Long.MAX_VALUE);
-      SpoolingRawBatchBuffer buffer = new SpoolingRawBatchBuffer(resource, config, queue, handle, spoolingAllocator, 1, 0, 0)) {
+    final SchedulerService schedulerService = mock(SchedulerService.class);
+    final SpillService spillService = new SpillServiceImpl(DremioConfig.create(null, config), new DefaultSpillServiceOptions(),
+    new Provider<SchedulerService>() {
+      @Override
+      public SchedulerService get() {
+        return schedulerService;
+      }
+    });
 
-      for (int i = 0; i < 1000; i++) {
+    try (BufferAllocator spoolingAllocator = new RootAllocator(Long.MAX_VALUE);
+      SpoolingRawBatchBuffer buffer = new SpoolingRawBatchBuffer(resource, config, queue, handle, spillService, spoolingAllocator, 1, 0, 0)) {
+
+      for (int i = 0; i < 100; i++) {
         try (RawFragmentBatch batch = newBatch(i)) {
           buffer.enqueue(batch);
         }
       }
 
       executorService.shutdown();
-      executorService.awaitTermination(30, TimeUnit.SECONDS);
+      if (!executorService.awaitTermination(45, TimeUnit.SECONDS)) {
+        Assert.fail("Timed out while waiting for executor termination");
+      }
 
       // checks that the batches have been written to disk and are no longer in memory
       assertEquals(6 * 1024, allocator.getAllocatedMemory());
 
-      for (int i = 0; i < 1000; i++) {
+      for (int i = 0; i < 100; i++) {
         RawFragmentBatch batch = buffer.getNext();
         assertEquals(1024, batch.getBody().capacity());
         assertEquals(i, batch.getBody().getInt(0));

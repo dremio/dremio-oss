@@ -15,12 +15,9 @@
  */
 package com.dremio.plugins.elastic;
 
-import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.aliasName;
-import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.schemaName;
-import static com.dremio.plugins.elastic.ElasticBaseTestQuery.TestNameGenerator.tableName;
-import static com.dremio.plugins.elastic.ElasticsearchType.DATE;
-import static com.dremio.plugins.elastic.ElasticsearchType.INTEGER;
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
+
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.service.namespace.SourceTableDefinition;
 
 /* junit imports */
@@ -70,7 +67,9 @@ public class ITTestHiddenIndices extends ElasticBaseTestQuery {
       load(schema, table, data);
 
       //get all the datasets in the plugin
-      Iterable<SourceTableDefinition> tables = plugin.getDatasets("", true);
+      Iterable<SourceTableDefinition> tables = plugin.getDatasets("",
+          DatasetRetrievalOptions.IGNORE_AUTHZ_ERRORS
+      );
 
       //make sure you can find the not hidden schema
       boolean foundNotHidden = false;

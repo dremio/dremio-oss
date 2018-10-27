@@ -28,27 +28,21 @@ import org.apache.calcite.schema.Function;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePlugin.UpdateStatus;
-import com.dremio.exec.store.dfs.FileSystemConf;
-import com.dremio.exec.store.dfs.FileSystemCreateTableEntry;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FormatPlugin;
-import com.dremio.exec.store.dfs.SchemaMutability.MutationType;
 import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
 import com.dremio.exec.store.ischema.tables.SchemataTable.Schema;
 import com.dremio.exec.store.ischema.tables.TablesTable.Table;
-import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.namespace.DatasetIndexKeys;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
@@ -62,7 +56,6 @@ import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.SystemUser;
-import com.google.common.base.Joiner;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -327,49 +320,30 @@ public class CatalogImpl implements Catalog {
     final NamespaceKey key,
     final WriterOptions writerOptions,
     final Map<String, Object> storageOptions) {
-    final FileSystemPlugin fsPlugin = asFS(key, MutationType.TABLE, "does not support CTAS.");
-
-    final String tableName;
-    if(key.size() == 2) {
-      tableName = key.getLeaf();
-    } else {
-      List<String> subString = key.getPathComponents().subList(1, key.size());
-      tableName = Joiner.on('/').join(subString);
-    }
-
-    final FormatPlugin formatPlugin;
-    if (storageOptions == null || storageOptions.isEmpty()) {
-      String storage = options.getSchemaConfig().getOption(ExecConstants.OUTPUT_FORMAT_OPTION).getStringVal();
-      formatPlugin = fsPlugin.getFormatPlugin(storage);
-      if (formatPlugin == null) {
-        throw new UnsupportedOperationException(String.format("Unsupported format '%s' in '%s'", storage, key));
-      }
-    } else {
-      final FormatPluginConfig formatConfig = fsPlugin.createConfigForTable(tableName, storageOptions);
-      formatPlugin = fsPlugin.getFormatPlugin(formatConfig);
-    }
-
-    FileSystemConf<?, ?> config = fsPlugin.getConfig();
-    final String userName = config.isImpersonationEnabled() ? getUser() : ImpersonationUtil.getProcessUserName();
-    return new FileSystemCreateTableEntry(
-      userName,
-      fsPlugin,
-      formatPlugin,
-      fsPlugin.resolveTablePathToValidPath(tableName).toString(),
-      writerOptions);
+    return asMutable(key, "does not support create table operations.").createNewTable(options.getSchemaConfig(), key, writerOptions, storageOptions);
   }
 
   @Override
-  public boolean createView(
-    final NamespaceKey key,
-    View view) throws IOException {
+  public boolean createView(final NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException {
     switch(getType(key, true)) {
       case SOURCE:
-        return asFS(key, MutationType.VIEW, "does not support create view").createView(key, view, options.getSchemaConfig());
+        return asMutable(key, "does not support create view").createView(key, view, options.getSchemaConfig());
       case SPACE:
       case HOME:
-        context.getViewCreator(getUser()).createView(key.getPathComponents(), view.getSql(), Collections.<String>emptyList());
+        context.getViewCreator(getUser()).createView(key.getPathComponents(), view.getSql(), Collections.<String>emptyList(), attributes);
         return true;
+      default:
+        throw UserException.unsupportedError().message("Cannot create view in %s.", key).build(logger);
+    }
+  }
+
+  @Override
+  public void updateView(NamespaceKey key, View view, NamespaceAttribute... attributes) {
+    switch(getType(key, true)) {
+      case SPACE:
+      case HOME:
+        context.getViewCreator(getUser()).updateView(key.getPathComponents(), view.getSql(), view.getWorkspaceSchemaPath(), attributes);
+        break;
       default:
         throw UserException.unsupportedError().message("Cannot create view in %s.", key).build(logger);
     }
@@ -381,7 +355,7 @@ public class CatalogImpl implements Catalog {
   ) throws IOException {
     switch (getType(key, true)) {
       case SOURCE:
-        asFS(key, MutationType.VIEW, "does not support view operations.").dropView(options.getSchemaConfig(), key.getPathComponents());
+        asMutable(key, "does not support view operations.").dropView(options.getSchemaConfig(), key.getPathComponents());
         return;
       case SPACE:
       case HOME:
@@ -433,23 +407,6 @@ public class CatalogImpl implements Catalog {
     }
   }
 
-  private FileSystemPlugin asFS(NamespaceKey key, MutationType mutationType, String error) {
-    StoragePlugin plugin = context.getCatalogService().getSource(key.getRoot());
-    FileSystemPlugin fsPlugin;
-    if (plugin instanceof FileSystemPlugin) {
-      fsPlugin = (FileSystemPlugin) plugin;
-
-      if(mutationType != null && !fsPlugin.getMutability().hasMutationCapability(mutationType, SystemUser.SYSTEM_USERNAME.equals(this.getUser()))) {
-        throw UserException.parseError()
-          .message("Unable to create or drop tables/views. Schema [%s] is immutable for this user.", key.getParent())
-          .build(logger);
-      }
-    } else {
-      throw new UnsupportedOperationException(plugin.getClass().getName() + " " + error);
-    }
-    return fsPlugin;
-  }
-
   private FileSystemPlugin asFSn(NamespaceKey key) {
     final StoragePlugin plugin = context.getCatalogService().getSource(key.getRoot());
     if (plugin instanceof FileSystemPlugin) {
@@ -459,9 +416,18 @@ public class CatalogImpl implements Catalog {
     }
   }
 
+  private MutablePlugin asMutable(NamespaceKey key, String error) {
+    StoragePlugin plugin = context.getCatalogService().getSource(key.getRoot());
+    if (plugin instanceof MutablePlugin) {
+      return (MutablePlugin) plugin;
+    }
+
+    throw new UnsupportedOperationException(key.getRoot() + " " + error);
+  }
+
   @Override
   public void dropTable(NamespaceKey key) {
-    asFS(key, MutationType.TABLE, "does not support dropping tables").dropTable(key.getPathComponents(), options.getSchemaConfig());
+    asMutable(key, "does not support dropping tables").dropTable(key.getPathComponents(), options.getSchemaConfig());
     try {
       systemNamespaceService.deleteEntity(key);
     } catch (NamespaceException e) {
@@ -480,13 +446,13 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
-  public UpdateStatus refreshDataset(NamespaceKey key, boolean force) {
+  public UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions) {
     ManagedStoragePlugin plugin = pluginRetriever.getPlugin(key.getRoot(), true);
     if(plugin == null){
       throw UserException.validationError().message("Unknown source %s", key.getRoot()).build(logger);
     }
 
-    return plugin.refreshDataset(key, force);
+    return plugin.refreshDataset(key, retrievalOptions);
   }
 
   @Override
@@ -502,16 +468,23 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
-  public Iterable<String> getSubPartitions(NamespaceKey key,
-                                           List<String> partitionColumns,
-                                           List<String> partitionValues
-  ) throws PartitionNotFoundException {
-    ManagedStoragePlugin plugin = pluginRetriever.getPlugin(key.getRoot(), true);
-    if(plugin == null){
+  public Iterable<String> getSubPartitions(
+      NamespaceKey key,
+      List<String> partitionColumns,
+      List<String> partitionValues) throws PartitionNotFoundException {
+
+    if(pluginRetriever.getPlugin(key.getRoot(), true) == null){
       throw UserException.validationError().message("Unknown source %s", key.getRoot()).build(logger);
     }
 
-    return asFS(key, null, "does not support source").getSubPartitions(key.getPathComponents(), partitionColumns, partitionValues, options.getSchemaConfig());
+    StoragePlugin plugin = context.getCatalogService().getSource(key.getRoot());
+    FileSystemPlugin fsPlugin;
+    if (plugin instanceof FileSystemPlugin) {
+      fsPlugin = (FileSystemPlugin) plugin;
+      return fsPlugin.getSubPartitions(key.getPathComponents(), partitionColumns, partitionValues, options.getSchemaConfig());
+    }
+
+    throw new UnsupportedOperationException(plugin.getClass().getName() + " does not support partition retrieval.");
   }
 
   @Override

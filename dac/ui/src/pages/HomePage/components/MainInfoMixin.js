@@ -15,12 +15,11 @@
  */
 import { Link } from 'react-router';
 import { styles } from 'pages/HomePage/components/MainInfo';
+import { getSettingsLocation } from 'components/Menus/HomePage/DatasetMenu';
+
 
 export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
-    getDescendantLink(item) {
-      return item.get('descendants');
-    },
 
     renderConvertButton(entity, folderModalButton) {
       return (
@@ -33,6 +32,25 @@ export default function(input) {
           </Link>
         </div>
       );
+    },
+
+    getShortcutButtonsData(item, entityType, btnTypes) {
+      const allBtns = [
+        // Per DX-13304 we leave only Edit and Cog (Settings.svg) buttons
+        {
+          label: this.getInlineIcon('Edit.svg', 'edit'),
+          link: item.getIn(['links', 'edit']),
+          type: btnTypes.edit,
+          isShown: entityType === 'dataset'
+        },
+        {
+          label: this.getInlineIcon('Settings.svg', 'settings'),
+          link: getSettingsLocation(this.context.location, item, entityType),
+          type: btnTypes.settings,
+          isShown: true
+        }
+      ];
+      return allBtns;
     }
   });
 }

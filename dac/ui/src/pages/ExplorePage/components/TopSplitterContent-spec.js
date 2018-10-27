@@ -15,7 +15,7 @@
  */
 import { shallow } from 'enzyme';
 
-import { TopSplitterContent, HEIGHT_STANDARD, CONTROLS_HEIGHT } from './TopSplitterContent';
+import { TopSplitterContent } from './TopSplitterContent';
 
 describe('TopSplitterContent', () => {
 
@@ -37,15 +37,15 @@ describe('TopSplitterContent', () => {
   });
 
   describe('#getHeight', () => {
-    it('should return HEIGHT_STANDARD if sqlState is false, or sqlSize = 0', () => {
+    it('should return 0 if sqlState is false, or sqlSize = 0', () => {
       const instance = shallow(<TopSplitterContent {...commonProps}/>).instance();
-      expect(instance.getHeight(false, 171)).to.eql(HEIGHT_STANDARD);
-      expect(instance.getHeight(true, 0)).to.eql(HEIGHT_STANDARD);
+      expect(instance.getHeight(false, 171)).to.eql(0);
+      expect(instance.getHeight(true, 0)).to.eql(0);
     });
 
-    it('should return sqlSize + CONTROLS_HEIGHT if sqlState is true and sqlSize > 0', () => {
+    it('should return sqlSize if sqlState is true and sqlSize > 0', () => {
       const instance = shallow(<TopSplitterContent {...commonProps}/>).instance();
-      expect(instance.getHeight(true, 1)).to.eql(CONTROLS_HEIGHT + 1);
+      expect(instance.getHeight(true, 1)).to.eql(1);
     });
   });
 });

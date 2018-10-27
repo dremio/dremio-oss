@@ -32,4 +32,9 @@ enum RpcType {
   REQ_QUERY_CANCEL = 2;
   REQ_QUERY_PROFILE = 3;
   RESP_QUERY_PROFILE = 4;
-}  
+}
+
+message JobCancelRequest {
+  required exec.shared.ExternalId external_Id = 1;
+  optional string cancel_reason = 2;
+}

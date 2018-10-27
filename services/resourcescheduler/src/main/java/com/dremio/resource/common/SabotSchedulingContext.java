@@ -15,7 +15,11 @@
  */
 package com.dremio.resource.common;
 
+import java.util.Set;
+
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.options.OptionManager;
+import com.dremio.service.coordinator.ClusterCoordinator;
 
 /**
  * To get SystemOptions from context
@@ -23,4 +27,8 @@ import com.dremio.options.OptionManager;
 public interface SabotSchedulingContext {
 
   OptionManager getOptionManager();
+
+  Set<ClusterCoordinator.Role> getRoles();
+
+  CoordinationProtos.NodeEndpoint getEndpoint();
 }

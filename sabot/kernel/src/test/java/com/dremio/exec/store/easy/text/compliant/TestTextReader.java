@@ -41,6 +41,8 @@ public class TestTextReader extends BaseTestQuery {
   private static String TMP_CSV_FILE_LARGE = "my_large.csv";
   // count star file
   private static String TMP_CSV_FILE_COUNT_STAR = "my_count_star.csv";
+  // two rows file
+  private static String TMP_CSV_FILE_TWO_ROWS = "my_two_rows.csv";
   // row count in count star file
   private static long ROW_COUNT = 1023;
 
@@ -106,9 +108,17 @@ public class TestTextReader extends BaseTestQuery {
     "lineDelimiter => '\r\n'" +
     ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => false))";
 
+  // incorrect lineDelimiter, skip line
+  private static String QUERY_TWO_ROWS_SKIP_LINE = "select cast(A as int) column1, B column2, C column3, D column4 from table(" + TEMP_SCHEMA + ".\"" + TMP_CSV_FILE_TWO_ROWS + "\"" +
+    " (type => 'text', fieldDelimiter => ',', " +
+    "comment => '#', quote => '\"', " +
+    "lineDelimiter => '\r\n'" +
+    ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => true))";
+
   private static File tblPathSmall = null;
   private static File tblPathLarge = null;
   private static File tblPathCountStar = null;
+  private static File tblPathTwoRows = null;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -116,9 +126,12 @@ public class TestTextReader extends BaseTestQuery {
     tblPathSmall = new File(getDfsTestTmpSchemaLocation(), TMP_CSV_FILE_SMALL);
     tblPathLarge = new File(getDfsTestTmpSchemaLocation(), TMP_CSV_FILE_LARGE);
     tblPathCountStar = new File(getDfsTestTmpSchemaLocation(), TMP_CSV_FILE_COUNT_STAR);
+    tblPathTwoRows = new File(getDfsTestTmpSchemaLocation(), TMP_CSV_FILE_TWO_ROWS);
+
     FileUtils.deleteQuietly(tblPathSmall);
     FileUtils.deleteQuietly(tblPathLarge);
     FileUtils.deleteQuietly(tblPathCountStar);
+    FileUtils.deleteQuietly(tblPathTwoRows);
     startTest();
   }
 
@@ -127,6 +140,7 @@ public class TestTextReader extends BaseTestQuery {
     FileUtils.deleteQuietly(tblPathSmall);
     FileUtils.deleteQuietly(tblPathLarge);
     FileUtils.deleteQuietly(tblPathCountStar);
+    FileUtils.deleteQuietly(tblPathTwoRows);
   }
 
   private static void startTest() throws Exception {
@@ -161,6 +175,20 @@ public class TestTextReader extends BaseTestQuery {
           fwriter.append(',');
         }
         fwriter.append(myChar);
+        fwriter.append('\n');
+      }
+    }
+
+    try (FileWriter fwriter = new FileWriter(tblPathTwoRows)) {
+      long rows = 2;
+      int columns = 20;
+      final char numberChar = '1';
+      for (long i = 0; i < rows; i++) {
+        for (int j = 0; j < columns - 1; j++) {
+          fwriter.append(numberChar);
+          fwriter.append(',');
+        }
+        fwriter.append(numberChar);
         fwriter.append('\n');
       }
     }
@@ -247,5 +275,10 @@ public class TestTextReader extends BaseTestQuery {
       .baselineColumns("EXPR$0")
       .baselineValues(ROW_COUNT)
       .go();
+  }
+
+  @Test
+  public void testIncorrectLineDelimiterSkipLine() throws Exception {
+    runSQL(QUERY_TWO_ROWS_SKIP_LINE);
   }
 }

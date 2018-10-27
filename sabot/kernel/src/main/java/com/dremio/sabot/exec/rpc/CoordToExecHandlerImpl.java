@@ -16,12 +16,10 @@
 package com.dremio.sabot.exec.rpc;
 
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
-import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
-import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.UserRpcException;
-import com.dremio.sabot.exec.EventProvider;
 import com.dremio.sabot.exec.FragmentExecutors;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
 import com.dremio.sabot.rpc.CoordToExecHandler;
@@ -45,28 +43,8 @@ public class CoordToExecHandlerImpl implements CoordToExecHandler {
   }
 
   @Override
-  public void startFragments(InitializeFragments fragments) throws UserRpcException {
-    for(int i = 0; i < fragments.getFragmentCount(); i++) {
-      startFragment(fragments.getFragment(i));
-    }
-  }
-
-  private void startFragment(final PlanFragment fragment) throws UserRpcException {
-    logger.info("Received remote fragment start instruction for {}", QueryIdHelper.getQueryIdentifier(fragment.getHandle()));
-
-    try {
-      final EventProvider eventProvider = fragmentExecutors.getEventProvider(fragment.getHandle());
-      fragmentExecutors.startFragment(builder.build(fragment, eventProvider));
-
-    } catch (final Exception e) {
-        throw new UserRpcException(identity, "Failure while trying to start remote fragment", e);
-    } catch (final OutOfMemoryError t) {
-      if (t.getMessage().startsWith("Direct buffer")) {
-        throw new UserRpcException(identity, "Out of direct memory while trying to start remote fragment", t);
-      } else {
-        throw t;
-      }
-    }
+  public void startFragments(InitializeFragments fragments, ResponseSender sender) throws UserRpcException {
+    fragmentExecutors.startQueryFragment(fragments, builder, sender, identity);
   }
 
   /* (non-Javadoc)

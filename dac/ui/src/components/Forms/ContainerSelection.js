@@ -16,7 +16,6 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import { get } from 'lodash/object';
 import FormUtils from 'utils/FormUtils/FormUtils';
 import FormSection from 'components/Forms/FormSection';
 import FormElement from 'components/Forms/FormElement';
@@ -31,40 +30,18 @@ export default class ContainerSelection extends Component {
     elementConfig: PropTypes.object
   };
 
-  state = {
-    selectedValue: ''
-  };
-
-  componentWillMount() {
-    this.setState({ selectedValue: this.getSelectedValue() });
-  }
-
-  getSelectedValue = () => {
-    const {fields, elementConfig} = this.props;
-    if (!elementConfig) return '';
-
-    // first try radio field value
-    const radioField = FormUtils.getFieldByComplexPropName(fields, elementConfig.getPropName());
-    if (radioField && radioField.value) return radioField.value;
-
-    // next try value from elementConfig
-    if (elementConfig.value) return elementConfig.value;
-
-    // last take the first option value from elementConfig
-    return get(elementConfig, 'options[0].value', '');
-  };
-
-  onSelectionChange = (e) => {
-    this.setState({selectedValue: e.target.value});
-  };
-
   render() {
     const {fields, elementConfig} = this.props;
     const radioField = FormUtils.getFieldByComplexPropName(fields, elementConfig.getPropName());
-    const selectedOptionObj = elementConfig.getOptions().find(option => option.value === this.state.selectedValue)
-      || elementConfig.getOptions()[0];
+    // radioField usually has a value. If not, use 1st option value
+
+    const { value, ...radioProps } = radioField;
+    const selectedValue = value || elementConfig.getOptions()[0].value;
+    const selectedOptionObj = elementConfig.getOptions().find(option => option.value === selectedValue);
+
     const container = selectedOptionObj.container;
     const label = elementConfig.getConfig().label;
+    const containerHelp = container.getConfig && container.getConfig().help;
 
     // implementing default selector (radio) for now. TODO: other selectors
     return (
@@ -74,18 +51,17 @@ export default class ContainerSelection extends Component {
           {elementConfig.getOptions().map((option, index) => {
             return (
               <Radio radioValue={option.value}
-                     value={this.state.selectedValue}
+                     value={selectedValue}
                      key={index}
                      label={option.label || option.value}
-                     onClick={this.onSelectionChange}
-                     {...radioField}/>
+                     {...radioProps}/>
             );
           })}
         </div>
         {container.getPropName &&
         <FormElement fields={fields} elementConfig={container}/>
         }
-        {container.getAllElements && !!container.getAllElements().length &&
+        {container.getAllElements && (!!container.getAllElements().length || containerHelp) &&
         <FormSection fields={fields} sectionConfig={container}/>
         }
       </div>

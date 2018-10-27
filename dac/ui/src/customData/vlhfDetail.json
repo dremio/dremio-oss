@@ -46,7 +46,7 @@
     ]
   }},
   {"sourceType": "S3", "tags": ["beta"],
-    "metadataRefresh": {"datasetDiscovery": true},
+    "metadataRefresh": {"datasetDiscovery": true, "isFileSystemSource": true },
     "form": {"tabs": [
       {
         "name": "General",
@@ -54,27 +54,57 @@
         "sections": [
           {
             "name": "Authentication",
-            "layout": "row",
             "elements": [
               {
-                "propName": "config.accessKey",
-                "size": "half",
-                "errMsg": "Both access secret and key are required for private S3 buckets."
-              },
-              {
-                "propName": "config.accessSecret",
-                "size": "half",
-                "errMsg": "Both access secret and key are required for private S3 buckets.",
-                "secure": true
+                "propName": "config.credentialType",
+                "uiType": "container_selection",
+                "options": [
+                  {
+                    "value": "ACCESS_KEY",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.accessKey",
+                          "size": "half",
+                          "errMsg": "Both access secret and key are required for private S3 buckets."
+                        },
+                        {
+                          "propName": "config.accessSecret",
+                          "size": "half",
+                          "errMsg": "Both access secret and key are required for private S3 buckets.",
+                          "secure": true
+                        }
+                      ],
+                      "help": {
+                        "position": "top",
+                        "text": "All buckets associated with this access key will be available."
+                      }
+                    }
+                  },
+                  {
+                    "value": "EC2_METADATA",
+                    "container": {
+                      "help": {
+                        "position": "top",
+                        "text": "All buckets associated with the IAM roles will be available."
+                      }
+                    }
+                  },
+                  {
+                    "value": "NONE",
+                    "container": {
+                      "help": {
+                        "position": "top",
+                        "text": "Only the buckets provided in Public Buckets will be available."
+                      }
+                    }
+                  }
+                ]
               },
               {
                 "propName": "config.secure"
               }
-            ],
-            "help": {
-              "position": "top",
-              "text": "All buckets associated with this access key will be available."
-            }
+            ]
           },
           {
             "name": "Public Buckets",
@@ -92,9 +122,18 @@
       },
       {
         "name": "Advanced Options",
-        "title": "Connection Properties",
         "sections": [
           {
+            "elements": [
+              {
+                "propName": "config.allowCreateDrop"
+              },
+              {
+                "propName": "config.rootPath"
+              }
+            ]
+          },
+          { "name" : "Connection Properties",
             "elements": [
               {
                 "emptyLabel": "No properties added",
@@ -108,7 +147,7 @@
     ]
   }},
   {"sourceType": "ADL", "tags": ["beta"],
-    "metadataRefresh": {"datasetDiscovery": true},
+    "metadataRefresh": {"datasetDiscovery": true, "isFileSystemSource": true },
     "form": {"tabs": [
       {
         "name": "General",
@@ -139,9 +178,19 @@
       },
       {
         "name": "Advanced Options",
-        "title": "Connection Properties",
         "sections": [
           {
+            "elements": [
+              {
+                "propName": "config.allowCreateDrop"
+              },
+              {
+                "propName": "config.rootPath"
+              }
+            ]
+          },
+          {
+            "name": "Connection Properties",
             "elements": [
               {
                 "emptyLabel": "No properties added",
@@ -212,6 +261,9 @@
                 "propName": "config.scriptsEnabled"
               },
               {
+                "propName": "config.warnOnRowCountMismatch"
+              },
+              {
                 "propName": "config.readTimeoutMillis",
                 "size": "half",
                 "validate": {"isNumber": true},
@@ -237,6 +289,7 @@
     ]
   }},
   {"sourceType": "HBASE", "tags": ["beta"],
+    "metadataRefresh": {"datasetDiscovery": true},
     "form": {"tabs": [
       {
         "name": "General",
@@ -286,7 +339,7 @@
     ]
   }},
   {"sourceType": "HDFS",
-    "metadataRefresh": {"authorization": true},
+    "metadataRefresh": {"authorization": true, "isFileSystemSource": true },
     "form": {"tabs": [
       {
         "name": "General",
@@ -319,6 +372,9 @@
         "sections": [
           {
             "elements": [
+              {
+                "propName": "config.allowCreateDrop"
+              },
               {
                 "propName": "config.rootPath"
               },
@@ -365,12 +421,16 @@
                 "propName": "config.hostname",
                 "placeholder": "e.g. 123.123.123.123",
                 "size": "half",
-                "validate": {"isRequired": true}
+                "validate": {
+                  "isRequired": true
+                }
               },
               {
                 "propName": "config.port",
                 "size": "half",
-                "validate": {"isRequired": true}
+                "validate": {
+                  "isRequired": true
+                }
               },
               {
                 "uiType": "check_enabled_container",
@@ -380,6 +440,21 @@
                   "placeholder": "e.g. principal@REALM.COM",
                   "errMsg": "Value is required unless you uncheck the checkbox."
                 }
+              }
+            ]
+          },
+          {
+            "name": "Authorization",
+            "layout": "row",
+            "elements": [
+              {
+                "uiType": "container_selection",
+                "selectorType": "select",
+                "propName": "config.authType",
+                "options": [
+                  {"value": "STORAGE", "container": {}},
+                  {"value": "SQL", "container": {}}
+                ]
               }
             ]
           }
@@ -402,7 +477,7 @@
       }    ]
   }},
   {"sourceType": "MAPRFS",
-    "metadataRefresh": {"authorization": true},
+    "metadataRefresh": {"authorization": true, "isFileSystemSource": true },
     "form": {"tabs": [
       {
         "name": "General",
@@ -430,6 +505,9 @@
         "sections": [
           {
             "elements": [
+              {
+                "propName": "config.allowCreateDrop"
+              },
               {
                 "propName": "config.rootPath"
               }
@@ -489,7 +567,6 @@
         "name": "Advanced Options",
         "sections": [
           {
-            "help": {"position": "bottom", "text": "Set to 0 to have Dremio automatically decide."},
             "elements": [
               {
                 "propName": "config.showOnlyConnectionDatabase"
@@ -497,7 +574,11 @@
               {
                 "propName": "config.fetchSize",
                 "size": "half",
-                "tooltip": "Number of records to fetch at once. "
+                "tooltip": "Number of records to fetch at once. ",
+                "help": {"position": "bottom", "text": "Set to 0 to have Dremio automatically decide."}
+              },
+              {
+                "propName": "config.useLegacyDialect"
               }
             ]
           }
@@ -506,6 +587,7 @@
     ]
   }},
   {"sourceType": "MONGO", "tags": ["beta"],
+    "metadataRefresh": {"datasetDiscovery": true},
     "form": {"tabs": [
       {
         "name": "General",
@@ -625,6 +707,11 @@
                 "propName": "config.showOnlyConnectionDatabase"
               },
               {
+                "propName": "config.netWriteTimeout",
+                "size": "half",
+                "tooltip": "Seconds to wait for data from the server before aborting the connection."
+              },
+              {
                 "propName": "config.fetchSize",
                 "size": "half",
                 "tooltip": "Number of records to fetch at once. "
@@ -636,7 +723,7 @@
     ]
   }},
   {"sourceType": "NAS",
-    "metadataRefresh": {},
+    "metadataRefresh": { "isFileSystemSource": true },
     "form": {"tabs": [
       {
         "name": "General",
@@ -650,6 +737,18 @@
                 "tooltip": "This path must exist on all nodes in the Dremio cluster.",
                 "placweholder": "e.g. /mnt/path",
                 "validate": {"isRequired": true}
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.allowCreateDrop"
               }
             ]
           }
@@ -701,6 +800,11 @@
           {
             "help": {"position": "bottom", "text": "Set to 0 to have Dremio automatically decide."},
             "elements": [
+              {
+                "propName": "config.useTimezoneAsRegion",
+                "size": "half",
+                "tooltip": "If true, use timezone to set connection region."
+              },
               {
                 "propName": "config.fetchSize",
                 "size": "half",
@@ -764,12 +868,15 @@
         "name": "Advanced Options",
         "sections": [
           {
-            "help": {"position": "bottom", "text": "Set to 0 to have Dremio automatically decide."},
             "elements": [
               {
                 "propName": "config.fetchSize",
                 "size": "half",
-                "tooltip": "Number of records to fetch at once. "
+                "tooltip": "Number of records to fetch at once. ",
+                "help": {"position": "bottom", "text": "Set to 0 to have Dremio automatically decide."}
+              },
+              {
+                "propName": "config.useLegacyDialect"
               }
             ]
           }

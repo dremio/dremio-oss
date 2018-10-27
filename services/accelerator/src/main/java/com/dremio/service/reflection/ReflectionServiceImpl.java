@@ -27,8 +27,9 @@ import static com.dremio.service.reflection.ReflectionUtils.hasMissingPartitions
 import static com.dremio.service.scheduler.ScheduleUtils.scheduleForRunningOnceAt;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static com.google.common.base.Predicates.notNull;
-import static org.threeten.bp.Instant.ofEpochMilli;
+import static java.time.Instant.ofEpochMilli;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedList;
@@ -40,9 +41,8 @@ import java.util.concurrent.ExecutorService;
 import javax.annotation.Nullable;
 import javax.inject.Provider;
 
-import org.threeten.bp.Instant;
-
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.WakeupHandler;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
@@ -545,6 +545,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     return super.getDependencies(reflectionId);
   }
 
+  @Override
   public Iterable<AccelerationListManager.DependencyInfo> getReflectionDependencies() {
     final Iterable<ReflectionGoal> goalReflections = getAllReflections();
     final List<AccelerationListManager.DependencyInfo> reflectionDependencies = new LinkedList<>();

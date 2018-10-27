@@ -179,8 +179,7 @@ public class CoordExecService implements Service {
       // coordinator > executor
       case RpcType.REQ_START_FRAGMENTS_VALUE: {
         final InitializeFragments fragments = get(pBody, InitializeFragments.PARSER);
-        coordToExec.get().startFragments(fragments);
-        sender.send(OK);
+        coordToExec.get().startFragments(fragments, sender);
         break;
       }
 
@@ -226,7 +225,7 @@ public class CoordExecService implements Service {
     public NoCoordToExecHandler(){}
 
     @Override
-    public void startFragments(InitializeFragments fragments) throws RpcException {
+    public void startFragments(InitializeFragments fragments, ResponseSender sender) throws RpcException {
       throw new RpcException("This daemon doesn't support execution operations.");
     }
 

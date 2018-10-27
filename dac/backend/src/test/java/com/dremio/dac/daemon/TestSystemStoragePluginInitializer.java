@@ -66,6 +66,12 @@ import com.google.common.collect.Sets;
  */
 public class TestSystemStoragePluginInitializer {
 
+  private static final String HOSTNAME = "localhost";
+  private static final int THREAD_COUNT = 2;
+  private static final long RESERVATION = 0;
+  private static final long MAX_ALLOCATION = Long.MAX_VALUE;
+  private static final int TIMEOUT = 0;
+
   private static TestCatalogServiceImpl.MockUpPlugin mockUpPlugin;
 
   private ConnectionReader reader;
@@ -129,16 +135,18 @@ public class TestSystemStoragePluginInitializer {
       .thenReturn(Sets.newHashSet(ClusterCoordinator.Role.MASTER, ClusterCoordinator.Role.COORDINATOR));
 
     pool = new CloseableThreadPool("catalog-test");
-    fabricService = new FabricServiceImpl("localhost", 45678, true, 0, 2, pool, allocator, 0, Long.MAX_VALUE);
+    fabricService = new FabricServiceImpl(HOSTNAME, 45678, true, THREAD_COUNT, allocator, RESERVATION,
+        MAX_ALLOCATION, TIMEOUT, pool);
+
+    reader = ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
 
     catalogService = new CatalogServiceImpl(
       DirectProvider.wrap(sabotContext),
       DirectProvider.wrap((SchedulerService) new LocalSchedulerService(1)),
       DirectProvider.wrap(new SystemTablePluginConfigProvider()),
-      DirectProvider.wrap(fabricService));
+      DirectProvider.wrap(fabricService),
+      DirectProvider.wrap(reader));
     catalogService.start();
-
-    reader = new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT);
   }
 
   @After

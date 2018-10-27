@@ -51,6 +51,18 @@ describe('Checkbox', () => {
     expect(wrapper.children().at(2).text()).to.equal('someLabel');
   });
 
+  it('should render checked when checked is truthy regardless of value', () => {
+    expect(wrapper.find('input').props().checked).to.be.falsy;
+    wrapper.setProps({value: true});
+    expect(wrapper.find('input').props().checked).to.be.falsy;
+    wrapper.setProps({checked:false, value: true});
+    expect(wrapper.find('input').props().checked).to.be.falsy;
+    wrapper.setProps({checked:true});
+    expect(wrapper.find('input').props().checked).to.be.true;
+    wrapper.setProps({checked:true, value: false});
+    expect(wrapper.find('input').props().checked).to.be.true;
+  });
+
   describe('#renderDummyCheckbox', () => {
     it('should render ✔ only if isChecked', () => {
       expect(shallow(instance.renderDummyCheckbox(false)).text()).to.not.contain('✔');

@@ -14,17 +14,14 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import classNames from 'classnames';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
-import { Link } from 'react-router';
 import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
 import { injectIntl } from 'react-intl';
 
 import TableControlsMenu from 'components/Menus/ExplorePage/TableControlsMenu';
-import TableControlsViewMixin from 'dyn-load/pages/ExplorePage/components/TableControlsViewMixin';
 
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
 import Button from 'components/Buttons/Button';
@@ -39,21 +36,14 @@ import SampleDataMessage from './SampleDataMessage';
 @injectIntl
 @pureRender
 @Radium
-@TableControlsViewMixin
 class TableControls extends Component {
-  static contextTypes = {
-    location: PropTypes.object
-  };
 
   static propTypes = {
-    isGraph: PropTypes.bool,
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
-    columns: PropTypes.instanceOf(Immutable.List),
     exploreViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
 
     closeDropdown: PropTypes.func.isRequired,
     toogleDropdown: PropTypes.func.isRequired,
-    dataGraph: PropTypes.func.isRequired,
     groupBy: PropTypes.func.isRequired,
     addField: PropTypes.func,
     handleRequestClose: PropTypes.func.isRequired,
@@ -82,84 +72,89 @@ class TableControls extends Component {
     };
   }
 
-  getVisibleColumnsLabel(columns = Immutable.List()) {
-    const visibleColumns = columns.filter(column => !column.get('hidden'));
-    return `${visibleColumns.size} of ${columns.size}`;
-  }
-
   renderPreviewWarning() {
     const { approximate } = this.props;
     return approximate && <SampleDataMessage />;
   }
 
+  renderButton({
+    key,
+    style,
+    intlId, // international string id to apply. Will override text property if provided
+    ...buttonProps
+  }) {
+    if (intlId) {
+      buttonProps.text = this.props.intl.formatMessage({ id: intlId });
+    }
+    return <Button
+      key={key}
+      innerTextStyle={styles.innerTextStyle}
+      type={ButtonTypes.SECONDARY}
+      styles={{
+        ...styles.activeButton,
+        ...style
+      }}
+      iconStyle={{ Container: styles.iconContainer, Icon: styles.iconBox}}
+      {...buttonProps}/>;
+  }
+
   render() {
-    const { columns, isGraph, rightTreeVisible, dataset, intl } = this.props;
-    const { location } = this.context;
-    const classWrap = classNames('control-wrap', { 'inactive-element': isGraph });
-    const toggleButton = !this.props.sqlState
-      ? (
-        <SqlToggle dataset={dataset}/>
-      )
-      : null;
-    const disable = this.props.exploreViewState.get('isInProgress');
+    const {
+      rightTreeVisible,
+      dataset,
+      addField,
+      groupBy,
+      join,
+      exploreViewState,
+      sqlState,
+      dropdownState,
+      handleRequestClose,
+      anchorEl
+    } = this.props;
+
+    const disable = exploreViewState.get('isInProgress');
     const width = rightTreeVisible ? { width: 'calc(100% - 251px)' } : {};
 
     return (
       <div className='table-controls' style={[styles.tableControls, disable && styles.disabledStyle, width]}>
         <div className='left-controls'>
           <div className='controls' style={styles.controlsInner}>
-            {toggleButton}
-            <Button
-              key='calc'
-              innerText={styles.innerTextStyle}
-              type={ButtonTypes.SECONDARY} icon='AddFields'
-              text={intl.formatMessage({ id: 'Dataset.AddField' })}
-              styles={{...sqlEditorButton, ...styles.activeButton}}
-              iconStyle={{ Container: styles.iconContainer, Icon: styles.iconBox }}
-              onClick={this.props.addField}/>
-            <Button
-              key='groupBy'
-              innerText={{...styles.innerTextStyle}}
-              type={ButtonTypes.SECONDARY} icon='GroupBy'
-              text={intl.formatMessage({ id: 'Dataset.GroupBy' })}
-              styles={{...sqlEditorButton, ...styles.activeButton}}
-              iconStyle={{ Container: {...styles.iconContainer}, Icon: styles.iconBox }}
-              onClick={this.props.groupBy}/>
-            <Button
-              key='join'
-              innerText={styles.innerTextStyle}
-              type={ButtonTypes.SECONDARY} icon='Join'
-              text={intl.formatMessage({ id: 'Dataset.Join' })}
-              styles={{...sqlEditorButton, ...styles.activeButton}}
-              iconStyle={{ Container: styles.iconContainer, Icon: styles.iconBox }}
-              onClick={this.props.join}/>
+            {!sqlState && <SqlToggle dataset={dataset}/>}
+            {
+              this.renderButton({
+                key: 'calc',
+                icon: 'AddFields',
+                intlId: 'Dataset.AddField',
+                onClick: addField
+              })
+            }
+            {
+              this.renderButton({
+                key: 'groupBy',
+                icon: 'GroupBy',
+                intlId: 'Dataset.GroupBy',
+                onClick: groupBy
+              })
+            }
+            {
+              this.renderButton({
+                key: 'Join',
+                icon: 'Join',
+                intlId: 'Dataset.Join',
+                onClick: join
+              })
+            }
             {this.renderPreviewWarning()}
-          </div>
-        </div>
-        <div className='right-controls'>
-          <div className='controls'>
-            <div className={classWrap}>
-              <span>{`${intl.formatMessage({ id: 'Dataset.Fields' })}:\u00a0`}</span>
-              <span style={{ color: '#52b8d8' }}>
-                <Link
-                  className='separator-line columns-text'
-                  data-qa='edit-columns-link'
-                  to={{ ...location, state: { modal: 'EditColumnsModal' }}}>
-                  {this.getVisibleColumnsLabel(columns)}
-                </Link>
-              </span>
-            </div>
-            {this.renderGraphButton()}
           </div>
         </div>
         <Popover
           useLayerForClickAway={false}
-          open={this.props.dropdownState}
+          open={dropdownState}
           canAutoPosition
-          anchorEl={this.props.anchorEl}
+          anchorEl={anchorEl}
           anchorOrigin={this.state.anchorOrigin}
           targetOrigin={this.state.targetOrigin}
-          onRequestClose={this.props.handleRequestClose}
+          onRequestClose={handleRequestClose}
           animation={PopoverAnimationVertical}>
           <div style={styles.popover}>
             <TableControlsMenu />
@@ -180,10 +175,12 @@ export const styles = {
     textAlign: 'left'
   },
   activeButton: {
+    ...sqlEditorButton,
+
+    color: 'rgb(0, 0, 0)',
     ':hover': {
       backgroundColor: 'rgb(229, 242, 247)'
-    },
-    color: 'rgb(0, 0, 0)'
+    }
   },
   iconBox: {
     width: 24,

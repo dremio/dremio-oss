@@ -254,7 +254,7 @@ public class ConstExecutor implements RexExecutor {
               NullableVarCharHolder nullableVarCharHolder = (NullableVarCharHolder) output;
               outputString = StringFunctionHelpers.toStringFromUTF8(nullableVarCharHolder.start, nullableVarCharHolder.end, nullableVarCharHolder.buffer);
             }
-            reducedValues.add(rexBuilder.makeCharLiteral(new NlsString(outputString, null, null)));
+            reducedValues.add(rexBuilder.makeVarCharLiteral(new NlsString(outputString, null, null)));
             break;
           case BIT:
             int bitValue;

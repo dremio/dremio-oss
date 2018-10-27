@@ -87,7 +87,7 @@ describe('DatasetMenu', () => {
 
   it('#getGraphUrl()', () => {
     const instance = shallow(<DatasetMenu {...commonProps} />, context).instance();
-    expect(instance.getGraphUrl()).to.equal('/foo/graph?bar');
+    expect(instance.getMenuItemUrl('graph')).to.equal('/vgf/graph?qwe');
   });
 
   describe('#getRenameLocation', () => {

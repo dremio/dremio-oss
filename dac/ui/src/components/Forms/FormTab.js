@@ -18,20 +18,22 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import HoverHelp from 'components/HoverHelp';
 import FormSection from 'components/Forms/FormSection';
-import { tabTitle, tabSections } from 'uiTheme/less/forms.less';
+import { tabTitle, tabSections, tabTallSections } from 'uiTheme/less/forms.less';
 
 export default class FormTab extends Component {
 
   static propTypes = {
     tabConfig: PropTypes.object,
     fields: PropTypes.object,
-    formConfig: PropTypes.object
+    formConfig: PropTypes.object,
+    disabled: PropTypes.bool
   };
 
   render() {
-    const { fields, formConfig, tabConfig } = this.props;
+    const { fields, formConfig, tabConfig, disabled } = this.props;
     const tabConfigJson = tabConfig.getConfig();
     const tabTitleText = tabConfig.getTitle(formConfig);
+    const tabSectionsClass = (tabConfigJson.layout === 'tall') ? tabTallSections : tabSections;
 
     return (
       <div>
@@ -43,9 +45,9 @@ export default class FormTab extends Component {
           }
         </div>
         }
-        <div className={tabSections}>
+        <div className={tabSectionsClass}>
           {tabConfig.getSections().map((section, index) => (
-            <FormSection fields={fields} key={index} sectionConfig={section}/>
+            <FormSection fields={fields} key={index} sectionConfig={section} disabled={disabled}/>
           ))}
         </div>
       </div>

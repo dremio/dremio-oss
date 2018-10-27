@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-
 import PropTypes from 'prop-types';
 
 export const POSITION_LEFT = 'left';
@@ -36,8 +35,16 @@ export default class TransformRangeSlider extends Component {
     return props.activeSlider === props.position;
   }
 
-  startSlide = () => {
+  onRef = (el) => {
+    if (el) {
+      el.addEventListener('pointerdown', this.startSlide);
+    }
+    this.slider = el;
+  };
+
+  startSlide = (pointerEvent) => {
     this.props.setActiveSlider(this.props.position);
+    this.slider.setPointerCapture(pointerEvent.pointerId);
   };
 
   render() {
@@ -66,7 +73,7 @@ export default class TransformRangeSlider extends Component {
 
     return <div style={style}>
       <div style={pointerStyle}></div>
-      <div style={sliderStyle} data-qa={dataQa} onMouseDown={this.startSlide}></div>
+      <div style={sliderStyle} data-qa={dataQa} ref={this.onRef}></div>
     </div>;
   }
 }
@@ -94,7 +101,7 @@ const styles = {
     cursor: 'col-resize',
     position: 'absolute',
     height: '100%',
-    width: 10,
+    width: 20,
     borderRadius: 10
   }
 };

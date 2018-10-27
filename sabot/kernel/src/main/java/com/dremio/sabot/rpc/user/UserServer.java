@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.rpc.user;
 
+import java.util.Optional;
+
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -33,45 +35,52 @@ import com.google.common.base.Preconditions;
 
 import io.netty.channel.EventLoopGroup;
 
+/**
+ * Manages the lifecycle of a {@link UserRPCServer}, which allows for communication with non-web clients.
+ */
 public class UserServer implements Service {
 
   private final BootStrapContext context;
   private final Provider<UserWorker> worker;
   private final boolean allowPortHunting;
   private final Provider<SabotContext> dbContext;
-  private final InboundImpersonationManager impersonationManager;
 
-  private UserRPCServer server;
-  private BufferAllocator allocator;
   private EventLoopCloseable eventLoopCloseable;
+  private BufferAllocator allocator;
+  private UserRPCServer server;
 
   private volatile int port = -1;
 
-  public UserServer(BootStrapContext context, Provider<SabotContext> dbContext, Provider<UserWorker> worker, InboundImpersonationManager impersonationManager, boolean allowPortHunting) {
+  public UserServer(
+      BootStrapContext context,
+      Provider<SabotContext> dbContext,
+      Provider<UserWorker> worker,
+      boolean allowPortHunting
+  ) {
     this.context = context;
     this.worker = worker;
     this.allowPortHunting = allowPortHunting;
     this.dbContext = dbContext;
-    this.impersonationManager = impersonationManager;
   }
 
   public int getPort() {
-    Preconditions.checkArgument(port != -1, "Server port cannot be requested before ClientServer is started.");
+    Preconditions.checkArgument(port != -1, "Server port cannot be requested before UserRPCServer is started.");
     return port;
   }
 
   @Override
   public void start() throws Exception {
+    allocator = context.getAllocator()
+        .newChildAllocator(
+            "rpc:user",
+            context.getConfig().getLong("dremio.exec.rpc.user.server.memory.reservation"),
+            context.getConfig().getLong("dremio.exec.rpc.user.server.memory.maximum"));
+
     final EventLoopGroup eventLoopGroup = TransportCheck
         .createEventLoopGroup(context.getConfig().getInt(ExecConstants.USER_SERVER_RPC_THREADS), "UserServer-");
+    eventLoopCloseable = new EventLoopCloseable(eventLoopGroup);
 
-    this.eventLoopCloseable = new EventLoopCloseable(eventLoopGroup);
-    this.allocator = context.getAllocator().newChildAllocator(
-        "rpc:user",
-        context.getConfig().getLong("dremio.exec.rpc.user.server.memory.reservation"),
-        context.getConfig().getLong("dremio.exec.rpc.user.server.memory.maximum"));
-
-    this.server = new UserRPCServer(context, dbContext, worker, allocator, eventLoopGroup, impersonationManager);
+    server = newUserRPCServer(eventLoopGroup);
 
     Metrics.registerGauge("rpc.user.current", new Gauge<Long>() {
       @Override
@@ -96,6 +105,32 @@ public class UserServer implements Service {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(server, eventLoopCloseable, allocator);
+  }
+
+  protected UserRPCServer newUserRPCServer(EventLoopGroup eventLoopGroup) throws Exception {
+    return new UserRPCServer(
+        UserRpcConfig.getMapping(context.getConfig(), context.getExecutor(), Optional.empty()),
+        getDbContext(),
+        getWorker(),
+        getAllocator(),
+        eventLoopGroup,
+        null);
+  }
+
+  protected BootStrapContext getContext() {
+    return context;
+  }
+
+  protected Provider<UserWorker> getWorker() {
+    return worker;
+  }
+
+  protected Provider<SabotContext> getDbContext() {
+    return dbContext;
+  }
+
+  protected BufferAllocator getAllocator() {
+    return allocator;
   }
 
 }

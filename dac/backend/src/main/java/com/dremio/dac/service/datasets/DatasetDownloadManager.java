@@ -41,6 +41,7 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
+import com.dremio.service.namespace.NamespaceService;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
@@ -61,11 +62,13 @@ public class DatasetDownloadManager {
   );
 
   private final JobsService jobsService;
+  private final NamespaceService namespaceService;
   private final FileSystem fs;
   private final Path storageLocation;
 
-  public DatasetDownloadManager(JobsService jobsService, Path storageLocation, FileSystem fs) {
+  public DatasetDownloadManager(JobsService jobsService, NamespaceService namespaceService, Path storageLocation, FileSystem fs) {
     this.jobsService = jobsService;
+    this.namespaceService = namespaceService;
     this.storageLocation = storageLocation;
     this.fs = fs;
   }
@@ -87,7 +90,7 @@ public class DatasetDownloadManager {
                               String userName) throws IOException {
     final DatasetUI datasetUI;
     try {
-      datasetUI = DatasetUI.newInstance(virtualDatasetUI, null);
+      datasetUI = DatasetUI.newInstance(virtualDatasetUI, null, namespaceService);
     } catch (NamespaceException ex) {
       // This should never happen. TODO: only reason we create the DatasetUI is to get the resolved path of the dataset.
       // Should move the logic of resolving the dataset path to a common method.
@@ -99,9 +102,9 @@ public class DatasetDownloadManager {
 
     final String selectQuery;
     if (limit != -1) {
-      selectQuery = format("SELECT * FROM (%s) LIMIT %d", virtualDatasetUI.getSql(), limit);
+      selectQuery = format("SELECT * FROM (\n%s\n) LIMIT %d", virtualDatasetUI.getSql(), limit);
     } else {
-      selectQuery = virtualDatasetUI.getSql();
+      selectQuery = format("\n%s\n", virtualDatasetUI.getSql());
     }
 
     String ctasSql = format("CREATE TABLE %s.%s STORE AS (%s) WITH SINGLE WRITER AS %s",

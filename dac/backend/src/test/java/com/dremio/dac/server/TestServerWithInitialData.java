@@ -42,6 +42,7 @@ import com.dremio.dac.explore.model.extract.ExtractCards;
 import com.dremio.dac.explore.model.extract.Selection;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.sources.SourceUI;
+import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.model.spaces.Spaces;
 import com.dremio.dac.proto.model.dataset.ConvertCase;
@@ -61,6 +62,7 @@ import com.dremio.dac.proto.model.dataset.TrimType;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.job.proto.JobState;
 import com.google.common.collect.Lists;
@@ -448,6 +450,7 @@ public class TestServerWithInitialData extends BaseTestServer {
     SourceUI source = new SourceUI();
     source.setName("testNAS");
     source.setConfig(nas);
+    source.setMetadataPolicy(UIMetadataPolicy.of(CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE));
     final SourceService sourceService = newSourceService();
     sourceService.registerSourceWithRuntime(source);
 

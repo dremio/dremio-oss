@@ -29,7 +29,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
-import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -45,6 +44,7 @@ import com.dremio.dac.support.SupportResponse;
 import com.dremio.dac.support.SupportService;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import com.google.common.io.Resources;
@@ -57,12 +57,12 @@ public class TestSupportService extends BaseTestServer {
   @ClassRule
   public static final TemporaryFolder temp = new TemporaryFolder();
 
-  private static String oldLogPath;
+  @ClassRule
+  public static final TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @BeforeClass
   public static void init() throws Exception {
     // set the log path so we can read logs and confirm that is working.
-    oldLogPath = System.getProperty(SupportService.DREMIO_LOG_PATH_PROPERTY);
     final File jsonFolder = temp.newFolder("json");
     jsonFolder.mkdir();
     Files.copy(new File(Resources.getResource("support/server.json").getPath()), new File(jsonFolder, "server.json"));
@@ -70,15 +70,6 @@ public class TestSupportService extends BaseTestServer {
 
     // now start server.
     BaseTestServer.init();
-  }
-
-  @AfterClass
-  public static void teardown(){
-    // revert log path.
-    if(oldLogPath != null){
-      System.setProperty(SupportService.DREMIO_LOG_PATH_PROPERTY, oldLogPath);
-    }
-
   }
 
   @Test

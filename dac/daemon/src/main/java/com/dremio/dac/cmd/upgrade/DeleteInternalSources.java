@@ -26,12 +26,12 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
  */
 public class DeleteInternalSources extends UpgradeTask {
   public DeleteInternalSources() {
-    super("Deleting internal sources", VERSION_106, VERSION_150);
+    super("Deleting internal sources", VERSION_106, VERSION_150, NORMAL_ORDER + 6);
   }
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider().get());
+    final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider());
 
     List<SourceConfig> sources = namespaceService.getSources();
 

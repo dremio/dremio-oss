@@ -30,7 +30,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.dac.server.BaseTestServer;
-import com.dremio.dac.service.collaboration.CollaborationService;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.collaboration.Tags;
 import com.dremio.dac.service.collaboration.Wiki;
 import com.dremio.service.namespace.NamespaceException;
@@ -58,12 +58,12 @@ public class TestCollaborationResource extends BaseTestServer {
     // no tags initially, so expect a 404
     expectStatus(NOT_FOUND, getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildGet());
 
-    CollaborationService collaborationService = l(CollaborationService.class);
+    CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
 
     List<String> tagList = Arrays.asList("tag1", "tag2");
 
     Tags newTags = new Tags(tagList, null);
-    collaborationService.setTags(dataset.getId().getId(), newTags);
+    collaborationHelper.setTags(dataset.getId().getId(), newTags);
 
     // tags exist now
     Tags tags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildGet(), Tags.class);
@@ -85,10 +85,7 @@ public class TestCollaborationResource extends BaseTestServer {
     List<String> tagList = Arrays.asList("tag1", "tag2");
     Tags newTags = new Tags(tagList, null);
 
-    expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildPost(Entity.json(newTags)));
-
-    // verify tags were set correctly
-    Tags tags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildGet(), Tags.class);
+    Tags tags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildPost(Entity.json(newTags)), Tags.class);
     assertEquals(tags.getTags().size(), 2);
     assertTrue(tags.getTags().containsAll(tagList));
     assertEquals(tags.getVersion().longValue(), 0L);
@@ -96,10 +93,9 @@ public class TestCollaborationResource extends BaseTestServer {
     // test update of existing tags
     tagList = Arrays.asList("tag1", "tag3");
     newTags = new Tags(tagList, tags.getVersion());
-    expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildPost(Entity.json(newTags)));
+    tags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildPost(Entity.json(newTags)), Tags.class);
 
     // verify the new tags
-    tags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildGet(), Tags.class);
     assertEquals(tags.getTags().size(), 2);
     assertTrue(tags.getTags().containsAll(tagList));
     assertEquals(tags.getVersion().longValue(), 1L);
@@ -107,10 +103,9 @@ public class TestCollaborationResource extends BaseTestServer {
     // clear out tags
     tagList = Arrays.asList();
     newTags = new Tags(tagList, tags.getVersion());
-    expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildPost(Entity.json(newTags)));
+    tags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildPost(Entity.json(newTags)), Tags.class);
 
     // verify the new tags are empty
-    tags = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("tag")).buildGet(), Tags.class);
     assertEquals(tags.getTags().size(), 0);
 
     // cleanup space
@@ -170,10 +165,10 @@ public class TestCollaborationResource extends BaseTestServer {
     // no tags initially, so expect a 404
     expectStatus(NOT_FOUND, getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildGet());
 
-    CollaborationService collaborationService = l(CollaborationService.class);
+    CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
 
     Wiki newWiki = new Wiki("sample wiki text", null);
-    collaborationService.setWiki(dataset.getId().getId(), newWiki);
+    collaborationHelper.setWiki(dataset.getId().getId(), newWiki);
 
     // tags exist now
     Wiki wiki = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildGet(), Wiki.class);
@@ -193,9 +188,7 @@ public class TestCollaborationResource extends BaseTestServer {
 
     // create wiki
     Wiki newWiki = new Wiki("sample wiki text", null);
-    expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildPost(Entity.json(newWiki)));
-
-    Wiki wiki = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildGet(), Wiki.class);
+    Wiki wiki = expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(dataset.getId().getId()).path("collaboration").path("wiki")).buildPost(Entity.json(newWiki)), Wiki.class);
     assertEquals(wiki.getText(), newWiki.getText());
     assertEquals(wiki.getVersion().longValue(), 0L);
 

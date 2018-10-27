@@ -29,6 +29,7 @@ import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -38,11 +39,13 @@ import com.dremio.exec.work.EndpointListener;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.foreman.ForemanException;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
+import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import com.google.protobuf.ByteString;
 
 import io.netty.buffer.ByteBuf;
 
@@ -57,9 +60,12 @@ class FragmentStarter {
 
   private final DeferredException exception = new DeferredException();
   private final CoordToExecTunnelCreator tunnelCreator;
+  private final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo;
 
-  public FragmentStarter(CoordToExecTunnelCreator tunnelCreator) {
+  public FragmentStarter(CoordToExecTunnelCreator tunnelCreator,
+                         ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
     this.tunnelCreator = tunnelCreator;
+    this.resourceSchedulingDecisionInfo = resourceSchedulingDecisionInfo;
   }
 
   public void start(ExecutionPlan plan, AttemptObserver observer) throws Exception {
@@ -195,6 +201,17 @@ class FragmentStarter {
     final InitializeFragments.Builder fb = InitializeFragments.newBuilder();
     for(final PlanFragment planFragment : fragments) {
       fb.addFragment(planFragment);
+    }
+    if (resourceSchedulingDecisionInfo != null && resourceSchedulingDecisionInfo.getQueueId() != null) {
+      CoordExecRPC.SchedulingInfo.Builder schedulingInfo =
+        CoordExecRPC.SchedulingInfo.newBuilder().setQueueId(resourceSchedulingDecisionInfo.getQueueId());
+      if (resourceSchedulingDecisionInfo.getWorkloadClass() != null) {
+        schedulingInfo.setWorkloadClass(resourceSchedulingDecisionInfo.getWorkloadClass());
+      }
+      if (resourceSchedulingDecisionInfo.getExtraInfo() != null) {
+        schedulingInfo.setAdditionalInfo(ByteString.copyFrom(resourceSchedulingDecisionInfo.getExtraInfo()));
+      }
+      fb.setSchedulingInfo(schedulingInfo);
     }
     final InitializeFragments initFrags = fb.build();
 

@@ -334,25 +334,25 @@ final class TextInput {
         }
       }
       // a new line
-    } else if (byteChar == newLine) {
-      // a new line
-    } else {
-      return byteChar;
-    }
 
-    lineCount++;
-    byteChar = normalizedLineSeparator;
+      lineCount++;
+      byteChar = normalizedLineSeparator;
 
-    // we don't need to update buffer position if line separator is one byte long
-    if (lineSeparator.length > 1) {
-      bufferPtr += (lineSeparator.length - 1);
-      if (bufferPtr >= length) {
-        if (length != -1) {
-          updateBuffer();
-        } else {
-          throw StreamFinishedPseudoException.INSTANCE;
+      // we don't need to update buffer position if line separator is one byte long
+      if (lineSeparator.length > 1) {
+        bufferPtr += (lineSeparator.length - 1);
+        if (bufferPtr >= length) {
+          if (length != -1) {
+            updateBuffer();
+          } else {
+            throw StreamFinishedPseudoException.INSTANCE;
+          }
         }
       }
+    } else if (byteChar == newLine) {
+      // a new line
+      lineCount++;
+      byteChar = normalizedLineSeparator;
     }
 
     return byteChar;

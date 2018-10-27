@@ -30,6 +30,7 @@ import { injectIntl, FormattedMessage } from 'react-intl';
 
 import { BORDER_TABLE } from 'uiTheme/radium/colors';
 import SqlEditor from 'components/SQLEditor.js';
+import { getQueueName } from 'dyn-load/pages/JobPage/components/JobDetails/OverviewContentUtil';
 
 import Quote from './Quote';
 import ListItem from './ListItem';
@@ -143,6 +144,7 @@ class OverviewContent extends Component {
   renderJobSummary(jobDetails, intl) {
     const endTime = jobsUtils.getFinishTime(jobDetails.get('state'), jobDetails.get('endTime'));
     const jobId = jobDetails.get('jobId').get('id');
+    const queueName = getQueueName(jobDetails);
     const jobIdUrl = jobsUtils.navigationURLForJobId(jobId, true);
 
     return (
@@ -165,6 +167,9 @@ class OverviewContent extends Component {
           <ListItem label={intl.formatMessage({ id: 'Common.User' })}>
             <span>{jobDetails.get('user')}</span>
           </ListItem>
+          {queueName && <ListItem label={intl.formatMessage({ id: 'Common.Queue' })}>
+            <span>{queueName}</span>
+          </ListItem>}
           <ListItem label={intl.formatMessage({ id: 'Job.JobID' })} style={{position: 'relative'}}>
             <span style={styles.jobId}>
               {jobId}

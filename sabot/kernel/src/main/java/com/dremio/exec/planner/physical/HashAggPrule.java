@@ -15,18 +15,12 @@
  */
 package com.dremio.exec.planner.physical;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
@@ -46,7 +40,7 @@ public class HashAggPrule extends AggPruleBase {
   @Override
   public boolean matches(RelOptRuleCall call) {
     PlannerSettings settings = PrelUtil.getPlannerSettings(call.getPlanner());
-    return settings.isMemoryEstimationEnabled() || settings.isHashAggEnabled();
+    return settings.isHashAggEnabled();
   }
 
   @Override

@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.arrow.memory.AllocationListener;
+import org.apache.arrow.memory.AllocationOutcome;
 import org.apache.arrow.memory.BaseAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
@@ -35,19 +36,19 @@ import io.netty.buffer.ArrowBuf;
 public class DremioRootAllocator extends RootAllocator {
   private final ConcurrentMap<String, BufferAllocator> children;
 
-  public DremioRootAllocator(final long limit) {
-    super(limit);
-    children = new ConcurrentHashMap<>();
+  public static DremioRootAllocator create(final long limit) {
+    RootAllocatorListener listener = new RootAllocatorListener();
+    DremioRootAllocator rootAllocator = new DremioRootAllocator(listener, limit);
+    listener.setRootAllocator(rootAllocator);
+    return rootAllocator;
   }
 
-  @Override
-  public BufferAllocator newChildAllocator(final String name, final AllocationListener listener,
-                                           final long initReservation, final long maxAllocation) {
-    //TODO: after ARROW-2165 is implemented, replace override of newChildAllocator() with a AllocatorListener listening
-    //TODO: for additions and removals of children
-    BufferAllocator childAllocator = super.newChildAllocator(name, listener, initReservation, maxAllocation);
-    children.put(name, childAllocator);
-    return childAllocator;
+  /**
+   * Constructor, hidden from public use. Use {@link #create(long)} instead
+   */
+  private DremioRootAllocator(final AllocationListener listener, final long limit) {
+    super(listener, limit);
+    children = new ConcurrentHashMap<>();
   }
 
   /**
@@ -72,5 +73,36 @@ public class DremioRootAllocator extends RootAllocator {
   @Override
   public ArrowBuf buffer(final int initialRequestSize, BufferManager manager) {
     throw new UnsupportedOperationException("Dremio's root allocator should not be used for direct allocations");
+  }
+
+  private static class RootAllocatorListener implements AllocationListener {
+    DremioRootAllocator rootAllocator;
+
+    void setRootAllocator(DremioRootAllocator rootAllocator) {
+      this.rootAllocator = rootAllocator;
+    }
+
+    @Override
+    public void onAllocation(long size) {
+    }
+
+    @Override
+    public boolean onFailedAllocation(long size, AllocationOutcome outcome) {
+      return false;
+    }
+
+    @Override
+    public void onChildAdded(BufferAllocator parentAllocator, BufferAllocator childAllocator) {
+      if (parentAllocator == rootAllocator) { // Note: Intentional reference equality
+        rootAllocator.children.put(childAllocator.getName(), childAllocator);
+      }
+    }
+
+    @Override
+    public void onChildRemoved(BufferAllocator parentAllocator, BufferAllocator childAllocator) {
+      if (parentAllocator == rootAllocator) { // Note: Intentional reference equality
+        rootAllocator.children.remove(childAllocator.getName(), childAllocator);
+      }
+    }
   }
 }

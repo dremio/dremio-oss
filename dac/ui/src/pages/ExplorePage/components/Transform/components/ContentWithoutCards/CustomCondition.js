@@ -48,8 +48,9 @@ export default class CustomCondition extends Component {
           onChange={this.onChange}
           style={styles.addFieldEditor}
           tooltip={la('Write an expression that evaluates to TRUE or FALSE.')}
+          //todo DX-12762
           blockHeight={140}
-          sqlHeight={180}
+          sqlHeight={142}
           functionPaneHeight={142}
           activeMode
           dragType='help-func'/>

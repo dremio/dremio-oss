@@ -22,6 +22,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.dac.model.usergroup.UserName;
 import com.dremio.dac.server.DACSecurityContext;
 import com.dremio.dac.server.test.SampleDataPopulator;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
@@ -48,6 +49,7 @@ public class SampleDataPopulatorService implements Service {
   private final Provider<CatalogService> catalogService;
   private final Provider<ReflectionServiceHelper> reflectionHelper;
   private final Provider<ConnectionReader> connectionReader;
+  private final Provider<CollaborationHelper> collaborationService;
 
   private SampleDataPopulator sample;
 
@@ -62,7 +64,9 @@ public class SampleDataPopulatorService implements Service {
     Provider<JobsService> jobsService,
     Provider<CatalogService> catalogService,
     Provider<ReflectionServiceHelper> reflectionHelper,
-    Provider<ConnectionReader> connectionReader, boolean prepopulate,
+    Provider<ConnectionReader> connectionReader,
+    Provider<CollaborationHelper> collaborationService,
+    boolean prepopulate,
     boolean addDefaultUser) {
     this.contextProvider = contextProvider;
     this.kvStore = kvStore;
@@ -72,6 +76,7 @@ public class SampleDataPopulatorService implements Service {
     this.catalogService = catalogService;
     this.reflectionHelper = reflectionHelper;
     this.connectionReader = connectionReader;
+    this.collaborationService = collaborationService;
     this.prepopulate = prepopulate;
     this.addDefaultUser = addDefaultUser;
   }
@@ -89,7 +94,7 @@ public class SampleDataPopulatorService implements Service {
       final DatasetVersionMutator data = new DatasetVersionMutator(init.get(), kv, ns, jobsService.get(),
         catalogService.get());
       SecurityContext context = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
-      final SourceService ss = new SourceService(ns, data, catalogService.get(), reflectionHelper.get(), connectionReader.get(), context);
+      final SourceService ss = new SourceService(ns, data, catalogService.get(), reflectionHelper.get(), collaborationService.get(), connectionReader.get(), context);
       sample = new SampleDataPopulator(
           contextProvider.get(),
           ss,

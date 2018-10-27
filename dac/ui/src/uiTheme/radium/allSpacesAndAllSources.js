@@ -23,12 +23,13 @@ export const height = {
   height: '100%'
 };
 
+export const headerRightPadding = 5;
 export const header = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
   height: 38,
-  padding: '0 5px 0 10px',
+  padding: `0 ${headerRightPadding}px 0 10px`,
   flexShrink: 0,
   background: PALE_NAVY
 };

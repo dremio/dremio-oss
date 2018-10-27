@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
@@ -83,6 +84,7 @@ import com.dremio.exec.rpc.RpcConnectionHandler;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.exec.rpc.TransportCheck;
+import com.dremio.exec.rpc.ssl.SSLConfig;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserClient;
 import com.dremio.sabot.rpc.user.UserResultsListener;
@@ -97,6 +99,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.AbstractCheckedFuture;
 import com.google.common.util.concurrent.SettableFuture;
 
@@ -112,6 +115,16 @@ public class DremioClient implements Closeable, ConnectionThrottle {
 
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
+  // lower case properties that should not be sent to the server
+  private static final ImmutableSet<String> CLIENT_ONLY_PROPERTIES =
+      ImmutableSet.<String>builder()
+          .add(SSLConfig.TRUST_STORE_PASSWORD.toLowerCase(Locale.ROOT))
+          .add(SSLConfig.TRUST_STORE_PATH.toLowerCase(Locale.ROOT))
+          .add(SSLConfig.TRUST_STORE_TYPE.toLowerCase(Locale.ROOT))
+          .add(SSLConfig.DISABLE_CERT_VERIFICATION.toLowerCase(Locale.ROOT))
+          .add(SSLConfig.DISABLE_HOST_VERIFICATION.toLowerCase(Locale.ROOT))
+          .add(SSLConfig.ENABLE_SSL.toLowerCase(Locale.ROOT))
+          .build();
 
   // A wrapper class which ignore calls to close()
   private static class ClusterCoordinatorWrapper extends ClusterCoordinator {
@@ -309,7 +322,14 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     if (props != null) {
       final UserProperties.Builder upBuilder = UserProperties.newBuilder();
       for (final String key : props.stringPropertyNames()) {
-        upBuilder.addProperties(Property.newBuilder().setKey(key).setValue(props.getProperty(key)));
+        if (CLIENT_ONLY_PROPERTIES.contains(key.toLowerCase(Locale.ROOT))) {
+          continue;
+        }
+
+        upBuilder.addProperties(
+            Property.newBuilder()
+                .setKey(key)
+                .setValue(props.getProperty(key)));
       }
 
       this.props = upBuilder.build();
@@ -327,7 +347,8 @@ public class DremioClient implements Closeable, ConnectionThrottle {
         super.afterExecute(r, t);
       }
     };
-    client = new UserClient(clientName, config, supportComplexTypes, connectionAllocator, eventLoopGroup, executor);
+    client = new UserClient(clientName, config, supportComplexTypes, connectionAllocator, eventLoopGroup, executor,
+        SSLConfig.of(props));
     logger.debug("Connecting to server {}:{}", endpoint.getAddress(), endpoint.getUserPort());
     connect(endpoint);
     connected = true;

@@ -97,6 +97,7 @@ import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.SabotContext;
@@ -229,6 +230,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
   private static DACDaemon masterDremioDaemon;
   private static Binder dremioBinder;
   private static SampleDataPopulator populator;
+  private static boolean executorDaemonClosed = false;
 
   public static void setClient(Client client) {
     BaseTestServer.client = client;
@@ -304,7 +306,8 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected static void initClient() {
     ObjectMapper objectMapper = JSONUtil.prettyMapper();
-    JSONUtil.registerStorageTypes(objectMapper, DremioTest.CLASSPATH_SCAN_RESULT);
+    JSONUtil.registerStorageTypes(objectMapper, DremioTest.CLASSPATH_SCAN_RESULT,
+      ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG));
     objectMapper.registerModule(
         new SimpleModule()
             .addDeserializer(JobDataFragment.class,
@@ -425,6 +428,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
               DremioTest.CLASSPATH_SCAN_RESULT,
           dacModule
           );
+      executorDaemonClosed = false;
       executorDaemon.init();
 
       initClient();
@@ -492,6 +496,14 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return dremioBinder.provider(clazz);
   }
 
+  protected static <T> Provider<T> pMaster(Class<T> clazz) {
+    if (masterDremioDaemon != null) {
+      return masterDremioDaemon.getBindingProvider().provider(clazz);
+    }
+
+    return p(clazz);
+  }
+
   protected void deleteSource(String name) {
     ((CatalogServiceImpl)l(CatalogService.class)).deleteSource(name);
   }
@@ -531,6 +543,13 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return dremioBinder;
   }
 
+  protected static void closeExecutorDaemon() throws Exception {
+    if (!executorDaemonClosed) {
+      executorDaemon.close();
+      executorDaemonClosed = true;
+    }
+  }
+
   @AfterClass
   public static void close() throws Exception {
     try (TimedBlock b = Timer.time("BaseTestServer.@AfterClass")) {
@@ -555,7 +574,8 @@ public abstract class BaseTestServer extends BaseClientUtils {
               }
             }
           },
-          executorDaemon, currentDremioDaemon, masterDremioDaemon, populator);
+        (executorDaemonClosed ? null : executorDaemon), currentDremioDaemon, masterDremioDaemon, populator);
+      executorDaemonClosed = true;
       dremioClient = null;
     }
   }
@@ -618,7 +638,8 @@ public abstract class BaseTestServer extends BaseClientUtils {
   public static void clearAllDataExceptUser() throws IOException, NamespaceException {
     @SuppressWarnings("resource")
     DACDaemon daemon = isMultinode() ? getMasterDremioDaemon() : getCurrentDremioDaemon();
-    TestUtilities.clear(daemon.getBindingProvider().lookup(CatalogService.class), daemon.getBindingProvider().lookup(KVStoreProvider.class), ImmutableList.of(SimpleUserService.USER_STORE), ImmutableList.of("cp"));
+    TestUtilities.clear(daemon.getBindingProvider().lookup(CatalogService.class), daemon.getBindingProvider().lookup(KVStoreProvider.class),
+      ImmutableList.of(SimpleUserService.USER_STORE), ImmutableList.of("cp"));
     if(isMultinode()) {
       ((CatalogServiceImpl)getCurrentDremioDaemon().getBindingProvider().lookup(CatalogService.class)).synchronizeSources();
     }

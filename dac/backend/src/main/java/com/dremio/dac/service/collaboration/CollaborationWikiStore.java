@@ -65,6 +65,14 @@ public class CollaborationWikiStore {
     wikiStore.get().put(wiki.getId(), wiki);
   }
 
+  public Iterable<Map.Entry<String, CollaborationWiki>> find() {
+    return wikiStore.get().find();
+  }
+
+  public void delete(String id) {
+    wikiStore.get().delete(id);
+  }
+
   private void validateWiki(CollaborationWiki wiki) {
     if (wiki.getEntityId() == null) {
       throw UserException.validationError()

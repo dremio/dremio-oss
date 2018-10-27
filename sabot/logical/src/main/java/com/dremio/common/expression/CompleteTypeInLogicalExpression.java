@@ -24,9 +24,27 @@ import com.dremio.common.expression.visitors.ExprVisitor;
  */
 public class CompleteTypeInLogicalExpression implements LogicalExpression {
   private CompleteType type;
+  private final EvaluationType evaluationType;
 
   public CompleteTypeInLogicalExpression(CompleteType type) {
     this.type = type;
+    this.evaluationType = new EvaluationType();
+    addEvaluationType(EvaluationType.ExecutionType.JAVA);
+  }
+
+  @Override
+  public boolean isEvaluationTypeSupported(EvaluationType.ExecutionType executionType) {
+    return evaluationType.isEvaluationTypeSupported(executionType);
+  }
+
+  @Override
+  public void addEvaluationType(EvaluationType.ExecutionType executionType) {
+    evaluationType.addEvaluationType(executionType);
+  }
+
+  @Override
+  public EvaluationType getEvaluationType() {
+    return evaluationType;
   }
 
   @Override

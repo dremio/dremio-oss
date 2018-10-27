@@ -17,14 +17,25 @@
  @import "~@app/uiTheme/less/color-schema.less";
  @import "~@app/uiTheme/less/mixins.less";
 
- @horizontal-padding: 5px; // should be >= @_margin value below
- @vertical-padding: 3px;
+ @horizontal-padding: 8px; // should be >= @_margin value below
+ @vertical-padding: 8px;
  @_margin: 5px;
  @cursor-width: 1px;
  @border-width: 1px;
 
-.container {
+.common {
   composes: border-radius-default from '@app/uiTheme/less/layout.less';
+
+  border: @border-width solid @TABLE_BORDER;
+  min-height: @form-row-height-default;
+  outline: none;
+  background: white;
+  min-height: 42px;
+}
+
+.container {
+  composes: common;
+
   display: inline-flex;
   flex-wrap: wrap;
   // top padding is not applied, as it would be applied to .item. This is needed to make things look good for multiline case
@@ -33,10 +44,6 @@
 
   padding-left: @horizontal-padding - @_margin; // this is needed, as I put a placeholder before each tag. This placeholder has @_margin width
   padding-right: @horizontal-padding;
-  border: @border-width solid @TABLE_BORDER;
-  min-height: @form-row-height-default;
-  outline: none;
-  background: white;
 }
 
 .item {
@@ -44,7 +51,6 @@
 }
 
 .cursor-placeholder {
-  composes: item;
   composes: row-of-inputs from '@app/uiTheme/less/forms.less';
   width: @_margin;
   justify-content: center;
@@ -106,4 +112,22 @@
   50% {
     opacity: 1;
   }
+}
+
+//read only mode styles -----------------------------
+
+.tags-view {
+  composes: common;
+  .grid-mixin();
+
+  display: inline-block;
+  padding: @vertical-padding @horizontal-padding;
+}
+
+.tags-view-line {
+  .row-mixin(@_margin, @vertical-padding);
+}
+
+.tag-view-item {
+  .cell-mixin(@_margin, @vertical-padding);
 }

@@ -46,7 +46,6 @@ startStopStatus=$1
 shift
 
 command=dremio
-shift
 
 wait_for_process_end() {
   pidKilled=$1
@@ -91,23 +90,22 @@ dremio_internal_start() {
     dremio_rotate_log $loggc
 
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS ${SERVER_GC_OPTS}"
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.log.path=${logpath}"
+    [ $LOG_TO_CONSOLE == "0" ] &&  DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.log.path=${DREMIO_LOG_DIR}"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB}m"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB}m"
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${logpath}"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${DREMIO_LOG_DIR}"
     # netty options
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Dio.netty.maxDirectMemory=0"
     # MapRFS specific options
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -DMAPR_IMPALA_RA_THROTTLE -DMAPR_MAX_RA_STREAMS=${MAPR_MAX_RA_STREAMS:-400}"
     # User options
-    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_SERVER_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_SERVER_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS "
 
     # Add to the command log file vital stats on our environment.
     echo "`date` Starting $command on `hostname`" >> $logout
     echo "`ulimit -a`" >> $logout 2>&1
     echo $$ > "$pid"
-    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon \
-        $command "$@" start >> "$logout" 2>&1
+    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon 
 }
 
 check_before_start() {
@@ -151,13 +149,14 @@ if [ "$JAVA_HOME" = "" ]; then
   exit 1
 fi
 
-# The directory where logback should store logs
-logpath="${DREMIO_LOG_DIR}"
 # The JVM GC logs
 loggc="${DREMIO_LOG_DIR}/server.gc"
 # stdout messages
 logout="${DREMIO_LOG_DIR}/server.out"
 pid="$DREMIO_PID_DIR/dremio.pid"
+
+# To log to console only, set LOG_TO_CONSOLE=1
+export LOG_TO_CONSOLE=0
 
 DREMIO_GC_LOGS_ENABLED=${DREMIO_GC_LOGS_ENABLED:-"yes"}
 if [ "$DREMIO_GC_LOGS_ENABLED" != "no" ]; then
@@ -179,18 +178,19 @@ case $startStopStatus in
 (start)
     check_before_start
     echo starting $command, logging to $logout
-    nohup $thiscmd internal_start $command $args < /dev/null >> ${logout} 2>&1  &
+    nohup $thiscmd internal_start $args < /dev/null >> ${logout} 2>&1  &
     sleep 1;
   ;;
 
 (start-fg)
     check_before_start
-    echo starting $command, logging to $logout
-    dremio_internal_start $command $args < /dev/null >> ${logout} 2>&1
+    echo starting $command
+    export LOG_TO_CONSOLE=1
+    dremio_internal_start $args
   ;;
 
 (internal_start)
-    dremio_internal_start 
+    dremio_internal_start $args
   ;;
 
 (stop)

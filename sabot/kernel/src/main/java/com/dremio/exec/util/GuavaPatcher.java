@@ -27,7 +27,7 @@ import javassist.LoaderClassPath;
 public class GuavaPatcher {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(GuavaPatcher.class);
 
-  private static boolean patched;
+  private static volatile boolean patched;
 
   public static synchronized void patch() {
     if (!patched) {

@@ -96,7 +96,7 @@ public class WriterOperator implements SingleInputOperator {
   public VectorAccessible setup(VectorAccessible incoming) throws Exception {
     state.is(State.NEEDS_SETUP);
 
-    if(options.hasPartitions()){
+    if(options.hasPartitions() || options.hasDistributions()){
       partitionManager = new PartitionWriteManager(options, incoming);
       this.maskedContainer = partitionManager.getMaskedContainer();
       recordWriter.setup(maskedContainer, listener, statsListener);
@@ -122,7 +122,7 @@ public class WriterOperator implements SingleInputOperator {
     state.is(State.CAN_CONSUME);
 
     // no partitions.
-    if(!options.hasPartitions()){
+    if(!options.hasPartitions() && !options.hasDistributions()){
       if(partition == null){
         partition = WritePartition.NONE;
         recordWriter.startPartition(partition);
@@ -250,6 +250,7 @@ public class WriterOperator implements SingleInputOperator {
   }
 
   private class StatsListener implements WriteStatsListener {
+    @Override
     public void bytesWritten(long byteCount) {
       stats.addLongStat(Metric.BYTES_WRITTEN, byteCount);
     }

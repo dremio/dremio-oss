@@ -33,6 +33,7 @@ import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.UpdateMode;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Manages metadata for sources and datasets under these sources.
@@ -45,8 +46,11 @@ public interface CatalogService extends AutoCloseable, Service {
   long DEFAULT_AUTHTTLS_MILLIS = TimeUnit.MILLISECONDS.convert(1, TimeUnit.DAYS);
   long CENTURY_MILLIS = TimeUnit.DAYS.toMillis(365 * 100);
 
+  @VisibleForTesting
   MetadataPolicy REFRESH_EVERYTHING_NOW = new MetadataPolicy()
     .setAuthTtlMs(0l)
+    .setDeleteUnavailableDatasets(true)
+    .setAutoPromoteDatasets(DatasetRetrievalOptions.DEFAULT_AUTO_PROMOTE)
     .setDatasetUpdateMode(UpdateMode.PREFETCH)
     .setNamesRefreshMs(0l)
     .setDatasetDefinitionRefreshAfterMs(0l)
@@ -54,17 +58,40 @@ public interface CatalogService extends AutoCloseable, Service {
 
   MetadataPolicy DEFAULT_METADATA_POLICY = new MetadataPolicy()
     .setAuthTtlMs(DEFAULT_AUTHTTLS_MILLIS)
+    .setDeleteUnavailableDatasets(true)
+    .setAutoPromoteDatasets(DatasetRetrievalOptions.DEFAULT_AUTO_PROMOTE)
     .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
     .setNamesRefreshMs(DEFAULT_REFRESH_MILLIS)
     .setDatasetDefinitionRefreshAfterMs(DEFAULT_REFRESH_MILLIS)
     .setDatasetDefinitionExpireAfterMs(DEFAULT_EXPIRE_MILLIS);
 
+  @VisibleForTesting
+  MetadataPolicy DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE = new MetadataPolicy()
+      .setAuthTtlMs(DEFAULT_AUTHTTLS_MILLIS)
+      .setDeleteUnavailableDatasets(true)
+      .setAutoPromoteDatasets(true)
+      .setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED)
+      .setNamesRefreshMs(DEFAULT_REFRESH_MILLIS)
+      .setDatasetDefinitionRefreshAfterMs(DEFAULT_REFRESH_MILLIS)
+      .setDatasetDefinitionExpireAfterMs(DEFAULT_EXPIRE_MILLIS);
+
   MetadataPolicy NEVER_REFRESH_POLICY = new MetadataPolicy()
     .setAuthTtlMs(CENTURY_MILLIS)
+    .setDeleteUnavailableDatasets(true)
+    .setAutoPromoteDatasets(DatasetRetrievalOptions.DEFAULT_AUTO_PROMOTE)
     .setDatasetUpdateMode(UpdateMode.PREFETCH)
     .setNamesRefreshMs(CENTURY_MILLIS)
     .setDatasetDefinitionRefreshAfterMs(CENTURY_MILLIS)
     .setDatasetDefinitionExpireAfterMs(CENTURY_MILLIS);
+
+  MetadataPolicy NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE = new MetadataPolicy()
+      .setAuthTtlMs(CENTURY_MILLIS)
+      .setDeleteUnavailableDatasets(true)
+      .setAutoPromoteDatasets(true)
+      .setDatasetUpdateMode(UpdateMode.PREFETCH)
+      .setNamesRefreshMs(CENTURY_MILLIS)
+      .setDatasetDefinitionRefreshAfterMs(CENTURY_MILLIS)
+      .setDatasetDefinitionExpireAfterMs(CENTURY_MILLIS);
 
   /**
    * Create the provided source if a source by the provided name doesn't already exist.

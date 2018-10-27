@@ -48,7 +48,7 @@ public class NoOpJobStatusListener implements JobStatusListener {
   }
 
   @Override
-  public void jobCancelled() {
+  public void jobCancelled(String reason) {
   }
 
 }

@@ -19,17 +19,17 @@ export function updateSqlPartSize(size) {
   return { type: SET_SQL_EDITOR_SIZE, size };
 }
 
-export const  RESET_GRID_COLUMNS_WIDTH = 'RESET_GRID_COLUMNS_WIDTH';
-
-export function resetGridColumnWidth(tableName = 'default') {
-  return {type: RESET_GRID_COLUMNS_WIDTH, tableName};
-}
-
 export const  TOGGLE_EXPLORE_SQL = 'TOGGLE_EXPLORE_SQL';
 
 export function toggleExploreSql() {
   return {type: TOGGLE_EXPLORE_SQL};
 }
+
+export const COLLAPSE_EXPLORE_SQL = 'COLLAPSE_EXPLORE_SQL';
+
+export const collapseExploreSql = () => {
+  return {type: COLLAPSE_EXPLORE_SQL};
+};
 
 export const  EXPAND_EXPLORE_SQL = 'EXPAND_EXPLORE_SQL';
 

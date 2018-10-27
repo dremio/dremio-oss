@@ -23,12 +23,13 @@ import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
+import com.dremio.service.spill.SpillService;
 
 public class PartitionedCollector extends AbstractDataCollector {
 
   public PartitionedCollector(SharedResourceGroup resourceGroup, Collector collector, BufferAllocator allocator, SabotConfig config, FragmentHandle handle,
-                              FragmentWorkQueue workQueue, TunnelProvider tunnelProvider) {
-    super(resourceGroup, true, collector, 1, allocator, config, handle, workQueue, tunnelProvider);
+                              FragmentWorkQueue workQueue, TunnelProvider tunnelProvider, SpillService spillService) {
+    super(resourceGroup, true, collector, 1, allocator, config, handle, workQueue, tunnelProvider, spillService);
   }
 
   @Override

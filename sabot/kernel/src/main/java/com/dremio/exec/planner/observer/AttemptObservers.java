@@ -38,6 +38,7 @@ import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
 /**
  * Collection of observers.
@@ -237,6 +238,13 @@ public class AttemptObservers implements AttemptObserver {
   public void leafFragmentScheduling(long millisTaken) {
     for (final AttemptObserver observer : observers) {
       observer.leafFragmentScheduling(millisTaken);
+    }
+  }
+
+  @Override
+  public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
+    for (final AttemptObserver observer : observers) {
+      observer.resourcesScheduled(resourceSchedulingDecisionInfo);
     }
   }
 

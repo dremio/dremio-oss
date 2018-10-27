@@ -15,6 +15,9 @@
  */
 package com.dremio.exec;
 
+import java.util.concurrent.TimeUnit;
+
+import com.dremio.common.expression.EvaluationType;
 import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionValidator;
@@ -30,6 +33,7 @@ import com.dremio.options.TypeValidators.RangeDoubleValidator;
 import com.dremio.options.TypeValidators.RangeLongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
 import com.dremio.sabot.op.common.hashtable.HashTable;
+import com.dremio.service.spill.DefaultSpillServiceOptions;
 
 @Options
 public interface ExecConstants {
@@ -56,10 +60,23 @@ public interface ExecConstants {
   String HTTP_ENABLE = "dremio.exec.http.enabled";
 
   /** Spill disk space configurations */
-  PositiveLongValidator SPILL_DISK_SPACE_CHECK_INTERVAL = new PositiveLongValidator("dremio.exec.spill.check.interval", Integer.MAX_VALUE, 60*1000);
-  PositiveLongValidator SPILL_DISK_SPACE_CHECK_SPILLS = new PositiveLongValidator("dremio.exec.spill.check.spills", Integer.MAX_VALUE, 1);
-  PositiveLongValidator SPILL_DISK_SPACE_LIMIT_BYTES = new PositiveLongValidator("dremio.exec.spill.limit.bytes", Integer.MAX_VALUE, 1024*1024*1024);
-  DoubleValidator SPILL_DISK_SPACE_LIMIT_PERCENTAGE = new RangeDoubleValidator("dremio.exec.spill.limit.percentage", 0.0, 100.0, 1.0);
+  BooleanValidator SPILL_ENABLE_HEALTH_CHECK = new BooleanValidator("dremio.exec.spill.healthcheck.enable", DefaultSpillServiceOptions.ENABLE_HEALTH_CHECK);
+  PositiveLongValidator SPILL_DISK_SPACE_CHECK_INTERVAL = new PositiveLongValidator("dremio.exec.spill.check.interval", Integer.MAX_VALUE, DefaultSpillServiceOptions.HEALTH_CHECK_INTERVAL);
+  PositiveLongValidator SPILL_DISK_SPACE_LIMIT_BYTES = new PositiveLongValidator("dremio.exec.spill.limit.bytes", Integer.MAX_VALUE, DefaultSpillServiceOptions.MIN_DISK_SPACE_BYTES);
+  DoubleValidator SPILL_DISK_SPACE_LIMIT_PERCENTAGE = new RangeDoubleValidator("dremio.exec.spill.limit.percentage", 0.0, 100.0, DefaultSpillServiceOptions.MIN_DISK_SPACE_PCT);
+  PositiveLongValidator SPILL_SWEEP_INTERVAL = new PositiveLongValidator("dremio.exec.spill.sweep.interval", Long.MAX_VALUE, DefaultSpillServiceOptions.SPILL_SWEEP_INTERVAL);
+  PositiveLongValidator SPILL_SWEEP_THRESHOLD = new PositiveLongValidator("dremio.exec.spill.sweep.threshold", Long.MAX_VALUE, DefaultSpillServiceOptions.SPILL_SWEEP_THRESHOLD);
+
+  // Set this value to set the execution preference
+  // Default value to use in the operators (for now, only projector and filter use this default)
+  String QUERY_EXEC_OPTION_KEY = "exec.preferred.codegenerator";
+  EnumValidator<EvaluationType.CodeGenOption> QUERY_EXEC_OPTION = new EnumValidator<EvaluationType.CodeGenOption>(
+    QUERY_EXEC_OPTION_KEY, EvaluationType.CodeGenOption.class, EvaluationType.CodeGenOption.DEFAULT);
+
+  // This is the execution preference used internally.
+  // NOTE: This option this cannot be changed from the UI. Instead, the projector and
+  // filter operator set this option to shadow the value for QUERY_EXEC_OPTION
+  String INTERNAL_EXEC_OPTION_KEY = "internal." + QUERY_EXEC_OPTION_KEY;
 
   // Whether or not to replace a group of ORs with a set operation.
   BooleanValidator FAST_OR_ENABLE = new BooleanValidator("exec.operator.orfast", true);
@@ -108,7 +125,7 @@ public interface ExecConstants {
   BooleanValidator DEBUG_HASHJOIN_INSERTION = new BooleanValidator("exec.operator.join.debug-insertion", false);
 
   String OUTPUT_FORMAT_OPTION = "store.format";
-  OptionValidator OUTPUT_FORMAT_VALIDATOR = new StringValidator(OUTPUT_FORMAT_OPTION, "parquet");
+  StringValidator OUTPUT_FORMAT_VALIDATOR = new StringValidator(OUTPUT_FORMAT_OPTION, "parquet");
 
   String PARQUET_BLOCK_SIZE = "store.parquet.block-size";
   LongValidator PARQUET_BLOCK_SIZE_VALIDATOR = new LongValidator(PARQUET_BLOCK_SIZE, 256*1024*1024);
@@ -204,6 +221,7 @@ public interface ExecConstants {
   // DX-6734
   BooleanValidator ACCELERATION_RAW_REMOVE_PROJECT = new BooleanValidator("accelerator.raw.remove_project", true);
   BooleanValidator ACCELERATION_ENABLE_AGG_JOIN = new BooleanValidator("accelerator.enable_agg_join", true);
+  BooleanValidator ACCELERATION_ENABLE_MULTIJOIN = new BooleanValidator("accelerator.enable_multijoin", true);
   LongValidator ACCELERATION_ORPHAN_CLEANUP_MILLISECONDS = new LongValidator("acceleration.orphan.cleanup_in_milliseconds", 14400000); //4 hours
 
   String SLICE_TARGET = "planner.slice_target";
@@ -258,17 +276,14 @@ public interface ExecConstants {
   String EARLY_LIMIT0_OPT_KEY = "planner.enable_limit0_optimization";
   BooleanValidator EARLY_LIMIT0_OPT = new BooleanValidator(EARLY_LIMIT0_OPT_KEY, false);
 
-  String ENABLE_MEMORY_ESTIMATION_KEY = "planner.memory.enable_memory_estimation";
-  OptionValidator ENABLE_MEMORY_ESTIMATION = new BooleanValidator(ENABLE_MEMORY_ESTIMATION_KEY, false);
-
   /**
-   * Maximum query memory per node (in MB). Re-plan with cheaper operators if memory estimation exceeds this limit.
-   * <p/>
-   * DEFAULT: 2048 MB
+   * A test memory limt setting
    */
-  String MAX_QUERY_MEMORY_PER_NODE_KEY = "planner.memory.max_query_memory_per_node";
-  LongValidator MAX_QUERY_MEMORY_PER_NODE = new RangeLongValidator(
-      MAX_QUERY_MEMORY_PER_NODE_KEY, 1024 * 1024, Long.MAX_VALUE, 2 * 1024 * 1024 * 1024L);
+  @Deprecated
+  LongValidator TEST_MEMORY_LIMIT =
+      new RangeLongValidator("debug.test_memory_limit", 1024 * 1024, Long.MAX_VALUE, 2 * 1024 * 1024 * 1024L);
+
+  BooleanValidator USE_NEW_MEMORY_BOUNDED_BEHAVIOR = new BooleanValidator("planner.memory.new_bounding_algo", true);
 
   /**
    * Extra query memory per node for non-blocking operators.
@@ -360,4 +375,6 @@ public interface ExecConstants {
   PositiveLongValidator EXTERNAL_SORT_BATCHSIZE_MULTIPLIER = new PositiveLongValidator("exec.operator.sort.external.batchsize_multiplier", Character.MAX_VALUE, 2);
 
   LongValidator VOTING_SCHEDULE = new PositiveLongValidator("vote.schedule.millis", Long.MAX_VALUE, 0);
+  PositiveLongValidator LAST_SEARCH_REINDEX  = new PositiveLongValidator("dac.search.last_reindex",  Long.MAX_VALUE, 0);
+  PositiveLongValidator SEARCH_MANAGER_REFRESH_MILLIS  = new PositiveLongValidator("dac.search.refresh",  Long.MAX_VALUE, TimeUnit.MINUTES.toMillis(1));
 }

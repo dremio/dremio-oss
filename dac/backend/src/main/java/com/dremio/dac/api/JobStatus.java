@@ -22,6 +22,7 @@ import com.dremio.service.accelerator.AccelerationDetailsUtils;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.job.proto.JobState;
+import com.dremio.service.job.proto.ResourceSchedulingInfo;
 import com.dremio.service.jobs.Job;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -39,6 +40,12 @@ public class JobStatus {
   private final Long endedAt;
   private final JobAccelerationStatus acceleration;
   private final String queryType;
+  private final String queueName;
+  private final String queueId;
+  @JsonISODateTime
+  private final Long resourceSchedulingStartedAt;
+  @JsonISODateTime
+  private final Long resourceSchedulingEndedAt;
 
   @JsonCreator
   public JobStatus(
@@ -48,7 +55,11 @@ public class JobStatus {
     @JsonProperty("startedAt") Long startedAt,
     @JsonProperty("endedAt") Long endedAt,
     @JsonProperty("acceleration") JobAccelerationStatus acceleration,
-    @JsonProperty("queryType") String queryType) {
+    @JsonProperty("queryType") String queryType,
+    @JsonProperty("queueName") String queueName,
+    @JsonProperty("queueId") String queueId,
+    @JsonProperty("resourceSchedulingStartedAt") Long resourceSchedulingStartedAt,
+    @JsonProperty("resourceSchedulingEndedAt") Long resourceSchedulingEndedAt) {
     this.jobState = jobState;
     this.rowCount = rowCount;
     this.errorMessage = errorMessage;
@@ -56,6 +67,10 @@ public class JobStatus {
     this.endedAt = endedAt;
     this.acceleration = acceleration;
     this.queryType = queryType;
+    this.queueName = queueName;
+    this.queueId = queueId;
+    this.resourceSchedulingStartedAt = resourceSchedulingStartedAt;
+    this.resourceSchedulingEndedAt = resourceSchedulingEndedAt;
   }
 
   public JobState getJobState() {
@@ -78,12 +93,28 @@ public class JobStatus {
     return queryType;
   }
 
+  public String getQueueName() {
+    return queueName;
+  }
+
+  public String getQueueId() {
+    return queueId;
+  }
+
   public Long getStartedAt() {
     return startedAt;
   }
 
   public Long getEndedAt() {
     return endedAt;
+  }
+
+  public Long getResourceSchedulingStartedAt() {
+    return resourceSchedulingStartedAt;
+  }
+
+  public Long getResourceSchedulingEndedAt() {
+    return resourceSchedulingEndedAt;
   }
 
   public static JobStatus fromJob(Job job) {
@@ -100,6 +131,12 @@ public class JobStatus {
       }
     }
 
+    final ResourceSchedulingInfo rsi = job.getJobAttempt().getInfo().getResourceSchedulingInfo();
+    final String queueName = rsi == null ? null : rsi.getQueueName();
+    final String queueId = rsi == null ? null : rsi.getQueueId();
+    final Long resourceSchedulingStartedAt = rsi == null ? null : rsi.getResourceSchedulingStart();
+    final Long resourceSchedulingEndedAt = rsi == null ? null : rsi.getResourceSchedulingEnd();
+
     return new JobStatus(
       job.getJobAttempt().getState(),
       job.getJobAttempt().getDetails().getOutputRecords(),
@@ -107,7 +144,11 @@ public class JobStatus {
       job.getJobAttempt().getInfo().getStartTime(),
       job.getJobAttempt().getInfo().getFinishTime(),
       accelerationStatus,
-      job.getJobAttempt().getInfo().getQueryType().toString()
+      job.getJobAttempt().getInfo().getQueryType().toString(),
+      queueName,
+      queueId,
+      resourceSchedulingStartedAt,
+      resourceSchedulingEndedAt
     );
   }
 

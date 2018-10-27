@@ -57,7 +57,7 @@ public class DirectCommand<T, R> implements CommandRunner<Object> {
   @Override
   public double plan() throws Exception {
     observer.planStart(sql);
-    observer.planValidated(new PojoDataType(handler.getResultType()).getRowType(JavaTypeFactoryImpl.INSTANCE), null, 0);
+    observer.planValidated(new PojoDataType(handler.getResultType()).getRowType(JavaTypeFactoryImpl.INSTANCE), sqlNode, 0);
     result = handler.toResult(sql, sqlNode);
     observer.planCompleted(null);
     return 1;

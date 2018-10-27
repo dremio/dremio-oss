@@ -19,6 +19,7 @@ import java.util.List;
 
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
@@ -70,7 +71,7 @@ public class SystemStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) throws Exception {
+  public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions ignored) throws Exception {
     return FluentIterable.of(SystemTable.values()).transform(new Function<SystemTable, SourceTableDefinition>(){
       @Override
       public SourceTableDefinition apply(SystemTable input) {
@@ -79,7 +80,7 @@ public class SystemStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, boolean ignoreAuthErrors) throws Exception {
+  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, DatasetRetrievalOptions ignored) throws Exception {
     if(datasetPath.size() != 2) {
       return null;
     }
@@ -128,7 +129,7 @@ public class SystemStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig) throws Exception {
+  public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig, DatasetRetrievalOptions ignored) throws Exception {
     return CheckResult.UNCHANGED;
   }
 

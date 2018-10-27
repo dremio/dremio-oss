@@ -561,6 +561,8 @@ public abstract class BaseTestJoin extends BaseTestOperator {
         DEFAULT_BATCH, expected);
   }
 
+
+
   @Test
   public void nationRegionPartialKeyOuterSmall() throws Exception {
     JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.FULL);

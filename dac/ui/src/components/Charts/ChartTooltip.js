@@ -26,29 +26,8 @@ export default class ChartTooltip extends Component {
     position: PropTypes.object,
     content: PropTypes.node
   }
-  constructor(props) {
-    super(props);
-
-    this.state = {
-      position: this.props.position
-    };
-  }
-  componentDidMount() {
-    this.calculateTop();
-  }
-  calculateTop() {
-    const tooltip = $('#tooltip')[0];
-    const { height } = tooltip.getBoundingClientRect();
-    this.setState({
-      position: {
-        ...this.state.position,
-        top: this.state.position.top - height
-      }
-    });
-  }
   render() {
-    const { content } = this.props;
-    const { position } = this.state;
+    const { content, position } = this.props;
     return (
       <div style={{ position: 'absolute', ...position }}>
         <Tooltip
@@ -67,9 +46,9 @@ export default class ChartTooltip extends Component {
 }
 
 const styles = {
-  base: {},
   tooltip: {
-    pointerEvents: 'none'
+    pointerEvents: 'none',
+    transform: 'translate(-50%, -100%)' // to align tooltip bottom center with provided position
   },
   tooltipInner: {
     background: NAVY,

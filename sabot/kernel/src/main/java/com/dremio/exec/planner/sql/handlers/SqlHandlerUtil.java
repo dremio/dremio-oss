@@ -22,7 +22,9 @@ import static com.dremio.exec.planner.physical.PlannerSettings.STORE_QUERY_RESUL
 import java.util.AbstractList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
@@ -41,6 +43,7 @@ import org.apache.calcite.tools.ValidationException;
 import org.apache.commons.lang3.text.StrTokenizer;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.StarColumnHelper;
@@ -49,8 +52,8 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
-import com.dremio.options.OptionManager;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.SystemUser;
@@ -242,10 +245,22 @@ public class SqlHandlerUtil {
   public static Rel storeQueryResultsIfNeeded(final SqlParser.Config config, final QueryContext context,
                                               final Rel inputRel) {
     final OptionManager options = context.getOptions();
-    final boolean storeResults = options.getOption(STORE_QUERY_RESULTS.getOptionName()) != null ?
-        options.getOption(STORE_QUERY_RESULTS.getOptionName()).getBoolVal() : false;
+    final StoreQueryResultsPolicy storeQueryResultsPolicy = Optional
+        .ofNullable(options.getOption(STORE_QUERY_RESULTS.getOptionName()))
+        .map(o -> StoreQueryResultsPolicy.valueOf(o.getStringVal().toUpperCase(Locale.ROOT)))
+        .orElse(StoreQueryResultsPolicy.NO);
 
-    if (!storeResults) {
+    switch (storeQueryResultsPolicy) {
+    case NO:
+      return inputRel;
+
+    case DIRECT_PATH:
+    case PATH_AND_ATTEMPT_ID:
+      // supported cases
+      break;
+
+    default:
+      logger.warn("Unknown query result store policy {}. Query results won't be saved", storeQueryResultsPolicy);
       return inputRel;
     }
 
@@ -254,6 +269,11 @@ public class SqlHandlerUtil {
         new StrTokenizer(storeTablePath, '.', config.quoting().string.charAt(0))
             .setIgnoreEmptyTokens(true)
             .getTokenList();
+
+    if (storeQueryResultsPolicy == StoreQueryResultsPolicy.PATH_AND_ATTEMPT_ID) {
+      // QueryId is same as attempt id. Using its string form for the table name
+      storeTable.add(QueryIdHelper.getQueryId(context.getQueryId()));
+    }
 
     // Query results are stored in arrow format. If need arises, we can change this to a configuration option.
     final Map<String, Object> storageOptions = ImmutableMap.<String, Object>of("type", ArrowFormatPlugin.ARROW_DEFAULT_NAME);

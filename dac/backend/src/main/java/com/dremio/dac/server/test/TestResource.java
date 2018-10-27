@@ -35,6 +35,7 @@ import org.glassfish.jersey.server.mvc.Viewable;
 import com.dremio.dac.admin.ProfileResource;
 import com.dremio.dac.annotations.Bootstrap;
 import com.dremio.dac.annotations.RestResourceUsedForTesting;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
@@ -65,6 +66,7 @@ public class TestResource {
   private final InitializerRegistry init;
   private final SecurityContext security;
   private ConnectionReader connectionReader;
+  private final CollaborationHelper collaborationService;
   private final JobsService jobsService;
   private final CatalogService catalogService;
   private final ReflectionServiceHelper reflectionHelper;
@@ -73,7 +75,7 @@ public class TestResource {
   public TestResource(InitializerRegistry init, SabotContext context, UserService userService,
                       KVStoreProvider provider, JobsService jobsService,
                       CatalogService catalogService, ReflectionServiceHelper reflectionHelper,
-                      SecurityContext security, ConnectionReader connectionReader) {
+                      SecurityContext security, ConnectionReader connectionReader, CollaborationHelper collaborationService) {
     this.init = init;
     this.provider = provider;
     this.context = context;
@@ -83,6 +85,7 @@ public class TestResource {
     this.reflectionHelper = reflectionHelper;
     this.security = security;
     this.connectionReader = connectionReader;
+    this.collaborationService = collaborationService;
   }
 
   @Bootstrap
@@ -107,7 +110,7 @@ public class TestResource {
   }
 
   private SourceService newSourceService(NamespaceService nsWithAuth, DatasetVersionMutator ds) {
-    return new SourceService(nsWithAuth, ds, catalogService, reflectionHelper, connectionReader, security);
+    return new SourceService(nsWithAuth, ds, catalogService, reflectionHelper, collaborationService, connectionReader, security);
   }
 
   public void refreshNow(String...sources) throws NamespaceException {

@@ -20,6 +20,7 @@ import static org.junit.Assert.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.arrow.vector.BigIntVector;
@@ -27,6 +28,7 @@ import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.junit.Test;
 
@@ -41,7 +43,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
   private static final int WORD_BITS = 64;
 
   @Test
-  public void intRoundtrip(){
+  public void intRoundtrip() throws Exception {
     final int count = 1024;
     try (
       IntVector in = new IntVector("in", allocator);
@@ -64,22 +66,23 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
       ) {
         fbv.ensureAvailableBlocks(count);
         Pivots.pivot4Bytes(pivot.getFixedPivots().get(0), fbv, count);
-        Unpivots.unpivot(pivot, fbv, vbv, count);
 
-        for(int i =0; i < count; i++){
-          assertEquals(in.getObject(i), out.getObject(i));
-        }
+        ValueVector[] ins = new ValueVector[]{in};
+        ValueVector[] outs = new ValueVector[]{out};
+        unpivotHelper(pivot, fbv, vbv, ins, outs, 0, count);
+        unpivotHelper(pivot, fbv, vbv, ins, outs, 0, 100);
+        unpivotHelper(pivot, fbv, vbv, ins, outs, 100, 924);
       }
     }
   }
-
 
   @Test
   public void intManyRoundtrip() throws Exception {
     final int count = 1024;
     final int mult = 80;
-    IntVector[] in = new IntVector[mult];
-    IntVector[] out = new IntVector[mult];
+
+    ValueVector[] in = new IntVector[mult];
+    ValueVector[] out = new IntVector[mult];
     List<FieldVectorPair> pairs = new ArrayList<>();
     try {
 
@@ -109,15 +112,9 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
           Pivots.pivot4Bytes(pivot.getFixedPivots().get(x), fbv, count);
         }
 
-        Unpivots.unpivot(pivot, fbv, vbv, count);
-
-        for(int x = 0; x < mult; x++){
-          IntVector inv = in[x];
-          IntVector outv = out[x];
-          for(int i =0; i < count; i++){
-            assertEquals("Field: " + x, inv.getObject(i), outv.getObject(i));
-          }
-        }
+        unpivotHelper(pivot, fbv, vbv, in, out, 0, count);
+        unpivotHelper(pivot, fbv, vbv, in, out, 0, 100);
+        unpivotHelper(pivot, fbv, vbv, in, out, 100, 924);
       }
     } finally {
       AutoCloseables.close(FluentIterable.of(in));
@@ -127,7 +124,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
 
 
   @Test
-  public void bigintRoundtrip(){
+  public void bigintRoundtrip() throws Exception {
     final int count = 1024;
     try (
       BigIntVector in = new BigIntVector("in", allocator);
@@ -151,18 +148,18 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
         fbv.ensureAvailableBlocks(count);
         Pivots.pivot(pivot, count, fbv, vbv);
 
-        Unpivots.unpivot(pivot, fbv, vbv, count);
-
-        for(int i =0; i < count; i++){
-          assertEquals(in.getObject(i), out.getObject(i));
-        }
+        ValueVector[] ins = new ValueVector[]{in};
+        ValueVector[] outs = new ValueVector[]{out};
+        unpivotHelper(pivot, fbv, vbv, ins, outs, 0, count);
+        unpivotHelper(pivot, fbv, vbv, ins, outs, 0, 100);
+        unpivotHelper(pivot, fbv, vbv, ins, outs, 100, 924);
       }
     }
   }
 
 
   @Test
-  public void varcharRoundtrip(){
+  public void varcharRoundtrip() throws Exception {
     final int count = 1024;
     try (
       VarCharVector in = new VarCharVector("in", allocator);
@@ -186,17 +183,18 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
       ) {
         fbv.ensureAvailableBlocks(count);
         Pivots.pivot(pivot, count, fbv, vbv);
-        Unpivots.unpivot(pivot, fbv, vbv, count);
 
-        for(int i =0; i < count; i++){
-          assertEquals(in.getObject(i), out.getObject(i));
-        }
+        ValueVector[] ins = new ValueVector[]{in};
+        ValueVector[] outs = new ValueVector[]{out};
+        unpivotHelper(pivot, fbv, vbv, ins, outs, 0, count);
+        unpivotHelper(pivot, fbv, vbv, ins, outs, 0, 100);
+        unpivotHelper(pivot, fbv, vbv, ins, outs, 100, 924);
       }
     }
   }
 
   @Test
-  public void decimalRoundtrip() {
+  public void decimalRoundtrip() throws Exception {
     final int count = 1024;
     try (
       DecimalVector in = new DecimalVector("in", allocator, 38, 0);
@@ -241,11 +239,11 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
         fbv.ensureAvailableBlocks(count);
         Pivots.pivot(pivot, count, fbv, vbv);
 
-        Unpivots.unpivot(pivot, fbv, vbv, count);
-
-        for(int i =0; i < count; i++) {
-          assertEquals(in.getObject(i), out.getObject(i));
-        }
+        ValueVector[] ins = new ValueVector[]{in};
+        ValueVector[] outs = new ValueVector[]{out};
+        unpivotHelper(pivot, fbv, vbv, ins, outs, 0, count);
+        unpivotHelper(pivot, fbv, vbv, ins, outs, 0, 100);
+        unpivotHelper(pivot, fbv, vbv, ins, outs, 100, 924);
       }
 
       tempBuf.release();
@@ -294,7 +292,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
         fbv.ensureAvailableBlocks(count);
         Pivots.pivot(pivot, count, fbv, vbv);
 
-        Unpivots.unpivot(pivot, fbv, vbv, count);
+        Unpivots.unpivot(pivot, fbv, vbv, 0, count);
 
         for (int i = 0; i < count; i++) {
           assertEquals(in.getObject(i), out.getObject(i));
@@ -302,5 +300,52 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
       }
       tempBuf.release();
     }
+  }
+
+  @Test
+  public void boolNullEveryOther() throws Exception {
+    final int count = 1024;
+    try (
+      BitVector in = new BitVector("in", allocator);
+      BitVector out = new BitVector("out", allocator);
+    ) {
+
+      in.allocateNew(count);
+      ArrowBuf tempBuf = allocator.buffer(1024);
+
+      for (int i = 0; i < count; i ++) {
+        if (i % 2 == 0) {
+          in.set(i, 1);
+        }
+      }
+      in.setValueCount(count);
+
+      final PivotDef pivot = PivotBuilder.getBlockDefinition(new FieldVectorPair(in, out));
+      try (
+        final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
+        final VariableBlockVector vbv = new VariableBlockVector(allocator, pivot.getVariableCount());
+      ) {
+        fbv.ensureAvailableBlocks(count);
+        Pivots.pivot(pivot, count, fbv, vbv);
+
+        Unpivots.unpivot(pivot, fbv, vbv, 0, count);
+
+        for (int i = 0; i < count; i++) {
+          assertEquals(in.getObject(i), out.getObject(i));
+        }
+      }
+      tempBuf.release();
+    }
+  }
+
+  private void unpivotHelper(PivotDef pivot, FixedBlockVector fbv, VariableBlockVector vbv,
+                             ValueVector[] in, ValueVector out[], int s, int e) throws Exception {
+    Unpivots.unpivot(pivot, fbv, vbv, s, e);
+    for (int i = 0; i < (e - s); i++) {
+      for (int j = 0; j < in.length; j++) {
+        assertEquals(in[j].getObject(s + i), out[j].getObject(i));
+      }
+    }
+    AutoCloseables.close(Arrays.asList(out));
   }
 }

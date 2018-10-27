@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -39,6 +40,8 @@ import org.rocksdb.Statistics;
 import org.rocksdb.StatsLevel;
 import org.rocksdb.Status;
 import org.rocksdb.TickerType;
+import org.rocksdb.TransactionLogIterator;
+import org.rocksdb.WriteBatch;
 
 import com.dremio.common.DeferredException;
 import com.dremio.datastore.CoreStoreProviderImpl.ForcedMemoryMode;
@@ -53,28 +56,32 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 /**
  * Manages the underlying byte storage supporting a kvstore.
  */
 class ByteStoreManager implements AutoCloseable {
-
-  private static final String METRICS_PREFIX = "kvstore.db";
-
   private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ByteStoreManager.class);
 
+  private static final long WAL_TTL_SECONDS = Long.getLong("dremio.catalog.wal_ttl_seconds", 5 * 60L);
+  private static final String METRICS_PREFIX = "kvstore.db";
+  private static final String DEFAULT = "default";
   private static final int STRIPE_COUNT = 16;
   private static final long ROCKSDB_OPEN_SLEEP_MILLIS = 100L;
+
   static final String CATALOG_STORE_NAME = "catalog";
 
   private final boolean inMemory;
   private final int stripeCount;
   private final String baseDirectory;
+
   private RocksDB db;
   private ColumnFamilyHandle defaultHandle;
 
   private final DeferredException closeException = new DeferredException();
 
+  private final ConcurrentMap<Integer, String> handleIdToNameMap = Maps.newConcurrentMap();
   private final LoadingCache<String, ByteStore> maps = CacheBuilder.newBuilder()
       .removalListener(new RemovalListener<String, ByteStore>() {
         @Override
@@ -104,7 +111,19 @@ class ByteStoreManager implements AutoCloseable {
     } else {
       final ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(name.getBytes(UTF_8));
       ColumnFamilyHandle handle = db.createColumnFamily(columnFamilyDescriptor);
+      handleIdToNameMap.put(handle.getID(), name);
       return new RocksDBStore(name, columnFamilyDescriptor, handle, db, stripeCount);
+    }
+  }
+
+  ByteStore getDefaultDB() throws RocksDBException {
+    if (inMemory) {
+      return new MapStore(DEFAULT);
+    } else {
+      final ColumnFamilyHandle handle = db.getDefaultColumnFamily();
+      handleIdToNameMap.put(handle.getID(), DEFAULT);
+      return new RocksDBStore(DEFAULT, null /* dropping and creating default is not supported */ ,
+          db.getDefaultColumnFamily(), db, stripeCount);
     }
   }
 
@@ -139,21 +158,24 @@ class ByteStoreManager implements AutoCloseable {
       families = new ArrayList<>(RocksDB.listColumnFamilies(options, path));
     }
 
-
-    // if empty, add the default family (we don't use this)
+    // if empty, add the default family
     if (families.isEmpty()) {
       families.add(RocksDB.DEFAULT_COLUMN_FAMILY);
     }
-    final Function<byte[], ColumnFamilyDescriptor> func = new Function<byte[], ColumnFamilyDescriptor>() {
-      @Override
-      public ColumnFamilyDescriptor apply(byte[] input) {
-        return new ColumnFamilyDescriptor(input);
-      }
-    };
+    final Function<byte[], ColumnFamilyDescriptor> func = ColumnFamilyDescriptor::new;
 
     List<ColumnFamilyHandle> familyHandles = new ArrayList<>();
     try (final DBOptions dboptions = new DBOptions()) {
       dboptions.setCreateIfMissing(true);
+
+      // From docs, ... if WAL_ttl_seconds is not 0 and WAL_size_limit_MB is 0, then
+      // WAL files will be checked every WAL_ttl_seconds / 2 and those that
+      // are older than WAL_ttl_seconds will be deleted.
+      dboptions.setWalSizeLimitMB(0);
+      dboptions.setWalTtlSeconds(WAL_TTL_SECONDS);
+      LOGGER.debug("WAL settings: size: '{} MB', TTL: '{}' seconds",
+          dboptions.walSizeLimitMB(), dboptions.walTtlSeconds());
+
       if (COLLECT_METRICS) {
         registerMetrics(dboptions);
       }
@@ -165,12 +187,12 @@ class ByteStoreManager implements AutoCloseable {
     for (int i = 0; i < families.size(); i++) {
       byte[] family = families.get(i);
       if (Arrays.equals(family, RocksDB.DEFAULT_COLUMN_FAMILY)) {
-        // we don't allow use of the default handle.
         defaultHandle = familyHandles.get(i);
       } else {
         String name = new String(family, UTF_8);
-        RocksDBStore store = new RocksDBStore(name, new ColumnFamilyDescriptor(family), familyHandles.get(i), db,
-            stripeCount);
+        final ColumnFamilyHandle handle = familyHandles.get(i);
+        handleIdToNameMap.put(handle.getID(), name);
+        RocksDBStore store = new RocksDBStore(name, new ColumnFamilyDescriptor(family), handle, db, stripeCount);
         maps.put(name, store);
       }
     }
@@ -233,12 +255,60 @@ class ByteStoreManager implements AutoCloseable {
 
   public ByteStore getStore(String name) {
     Preconditions.checkNotNull(name);
-    Preconditions.checkArgument(!"default".equals(name), "The store name 'default' is reserved and cannot be used.");
+    Preconditions.checkArgument(!DEFAULT.equals(name), "The store name 'default' is reserved and cannot be used.");
     try {
       return maps.get(name);
     } catch (ExecutionException e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  /**
+   * Replay updates since the given transaction number on the given handler.
+   *
+   * @param transactionNumber transaction number
+   * @param replayHandler     replay handler
+   * @throws DatastoreException if there are errors during replay
+   */
+  void replaySince(final long transactionNumber, ReplayHandler replayHandler) {
+    if (inMemory) {
+      return;
+    }
+
+    try (WriteBatch.Handler handler = new ReplayHandlerAdapter(replayHandler, handleIdToNameMap);
+         TransactionLogIterator iterator = db.getUpdatesSince(transactionNumber)) {
+      while (iterator.isValid()) {
+        iterator.status();
+
+        final TransactionLogIterator.BatchResult result = iterator.getBatch(); // requires isValid and status check
+        LOGGER.debug("Requested sequence number: {}, iterator sequence number: {}",
+            transactionNumber, result.sequenceNumber());
+
+        result.writeBatch()
+            .iterate(handler);
+
+        if (!iterator.isValid()) {
+          break;
+        }
+        iterator.next(); // requires isValid
+      }
+    } catch (RocksDBException e) {
+      throw new DatastoreException(e);
+    }
+
+    // the latest transaction number can be updated on all the updated stores here, but let'd do so lazily,
+    // and wait for the regular update process
+  }
+
+  /**
+   * Get the latest transaction number.
+   *
+   * Note that the number returned is not per store; the number is global.
+   *
+   * @return latest transaction number
+   */
+  long getLatestTransactionNumber() {
+    return inMemory ? 0 : db.getLatestSequenceNumber();
   }
 
   @Override

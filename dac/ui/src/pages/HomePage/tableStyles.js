@@ -22,7 +22,7 @@ export const tableStyles = {
     height: '100%',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'flex-end'
   },
   digitColumn,
   datasetsColumn: {

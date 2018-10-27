@@ -78,7 +78,7 @@ public class ProfileResource {
   @Produces(MediaType.TEXT_PLAIN)
   public NotificationResponse cancelQuery(@PathParam("queryid") String queryId) {
     try {
-      jobsService.cancel(null, new JobId(queryId));
+      jobsService.cancel(null, new JobId(queryId), "User Request based Job Cancellation");
       return new NotificationResponse(ResponseType.OK, "Job cancellation requested");
     } catch(JobWarningException e) {
       return new NotificationResponse(ResponseType.WARN, e.getMessage());

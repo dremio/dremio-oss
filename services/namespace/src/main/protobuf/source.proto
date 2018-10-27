@@ -69,6 +69,11 @@ message MetadataPolicy {
 
   // how long can we cache the definition of a dataset before re-checking its authenticity.
   optional int64 dataset_definition_expire_after_ms = 6;
+
+  // if unavailable datasets should be deleted from the catalog
+  optional bool delete_unavailable_datasets = 7 [default = true];
+
+  optional bool auto_promote_datasets = 8 [default = false];
 }
 
 enum UpdateMode {

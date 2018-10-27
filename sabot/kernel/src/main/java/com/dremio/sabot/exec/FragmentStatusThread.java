@@ -102,10 +102,12 @@ public class FragmentStatusThread extends Thread implements AutoCloseable {
    * coordinator that initiated the respective query
    */
   private void sendPhaseStatuses(List<RpcFuture<Ack>> futures) {
-    for (final QueryTicket queryTicket : clerk.getActiveQueryTickets()) {
-      NodeQueryStatus queryStatus = queryTicket.getStatus();
-      final NodeEndpoint ep = queryTicket.getForeman();
-      futures.add(tunnelCreator.getTunnel(ep).sendNodeQueryStatus(queryStatus));
+    for (final WorkloadTicket workloadTicket : clerk.getWorkloadTickets()) {
+      for (final QueryTicket queryTicket : workloadTicket.getActiveQueryTickets()) {
+        NodeQueryStatus queryStatus = queryTicket.getStatus();
+        final NodeEndpoint ep = queryTicket.getForeman();
+        futures.add(tunnelCreator.getTunnel(ep).sendNodeQueryStatus(queryStatus));
+      }
     }
   }
 

@@ -21,16 +21,23 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.sql.TestBaseViewSupport;
 import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
 import com.google.common.collect.ImmutableList;
 
 public class TestViewSupportOnHiveTables extends TestBaseViewSupport {
+
+  @Rule
+  public final ExpectedException exception = ExpectedException.none();
 
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(200, TimeUnit.SECONDS);
@@ -118,6 +125,21 @@ public class TestViewSupportOnHiveTables extends TestBaseViewSupport {
         .go();
   }
 
+  @Test
+  public void throwUnsupportedErrorWhenUserRequestsExistingHiveView() throws Exception{
+
+    hiveTest.executeDDL("CREATE TABLE IF NOT EXISTS existing_table(a INT, b STRING)");
+    hiveTest.executeDDL("INSERT INTO existing_table VALUES(1, 'a')");
+    hiveTest.executeDDL("CREATE VIEW existing_view AS SELECT * FROM existing_table");
+
+    exception.expect(RpcException.class);
+    exception.expectMessage("Hive views are not supported");
+    client.runQuery(UserBitShared.QueryType.SQL, "SELECT * FROM hive.\"default\".\"existing_view\"");
+
+
+    hiveTest.executeDDL("DROP VIEW existing_view");
+    hiveTest.executeDDL("DROP TABLE existing_table");
+  }
   @AfterClass
   public static void cleanupHiveTestData() throws Exception{
     if (hiveTest != null) {

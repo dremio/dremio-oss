@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.work.rpc;
 
+import java.util.Optional;
+
+import com.dremio.exec.proto.CoordRPC;
 import com.dremio.exec.proto.CoordRPC.RpcType;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
@@ -54,21 +57,23 @@ public class CoordTunnel {
   }
 
   public static class CancelQuery extends FutureBitCommand<Ack, ProxyConnection> {
-    final ExternalId queryId;
+    final CoordRPC.JobCancelRequest jobCancelRequest;
 
-    public CancelQuery(ExternalId queryId) {
+    public CancelQuery(ExternalId queryId, String reason) {
       super();
-      this.queryId = queryId;
+      this.jobCancelRequest = CoordRPC.JobCancelRequest.newBuilder()
+        .setExternalId(queryId)
+        .setCancelReason(Optional.ofNullable(reason).orElse("")).build();
     }
 
     @Override
     public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-      connection.send(outcomeListener, RpcType.REQ_QUERY_CANCEL, queryId, Ack.class);
+      connection.send(outcomeListener, RpcType.REQ_QUERY_CANCEL, jobCancelRequest, Ack.class);
     }
   }
 
-  public RpcFuture<Ack> requestCancelQuery(ExternalId queryId){
-    CancelQuery c = new CancelQuery(queryId);
+  public RpcFuture<Ack> requestCancelQuery(ExternalId queryId, String reason){
+    CancelQuery c = new CancelQuery(queryId, reason);
     manager.runCommand(c);
     return c.getFuture();
   }

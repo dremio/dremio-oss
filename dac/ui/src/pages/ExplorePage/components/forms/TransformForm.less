@@ -13,6 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@import "~@app/uiTheme/less/variables.less";
+
 .content {
-  composes: section-margin horizontal-content-padding from '@app/uiTheme/less/layout.less';
+  composes: horizontal-content-padding from '@app/uiTheme/less/layout.less';
+  padding-bottom: @section-margin;
 }

@@ -16,7 +16,7 @@
 @import '../../../components/colors.less'; // contains only variables
 
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
-    
+
   .explore-info-header {
 
     .cur-link {
@@ -30,7 +30,7 @@
         text-overflow: ellipsis;
         overflow: hidden;
         white-space: nowrap;
-        max-width: 330px;
+        max-width: 100%; // do not let to exceed parent width
       }
     }
 
@@ -110,7 +110,13 @@
       cursor: pointer;
     }
 
+    .flexbox-truncate-text-fix {
+      // we should apply min-width for flexbox child to work truncation correctly. See https://css-tricks.com/flexbox-truncated-text/
+      min-width: 0;
+    }
+
     .title-wrap {
+      .flexbox-truncate-text-fix;
       .copy-button {
         margin: 0 0 0 5px;
         opacity: 0;

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.work.foreman;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -29,6 +31,7 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.MetadataStatsCollector;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.config.Screen;
 import com.dremio.exec.planner.observer.AttemptObserver;
@@ -36,9 +39,13 @@ import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.store.sys.accel.AccelerationDetailsPopulator;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
+import com.dremio.options.OptionList;
+import com.dremio.resource.ResourceSchedulingDecisionInfo;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Pointer;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableSet;
@@ -78,7 +85,10 @@ public class TestQueryManager extends DremioTest {
     when(populator.computeAcceleration()).thenReturn(ByteString.EMPTY_BYTE_ARRAY);
     when(accelerationManager.newPopulator()).thenReturn(populator);
     when(context.getAccelerationManager()).thenReturn(accelerationManager);
-
+    when(context.getQueryUserName()).thenReturn("myuser");
+    when(context.getSession()).thenReturn(UserSession.Builder.newBuilder().build());
+    when(context.getNonDefaultOptions()).thenReturn(new OptionList());
+    when(catalog.getMetadataStatsCollector()).thenReturn(new MetadataStatsCollector());
   }
 
   /**
@@ -106,5 +116,29 @@ public class TestQueryManager extends DremioTest {
     // Ideally, we should not even call succeeded...
     inOrder.verify(completionListener).failed(any(Exception.class));
     inOrder.verify(completionListener).succeeded();
+  }
+
+  @Test
+  public void testResourceSchedulingInProfile() throws Exception {
+    AttemptObservers observers = AttemptObservers.of(observer);
+
+    final NodeEndpoint endpoint = NodeEndpoint.newBuilder().setAddress("host1").setFabricPort(12345).build();
+
+    when(context.getCurrentEndpoint()).thenReturn(endpoint);
+
+    QueryManager queryManager = new QueryManager(queryId, context, completionListener, new Pointer<>(), observers, true, true, catalog);
+
+    ResourceSchedulingDecisionInfo result = new ResourceSchedulingDecisionInfo();
+    result.setQueueId("abcd");
+    result.setQueueName("queue.abcd");
+    observers.resourcesScheduled(result);
+
+    UserBitShared.QueryProfile queryProfile =
+      queryManager.getQueryProfile("my description", UserBitShared.QueryResult.QueryState.RUNNING, null,
+        "some reason");
+
+    assertNotNull(queryProfile.getResourceSchedulingProfile());
+    assertEquals("abcd", queryProfile.getResourceSchedulingProfile().getQueueId());
+    assertEquals("queue.abcd", queryProfile.getResourceSchedulingProfile().getQueueName());
   }
 }

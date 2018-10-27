@@ -41,6 +41,7 @@ import SqlToggle from './SqlToggle';
 import SqlAutoComplete from './SqlAutoComplete';
 import FunctionsHelpPanel from './FunctionsHelpPanel';
 
+const toolbarHeight = 42;
 @pureRender
 @Radium
 export class SqlEditorController extends Component {
@@ -261,7 +262,7 @@ export class SqlEditorController extends Component {
         ref='editor'
         onChange={this.handleSqlChange}
         defaultValue={this.props.dataset.get('sql')}
-        sqlSize={this.props.sqlSize}
+        sqlSize={this.props.sqlSize - toolbarHeight}
         datasetsPanel={this.state.datasetsPanel}
         funcHelpPanel={this.state.funcHelpPanel}
         dragType={this.props.dragType}
@@ -340,7 +341,7 @@ const styles = {
     backgroundColor: EXPLORE_SQL_BUTTON_COLOR
   },
   sqlControls: {
-    height: 42,
+    height: toolbarHeight,
     padding: 0,
     display: 'flex',
     justifyContent: 'space-between',

@@ -18,8 +18,10 @@ package com.dremio.service.jobs;
 import static com.dremio.common.perf.Timer.time;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -36,9 +38,11 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.Service;
+import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobResult;
+import com.dremio.service.job.proto.JobState;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.FinalizablePhantomReference;
 import com.google.common.base.FinalizableReference;
@@ -47,7 +51,7 @@ import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -90,9 +94,23 @@ public class JobResultsStore implements Service {
             });
   }
 
+
+  /**
+   * Get the output table path for the given id
+   */
+  private List<String> getOutputTablePath(final JobId jobId) {
+    // Get the information from the store or fallback to using job id as the table name
+    Optional<JobResult> jobResult = Optional.ofNullable(store.get(jobId));
+    return jobResult
+        .map(result -> getLastAttempt(result).getOutputTableList())
+        .orElse(Arrays.asList(storageName, jobId.toString()));
+  }
+
   /** Helper method to get the job output directory */
   private Path getJobOutputDir(final JobId jobId) {
-    return new Path(jobStoreLocation, jobId.getId());
+    List<String> outputTablePath = getOutputTablePath(jobId);
+
+    return new Path(jobStoreLocation, Iterables.getLast(outputTablePath));
   }
 
   public boolean cleanup(JobId jobId) {
@@ -151,12 +169,24 @@ public class JobResultsStore implements Service {
   }
 
   public String getJobResultsTableName(JobId jobId) {
+    //
     return String.format("TABLE(%s(type => 'arrow'))",
-        PathUtils.constructFullPath(ImmutableList.of(storageName, jobId.getId())));
+        PathUtils.constructFullPath(getOutputTablePath(jobId)));
   }
 
   public RecordBatches loadJobData(JobId jobId, JobResult job, int offset, int limit){
     try (TimedBlock b = time("getJobResult")) {
+
+      final List<JobAttempt> attempts = job.getAttemptsList();
+      if(attempts.size() > 0) {
+        final JobAttempt mostRecentJob = attempts.get(job.getAttemptsList().size() - 1);
+        if (mostRecentJob.getState() == JobState.CANCELED) {
+          throw UserException.dataReadError()
+            .message("Could not load results as the query was canceled")
+            .build(logger);
+        }
+      }
+
       final Path jobOutputDir = getJobOutputDir(jobId);
       if (!dfs.isDirectory(jobOutputDir)) {
         throw UserException.dataReadError()

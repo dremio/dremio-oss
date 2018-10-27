@@ -19,6 +19,8 @@ import FormUtils from 'utils/FormUtils/FormUtils';
 import FormElement from 'components/Forms/FormElement';
 import FormSection from 'components/Forms/FormSection';
 import Checkbox from 'components/Fields/Checkbox';
+import FormSectionConfig from 'utils/FormUtils/FormSectionConfig';
+import FormElementConfig from 'utils/FormUtils/FormElementConfig';
 
 import { flexContainer, flexElementAuto, flexColumnContainer } from '@app/uiTheme/less/layout.less';
 import { checkboxMargin, tooltipIcon } from './CheckEnabledContainer.less';
@@ -37,54 +39,48 @@ export default class CheckEnabledContainer extends Component {
 
   static propTypes = {
     fields: PropTypes.object,
+    mainCheckboxIsDisabled: PropTypes.bool,
     elementConfig: PropTypes.object
   };
 
-  state = {
-    disableInputs: false
-  };
-
-  componentWillMount() {
-    if (!this.props.elementConfig.getConfig().value) {
-      this.setState({disableInputs: true});
+  setCheckboxFieldCheckedProp = (field) => {
+    if (field && field.checked === undefined) {
+      field.checked = false;
     }
-  }
-
-  onCheckboxChange = () => {
-    this.setState((prevState) => {
-      return {disableInputs: !prevState.disableInputs};
-    });
   };
 
   render() {
-    const { fields, elementConfig } = this.props;
+    const { fields, elementConfig, mainCheckboxIsDisabled } = this.props;
     const elementConfigJson = elementConfig.getConfig();
     const checkField = FormUtils.getFieldByComplexPropName(fields, elementConfig.getPropName());
+    this.setCheckboxFieldCheckedProp(checkField); // to avoid react controlled/uncontrolled field warning
+    const enableContainer = checkField.checked;
     const isInverted = (elementConfigJson.inverted) ? {inverted: true} : null;
     const container = elementConfig.getContainer();
+    const containerIsElement = container instanceof FormElementConfig;
+    const containerIsSection = container instanceof FormSectionConfig;
 
     return (
       <div className={flexColumnContainer}>
         <div className={flexContainer}>
           <Checkbox {...checkField} {...isInverted}
+            disabled={mainCheckboxIsDisabled}
             className={checkboxMargin}
-            label={elementConfigJson.label}
-            checked={!this.state.disableInputs}
-            onChange={this.onCheckboxChange}/>
+            label={elementConfigJson.label}/>
           {elementConfigJson.checkTooltip &&
           <HoverHelp content={elementConfigJson.checkTooltip} className={tooltipIcon}/>
           }
         </div>
-        {(elementConfigJson.whenNotChecked !== 'hide' || !this.state.disableInputs) &&
+        {(elementConfigJson.whenNotChecked !== 'hide' || enableContainer) &&
         <div className={flexElementAuto}>
-          {container.getPropName &&
+          {containerIsElement &&
           <FormElement fields={fields}
-                       disabled={this.state.disableInputs}
+                       disabled={!enableContainer || mainCheckboxIsDisabled}
                        elementConfig={container}/>
           }
-          {container.getAllElelements && container.getAllElelements().length &&
+          {containerIsSection &&
           <FormSection fields={fields}
-                       disabled={this.state.disableInputs}
+                       disabled={!enableContainer || mainCheckboxIsDisabled}
                        sectionConfig={container}/>
           }
         </div>

@@ -20,6 +20,8 @@ import CheckboxWrapper from 'components/Forms/Wrappers/CheckboxWrapper';
 import SelectWrapper from 'components/Forms/Wrappers/SelectWrapper';
 import RadioWrapper from 'components/Forms/Wrappers/RadioWrapper';
 import DurationWrapper from 'components/Forms/Wrappers/DurationWrapper';
+import ByteWrapper from 'components/Forms/Wrappers/ByteWrapper';
+import SqlWrapper from 'components/Forms/Wrappers/SqlWrapper';
 
 /**
  * Base class for configuration of complex form elements and used as is for simple elements
@@ -49,6 +51,10 @@ export default class FormElementConfig {
         return RadioWrapper;
       case 'duration':
         return DurationWrapper;
+      case 'byte':
+        return ByteWrapper;
+      case 'sql':
+        return SqlWrapper;
       default:
         return TextWrapper;
       /* eslint-enable indent */
@@ -88,9 +94,9 @@ export default class FormElementConfig {
   }
 
   addInitValues(initValues) {
-    if (!this._config.value) return initValues;
+    if (this._config.value === undefined) return initValues;
 
-    return FormUtils.addInitValue(initValues, this._config.propName, this._config.value);
+    return FormUtils.addInitValue(initValues, this._config.propName, this._config.value, this._config.multiplier);
   }
 
   addValidators(validations) {

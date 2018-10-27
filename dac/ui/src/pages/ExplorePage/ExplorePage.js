@@ -22,6 +22,7 @@ import PropTypes from 'prop-types';
 
 import MainHeader from 'components/MainHeader';
 import { hashHeightTopSplitter } from 'constants/explorePage/heightTopSplitter.js';
+import { PageTypes, pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
 
 import './ExplorePage.less';
 import HistoryLineController from './components/Timeline/HistoryLineController';
@@ -32,7 +33,7 @@ const GRID_TABLE_MARGIN = 15;
 @pureRender
 class ExplorePage extends Component {
   static propTypes = {
-    pageType: PropTypes.string,
+    pageType: pageTypesProp,
     dataset: PropTypes.instanceOf(Immutable.Map),
     history: PropTypes.instanceOf(Immutable.Map),
     setResizeProgressState: PropTypes.func,
@@ -76,13 +77,20 @@ class ExplorePage extends Component {
 
   initSqlEditor(props) {
     const { pageType, location } = props;
-    const key = !pageType || pageType === 'graph' ? 'default' : pageType;
-    if (key !== 'default') {
-      return;
-    }
 
-    const newSize = hashHeightTopSplitter[location.query.type || key];
-    props.updateSqlPartSize(newSize);
+    switch (pageType) {
+    case PageTypes.details:
+      return;
+    case PageTypes.wiki:
+    case PageTypes.default:
+    case PageTypes.graph: {
+      const newSize = hashHeightTopSplitter[location.query.type] || hashHeightTopSplitter.default;
+      props.updateSqlPartSize(newSize);
+      break;
+    }
+    default:
+      throw new Error(`Not supported page type: '${pageType}'`);
+    }
   }
 
   startDrag() {}

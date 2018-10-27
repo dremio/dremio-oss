@@ -27,7 +27,8 @@ import com.google.common.base.Preconditions;
  *
  */
 public final class UserRpcUtils {
-  private UserRpcUtils() {}
+
+  public static final String DREMIO09_COMPATIBILITY_ENCODER = "dremio09-backward";
 
   /*
    * Template for the endpoint infos.
@@ -77,4 +78,6 @@ public final class UserRpcUtils {
         infos.getBuildNumber(),
         infos.getVersionQualifier());
   }
+
+  private UserRpcUtils() {}
 }

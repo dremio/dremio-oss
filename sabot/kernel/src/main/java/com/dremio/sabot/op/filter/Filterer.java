@@ -25,7 +25,7 @@ import org.apache.arrow.vector.util.TransferPair;
 public interface Filterer {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Filterer.class);
 
-  public void setup(FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing, TransferPair[] transfers) throws SchemaChangeException;
+  public void setup(FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing) throws SchemaChangeException;
   public int filterBatch(int recordCount);
 
   public static TemplateClassDefinition<Filterer> TEMPLATE_DEFINITION2 = new TemplateClassDefinition<Filterer>(Filterer.class, FilterTemplate2.class);

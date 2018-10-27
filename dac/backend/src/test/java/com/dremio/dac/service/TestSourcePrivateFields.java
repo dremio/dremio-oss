@@ -50,14 +50,15 @@ public class TestSourcePrivateFields extends BaseTestServer {
     namespaceService.addOrUpdateSource(nameSpaceKey, source.asSourceConfig());
 
     final SourceConfig config = namespaceService.getSource(nameSpaceKey);
+    final ConnectionReader connectionReader = ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
 
-    SourceUI mySource = SourceUI.get(config, new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT));
+    SourceUI mySource = SourceUI.get(config, connectionReader);
     APrivateSource myS3config = (APrivateSource) mySource.getConfig();
 
     assertEquals(myS3config.password, ConnectionConf.USE_EXISTING_SECRET_VALUE);
     assertNotNull(myS3config.username);
 
-    SourceUI withPrivatesSource = SourceUI.getWithPrivates(config, new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT));
+    SourceUI withPrivatesSource = SourceUI.getWithPrivates(config, connectionReader);
     APrivateSource withPrivateS3Config = (APrivateSource) withPrivatesSource.getConfig();
 
     assertNotNull(withPrivateS3Config.password);
@@ -81,9 +82,10 @@ public class TestSourcePrivateFields extends BaseTestServer {
     namespaceService.addOrUpdateSource(nameSpaceKey, source.asSourceConfig());
 
     final SourceConfig config = namespaceService.getSource(nameSpaceKey);
+    final ConnectionReader connectionReader = ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
 
-    NASConf mySource = (NASConf) SourceUI.get(config, new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT)).getConfig();
-    NASConf withPrivates = (NASConf) SourceUI.getWithPrivates(config,  new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT)).getConfig();
+    NASConf mySource = (NASConf) SourceUI.get(config, connectionReader).getConfig();
+    NASConf withPrivates = (NASConf) SourceUI.getWithPrivates(config, connectionReader).getConfig();
 
     assertEquals(mySource, withPrivates);
   }

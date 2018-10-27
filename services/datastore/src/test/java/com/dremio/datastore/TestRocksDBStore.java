@@ -94,6 +94,8 @@ public class TestRocksDBStore {
 
   private RocksDBStore store;
 
+  private byte[] specialKey = "special".getBytes(UTF_8);
+
   @Before
   public void setUpStore() {
     ColumnFamilyHandle handle = rocksDBResource.get().getDefaultColumnFamily();
@@ -104,6 +106,7 @@ public class TestRocksDBStore {
     for(int i = 0; i < 1 << 16; i++ ) {
       store.put(newRandomValue(random), newRandomValue(random));
     }
+    store.put(specialKey, newRandomValue(random));
   }
 
   @After
@@ -137,6 +140,11 @@ public class TestRocksDBStore {
       // Close both RocksDBStores.
       store.close();
       newStore.close();
+      try {
+        store.get(specialKey);
+        fail();
+      } catch (DatastoreFatalException ignored) {
+      }
 
       // Confirm that there is at least one sst file & that there is at most one log file of size 0.
       int sstCounter = 0;

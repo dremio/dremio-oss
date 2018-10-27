@@ -30,6 +30,7 @@ import com.dremio.common.VM;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -43,6 +44,7 @@ import com.dremio.exec.work.WorkStats;
 import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.Service;
+import com.dremio.service.spill.SpillService;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceService;
@@ -75,6 +77,8 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<DatasetListingService> datasetListingServiceProvider;
   private final Provider<UserService> userService;
   private final Provider<CatalogService> catalogService;
+  private final Provider<SpillService> spillService;
+  private final Provider<ConnectionReader> connectionReaderProvider;
   private final Provider<ViewCreatorFactory> viewCreatorFactory;
   private final Set<ClusterCoordinator.Role> roles;
   protected BufferAllocator queryPlannerAllocator;
@@ -82,53 +86,57 @@ public class ContextService implements Service, Provider<SabotContext> {
   private SabotContext context;
 
   public ContextService(
-      BindingCreator bindingCreator,
-      BootStrapContext bootstrapContext,
-      Provider<ClusterCoordinator> coord,
-      Provider<PersistentStoreProvider> provider,
-      Provider<WorkStats> workStats,
-      Provider<KVStoreProvider> kvStoreProvider,
-      Provider<FabricService> fabric,
-      Provider<UserServer> userServer,
-      Provider<MaterializationDescriptorProvider> materializationDescriptorProvider,
-      Provider<QueryObserverFactory> queryObserverFactory,
-      Provider<RunningQueryProvider> runningQueriesProvider,
-      Provider<AccelerationManager> accelerationManager,
-      Provider<AccelerationListManager> accelerationListManager,
-      Provider<NamespaceService.Factory> namespaceServiceFactory,
-      Provider<DatasetListingService> datasetListingServiceProvider,
-      Provider<UserService> userService,
-      Provider<CatalogService> catalogService,
-      Provider<ViewCreatorFactory> viewCreatorFactory,
-      boolean allRoles
-      ) {
+    BindingCreator bindingCreator,
+    BootStrapContext bootstrapContext,
+    Provider<ClusterCoordinator> coord,
+    Provider<PersistentStoreProvider> provider,
+    Provider<WorkStats> workStats,
+    Provider<KVStoreProvider> kvStoreProvider,
+    Provider<FabricService> fabric,
+    Provider<UserServer> userServer,
+    Provider<MaterializationDescriptorProvider> materializationDescriptorProvider,
+    Provider<QueryObserverFactory> queryObserverFactory,
+    Provider<RunningQueryProvider> runningQueriesProvider,
+    Provider<AccelerationManager> accelerationManager,
+    Provider<AccelerationListManager> accelerationListManager,
+    Provider<NamespaceService.Factory> namespaceServiceFactory,
+    Provider<DatasetListingService> datasetListingServiceProvider,
+    Provider<UserService> userService,
+    Provider<CatalogService> catalogService,
+    Provider<ViewCreatorFactory> viewCreatorFactory,
+    Provider<SpillService> spillService,
+    Provider<ConnectionReader> connectionReaderProvider,
+    boolean allRoles
+  ) {
     this(bindingCreator, bootstrapContext, coord, provider, workStats, kvStoreProvider, fabric, userServer,
-        materializationDescriptorProvider, queryObserverFactory, runningQueriesProvider, accelerationManager,
-        accelerationListManager, namespaceServiceFactory, datasetListingServiceProvider, userService, catalogService,
-        viewCreatorFactory,
-        allRoles ? EnumSet.allOf(ClusterCoordinator.Role.class) : Sets.newHashSet(ClusterCoordinator.Role.EXECUTOR));
+      materializationDescriptorProvider, queryObserverFactory, runningQueriesProvider, accelerationManager,
+      accelerationListManager, namespaceServiceFactory, datasetListingServiceProvider, userService, catalogService,
+      viewCreatorFactory, spillService, connectionReaderProvider,
+      allRoles ? EnumSet.allOf(ClusterCoordinator.Role.class) : Sets.newHashSet(ClusterCoordinator.Role.EXECUTOR));
   }
 
   public ContextService(
-      BindingCreator bindingCreator,
-      BootStrapContext bootstrapContext,
-      Provider<ClusterCoordinator> coord,
-      Provider<PersistentStoreProvider> provider,
-      Provider<WorkStats> workStats,
-      Provider<KVStoreProvider> kvStoreProvider,
-      Provider<FabricService> fabric,
-      Provider<UserServer> userServer,
-      Provider<MaterializationDescriptorProvider> materializationDescriptorProvider,
-      Provider<QueryObserverFactory> queryObserverFactory,
-      Provider<RunningQueryProvider> runningQueriesProvider,
-      Provider<AccelerationManager> accelerationManager,
-      Provider<AccelerationListManager> accelerationListManager,
-      Provider<NamespaceService.Factory> namespaceServiceFactoryProvider,
-      Provider<DatasetListingService> datasetListingServiceProvider,
-      Provider<UserService> userService,
-      Provider<CatalogService> catalogService,
-      Provider<ViewCreatorFactory> viewCreatorFactory,
-      Set<ClusterCoordinator.Role> roles) {
+    BindingCreator bindingCreator,
+    BootStrapContext bootstrapContext,
+    Provider<ClusterCoordinator> coord,
+    Provider<PersistentStoreProvider> provider,
+    Provider<WorkStats> workStats,
+    Provider<KVStoreProvider> kvStoreProvider,
+    Provider<FabricService> fabric,
+    Provider<UserServer> userServer,
+    Provider<MaterializationDescriptorProvider> materializationDescriptorProvider,
+    Provider<QueryObserverFactory> queryObserverFactory,
+    Provider<RunningQueryProvider> runningQueriesProvider,
+    Provider<AccelerationManager> accelerationManager,
+    Provider<AccelerationListManager> accelerationListManager,
+    Provider<NamespaceService.Factory> namespaceServiceFactoryProvider,
+    Provider<DatasetListingService> datasetListingServiceProvider,
+    Provider<UserService> userService,
+    Provider<CatalogService> catalogService,
+    Provider<ViewCreatorFactory> viewCreatorFactory,
+    Provider<SpillService> spillService,
+    Provider<ConnectionReader> connectionReaderProvider,
+    Set<ClusterCoordinator.Role> roles) {
     this.bindingCreator = bindingCreator;
     this.bootstrapContext = bootstrapContext;
     this.provider = provider;
@@ -147,6 +155,8 @@ public class ContextService implements Service, Provider<SabotContext> {
     this.runningQueriesProvider = runningQueriesProvider;
     this.catalogService = catalogService;
     this.viewCreatorFactory = viewCreatorFactory;
+    this.spillService = spillService;
+    this.connectionReaderProvider = connectionReaderProvider;
     this.roles = Sets.immutableEnumSet(roles);
   }
 
@@ -184,13 +194,13 @@ public class ContextService implements Service, Provider<SabotContext> {
     logger.info("IFaces {} bound to the host: {}", Arrays.asList(iFaces).toString(), rpcBindAddress);
 
     final NodeEndpoint.Builder identityBuilder = NodeEndpoint.newBuilder()
-        .setAddress(rpcBindAddress)
-        .setUserPort(userport)
-        .setFabricPort(fabric.getPort())
-        .setStartTime(System.currentTimeMillis())
-        .setMaxDirectMemory(VM.getMaxDirectMemory())
-        .setAvailableCores(VM.availableProcessors())
-        .setRoles(ClusterCoordinator.Role.toEndpointRoles(roles));
+      .setAddress(rpcBindAddress)
+      .setUserPort(userport)
+      .setFabricPort(fabric.getPort())
+      .setStartTime(System.currentTimeMillis())
+      .setMaxDirectMemory(VM.getMaxDirectMemory())
+      .setAvailableCores(VM.availableProcessors())
+      .setRoles(ClusterCoordinator.Role.toEndpointRoles(roles));
 
     String containerId = System.getenv("CONTAINER_ID");
     if(containerId != null){
@@ -220,8 +230,10 @@ public class ContextService implements Service, Provider<SabotContext> {
         accelerationListManager,
         catalogService,
         viewCreatorFactory,
-        queryPlannerAllocator
-       );
+        queryPlannerAllocator,
+        spillService,
+        connectionReaderProvider
+      );
   }
 
   @Override
@@ -237,5 +249,3 @@ public class ContextService implements Service, Provider<SabotContext> {
 
 
 }
-
-

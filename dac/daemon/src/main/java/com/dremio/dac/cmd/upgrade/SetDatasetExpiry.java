@@ -36,13 +36,13 @@ import com.google.common.base.Throwables;
 public class SetDatasetExpiry extends UpgradeTask {
   private static final long ORIGINAL_DEFAULT_REFRESH_MILLIS = TimeUnit.MILLISECONDS.convert(30, TimeUnit.MINUTES);
 
-  SetDatasetExpiry() {
-    super("Setting dataset expiry", VERSION_109, VERSION_111);
+  public SetDatasetExpiry() {
+    super("Setting dataset expiry", VERSION_109, VERSION_111, NORMAL_ORDER + 2);
   }
 
   @Override
   public void upgrade(UpgradeContext context) {
-    final NamespaceService namespace = new NamespaceServiceImpl(context.getKVStoreProvider().get());
+    final NamespaceService namespace = new NamespaceServiceImpl(context.getKVStoreProvider());
 
     for (SourceConfig sourceConfig : namespace.getSources()) {
       MetadataPolicy metadataPolicy = sourceConfig.getMetadataPolicy();

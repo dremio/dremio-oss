@@ -97,7 +97,7 @@ public class JobResource {
     final String name = securityContext.getUserPrincipal().getName();
 
     try {
-      jobs.cancel(name, new JobId(id));
+      jobs.cancel(name, new JobId(id), "User Request based Job Cancellation");
     } catch (JobNotFoundException e) {
       throw new NotFoundException(String.format("Could not find a job with id [%s]", id));
     }

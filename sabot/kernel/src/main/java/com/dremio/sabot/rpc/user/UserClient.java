@@ -17,6 +17,7 @@ package com.dremio.sabot.rpc.user;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
 
@@ -47,7 +48,6 @@ import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.proto.UserProtos.UserProperties;
 import com.dremio.exec.proto.UserProtos.UserToBitHandshake;
 import com.dremio.exec.rpc.Acks;
-import com.dremio.exec.rpc.BasicClient;
 import com.dremio.exec.rpc.BasicClientWithConnection;
 import com.dremio.exec.rpc.ConnectionThrottle;
 import com.dremio.exec.rpc.MessageDecoder;
@@ -55,6 +55,8 @@ import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.RpcConnectionHandler;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcFuture;
+import com.dremio.exec.rpc.ssl.SSLConfig;
+import com.dremio.exec.rpc.ssl.SSLEngineFactoryImpl;
 import com.google.common.collect.Sets;
 import com.google.protobuf.MessageLite;
 
@@ -72,15 +74,18 @@ public class UserClient extends BasicClientWithConnection<RpcType, UserToBitHand
   private volatile Set<RpcType> supportedMethods = null;
 
   public UserClient(String clientName, SabotConfig config, boolean supportComplexTypes, BufferAllocator alloc,
-      EventLoopGroup eventLoopGroup, Executor eventExecutor) {
+      EventLoopGroup eventLoopGroup, Executor eventExecutor, Optional<SSLConfig> sslConfig) throws RpcException {
     super(
-        UserRpcConfig.getMapping(config, eventExecutor),
+        UserRpcConfig.getMapping(config, eventExecutor, sslConfig),
         alloc,
         eventLoopGroup,
         RpcType.HANDSHAKE,
         BitToUserHandshake.class,
         BitToUserHandshake.PARSER,
-        "user client");
+        "user client",
+        SSLEngineFactoryImpl.create(sslConfig)
+    );
+
     this.clientName = checkNotNull(clientName);
     this.supportComplexTypes = supportComplexTypes;
   }
@@ -196,7 +201,7 @@ public class UserClient extends BasicClientWithConnection<RpcType, UserToBitHand
       logger.debug("Adding dremio 09 backwards compatibility decoder");
       connection.getChannel()
         .pipeline()
-        .addAfter(BasicClient.PROTOCOL_DECODER, "dremio09-backward",
+        .addAfter(PROTOCOL_DECODER, UserRpcUtils.DREMIO09_COMPATIBILITY_ENCODER,
           new BackwardsCompatibilityDecoder(bcAllocator, new Dremio09BackwardCompatibilityHandler(bcAllocator)));
       }
       break;
@@ -212,7 +217,7 @@ public class UserClient extends BasicClientWithConnection<RpcType, UserToBitHand
   }
 
   @Override
-  public MessageDecoder getDecoder(BufferAllocator allocator) {
+  public MessageDecoder newDecoder(BufferAllocator allocator) {
     return new UserProtobufLengthDecoder(allocator);
   }
 

@@ -19,12 +19,14 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.FunctionContext;
 
 public interface ClassProducer {
   <T> CodeGenerator<T> createGenerator(TemplateClassDefinition<T> definition);
   LogicalExpression materialize(LogicalExpression expr, VectorAccessible batch);
   LogicalExpression materializeAndAllowComplex(LogicalExpression expr, VectorAccessible batch);
+  LogicalExpression materializeAndAllowComplex(OptionManager optionManager, LogicalExpression expr, VectorAccessible batch);
   LogicalExpression addImplicitCast(LogicalExpression fromExpr, CompleteType toType);
   FunctionContext getFunctionContext();
 

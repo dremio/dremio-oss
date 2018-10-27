@@ -113,7 +113,7 @@ export const sqlEditorButton = {
   borderLeft: 'none',
   borderRight: 'none',
   minWidth: 60,
-  marginRight: 5,
+  marginRight: 5, // todo get rid of that
   borderRadius: 2,
   cursor: 'pointer',
   padding: '0 6px 0 0',

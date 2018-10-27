@@ -15,8 +15,12 @@
  */
 package com.dremio.plugins.s3.store;
 
+import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.AWS_CREDENTIALS_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
 import static org.apache.hadoop.fs.s3a.Constants.ENDPOINT;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -27,7 +31,9 @@ import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,17 +103,25 @@ public class S3FileSystem extends ContainerFileSystem {
     }
   }
 
+
+  @Override
+  public RemoteIterator<LocatedFileStatus> listFiles(Path f, boolean recursive) throws FileNotFoundException, IOException {
+    return super.listFiles(f, recursive);
+  }
+
+
   @Override
   protected Iterable<ContainerCreator> getContainerCreators() throws IOException {
 
-    String externalBucketList = getConf().get(S3PluginConfig.EXTERNAL_BUCKETS);
+    String externalBucketList = getConf().get(S3StoragePlugin.EXTERNAL_BUCKETS);
     FluentIterable<String> buckets = externalBucketList == null ? FluentIterable.of(new String[0]) :
         FluentIterable.of(externalBucketList.split(","))
             .transform(input -> input.trim())
             .filter(input -> !Strings.isNullOrEmpty(input));
 
-    if(getConf().get(Constants.ACCESS_KEY) != null){
-      // if we have an access key, add in owner buckets.
+    if ((getConf().get(AWS_CREDENTIALS_PROVIDER) == ACCESS_KEY_PROVIDER)
+      || (getConf().get(AWS_CREDENTIALS_PROVIDER) == EC2_METADATA_PROVIDER)){
+      // if we have authentication to access S3, add in owner buckets.
       buckets = buckets.append(FluentIterable.from(s3.listBuckets()).transform(input -> input.getName()));
     }
 

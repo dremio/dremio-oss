@@ -20,6 +20,9 @@ import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
 import exploreUtils from 'utils/explore/exploreUtils';
+import { PageTypes, pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
+import { changePageTypeInUrl } from '@app/pages/ExplorePage/pageTypeUtils';
+import { collapseExploreSql } from 'actions/explore/ui';
 
 import { performTransform } from 'actions/explore/dataset/transform';
 
@@ -33,12 +36,13 @@ export class TableControls extends Component {
     dataset: PropTypes.instanceOf(Immutable.Map),
     currentSql: PropTypes.string,
     queryContext: PropTypes.instanceOf(Immutable.List),
-    columns: PropTypes.instanceOf(Immutable.List),
+    defaultColumnName: PropTypes.string, // would be used for addField button as default value
     exploreViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
-    isGraph: PropTypes.bool.isRequired,
+    pageType: pageTypesProp.isRequired,
     sqlState: PropTypes.bool.isRequired,
     sqlSize: PropTypes.number.isRequired,
     toggleExploreSql: PropTypes.func,
+    collapseExploreSql: PropTypes.func.isRequired,
     location: PropTypes.object.isRequired,
     rightTreeVisible: PropTypes.bool,
     approximate: PropTypes.bool,
@@ -65,12 +69,14 @@ export class TableControls extends Component {
 
   getLocationWithoutGraph(location) {
     let newLocation = location;
-    if (this.props.isGraph) {
-      newLocation = {
-        ...newLocation,
-        pathname: newLocation.pathname.substr(0, location.pathname.indexOf('/graph'))
-      };
-    }
+    const {
+      pageType
+    } = this.props;
+
+    newLocation = {
+      ...newLocation,
+      pathname: changePageTypeInUrl(pageType, newLocation.pathname, PageTypes.default)
+    };
 
     return newLocation;
   }
@@ -79,14 +85,6 @@ export class TableControls extends Component {
     this.setState({
       dropdownState: false
     });
-  }
-
-  dataGraph() {
-    const { location, router } = this.context;
-    const pathname = location.pathname.indexOf('/graph') === -1
-      ? `${location.pathname}/graph`
-      : location.pathname.substr(0, location.pathname.indexOf('/graph'));
-    router.push({...location, pathname});
   }
 
   navigateToTransformWizard(wizardParams) {
@@ -102,7 +100,7 @@ export class TableControls extends Component {
 
   addField = () => {
     // use first column by default for just the expression
-    const defaultColumn = this.props.columns.getIn([0, 'name']);
+    const defaultColumn = this.props.defaultColumnName;
     this.navigateToTransformWizard({
       detailType: 'CALCULATED_FIELD',
       column: '',
@@ -142,18 +140,15 @@ export class TableControls extends Component {
   union() {}
 
   render() {
-    const { isGraph, dataset, columns, sqlState, approximate, rightTreeVisible, exploreViewState } = this.props;
+    const { dataset, sqlState, approximate, rightTreeVisible, exploreViewState } = this.props;
     const { anchorEl, dropdownState } = this.state;
     return (
       <TableControlsView
-        isGraph={isGraph}
         dataset={dataset}
         exploreViewState={exploreViewState}
-        columns={columns}
         addField={this.addField}
         sqlState={sqlState}
         groupBy={this.groupBy.bind(this)}
-        dataGraph={this.dataGraph.bind(this)}
         dropdownState={dropdownState}
         closeDropdown={this.closeDropdown.bind(this)}
         toogleDropdown={this.toogleDropdown.bind(this)}
@@ -173,11 +168,12 @@ function mapStateToProps(state, props) {
   return {
     currentSql: state.explore.view.get('currentSql'),
     queryContext: state.explore.view.get('queryContext'),
-    columns: getTableColumns(state, datasetVersion, location),
+    defaultColumnName: getTableColumns(state, datasetVersion, location).getIn([0, 'name']),
     approximate: getApproximate(state, datasetVersion)
   };
 }
 
 export default connect(mapStateToProps, {
-  performTransform
+  performTransform,
+  collapseExploreSql
 })(TableControls);

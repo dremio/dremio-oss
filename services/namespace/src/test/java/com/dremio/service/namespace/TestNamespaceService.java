@@ -523,8 +523,8 @@ public class TestNamespaceService {
       assertTrue(boundedDatasetCount.isCountBound());
       assertEquals(boundedDatasetCount.getCount(), 30);
 
-      // test time bound - the code checks every 50 children visited to see if the time bound has been hit
-      boundedDatasetCount = ns.getDatasetCount(new NamespaceKey("a"), 1, 1000);
+      // test time bound - the code checks every 50 children visited to see if the time bound has been hit and we give it 0 ms
+      boundedDatasetCount = ns.getDatasetCount(new NamespaceKey("a"), 0, 1000);
       assertTrue(boundedDatasetCount.isTimeBound());
     }
   }
@@ -883,7 +883,7 @@ public class TestNamespaceService {
       // Checking that orphan splits get cleaned
       SearchQuery searchQuery = SearchQueryUtils.newTermQuery(DatasetSplitIndexKeys.DATASET_ID, datasetConfig.getId().getId());
       int count = ns.getSplitCount(new IndexedStore.FindByCondition().setCondition(searchQuery));
-      int deleted = ns.deleteSplitOrphans();
+      int deleted = ns.deleteSplitOrphans(DatasetSplitId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY);
       int newCount = ns.getSplitCount(new IndexedStore.FindByCondition().setCondition(searchQuery));
 
       // Only 10 splits should be left in the kvstore for that dataset

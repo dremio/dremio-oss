@@ -37,6 +37,7 @@ import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.DoubleValidator;
+import com.dremio.options.TypeValidators.EnumValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.options.TypeValidators.QueryLevelOptionValidation;
@@ -110,7 +111,30 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator ENABLE_OUTPUT_LIMITS = new BooleanValidator("planner.output_limit_enable", false);
   public static final RangeLongValidator OUTPUT_LIMIT_SIZE  = new RangeLongValidator("planner.output_limit_size", 1, Long.MAX_VALUE, 1_000_000);
 
-  public static final OptionValidator STORE_QUERY_RESULTS = new QueryLevelOptionValidation(new BooleanValidator("planner.store_query_results", false));
+  /**
+   * Policy regarding storing query results
+   */
+  public enum StoreQueryResultsPolicy {
+    /**
+     * Do not save query result
+     */
+    NO,
+
+    /**
+     * Save query results to the path designated by {@code QUERY_RESULTS_STORE_TABLE} option
+     */
+    DIRECT_PATH,
+
+    /**
+     * Save query results to the path designated by {@code QUERY_RESULTS_STORE_TABLE} option
+     * appended with attempt id
+     */
+    PATH_AND_ATTEMPT_ID
+  }
+
+  public static final OptionValidator STORE_QUERY_RESULTS = new QueryLevelOptionValidation(
+      new EnumValidator<>("planner.store_query_results", StoreQueryResultsPolicy.class, StoreQueryResultsPolicy.NO));
+
   public static final OptionValidator QUERY_RESULTS_STORE_TABLE = new QueryLevelOptionValidation(new StringValidator("planner.query_results_store_path", "null"));
 
   // Enable filter reduce expressions rule for tableau's 1=0 queries.
@@ -383,10 +407,6 @@ public class PlannerSettings implements Context{
       return Math.min(sliceTarget, minimumSampleSize);
     }
     return sliceTarget;
-  }
-
-  public boolean isMemoryEstimationEnabled() {
-    return options.getOption(ExecConstants.ENABLE_MEMORY_ESTIMATION_KEY).getBoolVal();
   }
 
   public String getFsPartitionColumnLabel() {

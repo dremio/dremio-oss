@@ -19,8 +19,10 @@ import static java.util.Arrays.asList;
 
 import java.util.List;
 
+import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.common.ResourcePath;
 import com.dremio.dac.model.common.RootEntity;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 /**
@@ -35,6 +37,12 @@ public class PhysicalDatasetResourcePath extends ResourcePath {
   public PhysicalDatasetResourcePath(SourceName sourceName, PhysicalDatasetPath dataset) {
     this.sourceName = sourceName;
     this.dataset = dataset;
+  }
+
+  public PhysicalDatasetResourcePath(NamespacePath path, DatasetType type) {
+    PhysicalDatasetPath pdp = new PhysicalDatasetPath(path, type);
+    this.sourceName = pdp.getRoot();
+    this.dataset = pdp;
   }
 
   @JsonCreator

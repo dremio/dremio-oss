@@ -37,6 +37,7 @@ import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
 public interface AttemptObserver {
 
@@ -235,4 +236,9 @@ public interface AttemptObserver {
    */
   void leafFragmentScheduling(long millisTaken);
 
+  /**
+   * ResourceScheduling related information
+   * @param resourceSchedulingDecisionInfo
+   */
+  void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo);
 }

@@ -31,6 +31,13 @@ import com.dremio.test.DremioTest;
  * Tests for remote occ kvstore.
  */
 public class TestRemoteOCCKVStore extends AbstractTestOCCKVStore {
+
+  private static final String HOSTNAME = "localhost";
+  private static final int THREAD_COUNT = 2;
+  private static final long RESERVATION = 0;
+  private static final long MAX_ALLOCATION = Long.MAX_VALUE;
+  private static final int TIMEOUT = 300;
+
   private FabricService localFabricService;
   private FabricService remoteFabricService;
   private LocalKVStoreProvider localKVStoreProvider;
@@ -43,18 +50,24 @@ public class TestRemoteOCCKVStore extends AbstractTestOCCKVStore {
 
     allocator = new RootAllocator(20 * 1024 * 1024);
     pool = new CloseableThreadPool("test-remoteocckvstore");
-    localFabricService = new FabricServiceImpl("localhost", 45678, true, 300, 2, pool, allocator, 0, Long.MAX_VALUE);
+    localFabricService = new FabricServiceImpl(HOSTNAME, 45678, true, THREAD_COUNT, allocator, RESERVATION,
+        MAX_ALLOCATION, TIMEOUT, pool);
     localFabricService.start();
 
-    remoteFabricService = new FabricServiceImpl("localhost", 45679, true, 300, 2, pool, allocator, 0, Long.MAX_VALUE);
+    remoteFabricService = new FabricServiceImpl(HOSTNAME, 45679, true, THREAD_COUNT, allocator, RESERVATION,
+        MAX_ALLOCATION, TIMEOUT, pool);
     remoteFabricService.start();
 
-    localKVStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, DirectProvider.<FabricService>wrap(localFabricService), allocator, "localhost", null, true, true, true, false);
+    localKVStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT,
+        DirectProvider.<FabricService>wrap(localFabricService), allocator, HOSTNAME, null, true, true, true, false);
     localKVStoreProvider.start();
     remoteKVStoreProvider = new RemoteKVStoreProvider(
         DremioTest.CLASSPATH_SCAN_RESULT,
-        DirectProvider.wrap(NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(localFabricService.getPort()).build()),
-        DirectProvider.<FabricService>wrap(remoteFabricService), allocator, "localhost");
+        DirectProvider.wrap(NodeEndpoint.newBuilder()
+            .setAddress(HOSTNAME)
+            .setFabricPort(localFabricService.getPort())
+            .build()),
+        DirectProvider.<FabricService>wrap(remoteFabricService), allocator, HOSTNAME);
     remoteKVStoreProvider.start();
     return remoteKVStoreProvider;
   }
@@ -62,6 +75,7 @@ public class TestRemoteOCCKVStore extends AbstractTestOCCKVStore {
   @After
   @Override
   public void after() throws Exception {
-    AutoCloseables.close(remoteKVStoreProvider, localKVStoreProvider, remoteFabricService, localFabricService, pool, allocator);
+    AutoCloseables.close(remoteKVStoreProvider, localKVStoreProvider, remoteFabricService, localFabricService, pool,
+        allocator);
   }
 }

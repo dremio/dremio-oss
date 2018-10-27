@@ -34,6 +34,7 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
+import com.dremio.services.fabric.api.FabricService;
 import com.dremio.services.fabric.api.PhysicalConnection;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
@@ -45,11 +46,15 @@ import io.netty.buffer.ByteBuf;
  */
 public class TestFabric extends BaseTestFabric {
 
+  protected FabricService getFabric() {
+    return fabric;
+  }
+
   @Test
   public void firstDisconnectRecovery() throws Exception {
     CountDownLatch closeLatch = new CountDownLatch(1);
-    FabricRunnerFactory factory = fabric.registerProtocol(new Protocol(closeLatch));
-    FabricCommandRunner runner = factory.getCommandRunner(fabric.getAddress(), fabric.getPort());
+    FabricRunnerFactory factory = getFabric().registerProtocol(new Protocol(closeLatch));
+    FabricCommandRunner runner = factory.getCommandRunner(getFabric().getAddress(), getFabric().getPort());
 
 
     // send a message, establishing the connection.
@@ -76,8 +81,8 @@ public class TestFabric extends BaseTestFabric {
 
   @Test(expected=ChannelClosedException.class)
   public void failureOnDisconnection() throws Exception {
-    FabricRunnerFactory factory = fabric.registerProtocol(new Protocol(null));
-    FabricCommandRunner runner = factory.getCommandRunner(fabric.getAddress(), fabric.getPort());
+    FabricRunnerFactory factory = getFabric().registerProtocol(new Protocol(null));
+    FabricCommandRunner runner = factory.getCommandRunner(getFabric().getAddress(), getFabric().getPort());
     SimpleMessage m = new SimpleMessage(2);
     runner.runCommand(m);
     m.getFuture().checkedGet(1000, TimeUnit.MILLISECONDS);
@@ -149,7 +154,7 @@ public class TestFabric extends BaseTestFabric {
 
     @Override
     public void handle(final PhysicalConnection connection, int rpcType, ByteString pBody, ByteBuf dBody,
-        ResponseSender sender) throws RpcException {
+                       ResponseSender sender) throws RpcException {
 
       switch(rpcType){
       case 1:

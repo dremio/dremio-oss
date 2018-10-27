@@ -23,6 +23,9 @@
     SqlParserPos pos;
     SqlIdentifier tblName;
     SqlIdentifier name;
+    SqlLiteral deleteUnavail = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlLiteral promotion = SqlLiteral.createNull(SqlParserPos.ZERO);
+    SqlLiteral forceUp = SqlLiteral.createNull(SqlParserPos.ZERO);
 }
 {
     <ALTER> { pos = getPos(); }
@@ -50,7 +53,23 @@
           |
           <FORGET> <METADATA> {return new SqlForgetTable(pos, tblName);}
           |
-          <REFRESH> <METADATA> {return new SqlRefreshTable(pos, tblName);}
+          <REFRESH> <METADATA>
+          (
+            <AUTO> <PROMOTION> { promotion = SqlLiteral.createBoolean(true, pos); }
+          |
+            <AVOID> <PROMOTION> { promotion = SqlLiteral.createBoolean(false, pos); }
+          )?
+          (
+            <FORCE> <UPDATE> { forceUp = SqlLiteral.createBoolean(true, pos); }
+          |
+            <LAZY> <UPDATE> { forceUp = SqlLiteral.createBoolean(false, pos); }
+          )?
+          (
+            <DELETE> <WHEN> <MISSING> { deleteUnavail = SqlLiteral.createBoolean(true, pos); }
+          |
+            <MAINTAIN> <WHEN> <MISSING> { deleteUnavail = SqlLiteral.createBoolean(false, pos); }
+          )?
+          { return new SqlRefreshTable(pos, tblName, deleteUnavail, forceUp, promotion); }
           |
           <ENABLE> <APPROXIMATE> <STATS> {return new SqlSetApprox(pos, tblName, SqlLiteral.createBoolean(true, pos));}
           |
@@ -60,6 +79,7 @@
         )
     )
 }
+
 
 /**
    ALTER TABLE tblname 

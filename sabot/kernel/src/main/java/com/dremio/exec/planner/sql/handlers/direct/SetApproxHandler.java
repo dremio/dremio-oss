@@ -58,7 +58,11 @@ public class SetApproxHandler extends SimpleDirectHandler {
 
       while(true) {
         final DremioTable table = catalog.getTableNoResolve(path);
-        if(table == null || table.getJdbcTableType() != TableType.TABLE || table.getDatasetConfig() == null || table.getDatasetConfig().getPhysicalDataset() == null) {
+
+        if(table.getDatasetConfig().getPhysicalDataset() == null) {
+          throw UserException.parseError().message("Unable to approximate stats on virtual dataset %s", path).build(logger);
+        }
+        if(table == null || table.getJdbcTableType() != TableType.TABLE || table.getDatasetConfig() == null) {
           throw UserException.parseError().message("Unable to find table %s.", path).build(logger);
         }
 

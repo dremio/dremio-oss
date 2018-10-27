@@ -113,6 +113,13 @@ class ApiUtils {
 
     return fetch(`${apiVersion}/${endpoint}`, { ...options, headers }).then(response => response.ok ? response : Promise.reject(response));
   }
+
+  // This method assumes that error response may contain moreInfo field, that should be used for error message
+  async getErrorMessage(prefix, response) {
+    const err = await response.json();
+    const errText = err && err.moreInfo || '';
+    return errText.length ? `${prefix}: ${errText}` : `${prefix}.`;
+  }
 }
 
 const apiUtils = new ApiUtils();

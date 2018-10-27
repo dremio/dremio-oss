@@ -23,13 +23,16 @@ import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlExplainLevel;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
+import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.sql2rel.RelDecorrelator;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 
@@ -142,11 +145,20 @@ public class SqlConverter {
     this.viewExpansionContext = parent.viewExpansionContext;
   }
 
+  private static final SqlShuttle STRING_LITERAL_CONVERTER = new SqlShuttle() {
+    @Override
+    public SqlNode visit(SqlLiteral literal) {
+      if (literal instanceof SqlCharStringLiteral) {
+        return SqlVarCharStringLiteral.create((SqlCharStringLiteral) literal);
+      }
+      return literal;
+    }
+  };
 
   public SqlNode parse(String sql) {
     try {
       SqlParser parser = SqlParser.create(sql, parserConfig);
-      return parser.parseStmt();
+      return parser.parseStmt().accept(STRING_LITERAL_CONVERTER);
     } catch (SqlParseException e) {
       UserException.Builder builder = SqlExceptionHelper.parseError(sql, e);
 

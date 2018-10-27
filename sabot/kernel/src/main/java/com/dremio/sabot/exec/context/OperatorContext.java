@@ -32,6 +32,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.spill.SpillService;
 
 import io.netty.buffer.ArrowBuf;
 
@@ -46,6 +47,8 @@ public abstract class OperatorContext {
   public abstract ArrowBuf getManagedBuffer(int size);
 
   public abstract BufferAllocator getAllocator();
+
+  public abstract BufferAllocator getFragmentOutputAllocator();
 
   /**
    * Create a vector container to be used for the output of this operator
@@ -91,6 +94,8 @@ public abstract class OperatorContext {
   public abstract NamespaceService getNamespaceService();
 
   public abstract NodeDebugContextProvider getNodeDebugContextProvider();
+
+  public abstract SpillService getSpillService();
 
   public static int getChildCount(PhysicalOperator popConfig) {
     Iterator<PhysicalOperator> iter = popConfig.iterator();

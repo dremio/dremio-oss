@@ -19,14 +19,10 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.List;
 
-import com.dremio.common.AutoCloseables.RollbackCloseable;
-import com.dremio.exec.record.VectorAccessible;
-import io.netty.util.internal.PlatformDependent;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.SerializedFieldHelper;
@@ -37,6 +33,7 @@ import org.xerial.snappy.Snappy;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
+import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
@@ -49,6 +46,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 import io.netty.buffer.ArrowBuf;
+import io.netty.util.internal.PlatformDependent;
 
 /**
  * A wrapper around a VectorAccessible. Will serialize a VectorAccessible and write to an OutputStream, or can read
@@ -58,11 +56,29 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorAccessibleSerializable.class);
   static final MetricRegistry metrics = Metrics.getInstance();
   static final String WRITER_TIMER = MetricRegistry.name(VectorAccessibleSerializable.class, "writerTime");
+
   static final int COMPRESSED_LENGTH_BYTES = 4;
   public static final int RAW_CHUNK_SIZE_TO_COMPRESS = 32*1024;
 
-  private byte tmpBuffer[] = new byte[RAW_CHUNK_SIZE_TO_COMPRESS*2];
-  private ByteBuffer tmpBuffer1 = ByteBuffer.allocate(Integer.SIZE / Byte.SIZE); //byte array of 4 bytes
+  /*
+   * A reusable buffer for I/O operations to avoid GC churn by creating too many byte arrays
+   */
+  private static final ThreadLocal<byte[]> REUSABLE_LARGE_BUFFER = new ThreadLocal<byte[]>() {
+    @Override
+    protected byte[] initialValue() {
+      return new byte[RAW_CHUNK_SIZE_TO_COMPRESS*2];
+    }
+  };
+
+  /*
+   * A reusable buffer for int to array conversions
+   */
+  private static final ThreadLocal<byte[]> REUSABLE_SMALL_BUFFER = new ThreadLocal<byte[]>() {
+    @Override
+    protected byte[] initialValue() {
+      return new byte[Integer.SIZE / Byte.SIZE];
+    }
+  };
 
   private VectorContainer va;
   private WritableBatch batch;
@@ -123,6 +139,8 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
 
   private void writeBuf(ArrowBuf buf, OutputStream output) throws IOException {
     int bufLength = buf.readableBytes();
+    /* Use current thread buffer (safe to do since I/O operation is blocking) */
+    final byte[] tmpBuffer = REUSABLE_LARGE_BUFFER.get();
     for (int posn = 0; posn < bufLength; posn += tmpBuffer.length) {
       int len = Math.min(tmpBuffer.length, bufLength - posn);
       buf.getBytes(posn, tmpBuffer, 0, len);
@@ -163,10 +181,12 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
         int compressedLength = Snappy.compress(rawDirectBuffer, compressedDirectBuffer);
 
         /* get compressed data into byte array for serializing to output stream */
+        /* Use current thread buffer (safe to do since I/O operation is blocking) */
+        final byte[] tmpBuffer = REUSABLE_LARGE_BUFFER.get();
         compressedDirectBuffer.get(tmpBuffer, 0, compressedLength);
 
         /* serialize the length of compressed data */
-        output.write(getByteArrayFromLEInt(compressedLength));
+        output.write(getByteArrayFromLEInt(REUSABLE_SMALL_BUFFER.get(), compressedLength));
         /* serialize the compressed data */
         output.write(tmpBuffer, 0, compressedLength);
       }
@@ -221,9 +241,9 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
         try {
           buf = allocator.buffer(rawDataLength);
           if (useCodec) {
-            readAndUncompressIntoArrowBuf(input, buf, rawDataLength, tmpBuffer);
+            readAndUncompressIntoArrowBuf(input, buf, rawDataLength);
           } else {
-            readIntoArrowBuf(input, buf, rawDataLength, tmpBuffer);
+            readIntoArrowBuf(input, buf, rawDataLength);
           }
           vector = TypeHelper.getNewVector(field, allocator);
           /*
@@ -338,7 +358,7 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
    * @param numBytesToRead
    * @throws IOException
    */
-  public static void readIntoArrowBuf(InputStream inputStream, ArrowBuf outputBuffer, int numBytesToRead, byte[] buffer)
+  public static void readIntoArrowBuf(InputStream inputStream, ArrowBuf outputBuffer, int numBytesToRead)
       throws IOException {
 //  Disabling direct reads for this since we have to be careful to avoid issues with compatibilityutil where it caches failure or success in direct reading. Direct reading will fail for LocalFIleSystem. As such, if we enable this path, we will non-direct reading for all sources (including HDFS)
 //    if(inputStream instanceof FSDataInputStream){
@@ -346,6 +366,8 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
 //      return;
 //    }
 
+    /* Use current thread buffer (safe to do since I/O operation is blocking) */
+    final byte[] buffer = REUSABLE_LARGE_BUFFER.get();
     while(numBytesToRead > 0) {
       int len = Math.min(buffer.length, numBytesToRead);
 
@@ -368,9 +390,12 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
    * as this represents the compressed length of a chunk and then we will read the subsequent
    * bytes (compressed data), uncompress them and append into the output ArrowBuf.
    */
-  private void readAndUncompressIntoArrowBuf(InputStream inputStream, ArrowBuf outputBuffer, int rawDataLength, byte[] buffer)
+  private void readAndUncompressIntoArrowBuf(InputStream inputStream, ArrowBuf outputBuffer, int rawDataLength)
     throws IOException {
     int bufferPos = 0;
+
+    /* Use current thread buffer (safe to do since I/O operation is blocking) */
+    final byte[] buffer = REUSABLE_LARGE_BUFFER.get();
     while(rawDataLength > 0) {
       /* read the first 4 bytes to get the length of subsequent compressed bytes */
       int numBytesToRead = COMPRESSED_LENGTH_BYTES;
@@ -431,9 +456,9 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
     return PlatformDependent.getInt(array, 0);
   }
 
-  public byte[] getByteArrayFromLEInt(int value) {
-    PlatformDependent.putInt(tmpBuffer1.array(), 0, value);
-    return tmpBuffer1.array();
+  private byte[] getByteArrayFromLEInt(byte[] array, int value) {
+    PlatformDependent.putInt(array, 0, value);
+    return array;
   }
 
   public static void readFromStream(FSDataInputStream input, final ArrowBuf outputBuffer, final int bytesToRead) throws IOException{

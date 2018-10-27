@@ -25,6 +25,8 @@ public interface TaskPool extends AutoCloseable {
     return Collections.emptyList();
   }
 
+  GroupManager<AsyncTaskWrapper> getGroupManager();
+
   class ThreadInfo {
     /** current Java thread name */
     public final String threadName;

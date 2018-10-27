@@ -23,7 +23,7 @@ import Immutable from 'immutable';
 import {humanSorter} from 'utils/sort';
 
 const ROW_HEIGHT = 30;
-const HEADER_HEIGHT = 40;
+const HEADER_HEIGHT = 39;
 
 export const SortDirection = {
   ASC: 'ASC',
@@ -147,6 +147,7 @@ export default class VirtualizedTableViewer extends Component {
                   <Column
                     key={item.title}
                     dataKey={item.key}
+                    className={item.className}
                     style={item.style}
                     headerRenderer={(options) => this.renderHeader(options, item.style)}
                     width={item.width || 100}

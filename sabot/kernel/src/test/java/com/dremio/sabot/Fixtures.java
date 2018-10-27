@@ -45,7 +45,6 @@ import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.DateUtility;
 import org.apache.arrow.vector.util.Text;
 import org.joda.time.DateTimeZone;
@@ -91,7 +90,6 @@ public final class Fixtures {
   public static final Cell NULL_INTERVAL_DAY_SECOND = new IntervalDaySecond(null);
   public static final Cell NULL_INTERVAL_YEAR_MONTH = new IntervalYearMonth(null);
   public static final Cell NULL_DECIMAL = new Decimal(null);
-
 
   private Fixtures(){}
 
@@ -238,7 +236,7 @@ public final class Fixtures {
   private static boolean compareTableResultMap(StringBuilder sb, Field[] fields, List<RecordBatchData> actual,
                                                int expectedRecordCount, HashMap<Object, Fixtures.DataRow> resultMap) {
     final StringBuilder sb1 = new StringBuilder(sb);
-
+    int failures  = 0;
     NavigableMap<Integer, RangeHolder<DataHolder>> actualRange = new TreeMap<>();
     {
       int offset = 0;
@@ -282,11 +280,13 @@ public final class Fixtures {
           CellCompare comparison = expectedRowData.cells[columnIndex].compare(actualHolder.data.vectors.get(columnIndex), vectorOffset, actualHolder.check(rowNumber));
           if (!comparison.equal) {
             ok = false;
+            failures++;
           }
           actualValues[columnIndex] = (actualCellValue == null) ? "null" : actualCellValue.toString();
         }
       } else {
         ok = false;
+        failures++;
         for (int columnIndex = 1; columnIndex < fields.length; columnIndex++) {
           Object actualCellValue = isValid ? actualHolder.data.vectors.get(columnIndex).getObject(vectorOffset) : null;
           actualValues[columnIndex] = actualCellValue.toString();
@@ -298,6 +298,7 @@ public final class Fixtures {
     }
 
     if(!ok){
+      sb.append("Failed to match: ").append(failures).append(" items");
       sb.append("\n\n---------Actual Output Table (order not important) ---------- \n");
       V2_AsciiTableRenderer rend = new V2_AsciiTableRenderer();
       rend.setTheme(V2_E_TableThemes.UTF_LIGHT.get());
@@ -329,7 +330,7 @@ public final class Fixtures {
     return ok;
   }
 
-  private static boolean compare(StringBuilder sb, Field[] fields, DataBatch[] expected, List<RecordBatchData> actual, int expectedRecordCount){
+  private static boolean compare(StringBuilder sb, Field[] fields, DataBatch[] expected, List<RecordBatchData> actual, int expectedRecordCount) {
     // build batch ranges.
     NavigableMap<Integer, RangeHolder<DataHolder>> actualRange = new TreeMap<>();
     {
@@ -444,7 +445,7 @@ public final class Fixtures {
     return field;
   }
 
-  private static Field[] getFields(HeaderRow row, DataBatch... data){
+  public static Field[] getFields(HeaderRow row, DataBatch... data){
     Field[] fields = new Field[row.names.length];
     for(DataBatch b : data){
       for(DataRow r : b.rows){
@@ -619,7 +620,7 @@ public final class Fixtures {
   }
 
   static abstract class ValueCell<V> implements Cell {
-    protected final V obj;
+    public final V obj;
 
     public ValueCell(V obj) {
       super();

@@ -184,7 +184,7 @@ public final class DACDaemon implements AutoCloseable {
       System.out.println("Dremio Daemon Started as " + (isMaster ?  "master" : "worker"));
       if(webServer != null){
         System.out.println(String.format("Webserver available at: %s://%s:%d",
-            dacConfig.webSSLEnabled ? "https" : "http", thisNode, webServer.getPort()));
+            dacConfig.webSSLEnabled() ? "https" : "http", thisNode, webServer.getPort()));
       }
 
     }

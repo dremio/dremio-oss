@@ -56,7 +56,7 @@ public class TestIncrementalUpdater extends BaseTestServer {
         .setSqlQuery(new SqlQuery("select n_regionkey, max(n_nationkey) as max_nation from cp.\"tpch/nation.parquet\" group by n_regionkey", SYSTEM_USERNAME))
         .setQueryType(QueryType.JDBC)
         .setDatasetPath(datsetPath.toNamespaceKey())
-        .setDatasetVersion(new DatasetVersion(System.currentTimeMillis(), 0))
+        .setDatasetVersion(DatasetVersion.newVersion())
         .build(), new JobStatusLogger() {
       @Override
       public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
@@ -77,7 +77,7 @@ public class TestIncrementalUpdater extends BaseTestServer {
       }
 
       @Override
-      public void jobCancelled() {
+      public void jobCancelled(String reason) {
         ex.addException(new RuntimeException("Job cancelled."));
         latch.countDown();
       }

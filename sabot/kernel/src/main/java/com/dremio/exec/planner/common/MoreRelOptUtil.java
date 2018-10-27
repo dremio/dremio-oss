@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.Convention;
@@ -357,42 +358,6 @@ public final class MoreRelOptUtil {
       }
     }
     return true;
-  }
-
-
-  public static boolean hasBooleanLiteralOrRexCallReturnsBoolean(RexNode node, boolean rexCallCanReturnBoolean) {
-    if (node instanceof RexLiteral) {
-      boolean toReturn = node.getType().getSqlTypeName() == SqlTypeName.BOOLEAN;
-      if (toReturn) {
-        logger.debug("Boolean RexLiteral found, {}", node);
-      }
-      return toReturn;
-    }
-    if (node instanceof RexInputRef) {
-      return false;
-    }
-    if (node instanceof RexCall) {
-      if (node.getType().getSqlTypeName() == SqlTypeName.BOOLEAN
-          && (!rexCallCanReturnBoolean || ((RexCall) node).getOperator().getKind() == SqlKind.CAST)) {
-        logger.debug("RexCall returns boolean, {}", node);
-        return true;
-      }
-      final List<RexNode> operandsToCheck;
-      if (((RexCall) node).getOperator().getKind() == SqlKind.CASE) {
-        assert ((RexCall) node).getOperands().size() >= 2;
-        operandsToCheck = ((RexCall) node).getOperands().subList(1, ((RexCall) node).getOperands().size());
-      } else {
-        operandsToCheck = ((RexCall) node).getOperands();
-      }
-
-      for (RexNode operand : operandsToCheck) {
-        if (hasBooleanLiteralOrRexCallReturnsBoolean(operand, rexCallCanReturnBoolean)) {
-          logger.debug("RexCall has boolean inputs, {}", node);
-          return true;
-        }
-      }
-    }
-    return false;
   }
 
   public static class SubsetRemover extends StatelessRelShuttleImpl {

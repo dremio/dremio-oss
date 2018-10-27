@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.Map;
 
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.util.Text;
 import org.joda.time.format.DateTimeFormatter;
 
 import com.dremio.common.types.TypeProtos.MinorType;
@@ -300,17 +301,22 @@ public class DataJsonOutput {
 
   public void writeVarChar(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      String value = reader.readText().toString();
-      if (value.length() > context.getRemaining()) {
-        // Truncate the string if the space is limited
-        value = value.substring(0, context.getRemaining());
-        context.setTruncated();
+      // NB: For UnionReader(s), reader.isSet() checks if the reader has a type set, not if the data itself is null
+      final Text text = reader.readText();
+      if (text != null) {
+        String value = text.toString();
+        if (value.length() > context.getRemaining()) {
+          // Truncate the string if the space is limited
+          value = value.substring(0, context.getRemaining());
+          context.setTruncated();
+        }
+        writeVarChar(value);
+        context.used(value.length());
+        return;
       }
-      writeVarChar(value);
-      context.used(value.length());
-    } else {
-      writeNull(context);
     }
+    // Either the type or the value is not set
+    writeNull(context);
   }
 
   public void writeVar16Char(FieldReader reader, JsonOutputContext context) throws IOException {

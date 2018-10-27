@@ -311,6 +311,8 @@
     <dd>${model.getProfile().getTotalFragments()}</dd>
     <dt>Planning Time:</dt>
     <dd>${model.getPlanningTime()}</dd>
+    <dt>Resource Scheduling Time:</dt>
+    <dd>${model.getQueueTime()}</dd>
   </dl>
   <h3>Threads</h3>
   <div class="panel-group" id="fragment-accordion">
@@ -358,6 +360,24 @@
       </div>
     </div>
     </#list>
+  </div>
+
+  <h3>Resource Allocation</h3>
+  <div class="panel-group" id="resource-accordion">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h4 class="panel-title">
+          <a data-toggle="collapse" href="#resource-allocation-overview">
+            Overview
+          </a>
+        </h4>
+      </div>
+      <div id="resource-allocation-overview" class="panel-collapse collapse">
+        <div class="panel-body">
+          ${model.getResourceSchedulingOverview()?no_esc}
+        </div>
+      </div>
+    </div>
   </div>
 
   <h3>Nodes</h3>

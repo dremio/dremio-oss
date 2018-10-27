@@ -48,6 +48,7 @@ import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
@@ -77,6 +78,7 @@ import io.protostuff.ByteString;
 public class TestFailedToStartPlugin {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestFailedToStartPlugin.class);
 
+  private SabotConfig sabotConfig;
   private SabotContext sabotContext;
   private KVStoreProvider storeProvider;
   private SchedulerService schedulerService;
@@ -120,6 +122,7 @@ public class TestFailedToStartPlugin {
     when(mockNamespaceService.getAllDatasets(any(NamespaceKey.class)))
       .thenReturn(Collections.emptyList());
 
+    sabotConfig = SabotConfig.create();
     sabotContext = mock(SabotContext.class);
     // used in c'tor
     when(sabotContext.getClasspathScan())
@@ -206,7 +209,7 @@ public class TestFailedToStartPlugin {
     mockScheduleInvocation(counter);
 
     KVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
-    plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService);
+    plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService, ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig));
 
     mockUpPlugin.setThrowAtStart();
     assertEquals(0, mockUpPlugin.getNumFailedStarts());
@@ -228,7 +231,7 @@ public class TestFailedToStartPlugin {
     mockScheduleInvocation(counter);
 
     KVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
-    plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService);
+    plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService, ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig));
 
     mockUpPlugin.setSimulateBadState(true);
     assertEquals(false, mockUpPlugin.gotDatasets());
@@ -263,14 +266,14 @@ public class TestFailedToStartPlugin {
     boolean simulateBadState = false;
 
     @Override
-    public Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) {
+    public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions retrievalOptions) {
       gotDatasets = true;
       return Collections.emptyList();
     }
 
     @Override
     public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset,
-                                            boolean ignoreAuthErrors) {
+                                            DatasetRetrievalOptions retrievalOptions) {
       return null;
     }
 
@@ -316,7 +319,7 @@ public class TestFailedToStartPlugin {
     }
 
     @Override
-    public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig) {
+    public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig, DatasetRetrievalOptions retrievalOptions) {
       return CheckResult.UNCHANGED;
     }
 

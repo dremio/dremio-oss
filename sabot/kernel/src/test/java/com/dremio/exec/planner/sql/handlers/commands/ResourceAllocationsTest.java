@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql.handlers.commands;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,6 +38,7 @@ import org.mockito.Mockito;
 import com.dremio.BaseTestQuery;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.util.TestTools;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.PassthroughQueryObserver;
 import com.dremio.exec.ops.QueryContext;
@@ -117,6 +119,9 @@ public class ResourceAllocationsTest extends BaseTestQuery {
       OptionValue.createLong(OptionValue.OptionType.SYSTEM, "exec.queue.memory.small", 4096)
     );
 
+    context.getOptionManager().setOption(
+        OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ExecConstants.USE_NEW_MEMORY_BOUNDED_BEHAVIOR.getOptionName(), false)
+      );
     final QueryContext queryContext = new QueryContext(session(), context, UserBitShared.QueryId.getDefaultInstance());
     final AttemptObserver observer = new PassthroughQueryObserver(ExecTest.mockUserClientConnection(null));
     final SqlConverter converter = new SqlConverter(
@@ -149,8 +154,7 @@ public class ResourceAllocationsTest extends BaseTestQuery {
       CoordinationProtos.NodeEndpoint.getDefaultInstance(),
       DirectProvider.wrap(Mockito.mock(CatalogService.class)), context);
 
-    final BasicResourceAllocator resourceAllocator = new BasicResourceAllocator(DirectProvider.wrap
-      (clusterCoordinator));
+    final BasicResourceAllocator resourceAllocator = new BasicResourceAllocator(DirectProvider.wrap(clusterCoordinator));
     resourceAllocator.start();
 
     final AsyncCommand asyncCommand = new AsyncCommand(queryContext, resourceAllocator, observer) {
@@ -242,12 +246,22 @@ public class ResourceAllocationsTest extends BaseTestQuery {
 
     List<ResourceAllocation> copyAllocations2 = Lists.newArrayList();
 
+    final String bogusAddress = "111.111.111.111";
     final Random random = new Random();
     for (ResourceAllocation allocation : allocations) {
-      copyAllocations2.add(resourceAllocator.createAllocation(nodes[random.nextInt(5)].getContext().getEndpoint(),
-        allocation.getMemory(), allocation.getMajorFragment()));
+      // 50% chance of having a bogus node
+      if (random.nextInt(2) == 0) {
+        // the bogus node should be rejected when creating the execution plan (asserted below)
+        CoordinationProtos.NodeEndpoint bogusEndpoint =
+          CoordinationProtos.NodeEndpoint.newBuilder(nodes[0].getContext().getEndpoint())
+            .setAddress(bogusAddress)
+            .build();
+        copyAllocations2.add(resourceAllocator.createAllocation(bogusEndpoint, allocation.getMemory(), allocation.getMajorFragment()));
+      } else {
+        copyAllocations2.add(resourceAllocator.createAllocation(nodes[random.nextInt(5)].getContext().getEndpoint(),
+          allocation.getMemory(), allocation.getMajorFragment()));
+      }
     }
-
 
     ResourceSet copyResourceSet2 = new ResourceSet() {
 
@@ -270,7 +284,6 @@ public class ResourceAllocationsTest extends BaseTestQuery {
       }
     };
 
-
     // copyAllocations should have one NodeEndPoint per major fragment
     final ExecutionPlan execUpdated2 = ExecutionPlanCreator.getExecutionPlan(queryContext, pPlanReader, observer, plan,
       copyResourceSet2, planningSet);
@@ -285,8 +298,8 @@ public class ResourceAllocationsTest extends BaseTestQuery {
         + " : " + fragment.getAssignment().getUserPort() + ", "
         + fragment.getAssignment().getFabricPort());
       assertEquals(4096, fragment.getMemMax());
+      assertNotEquals(fragment.getAssignment().getAddress(), bogusAddress);
     }
-
 
     asyncCommand.getResources().close();
     for (ResourceAllocation resourceAllocation : copyAllocations) {

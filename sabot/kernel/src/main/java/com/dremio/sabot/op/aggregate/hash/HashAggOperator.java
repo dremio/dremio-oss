@@ -48,6 +48,7 @@ import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperatorNoSpill;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
 import com.dremio.sabot.op.common.hashtable.Comparator;
 import com.dremio.sabot.op.common.hashtable.HashTable;
@@ -285,7 +286,11 @@ public class HashAggOperator implements SingleInputOperator {
     @Override
     public SingleInputOperator create(OperatorContext context, HashAggregate operator) throws ExecutionSetupException {
       if(operator.isVectorize()) {
-        return new VectorizedHashAggOperator(operator, context);
+        if (context.getOptions().getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR)) {
+          return new VectorizedHashAggOperator(operator, context);
+        } else {
+          return new VectorizedHashAggOperatorNoSpill(operator, context);
+        }
       } else {
         return new HashAggOperator(operator, context);
       }

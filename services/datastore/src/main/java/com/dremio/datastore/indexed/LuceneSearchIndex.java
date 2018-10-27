@@ -48,6 +48,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.MetricUtils;
 import com.dremio.datastore.WarningTimer;
+import com.dremio.datastore.indexed.CommitWrapper.CommitCloser;
 import com.dremio.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -163,7 +164,7 @@ public class LuceneSearchIndex implements AutoCloseable {
 
         try (WarningTimer watch = new WarningTimer("LuceneSearchIndex commit", 5000)) {
           try {
-            writer.commit();
+            commit();
           } catch (Throwable e) {
             commitException = e;
             return; // stop commit thread, next call to any other method will throw an exception
@@ -188,8 +189,8 @@ public class LuceneSearchIndex implements AutoCloseable {
     }
   }
 
-
   private final CommitterThread committerThread;
+  private final CommitWrapper commitWrapper;
 
   private final IndexWriter writer;
   private final BaseDirectory directory;
@@ -198,12 +199,14 @@ public class LuceneSearchIndex implements AutoCloseable {
 
   private volatile boolean reindexing = false;
 
-  public LuceneSearchIndex(final String localStorageDir, final String name, boolean inMemory) {
-    this(new File(localStorageDir), name, inMemory);
-  }
-
-  public LuceneSearchIndex(final File localStorageDir, final String name, boolean inMemory) {
+  public LuceneSearchIndex(
+      final File localStorageDir,
+      final String name,
+      final boolean inMemory,
+      final CommitWrapper commitWrapper
+  ) {
     this.name = name;
+    this.commitWrapper = commitWrapper;
 
     final ConcurrentMergeScheduler cms = new ConcurrentMergeScheduler();
     String overrideSpins = System.getProperty(OVERRIDE_SPINS_PROPERTY);
@@ -236,7 +239,7 @@ public class LuceneSearchIndex implements AutoCloseable {
       }
 
       writer = new IndexWriter(directory, writerConfig);
-      writer.commit();
+      commit();
       searcherManager = new SearcherManager(writer, true, true, null);
 
       committerThread = new CommitterThread();
@@ -263,6 +266,13 @@ public class LuceneSearchIndex implements AutoCloseable {
       }
     }catch(IOException ex){
       throw Throwables.propagate(ex);
+    }
+  }
+
+  private void commit() throws IOException {
+    try (CommitCloser committer = commitWrapper.open(name)) {
+      writer.commit();
+      committer.succeeded();
     }
   }
 
@@ -414,7 +424,7 @@ public class LuceneSearchIndex implements AutoCloseable {
     if (writer.isOpen()) {
       // flush first
       writer.flush();
-      writer.commit();
+      commit();
       writer.close();
     }
     searcherManager.close();
@@ -449,7 +459,7 @@ public class LuceneSearchIndex implements AutoCloseable {
     committerThread.throwExceptionIfAny();
     try {
       writer.deleteAll();
-      writer.commit();
+      commit();
       // Forcing refresh of index so that open files are freed and deleted from disk
       checkIfChanged();
     } catch(Exception ex){
@@ -468,7 +478,7 @@ public class LuceneSearchIndex implements AutoCloseable {
       config.setRAMBufferSizeMB(REINDEX_RAM_BUFFER_SIZE_MB);
       config.setUseCompoundFile(false);
       r.run();
-      writer.commit();
+      commit();
     } catch (Exception ex) {
       throw Throwables.propagate(ex);
     } finally {
@@ -565,6 +575,6 @@ public class LuceneSearchIndex implements AutoCloseable {
   public void deleteEverything() throws IOException{
     committerThread.throwExceptionIfAny();
     writer.deleteAll();
-    writer.commit();
+    commit();
   }
 }

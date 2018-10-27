@@ -156,5 +156,9 @@ public abstract class AbstractVector implements AutoCloseable {
     target.dataBuffer.writerIndex(this.dataBuffer.writerIndex());
     this.clear();
   }
+
+  public long getBufferAddress() {
+    return dataBuffer.memoryAddress();
+  }
 }
 

@@ -23,7 +23,9 @@ import static java.util.Collections.singletonList;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.inject.Inject;
 import javax.ws.rs.core.SecurityContext;
@@ -33,6 +35,7 @@ import org.apache.commons.io.FilenameUtils;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.dac.api.CatalogItem;
 import com.dremio.dac.api.Source;
+import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.SourceFolderPath;
 import com.dremio.dac.model.namespace.NamespaceTree;
@@ -44,6 +47,8 @@ import com.dremio.dac.model.sources.SourceName;
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.spaces.HomeName;
+import com.dremio.dac.proto.model.collaboration.CollaborationTag;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.PhysicalDatasetNotFoundException;
@@ -97,6 +102,7 @@ public class SourceService {
   private final ReflectionServiceHelper reflectionServiceHelper;
   private final ConnectionReader connectionReader;
   private final SecurityContext security;
+  private final CollaborationHelper collaborationService;
 
   @Inject
   public SourceService(
@@ -104,6 +110,7 @@ public class SourceService {
     DatasetVersionMutator datasetService,
     CatalogService catalogService,
     ReflectionServiceHelper reflectionHelper,
+    CollaborationHelper collaborationService,
     ConnectionReader connectionReader,
     SecurityContext security) {
     this.namespaceService = namespaceService;
@@ -112,6 +119,7 @@ public class SourceService {
     this.reflectionServiceHelper = reflectionHelper;
     this.connectionReader = connectionReader;
     this.security = security;
+    this.collaborationService = collaborationService;
   }
 
   private Catalog createCatalog() {
@@ -230,16 +238,27 @@ public class SourceService {
 
   protected void addFileToNamespaceTree(NamespaceTree ns, SourceName source, SourceFilePath path, String owner) throws NamespaceNotFoundException {
     final File file = File.newInstance(
-        path.toUrlPath(),
-        path,
-        getDefaultFileFormat(source, path),
-        0, // files should not have any jobs, no need to check
-        false,
-        false,
-        false
-      );
-      file.getFileFormat().getFileFormat().setOwner(owner);
-      ns.addFile(file);
+      path.toUrlPath(),
+      path,
+      getUnknownFileFormat(source, path),
+      0, // files should not have any jobs, no need to check
+      false,
+      false,
+      false,
+      null
+    );
+    file.getFileFormat().getFileFormat().setOwner(owner);
+    ns.addFile(file);
+  }
+
+  protected FileFormat getUnknownFileFormat(SourceName sourceName, SourceFilePath sourceFilePath) {
+    final FileConfig config = new FileConfig();
+    config.setCtime(System.currentTimeMillis());
+    config.setFullPathList(sourceFilePath.toPathList());
+    config.setName(sourceFilePath.getFileName().getName());
+    config.setType(FileType.UNKNOWN);
+    config.setVersion(null);
+    return FileFormat.getForFile(config);
   }
 
   protected void addFolderToNamespaceTree(NamespaceTree ns, SourceFolderPath path, FolderConfig folderConfig) throws NamespaceNotFoundException {
@@ -254,7 +273,7 @@ public class SourceService {
 
   protected void addTableToNamespaceTree(NamespaceTree ns, PhysicalDatasetResourcePath path, PhysicalDatasetName name,
       PhysicalDatasetConfig datasetConfig, int jobsCount) throws NamespaceNotFoundException {
-    ns.addPhysicalDataset(new PhysicalDataset(path, name, datasetConfig, jobsCount));
+    ns.addPhysicalDataset(new PhysicalDataset(path, name, datasetConfig, jobsCount, null));
   }
 
   private void addToNamespaceTree(NamespaceTree ns, List<SchemaEntity> entities, SourceName source, String prefix)
@@ -336,13 +355,14 @@ public class SourceService {
 
   public File getFileDataset(SourceName source, final SourceFilePath filePath, String owner)
       throws PhysicalDatasetNotFoundException, NamespaceException {
-    final PhysicalDatasetConfig physicalDatasetConfig = getFilesystemPhysicalDataset(source, filePath);
+    final PhysicalDatasetConfig physicalDatasetConfig = getFilesystemPhysicalDataset(filePath, DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
     final FileConfig fileConfig = physicalDatasetConfig.getFormatSettings();
     fileConfig.setOwner(owner);
     fileConfig.setVersion(physicalDatasetConfig.getVersion());
+
     final File file = File.newInstance(physicalDatasetConfig.getId(), filePath, FileFormat.getForFile(fileConfig),
       datasetService.getJobsCount(filePath.toNamespaceKey()),
-      false, false, fileConfig.getType() != FileType.UNKNOWN
+      false, false, fileConfig.getType() != FileType.UNKNOWN, null
     );
     return file;
   }
@@ -354,6 +374,7 @@ public class SourceService {
       if (plugin instanceof FileSystemPlugin) {
         final NamespaceTree ns = new NamespaceTree();
         addToNamespaceTree(ns, ((FileSystemPlugin) plugin).list(singletonList(sourceName.getName()), userName), sourceName, sourceName.getName());
+        fillInTags(ns);
         return ns;
       } else {
         return newNamespaceTree(namespaceService.list(new NamespaceKey(singletonList(sourceConfig.getName()))));
@@ -414,7 +435,7 @@ public class SourceService {
     return folder;
   }
   protected NamespaceTree newNamespaceTree(List<NameSpaceContainer> children) throws DatasetNotFoundException, NamespaceException {
-    return NamespaceTree.newInstance(datasetService, children, SOURCE);
+    return NamespaceTree.newInstance(datasetService, children, SOURCE, collaborationService);
   }
 
   public NamespaceTree listFolder(SourceName sourceName, SourceFolderPath folderPath, String userName)
@@ -426,6 +447,9 @@ public class SourceService {
       if (plugin instanceof FileSystemPlugin) {
         final NamespaceTree ns = new NamespaceTree();
         addToNamespaceTree(ns, ((FileSystemPlugin) plugin).list(folderPath.toPathList(), userName), sourceName, prefix);
+
+        fillInTags(ns);
+
         return ns;
       } else {
         return newNamespaceTree(namespaceService.list(folderPath.toNamespaceKey()));
@@ -435,6 +459,27 @@ public class SourceService {
     }
   }
 
+  // Process all items in the namespacetree and get their tags in one go
+  private void fillInTags(NamespaceTree ns) {
+    Map<String, CollaborationTag> tags = new HashMap<>();
+
+    ns.getFiles().forEach(input -> {
+      tags.put(input.getId(), null);
+    });
+
+    collaborationService.getTagsForIds(tags.keySet()).forEach(input -> {
+      tags.replace(input.getKey(), input.getValue());
+    });
+
+    ns.getFiles().forEach(input -> {
+      CollaborationTag collaborationTag = tags.get(input.getId());
+      if (collaborationTag != null) {
+        input.setTags(collaborationTag.getTagsList());
+      }
+    });
+  }
+
+  @Deprecated
   public FileFormat getDefaultFileFormat(SourceName sourceName, SourceFilePath sourceFilePath) {
     final FileConfig config = new FileConfig();
     config.setCtime(System.currentTimeMillis());
@@ -455,6 +500,7 @@ public class SourceService {
    * @throws NamespaceException on invalid namespace operation
    * @throws PhysicalDatasetNotFoundException if file/folder is marked as physical dataset but is missing from namespace
    */
+  @Deprecated
   public FileFormat getDefaultFileFormat(SourceName sourceName, SourceFolderPath sourceFolderPath, String user)
     throws IOException, NamespaceException, PhysicalDatasetNotFoundException {
     final FileConfig config = new FileConfig();
@@ -470,6 +516,7 @@ public class SourceService {
     config.setVersion(null);
     return FileFormat.getForFolder(config);
   }
+
 
   /** A file or folder in source could be defined as a physical dataset.
    * Store physical dataset properties in namespace.
@@ -492,32 +539,22 @@ public class SourceService {
       toDatasetConfig(datasetConfig, null));
   }
 
-  public PhysicalDatasetConfig getFilesystemPhysicalDataset(SourceName sourceName, SourceFilePath filePath)
-    throws PhysicalDatasetNotFoundException, NamespaceException {
-    final PhysicalDatasetPath datasetPath = new PhysicalDatasetPath(filePath);
+  public PhysicalDatasetConfig getFilesystemPhysicalDataset(NamespacePath path, DatasetType type) throws NamespaceException {
     try {
-      return toPhysicalDatasetConfig(namespaceService.getDataset(datasetPath.toNamespaceKey()));
+      return toPhysicalDatasetConfig(namespaceService.getDataset(path.toNamespaceKey()));
     } catch (NamespaceNotFoundException nse) {
-      throw new PhysicalDatasetNotFoundException(sourceName, datasetPath, nse);
+      throw new PhysicalDatasetNotFoundException(path, type, nse);
     }
   }
 
-  /**
-   * @param sourceName name of source
-   * @param folderPath path of folder to get physical dataset properties.
-   * @return {@code PhysicalDatasetConfig}
-   * @throws PhysicalDatasetNotFoundException if folder is not marked as physical dataset
-   * @throws NamespaceException on invalid namespace operation.
-   */
-  public PhysicalDatasetConfig getFilesystemPhysicalDataset(SourceName sourceName, SourceFolderPath folderPath)
-    throws PhysicalDatasetNotFoundException, NamespaceException {
-    final PhysicalDatasetPath datasetPath = new PhysicalDatasetPath(folderPath);
-    try {
-      return toPhysicalDatasetConfig(namespaceService.getDataset(datasetPath.toNamespaceKey()));
-    } catch (NamespaceNotFoundException nse) {
-      throw new PhysicalDatasetNotFoundException(sourceName, datasetPath, nse);
-    }
+  public PhysicalDatasetConfig getFilesystemPhysicalDataset(SourceName sourceName, SourceFolderPath path) throws NamespaceException {
+    return getFilesystemPhysicalDataset(path, DatasetType.PHYSICAL_DATASET_HOME_FOLDER);
   }
+
+  public PhysicalDatasetConfig getFilesystemPhysicalDataset(SourceName sourceName, SourceFilePath path) throws NamespaceException {
+    return getFilesystemPhysicalDataset(path, DatasetType.PHYSICAL_DATASET_HOME_FILE);
+  }
+
 
   // For all tables including filesystem tables.
   // Physical datasets may be missing
@@ -546,10 +583,12 @@ public class SourceService {
   protected PhysicalDataset newPhysicalDataset(PhysicalDatasetResourcePath resourcePath,
       PhysicalDatasetName datasetName, PhysicalDatasetConfig datasetConfig, Integer jobsCount) throws NamespaceNotFoundException {
     return new PhysicalDataset(
-        resourcePath,
-        datasetName,
-        datasetConfig,
-        jobsCount);
+      resourcePath,
+      datasetName,
+      datasetConfig,
+      jobsCount,
+      null
+    );
   }
 
   public boolean isPhysicalDataset(SourceName sourceName, SourceFolderPath folderPath) {

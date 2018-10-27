@@ -16,15 +16,49 @@
 package com.dremio.dac.cmd.upgrade;
 
 import static com.dremio.common.util.DremioVersionInfo.VERSION;
-import static com.dremio.dac.cmd.upgrade.Upgrade.TASKS_GREATEST_MAX_VERSION;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.Matchers.contains;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import java.util.List;
+
 import org.junit.Test;
+
+import com.dremio.dac.server.DACConfig;
+import com.dremio.test.DremioTest;
 
 /**
  * Test for {@code Upgrade}
  */
-public class TestUpgrade {
+public class TestUpgrade extends DremioTest {
+  /**
+   * A test upgrade task
+   */
+  public static final class TopPriorityTask extends UpgradeTask {
+    public TopPriorityTask() {
+      super("test-top-priority-class", UpgradeTask.VERSION_106, UpgradeTask.VERSION_212, Integer.MIN_VALUE);
+    }
+
+    @Override
+    public void upgrade(UpgradeContext context) throws Exception {
+
+    }
+  }
+
+  /**
+   * A test upgrade task
+   */
+  public static final class LowPriorityTask extends UpgradeTask {
+    public LowPriorityTask() {
+      super("test-low-priority-class", UpgradeTask.VERSION_106, UpgradeTask.VERSION_212, Integer.MAX_VALUE);
+    }
+
+    @Override
+    public void upgrade(UpgradeContext context) throws Exception {
+
+    }
+  }
 
   /**
    * Verify that we don't add a task whose version is higher than the current version,
@@ -33,10 +67,51 @@ public class TestUpgrade {
    */
   @Test
   public void testMaxTaskVersion() {
+    DACConfig dacConfig = DACConfig.newConfig();
+    Upgrade upgrade = new Upgrade(dacConfig, CLASSPATH_SCAN_RESULT, false);
+
     // Making sure that current version is newer that all upgrade tasks
     assertTrue(
-        String.format("One task has a newer version (%s) than the current server version (%s)", TASKS_GREATEST_MAX_VERSION, VERSION),
-        Upgrade.UPGRADE_VERSION_ORDERING.compare(TASKS_GREATEST_MAX_VERSION, VERSION) <= 0);
+        String.format("One task has a newer version (%s) than the current server version (%s)", upgrade.getTasksGreatestMaxVersion().get(), VERSION),
+        Upgrade.UPGRADE_VERSION_ORDERING.compare(upgrade.getTasksGreatestMaxVersion().get(), VERSION) <= 0);
+  }
+
+
+  /**
+   * Verify that tasks are discovered properly and are correctly ordered
+   */
+  @Test
+  public void testTasksOrder() {
+    DACConfig dacConfig = DACConfig.newConfig();
+    Upgrade upgrade = new Upgrade(dacConfig, CLASSPATH_SCAN_RESULT, false);
+
+    List<? extends UpgradeTask> tasks = upgrade.getUpgradeTasks();
+    // Hamcrest Matchers#contains(...) guarantee both order and size!
+    assertThat(tasks, contains(
+        // Test task
+        instanceOf(TopPriorityTask.class),
+        // Production tasks
+        instanceOf(DatasetConfigUpgrade.class),
+        instanceOf(ReIndexAllStores.class),
+        instanceOf(EnableLegacyDialectForBelowV3.class),
+        instanceOf(UpdateDatasetSplitIdTask.class),
+        instanceOf(UpdateS3CredentialType.class),
+        instanceOf(MigrateAccelerationMeasures.class),
+        instanceOf(SetDatasetExpiry.class),
+        instanceOf(SetAccelerationRefreshGrace.class),
+        instanceOf(MarkOldMaterializationsAsDeprecated.class),
+        instanceOf(MoveFromAccelerationsToReflections.class),
+        instanceOf(DeleteInternalSources.class),
+        instanceOf(MoveFromAccelerationSettingsToReflectionSettings.class),
+        instanceOf(ConvertJoinInfo.class),
+        instanceOf(CompressHiveTableAttrs.class),
+        instanceOf(DeleteHistoryOfRenamedDatasets.class),
+        instanceOf(DeleteHive121BasedInputSplits.class),
+        instanceOf(MinimizeJobResultsMetadata.class),
+        instanceOf(UpdateExternalReflectionHash.class),
+        instanceOf(DeleteSysTablesMetadata.class),
+        // Final test task
+        instanceOf(LowPriorityTask.class)));
   }
 
 }

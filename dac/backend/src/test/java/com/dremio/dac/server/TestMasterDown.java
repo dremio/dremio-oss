@@ -53,8 +53,10 @@ import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserLoginSession;
 import com.dremio.dac.model.usergroup.UserName;
 import com.dremio.dac.server.test.SampleDataPopulator;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
+import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.datastore.KVStoreProvider;
@@ -276,16 +278,19 @@ public class TestMasterDown extends BaseClientUtils {
         mp.lookup(CatalogService.class));
 
     TestUtilities.addClasspathSourceIf(mp.lookup(SabotContext.class).getCatalogService());
+    DACSecurityContext dacSecurityContext = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
     SampleDataPopulator populator = new SampleDataPopulator(
       mp.lookup(SabotContext.class),
       new SourceService(
-          ns,
-          datasetVersionMutator,
-          mp.lookup(SabotContext.class).getCatalogService(),
-          mp.lookup(ReflectionServiceHelper.class),
-          new ConnectionReader(DremioTest.CLASSPATH_SCAN_RESULT),
-          new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null)),
+        ns,
         datasetVersionMutator,
+        mp.lookup(SabotContext.class).getCatalogService(),
+        mp.lookup(ReflectionServiceHelper.class),
+        new CollaborationHelper(mp.lookup(KVStoreProvider.class), mp.lookup(SabotContext.class), mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
+        ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG),
+        dacSecurityContext
+      ),
+      datasetVersionMutator,
       mp.lookup(UserService.class),
       ns,
       DEFAULT_USERNAME

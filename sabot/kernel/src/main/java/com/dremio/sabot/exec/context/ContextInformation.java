@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.exec.context;
 
+import com.dremio.exec.context.AdditionalContext;
+
 /**
  * Provides query context information (such as query start time, query user, default schema etc.) for UDFs.
  */
@@ -40,4 +42,7 @@ public interface ContextInformation {
    */
   int getRootFragmentTimeZone();
 
+  void registerAdditionalInfo(AdditionalContext object);
+
+  <T extends AdditionalContext> T getAdditionalInfo(Class<T> clazz);
 }

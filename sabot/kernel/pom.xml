@@ -21,11 +21,10 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>2.1.6-201809161906440178-edb5b4d</version>
+    <version>3.0.0-201810262305460004-5c90d75</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
-
   <dependencies>
     <dependency>
       <groupId>com.dremio</groupId>
@@ -255,10 +254,6 @@
       <artifactId>jpam</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.bouncycastle</groupId>
-      <artifactId>bcpkix-jdk15on</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.freemarker</groupId>
       <artifactId>freemarker</artifactId>
       <version>${freemarker.version}</version>
@@ -402,6 +397,11 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-spill</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>com.beust</groupId>
       <artifactId>jcommander</artifactId>
     </dependency>
@@ -492,6 +492,11 @@
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-resourcescheduler</artifactId>
     </dependency>
+    <dependency>
+      <groupId>com.dremio.arrow.gandiva</groupId>
+      <artifactId>gandiva-java</artifactId>
+      <version>0.1-6f11d4ef79b38074151e3107d46477f45ed21d11</version>
+    </dependency>
   </dependencies>
 
   <profiles>
@@ -502,6 +507,15 @@
           <name>!alt-hadoop</name>
         </property>
       </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <version>2.4</version>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
     <profile>
       <id>cdh4</id>

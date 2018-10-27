@@ -29,6 +29,9 @@ import io.netty.channel.socket.SocketChannel;
 
 public abstract class RemoteConnection implements ConnectionThrottle, AutoCloseable {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RemoteConnection.class);
+
+  protected static final String BACK_PRESSURE_HANDLER = "back-pressure-handler";
+
   private final SocketChannel channel;
   private final WriteManager writeManager;
   private final RequestIdMap requestIdMap;
@@ -61,7 +64,8 @@ public abstract class RemoteConnection implements ConnectionThrottle, AutoClosea
     if(!blockOnSocket){
       writeManager.disable();
     }
-    channel.pipeline().addLast(new BackPressureHandler());
+    channel.pipeline()
+        .addLast(BACK_PRESSURE_HANDLER, new BackPressureHandler());
   }
 
   public String getName() {

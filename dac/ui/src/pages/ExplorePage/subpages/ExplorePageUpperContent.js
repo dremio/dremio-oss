@@ -20,6 +20,7 @@ import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
 
+import { PageTypes, pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
 import PullOutRightTree from 'components/PullOutRightTree';
 
 import SqlEditorController from './../components/SqlEditor/SqlEditorController';
@@ -33,7 +34,7 @@ const MAX_WIDTH_SETTINGS_PANEL = 290;
 export default class ExplorePageUpperContent extends Component {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
-    pageType: PropTypes.string,
+    pageType: pageTypesProp,
     startDrag: PropTypes.func,
     rightTreeVisible: PropTypes.bool,
     sqlState: PropTypes.bool,
@@ -56,38 +57,43 @@ export default class ExplorePageUpperContent extends Component {
     const widthSettingsPanel = rightTreeVisible ? MAX_WIDTH_SETTINGS_PANEL : 0;
 
     return (
-      <TopSplitterContent startDrag={this.props.startDrag} sqlState={sqlState} sqlSize={sqlSize}>
-        <div>
-          <div className='wrap'>
-            <div className='inner-wrap' style={styles.innerWrap}>
-              <ExploreInfoHeader
-                dataset={dataset}
-                pageType={pageType}
-                toggleRightTree={this.props.toggleRightTree}
-                rightTreeVisible={rightTreeVisible}
-                exploreViewState={this.props.exploreViewState}
-              />
-              <SqlEditorController
-                dataset={dataset}
-                dragType={dragType}
-                sqlState={sqlState}
-                sqlSize={sqlSize}
-                exploreViewState={this.props.exploreViewState}
-              />
-            </div>
-            { false && /* this feature disabled for now */
-              <div className={pullClass} style={{ width: widthSettingsPanel }}>
-                <PullOutRightTree
-                  entity={this.props.dataset}
-                  entityType={this.props.dataset.get('entityType')}
-                  rightTreeVisible={this.props.rightTreeVisible}
-                  toggleVisibility={this.props.toggleRightTree}
-                />
+      <div>
+        <ExploreInfoHeader
+          dataset={dataset}
+          pageType={pageType}
+          toggleRightTree={this.props.toggleRightTree}
+          rightTreeVisible={rightTreeVisible}
+          exploreViewState={this.props.exploreViewState}
+        />
+        {
+          pageType === PageTypes.default && // show sql editor only on data page
+          <TopSplitterContent startDrag={this.props.startDrag} sqlState={sqlState} sqlSize={sqlSize}>
+            <div>
+              <div className='wrap'>
+                <div className='inner-wrap' style={styles.innerWrap}>
+                  <SqlEditorController
+                    dataset={dataset}
+                    dragType={dragType}
+                    sqlState={sqlState}
+                    sqlSize={sqlSize}
+                    exploreViewState={this.props.exploreViewState}
+                  />
+                </div>
+                { false && /* this feature disabled for now */
+                  <div className={pullClass} style={{ width: widthSettingsPanel }}>
+                    <PullOutRightTree
+                      entity={this.props.dataset}
+                      entityType={this.props.dataset.get('entityType')}
+                      rightTreeVisible={this.props.rightTreeVisible}
+                      toggleVisibility={this.props.toggleRightTree}
+                    />
+                  </div>
+                }
               </div>
-            }
-          </div>
-        </div>
-      </TopSplitterContent>
+            </div>
+          </TopSplitterContent>
+        }
+      </div>
     );
   }
 }

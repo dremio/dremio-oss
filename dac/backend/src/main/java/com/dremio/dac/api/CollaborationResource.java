@@ -27,8 +27,9 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 
+import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.service.collaboration.CollaborationService;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.collaboration.Tags;
 import com.dremio.dac.service.collaboration.Wiki;
 import com.dremio.service.namespace.NamespaceException;
@@ -37,23 +38,24 @@ import com.google.common.base.Optional;
 /**
  * Collaboration API resource.
  */
+@APIResource
 @Secured
 @RolesAllowed({"user", "admin"})
 @Path("/catalog/{id}/collaboration")
 @Consumes(APPLICATION_JSON)
 @Produces(APPLICATION_JSON)
 public class CollaborationResource {
-  private final CollaborationService collaborationService;
+  private final CollaborationHelper collaborationHelper;
 
   @Inject
-  public CollaborationResource(CollaborationService collaborationService) {
-    this.collaborationService = collaborationService;
+  public CollaborationResource(CollaborationHelper collaborationHelper) {
+    this.collaborationHelper = collaborationHelper;
   }
 
   @GET
   @Path("/tag")
   public Tags getTagsForEntity(@PathParam("id") String id) throws NamespaceException {
-    Optional<Tags> tags = collaborationService.getTags(id);
+    Optional<Tags> tags = collaborationHelper.getTags(id);
 
     if (!tags.isPresent()) {
       throw new NotFoundException(String.format("Entity [%s] does not have any tags set.", id));
@@ -64,14 +66,16 @@ public class CollaborationResource {
 
   @POST
   @Path("/tag")
-  public void setTagsForEntity(@PathParam("id") String id, Tags tags) throws NamespaceException {
-    collaborationService.setTags(id, tags);
+  public Tags setTagsForEntity(@PathParam("id") String id, Tags tags) throws NamespaceException {
+    collaborationHelper.setTags(id, tags);
+
+    return getTagsForEntity(id);
   }
 
   @GET
   @Path("/wiki")
   public Wiki getWikiForEntity(@PathParam("id") String id) throws NamespaceException {
-    Optional<Wiki> wiki = collaborationService.getWiki(id);
+    Optional<Wiki> wiki = collaborationHelper.getWiki(id);
 
     if (!wiki.isPresent()) {
       throw new NotFoundException(String.format("Entity [%s] does not have a wiki set.", id));
@@ -82,7 +86,9 @@ public class CollaborationResource {
 
   @POST
   @Path("/wiki")
-  public void setWikiForEntity(@PathParam("id") String id, Wiki wiki) throws NamespaceException {
-    collaborationService.setWiki(id, wiki);
+  public Wiki setWikiForEntity(@PathParam("id") String id, Wiki wiki) throws NamespaceException {
+    collaborationHelper.setWiki(id, wiki);
+
+    return getWikiForEntity(id);
   }
 }

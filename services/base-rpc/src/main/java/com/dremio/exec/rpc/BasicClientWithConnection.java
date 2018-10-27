@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.rpc;
 
+import java.util.Optional;
+
+import com.dremio.exec.rpc.ssl.SSLEngineFactory;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -32,9 +35,17 @@ public abstract class BasicClientWithConnection<T extends EnumLite, HANDSHAKE_SE
   private BufferAllocator alloc;
   private final String connectionName;
 
-  public BasicClientWithConnection(RpcConfig rpcMapping, BufferAllocator alloc, EventLoopGroup eventLoopGroup, T handshakeType,
-      Class<HANDSHAKE_RESPONSE> responseClass, Parser<HANDSHAKE_RESPONSE> handshakeParser, String connectionName) {
-    super(rpcMapping, alloc.getAsByteBufAllocator(), eventLoopGroup, handshakeType, responseClass, handshakeParser);
+  public BasicClientWithConnection(
+      RpcConfig rpcMapping,
+      BufferAllocator alloc,
+      EventLoopGroup eventLoopGroup,
+      T handshakeType,
+      Class<HANDSHAKE_RESPONSE> responseClass,
+      Parser<HANDSHAKE_RESPONSE> handshakeParser,
+      String connectionName,
+      Optional<SSLEngineFactory> engineFactory
+  ) throws RpcException {
+    super(rpcMapping, alloc.getAsByteBufAllocator(), eventLoopGroup, handshakeType, responseClass, handshakeParser, engineFactory);
     this.alloc = alloc;
     this.connectionName = connectionName;
   }
@@ -64,10 +75,5 @@ public abstract class BasicClientWithConnection<T extends EnumLite, HANDSHAKE_SE
     public BufferAllocator getAllocator() {
       return alloc;
     }
-
-
-
   }
-
-
 }

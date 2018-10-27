@@ -19,6 +19,7 @@ import Immutable from 'immutable';
 import Radium from 'radium';
 
 import PropTypes from 'prop-types';
+import ImmutablePropTypes from 'react-immutable-proptypes';
 
 import Spinner from 'components/Spinner';
 import Message from 'components/Message';
@@ -30,16 +31,29 @@ import classNames from 'classnames';
 
 const TIME_TP_WAIT_BEFORE_SPINNER = 500;
 
+
+
 @Radium
 export class ViewStateWrapper extends Component {
   static propTypes = {
-    viewState: PropTypes.instanceOf(Immutable.Map), // todo: might it be easier to accept a view_id?
+    viewState: ImmutablePropTypes.contains({
+      isInProgress: PropTypes.bool,
+      isFailed: PropTypes.bool,
+      isWarning: PropTypes.bool,
+      error: PropTypes.shape({
+        message: PropTypes.node
+        //details,
+        //id
+        //dismissed: false
+      })
+    }),
     children: PropTypes.node,
     hideSpinner: PropTypes.bool,
     spinnerDelay: PropTypes.number,
     hideChildrenWhenInProgress: PropTypes.bool,
     hideChildrenWhenFailed: PropTypes.bool,
     style: PropTypes.object,
+    messageStyle: PropTypes.object, // styles that are applied to a error message
     showMessage: PropTypes.bool,
     spinnerStyle: PropTypes.object,
     progressMessage: PropTypes.string,
@@ -106,7 +120,8 @@ export class ViewStateWrapper extends Component {
       hideChildrenWhenFailed,
       showMessage,
       progressMessage,
-      onDismissError
+      onDismissError,
+      messageStyle
     } = this.props;
     if (viewState.get('isInProgress') && !this.props.hideSpinner) {
       if (this.state.shouldWeSeeSpinner || hideChildrenWhenInProgress) {
@@ -136,6 +151,7 @@ export class ViewStateWrapper extends Component {
         messageType={messageType}
         isDismissable={this.props.messageIsDismissable}
         inFlow={hideChildrenWhenFailed}
+        style={messageStyle}
       />;
     }
   }

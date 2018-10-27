@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import Immutable from 'immutable';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import DocumentTitle from 'react-document-title';
@@ -22,9 +21,7 @@ import DocumentTitle from 'react-document-title';
 import { page } from 'uiTheme/radium/general';
 import config from 'utils/config';
 
-import Acceleration from 'dyn-load/pages/AdminPage/subpages/acceleration/Acceleration';
-import Roles from 'dyn-load/pages/AdminPage/subpages/Roles';
-import Votes from 'dyn-load/pages/AdminPage/subpages/Votes';
+import getSectionsConfig from 'dyn-load/pages/AdminPage/navSections';
 
 import AdminPageView from './AdminPageView';
 
@@ -37,17 +34,18 @@ class AdminPage extends Component {
     children: PropTypes.node
   }
 
-  getMenuItems() {
-    return Immutable.fromJS([
-      { name: la('Node Activity'), url: '/admin/nodeActivity' },
-      { name: la('Provisioning'), url: '/admin/provisioning' },
-      Votes && { name: la('Dataset Votes'), url: '/admin/votes' },
-      Acceleration && { name: la('Reflections'), url: '/admin/acceleration' },
-      config.showUserAndUserProperties && { name: la('Users'), url: '/admin/users' },
-      Roles && { name: la('Administrators'), url: '/admin/roles' },
-      { name: la('Support Settings'), url: '/admin/support' },
-      { name: la('Advanced Settings'), url: '/admin/advanced' }
-    ].filter(Boolean));
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      sections: []
+    };
+
+    getSectionsConfig(config).then((sections) => {
+      this.setState({sections});
+    }).catch((e) => {
+      console.error('failed to load section config', e);
+    });
   }
 
   render() {
@@ -56,7 +54,7 @@ class AdminPage extends Component {
       <DocumentTitle title={la('Admin')}>
         <AdminPageView
           routeParams={routeParams}
-          menuItems={this.getMenuItems()}
+          sections={this.state.sections}
           style={page}
           location={location}
           children={children} />

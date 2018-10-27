@@ -31,12 +31,12 @@ import com.dremio.service.jobs.LocalJobsService.JobsStoreCreator;
 public class MinimizeJobResultsMetadata extends UpgradeTask {
 
   public MinimizeJobResultsMetadata() {
-    super("Delete schema stored in arrow footers of job results in KV Store", VERSION_106, VERSION_212);
+    super("Delete schema stored in arrow footers of job results in KV Store", VERSION_106, VERSION_212, NORMAL_ORDER + 12);
   }
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    final IndexedStore<JobId, JobResult> store = context.getKVStoreProvider().get().getStore(JobsStoreCreator.class);
+    final IndexedStore<JobId, JobResult> store = context.getKVStoreProvider().getStore(JobsStoreCreator.class);
 
     System.out.printf("  Minimizing job results metadata%n");
     try {

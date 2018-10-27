@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -31,6 +32,7 @@ import com.dremio.exec.catalog.conf.SourceType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.Iterables;
 
 import io.protostuff.Tag;
 
@@ -100,10 +102,9 @@ public class SourceTypeTemplate {
       return new SourceTypeTemplate(type.value(), type.label(), icon, null);
     }
 
-    final Field[] declaredFields = sourceClass.getDeclaredFields();
     final List<SourcePropertyTemplate> properties = new ArrayList<>();
 
-    for (Field field : declaredFields) {
+    for (Field field : getAllFields(sourceClass)) {
       // only properties with the Tag annotation will be included
       if (field.getAnnotation(Tag.class) == null || field.getAnnotation(JsonIgnore.class) != null) {
         continue;
@@ -133,7 +134,7 @@ public class SourceTypeTemplate {
       } else {
         // skip empty lists
         if (definedValue != null && Collection.class.isAssignableFrom(definedValue.getClass())) {
-          final Collection collection = (Collection) definedValue;
+          final Collection<?> collection = (Collection<?>) definedValue;
           if (collection.size() > 0) {
             defaultValue = definedValue;
           }
@@ -151,5 +152,18 @@ public class SourceTypeTemplate {
     }
 
     return new SourceTypeTemplate(type.value(), type.label(), icon, properties);
+  }
+
+  private static Iterable<Field> getAllFields(Class<?> clazz) {
+    List<Field> fields = new ArrayList<>();
+
+    fields.addAll(Arrays.asList(clazz.getDeclaredFields()));
+
+    Class<?> superClass = clazz.getSuperclass();
+    if (superClass == null || superClass == Object.class) {
+      return fields;
+    }
+
+    return Iterables.concat(fields, getAllFields(superClass));
   }
 }

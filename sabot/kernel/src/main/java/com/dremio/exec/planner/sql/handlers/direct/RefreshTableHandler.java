@@ -23,6 +23,7 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.StoragePlugin.UpdateStatus;
 import com.dremio.service.namespace.NamespaceKey;
 
@@ -42,7 +43,19 @@ public class RefreshTableHandler extends SimpleDirectHandler {
     final SqlRefreshTable sqlRefreshTable = SqlNodeUtil.unwrap(sqlNode, SqlRefreshTable.class);
 
     final NamespaceKey tableNSKey = catalog.resolveSingle(new NamespaceKey(sqlRefreshTable.getTable().names));
-    UpdateStatus status = catalog.refreshDataset(tableNSKey, false);
+
+    DatasetRetrievalOptions.Builder builder = DatasetRetrievalOptions.newBuilder();
+    if (sqlRefreshTable.getDeleteUnavail().getValue() != null) {
+      builder.setDeleteUnavailableDatasets(sqlRefreshTable.getDeleteUnavail().booleanValue());
+    }
+    if (sqlRefreshTable.getForceUpdate().getValue() != null) {
+      builder.setForceUpdate(sqlRefreshTable.getForceUpdate().booleanValue());
+    }
+    if (sqlRefreshTable.getPromotion().getValue() != null) {
+      builder.setAutoPromote(sqlRefreshTable.getPromotion().booleanValue());
+    }
+
+    UpdateStatus status = catalog.refreshDataset(tableNSKey, builder.build());
 
     final String message;
     switch(status){

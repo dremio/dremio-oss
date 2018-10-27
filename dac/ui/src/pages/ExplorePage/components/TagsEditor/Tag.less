@@ -13,46 +13,78 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- @import "~@app/uiTheme/less/color-schema.less";
+@import "~@app/uiTheme/less/color-schema.less";
 
- @_half: 10px;
- @_button-padding: 3px;
+@_horizontal-padding: 10px;
+@_button-padding: 4px;
+@_border-radius: 4px;
 
- .tag {
+// mixins -------------------------------------------
 
-  border-radius: 20px;
-  padding-left: @_half;
-  padding-right: @_half;
-  height: 2 * @_half;
-  display: inline-flex;
+.hover() {
+  &:hover {
+    background: @PALE_BLUE;
+  }
+}
+
+.border-right-radius(@radius) {
+  border-top-right-radius: @radius;
+  border-bottom-right-radius: @radius;
+}
+
+// End of mixins -------------------------------------
+
+.text-wrapper {
+  display: flex;
   align-items: center;
+  padding-left: @_horizontal-padding;
+  padding-right: @_horizontal-padding;
+  max-width: 100px;
+  border-radius: @_border-radius; // needed for hover state
+}
+
+.text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag {
+  border-radius: @_border-radius;
+  height: 24px;
+  display: inline-flex;
+  align-items: stretch;
   cursor: default;
   background: @PALE_NAVY;
+  border: 1px solid @SECONDARY_BORDER;
+}
 
-  &.deletable {
-    padding-right: 0;
+.deletable .text-wrapper {
+  padding-right: @_button-padding; // need apply it here for good hover view
+  .border-right-radius(0); // reset radius, as there is a delete button on the right
+}
+
+
+.clickable {
+  cursor: pointer;
+
+  .text-wrapper {
+    .hover();
   }
 }
 
 .delete-button {
-  @_button-radius: @_half - @_button-padding;
-  @cross-padding: 0px;
-  @cross-size: 2 * (@_button-radius - @cross-padding);
-  @angle: 45deg;
-
-
   cursor: pointer;
-  width: 2 * @_button-radius;
-  height: 2 * @_button-radius;
-  margin-left: @_button-padding;
-  margin-right: @_button-padding;
+  .border-right-radius(@_border-radius); // needed for hover state
 
-  background-position: center;
-  background-size: cover;
+  box-sizing: content-box;
+  width: 14px; // icon size
+  padding-right: @_button-padding;
+
+  .hover();
 }
-
-
 
 .selected {
-  background: @BLUE;
+  background: @PALE_GREY;
 }
+

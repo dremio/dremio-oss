@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import com.dremio.dac.proto.model.system.NodeInfo;
 
 /**
- * Created by serge on 6/22/16.
+ * Wrapper on top of List<Node> to use in testing
  */
 public class Nodes extends ArrayList<NodeInfo> {
 }

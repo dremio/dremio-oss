@@ -1439,7 +1439,7 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.buffer = buffer.reallocIfNeeded(in.end - in.start);
+      out.buffer = buffer = buffer.reallocIfNeeded(in.end - in.start);
       out.start = out.end = 0;
       out.end = com.dremio.common.util.DremioStringUtils.parseBinaryString(in.buffer, in.start, in.end, out.buffer);
       out.buffer.setIndex(out.start, out.end);
@@ -1458,7 +1458,7 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.buffer = buffer.reallocIfNeeded(in.end - in.start);
+      out.buffer = buffer = buffer.reallocIfNeeded(in.end - in.start);
       out.start = out.end = 0;
       out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.parseBinaryStringNoFormat(in.buffer, in.start, in.end, out.buffer, errCtx);
       out.buffer.setIndex(out.start, out.end);
@@ -1480,7 +1480,7 @@ public class StringFunctions{
     @Override
     public void eval() {
       byte[] buf = com.dremio.common.util.DremioStringUtils.toBinaryStringNoFormat(in.buffer, in.start, in.end).getBytes(charset);
-      out.buffer = buffer.reallocIfNeeded(buf.length);
+      out.buffer = buffer = buffer.reallocIfNeeded(buf.length);
       buffer.setBytes(0, buf);
       buffer.setIndex(0, buf.length);
 

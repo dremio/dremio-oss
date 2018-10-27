@@ -87,6 +87,7 @@ public abstract class AggPruleBase extends Prule {
       return true;
     }
     RelNode child = call.rel(0).getInputs().get(0);
+    // if small input, then singleton
     return call.getMetadataQuery().getRowCount(child) < settings.getSliceTarget();
   }
 

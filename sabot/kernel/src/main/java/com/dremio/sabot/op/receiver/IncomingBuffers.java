@@ -39,6 +39,7 @@ import com.dremio.sabot.exec.rpc.IncomingDataBatch;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.spi.BatchStreamProvider;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
+import com.dremio.service.spill.SpillService;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -74,7 +75,8 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
       TunnelProvider tunnelProvider,
       PlanFragment fragment,
       BufferAllocator incomingAllocator,
-      SabotConfig config
+      SabotConfig config,
+      SpillService spillService
       ) {
     this.deferredException = exception;
     this.resourceGroup = resourceGroup;
@@ -89,8 +91,8 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
       Collector collector = fragment.getCollector(i);
 
       DataCollector newCollector = collector.getSupportsOutOfOrder() ?
-          new MergingCollector(resourceGroup, collector, allocator, config, fragment.getHandle(), workQueue, tunnelProvider) :
-          new PartitionedCollector(resourceGroup, collector, allocator, config, fragment.getHandle(), workQueue, tunnelProvider);
+          new MergingCollector(resourceGroup, collector, allocator, config, fragment.getHandle(), workQueue, tunnelProvider, spillService) :
+          new PartitionedCollector(resourceGroup, collector, allocator, config, fragment.getHandle(), workQueue, tunnelProvider, spillService);
       collectors.put(collector.getOppositeMajorFragmentId(), newCollector);
     }
 

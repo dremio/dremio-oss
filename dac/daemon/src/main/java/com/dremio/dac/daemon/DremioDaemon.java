@@ -17,18 +17,15 @@ package com.dremio.dac.daemon;
 
 import static com.dremio.common.util.DremioVersionInfo.VERSION;
 
-import java.util.logging.LogManager;
-
-import org.slf4j.bridge.SLF4JBridgeHandler;
-
-import com.dremio.common.CatastrophicFailure;
+import com.dremio.common.JULBridge;
+import com.dremio.common.ProcessExit;
 import com.dremio.common.Version;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.scanner.ClassPathScanner;
+import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.cmd.upgrade.Upgrade;
-import com.dremio.dac.cmd.upgrade.UpgradeStats;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.exec.util.GuavaPatcher;
 import com.google.common.base.Preconditions;
@@ -51,33 +48,33 @@ public class DremioDaemon {
     /*
      * Route JUL logging messages to SLF4J.
      */
-    LogManager.getLogManager().reset();
-    SLF4JBridgeHandler.removeHandlersForRootLogger();
-    SLF4JBridgeHandler.install();
+    JULBridge.configure();
   }
 
   public static final String DAEMON_MODULE_CLASS = "dremio.daemon.module.class";
 
   private static class AutoUpgrade extends Upgrade {
 
-    public AutoUpgrade(DACConfig dacConfig) {
-      super(dacConfig, false);
+    public AutoUpgrade(DACConfig dacConfig, ScanResult classPathScan) {
+      super(dacConfig, classPathScan, false);
     }
 
     @Override
     protected void ensureUpgradeSupported(Version storeVersion) {
       // Check if store version is up to date, i.e store version is greater or equal to the greatest version
       // of all upgrade tasks. If not, and if autoupgrade is not enabled, fail.
-      if (!getDacConfig().isAutoUpgrade()) {
-        Preconditions.checkState(
-            UPGRADE_VERSION_ORDERING.compare(storeVersion, TASKS_GREATEST_MAX_VERSION) >= 0,
-            "KVStore has an older version (%s) than the server (%s), please run the upgrade tool first",
-            storeVersion.getVersion(), VERSION.getVersion());
+      if (!getDACConfig().isAutoUpgrade()) {
+        getTasksGreatestMaxVersion().ifPresent(maxVersion -> {
+          Preconditions.checkState(
+              UPGRADE_VERSION_ORDERING.compare(storeVersion, maxVersion) >= 0,
+              "KVStore has an older version (%s) than the server (%s), please run the upgrade tool first",
+              storeVersion.getVersion(), VERSION.getVersion());
+        });
       }
 
       // Check if store version is smaller or equal to the code version. If not, and if not allowed by config,
       // fail.
-      if (!getDacConfig().allowNewerKVStore) {
+      if (!getDACConfig().allowNewerKVStore) {
         Preconditions.checkState(
             UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) <= 0,
             "KVStore has a newer version (%s) than running Dremio server (%s)",
@@ -86,33 +83,33 @@ public class DremioDaemon {
 
       // Check if store version is greater or equal to the smallest version of all upgrade tasks.
       // If not, fail
-      Preconditions.checkState(
-          UPGRADE_VERSION_ORDERING.compare(storeVersion, TASKS_SMALLEST_MIN_VERSION) >= 0,
-          "Cannot run upgrade tool on versions below %s",
-          TASKS_SMALLEST_MIN_VERSION.getVersion());
+      getTasksSmallestMinVersion().ifPresent(minVersion -> {
+        Preconditions.checkState(
+            UPGRADE_VERSION_ORDERING.compare(storeVersion, minVersion) >= 0,
+            "Cannot run upgrade tool on versions below %s",
+            minVersion.getVersion());
+      });
     }
   }
 
   public static void main(String[] args) throws Exception {
     try (TimedBlock b = Timer.time("main")) {
-      DACConfig config = DACConfig.newConfig();
+      final DACConfig config = DACConfig.newConfig();
+      final SabotConfig sabotConfig = config.getConfig().getSabotConfig();
+      final ScanResult classPathScan = ClassPathScanner.fromPrescan(sabotConfig);
 
       if (config.isMaster) {
         // Try autoupgrade before starting daemon
-        AutoUpgrade autoUpgrade = new AutoUpgrade(config);
-        UpgradeStats upgradeStats = autoUpgrade.run();
-        if (upgradeStats != Upgrade.NO_UPGRADE) {
-          System.out.println(upgradeStats);
-        }
+        AutoUpgrade autoUpgrade = new AutoUpgrade(config, classPathScan);
+        autoUpgrade.run();
       }
 
-      final SabotConfig sabotConfig = config.getConfig().getSabotConfig();
       final DACModule module = sabotConfig.getInstance(DAEMON_MODULE_CLASS, DACModule.class, DACDaemonModule.class);
-      final DACDaemon daemon = DACDaemon.newDremioDaemon(config, ClassPathScanner.fromPrescan(sabotConfig), module);
+      final DACDaemon daemon = DACDaemon.newDremioDaemon(config, classPathScan, module);
       daemon.init();
       daemon.closeOnJVMShutDown();
     } catch (final Throwable ex) {
-      CatastrophicFailure.exit(ex, "Failed to start services, daemon exiting.", 1);
+      ProcessExit.exit(ex, "Failure while starting services.", 4);
     }
   }
 

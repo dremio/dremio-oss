@@ -15,12 +15,9 @@
  */
 package com.dremio.datastore;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.stream.StreamSupport;
 
 import javax.inject.Provider;
 
@@ -28,11 +25,11 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.perf.Timer;
-import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.CoreStoreProvider.CoreStoreBuilder;
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
+import com.dremio.datastore.indexed.AuxiliaryIndex;
+import com.dremio.datastore.indexed.AuxiliaryIndexImpl;
 import com.dremio.datastore.indexed.LocalIndexedStore;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcException;
@@ -47,18 +44,13 @@ import com.google.common.collect.ImmutableMap;
  */
 public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWithId> {
   private static final Logger logger = LoggerFactory.getLogger(LocalKVStoreProvider.class);
-
-  private static final String ALARM = ".indexing";
-
   private final CoreStoreProviderImpl coreStoreProvider;
   private final Provider<FabricService> fabricService;
   private final BufferAllocator allocator;
   private final String hostName;
   private final ScanResult scan;
-  private final String baseDirectory;
 
   private ImmutableMap<Class<? extends StoreCreationFunction<?>>, KVStore<?, ?>> stores;
-  private File alarmFile;
 
   @VisibleForTesting
   public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed) {
@@ -75,14 +67,22 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     this(scan, null, null, null, baseDirectory, inMemory, timed, validateOCC, disableOCC);
   }
 
-  public LocalKVStoreProvider(ScanResult scan, Provider<FabricService> fabricService, BufferAllocator allocator, String hostName,
-                              String baseDirectory, boolean inMemory, boolean timed, boolean validateOCC, boolean disableOCC) {
+  public LocalKVStoreProvider(
+      ScanResult scan,
+      Provider<FabricService> fabricService,
+      BufferAllocator allocator,
+      String hostName,
+      String baseDirectory,
+      boolean inMemory,
+      boolean timed,
+      boolean validateOCC,
+      boolean disableOCC
+  ) {
     coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, validateOCC, disableOCC);
     this.fabricService = fabricService;
     this.allocator = allocator;
     this.hostName = hostName;
     this.scan = scan;
-    this.baseDirectory = baseDirectory;
   }
 
   @VisibleForTesting
@@ -96,14 +96,24 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     return (T) Preconditions.checkNotNull(stores.get(creator), "Unknown store creator %s", creator.getName());
   }
 
+  public <K, V, T> AuxiliaryIndex<K, V, T> getAuxiliaryIndex(String name, String kvStoreName, Class<? extends KVStoreProvider.DocumentConverter<K, T>> converter) throws InstantiationException, IllegalAccessException {
+    CoreKVStore<K, V> store = (CoreKVStore<K, V>) coreStoreProvider.getStore(kvStoreName);
+    return new AuxiliaryIndexImpl<>(name, store, coreStoreProvider.getIndex(name), converter);
+  }
+
   @Override
   public void start() throws Exception {
     logger.info("Starting LocalKVStoreProvider");
     coreStoreProvider.start();
     if (fabricService != null) {
       final DefaultDataStoreRpcHandler rpcHandler = new LocalDataStoreRpcHandler(hostName, coreStoreProvider);
-      final NodeEndpoint thisNode = NodeEndpoint.newBuilder().setAddress(hostName).setFabricPort(fabricService.get().getPort()).build();
+      final NodeEndpoint thisNode = NodeEndpoint.newBuilder()
+          .setAddress(hostName)
+          .setFabricPort(fabricService.get().getPort())
+          .build();
       try {
+        // DatastoreRpcService registers itself with fabric
+        //noinspection ResultOfObjectAllocationIgnored
         new DatastoreRpcService(DirectProvider.wrap(thisNode), fabricService.get(), allocator, rpcHandler);
       } catch (RpcException e) {
         throw new DatastoreException("Failed to start rpc service", e);
@@ -111,28 +121,14 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     }
 
     stores = StoreLoader.buildStores(scan, new StoreBuildingFactory() {
-
       @Override
       public <K, V> StoreBuilder<K, V> newStore() {
         return LocalKVStoreProvider.this.newStore();
       }
     });
 
-    alarmFile = new File(baseDirectory, ALARM);
-    if (alarmFile.exists()) {
-      logger.info("Dremio was not stopped properly, and needs to reindex all internal stores. This may take a while..");
-
-      try(TimedBlock ignored = Timer.time("reindex all stores")) {
-        StreamSupport.stream(coreStoreProvider.spliterator(), false)
-            .filter(storeWithId -> storeWithId.getStore() instanceof CoreIndexedStore)
-            .map(StoreWithId::getId)
-            .forEach(coreStoreProvider::reIndex);
-      }
-
-      logger.info("Finished reindexing all internal stores.");
-    } else {
-      Files.createFile(alarmFile.toPath());
-    }
+    // recover after the stores are built
+    coreStoreProvider.recoverIfPreviouslyCrashed();
 
     logger.info("LocalKVStoreProvider is up");
   }
@@ -150,11 +146,6 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
   public void close() throws Exception {
     logger.info("Stopping LocalKVStoreProvider");
     coreStoreProvider.close();
-
-    if (alarmFile != null && !alarmFile.delete()) {
-      logger.warn("Failed to remove alarm file. Dremio will reindex internal stores on next start up.");
-    }
-
     logger.info("Stopped LocalKVStoreProvider");
   }
 
@@ -172,8 +163,10 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
   }
 
   /**
-   * reIndex a specific store
-   * @param id
+   * Reindex store with the given id.
+   *
+   * @param id store id
+   * @return number of re-indexed entries
    */
   public int reIndex(String id) {
     return coreStoreProvider.reIndex(id);
@@ -184,11 +177,11 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
    * @param <K>
    * @param <V>
    */
-  public class LocalStoreBuilder<K, V> implements StoreBuilder<K, V> {
+  public static class LocalStoreBuilder<K, V> implements StoreBuilder<K, V> {
 
     private CoreStoreBuilder<K, V> coreStoreBuilder;
 
-    public LocalStoreBuilder(CoreStoreBuilder<K, V> coreStoreBuilder) {
+    LocalStoreBuilder(CoreStoreBuilder<K, V> coreStoreBuilder) {
       this.coreStoreBuilder = coreStoreBuilder;
     }
 

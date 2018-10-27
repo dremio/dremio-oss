@@ -20,9 +20,10 @@ import PropTypes from 'prop-types';
 import moment from 'moment';
 import c3 from 'c3';
 import 'c3/c3.css';
+import $ from 'jquery';
 
 import { isDateType, dateTypeToFormat, TIME, FLOAT, DECIMAL, DATE, DATETIME } from 'constants/DataTypes';
-import ChartTooltip, { ARROW_OFFSET } from './ChartTooltip';
+import ChartTooltip from './ChartTooltip';
 
 const BAR_CHART_HEIGHT = 108;
 const MAX_TICK_COUNT = 8;
@@ -38,15 +39,15 @@ export default class BarChart extends Component {
     data: PropTypes.array,
     width: PropTypes.number,
     type: PropTypes.string,
-    blockTooltips: PropTypes.bool
+    // This coordinate is relative to chart's left edge
+    sliderX: PropTypes.number // x coordinate of a slider if drag in a progress.
   };
 
   constructor(props) {
     super(props);
 
     this.state = {
-      openTooltip: false,
-      position: {}
+      hoverBarTooltipInfo: null //  see this.calculateTooltipInfo for format
     };
   }
 
@@ -70,26 +71,49 @@ export default class BarChart extends Component {
     }
   }
 
+  getBar = (mouseXRelativeToChart) => {
+    if (!this.chart || !mouseXRelativeToChart) return null;
+    const bars = $('.c3-event-rect', this.refs.chart);
+    let bar = null;
+    const mouseX = mouseXRelativeToChart + this.refs.chart.getBoundingClientRect().left;
+
+    bars.each((index, el) => {
+      const rect = el.getBoundingClientRect();
+      if (rect.left <= mouseX && mouseX <= rect.right) {
+        bar = el;
+        return false;
+      }
+    });
+
+    return bar;
+  }
+
   onMouseEnter = (e) => {
-    const el = e.target;
-    const index = $(el).index();
-    const bar = $(`path.c3-shape-${index}`)[0];
-    const barRect = bar.getBoundingClientRect();
-    const top = barRect.top - this.refs.chart.getBoundingClientRect().top;
-
-    const rectWidth = Number(el.getAttribute('width'));
-    const left = Number(el.getAttribute('x')) - ARROW_OFFSET + rectWidth / 2;
-
     this.setState({
-      openTooltip: true,
+      hoverBarTooltipInfo: this.calculateTooltipInfo(e.target, false)
+    });
+  }
+
+  calculateTooltipInfo = (bar, isSliderTop) => {
+    if (!this.refs.chart || !bar) return null;
+
+    const index = $(bar).index();
+    const barShape = $(`path.c3-shape-${index}`, this.refs.chart)[0]; // needed to calculate actual height of the bar.
+    const barRect = bar.getBoundingClientRect();
+    const chartRect = this.refs.chart.getBoundingClientRect();
+    const top = isSliderTop ?  0 : barShape.getBoundingClientRect().top - chartRect.top;
+
+    const rectWidth = barRect.width;
+    const left = barRect.left - chartRect.left + rectWidth / 2;
+    return {
       position: { top, left },
       index
-    });
+    };
   }
 
   onMouseLeave = () => {
     this.setState({
-      openTooltip: false
+      hoverBarTooltipInfo: null
     });
   }
 
@@ -197,7 +221,7 @@ export default class BarChart extends Component {
   }
 
   adjustTicks = () => {
-    $('.c3-axis .tick').each((i, item) => {
+    $('.c3-axis .tick', this.refs.chart).each((i, item) => {
       const line = $(item).find('line');
       const text = $(item).find('text');
       const x = Number(line.attr('x1'));
@@ -205,18 +229,7 @@ export default class BarChart extends Component {
     });
   }
 
-  showToolTip() {
-    const { blockTooltips } = this.props;
-    const { openTooltip } = this.state;
-    const { index } = this.state;
-    const { data } = this.props;
-
-    return !blockTooltips && openTooltip && index >= 0 &&
-      data[index].y > 0; // number of metched records more than 0
-  }
-
-  renderTooltipContent() {
-    const { index } = this.state;
+  renderTooltipContent(index) {
     const { data } = this.props;
     const item = data[index];
     const { range } = item;
@@ -233,11 +246,27 @@ export default class BarChart extends Component {
   }
 
   render() {
-    const { position } = this.state;
+    const { data, sliderX } = this.props;
+    const sliderPositionBar = this.getBar(sliderX);
+    const tooltipInfo = this.calculateTooltipInfo(sliderPositionBar, true) || this.state.hoverBarTooltipInfo;
+
+    let pos = null;
+    let showTooltip = false;
+    if (tooltipInfo) {
+      showTooltip = data[tooltipInfo.index].y > 0; // number of matched records more than 0
+      pos = {
+        ...tooltipInfo.position
+      };
+      if (sliderPositionBar) {
+        pos.left = sliderX;
+      }
+    }
+
     return (
       <div>
         <div ref='chart' />
-        {this.showToolTip() ? <ChartTooltip position={position} content={this.renderTooltipContent()} /> : null}
+        {showTooltip ? <ChartTooltip position={pos}
+          content={this.renderTooltipContent(tooltipInfo.index)} /> : null}
       </div>
     );
   }

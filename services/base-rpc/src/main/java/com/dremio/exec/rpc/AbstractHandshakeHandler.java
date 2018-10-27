@@ -31,12 +31,10 @@ public abstract class AbstractHandshakeHandler<T extends MessageLite> extends Me
   protected final Parser<T> parser;
   protected volatile int coordinationId;
 
-  public AbstractHandshakeHandler(EnumLite handshakeType, Parser<T> parser) {
-    super();
+  AbstractHandshakeHandler(EnumLite handshakeType, Parser<T> parser) {
     this.handshakeType = handshakeType;
     this.parser = parser;
   }
-
 
   @Override
   protected void decode(ChannelHandlerContext ctx, InboundRpcMessage inbound, List<Object> outputs) throws Exception {

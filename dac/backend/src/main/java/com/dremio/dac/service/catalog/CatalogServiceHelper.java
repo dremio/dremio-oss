@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.ws.rs.core.SecurityContext;
@@ -54,11 +55,15 @@ import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
+import com.dremio.dac.service.search.SearchContainer;
+import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.dotfile.View;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaEntity;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -105,9 +110,20 @@ public class CatalogServiceHelper {
   private final ReflectionServiceHelper reflectionServiceHelper;
   private final HomeFileTool homeFileTool;
   private final DatasetVersionMutator datasetVersionMutator;
+  private final SearchService searchService;
 
   @Inject
-  public CatalogServiceHelper(Catalog catalog, SecurityContext context, SourceService sourceService, NamespaceService namespaceService, SabotContext sabotContext, ReflectionServiceHelper reflectionServiceHelper, HomeFileTool homeFileTool, DatasetVersionMutator datasetVersionMutator) {
+  public CatalogServiceHelper(
+    Catalog catalog,
+    SecurityContext context,
+    SourceService sourceService,
+    NamespaceService namespaceService,
+    SabotContext sabotContext,
+    ReflectionServiceHelper reflectionServiceHelper,
+    HomeFileTool homeFileTool,
+    DatasetVersionMutator datasetVersionMutator,
+    SearchService searchService
+  ) {
     this.catalog = catalog;
     this.context = context;
     this.sourceService = sourceService;
@@ -116,6 +132,7 @@ public class CatalogServiceHelper {
     this.reflectionServiceHelper = reflectionServiceHelper;
     this.homeFileTool = homeFileTool;
     this.datasetVersionMutator = datasetVersionMutator;
+    this.searchService = searchService;
   }
 
   public Optional<DatasetConfig> getDatasetById(String datasetId) {
@@ -366,12 +383,21 @@ public class CatalogServiceHelper {
 
     switch(entity.getType()) {
       case FILE: {
-        catalogItem = new CatalogItem(generateInternalId(entityPath), entityPath, null, CatalogItem.CatalogItemType.FILE, null, null);
+        catalogItem = new CatalogItem.Builder()
+          .setId(generateInternalId(entityPath))
+          .setPath(entityPath)
+          .setType(CatalogItem.CatalogItemType.FILE)
+          .build();
         break;
       }
 
       case FOLDER: {
-        catalogItem = new CatalogItem(generateInternalId(entityPath), entityPath, null, CatalogItem.CatalogItemType.CONTAINER, null, CatalogItem.ContainerSubType.FOLDER);
+        catalogItem = new CatalogItem.Builder()
+          .setId(generateInternalId(entityPath))
+          .setPath(entityPath)
+          .setType(CatalogItem.CatalogItemType.CONTAINER)
+          .setContainerType(CatalogItem.ContainerSubType.FOLDER)
+          .build();
         break;
       }
 
@@ -380,7 +406,12 @@ public class CatalogServiceHelper {
         try {
           final NamespaceKey namespaceKey = new NamespaceKey(PathUtils.toPathComponents(PathUtils.toFSPath(entityPath)));
           final DatasetConfig dataset = namespaceService.getDataset(namespaceKey);
-          catalogItem = new CatalogItem(dataset.getId().getId(), entityPath, null, CatalogItem.CatalogItemType.DATASET, CatalogItem.DatasetSubType.PROMOTED, null);
+          catalogItem = new CatalogItem.Builder()
+            .setId(dataset.getId().getId())
+            .setPath(entityPath)
+            .setType(CatalogItem.CatalogItemType.DATASET)
+            .setDatasetType(CatalogItem.DatasetSubType.PROMOTED)
+            .build();
         } catch (NamespaceException e) {
           logger.warn("Can not find item with path [%s]", entityPath, e);
         }
@@ -482,7 +513,7 @@ public class CatalogServiceHelper {
     validateDataset(dataset);
 
     // only handle VDS
-    Preconditions.checkArgument(dataset.getType() != Dataset.DatasetType.PHYSICAL_DATASET, "Phyiscal Datasets can only be created by promoting other entities.");
+    Preconditions.checkArgument(dataset.getType() != Dataset.DatasetType.PHYSICAL_DATASET, "Physical Datasets can only be created by promoting other entities.");
 
     Preconditions.checkArgument(dataset.getId() == null, "Dataset id is immutable.");
 
@@ -512,7 +543,9 @@ public class CatalogServiceHelper {
 
     // verify we can promote the target entity
     List<String> path = getPathFromInternalId(targetId);
-    Preconditions.checkArgument(CollectionUtils.isEqualCollection(path, dataset.getPath()), "Entity id does not match the path specified in the dataset.");
+    // getPathFromInternalId will return a path without quotes so make sure we do the same for the dataset path
+    List<String> normalizedPath = dataset.getPath().stream().map(PathUtils::removeQuotes).collect(Collectors.toList());
+    Preconditions.checkArgument(CollectionUtils.isEqualCollection(path, normalizedPath), "Entity id does not match the path specified in the dataset.");
 
     // validation
     validateDataset(dataset);
@@ -596,6 +629,8 @@ public class CatalogServiceHelper {
       }
     } else if (dataset.getType() == Dataset.DatasetType.VIRTUAL_DATASET) {
       Preconditions.checkArgument(currentDatasetConfig.getType() == VIRTUAL_DATASET, "Dataset type can not be modified");
+      VirtualDataset virtualDataset = currentDatasetConfig.getVirtualDataset();
+      Dataset currentDataset = getDatasetFromConfig(currentDatasetConfig, null);
 
       // Check if the dataset is being renamed
       if (!Objects.equals(currentDatasetConfig.getFullPathList(), dataset.getPath())) {
@@ -603,12 +638,14 @@ public class CatalogServiceHelper {
         currentDatasetConfig = namespaceService.getDataset(namespaceKey);
       }
 
-      VirtualDataset virtualDataset = currentDatasetConfig.getVirtualDataset();
       virtualDataset.setSql(dataset.getSql());
       virtualDataset.setContextList(dataset.getSqlContext());
       currentDatasetConfig.setVirtualDataset(virtualDataset);
 
-      namespaceService.addOrUpdateDataset(namespaceKey, currentDatasetConfig, attributes);
+      List<String> path = dataset.getPath();
+
+      View view = new View(path.get(path.size() - 1), dataset.getSql(), Collections.emptyList(), virtualDataset.getContextList());
+      catalog.updateView(namespaceKey, view, attributes);
     }
   }
 
@@ -866,6 +903,44 @@ public class CatalogServiceHelper {
     }
   }
 
+  /**
+   *  Refresh a catalog item's metadata.  Only supports datasets currently.
+   */
+  public StoragePlugin.UpdateStatus refreshCatalogItemMetadata(String id,
+                                                               Boolean delete,
+                                                               Boolean force,
+                                                               Boolean promotion)
+  throws UnsupportedOperationException {
+    Optional<?> entity = getById(id);
+
+    if (!entity.isPresent()) {
+      throw new IllegalArgumentException(String.format("Could not find entity with id [%s].", id));
+    }
+
+    Object object = entity.get();
+
+    if (object instanceof DatasetConfig) {
+      final NamespaceKey namespaceKey = catalog.resolveSingle(new NamespaceKey(((DatasetConfig)object).getFullPathList()));
+      DatasetRetrievalOptions.Builder retrievalOptionsBuilder = DatasetRetrievalOptions.newBuilder();
+      if (delete != null) {
+        retrievalOptionsBuilder.setDeleteUnavailableDatasets(delete.booleanValue());
+      }
+      if (force != null) {
+        retrievalOptionsBuilder.setForceUpdate(force.booleanValue());
+      }
+      if (promotion != null) {
+        retrievalOptionsBuilder.setAutoPromote(promotion.booleanValue());
+      }
+
+      return catalog.refreshDataset(namespaceKey, retrievalOptionsBuilder.build());
+
+    } else {
+      throw new UnsupportedOperationException(
+        String.format("Cannot refresh metadata on %s type.  Metadata refresh can only operate on physical datasets.",
+          object.getClass().getName()));
+    }
+  }
+
   private Optional<AccelerationSettings> getStoredReflectionSettingsForDataset(DatasetConfig datasetConfig) {
     return reflectionServiceHelper.getReflectionSettings().getStoredReflectionSettings(new NamespaceKey(datasetConfig.getFullPathList()));
   }
@@ -1001,5 +1076,20 @@ public class CatalogServiceHelper {
     }
 
     return plugin;
+  }
+
+  public List<SearchContainer> searchByQuery(String query) throws NamespaceException {
+    return searchService.search(query, null);
+  }
+
+  public List<CatalogItem> search(String query) throws NamespaceException {
+    List<SearchContainer> searchResults = searchByQuery(query);
+
+    return searchResults.stream().map(searchResult -> {
+      return CatalogItem.fromNamespaceContainer(searchResult.getNamespaceContainer());
+    })
+      .filter(Optional::isPresent)
+      .map(Optional::get)
+      .collect(Collectors.toList());
   }
 }

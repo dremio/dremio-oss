@@ -17,15 +17,13 @@ package com.dremio.exec.store.dfs;
 
 import java.util.List;
 
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.ConnectionConf;
-import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.catalog.conf.Property;
 import com.google.common.collect.ImmutableList;
 
-public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends StoragePlugin> extends ConnectionConf<C, P>{
+public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends FileSystemPlugin<C>> extends ConnectionConf<C, P>{
 
   public abstract Path getPath();
 

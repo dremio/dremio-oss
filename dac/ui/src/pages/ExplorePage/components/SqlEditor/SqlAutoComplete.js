@@ -27,8 +27,6 @@ import FontIcon from 'components/Icon/FontIcon';
 import Modal from 'components/Modals/Modal';
 import SQLEditor from 'components/SQLEditor';
 
-import { MARGIN_SQL_EDITOR } from 'uiTheme/radium/sizes.js';
-
 import DragTarget from 'components/DragComponents/DragTarget';
 
 import SelectContextForm from '../forms/SelectContextForm';
@@ -265,7 +263,7 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
   }
 
   render() {
-    const height = this.props.sqlSize - MARGIN_SQL_EDITOR;
+    const height = this.props.sqlSize;
     const { datasetsPanel, funcHelpPanel, isGrayed, errors, autoCompleteEnabled, context } = this.props;
     const { query } = this.context.location;
     const widthSqlEditor = funcHelpPanel || datasetsPanel ? styles.smallerSqlEditor : {};
@@ -282,7 +280,7 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
         >
           {this.renderSelectContextModal()}
           <SQLEditor
-            height={height}
+            height={height - 2} // .sql-autocomplete has 1px top and bottom border. Have to substract border width
             ref={(ref) => this.sqlEditor = ref}
             defaultValue={this.props.defaultValue}
             onChange={this.handleChange}

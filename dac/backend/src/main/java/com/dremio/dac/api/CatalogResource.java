@@ -41,6 +41,8 @@ import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.service.namespace.NamespaceException;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Optional;
 
 /**
@@ -138,6 +140,37 @@ public class CatalogResource {
     }
   }
 
+  @POST
+  @Path("/{id}/metadata/refresh")
+  public MetadataRefreshResponse refreshCatalogItemMetadata(@PathParam("id") String id,
+                                                            @QueryParam("deleteWhenMissing") Boolean delete,
+                                                            @QueryParam("forceUpdate") Boolean force,
+                                                            @QueryParam("autoPromotion") Boolean promotion) {
+    try {
+      boolean changed = false;
+      boolean deleted = false;
+      switch(catalogServiceHelper.refreshCatalogItemMetadata(id, delete, force, promotion)) {
+        case CHANGED:
+          changed = true;
+          break;
+        case UNCHANGED:
+          break;
+        case DELETED:
+          changed = true;
+          deleted = true;
+          break;
+        default:
+          throw new IllegalStateException();
+      }
+
+      return new MetadataRefreshResponse(changed, deleted);
+    } catch (IllegalArgumentException e) {
+      throw new NotFoundException(e.getMessage());
+    } catch (UnsupportedOperationException e) {
+      throw new BadRequestException(e.getMessage());
+    }
+  }
+
   @GET
   @Path("/by-path/{segment:.*}")
   public CatalogEntity getCatalogItemByPath(@PathParam("segment") List<PathSegment> segments) throws NamespaceException, BadRequestException {
@@ -154,5 +187,38 @@ public class CatalogResource {
     }
 
     return entity.get();
+  }
+
+  @GET
+  @Path("/search")
+  public ResponseList<CatalogItem> search(@QueryParam("query") String query) throws NamespaceException {
+    ResponseList<CatalogItem> catalogItems = new ResponseList<>(catalogServiceHelper.search(query));
+
+    return catalogItems;
+  }
+
+  /**
+   * MetadataRefreshResponse class
+   */
+  public static class MetadataRefreshResponse {
+    private final boolean changed;
+    private final boolean deleted;
+
+    @JsonCreator
+    public MetadataRefreshResponse(
+      @JsonProperty("changed") boolean changed,
+      @JsonProperty("deleted") boolean deleted
+    ) {
+      this.changed = changed;
+      this.deleted = deleted;
+    }
+
+    public boolean getChanged() {
+      return changed;
+    }
+
+    public boolean getDeleted() {
+      return deleted;
+    }
   }
 }

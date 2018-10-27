@@ -15,26 +15,50 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
-import com.dremio.sabot.op.common.ht2.LBlockHashTable;
 
 import io.netty.util.internal.PlatformDependent;
 
-public class CountOneAccumulator extends BaseSingleAccumulator {
+import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.HTORDINAL_OFFSET;
+import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH;
 
-  public CountOneAccumulator(FieldVector output) {
-    super(null, output);
+public class CountOneAccumulator extends BaseSingleAccumulator {
+  private final static int ACCUMULATOR_WIDTH = 8;
+
+  public CountOneAccumulator(FieldVector input, FieldVector output,
+                             FieldVector transferVector, int maxValuesPerBatch,
+                             BufferAllocator computationVectorAllocator) {
+    super(input, output, transferVector, AccumulatorBuilder.AccumulatorType.COUNT1, maxValuesPerBatch,
+          computationVectorAllocator);
   }
 
-  public void accumulate(final long offsetAddr, final int count){
+  public void accumulate(final long memoryAddr, final int count){
+    final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
+    final long[] valueAddresses = this.valueAddresses;
+    final int maxValuesPerBatch = super.maxValuesPerBatch;
+    for (long partitionAndOrdinalAddr = memoryAddr; partitionAndOrdinalAddr < maxAddr; partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+      /* get the hash table ordinal */
+      final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
+      /* get the target addresses of accumulation vector */
+      final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
+      final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+      final long countAddr = valueAddresses[chunkIndex] + chunkOffset * ACCUMULATOR_WIDTH;
+      /* store the accumulated values(count) at the target location of accumulation vector */
+      PlatformDependent.putLong(countAddr, PlatformDependent.getLong(countAddr) + 1);
+    }
+  }
+
+  public void accumulateNoSpill(final long offsetAddr, final int count){
     final long maxAddr = offsetAddr + count * 4;
     final long[] valueAddresses = this.valueAddresses;
     for(long ordinalAddr = offsetAddr; ordinalAddr < maxAddr; ordinalAddr += 4){
       final int tableIndex = PlatformDependent.getInt(ordinalAddr);
-      final long countAddr = valueAddresses[tableIndex >>> LBlockHashTable.BITS_IN_CHUNK] + (tableIndex & LBlockHashTable.CHUNK_OFFSET_MASK) * 8;
+      final int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
+      final int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
+      final long countAddr = valueAddresses[chunkIndex] + (chunkOffset) * ACCUMULATOR_WIDTH;
       PlatformDependent.putLong(countAddr, PlatformDependent.getLong(countAddr) + 1);
     }
-
   }
-
 }

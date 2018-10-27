@@ -42,7 +42,12 @@ public class MetadataPolicy {
   // The minimum for this field is one minute as defined in MetadataRefresh.js
   @Min(ONE_MINUTE_IN_MS)
   private long datasetExpireAfterMs;
+
   private String datasetUpdateMode;
+
+  private boolean deleteUnavailableDatasets;
+
+  private boolean autoPromoteDatasets;
 
   public MetadataPolicy() { }
 
@@ -52,6 +57,8 @@ public class MetadataPolicy {
     this.datasetRefreshAfterMs = policy.getDatasetDefinitionRefreshAfterMs();
     this.datasetExpireAfterMs = policy.getDatasetDefinitionExpireAfterMs();
     this.datasetUpdateMode = policy.getDatasetUpdateMode().name();
+    this.deleteUnavailableDatasets = policy.getDeleteUnavailableDatasets();
+    this.autoPromoteDatasets = policy.getAutoPromoteDatasets();
   }
 
   public Long getAuthTTLMs() {
@@ -95,6 +102,22 @@ public class MetadataPolicy {
     this.datasetUpdateMode = datasetUpdateMode;
   }
 
+  public boolean isDeleteUnavailableDatasets() {
+    return deleteUnavailableDatasets;
+  }
+
+  public void setDeleteUnavailableDatasets(boolean deleteUnavailableDatasets) {
+    this.deleteUnavailableDatasets = deleteUnavailableDatasets;
+  }
+
+  public boolean isAutoPromoteDatasets() {
+    return autoPromoteDatasets;
+  }
+
+  public void setAutoPromoteDatasets(boolean autoPromoteDatasets) {
+    this.autoPromoteDatasets = autoPromoteDatasets;
+  }
+
   public com.dremio.service.namespace.source.proto.MetadataPolicy toMetadataPolicy() {
     com.dremio.service.namespace.source.proto.MetadataPolicy metadataPolicy = new com.dremio.service.namespace.source.proto.MetadataPolicy();
     metadataPolicy.setAuthTtlMs(this.getAuthTTLMs());
@@ -102,6 +125,8 @@ public class MetadataPolicy {
     metadataPolicy.setDatasetDefinitionExpireAfterMs(this.getDatasetExpireAfterMs());
     metadataPolicy.setDatasetDefinitionRefreshAfterMs(this.getDatasetRefreshAfterMs());
     metadataPolicy.setDatasetUpdateMode(UpdateMode.valueOf(this.getDatasetUpdateMode()));
+    metadataPolicy.setDeleteUnavailableDatasets(this.isDeleteUnavailableDatasets());
+    metadataPolicy.setAutoPromoteDatasets(this.isAutoPromoteDatasets());
     return metadataPolicy;
   }
 
@@ -112,7 +137,9 @@ public class MetadataPolicy {
       ", namesRefreshMs=" + namesRefreshMs +
       ", datasetRefreshAfterMs=" + datasetRefreshAfterMs +
       ", datasetExpireAfterMs=" + datasetExpireAfterMs +
-      ", datasetUpdateMode='" + datasetUpdateMode + '\'' +
+      ", datasetUpdateMode='" + datasetUpdateMode + "'" +
+      ", deleteUnavailableDatasets=" + deleteUnavailableDatasets +
+      ", autoPromoteDatasets=" + autoPromoteDatasets +
       '}';
   }
 }

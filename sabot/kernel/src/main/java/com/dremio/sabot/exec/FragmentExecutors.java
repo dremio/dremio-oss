@@ -30,13 +30,23 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.FragmentSetupException;
+import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
+import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
+import com.dremio.exec.proto.CoordExecRPC.RpcType;
+import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.rpc.Acks;
+import com.dremio.exec.rpc.Response;
+import com.dremio.exec.rpc.ResponseSender;
+import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.metrics.Metrics;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.FragmentWorkManager.ExitCallback;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
+import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
 import com.dremio.sabot.exec.rpc.IncomingDataBatch;
 import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.TaskPool;
@@ -54,6 +64,7 @@ import com.google.common.collect.Iterators;
  */
 public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecutor> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentExecutors.class);
+  private static final Response OK = new Response(RpcType.ACK, Acks.OK);
 
   private final LoadingCache<FragmentHandle, FragmentHandler> handlers = CacheBuilder.newBuilder()
     .build(new CacheLoader<FragmentHandle, FragmentHandler>() {
@@ -138,31 +149,11 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     return numRunningFragments.get();
   }
 
-  public void startFragment(final FragmentExecutor executor) {
-    final FragmentHandle fragmentHandle = executor.getHandle();
-    numRunningFragments.incrementAndGet();
-    final FragmentHandler handler = handlers.getUnchecked(fragmentHandle);
-
-    // Create the task wrapper before adding the fragment to the list
-    // of running fragments
-    final AsyncTaskWrapper task = new AsyncTaskWrapper(
-        executor.getPriority(),
-        executor.asAsyncTask(),
-        new AutoCloseable() {
-
-          @Override
-          public void close() throws Exception {
-            numRunningFragments.decrementAndGet();
-            handler.invalidate();
-
-            if (callback != null) {
-              callback.indicateIfSafeToExit();
-            }
-          }
-        });
-
-    handler.setExecutor(executor);
-    pool.execute(task);
+  public void startQueryFragment(final InitializeFragments fragments, final FragmentExecutorBuilder builder,
+                                 final ResponseSender sender, final NodeEndpoint identity) {
+    final SchedulingInfo schedulingInfo = fragments.hasSchedulingInfo() ? fragments.getSchedulingInfo() : null;
+    QueryStarterImpl queryStarter = new QueryStarterImpl(fragments, builder, sender, identity, schedulingInfo);
+    builder.buildAndStartQuery(fragments.getFragment(0), schedulingInfo, queryStarter);
   }
 
   public EventProvider getEventProvider(FragmentHandle handle) {
@@ -218,5 +209,97 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     AutoCloseables.close(scheduler);
   }
 
+  /**
+   * Initializes a query. Starts
+   */
+  private class QueryStarterImpl implements QueryStarter {
+    final InitializeFragments fragments;
+    final FragmentExecutorBuilder builder;
+    final ResponseSender sender;
+    final NodeEndpoint identity;
+    final SchedulingInfo schedulingInfo;
 
+    QueryStarterImpl(final InitializeFragments fragments, final FragmentExecutorBuilder builder,
+                     final ResponseSender sender, final NodeEndpoint identity, final SchedulingInfo schedulingInfo) {
+      this.fragments = fragments;
+      this.builder = builder;
+      this.sender = sender;
+      this.identity = identity;
+      this.schedulingInfo = schedulingInfo;
+    }
+
+    @Override
+    public void buildAndStartQuery(final QueryTicket queryTicket) {
+      try {
+        for (int i = 0; i < fragments.getFragmentCount(); i++) {
+          startFragment(queryTicket, fragments.getFragment(i), schedulingInfo);
+        }
+        sender.send(OK);
+      } catch (UserRpcException e) {
+        sender.sendFailure(e);
+      } catch (Exception e) {
+        final UserRpcException genericException = new UserRpcException(NodeEndpoint.getDefaultInstance(), "Remote message leaked.", e);
+        sender.sendFailure(genericException);
+      } finally {
+        if (queryTicket != null) {
+          queryTicket.release();
+        }
+      }
+    }
+
+    @Override
+    public void unableToBuildQuery(Exception e) {
+      if (e instanceof UserRpcException) {
+        sender.sendFailure((UserRpcException) e);
+      } else {
+        final UserRpcException genericException = new UserRpcException(NodeEndpoint.getDefaultInstance(), "Remote message leaked.", e);
+        sender.sendFailure(genericException);
+      }
+    }
+
+    private void startFragment(final QueryTicket queryTicket, final PlanFragment fragment,
+                               final SchedulingInfo schedulingInfo) throws UserRpcException {
+      logger.info("Received remote fragment start instruction for {}", QueryIdHelper.getQueryIdentifier(fragment.getHandle()));
+
+      try {
+        final EventProvider eventProvider = getEventProvider(fragment.getHandle());
+        startFragment(builder.build(queryTicket, fragment, eventProvider, schedulingInfo));
+      } catch (final Exception e) {
+        throw new UserRpcException(identity, "Failure while trying to start remote fragment", e);
+      } catch (final OutOfMemoryError t) {
+        if (t.getMessage().startsWith("Direct buffer")) {
+          throw new UserRpcException(identity, "Out of direct memory while trying to start remote fragment", t);
+        } else {
+          throw t;
+        }
+      }
+    }
+
+    public void startFragment(final FragmentExecutor executor) {
+      final FragmentHandle fragmentHandle = executor.getHandle();
+      numRunningFragments.incrementAndGet();
+      final FragmentHandler handler = handlers.getUnchecked(fragmentHandle);
+
+      // Create the task wrapper before adding the fragment to the list
+      // of running fragments
+      final AsyncTaskWrapper task = new AsyncTaskWrapper(
+        executor.getSchedulingGroup(),
+        executor.asAsyncTask(),
+        new AutoCloseable() {
+
+          @Override
+          public void close() throws Exception {
+            numRunningFragments.decrementAndGet();
+            handler.invalidate();
+
+            if (callback != null) {
+              callback.indicateIfSafeToExit();
+            }
+          }
+        });
+
+      handler.setExecutor(executor);
+      pool.execute(task);
+    }
+  }
 }

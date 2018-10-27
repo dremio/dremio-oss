@@ -29,6 +29,7 @@ import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.dfs.FileSelection;
@@ -59,7 +60,7 @@ import io.protostuff.ByteString;
 /**
  * A custom FileSystemPlugin that only works with Parquet files and generates file selections based on Refreshes as opposed to path.
  */
-public class AccelerationStoragePlugin extends FileSystemPlugin {
+public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStoragePluginConfig> {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AccelerationStoragePlugin.class);
 
@@ -149,7 +150,11 @@ public class AccelerationStoragePlugin extends FileSystemPlugin {
   }
 
   @Override
-  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldConfig, boolean ignoreAuthErrors) throws Exception {
+  public SourceTableDefinition getDataset(
+      NamespaceKey datasetPath,
+      DatasetConfig oldConfig,
+      DatasetRetrievalOptions ignored
+  ) throws Exception {
     FluentIterable<Refresh> refreshes = getSlices(datasetPath.getPathComponents());
     if(refreshes == null) {
       return null;
@@ -176,9 +181,18 @@ public class AccelerationStoragePlugin extends FileSystemPlugin {
   }
 
   @Override
-  public CheckResult checkReadSignature(ByteString key, DatasetConfig oldConfig) throws Exception {
+  public CheckResult checkReadSignature(
+      ByteString key,
+      DatasetConfig oldConfig,
+      DatasetRetrievalOptions retrievalOptions
+  ) throws Exception {
 
-    final SourceTableDefinition definition = getDataset(new NamespaceKey(oldConfig.getFullPathList()), oldConfig, true);
+    final SourceTableDefinition definition = getDataset(
+        new NamespaceKey(oldConfig.getFullPathList()),
+        oldConfig,
+        retrievalOptions.toBuilder()
+            .setIgnoreAuthzErrors(true)
+            .build());
 
     if(definition == null) {
       return CheckResult.DELETED;

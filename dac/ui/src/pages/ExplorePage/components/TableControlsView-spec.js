@@ -26,7 +26,6 @@ describe('TableControlsView', () => {
     minimalProps = {
       closeDropdown: sinon.stub(),
       toogleDropdown: sinon.stub(),
-      dataGraph: sinon.stub(),
       groupBy: sinon.stub(),
       handleRequestClose: sinon.stub(),
       join: sinon.stub(),
@@ -68,27 +67,6 @@ describe('TableControlsView', () => {
 
       const wrapper = shallow(<TableControlsView {...props}/>, {context});
       expect(wrapper.find('SampleDataMessage')).to.have.length(0);
-    });
-  });
-
-  describe('#getVisibleColumnsLabel', () => {
-    it('should return correct visible columns label when columns are not empty', () => {
-      const columns = Immutable.fromJS([
-        { hidden: true },
-        {},
-        {}
-      ]);
-
-      const wrapper = shallow(<TableControlsView {...commonProps}/>, {context});
-      const result = wrapper.instance().getVisibleColumnsLabel(columns);
-
-      expect(result).to.eql('2 of 3');
-    });
-
-    it('should return correct visible columns label when columns are empty', () => {
-      const wrapper = shallow(<TableControlsView {...commonProps}/>, {context});
-      const result = wrapper.instance().getVisibleColumnsLabel();
-      expect(result).to.eql('0 of 0');
     });
   });
 });

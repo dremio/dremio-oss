@@ -18,9 +18,13 @@ package com.dremio.dac.cmd.upgrade;
 import java.util.Set;
 import java.util.UUID;
 
+import javax.inject.Provider;
+
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.common.Strings;
 
+import com.dremio.datastore.KVStoreProvider;
+import com.dremio.service.DirectProvider;
 import com.dremio.service.accelerator.proto.LayoutId;
 import com.dremio.service.accelerator.proto.MaterializedLayout;
 import com.dremio.service.reflection.ReflectionUtils;
@@ -40,14 +44,15 @@ import com.google.common.collect.Sets;
 public class MarkOldMaterializationsAsDeprecated extends UpgradeTask {
 
   public MarkOldMaterializationsAsDeprecated() {
-    super("Mark materializations created before 2.0 as deprecated", VERSION_106, VERSION_150);
+    super("Mark materializations created before 2.0 as deprecated", VERSION_106, VERSION_150, NORMAL_ORDER + 4);
   }
 
   @Override
   public void upgrade(UpgradeContext context) {
+    final Provider<KVStoreProvider> provider = DirectProvider.wrap(context.getKVStoreProvider());
     final com.dremio.service.accelerator.store.MaterializationStore oldStore
-        = new com.dremio.service.accelerator.store.MaterializationStore(context.getKVStoreProvider());
-    final MaterializationStore newStore = new MaterializationStore(context.getKVStoreProvider());
+        = new com.dremio.service.accelerator.store.MaterializationStore(provider);
+    final MaterializationStore newStore = new MaterializationStore(provider);
 
     oldStore.start();
 

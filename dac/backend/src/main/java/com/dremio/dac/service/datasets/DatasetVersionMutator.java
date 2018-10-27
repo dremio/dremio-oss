@@ -110,7 +110,7 @@ public class DatasetVersionMutator {
 
   private DatasetDownloadManager downloadManager() {
     final FileSystemPlugin downloadPlugin = catalogService.getSource(DATASET_DOWNLOAD_STORAGE_PLUGIN);
-    return new DatasetDownloadManager(jobsService, downloadPlugin.getConfig().getPath(), downloadPlugin.getFs());
+    return new DatasetDownloadManager(jobsService, namespaceService, downloadPlugin.getConfig().getPath(), downloadPlugin.getFs());
   }
   private void validate(DatasetPath path, VirtualDatasetUI ds) {
     if (ds.getSqlFieldsList() == null || ds.getSqlFieldsList().isEmpty()) {

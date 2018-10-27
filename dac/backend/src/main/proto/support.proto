@@ -20,7 +20,6 @@ import "../../../../../services/jobs/src/main/protobuf/job.proto";
 option java_package = "com.dremio.dac.proto.model.source";
 option optimize_for = SPEED;
 
-
 message ClusterIdentity {
   optional string identity = 1;
   optional int64 serial = 2;

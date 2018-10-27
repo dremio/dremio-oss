@@ -56,7 +56,6 @@ import com.dremio.dac.explore.model.Column;
 import com.dremio.dac.explore.model.CreateFromSQL;
 import com.dremio.dac.explore.model.DatasetDetails;
 import com.dremio.dac.explore.model.DatasetPath;
-import com.dremio.dac.explore.model.DatasetSearchUIs;
 import com.dremio.dac.explore.model.DatasetSummary;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
@@ -158,7 +157,7 @@ public class TestServer extends BaseTestServer {
     final NamespaceTree tree = source.getContents();
 
     // make sure we didn't get the root's content
-    assertEquals("source should only list the content of the subfolder", 3, tree.getFolders().size());
+    assertEquals("source should only list the content of the subfolder", 5, tree.getFolders().size());
     assertEquals("source should only list the content of the subfolder", 3, tree.getFiles().size());
 
     assertNull(expectSuccess(getBuilder(getAPIv2().path("source/nas_sub").queryParam("includeContents", false)).buildGet(), SourceUI.class).getContents());
@@ -490,21 +489,6 @@ public class TestServer extends BaseTestServer {
     expectSuccess(getBuilder(getAPIv2().path("/test/clear")).buildPost(Entity.json("")));
     assertEquals(0, ns.getSpaces().size());
     assertEquals(0, ns.getHomeSpaces().size());
-  }
-
-  @Test
-  public void testDatasetSearch() throws Exception {
-    populateInitialData();
-    DatasetSearchUIs datasets = expectSuccess(getBuilder(getAPIv2().path("datasets/search").queryParam("filter", "DG")).buildGet(),
-      DatasetSearchUIs.class);
-    assertEquals(10, datasets.size());
-    datasets = expectSuccess(getBuilder(getAPIv2().path("datasets/search").queryParam("filter", "dsg2")).buildGet(),
-      DatasetSearchUIs.class);
-    assertEquals(3, datasets.size());
-
-    datasets = expectSuccess(getBuilder(getAPIv2().path("datasets/search").queryParam("filter", "dsg3")).buildGet(),
-      DatasetSearchUIs.class);
-    assertEquals(6, datasets.size());
   }
 
   @Test

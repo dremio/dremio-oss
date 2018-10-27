@@ -174,6 +174,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
    * @return The list of generated PlanFragment protobuf objects to be assigned out to the individual nodes.
    * @throws ExecutionSetupException
    */
+  @Deprecated // ("only used in test")
   public List<PlanFragment> getFragments(
       OptionList options,
       NodeEndpoint foremanNode,

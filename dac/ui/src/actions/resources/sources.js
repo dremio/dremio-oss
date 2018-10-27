@@ -73,6 +73,7 @@ export function createSampleSource(sources, spaces, meta) {
       'externalBucketList': [
         'samples.dremio.com'
       ],
+      'credentialType': 'NONE',
       'secure': false,
       'propertyList': []
     },

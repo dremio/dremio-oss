@@ -63,15 +63,16 @@
 |ApacheDS Protocol Kerberos Codec                            |2.0.0-M15           |Apache 2.0          |
 |API Common                                                  |1.1.0               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
-|Arrow Format                                                |0.10.0-201806210053570350-1f84eef-dremio|Apache 2.0          |
-|Arrow Memory                                                |0.10.0-201806210053570350-1f84eef-dremio|Apache 2.0          |
-|Arrow Vectors                                               |0.10.0-201806210053570350-1f84eef-dremio|Apache 2.0          |
+|Arrow Format                                                |0.10.0-201810032318010077-96f8a83-dremio|Apache 2.0          |
+|Arrow Memory                                                |0.10.0-201810032318010077-96f8a83-dremio|Apache 2.0          |
+|Arrow Vectors                                               |0.10.0-201810032318010077-96f8a83-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
 |ASM All                                                     |5.0.2               |BSD 3-clause        |
 |ASM Core                                                    |5.0.4               |BSD 3-clause        |
 |attr-accept                                                 |1.1.0               |MIT                 |
+|Auth Audit                                                  |1.1.0               |Apache 2.0          |
 |AutoValue                                                   |1.2                 |Apache 2.0          |
 |AWS SDK for AWS KMS                                         |1.11.156            |Apache 2.0          |
 |AWS SDK for AWS S3                                          |1.11.156            |Apache 2.0          |
@@ -89,14 +90,15 @@
 |bowser                                                      |1.8.0               |MIT                 |
 |c3                                                          |0.4.18              |MIT                 |
 |Caffeine cache                                              |2.6.2               |Apache 2.0          |
-|Calcite Core                                                |1.16.0-201807312206090258-e1b02e7|Apache 2.0          |
-|Calcite Linq4j                                              |1.16.0-201807312206090258-e1b02e7|Apache 2.0          |
+|Calcite Core                                                |1.16.0-201810181505000034-69f03c2|Apache 2.0          |
+|Calcite Linq4j                                              |1.16.0-201810181505000034-69f03c2|Apache 2.0          |
 |chain-function                                              |1.0.0               |MIT                 |
 |change-emitter                                              |0.1.6               |MIT                 |
 |ClassMate                                                   |1.1.0               |Apache 2.0          |
 |classnames                                                  |2.2.5               |MIT                 |
 |Cloud Storage API v1-rev35-1.20.0                           |v1-rev35-1.20.0     |Apache 2.0          |
 |codemirror                                                  |5.30.0              |MIT                 |
+|codemirror-spell-checker                                    |1.1.2               |MIT                 |
 |Codemodel Core                                              |2.6                 |GPL v2 w/ CPE       |
 |color-space                                                 |1.15.0              |MIT                 |
 |com.google.api.grpc:proto-google-common-protos              |0.1.21              |Apache 2.0          |
@@ -108,6 +110,7 @@
 |com.hubspot.jackson:jackson-datatype-protobuf               |0.9.5               |Apache 2.0          |
 |com.yahoo.datasketches:memory                               |0.10.3              |Apache 2.0          |
 |com.yahoo.datasketches:sketches-core                        |0.11.1-dremio-01    |Apache 2.0          |
+|Common library for Plugins                                  |1.1.0               |Apache 2.0          |
 |common-tags                                                 |1.4.0               |MIT                 |
 |Commons BeanUtils Core                                      |1.8.0               |Apache 2.0          |
 |Commons CLI                                                 |1.2                 |Apache 2.0          |
@@ -130,6 +133,7 @@
 |core-js                                                     |1.2.7               |MIT                 |
 |core-js                                                     |2.5.1               |MIT                 |
 |create-react-class                                          |15.6.2              |MIT                 |
+|Credential Support                                          |1.1.0               |Apache 2.0          |
 |csprng                                                      |0.1.2               |MIT                 |
 |Curator Client                                              |2.12.0              |Apache 2.0          |
 |Curator Framework                                           |2.12.0              |Apache 2.0          |
@@ -149,11 +153,10 @@
 |dnd-core                                                    |2.5.4               |BSD-3-Clause        |
 |dom-helpers                                                 |2.4.0               |MIT                 |
 |dom-helpers                                                 |3.2.1               |MIT                 |
-|Dremio Fast Threads                                         |2.1.0               |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |2.1.0               |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |2.1.02.1.0          |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |2.1.0               |Dremio Free Software License 1.0|
-|Elastic JNA Distribution                                    |4.4.0               |Apache 2.0          |
+|Dremio Fast Threads                                         |3.0.0               |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |3.0.0               |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |3.0.0               |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |3.0.0               |Dremio Free Software License 1.0|
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
 |element-class                                               |0.2.2               |ISC                 |
@@ -174,6 +177,7 @@
 |font-awesome                                                |4.7.0               |(OFL-1.1 AND MIT)   |
 |foodmart-data-json                                          |0.4                 |Apache 2.0          |
 |FreeMarker                                                  |2.3.26-incubating   |Apache 2.0          |
+|Gandiva Java POM                                            |0.1-6f11d4ef79b38074151e3107d46477f45ed21d11|Apache 2.0          |
 |GAX (Google Api eXtensions)                                 |1.9.0               |BSD 3-clause        |
 |Google APIs Client Library for Java                         |1.20.0              |Apache 2.0          |
 |Google App Engine extensions to the Google HTTP Client Library for Java.|1.22.0              |Apache 2.0          |
@@ -199,9 +203,11 @@
 |HdrHistogram                                                |2.1.9               |CC0 1.0 Universal   |
 |Hibernate Validator Engine                                  |5.2.4.Final         |Apache 2.0          |
 |history                                                     |3.3.0               |MIT                 |
-|Hive Contrib                                                |2.1.1-dremio-1533135336812-b660ca2|Apache 2.0          |
-|Hive HBase Handler                                          |2.1.1-dremio-1533135336812-b660ca2|Apache 2.0          |
-|Hive Metastore                                              |2.1.1-dremio-1533135336812-b660ca2|Apache 2.0          |
+|Hive Contrib                                                |2.1.1-dremio-201808171815330521-063f87a|Apache 2.0          |
+|Hive HBase Handler                                          |2.1.1-dremio-201808171815330521-063f87a|Apache 2.0          |
+|Hive Metastore                                              |2.1.1-dremio-201808171815330521-063f87a|Apache 2.0          |
+|Hive Security Plugin                                        |1.1.0               |Apache 2.0          |
+|Hive Security Plugin                                        |1.1.0               |Apache 2.0          |
 |HK2 API module                                              |2.5.0-b32           |CDDL 1.1            |
 |HK2 Implementation Utilities                                |2.5.0-b32           |CDDL 1.1            |
 |hoconfig-js                                                 |0.1.12              |MIT                 |
@@ -247,8 +253,8 @@
 |Java 6 (and higher) extensions to the Google OAuth Client Library for Java.|1.20.0              |Apache 2.0          |
 |Java binding for libpam.so                                  |1.8                 |MIT                 |
 |Java Concurrency in Practice book annotations               |1.0                 |CC 2.5              |
-|Java Native Access                                          |4.0.0               |Apache 2.0          |
-|Java Native Access                                          |4.4.0               |Apache 2.0          |
+|Java Native Access                                          |4.5.0               |Apache 2.0          |
+|Java Native Access                                          |4.5.0               |Apache 2.0          |
 |Java Servlet API                                            |3.1.0               |GPL v2 w/ CPE       |
 |Java Transaction API                                        |1.1                 |GPL v2 w/ CPE       |
 |Java Transaction API                                        |1.1                 |GPL v2 w/ CPE       |
@@ -372,6 +378,7 @@
 |Lucene Spatial Extras                                       |6.6.0               |Apache 2.0          |
 |Lucene Suggest                                              |6.6.0               |Apache 2.0          |
 |MariaDB                                                     |1.6.2               |LGPL v2.1           |
+|marked                                                      |0.4.0               |MIT                 |
 |material-ui                                                 |0.16.4              |MIT                 |
 |Metrics Annotations                                         |2.2.0               |Apache 2.0          |
 |Metrics Core                                                |4.0.2               |Apache 2.0          |
@@ -390,6 +397,7 @@
 |Netty/Common                                                |4.1.22.Final        |Apache 2.0          |
 |Netty/Handler                                               |4.1.22.Final        |Apache 2.0          |
 |Netty/Resolver                                              |4.1.22.Final        |Apache 2.0          |
+|Netty/TomcatNative [BoringSSL - Static]                     |2.0.10.Final        |Apache 2.0          |
 |Netty/TomcatNative [OpenSSL - Dynamic]                      |1.1.33.Fork24       |Apache 2.0          |
 |Netty/Transport                                             |4.1.22.Final        |Apache 2.0          |
 |Netty/Transport/Native/Epoll                                |4.1.22.Final        |Apache 2.0          |
@@ -415,6 +423,7 @@
 |prop-types                                                  |15.5.8              |BSD-3-Clause        |
 |prop-types                                                  |15.6.0              |MIT                 |
 |prop-types-extra                                            |1.0.1               |MIT                 |
+|prop-types-extra                                            |1.1.0               |MIT                 |
 |Protocol Buffer [Util]                                      |3.3.1               |BSD 3-clause        |
 |Protocol Buffer Java API                                    |2.5.0               |BSD 3-clause        |
 |protostuff :: api                                           |1.4.4               |Apache 2.0          |
@@ -449,6 +458,7 @@
 |react-event-listener                                        |0.4.5               |MIT                 |
 |react-immutable-proptypes                                   |2.1.0               |MIT                 |
 |react-intl                                                  |2.4.0               |BSD-3-Clause        |
+|react-is                                                    |16.4.1              |MIT                 |
 |react-json-tree                                             |0.10.3              |MIT                 |
 |react-json-tree                                             |0.10.9              |MIT                 |
 |react-lazy-cache                                            |3.0.1               |MIT                 |
@@ -464,6 +474,7 @@
 |react-router                                                |3.2.0               |MIT                 |
 |react-router-redux                                          |4.0.8               |MIT                 |
 |react-side-effect                                           |1.1.3               |MIT                 |
+|react-sortable-hoc                                          |0.8.3               |MIT                 |
 |react-tap-event-plugin                                      |2.0.1               |Apache-2.0          |
 |react-transition-group                                      |1.2.1               |BSD-3-Clause        |
 |react-transition-group                                      |2.2.1               |BSD-3-Clause        |
@@ -499,6 +510,7 @@
 |shallowequal                                                |0.2.2               |MIT                 |
 |shallowequal                                                |1.0.2               |MIT                 |
 |simple-assign                                               |0.1.0               |MIT                 |
+|simplemde                                                   |1.11.2              |MIT                 |
 |SLF4J API Module                                            |1.7.10              |MIT                 |
 |Slugify - Core                                              |2.1.7               |Apache 2.0          |
 |SnakeYAML                                                   |1.15                |Apache 2.0          |
@@ -520,6 +532,7 @@
 |The Netty Project                                           |3.6.2.Final         |Apache 2.0          |
 |ThreeTen backport                                           |1.3.3               |BSD 3-clause        |
 |toggle-selection                                            |1.0.6               |MIT                 |
+|typo-js                                                     |1.0.3               |BSD-3-Clause        |
 |ua-parser-js                                                |0.7.14              |MIT                 |
 |ultron                                                      |1.0.2               |MIT                 |
 |UnboundID LDAP SDK for Java                                 |4.0.5               |LGPL v2.1           |

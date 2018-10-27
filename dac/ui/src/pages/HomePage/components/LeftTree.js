@@ -27,8 +27,8 @@ import FinderNavItem from 'components/FinderNavItem';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import LinkButton from 'components/Buttons/LinkButton';
 import SimpleButton from 'components/Buttons/SimpleButton';
+import { EmptyStateContainer } from '@app/pages/HomePage/components/EmptyStateContainer';
 
-import { formDescription } from 'uiTheme/radium/typography';
 import { PALE_NAVY } from 'uiTheme/radium/colors';
 
 import ApiUtils from 'utils/apiUtils/apiUtils';
@@ -36,7 +36,7 @@ import {createSampleSource, isSampleSource} from 'actions/resources/sources';
 
 import Radium from 'radium';
 
-import './LeftTree.less';
+import { emptyContainer } from './LeftTree.less';
 
 @injectIntl
 @pureRender
@@ -79,17 +79,16 @@ export class LeftTree extends Component {
 
   getInitialSpacesContent() {
     const addHref = this.getAddSpaceHref();
-    return this.props.spaces.size > 0 ? null : <div className='button-wrap'>
-      <span style={formDescription}>
-        <FormattedMessage id='Space.NoSpaces'/>
-      </span>
+    return this.props.spaces.size > 0 ? null : <EmptyStateContainer
+      className={emptyContainer}
+      title={<FormattedMessage id='Space.NoSpaces'/>}>
       {addHref && <LinkButton
         buttonStyle='primary'
         data-qa={'add-spaces'}
         to={addHref}>
         <FormattedMessage id='Space.AddSpace'/>
       </LinkButton>}
-    </div>;
+    </EmptyStateContainer>;
   }
 
   getInitialSourcesContent() {
@@ -111,12 +110,10 @@ export class LeftTree extends Component {
     // - no sources, user can add: show text and both buttons
     // - no sources, user can't add: show text
     // - only sample source(s), user can add: show text and add button
-    return <div className='button-wrap'>
-      <span style={formDescription}>
-        {isEmpty
-          ? <FormattedMessage id='Source.NoSources'/>
-          : <FormattedMessage id='Source.AddOwnSource'/>}
-      </span>
+    return <EmptyStateContainer
+      className={emptyContainer}
+      title={isEmpty ? <FormattedMessage id='Source.NoSources'/>
+        : <FormattedMessage id='Source.AddOwnSource'/>}>
       {this.getCanAddSource() && isEmpty && <SimpleButton
         buttonStyle='primary'
         submitting={this.state.isAddingSampleSource}
@@ -130,7 +127,7 @@ export class LeftTree extends Component {
         to={addHref}>
         <FormattedMessage id='Source.AddSource'/>
       </LinkButton>}
-    </div>;
+    </EmptyStateContainer>;
   }
 
   getAddSpaceHref() {

@@ -159,9 +159,7 @@ export default class TimeDot extends Component {
           <div style={styles.triangle}/>
           <div
             data-qa='time-dot-popover'
-            style={styles.popover}
-            onMouseEnter={this.handleMouseEnter}
-            onMouseLeave={this.handleMouseLeave}>
+            style={styles.popover}>
             {popoverContent}
           </div>
         </div>

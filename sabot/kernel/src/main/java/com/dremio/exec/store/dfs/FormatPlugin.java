@@ -16,11 +16,17 @@
 package com.dremio.exec.store.dfs;
 
 import java.io.IOException;
+
+import org.apache.hadoop.fs.FileStatus;
+
+import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.RecordReader;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.file.proto.FileUpdateKey;
@@ -49,4 +55,9 @@ public interface FormatPlugin {
   public FormatPluginConfig getConfig();
   public String getName();
   public FileSystemDatasetAccessor getDatasetAccessor(DatasetConfig oldConfig, FileSystemWrapper fs, FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, String tableName, FileUpdateKey updateKey);
+
+  /**
+   * Get a record reader specifically for the purposes of previews.
+   */
+  public RecordReader getRecordReader(final OperatorContext context, final FileSystemWrapper dfs, final FileStatus status) throws ExecutionSetupException;
 }

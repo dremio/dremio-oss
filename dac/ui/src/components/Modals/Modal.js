@@ -18,7 +18,7 @@ import PropTypes from 'prop-types';
 import ReactModal from 'react-modal';
 import ReactDOMServer from 'react-dom/server';
 
-import {smallModal, mediumModal, largeModal, smallestModal, modalBody} from 'uiTheme/radium/modal';
+import {smallModal, mediumModal, largeModal, tallModal, smallestModal, modalBody} from 'uiTheme/radium/modal';
 
 import ModalHeader from './ModalHeader';
 import './Modals.less';
@@ -26,7 +26,7 @@ import './Modals.less';
 export default class Modal extends Component {
 
   static propTypes = {
-    size: PropTypes.oneOf(['small', 'large', 'medium', 'smallest']).isRequired,
+    size: PropTypes.oneOf(['small', 'large', 'tall', 'medium', 'smallest']).isRequired,
     isOpen: PropTypes.bool,
     hideCloseButton: PropTypes.bool,
     onClickCloseButton: PropTypes.func, // optional. defaults to props.hide
@@ -58,7 +58,8 @@ export default class Modal extends Component {
     const smallModalUpdated = { ...smallModal, content };
     const mediumModalUpdated = { ...mediumModal, content: { ...mediumModal.content, ...style}};
     const largeModalUpdated = { ...largeModal, content: { ...largeModal.content, ...style}};
-    const styles = {small: smallModalUpdated, medium: mediumModalUpdated, large: largeModalUpdated, smallest: smallestModal};
+    const tallModalUpdated = { ...tallModal, content: { ...tallModal.content, ...style}};
+    const styles = {small: smallModalUpdated, medium: mediumModalUpdated, large: largeModalUpdated, tall: tallModalUpdated, smallest: smallestModal};
 
     let stringTitle = title;
     if (typeof stringTitle === 'object') {

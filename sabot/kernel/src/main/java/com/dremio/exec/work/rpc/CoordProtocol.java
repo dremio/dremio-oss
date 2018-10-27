@@ -17,10 +17,11 @@ package com.dremio.exec.work.rpc;
 
 import static com.dremio.exec.rpc.RpcBus.get;
 
-
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.utils.protos.ExternalIdHelper;
+import com.dremio.exec.proto.CoordRPC;
 import com.dremio.exec.proto.CoordRPC.RpcType;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
@@ -31,7 +32,6 @@ import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.exec.work.protector.ForemenTool;
 import com.dremio.sabot.rpc.Protocols;
 import com.dremio.services.fabric.api.FabricProtocol;
@@ -103,8 +103,10 @@ public class CoordProtocol implements FabricProtocol {
     switch (rpcType) {
 
     case RpcType.REQ_QUERY_CANCEL_VALUE: {
-      final ExternalId id = get(pBody, ExternalId.PARSER);
-      boolean canceled = tool.cancel(id);
+      final CoordRPC.JobCancelRequest jobCancelRequest = get(pBody, CoordRPC.JobCancelRequest.PARSER);
+      final ExternalId id = jobCancelRequest.getExternalId();
+      final String cancelreason = jobCancelRequest.getCancelReason();
+      boolean canceled = tool.cancel(id, cancelreason);
       final Response outcome = canceled ? OK : FAIL;
       sender.send(outcome);
       break;
@@ -129,7 +131,7 @@ public class CoordProtocol implements FabricProtocol {
     return RpcConfig.newBuilder()
         .name("CoordToCoord")
         .timeout(config.getInt(RpcConstants.BIT_RPC_TIMEOUT))
-        .add(RpcType.REQ_QUERY_CANCEL, ExternalId.class, RpcType.ACK, Ack.class)
+        .add(RpcType.REQ_QUERY_CANCEL, CoordRPC.JobCancelRequest.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_QUERY_PROFILE, ExternalId.class, RpcType.RESP_QUERY_PROFILE, QueryProfile.class)
         .build();
   }

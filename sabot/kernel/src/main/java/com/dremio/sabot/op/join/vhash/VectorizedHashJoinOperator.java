@@ -42,17 +42,17 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.aggregate.vectorized.VariableLengthValidator;
+import com.dremio.sabot.op.join.vhash.HashJoinStats.Metric;
 import com.dremio.sabot.op.common.hashtable.Comparator;
 import com.dremio.sabot.op.common.hashtable.HashTable;
-import com.dremio.sabot.op.common.hashtable.HashTableStats.Metric;
 import com.dremio.sabot.op.common.ht2.FieldVectorPair;
 import com.dremio.sabot.op.common.ht2.PivotBuilder;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.join.JoinUtils;
-import com.dremio.sabot.op.join.hash.BuildInfo;
 import com.dremio.sabot.op.spi.DualInputOperator;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+
 import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
@@ -69,9 +69,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   public static final int BATCH_MASK = 0x0000FFFF;
 
   private static final int INITIAL_VAR_FIELD_AVERAGE_SIZE = 10;
-
-  // Constant to indicate index is empty.
-  private static final int INDEX_EMPTY = -1;
+  private static final int BUILDINFO_BUF_NUM_RECORDS = 1024;
 
   // nodes to shift while obtaining batch index from SV4
   private static final int SHIFT_SIZE = 16;
@@ -86,13 +84,13 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   // A structure that parallels the
   private final List<ArrowBuf> startIndices = new ArrayList<>();
   // Array of bitvectors. Keeps track of keys on the build side that matched any key on the probe side
-  private final List<BitSet> keyMatchBitVectors = new ArrayList<>();
+  private final List<MatchBitSet> keyMatchBitVectors = new ArrayList<>();
   // Max index(ordinal) in hash table and start indices
   private int maxHashTableIndex = -1;
 
-  // List of BuildInfo structures. Used to maintain auxiliary information about the build batches
+  // List of JoinLinks structures. Used to maintain auxiliary information about the build batches
   // There is one of these for each incoming batch of records
-  private final List<BuildInfo> buildInfoList = new ArrayList<>();
+  private final List<JoinLinks> buildInfoList = new ArrayList<>();
   /* The keys of build batch will not be added to hyper container for VECTORIZED_GENERIC mode.
    * probeIncomingKeys and buildOutputKeys are used to maintain all the keys in probe side and build side,
    * And they will be used to build copier in VectorizedProbe, which will be used to copy the key vectors
@@ -102,6 +100,10 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
    */
   private final List<FieldVector> probeIncomingKeys = new ArrayList<>();
   private final List<FieldVector> buildOutputKeys = new ArrayList<>();
+
+  // List of JoinBackPointer structures. Used to maintain the ordinal in hash table for every record in build batches.
+  // Each incoming batch has one JoinBackPointer structure.
+  private final List<JoinBackPointer> backPointerList = new ArrayList<>();
 
   private final List<FieldVector> buildOutputs = new ArrayList<>();
   private final List<FieldVector> probeOutputs = new ArrayList<>();
@@ -133,6 +135,9 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   private boolean finishedProbe = false;
   private boolean debugInsertion = false;
   private long outputRecords = 0;
+
+  private JoinLinksReusePool linksReusePool; // Used during detangling to create per-partition buildInfos
+  private JoinLinksFactory linksFactory;     // Used to create the buildInfo structure
 
   public VectorizedHashJoinOperator(OperatorContext context, HashJoinPOP popConfig) throws OutOfMemoryException {
     this.context = context;
@@ -308,6 +313,10 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
     debugInsertion = context.getOptions().getOption(ExecConstants.DEBUG_HASHJOIN_INSERTION);
 
+    // TODO (DX-10870): number of records per links buffer should be set to the detangle batch size
+    linksReusePool = new JoinLinksReusePool(BUILDINFO_BUF_NUM_RECORDS, 0, context.getAllocator());
+    linksFactory = new JoinLinksFactory(linksReusePool, context.getAllocator());
+
     state = State.CAN_CONSUME_R;
     return outgoing;
   }
@@ -342,25 +351,46 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     }
 
     final List<ArrowBuf> startIndices = this.startIndices;
-    final List<BuildInfo> buildInfoList = this.buildInfoList;
+    final List<JoinLinks> buildInfoList = this.buildInfoList;
 
-    BuildInfo info = new BuildInfo(newLinksBuffer(records), records);
-    buildInfoList.add(info);
+    buildInfoList.add(linksFactory.makeLinks(records, false));
 
     // ensure we have enough start indices space.
     while(table.size() + records > startIndices.size() * HashTable.BATCH_SIZE){
       startIndices.add(newLinksBuffer(HashTable.BATCH_SIZE));
-      keyMatchBitVectors.add(new BitSet(HashTable.BATCH_SIZE));
+      keyMatchBitVectors.add(new MatchBitSet(HashTable.BATCH_SIZE, context.getAllocator()));
     }
 
-    try(ArrowBuf offsets = context.getAllocator().buffer(records * 4);
-        AutoCloseable traceBuf = debugInsertion ? table.traceStart(records) : AutoCloseables.noop()) {
-      long findAddr = offsets.memoryAddress();
-      table.insert(findAddr, records);
+    if (this.mode == Mode.VECTORIZED_GENERIC) {
+      /* Create JoinBackPointer for incoming batch and add it to backPointerList.
+       * Now no partition, so just set the partition index to 0.
+       * In the future with partition, we should call JoinBackPointer(context.getAllocator(), records)
+       * to create a back pointer without specific partition index, which means the records of incoming
+       * batch belong to multiple partitions.
+       */
+      JoinBackPointer backPointer = new JoinBackPointer(context.getAllocator(), (byte)0, records);
+      backPointerList.add(backPointer);
 
-      linkWatch.start();
-      setLinks(offsets.memoryAddress(), buildBatchIndex, records);
-      linkWatch.stop();
+      ArrowBuf offsets = backPointer.getBackPointerBuffer();
+      try (AutoCloseable traceBuf = debugInsertion ? table.traceStart(records) : AutoCloseables.noop()) {
+        long findAddr = offsets.memoryAddress();
+        table.insert(findAddr, records);
+
+        linkWatch.start();
+        setLinks(offsets.memoryAddress(), buildBatchIndex, records);
+        linkWatch.stop();
+      }
+    } else {
+      // The eight byte key is still kept in hyper container, so we don't need back pointer to get the key values during detangling
+      try(ArrowBuf offsets = context.getAllocator().buffer(records * 4);
+          AutoCloseable traceBuf = debugInsertion ? table.traceStart(records) : AutoCloseables.noop()) {
+        long findAddr = offsets.memoryAddress();
+        table.insert(findAddr, records);
+
+        linkWatch.start();
+        setLinks(offsets.memoryAddress(), buildBatchIndex, records);
+        linkWatch.stop();
+      }
     }
 
     /* Completed hashing all records in this batch. Transfer the batch
@@ -424,7 +454,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
       // If head of the list is empty, insert current index at this position
       final int linkBatch = PlatformDependent.getInt(startIndexMemStart);
-      if (linkBatch == INDEX_EMPTY) {
+      if (linkBatch == JoinLinks.INDEX_EMPTY) {
         PlatformDependent.putInt(startIndexMemStart, buildBatch);
         PlatformDependent.putShort(startIndexMemStart + 4, (short) incomingRecordIndex);
       } else {
@@ -434,12 +464,11 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
         hashTableBatch = linkBatch;
         hashTableOffset = Short.toUnsignedInt(PlatformDependent.getShort(startIndexMemStart + 4));
 
-        final ArrowBuf firstLink = buildInfoList.get(hashTableBatch).getLinks();
-        final long firstLinkMemStart = firstLink.memoryAddress() + hashTableOffset * HashTable.BUILD_RECORD_LINK_SIZE;
+        final long firstLinkMemStart = buildInfoList.get(hashTableBatch).linkMemoryAddress(hashTableOffset);
 
         final int firstLinkBatch = PlatformDependent.getInt(firstLinkMemStart);
 
-        if (firstLinkBatch == INDEX_EMPTY) {
+        if (firstLinkBatch == JoinLinks.INDEX_EMPTY) {
           PlatformDependent.putInt(firstLinkMemStart, buildBatch);
           PlatformDependent.putShort(firstLinkMemStart + 4, (short) incomingRecordIndex);
         } else {
@@ -448,8 +477,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
            */
           final int firstLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(firstLinkMemStart + 4));
 
-          final ArrowBuf nextLink = buildInfoList.get(buildBatch).getLinks();
-          final long nextLinkMemStart = nextLink.memoryAddress() + incomingRecordIndex * HashTable.BUILD_RECORD_LINK_SIZE;
+          final long nextLinkMemStart = buildInfoList.get(buildBatch).linkMemoryAddress(incomingRecordIndex);
 
           PlatformDependent.putInt(nextLinkMemStart, firstLinkBatch);
           PlatformDependent.putShort(nextLinkMemStart + 4, (short) firstLinkOffset);
@@ -474,6 +502,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       stats.setLongStat(Metric.RESIZING_TIME_NANOS, table.getRehashTime(ns));
       stats.setLongStat(Metric.PIVOT_TIME_NANOS, table.getBuildPivotTime(ns));
       stats.setLongStat(Metric.INSERT_TIME_NANOS, table.getInsertTime(ns) - table.getRehashTime(ns));
+      stats.setLongStat(Metric.HASHCOMPUTATION_TIME_NANOS, table.getBuildHashComputationTime(ns));
     }
 
     stats.setLongStat(Metric.VECTORIZED, mode.ordinal());
@@ -487,9 +516,11 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       stats.setLongStat(Metric.PROBE_COPY_NANOS, probe.getProbeCopyTime());
       stats.setLongStat(Metric.BUILD_COPY_NANOS, probe.getBuildCopyTime());
       stats.setLongStat(Metric.BUILD_COPY_NOMATCH_NANOS, probe.getBuildNonMatchCopyTime());
+
       stats.setLongStat(Metric.UNMATCHED_BUILD_KEY_COUNT, probe.getUnmatchedBuildKeyCount());
       stats.setLongStat(Metric.UNMATCHED_PROBE_COUNT, probe.getUnmatchedProbeCount());
       stats.setLongStat(Metric.OUTPUT_RECORDS, outputRecords);
+      stats.setLongStat(Metric.PROBE_HASHCOMPUTATION_TIME_NANOS, table.getProbeHashComputationTime(ns));
     }
   }
 
@@ -540,7 +571,6 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
   @Override
   public int outputData() throws Exception {
     state.is(State.CAN_PRODUCE);
-    outgoing.allocateNew();
 
     updateStats();
 
@@ -591,7 +621,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     long bufOffset = linkBuf.memoryAddress();
     final long maxBufOffset = bufOffset + recordCount * HashTable.BUILD_RECORD_LINK_SIZE;
     for(; bufOffset < maxBufOffset; bufOffset += HashTable.BUILD_RECORD_LINK_SIZE) {
-      PlatformDependent.putInt(bufOffset, INDEX_EMPTY);
+      PlatformDependent.putInt(bufOffset, JoinLinks.INDEX_EMPTY);
     }
 
     return linkBuf;
@@ -613,8 +643,10 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     autoCloseables.addAll(buildInfoList);
     autoCloseables.addAll(probeIncomingKeys);
     autoCloseables.addAll(buildOutputKeys);
+    autoCloseables.addAll(backPointerList);
     autoCloseables.addAll(startIndices);
+    autoCloseables.addAll(keyMatchBitVectors);
+    autoCloseables.add(linksReusePool);
     AutoCloseables.close(autoCloseables);
   }
-
 }

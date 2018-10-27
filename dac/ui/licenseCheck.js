@@ -175,6 +175,9 @@ const KNOWN = {
   },
   'react-dom-factories@1.0.2': {
     noFile: true // cannot find in weird react repo structure
+  },
+  'typo-js': {
+    licenseURL: 'https://raw.githubusercontent.com/cfinke/Typo.js/master/license.txt'
   }
 };
 

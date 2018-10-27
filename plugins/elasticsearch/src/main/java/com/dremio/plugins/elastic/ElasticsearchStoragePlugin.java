@@ -26,6 +26,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
@@ -131,11 +132,11 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldConfig, boolean ignoreAuthErrors) throws Exception {
-    return getDatasetInternal(datasetPath, oldConfig, ignoreAuthErrors);
+  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldConfig, DatasetRetrievalOptions ignored) throws Exception {
+    return getDatasetInternal(datasetPath, oldConfig);
   }
 
-  private SourceTableDefinition getDatasetInternal(NamespaceKey datasetPath, DatasetConfig oldConfig, boolean ignoreAuthErrors) throws Exception {
+  private SourceTableDefinition getDatasetInternal(NamespaceKey datasetPath, DatasetConfig oldConfig) throws Exception {
     if(datasetPath.size() != 3){
       return null;
     }
@@ -289,7 +290,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public Iterable<SourceTableDefinition> getDatasets(String user, boolean ignoreAuthErrors) throws Exception {
+  public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions ignored) throws Exception {
     final ElasticConnection connection = this.connectionPool.getRandomConnection();
     final ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata());
     final ImmutableList.Builder<SourceTableDefinition> builder = ImmutableList.builder();
@@ -372,7 +373,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
     }
 
     try{
-      return getDataset(key, null, true) != null;
+      return getDataset(key, null, DatasetRetrievalOptions.IGNORE_AUTHZ_ERRORS) != null;
     } catch (Exception e) {
       logger.warn("Failure while evaluating if dataset '{}' exists.", key, e);
       return false;
@@ -395,9 +396,9 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig) throws Exception {
+  public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig, DatasetRetrievalOptions ignored) throws Exception {
     NamespaceKey namespaceKey = new NamespaceKey(datasetConfig.getFullPathList());
-    final SourceTableDefinition definition = getDatasetInternal(namespaceKey, datasetConfig, true);
+    final SourceTableDefinition definition = getDatasetInternal(namespaceKey, datasetConfig);
 
     if(definition == null){
       return CheckResult.DELETED;
@@ -416,10 +417,12 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
       }};
   }
 
+  @Override
   public void start() throws IOException {
     connectionPool.connect();
   }
 
+  @Override
   public void close() throws Exception {
     logger.debug("Closing elasticsearch storage plugin");
     AutoCloseables.close(connectionPool);

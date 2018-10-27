@@ -44,7 +44,11 @@ public class WakeUpManagerWhenJobDone extends NoOpJobStatusListener {
   }
 
   @Override
-  public void jobCancelled() {
+  public void jobCancelled(String reason) {
+    if (reason != null) {
+      wakeUpCallback.wakeup(jobName + " cancelled for reason: " + reason);
+      return;
+    }
     wakeUpCallback.wakeup(jobName + " cancelled");
   }
 }

@@ -24,6 +24,7 @@ import com.dremio.exec.proto.UserBitShared.QueryId;
  */
 public class AttemptId {
 
+  private static final int MASK = 0xFF;
   // internal internalId
   private final ExternalId externalId;
   private final int attempt;
@@ -36,7 +37,7 @@ public class AttemptId {
    * AttemptId = externalId + attempt #
    */
   public AttemptId(final ExternalId externalId, int attempt) {
-    assert ExternalIdHelper.isValid(externalId) : "not a valid extenalId";
+    assert ExternalIdHelper.isValid(externalId) : "not a valid externalId";
     assert attempt >= 0 && attempt < 256 : "invalid attempt# " + attempt;
     this.externalId = externalId;
     this.attempt = attempt;
@@ -51,7 +52,7 @@ public class AttemptId {
 
     return QueryId.newBuilder()
             .setPart1(part1)
-            .setPart2(part2 + ((byte) attempt & 0xFF))
+            .setPart2(part2 + ((byte) attempt & MASK))
             .build();
   }
 
@@ -68,8 +69,25 @@ public class AttemptId {
     return attempt;
   }
 
+  /**
+   * Convert an external id to an attempt id, assuming this is its first attempt
+   * @param externalId
+   * @return
+   */
   public static AttemptId of(final ExternalId externalId) {
     return new AttemptId(externalId, 0);
+  }
+
+  /**
+   * Convert a query id to an attemp id
+   * @param queryId
+   * @return
+   */
+  public static AttemptId of(final QueryId queryId) {
+    ExternalId externalId = ExternalIdHelper.toExternal(queryId);
+    int attempt = (int) (queryId.getPart2() & MASK);
+
+    return new AttemptId(externalId, attempt);
   }
 
   public AttemptId nextAttempt() {

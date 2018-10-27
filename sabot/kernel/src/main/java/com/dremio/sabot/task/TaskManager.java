@@ -23,7 +23,7 @@ package com.dremio.sabot.task;
  * In practice, each scheduler selects the best task from it's own runqueue, and the load balancer moves
  * tasks between the threads whenever there is an imbalance between their runqueues.
  */
-public interface TaskManager<T extends Task> {
+public interface TaskManager<T extends Task> extends GroupManager<T> {
 
   long MAX_WEIGHT = 1000; // using higher values that MAX_WEIGHT will cause vRuntime overflow to occur sooner than can be handled by the system
 
@@ -83,15 +83,6 @@ public interface TaskManager<T extends Task> {
    * @return corresponding task handle
    */
   TaskHandle<T> addTask(T task, long weight);
-
-  /**
-   * add a new group to the scheduler
-   *
-   * @param weight group's priority
-   *
-   * @return corresponding scheduling group
-   */
-  SchedulingGroup<T> newGroup(long weight);
 
   /**
    * retrieve task provider for a thread

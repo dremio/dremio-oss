@@ -23,6 +23,11 @@ import com.google.common.base.Preconditions;
 import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
+/**
+ * TODO: Currently pivots created here process the entire input batch. In this process they may expand the output buffers.
+ * We are adding version of pivot function that process only a subset of records that can fit in existing output buffers.
+ * We may end up deleting this once HashAgg or HashJoin spilling is complete.
+ */
 public class Pivots {
 
   public static int FOUR_BYTE = 4;
@@ -188,15 +193,17 @@ public class Pivots {
         bitTargetAddr += (WORD_BITS * blockLength);
       } else {
         // at least some are set
+        final long nextBitTargetAddr = bitTargetAddr + WORD_BITS * blockLength;
         for (long remainingValidity = validityBitValues, remainingValue = bitValues;
              remainingValidity != 0;
              remainingValidity = remainingValidity >>> 1, remainingValue = remainingValue >>> 1, bitTargetAddr += blockLength) {
           // Valid and value bits are next to each other. Setting them together
           int valid = (int)(remainingValidity & 0x01l);
           int isSet = (int)(remainingValue & 0x01l);
-          int bitPair = ((isSet << 1) | valid) << validityBitOffset;
+          int bitPair = (((isSet * valid) << 1) | valid) << validityBitOffset;
           PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitPair);
         }
+        bitTargetAddr = nextBitTargetAddr;
       }
       srcBitsAddr += WORD_BYTES;
       srcDataAddr += WORD_BYTES;
@@ -216,7 +223,7 @@ public class Pivots {
           // Valid and value bits are next to each other. Setting them together
           int valid = (int)(remainingValidity & 0x01l);
           int isSet = (int)(remainingValue & 0x01l);
-          int bitPair = ((isSet << 1) | valid) << validityBitOffset;
+          int bitPair = (((isSet * valid) << 1) | valid) << validityBitOffset;
           PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitPair);
         }
       }
@@ -497,44 +504,5 @@ public class Pivots {
       }
     }
   }
-
-
-  /**
-   * Move a set of four byte values from a fixed location in a set of row-wise representations to a columnar representation.
-   * @param srcBlockAddr
-   * @param srcBlockOffset
-   * @param inBlockByteValueOffset
-   * @param blockLength
-   * @param dstVectorAddr
-   * @param dstValueOffset
-   * @param count
-   */
-  public static void unpivot4Bytes(
-      final long srcBlockAddr,
-      final int srcBlockOffset,
-      final int inBlockByteValueOffset,
-      final long blockLength,
-
-      final long dstVectorAddr,
-      final int  dstValueOffset,
-
-      final int count
-      ){
-
-    final long finalAddr = srcBlockAddr + ( (srcBlockOffset + count ) * blockLength + inBlockByteValueOffset);
-    final long startSrcAddr = srcBlockAddr + ( srcBlockOffset * blockLength + inBlockByteValueOffset);
-    final long startTargetAddr = dstVectorAddr + ( dstValueOffset * 4 );
-
-    // TODO: evaluate manual unrolling.
-    for(
-        long srcAddr = startSrcAddr, targetAddr = startTargetAddr;
-        srcAddr < finalAddr;
-        srcAddr += blockLength,
-        targetAddr += 4
-            ){
-      PlatformDependent.putInt(targetAddr, PlatformDependent.getInt(srcAddr));
-    }
-  }
-
 }
 

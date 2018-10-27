@@ -198,9 +198,12 @@ public interface NamespaceService {
    * NOTE: this cannot be run in parallel with any other metadata updates as that may cause
    * generation of split orphans while the dataset is initially getting setup.
    *
+   * @param policy the expiration policy. Note: choosing an aggresive policy while running
+   * other metadata updates or planning queries may cause generation of split orphans while the
+   * dataset is initially getting setup, or query errors
    * @return The number of splits deleted.
    */
-  int deleteSplitOrphans();
+  int deleteSplitOrphans(DatasetSplitId.SplitOrphansRetentionPolicy policy);
 
   /**
    * Delete given splits
@@ -223,4 +226,12 @@ public interface NamespaceService {
    * @param attributes
    */
   void canSourceConfigBeSaved(SourceConfig newConfig, SourceConfig existingConfig, NamespaceAttribute... attributes) throws ConcurrentModificationException;
+
+  /*
+   * Returns entity id by path
+   *
+   * @param datasetPath
+   * @return a data set entity id or null, if there is no dataset by provided path
+   */
+  String getEntityIdByPath(NamespaceKey datasetPath) throws NamespaceException;
 }

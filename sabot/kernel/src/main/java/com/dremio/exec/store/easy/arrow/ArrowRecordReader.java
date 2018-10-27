@@ -61,7 +61,6 @@ public class ArrowRecordReader extends AbstractRecordReader {
 
   private final FileSystemWrapper dfs;
   private final Path path;
-  private final byte[] copyBuffer = new byte[64*1024];
 
   private FSDataInputStream inputStream;
   private ArrowFileFooter footer;
@@ -216,7 +215,7 @@ public class ArrowRecordReader extends AbstractRecordReader {
         // if this field is selected read, otherwise skip the buffers
         if (vectors.containsKey(i)) {
           try(ArrowBuf buf = allocator.buffer(dataLength)) {
-            readIntoArrowBuf(inputStream, buf, dataLength, copyBuffer);
+            readIntoArrowBuf(inputStream, buf, dataLength);
             TypeHelper.load(vectors.get(i), serializedField, buf);
             loadedVectors--;
             if (loadedVectors == 0) {

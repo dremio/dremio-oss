@@ -29,6 +29,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.SchemaMutability;
+import com.google.common.collect.ImmutableList;
 
 import io.protostuff.Tag;
 
@@ -36,7 +37,7 @@ import io.protostuff.Tag;
  * Source for test purposes.
  */
 @SourceType(value = "MYPRIVATE", configurable = false)
-public class APrivateSource extends FileSystemConf<APrivateSource, FileSystemPlugin>{
+public class APrivateSource extends FileSystemConf<APrivateSource, FileSystemPlugin<APrivateSource>> {
 
   @Tag(1)
   @Secret
@@ -57,7 +58,7 @@ public class APrivateSource extends FileSystemConf<APrivateSource, FileSystemPlu
 
   @Override
   public List<Property> getProperties() {
-    return null;
+    return ImmutableList.of();
   }
 
   @Override
@@ -71,8 +72,8 @@ public class APrivateSource extends FileSystemConf<APrivateSource, FileSystemPlu
   }
 
   @Override
-  public FileSystemPlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new FileSystemPlugin(this, context, name, null, pluginIdProvider);
+  public FileSystemPlugin<APrivateSource> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
+    return new FileSystemPlugin<>(this, context, name, null, pluginIdProvider);
   }
 
 

@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.arrow.flatbuf.Schema;
-import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.KVStoreProvider.DocumentConverter;
@@ -84,6 +83,14 @@ public class NamespaceConverter implements DocumentConverter <byte[], NameSpaceC
       case DATASET: {
         final DatasetConfig datasetConfig = container.getDataset();
 
+        // last modified is a new field so support old entries which only have a createdAt.
+        Long modified = Optional.fromNullable(datasetConfig.getCreatedAt()).or(0L);
+
+        if (datasetConfig.getLastModified() != null && datasetConfig.getLastModified() > 0) {
+          modified = datasetConfig.getLastModified();
+        }
+        writer.write(NamespaceIndexKeys.LAST_MODIFIED, modified);
+
         writer.write(DatasetIndexKeys.DATASET_ID, new NamespaceKey(container.getFullPathList()).getSchemaPath());
 
         writer.write(DATASET_UUID, datasetConfig.getId().getId());
@@ -94,7 +101,6 @@ public class NamespaceConverter implements DocumentConverter <byte[], NameSpaceC
           case VIRTUAL_DATASET: {
 
             final VirtualDataset virtualDataset = datasetConfig.getVirtualDataset();
-
             writer.write(DATASET_SQL, virtualDataset.getSql());
 
             addParents(writer, virtualDataset.getParentsList());
@@ -127,12 +133,14 @@ public class NamespaceConverter implements DocumentConverter <byte[], NameSpaceC
       case SOURCE: {
         final SourceConfig sourceConfig = container.getSource();
         writer.write(NamespaceIndexKeys.SOURCE_ID, sourceConfig.getId().getId());
+        writer.write(NamespaceIndexKeys.LAST_MODIFIED, sourceConfig.getCtime());
         break;
       }
 
       case SPACE: {
         final SpaceConfig spaceConfig = container.getSpace();
         writer.write(NamespaceIndexKeys.SPACE_ID, spaceConfig.getId().getId());
+        writer.write(NamespaceIndexKeys.LAST_MODIFIED, spaceConfig.getCtime());
         break;
       }
 
@@ -148,30 +156,30 @@ public class NamespaceConverter implements DocumentConverter <byte[], NameSpaceC
   }
 
   private void addColumns(DocumentWriter writer, DatasetConfig datasetConfig) {
+    String[] columns = getColumnsLowerCase(datasetConfig);
+
+    if (columns.length > 0) {
+      writer.write(DATASET_COLUMNS_NAMES, columns);
+    }
+  }
+
+  public static String[] getColumnsLowerCase(DatasetConfig datasetConfig) {
     final ByteString schemaBytes = DatasetHelper.getSchemaBytes(datasetConfig);
     if (schemaBytes != null) {
       Schema schema = Schema.getRootAsSchema(schemaBytes.asReadOnlyByteBuffer());
       org.apache.arrow.vector.types.pojo.Schema s = org.apache.arrow.vector.types.pojo.Schema.convertSchema(schema);
-      final String[] columns = new String[s.getFields().size()];
-      int i = 0;
-      for (Field field : s.getFields()) {
-        columns[i++] = field.getName().toLowerCase();
-      }
-      writer.write(DATASET_COLUMNS_NAMES, columns);
+      return s.getFields().stream().map(input -> input.getName().toLowerCase()).toArray(String[]::new);
     } else {
       // If virtual dataset was created with view fields
       if (datasetConfig.getType() == DatasetType.VIRTUAL_DATASET) {
         final List<ViewFieldType> viewFieldTypes = datasetConfig.getVirtualDataset().getSqlFieldsList();
         if (notEmpty(viewFieldTypes)) {
-          final String[] columns = new String[viewFieldTypes.size()];
-          int i = 0;
-          for (ViewFieldType field : viewFieldTypes) {
-            columns[i++] = field.getName().toLowerCase();
-          }
-          writer.write(DATASET_COLUMNS_NAMES, columns);
+          return viewFieldTypes.stream().map(input -> input.getName().toLowerCase()).toArray(String[]::new);
         }
       }
     }
+
+    return new String[0];
   }
 
   private void addParents(DocumentWriter writer, List<ParentDataset> parentDatasetList) {

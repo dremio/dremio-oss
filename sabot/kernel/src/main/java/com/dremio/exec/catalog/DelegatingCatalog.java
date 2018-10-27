@@ -25,6 +25,7 @@ import org.apache.calcite.schema.Function;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.ischema.tables.TablesTable;
@@ -134,8 +135,13 @@ public class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public boolean createView(NamespaceKey key, View view) throws IOException {
-    return delegate.createView(key, view);
+  public boolean createView(NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException {
+    return delegate.createView(key, view, attributes);
+  }
+
+  @Override
+  public void updateView(NamespaceKey key, View view, NamespaceAttribute... attributes) {
+    delegate.updateView(key, view, attributes);
   }
 
   @Override
@@ -154,8 +160,8 @@ public class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public StoragePlugin.UpdateStatus refreshDataset(NamespaceKey key, boolean force) {
-    return delegate.refreshDataset(key, force);
+  public StoragePlugin.UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions) {
+    return delegate.refreshDataset(key, retrievalOptions);
   }
 
   @Override

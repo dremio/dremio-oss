@@ -58,12 +58,6 @@ public class DremioConfig extends NestedConfig {
   public static final String EMBEDDED_MASTER_ZK_ENABLED_PORT_INT = "services.coordinator.master.embedded-zookeeper.port";
   public static final String EMBEDDED_MASTER_ZK_ENABLED_PATH_STRING = "services.coordinator.master.embedded-zookeeper.path";
   public static final String WEB_ENABLED_BOOL = "services.coordinator.web.enabled";
-  public static final String WEB_SSL_ENABLED_BOOL = "services.coordinator.web.ssl.enabled";
-  public static final String WEB_SSL_KEYSTORE = "services.coordinator.web.ssl.keyStore";
-  public static final String WEB_SSL_KEYSTORE_PASSWORD = "services.coordinator.web.ssl.keyStorePassword";
-  public static final String WEB_SSL_TRUSTSTORE = "services.coordinator.web.ssl.trustStore";
-  public static final String WEB_SSL_TRUSTSTORE_PASSWORD = "services.coordinator.web.ssl.trustStorePassword";
-  public static final String WEB_SSL_AUTOCERTIFICATE_ENABLED_BOOL = "services.coordinator.web.ssl.auto-certificate.enabled";
   public static final String WEB_AUTH_TYPE = "services.coordinator.web.auth.type"; // Possible values are "internal", "ldap"
   public static final String WEB_AUTH_LDAP_CONFIG_FILE = "services.coordinator.web.auth.ldap_config";
   public static final String WEB_PORT_INT = "services.coordinator.web.port";
@@ -124,12 +118,24 @@ public class DremioConfig extends NestedConfig {
 
   public static final String FABRIC_MEMORY_RESERVATION = "services.fabric.memory.reservation";
 
+  public static final String SSL_ENABLED = "enabled";
+  public static final String SSL_KEY_STORE_TYPE = "keyStoreType";
+  public static final String SSL_KEY_STORE_PATH = "keyStore";
+  public static final String SSL_KEY_STORE_PASSWORD = "keyStorePassword";
+  public static final String SSL_KEY_PASSWORD = "keyPassword";
+  public static final String SSL_TRUST_STORE_TYPE = "trustStoreType";
+  public static final String SSL_TRUST_STORE_PATH = "trustStore";
+  public static final String SSL_TRUST_STORE_PASSWORD = "trustStorePassword";
+  public static final String SSL_DISABLE_HOST_VERIFICATION = "disableHostVerification";
+  public static final String SSL_AUTO_GENERATED_CERTIFICATE = "auto-certificate.enabled";
+
+  // web SSL configuration
+  public static final String WEB_SSL_PREFIX = "services.coordinator.web.ssl.";
 
   private final Config unresolved;
   private final Config reference;
   private final SabotConfig sabot;
   private final String thisNode;
-
 
   /**
    * We maintain both the reference and the unresolved data so any withValue layering can be done against unresolved values.
@@ -218,7 +224,6 @@ public class DremioConfig extends NestedConfig {
   public static DremioConfig create() {
     return create(null);
   }
-
 
   public static DremioConfig create(final URL userConfigPath) {
     return create(userConfigPath, SabotConfig.create());

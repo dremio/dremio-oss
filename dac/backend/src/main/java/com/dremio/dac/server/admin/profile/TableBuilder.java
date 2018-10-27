@@ -21,6 +21,8 @@ import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 
+import com.dremio.common.util.PrettyPrintUtils;
+
 class TableBuilder {
   private final NumberFormat format = NumberFormat.getInstance(Locale.US);
   private final DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
@@ -73,6 +75,10 @@ class TableBuilder {
     appendMillis(Math.round(p / 1000.0 / 1000.0));
   }
 
+  public void appendNanosWithUnit(final long p) {
+    appendCell(SimpleDurationFormat.formatNanos(p), null);
+  }
+
   public void appendFormattedNumber(final Number n, final String link) {
     appendCell(format.format(n), link);
   }
@@ -86,32 +92,7 @@ class TableBuilder {
   }
 
   public void appendBytes(final long l, final String link){
-    appendCell(bytePrint(l), link);
-  }
-
-  private String bytePrint(final long size) {
-    final double t = size / Math.pow(1024, 4);
-    if (t > 1) {
-      return dec.format(t).concat("TB");
-    }
-
-    final double g = size / Math.pow(1024, 3);
-    if (g > 1) {
-      return dec.format(g).concat("GB");
-    }
-
-    final double m = size / Math.pow(1024, 2);
-    if (m > 1) {
-      return intformat.format(m).concat("MB");
-    }
-
-    final double k = size / 1024;
-    if (k >= 1) {
-      return intformat.format(k).concat("KB");
-    }
-
-    // size < 1 KB
-    return "-";
+    appendCell(PrettyPrintUtils.bytePrint(l, false), link);
   }
 
   public String build() {

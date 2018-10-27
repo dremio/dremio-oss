@@ -18,6 +18,7 @@ package com.dremio.exec.expr;
 import java.util.Iterator;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.EvaluationType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.exec.record.TypedFieldId;
@@ -29,6 +30,7 @@ public class ValueVectorWriteExpression implements LogicalExpression {
   private final TypedFieldId fieldId;
   private final LogicalExpression child;
   private final boolean safe;
+  private final EvaluationType evaluationType;
 
   public ValueVectorWriteExpression(TypedFieldId fieldId, LogicalExpression child){
     this(fieldId, child, false);
@@ -38,10 +40,27 @@ public class ValueVectorWriteExpression implements LogicalExpression {
     this.fieldId = fieldId;
     this.child = child;
     this.safe = safe;
+    this.evaluationType = new EvaluationType();
+    addEvaluationType(EvaluationType.ExecutionType.JAVA);
   }
 
   public TypedFieldId getFieldId() {
     return fieldId;
+  }
+
+  @Override
+  public boolean isEvaluationTypeSupported(EvaluationType.ExecutionType executionType) {
+    return evaluationType.isEvaluationTypeSupported(executionType);
+  }
+
+  @Override
+  public void addEvaluationType(EvaluationType.ExecutionType executionType) {
+    evaluationType.addEvaluationType(executionType);
+  }
+
+  @Override
+  public EvaluationType getEvaluationType() {
+    return evaluationType;
   }
 
   @Override

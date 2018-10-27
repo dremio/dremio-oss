@@ -14,117 +14,34 @@
  * limitations under the License.
  */
 import { PureComponent } from 'react';
-
 import PropTypes from 'prop-types';
-
 import { connect } from 'react-redux';
-import settingActions from 'actions/resources/setting';
-import { addNotification } from 'actions/notification';
-
-import { getViewState } from 'selectors/resources';
 import Immutable from 'immutable';
 
-import { formContext } from 'uiTheme/radium/typography';
+import settingActions from 'actions/resources/setting';
+import { getViewState } from 'selectors/resources';
 
 import ViewStateWrapper from 'components/ViewStateWrapper';
-import SimpleButton from 'components/Buttons/SimpleButton';
-import TextField from 'components/Fields/TextField';
 import FormUnsavedRouteLeave from 'components/Forms/FormUnsavedRouteLeave';
+import Header from 'pages/AdminPage/components/Header';
 
-import Header from '../components/Header';
 import SettingsMicroForm from './SettingsMicroForm';
-import { LABELS, LABELS_IN_SECTIONS, SECTIONS } from './settingsConfig';
-
-import { RESERVED as SUPPORT_RESERVED } from './Support';
-
-const RESERVED = new Set([...SUPPORT_RESERVED]);
+import { LABELS, SECTIONS } from './settingsConfig';
 
 export const VIEW_ID = 'ADVANCED_SETTINGS_VIEW_ID';
 
 export class Advanced extends PureComponent {
   static propTypes = {
     getAllSettings: PropTypes.func.isRequired,
-    resetSetting: PropTypes.func.isRequired,
-    addNotification: PropTypes.func.isRequired,
     setChildDirtyState: PropTypes.func,
-
-    viewState: PropTypes.instanceOf(Immutable.Map).isRequired,
-
-    settings: PropTypes.instanceOf(Immutable.Map).isRequired
-  }
-
-  state = {
-    tempShown: new Immutable.OrderedSet()
-  }
+    viewState: PropTypes.instanceOf(Immutable.Map).isRequired
+  };
 
   componentWillMount() {
-    this.props.getAllSettings({viewId: VIEW_ID});
+    this.props.getAllSettings({viewId: VIEW_ID}); // all settings asumed to be loaded and used inside SettingsMicroForm
   }
 
-  settingExists(id) {
-    return this.props.settings && this.props.settings.some(setting => setting.get('id') === id);
-  }
-
-  getShownSettings({includeSections = true} = {}) {
-    const ret = !this.props.settings ? [] : this.props.settings.toList().toJS().filter(setting => {
-      const id = setting.id;
-      if (!includeSections && LABELS_IN_SECTIONS.hasOwnProperty(id)) return false;
-      if (this.state.tempShown.has(id)) return true;
-      if (RESERVED.has(id)) return false;
-      return setting.showOutsideWhitelist;
-    });
-
-    return ret;
-  }
-
-  addAdvanced = (evt) => { // todo: replace with generic `prompt` modal
-    evt.preventDefault();
-
-    const value = evt.target.children[0].value;
-    if (!value) {
-      return;
-    }
-
-    const valueEle = <span style={{wordBreak: 'break-all'}}>{value}</span>;
-
-    if (!this.settingExists(value)) {
-      this.props.addNotification(
-        <span>No setting “{valueEle}”.</span>, // todo: loc substitution engine
-        'error'
-      );
-      return;
-    }
-
-    if (this.getShownSettings().some(e => e.id === value)) {
-      this.props.addNotification(
-        <span>Setting “{valueEle}” already shown.</span>, // todo: loc substitution engine
-        'info'
-      );
-    } else {
-      this.setState(function(state) {
-        return {
-          tempShown: state.tempShown.add(value)
-        };
-      });
-    }
-
-    evt.target.reset();
-  }
-
-  resetSetting(settingId) {
-    return this.props.resetSetting(settingId).then(() => {
-      // need to remove the setting from our state
-      this.setState(function(state) {
-        return {
-          tempShown: state.tempShown.delete(settingId)
-        };
-      });
-      // we store all settings in memory, so we have to force a refresh here. DX-11295 to fix this.
-      return this.props.getAllSettings({viewId: VIEW_ID});
-    });
-  }
-
-  renderMicroForm(settingId, allowReset) {
+  renderMicroForm(settingId) {
     const formKey = 'settings-' + settingId;
     return <SettingsMicroForm
       updateFormDirtyState={this.props.setChildDirtyState(formKey)}
@@ -132,70 +49,23 @@ export class Advanced extends PureComponent {
       form={formKey}
       key={formKey}
       settingId={settingId}
-      resetSetting={allowReset && this.resetSetting.bind(this, settingId)}
       viewId={VIEW_ID} />;
-  }
-
-  sortSettings(settings) {
-    const tempShownArray = this.state.tempShown.toArray();
-    settings.sort((a, b) => {
-      if (this.state.tempShown.has(a.id)) {
-        if (this.state.tempShown.has(b.id)) {
-          return tempShownArray.indexOf(b.id) - tempShownArray.indexOf(a.id);
-        }
-        return -1;
-      } else if (this.state.tempShown.has(b.id)) {
-        return 1;
-      }
-
-      if (LABELS.hasOwnProperty(a.id)) {
-        if (LABELS.hasOwnProperty(b.id)) return LABELS[a.id] < LABELS[b.id] ? -1 : 1;
-        return -1;
-      } else if (LABELS.hasOwnProperty(b.id)) {
-        return 1;
-      }
-
-      return a.id < b.id ? -1 : 1;
-    });
-  }
-
-  renderOtherSettings() {
-    const settings = this.getShownSettings({includeSections: false});
-
-    this.sortSettings(settings);
-    return settings.map(setting => this.renderMicroForm(setting.id, true));
   }
 
   renderSections() {
     return Array.from(SECTIONS).map(([name, items]) => {
       return <div key={name} style={{padding: '10px 0 20px', borderBottom: '1px solid hsla(0, 0%, 0%, 0.1)'}}>
-        <h4>{name}</h4>
+        <h3>{name}</h3>
         { Array.from(items).map(([settingId]) => this.renderMicroForm(settingId)) }
       </div>;
     });
   }
 
   render() {
-    const advancedForm = <form style={{flex: '0 0 auto'}} onSubmit={this.addAdvanced}>
-      <TextField placeholder={la('Support Key')}/>
-      <SimpleButton buttonStyle='secondary' style={{verticalAlign: 'bottom', width: 'auto'}}>{la('Show')}</SimpleButton>
-    </form>;
-
     return <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
-      <Header>{la('Advanced Settings')}</Header>
-
+      <Header>{la('Queue Control')}</Header>
       <ViewStateWrapper viewState={this.props.viewState} style={{overflow: 'auto', height: '100%', flex: '1 1 auto'}}>
         {this.renderSections()}
-        <div style={{padding: '10px 0'}}>
-          <div style={{display: 'flex', alignItems: 'center'}}>
-            <h4 style={{flex: '1 1 auto'}}>{la('Dremio Support')}</h4>
-            {advancedForm}
-          </div>
-          <div style={{...formContext}}>
-            {la('Advanced settings provided by Dremio Support.')}
-          </div>
-          {this.renderOtherSettings()}
-        </div>
       </ViewStateWrapper>
     </div>;
   }
@@ -204,13 +74,10 @@ export class Advanced extends PureComponent {
 
 function mapStateToProps(state) {
   return {
-    viewState: getViewState(state, VIEW_ID),
-    settings: state.resources.entities.get('setting')
+    viewState: getViewState(state, VIEW_ID)
   };
 }
 
-export default connect(mapStateToProps, { // todo: find way to auto-inject PropTypes for actions
-  getAllSettings: settingActions.getAll.dispatch,
-  resetSetting: settingActions.delete.dispatch,
-  addNotification
+export default connect(mapStateToProps, {
+  getAllSettings: settingActions.getAll.dispatch
 })(FormUnsavedRouteLeave(Advanced));

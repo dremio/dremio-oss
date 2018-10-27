@@ -24,18 +24,24 @@ import javax.ws.rs.core.SecurityContext;
 import com.dremio.dac.explore.DatasetTool;
 import com.dremio.dac.explore.DatasetVersionResource;
 import com.dremio.dac.explore.QueryExecutor;
+import com.dremio.dac.explore.Transformer;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.proto.model.dataset.FromSQL;
+import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
+import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.catalog.ViewCreatorFactory;
+import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceAttribute;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.google.common.base.Throwables;
@@ -48,7 +54,8 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
   private final Provider<KVStoreProvider> kvStoreProvider;
   private final Provider<JobsService> jobsService;
   private final Provider<NamespaceService.Factory> namespaceServiceFactory;
-  private Provider<ReflectionService> reflectionService;
+  private final Provider<ReflectionService> reflectionService;
+  private final Provider<ContextService> contextService;
   private final Provider<CatalogService> catalogService;
 
   public DACViewCreatorFactory(Provider<InitializerRegistry> initializerRegistry,
@@ -56,15 +63,16 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
                                 Provider<JobsService> jobsService,
                                 Provider<NamespaceService.Factory> namespaceServiceFactory,
                                 Provider<ReflectionService> reflectionService,
-                                Provider<CatalogService> catalogService
+                                Provider<CatalogService> catalogService,
+                                Provider<ContextService> contextService
   ) {
     this.initializerRegistry = initializerRegistry;
     this.kvStoreProvider = kvStoreProvider;
     this.jobsService = jobsService;
     this.namespaceServiceFactory = namespaceServiceFactory;
     this.catalogService = catalogService;
-
     this.reflectionService = reflectionService;
+    this.contextService = contextService;
   }
 
   @Override
@@ -90,8 +98,55 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
 
     @Override
     public void createView(List<String> path, String sql, List<String> sqlContext, NamespaceAttribute... attributes) {
+      SecurityContext securityContext = getSecurityContext();
+      QueryExecutor executor = new QueryExecutor(jobsService, null, securityContext);
+      DatasetTool tool = newDatasetTool(securityContext, executor);
 
-      SecurityContext securityContext = new SecurityContext() {
+      try {
+        DatasetVersion version = DatasetVersion.newVersion();
+        DatasetPath datasetPath = new DatasetPath(path);
+        InitialPreviewResponse response = tool.newUntitled(new FromSQL(sql), version, sqlContext, null, true);
+        DatasetPath tmpPath = new DatasetPath(response.getDataset().getFullPath());
+        VirtualDatasetUI vds = datasetService.getVersion(tmpPath, response.getDataset().getDatasetVersion());
+        newDatasetVersionResource(securityContext, tool, version, tmpPath).save(vds, datasetPath, null, attributes);
+      } catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
+
+    @Override
+    public void updateView(List<String> path, String sql, List<String> sqlContext, NamespaceAttribute... attributes) {
+      SecurityContext securityContext = getSecurityContext();
+      QueryExecutor executor = new QueryExecutor(jobsService, null, securityContext);
+      DatasetVersion version = DatasetVersion.newVersion();
+
+      NamespaceKey namespaceKey = new NamespaceKey(path);
+
+      try {
+        DatasetConfig dataset = namespaceService.getDataset(namespaceKey);
+
+        DatasetPath datasetPath = new DatasetPath(path);
+        final VirtualDatasetUI virtualDataset = datasetService.get(datasetPath);
+
+        Transformer transformer = new Transformer(contextService.get().get(), namespaceService, datasetService, executor, securityContext);
+        TransformUpdateSQL transformUpdateSQL = new TransformUpdateSQL();
+        transformUpdateSQL.setSql(sql);
+        transformUpdateSQL.setSqlContextList(sqlContext);
+
+        VirtualDatasetUI virtualDatasetUI = transformer.transformWithExtract(version, datasetPath, virtualDataset, transformUpdateSQL);
+
+        // copy over VirtualDatasetUI values to the pre-existing DatasetConfig
+        dataset.setVirtualDataset(DatasetsUtil.toVirtualDataset(virtualDatasetUI));
+        dataset.setRecordSchema(virtualDatasetUI.getRecordSchema());
+
+        namespaceService.addOrUpdateDataset(namespaceKey, dataset, attributes);
+      } catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
+
+    private SecurityContext getSecurityContext() {
+      return new SecurityContext() {
         @Override
         public Principal getUserPrincipal() {
           return new Principal() {
@@ -117,21 +172,6 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
           return null;
         }
       };
-
-      QueryExecutor executor = new QueryExecutor(jobsService, null, securityContext);
-
-      DatasetTool tool = newDatasetTool(securityContext, executor);
-
-      try {
-        DatasetVersion version = new DatasetVersion(System.currentTimeMillis());
-        DatasetPath datasetPath = new DatasetPath(path);
-        InitialPreviewResponse response = tool.newUntitled(new FromSQL(sql), version, sqlContext, null, true);
-        DatasetPath tmpPath = new DatasetPath(response.getDataset().getFullPath());
-        VirtualDatasetUI vds = datasetService.getVersion(tmpPath, response.getDataset().getDatasetVersion());
-        newDatasetVersionResource(securityContext, tool, version, tmpPath).save(vds, datasetPath, null, attributes);
-      } catch (Exception e) {
-        throw Throwables.propagate(e);
-      }
     }
 
     protected DatasetTool newDatasetTool(SecurityContext securityContext, QueryExecutor executor) {

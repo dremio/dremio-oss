@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.CatastrophicFailure;
+import com.dremio.common.ProcessExit;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ElectionListener;
@@ -76,6 +76,6 @@ public class MasterElectionService implements Service {
   }
 
   protected void abort() {
-    CatastrophicFailure.exit("Node lost its master status. Exiting", 3);
+    ProcessExit.exit("Node lost its master status.", 3);
   }
 }

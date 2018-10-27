@@ -22,6 +22,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -150,6 +151,10 @@ public class SchemaConfig {
 
   public OptionManager getOptions() {
     return optionManager;
+  }
+
+  public boolean isSystemUser() {
+    return getUserName().equals(SystemUser.SYSTEM_USERNAME);
   }
 
   public OptionValue getOption(String optionKey) {

@@ -28,15 +28,18 @@ export default class ContainerSelectionConfig extends FormElementConfig {
     if (!config.options) return;
 
     config.options = config.options.map(option => {
-      if (option.container && !option.container.propName) {
+      if (option.container && option.container.propName) {
+        // in case container is just one element
+        option.container = SourceFormJsonPolicy.joinConfigsAndConvertElementToObj(option.container, functionalElements);
+      } else if (option.container) {
         // container is a section
         option.container = new FormSectionConfig(option.container, functionalElements);
       } else {
-        // in case container is just one element
-        option.container = SourceFormJsonPolicy.joinConfigsAndConvertElementToObj(option.container, functionalElements);
+        // container is not defined - error in config - skip option
+        return null;
       }
       return option;
-    });
+    }).filter(Boolean);
   }
 
   getRenderer() {

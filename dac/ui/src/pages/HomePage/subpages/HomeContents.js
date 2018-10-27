@@ -22,6 +22,7 @@ import { loadHomeEntities } from 'actions/resources';
 import { getHomeContents } from 'selectors/datasets';
 import { getViewState } from 'selectors/resources';
 import { getEntityType } from 'utils/pathUtils';
+import { ENTITY_TYPES } from 'constants/Constants';
 
 import { updateRightTreeVisibility } from 'actions/ui/ui';
 
@@ -41,7 +42,7 @@ class HomeContents extends Component {
     updateRightTreeVisibility: PropTypes.func.isRequired,
     rightTreeVisible: PropTypes.bool,
     entity: PropTypes.instanceOf(Immutable.Map),
-    entityType: PropTypes.string,
+    entityType: PropTypes.oneOf(Object.values(ENTITY_TYPES)),
     viewState: PropTypes.instanceOf(Immutable.Map)
   };
 

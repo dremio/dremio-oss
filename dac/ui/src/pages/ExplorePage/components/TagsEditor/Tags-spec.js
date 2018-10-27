@@ -21,7 +21,8 @@ import {
   deleteButton
 } from './Tag.less';
 
-const generateTags = numberOfTags => List(Array(numberOfTags).fill().map((e, index) => `tag ${index + 1}`));
+const getTagName = index => `tag ${index + 1}`;
+const generateTags = numberOfTags => List(Array(numberOfTags).fill().map((e, index) => getTagName(index)));
 const simulateKeyDown = (wrapper, keyCode) => wrapper.simulate('keydown', {
   keyCode,
   preventDefault: () => {}
@@ -36,8 +37,10 @@ const getAllTags = wrapper => wrapper.find('Tag');
 const clickTag = (wrapper, index) => {
   getAllTags(wrapper).at(index).simulate('click');
 };
-const clickBeforeTag = (wrapper, index) => {
-  wrapper.find('.cursorPlaceholder').at(index).simulate('click');
+const setSelectedTag = (wrapper, index) => {
+  wrapper.setState({
+    selectedTagIndex: index
+  });
 };
 
 describe('Tags', () => {
@@ -70,8 +73,6 @@ describe('Tags', () => {
       const instance = wrapper.instance();
       const tagName = 'test tag name with space';
 
-      instance.setState({ selectedTagIndex: 0 }); // select the first tag
-
       setValueToInput(wrapper, tagName);
 
       expect(instance.state.value).to.eq(tagName); // check that value is set to a state
@@ -81,7 +82,6 @@ describe('Tags', () => {
       simulateKeyDown(wrapper, keyCodes[keyCodeName]);
 
       expect(addHandler).to.be.calledWith(tagName);
-      expect(instance.state.selectedTagIndex).to.eq(-1); // tag selection is reset
     });
   };
 
@@ -100,32 +100,31 @@ describe('Tags', () => {
     expect(addHandler).to.be.not.called;
   });
 
-  it('tag is selected on click', () => {
-    const wrapper = mount(<TagsView {...commonProps} />);
+  it('onTagClick is called on tag click', () => {
+    const clickHandler = sinon.spy();
+    const wrapper = mount(<TagsView {...commonProps} onTagClick={clickHandler} />);
     const index = 2;
     clickTag(wrapper, index);
 
-    const state = wrapper.instance().state;
-    expect(state.tagCursorPosition).to.eq(index); // respective tag is selected
-    expect(state.selectedTagIndex).to.eq(index); // and a cursor is put before selected tag
+    expect(clickHandler).have.been.calledWith(getTagName(index));
   });
 
   describe('cursor move', () => { // here we have to use mount, as we need access to dom element to handle focus
 
-    const homeTest = keyName => it(`Cursor is moved to a first tag, when ${keyName} is pressed. Selection should be reset`, () => {
+    const homeTest = keyName => it(`Cursor is moved to a first tag, when ${keyName} is pressed.`, () => {
       const wrapper = mount(<TagsView {...commonProps} />);
       const instance = wrapper.instance();
-      instance.selectTag(tagsCount - 1, true); // select last tag and move a cursor to it
+      instance.moveCursorToTags(tagsCount - 1, true); // move a cursor to a tag
 
       simulateKeyDown(wrapper, keyCodes[keyName]);
 
-      expect(instance.state.tagCursorPosition).to.eq(0);
+      expect(instance.state.selectedTagIndex).to.eq(0);
     });
 
     // array values should respect keyCodes field names
     ['HOME', 'UP'].forEach(homeTest);
 
-    const endTest = keyName => it(`Cursor is moved to a last character, when ${keyName} is pressed. Selection should be reset`, () => {
+    const endTest = keyName => it(`Cursor is moved to a last character, when ${keyName} is pressed.`, () => {
       const wrapper = mount(<TagsView {...commonProps} />);
       const instance = wrapper.instance();
       const str = 'a tag name';
@@ -133,7 +132,7 @@ describe('Tags', () => {
 
       simulateKeyDown(wrapper, keyCodes[keyName]);
 
-      expect(instance.state.tagCursorPosition).to.eq(-1); // cursor should be located in input, so tagCursorPosition should be reset to -1
+      expect(instance.state.selectedTagIndex).to.eq(-1); // cursor should be located in input, so selectedTagIndex should be reset to -1
 
       const inputWrapper = getInput(wrapper);
 
@@ -143,36 +142,26 @@ describe('Tags', () => {
     // array values should respect keyCodes field names
     ['END', 'DOWN'].forEach(endTest);
 
-    it('Cursor is moved to a right position, when an user clicks between tags', () => {
-      const wrapper = mount(<TagsView {...commonProps} />);
-      const instance = wrapper.instance();
-      const index = 3;
-
-      clickBeforeTag(wrapper, index);
-
-      expect(instance.state.tagCursorPosition).to.eq(index);
-    });
-
     it('left arrow is pressed', () => {
       const wrapper = mount(<TagsView {...commonProps} />);
       const instance = wrapper.instance();
       const index = 3;
 
-      clickBeforeTag(wrapper, index); // set initial cursor position
+      setSelectedTag(wrapper, index); // set initial cursor position
 
       simulateKeyDown(wrapper, keyCodes.LEFT);
 
-      expect(instance.state.tagCursorPosition).to.eq(index - 1);
+      expect(instance.state.selectedTagIndex).to.eq(index - 1);
     });
 
     it('cursor is moved to tags section, if left arrow is pressed and cursor in the begining of the input section', () => {
       const wrapper = mount(<TagsView {...commonProps} />);
       const instance = wrapper.instance();
       getInput(wrapper).simulate('focus'); // input is empty and focus in its begining
-      expect(instance.state.tagCursorPosition).to.eq(-1); // means input is selected
+      expect(instance.state.selectedTagIndex).to.eq(-1); // means input is selected
 
       simulateKeyDown(getInput(wrapper), keyCodes.LEFT);
-      expect(instance.state.tagCursorPosition).to.eq(commonProps.tags.size - 1); // means a cursor is moved to the tags section right before last tag;
+      expect(instance.state.selectedTagIndex).to.eq(commonProps.tags.size - 1); // means a cursor is moved to the tags section right before last tag;
     });
 
     it('right arrow is pressed', () => {
@@ -180,41 +169,30 @@ describe('Tags', () => {
       const instance = wrapper.instance();
       const index = 3;
 
-      clickBeforeTag(wrapper, index); // set initial cursor position
+      setSelectedTag(wrapper, index); // set initial cursor position
 
       simulateKeyDown(wrapper, keyCodes.RIGHT);
 
-      expect(instance.state.tagCursorPosition).to.eq(index + 1);
+      expect(instance.state.selectedTagIndex).to.eq(index + 1);
     });
   });
 
   describe('tags deletion', () => {
     let wrapper;
     let removeHandler;
-    let instance;
 
     beforeEach(() => {
       removeHandler = sinon.spy();
       wrapper = mount(<TagsView {...commonProps} onRemoveTag={removeHandler} />);
-      instance = wrapper.instance();
     });
 
-    const deleteTest = isBACKSPACE => it(`tag is selected first before deletion using ${isBACKSPACE ? 'BACKSPACE' : 'DELETE'} button`, () => {
+    const deleteTest = isBACKSPACE => it(`tag is removed using ${isBACKSPACE ? 'BACKSPACE' : 'DELETE'} button`, () => {
       const position = 2;
-      const indexToRemove = isBACKSPACE ? position - 1 : position;
       const keyCode = keyCodes[isBACKSPACE ? 'BACKSPACE' : 'DELETE'];
-      clickBeforeTag(wrapper, position); // move cursor to a position before 3rd tag (< tagsCount)
+      setSelectedTag(wrapper, position); // move cursor to a position before 3rd tag (< tagsCount)
 
       simulateKeyDown(wrapper, keyCode);
-      expect(removeHandler.notCalled).to.eq(true); // DELETE handler is not called
-      expect(instance.state.tagCursorPosition).to.eq(position); // position is not changed
-      expect(instance.state.selectedTagIndex).to.eq(indexToRemove); // next or previsouse tag was selected depending on the key
-      expect(getAllTags(wrapper).length).to.eq(tagsCount); // tag count was not changed
-
-      simulateKeyDown(wrapper, keyCode);
-      expect(removeHandler.calledWith(commonProps.tags.get(indexToRemove))).to.eq(true); // DELETE handler called for a next to the cursor tag
-      expect(instance.state.tagCursorPosition).to.eq(indexToRemove);
-      expect(instance.state.selectedTagIndex).to.eq(-1); // no selected tags
+      expect(removeHandler).have.been.calledWith(commonProps.tags.get(position)); // DELETE handler called for a next to the cursor tag
     });
 
     deleteTest(true);
@@ -225,7 +203,6 @@ describe('Tags', () => {
       getAllTags(wrapper).at(index).find(`.${deleteButton}`).simulate('click');
 
       expect(removeHandler.calledWith(commonProps.tags.get(index))).to.eq(true); // DELETE handler called for a next to the cursor tag
-      expect(instance.state.tagCursorPosition).to.eq(index);
     });
   });
 });

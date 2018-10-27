@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -28,6 +29,10 @@ public class PlanningSet implements Iterable<Wrapper> {
 
   private final Map<Fragment, Wrapper> fragmentMap = Maps.newHashMap();
   private int majorFragmentIdIndex = 0;
+
+  public Map<Fragment, Wrapper> getFragmentWrapperMap() {
+    return Collections.unmodifiableMap(fragmentMap);
+  }
 
   public Wrapper get(Fragment node) {
     Wrapper wrapper = fragmentMap.get(node);

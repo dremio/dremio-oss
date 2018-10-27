@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import com.dremio.common.exceptions.UserException;
 import com.univocity.parsers.common.TextParsingException;
+import com.univocity.parsers.csv.CsvParserSettings;
 
 import io.netty.buffer.ArrowBuf;
 
@@ -30,7 +31,7 @@ import io.netty.buffer.ArrowBuf;
  * A byte-based Text parser implementation. Builds heavily upon the uniVocity parsers. Customized for UTF8 parsing and
  * ArrowBuf support.
  */
-final class TextReader {
+final class TextReader implements AutoCloseable {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TextReader.class);
 
   private static final byte NULL_BYTE = (byte) '\0';

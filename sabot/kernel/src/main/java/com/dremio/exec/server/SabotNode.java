@@ -18,7 +18,6 @@ package com.dremio.exec.server;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-
 import org.apache.zookeeper.Environment;
 
 import com.dremio.common.StackTrace;
@@ -30,10 +29,12 @@ import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.exception.NodeStartupException;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcConstants;
+import com.dremio.sabot.op.common.spill.SpillServiceOptionsImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
@@ -49,11 +50,15 @@ import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.resource.basic.BasicResourceAllocator;
 import com.dremio.sabot.exec.FragmentWorkManager;
+import com.dremio.sabot.exec.TaskPoolInitializer;
+import com.dremio.sabot.exec.WorkloadTicketDepot;
+import com.dremio.sabot.exec.WorkloadTicketDepotService;
 import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.rpc.CoordExecService;
 import com.dremio.sabot.rpc.CoordToExecHandler;
 import com.dremio.sabot.rpc.ExecToCoordHandler;
 import com.dremio.sabot.rpc.user.UserServer;
+import com.dremio.sabot.task.TaskPool;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.SingletonRegistry;
@@ -64,6 +69,8 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.scheduler.LocalSchedulerService;
 import com.dremio.service.scheduler.SchedulerService;
+import com.dremio.service.spill.SpillService;
+import com.dremio.service.spill.SpillServiceImpl;
 import com.dremio.service.users.UserService;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
@@ -122,6 +129,7 @@ public class SabotNode implements AutoCloseable {
     // eagerly created.
     final BootStrapContext bootstrap = registry.bindSelf(new BootStrapContext(dremioConfig, classpathScan));
 
+    registry.bind(ConnectionReader.class, ConnectionReader.of(bootstrap.getClasspathScan(), config));
     // bind default providers.
     registry.bind(MaterializationDescriptorProvider.class, MaterializationDescriptorProvider.EMPTY);
     registry.bind(QueryObserverFactory.class, QueryObserverFactory.DEFAULT);
@@ -144,18 +152,18 @@ public class SabotNode implements AutoCloseable {
         address,
         45678,
         allowPortHunting,
-        config.getInt(RpcConstants.BIT_RPC_TIMEOUT),
         config.getInt(ExecConstants.BIT_SERVER_RPC_THREADS),
-        bootstrap.getExecutor(),
         bootstrap.getAllocator(),
         0,
-        Long.MAX_VALUE));
+        Long.MAX_VALUE,
+        config.getInt(RpcConstants.BIT_RPC_TIMEOUT),
+        bootstrap.getExecutor()
+    ));
 
     // RPC Endpoints.
     registry.bindSelf(new UserServer(bootstrap,
         registry.provider(SabotContext.class),
         registry.provider(UserWorker.class),
-        null,
         allowPortHunting));
 
     registry.bindSelf(new CoordExecService(
@@ -172,6 +180,9 @@ public class SabotNode implements AutoCloseable {
         registry.provider(NamespaceService.Factory.class)));
 
     registry.bind(AccelerationManager.class, AccelerationManager.NO_OP);
+
+    // Note: corePoolSize param below should be more than 1 to show any multithreading issues
+    registry.bind(SchedulerService.class, new LocalSchedulerService(2));
 
     registry.bind(ContextService.class, new ContextService(
         registry.getBindingCreator(),
@@ -192,11 +203,16 @@ public class SabotNode implements AutoCloseable {
         registry.provider(UserService.class),
         registry.provider(CatalogService.class),
         null,
+        registry.provider(SpillService.class),
+        registry.provider(ConnectionReader.class),
         allRoles
         ));
 
-    // Note: corePoolSize param below should be more than 1 to show any multithreading issues
-    registry.bind(SchedulerService.class, new LocalSchedulerService(2));
+    registry.bind(SpillService.class, new SpillServiceImpl(
+      dremioConfig,
+      new SpillServiceOptionsImpl(registry.provider(SabotContext.class)),
+      registry.provider(SchedulerService.class)
+    ));
 
     registry.bindSelf(new SystemTablePluginConfigProvider());
 
@@ -204,22 +220,29 @@ public class SabotNode implements AutoCloseable {
         registry.provider(SabotContext.class),
         registry.provider(SchedulerService.class),
         registry.provider(SystemTablePluginConfigProvider.class),
-        registry.provider(FabricService.class)
+        registry.provider(FabricService.class),
+        registry.provider(ConnectionReader.class)
         ));
 
     registry.bind(ResourceAllocator.class,
       new BasicResourceAllocator(registry.provider(ClusterCoordinator.class)));
 
     registry.bindSelf(new ContextInformationFactory());
+    registry.bindSelf(new TaskPoolInitializer(registry.provider(SabotContext.class), registry.getBindingCreator()));
+    registry.bindSelf(
+        new WorkloadTicketDepotService(bootstrap,
+            registry.getBindingCreator(),
+            registry.provider(TaskPool.class)));
     registry.bindSelf(
         new FragmentWorkManager(bootstrap,
-            dremioConfig,
             registry.provider(NodeEndpoint.class),
             registry.provider(SabotContext.class),
             registry.provider(FabricService.class),
             registry.provider(CatalogService.class),
             registry.provider(ContextInformationFactory.class),
-            registry.getBindingCreator()));
+            registry.provider(WorkloadTicketDepot.class),
+            registry.getBindingCreator(),
+            registry.provider(TaskPool.class)));
 
     registry.bindSelf(
         new ForemenWorkManager(

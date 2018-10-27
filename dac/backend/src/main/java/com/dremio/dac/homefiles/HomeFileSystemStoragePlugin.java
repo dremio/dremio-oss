@@ -33,6 +33,7 @@ import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
@@ -54,7 +55,7 @@ import com.google.common.collect.Lists;
 /**
  * New storage plugin for home files
  */
-public class HomeFileSystemStoragePlugin extends FileSystemPlugin {
+public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HomeFileSystemStoragePlugin.class);
 
   static final FsPermission DEFAULT_PERMISSIONS = new FsPermission(FsAction.ALL, FsAction.READ, FsAction.EXECUTE);
@@ -66,13 +67,14 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin {
   private final Path uploadsDir;
 
   public HomeFileSystemStoragePlugin(final HomeFileConf config, final SabotContext context, final String name, FileSystemWrapper fs, Provider<StoragePluginId> idProvider) {
-    super( (com.dremio.exec.store.dfs.FileSystemConf<?, ?>) (Object) config, context, name, fs, idProvider);
+    super(config, context, name, fs, idProvider);
     this.stagingDir = new Path(config.getPath(), STAGING + "." + context.getDremioConfig().getThisNode());
     this.uploadsDir = new Path(config.getPath(), UPLOADS);
   }
 
+  @Override
   public HomeFileConf getConfig() {
-    return (HomeFileConf) super.getConfig();
+    return super.getConfig();
   }
 
   @Override
@@ -86,7 +88,7 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin {
   }
 
   @Override
-  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldConfig, boolean ignoreAuthErrors) throws Exception {
+  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldConfig, DatasetRetrievalOptions retrievalOptions) throws Exception {
     if (datasetPath.size() <= 1) {
       return null;
     }
@@ -116,13 +118,13 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin {
       if(physicalDataset != null && physicalDataset.getFormatSettings() != null){
         formatPluginConfig = PhysicalDatasetUtils.toFormatPlugin(physicalDataset.getFormatSettings(), Collections.<String>emptyList());
       }
-      return getDatasetWithFormat(datasetPath, oldConfig, formatPluginConfig, ignoreAuthErrors, null);
+      return getDatasetWithFormat(datasetPath, oldConfig, formatPluginConfig, retrievalOptions, null);
     }
   }
 
   @Override
   protected SourceTableDefinition getDatasetWithFormat(NamespaceKey datasetPath, DatasetConfig oldConfig, FormatPluginConfig formatPluginConfig,
-    boolean ignoreAuthErrors, String user) throws Exception {
+    DatasetRetrievalOptions retrievalOptions, String user) throws Exception {
     try{
       final FileSystemWrapper fs = getFs();
       final DatasetConfig datasetConfig = getContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getDataset(datasetPath);
@@ -139,7 +141,7 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin {
         // a home file can only be read from the namespace or using a format options. Without either, it is invalid, return nothing.
         return null;
       }
-      return super.getDatasetWithFormat(new NamespaceKey(relativePath(datasetPath.getPathComponents(), getConfig().getPath())), oldConfig, formatPluginConfig, ignoreAuthErrors, null);
+      return super.getDatasetWithFormat(new NamespaceKey(relativePath(datasetPath.getPathComponents(), getConfig().getPath())), oldConfig, formatPluginConfig, retrievalOptions, null);
     }
   }
 

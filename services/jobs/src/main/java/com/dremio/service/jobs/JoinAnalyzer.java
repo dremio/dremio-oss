@@ -48,7 +48,7 @@ import com.dremio.exec.proto.UserBitShared.MetricValue;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
-import com.dremio.sabot.op.common.hashtable.HashTableStats.Metric;
+import com.dremio.sabot.op.join.vhash.HashJoinStats.Metric;
 import com.dremio.service.Pointer;
 import com.dremio.service.job.proto.JoinAnalysis;
 import com.dremio.service.job.proto.JoinCondition;

@@ -37,6 +37,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.spill.SpillService;
 import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.buffer.ArrowBuf;
@@ -61,6 +62,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   private final int targetBatchSize;
   private final NamespaceService ns;
   private final NodeDebugContextProvider nodeDebugContextProvider;
+  private final SpillService spillService;
 
   public OperatorContextImpl(
       SabotConfig config,
@@ -76,6 +78,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       ContextInformation contextInformation,
       final OptionManager optionManager,
       NamespaceService namespaceService,
+      SpillService spillService,
       NodeDebugContextProvider nodeDebugContextProvider,
       int targetBatchSize) throws OutOfMemoryException {
     this.config = config;
@@ -92,6 +95,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     this.ns = namespaceService;
     this.nodeDebugContextProvider = nodeDebugContextProvider;
     this.producer = new ClassProducerImpl(new CompilationOptions(optionManager), compiler, functions, contextInformation, manager);
+    this.spillService = spillService;
   }
 
   public OperatorContextImpl(
@@ -100,8 +104,9 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       OptionManager optionManager,
       int targetBatchSize
       ) {
+
     this(config, null, null, allocator, allocator, null, null, null, null, null, null,
-      optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize);
+      optionManager, null, null, NodeDebugContextProvider.NOOP, targetBatchSize);
   }
 
 
@@ -166,7 +171,8 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     return new VectorContainerWithSV(fragmentOutputAllocator, incomingSv.clone());
   }
 
-  private BufferAllocator getFragmentOutputAllocator() {
+  @Override
+  public BufferAllocator getFragmentOutputAllocator() {
     return fragmentOutputAllocator;
   }
 
@@ -226,5 +232,10 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   @Override
   public  NodeDebugContextProvider getNodeDebugContextProvider() {
     return nodeDebugContextProvider;
+  }
+
+  @Override
+  public SpillService getSpillService() {
+    return spillService;
   }
 }

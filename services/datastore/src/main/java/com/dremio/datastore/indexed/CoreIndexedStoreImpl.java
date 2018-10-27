@@ -68,7 +68,7 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
     this.index = index;
   }
 
-  private static final IndexKey ID_KEY = new IndexKey(IndexedStore.ID_FIELD_NAME, IndexedStore.ID_FIELD_NAME,
+  public static final IndexKey ID_KEY = new IndexKey(IndexedStore.ID_FIELD_NAME, IndexedStore.ID_FIELD_NAME,
       String.class, null, false, true);
 
   private class ReindexThread extends Thread {
@@ -249,7 +249,7 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
     return deleted;
   }
 
-  private Term keyAsTerm(KVStoreTuple<K> key){
+  public static Term keyAsTerm(KVStoreTuple<?> key) {
     final byte[] keyBytes = key.getSerializedBytes();
     return new Term(IndexedStore.ID_FIELD_NAME, new BytesRef(keyBytes));
   }

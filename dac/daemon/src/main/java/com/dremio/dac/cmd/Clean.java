@@ -23,11 +23,13 @@ import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.server.DACConfig;
+import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
 import com.dremio.datastore.KVAdmin;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.service.jobs.LocalJobsService;
 import com.dremio.service.jobs.LocalJobsService.DeleteResult;
+import com.dremio.service.namespace.DatasetSplitId;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 
 
@@ -130,6 +132,7 @@ public class Clean {
 
       if(options.deleteOrphans) {
         deleteSplitOrphans(provider);
+        deleteCollaborationOrphans(provider);
       }
 
       if(options.maxJobDays < Integer.MAX_VALUE) {
@@ -156,7 +159,6 @@ public class Clean {
     }
   }
 
-
   public static void main(String[] args) {
     try {
       go(args);
@@ -177,7 +179,14 @@ public class Clean {
   private static void deleteSplitOrphans(LocalKVStoreProvider provider) {
     System.out.print("Deleting split orphans... ");
     NamespaceServiceImpl service = new NamespaceServiceImpl(provider);
-    System.out.println(String.format("Completed. Deleted %d orphans.", service.deleteSplitOrphans()));
+    // Since the system is offline, it is okay to delete split orphans to only keep current versions.
+    System.out.println(String.format("Completed. Deleted %d orphans.",
+        service.deleteSplitOrphans(DatasetSplitId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY)));
+  }
+
+  private static void deleteCollaborationOrphans(LocalKVStoreProvider provider) {
+    System.out.print("Deleting collaboration orphans... ");
+    System.out.println(String.format("Completed. Deleted %d orphans.", CollaborationHelper.pruneOrphans(provider)));
   }
 
   private static void reindexData(LocalKVStoreProvider provider) throws Exception {

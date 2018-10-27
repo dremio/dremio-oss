@@ -43,6 +43,7 @@
         height: 30px;
         .action-wrap .main-settings-btn{
           opacity: 0;
+          text-decoration: none;
         }
         &.odd {
           background-color: #f9f9f9;
@@ -257,5 +258,10 @@
         margin-bottom: 0;
       }
     }
+  }
+
+  // avoiding extra right margin on DS list page in Action column
+  .main-info .ReactVirtualized__Table__row .ReactVirtualized__Table__rowColumn.row-buttons {
+    margin-right: 0;
   }
 }
