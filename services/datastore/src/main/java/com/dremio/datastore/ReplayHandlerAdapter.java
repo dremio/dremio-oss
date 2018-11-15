@@ -15,12 +15,16 @@
  */
 package com.dremio.datastore;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 
 import org.rocksdb.WriteBatch;
 
+import com.google.common.collect.Sets;
+
 /**
- * Adapts {@link WriteBatch.Handler} to {@link ReplayHandler}.
+ * Adapts {@link ReplayHandler} to {@link WriteBatch.Handler}.
  *
  * Note to developers: the operation overrides in this adapter need to be in sync with the operations on the
  * {@link RocksDBStore#db underlying RocksDB's store} (and {@link ByteStoreManager#db}). Currently only {@link #put},
@@ -32,6 +36,8 @@ class ReplayHandlerAdapter extends WriteBatch.Handler {
   private final Map<Integer, String> familyIdToName;
   private final ReplayHandler replayHandler;
 
+  private final Set<String> updatedStores = Sets.newHashSet();
+
   ReplayHandlerAdapter(ReplayHandler replayHandler, Map<Integer, String> familyIdToName) {
     this.replayHandler = replayHandler;
     this.familyIdToName = familyIdToName;
@@ -39,8 +45,11 @@ class ReplayHandlerAdapter extends WriteBatch.Handler {
 
   @Override
   public void put(int columnFamilyId, byte[] key, byte[] value) {
-    logger.trace("Put: {}:{}:{}", columnFamilyId, key, value);
-    replayHandler.put(familyIdToName.get(columnFamilyId), key, value);
+    final String tableName = familyIdToName.get(columnFamilyId);
+    logger.trace("Put: {}:{}:{}", tableName, key, value);
+
+    replayHandler.put(tableName, key, value);
+    updatedStores.add(tableName);
   }
 
   @Override
@@ -50,7 +59,9 @@ class ReplayHandlerAdapter extends WriteBatch.Handler {
 
   @Override
   public void merge(int columnFamilyId, byte[] key, byte[] value) {
-    logger.warn("Ignoring merge: {}:{}:{}", columnFamilyId, key, value);
+    if (logger.isWarnEnabled()) {
+      logger.warn("Ignoring merge: {}:{}:{}", familyIdToName.get(columnFamilyId), key, value);
+    }
   }
 
   @Override
@@ -60,8 +71,11 @@ class ReplayHandlerAdapter extends WriteBatch.Handler {
 
   @Override
   public void delete(int columnFamilyId, byte[] key)  {
-    logger.trace("Delete: {}:{}", columnFamilyId, key);
-    replayHandler.delete(familyIdToName.get(columnFamilyId), key);
+    final String tableName = familyIdToName.get(columnFamilyId);
+    logger.trace("Delete: {}:{}", tableName, key);
+
+    replayHandler.delete(tableName, key);
+    updatedStores.add(tableName);
   }
 
   @Override
@@ -71,8 +85,11 @@ class ReplayHandlerAdapter extends WriteBatch.Handler {
 
   @Override
   public void singleDelete(int columnFamilyId, byte[] key) {
-    logger.trace("Delete: {}:{}", columnFamilyId, key);
-    replayHandler.delete(familyIdToName.get(columnFamilyId), key);
+    final String tableName = familyIdToName.get(columnFamilyId);
+    logger.trace("Delete: {}:{}", tableName, key);
+
+    replayHandler.delete(tableName, key);
+    updatedStores.add(tableName);
   }
 
   @Override
@@ -82,7 +99,9 @@ class ReplayHandlerAdapter extends WriteBatch.Handler {
 
   @Override
   public void deleteRange(int columnFamilyId, byte[] beginKey, byte[] endKey) {
-    logger.warn("Ignoring delete range: {}:{}:{}", columnFamilyId, beginKey, endKey);
+    if (logger.isWarnEnabled()) {
+      logger.warn("Ignoring delete range: {}:{}:{}", familyIdToName.get(columnFamilyId), beginKey, endKey);
+    }
   }
 
   @Override
@@ -97,7 +116,9 @@ class ReplayHandlerAdapter extends WriteBatch.Handler {
 
   @Override
   public void putBlobIndex(int columnFamilyId, byte[] key, byte[] value) {
-    logger.warn("Ignoring put blob index: {}:{}:{}", columnFamilyId, key, value);
+    if (logger.isWarnEnabled()) {
+      logger.warn("Ignoring put blob index: {}:{}:{}", columnFamilyId, key, value);
+    }
   }
 
   @Override
@@ -123,5 +144,9 @@ class ReplayHandlerAdapter extends WriteBatch.Handler {
   @Override
   public void markCommit(byte[] xid) {
     logger.warn("Ignoring mark commit: {}", xid);
+  }
+
+  Set<String> getUpdatedStores() {
+    return Collections.unmodifiableSet(updatedStores);
   }
 }

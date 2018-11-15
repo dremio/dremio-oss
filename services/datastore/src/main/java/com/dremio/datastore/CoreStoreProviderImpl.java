@@ -101,7 +101,6 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
   private final boolean disableOCC;
   private final IndexManager indexManager;
   private final ByteStoreManager byteManager;
-  private final StoreMetadataManager storeMetadataManager;
   private final String baseDirectory;
   private final File metaDataFilesDir;
 
@@ -166,19 +165,20 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
     this.inMemory = inMemory;
 
     this.byteManager = new ByteStoreManager(baseDirectory, inMemory);
-    this.storeMetadataManager = new StoreMetadataManager(byteManager);
     this.indexManager = new IndexManager(
         baseDirectory,
         inMemory,
         storeName -> {
           // 1. get the transaction number on #open
-          final long transactionNumber = byteManager.getLatestTransactionNumber();
+          final long transactionNumber = byteManager.getMetadataManager()
+              .getLatestTransactionNumber();
           // 2. then the op (commit) goes here
           return new CommitWrapper.CommitCloser() {
             @Override
             protected void onClose() {
               // 3. set the transaction number on #close
-              storeMetadataManager.setLatestTransactionNumber(storeName, transactionNumber);
+              byteManager.getMetadataManager()
+                  .setLatestTransactionNumber(storeName, transactionNumber);
             }
           };
         }
@@ -193,7 +193,6 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
     metaDataFilesDir.mkdirs();
 
     byteManager.start();
-    storeMetadataManager.start();
     indexManager.start();
   }
 
@@ -215,7 +214,8 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
       Files.createFile(alarmFile.toPath());
     }
 
-    storeMetadataManager.allowUpdates();
+    byteManager.getMetadataManager()
+        .allowUpdates();
   }
 
   /**
@@ -251,23 +251,15 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
    * @return true iff partial reindexing was successful
    */
   private boolean reIndexDelta() {
-    final long lowest = storeMetadataManager.getLowestTransactionNumber();
-    if (lowest == Long.MAX_VALUE) {
-      logger.info("Could not deduce transaction number to replay from");
-      return false;
-    }
-
-    logger.debug("Replaying updates from {} on indexes", lowest);
     final ReIndexer reIndexer = new ReIndexer(indexManager, idToStore);
     try {
-      byteManager.replaySince(lowest, reIndexer);
+      final boolean status = byteManager.replayDelta(reIndexer);
+      logger.debug("Partial re-indexing status: {}, metrics:\n{}", status, reIndexer.getMetrics());
+      return status;
     } catch (DatastoreException e) {
-      logger.warn("Partial reindexing failed from {}", lowest, e);
+      logger.warn("Partial reindexing failed", e);
       return false;
     }
-
-    logger.debug("Partial re-indexing metrics:\n{}", reIndexer.getMetrics());
-    return true;
   }
 
   @VisibleForTesting

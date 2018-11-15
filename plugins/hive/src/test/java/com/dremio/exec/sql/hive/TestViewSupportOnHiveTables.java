@@ -131,15 +131,16 @@ public class TestViewSupportOnHiveTables extends TestBaseViewSupport {
     hiveTest.executeDDL("CREATE TABLE IF NOT EXISTS existing_table(a INT, b STRING)");
     hiveTest.executeDDL("INSERT INTO existing_table VALUES(1, 'a')");
     hiveTest.executeDDL("CREATE VIEW existing_view AS SELECT * FROM existing_table");
-
-    exception.expect(RpcException.class);
-    exception.expectMessage("Hive views are not supported");
-    client.runQuery(UserBitShared.QueryType.SQL, "SELECT * FROM hive.\"default\".\"existing_view\"");
-
-
-    hiveTest.executeDDL("DROP VIEW existing_view");
-    hiveTest.executeDDL("DROP TABLE existing_table");
+    try {
+      exception.expect(RpcException.class);
+      exception.expectMessage("Hive views are not supported");
+      client.runQuery(UserBitShared.QueryType.SQL, "SELECT * FROM hive.\"default\".\"existing_view\"");
+    } finally {
+      hiveTest.executeDDL("DROP VIEW existing_view");
+      hiveTest.executeDDL("DROP TABLE existing_table");
+    }
   }
+
   @AfterClass
   public static void cleanupHiveTestData() throws Exception{
     if (hiveTest != null) {

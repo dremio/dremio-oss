@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.catalog.conf.ConnectionSchema;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.service.namespace.AbstractConnectionConf;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -37,7 +38,6 @@ import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
 import io.protostuff.ProtostuffIOUtil;
 import io.protostuff.Schema;
-import io.protostuff.runtime.RuntimeSchema;
 
 /**
  * Resolves concrete ConnectionConf types using Classpath Scanning.
@@ -70,7 +70,7 @@ public class ConnectionReaderImpl implements ConnectionReader {
     for (Class<? extends ConnectionConf<?, ?>> input : sourceCandidates) {
       SourceType type = input.getAnnotation(SourceType.class);
       try {
-        Schema<? extends ConnectionConf<?, ?>> schema = RuntimeSchema.getSchema(input);
+        Schema<? extends ConnectionConf<?, ?>> schema = ConnectionSchema.getSchema(input);
         stringMap.put(type.value(), schema);
       } catch(Exception ex) {
         throw new RuntimeException("failure trying to read source conf: " + input.getName(), ex);

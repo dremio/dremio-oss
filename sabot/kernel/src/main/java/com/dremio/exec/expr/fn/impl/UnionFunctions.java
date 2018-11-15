@@ -17,22 +17,31 @@ package com.dremio.exec.expr.fn.impl;
 
 import static com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorType;
 
+import java.util.List;
+
 import javax.inject.Inject;
 
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.holders.UnionHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.arrow.vector.types.pojo.Field;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
+import com.dremio.exec.expr.fn.OutputDerivation;
 import com.dremio.exec.resolver.TypeCastRules;
+import com.google.common.base.Preconditions;
 
 import io.netty.buffer.ArrowBuf;
 
@@ -166,11 +175,11 @@ public class UnionFunctions {
     }
   }
 
-  @FunctionTemplate(name = "ASSERT_LIST")
+  @FunctionTemplate(name = "ASSERT_LIST", derivation =  AssertListOutputDerivation.class)
   public static class CastUnionList implements SimpleFunction {
 
     @Param UnionHolder in;
-    @Output UnionHolder out;
+    @Output ComplexWriter out;
     @Inject FunctionErrorContext errorContext;
 
     public void setup() {}
@@ -182,10 +191,40 @@ public class UnionFunctions {
               .message("The input is not a LIST type")
               .build();
         }
-        out.reader = in.reader;
-      } else {
-        out.isSet = 0;
+
+        org.apache.arrow.vector.complex.impl.ComplexCopier.copy(in.reader,
+            (org.apache.arrow.vector.complex.writer.FieldWriter) out.rootAsList());
       }
+    }
+  }
+
+  public static class AssertListOutputDerivation implements OutputDerivation {
+
+    @Override
+    public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
+      Preconditions.checkArgument(args.size() == 1, "ASSERT_LIST requires only one argument");
+      final LogicalExpression expression = args.get(0);
+
+      CompleteType listType = null;
+      if (expression.getCompleteType().isList()) {
+        listType = expression.getCompleteType();
+      } else if (expression.getCompleteType().isUnion()) {
+        for (Field field : expression.getCompleteType().getChildren()) {
+          final CompleteType fieldType = CompleteType.fromField(field);
+          if (fieldType.isList()) {
+            listType = fieldType;
+            break; // there will be exactly one
+          }
+        }
+      }
+
+      if (listType == null) {
+        throw UserException.validationError()
+            .message("The field must be a list of values or a mixed type that contains a list of values")
+            .addContext("field type", expression.getCompleteType().toString())
+            .build();
+      }
+      return listType;
     }
   }
 
@@ -209,11 +248,12 @@ public class UnionFunctions {
   }
 
   @SuppressWarnings("unused")
-  @FunctionTemplate(name = "ASSERT_MAP", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.INTERNAL)
-  public static class CastUnionMap implements SimpleFunction {
+  @FunctionTemplate(names = "ASSERT_STRUCT", scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = NullHandling.INTERNAL, derivation =  AssertStructOutputDerivation.class)
+  public static class CastUnionStruct implements SimpleFunction {
 
     @Param UnionHolder in;
-    @Output UnionHolder out;
+    @Output ComplexWriter out;
     @Inject FunctionErrorContext errorContext;
 
     public void setup() {}
@@ -222,19 +262,49 @@ public class UnionFunctions {
       if (in.isSet == 1) {
         if (in.reader.getMinorType() != org.apache.arrow.vector.types.Types.MinorType.STRUCT) {
           throw errorContext.error()
-              .message("The input is not a MAP type")
+              .message("The input is not a STRUCT type")
               .build();
         }
-        out.reader = in.reader;
-      } else {
-        out.isSet = 0;
+
+        org.apache.arrow.vector.complex.impl.ComplexCopier.copy(in.reader,
+            (org.apache.arrow.vector.complex.writer.FieldWriter) out.rootAsStruct());
       }
     }
   }
 
+  public static class AssertStructOutputDerivation implements OutputDerivation {
+
+    @Override
+    public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
+      Preconditions.checkArgument(args.size() == 1, "ASSERT_STRUCT requires only one argument");
+      final LogicalExpression expression = args.get(0);
+
+      CompleteType structType = null;
+      if (expression.getCompleteType().isStruct()) {
+        structType = expression.getCompleteType();
+      } else if (expression.getCompleteType().isUnion()) {
+        for (Field field : expression.getCompleteType().getChildren()) {
+          final CompleteType fieldType = CompleteType.fromField(field);
+          if (fieldType.isStruct()) {
+            structType = fieldType;
+            break; // there will be exactly one
+          }
+        }
+      }
+
+      if (structType == null) {
+        throw UserException.validationError()
+            .message("The field must be of struct type or a mixed type that contains a struct type")
+            .addContext("field type", expression.getCompleteType().toString())
+            .build();
+      }
+      return structType;
+    }
+  }
+
   @SuppressWarnings("unused")
-  @FunctionTemplate(name = "IS_MAP", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.INTERNAL)
-  public static class UnionIsMap implements SimpleFunction {
+  @FunctionTemplate(names = "IS_STRUCT", scope = FunctionTemplate.FunctionScope.SIMPLE, nulls=NullHandling.INTERNAL)
+  public static class UnionIsStruct implements SimpleFunction {
 
     @Param UnionHolder in;
     @Output NullableBitHolder out;

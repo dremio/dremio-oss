@@ -17,6 +17,7 @@ package com.dremio.plugins.elastic;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -24,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.conf.EncryptionValidationMode;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.DatasetRetrievalOptions;
@@ -34,6 +36,7 @@ import com.dremio.plugins.elastic.ElasticActions.Health;
 import com.dremio.plugins.elastic.ElasticActions.IndexExists;
 import com.dremio.plugins.elastic.ElasticActions.Result;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
+import com.dremio.plugins.elastic.ElasticConnectionPool.TLSValidationMode;
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet;
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.ClusterMetadata;
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.ElasticIndex;
@@ -90,9 +93,34 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
     this.config = config;
     this.context = context;
     this.name = name;
+
+    final TLSValidationMode tlsMode;
+    if (!config.sslEnabled) {
+      tlsMode = TLSValidationMode.OFF;
+    } else {
+      // If encryption is enabled, but validation is not set (upgrade?),
+      // assume the highest level of security.
+      final EncryptionValidationMode encryptionValidationMode = Optional.ofNullable(config.encryptionValidationMode)
+          .orElse(EncryptionValidationMode.CERTIFICATE_AND_HOSTNAME_VALIDATION);
+      switch(encryptionValidationMode) {
+      case CERTIFICATE_AND_HOSTNAME_VALIDATION:
+        tlsMode = TLSValidationMode.STRICT;
+        break;
+      case CERTIFICATE_ONLY_VALIDATION:
+        tlsMode = TLSValidationMode.VERIFY_CA;
+        break;
+      case NO_VALIDATION:
+        tlsMode = TLSValidationMode.UNSECURE;
+        break;
+      default:
+        // Should not happen since enum is in the config class
+        throw new AssertionError("Unknown encryption validation mode " + encryptionValidationMode);
+      }
+    }
+
     this.connectionPool = new ElasticConnectionPool(
         config.hostList,
-        config.sslEnabled,
+        tlsMode,
         config.username,
         config.password,
         config.readTimeoutMillis,

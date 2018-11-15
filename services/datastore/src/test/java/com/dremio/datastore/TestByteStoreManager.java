@@ -158,7 +158,8 @@ public class TestByteStoreManager {
 
       final String storeName = "test-store";
       ByteStore bs = bsm.getStore(storeName);
-      final long txn = bsm.getLatestTransactionNumber();
+      final long txn = bsm.getMetadataManager()
+          .getLatestTransactionNumber();
 
       final byte[] one = getBytes("one");
       final byte[] two = getBytes("two");
@@ -227,7 +228,8 @@ public class TestByteStoreManager {
       bs.put(one, getBytes("2"));
       bs.put(two, getBytes("3")); // this will be replayed as well!
 
-      final long txn = bsm.getLatestTransactionNumber();
+      final long txn = bsm.getMetadataManager()
+          .getLatestTransactionNumber();
       bs.put(two, getBytes("3"));
       bs.delete(one);
 
@@ -277,7 +279,8 @@ public class TestByteStoreManager {
 
       final String storeName = "test-store";
       ByteStore bs = bsm.getStore(storeName);
-      final long txn = bsm.getLatestTransactionNumber();
+      final long txn = bsm.getMetadataManager()
+          .getLatestTransactionNumber();
 
       bs.put(getBytes("one"), getBytes("1"));
 

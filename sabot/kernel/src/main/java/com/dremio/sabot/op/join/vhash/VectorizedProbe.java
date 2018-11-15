@@ -53,7 +53,7 @@ public class VectorizedProbe implements AutoCloseable {
   public static final int SKIP = -1;
 
   private final BufferAllocator allocator;
-  private final JoinLinks[] links;
+  private final ArrowBuf[] links;
   private final ArrowBuf[] starts;
   // Array of bitvectors. Keeps track of keys on the build side that matched any key on the probe side
   private final MatchBitSet[] keyMatches;
@@ -115,7 +115,7 @@ public class VectorizedProbe implements AutoCloseable {
    * and then we need to indicate which data record is the first record that has not been processed.
    */
   private int remainderLinkBatch = -1;
-  private short remainderLinkOffset = -1;
+  private int remainderLinkOffset = -1;
   private int nextProbeIndex = 0;
   private long unmatchedProbeCount = 0;
   private long maxHashTableIndex = 0;
@@ -140,7 +140,7 @@ public class VectorizedProbe implements AutoCloseable {
       final List<FieldVector> buildOutputKeys,
       VectorizedHashJoinOperator.Mode mode,
       JoinRelType joinRelType,
-      List<JoinLinks> buildInfos,
+      List<BuildInfo> buildInfos,
       List<ArrowBuf> startIndices,
       List<MatchBitSet> keyMatchBitVectors,
       int maxHashTableIndex,
@@ -157,10 +157,10 @@ public class VectorizedProbe implements AutoCloseable {
     this.buildUnpivot = buildUnpivot;
     this.allocator = allocator;
     this.table = table;
-    this.links = new JoinLinks[buildInfos.size()];
+    this.links = new ArrowBuf[buildInfos.size()];
 
     for (int i =0; i < links.length; i++) {
-      links[i] = buildInfos.get(i);
+      links[i] = buildInfos.get(i).getLinks();
     }
 
     this.starts = new ArrowBuf[startIndices.size()];
@@ -252,7 +252,7 @@ public class VectorizedProbe implements AutoCloseable {
     final boolean projectUnmatchedProbe = this.projectUnmatchedProbe;
     final MatchBitSet[] keyMatches = this.keyMatches;
     final ArrowBuf[] starts = this.starts;
-    final JoinLinks[] links = this.links;
+    final ArrowBuf[] links = this.links;
     long unmatchedProbeCount = this.unmatchedProbeCount;
 
     // we have two incoming options: we're starting on a new batch or we're picking up an existing batch.
@@ -269,7 +269,7 @@ public class VectorizedProbe implements AutoCloseable {
     final long projectBuildOffsetAddr = this.projectBuildOffsetAddr;
     final long probeSv2Addr = this.probeSv2Addr;
     int currentLinkBatch = this.remainderLinkBatch;
-    short currentLinkOffset = this.remainderLinkOffset;
+    int currentLinkOffset = this.remainderLinkOffset;
 
     probeFind2Watch.start();
 
@@ -302,7 +302,7 @@ public class VectorizedProbe implements AutoCloseable {
               ((indexInBuild) % HashTable.BATCH_SIZE) * BUILD_RECORD_LINK_SIZE;
 
             currentLinkBatch = PlatformDependent.getInt(memStart);
-            currentLinkOffset = PlatformDependent.getShort(memStart + BATCH_INDEX_SIZE);
+            currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(memStart + BATCH_INDEX_SIZE));
 
             /* The key in the build side at indexInBuild has a matching key in the probe side.
              * Set the bit corresponding to this index so if we are doing a FULL or RIGHT join
@@ -314,12 +314,12 @@ public class VectorizedProbe implements AutoCloseable {
             PlatformDependent.putShort(probeSv2Addr + outputRecords * BATCH_OFFSET_SIZE, (short) currentProbeIndex);
             final long projectBuildOffsetAddrStart = projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
             PlatformDependent.putInt(projectBuildOffsetAddrStart, currentLinkBatch);
-            PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, currentLinkOffset);
+            PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, (short)currentLinkOffset);
             outputRecords++;
 
-            long linkMemAddr = links[currentLinkBatch].linkMemoryAddress(currentLinkOffset);
+            long linkMemAddr = links[currentLinkBatch].memoryAddress() + currentLinkOffset * BUILD_RECORD_LINK_SIZE;
             currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
-            currentLinkOffset = PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE);
+            currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE));
           }
           if (currentLinkBatch != -1) {
             /* Output batch is full, we should exit now,
@@ -354,7 +354,7 @@ public class VectorizedProbe implements AutoCloseable {
               ((indexInBuild) % HashTable.BATCH_SIZE) * BUILD_RECORD_LINK_SIZE;
 
             currentLinkBatch = PlatformDependent.getInt(memStart);
-            currentLinkOffset = PlatformDependent.getShort(memStart + BATCH_INDEX_SIZE);
+            currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(memStart + BATCH_INDEX_SIZE));
 
             /* The key in the build side at indexInBuild has a matching key in the probe side.
              * Set the bit corresponding to this index so if we are doing a FULL or RIGHT join
@@ -366,12 +366,12 @@ public class VectorizedProbe implements AutoCloseable {
             PlatformDependent.putShort(probeSv2Addr + outputRecords * BATCH_OFFSET_SIZE, (short) currentProbeIndex);
             final long projectBuildOffsetAddrStart = projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
             PlatformDependent.putInt(projectBuildOffsetAddrStart, currentLinkBatch);
-            PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, currentLinkOffset);
+            PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, (short)currentLinkOffset);
             outputRecords++;
 
-            long linkMemAddr = links[currentLinkBatch].linkMemoryAddress(currentLinkOffset);
+            long linkMemAddr = links[currentLinkBatch].memoryAddress() + currentLinkOffset * BUILD_RECORD_LINK_SIZE;
             currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
-            currentLinkOffset = PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE);
+            currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE));
           }
           if (currentLinkBatch != -1) {
             /* Output batch is full, we should exit now,
@@ -420,7 +420,7 @@ public class VectorizedProbe implements AutoCloseable {
     int remainderOrdinalBatchIndex = this.remainderOrdinalBatchIndex;
     int currentClearOrdinalOffset = remainderOrdinalOffset;
     int currentLinkBatch = remainderLinkBatch;
-    short currentLinkOffset = remainderLinkOffset;
+    int currentLinkOffset = remainderLinkOffset;
     int baseOrdinalBatchCount = remainderOrdinalBatchIndex * HashTable.BATCH_SIZE;
 
     MatchBitSet currentBitset = remainderOrdinalBatchIndex < 0 ? null : keyMatches[remainderOrdinalBatchIndex];
@@ -473,21 +473,21 @@ public class VectorizedProbe implements AutoCloseable {
               ArrowBuf startIndex = starts[remainderOrdinalBatchIndex];
               long linkMemAddr = startIndex.memoryAddress() + currentClearOrdinalOffset * HashTable.BUILD_RECORD_LINK_SIZE;
               currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
-              currentLinkOffset = PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE);
+              currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE));
             }
             while ((currentLinkBatch != -1) && (outputRecords < targetRecordsPerBatch)) {
               final long projectBuildOffsetAddrStart = projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
               PlatformDependent.putInt(projectBuildOffsetAddrStart, currentLinkBatch);
-              PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, currentLinkOffset);
+              PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, (short)currentLinkOffset);
               // Get the length of variable key and added it to totalSize
               totalVarSize += table.getVarKeyLength(baseOrdinalBatchCount + currentClearOrdinalOffset);
               // Maintain the ordinal of the key for unpivot later
               PlatformDependent.putInt(projectBuildKeyOffsetAddr + outputRecords * ORDINAL_SIZE,baseOrdinalBatchCount + currentClearOrdinalOffset);
               outputRecords++;
 
-              long linkMemAddr = links[currentLinkBatch].linkMemoryAddress(currentLinkOffset);
+              long linkMemAddr = links[currentLinkBatch].memoryAddress() + currentLinkOffset * BUILD_RECORD_LINK_SIZE;
               currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
-              currentLinkOffset = PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE);
+              currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE));
             }
             if (currentLinkBatch != -1) {
               /* Output batch is full, we should exit now,
@@ -561,17 +561,17 @@ public class VectorizedProbe implements AutoCloseable {
               ArrowBuf startIndex = starts[remainderOrdinalBatchIndex];
               long linkMemAddr = startIndex.memoryAddress() + currentClearOrdinalOffset * HashTable.BUILD_RECORD_LINK_SIZE;
               currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
-              currentLinkOffset = PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE);
+              currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE));
             }
             while ((currentLinkBatch != -1) && (outputRecords < targetRecordsPerBatch)) {
               final long projectBuildOffsetAddrStart = projectBuildOffsetAddr + outputRecords * BUILD_RECORD_LINK_SIZE;
               PlatformDependent.putInt(projectBuildOffsetAddrStart, currentLinkBatch);
-              PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, currentLinkOffset);
+              PlatformDependent.putShort(projectBuildOffsetAddrStart + BATCH_INDEX_SIZE, (short)currentLinkOffset);
               outputRecords++;
 
-              long linkMemAddr = links[currentLinkBatch].linkMemoryAddress(currentLinkOffset);
+              long linkMemAddr = links[currentLinkBatch].memoryAddress() + currentLinkOffset * BUILD_RECORD_LINK_SIZE;
               currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
-              currentLinkOffset = PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE);
+              currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + BATCH_INDEX_SIZE));
             }
             if (currentLinkBatch != -1) {
               /* Output batch is full, we should exit now,

@@ -13,19 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.sabot.op.aggregate.vectorized;
+package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.sabot.op.common.ht2.FieldVectorPair;
-import com.dremio.sabot.op.common.ht2.FixedBlockVector;
-import com.dremio.sabot.op.common.ht2.PivotBuilder;
-import com.dremio.sabot.op.common.ht2.PivotDef;
-import com.dremio.sabot.op.common.ht2.VariableBlockVector;
-import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
-import com.dremio.sabot.op.common.ht2.Pivots;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
@@ -44,6 +37,13 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggStats.Metric;
+import com.dremio.sabot.op.common.ht2.FieldVectorPair;
+import com.dremio.sabot.op.common.ht2.FixedBlockVector;
+import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
+import com.dremio.sabot.op.common.ht2.PivotBuilder;
+import com.dremio.sabot.op.common.ht2.PivotDef;
+import com.dremio.sabot.op.common.ht2.Pivots;
+import com.dremio.sabot.op.common.ht2.VariableBlockVector;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
@@ -53,7 +53,7 @@ import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedHashAggOperator.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedHashAggOperatorNoSpill.class);
 
   private static final int INITIAL_VAR_FIELD_AVERAGE_SIZE = 10;
   private final OperatorContext context;
@@ -68,7 +68,7 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
   private ImmutableList<FieldVector> vectorsToValidate;
   private LBlockHashTableNoSpill table;
   private PivotDef pivot;
-  private AccumulatorSet accumulator;
+  private AccumulatorNoSpill accumulator;
   private int outputBatchCount;
   private VectorAccessible incoming;
   private State state = State.NEEDS_SETUP;
@@ -84,18 +84,9 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
     state.is(State.NEEDS_SETUP);
     this.incoming = accessible;
     this.pivot = createPivot();
-    final AccumulatorBuilder.MaterializedAggExpressionsResult materializeAggExpressionsResult =
-      AccumulatorBuilder.getAccumulatorTypesFromExpressions(context.getClassProducer(), popConfig.getAggrExprs(), incoming);
-    this.accumulator = AccumulatorBuilder.getAccumulator(context.getAllocator(), context.getAllocator(),
-                                                         materializeAggExpressionsResult,
-                                                         outgoing,
-                                                         true,
-                                                         LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH,
-                                                         0,
-                                                         0);
+    this.accumulator = AccumulatorBuilderNoSpill.getAccumulator(context.getAllocator(), context.getClassProducer(), popConfig.getAggrExprs(), incoming, outgoing);
     this.outgoing.buildSchema();
-    this.table = new LBlockHashTableNoSpill(HashConfig.getDefault(), pivot, context.getAllocator(),
-                                     (int)context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE, accumulator);
+    this.table = new LBlockHashTableNoSpill(HashConfig.getDefault(), pivot, context.getAllocator(), (int)context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE, accumulator);
 
     state = State.CAN_CONSUME;
     return outgoing;
@@ -138,12 +129,12 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
 
     // ensure that none of the variable length vectors are corrupt so we can avoid doing bounds checking later.
     for(FieldVector v : vectorsToValidate){
-      VariableLengthValidator.validateVariable(v, records);
+      VariableLengthValidatorNoSpill.validateVariable(v, records);
     }
 
     try(FixedBlockVector fbv = new FixedBlockVector(context.getAllocator(), pivot.getBlockWidth());
         VariableBlockVector var = new VariableBlockVector(context.getAllocator(), pivot.getVariableCount());
-    ){
+        ){
       // first we pivot.
       pivotWatch.start();
       Pivots.pivot(pivot, records, fbv, var);
@@ -163,7 +154,7 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
 
         // then we do accumulators.
         accumulateWatch.start();
-        accumulator.accumulateNoSpill(offsets.memoryAddress(), records);
+        accumulator.accumulate(offsets.memoryAddress(), records);
         accumulateWatch.stop();
       }
 

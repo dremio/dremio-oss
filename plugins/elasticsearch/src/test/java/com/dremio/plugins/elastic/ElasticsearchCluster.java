@@ -77,11 +77,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.catalog.conf.AuthenticationType;
+import com.dremio.exec.catalog.conf.EncryptionValidationMode;
 import com.dremio.exec.catalog.conf.Host;
 import com.dremio.plugins.elastic.ElasticActions.IndexExists;
 import com.dremio.plugins.elastic.ElasticActions.Result;
 import com.dremio.plugins.elastic.ElasticActions.SearchBytes;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
+import com.dremio.plugins.elastic.ElasticConnectionPool.TLSValidationMode;
 import com.dremio.plugins.elastic.ElasticTestActions.AliasActionDef;
 import com.dremio.plugins.elastic.ElasticTestActions.Bulk;
 import com.dremio.plugins.elastic.ElasticTestActions.CreateAliases;
@@ -152,7 +154,7 @@ public class ElasticsearchCluster implements Closeable {
     int port = sslEnabled ? sslPort : ELASTICSEARCH_PORT;
     List<Host> hosts = ImmutableList.of(new Host("127.0.0.1", port));
 
-    this.pool = new ElasticConnectionPool(hosts, sslEnabled, null, null, 10000, false);
+    this.pool = new ElasticConnectionPool(hosts, sslEnabled ? TLSValidationMode.UNSECURE : TLSValidationMode.OFF, null, null, 10000, false);
     pool.connect();
     connection = pool.getRandomConnection();
     webTarget = connection.getTarget();
@@ -274,7 +276,8 @@ public class ElasticsearchCluster implements Closeable {
         false, /* use whitelist */
         scrollSize,
         allowPushdownAnalyzedOrNormalizedFields, /* allow group by on normalized fields */
-        false /* warn on row count mismatch */
+        false, /* warn on row count mismatch */
+        EncryptionValidationMode.NO_VALIDATION
         );
     return config;
   }

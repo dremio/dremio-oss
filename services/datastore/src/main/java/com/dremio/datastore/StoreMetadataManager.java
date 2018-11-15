@@ -15,48 +15,24 @@
  */
 package com.dremio.datastore;
 
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentMap;
-
-import org.rocksdb.RocksDBException;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
-
 /**
  * Manages metadata about stores. The metadata is stored in the "default" store.
  */
-final class StoreMetadataManager {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StoreMetadataManager.class);
+interface StoreMetadataManager {
 
-  private static final Serializer<StoreMetadata> valueSerializer = Serializer.of(StoreMetadata.getSchema());
+  /**
+   * Allow updates to the metadata store.
+   */
+  void allowUpdates();
 
-  // in-memory holder of the latest transaction numbers. The second-to-last transaction number is persisted
-  private final ConcurrentMap<String, Long> latestTransactionNumbers = Maps.newConcurrentMap();
-
-  private final ByteStoreManager storeManager;
-
-  private ByteStore store;
-
-  private volatile boolean allowUpdates;
-
-  StoreMetadataManager(ByteStoreManager storeManager) {
-    this.storeManager = storeManager;
-    this.allowUpdates = false;
-  }
-
-  void start() throws RocksDBException {
-    store = storeManager.getDefaultDB();
-  }
-
-  void blockUpdates() {
-    allowUpdates = false;
-  }
-
-  void allowUpdates() {
-    allowUpdates = true;
-  }
+  /**
+   * Get the latest transaction number.
+   *
+   * Note that the number returned is not per store; the number is global.
+   *
+   * @return latest transaction number
+   */
+  long getLatestTransactionNumber();
 
   /**
    * Sets the latest transaction number for the given store.
@@ -64,63 +40,23 @@ final class StoreMetadataManager {
    * @param storeName store name
    * @param transactionNumber latest transaction number
    */
-  void setLatestTransactionNumber(String storeName, long transactionNumber) {
-    if (!allowUpdates) {
-      return;
-    }
-
-    Optional<Long> lastNumber = Optional.ofNullable(latestTransactionNumbers.get(storeName));
-    if (!lastNumber.isPresent()) {
-      final Optional<StoreMetadata> lastMetadata = getValue(store.get(getKey(storeName)));
-      lastNumber = lastMetadata.map(StoreMetadata::getLatestTransactionNumber);
-    }
-
-    // Replaying from current transaction number is necessary, but may not be sufficient. However,
-    // replaying from the previous transaction number is sufficient (in fact, more than sufficient sometimes).
-    final long penultimateNumber = lastNumber.orElse(transactionNumber);
-
-    final StoreMetadata storeMetadata = new StoreMetadata()
-        .setTableName(storeName)
-        .setLatestTransactionNumber(penultimateNumber);
-
-    latestTransactionNumbers.put(storeName, transactionNumber);
-    logger.trace("Setting {} as transaction number for store '{}'", penultimateNumber, storeName);
-    store.put(getKey(storeName), getValue(storeMetadata));
-  }
+  void setLatestTransactionNumber(String storeName, long transactionNumber);
 
   /**
-   * Get the lowest transaction number across all stores.
-   *
-   * @return lowest transaction number, or {@link Long#MAX_VALUE} if lowest is not found
+   * No op implementation.
    */
-  long getLowestTransactionNumber() {
-    final long[] lowest = {Long.MAX_VALUE};
-    for (Map.Entry<byte[], byte[]> tuple : store.find()) {
-      final Optional<StoreMetadata> value = getValue(tuple.getValue());
-      value.ifPresent(storeMetadata -> {
-        final long transactionNumber = storeMetadata.getLatestTransactionNumber();
-        if (transactionNumber < lowest[0]) {
-          lowest[0] = transactionNumber;
-        }
-      });
+  StoreMetadataManager NO_OP = new StoreMetadataManager() {
+    @Override
+    public void allowUpdates() {
     }
-    return lowest[0];
-  }
 
-  @VisibleForTesting
-  Long getFromCache(String storeName) {
-    return latestTransactionNumbers.get(storeName);
-  }
+    @Override
+    public long getLatestTransactionNumber() {
+      return 0;
+    }
 
-  private static byte[] getKey(String key) {
-    return StringSerializer.INSTANCE.convert(key);
-  }
-
-  private static byte[] getValue(StoreMetadata info) {
-    return valueSerializer.convert(info);
-  }
-
-  private static Optional<StoreMetadata> getValue(byte[] info) {
-    return Optional.ofNullable(info).map(valueSerializer::revert);
-  }
+    @Override
+    public void setLatestTransactionNumber(String storeName, long transactionNumber) {
+    }
+  };
 }

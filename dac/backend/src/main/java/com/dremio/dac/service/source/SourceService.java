@@ -462,21 +462,31 @@ public class SourceService {
   // Process all items in the namespacetree and get their tags in one go
   private void fillInTags(NamespaceTree ns) {
     Map<String, CollaborationTag> tags = new HashMap<>();
+    // If you alter this number, alter a message in TagsAlert.js
+    final int maxTagRequestCount = 200; // to avoid DX-13766.
+    List<File> files = ns.getFiles();
+    final int size = files.size();
+    final int filesToProcess = Math.min(size, maxTagRequestCount);
 
-    ns.getFiles().forEach(input -> {
-      tags.put(input.getId(), null);
-    });
+    //we populate tags not for all files
+    ns.setCanTagsBeSkipped(size > maxTagRequestCount);
+
+    for(int i = 0; i < filesToProcess; i++) {
+      tags.put(files.get(i).getId(), null);
+    }
 
     collaborationService.getTagsForIds(tags.keySet()).forEach(input -> {
       tags.replace(input.getKey(), input.getValue());
     });
 
-    ns.getFiles().forEach(input -> {
+
+    for(int i = 0; i < filesToProcess; i++) {
+      File input = files.get(i);
       CollaborationTag collaborationTag = tags.get(input.getId());
       if (collaborationTag != null) {
         input.setTags(collaborationTag.getTagsList());
       }
-    });
+    }
   }
 
   @Deprecated

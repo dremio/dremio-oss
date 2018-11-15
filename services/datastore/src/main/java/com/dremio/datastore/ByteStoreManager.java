@@ -24,7 +24,9 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
@@ -41,12 +43,12 @@ import org.rocksdb.StatsLevel;
 import org.rocksdb.Status;
 import org.rocksdb.TickerType;
 import org.rocksdb.TransactionLogIterator;
-import org.rocksdb.WriteBatch;
 
 import com.dremio.common.DeferredException;
 import com.dremio.datastore.CoreStoreProviderImpl.ForcedMemoryMode;
 import com.dremio.datastore.MetricUtils.MetricSetBuilder;
 import com.dremio.metrics.Metrics;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -54,7 +56,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -78,24 +79,23 @@ class ByteStoreManager implements AutoCloseable {
 
   private RocksDB db;
   private ColumnFamilyHandle defaultHandle;
+  private StoreMetadataManagerImpl metadataManager;
 
   private final DeferredException closeException = new DeferredException();
 
+  // on #start all the existing tables are loaded, and if new stores are requested, #newStore is used
   private final ConcurrentMap<Integer, String> handleIdToNameMap = Maps.newConcurrentMap();
   private final LoadingCache<String, ByteStore> maps = CacheBuilder.newBuilder()
-      .removalListener(new RemovalListener<String, ByteStore>() {
-        @Override
-        public void onRemoval(RemovalNotification<String, ByteStore> notification) {
-          try {
-            notification.getValue().close();
-          } catch (Exception ex) {
-            closeException.addException(ex);
-          }
+      .removalListener((RemovalListener<String, ByteStore>) notification -> {
+        try {
+          notification.getValue().close();
+        } catch (Exception ex) {
+          closeException.addException(ex);
         }
       }).build(new CacheLoader<String, ByteStore>() {
         @Override
         public ByteStore load(String name) throws RocksDBException {
-          return newDB(name);
+          return newStore(name);
         }
       });
 
@@ -105,25 +105,15 @@ class ByteStoreManager implements AutoCloseable {
     this.inMemory = inMemory;
   }
 
-  private ByteStore newDB(String name) throws RocksDBException {
+  private ByteStore newStore(String name) throws RocksDBException {
     if (inMemory) {
       return new MapStore(name);
     } else {
       final ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(name.getBytes(UTF_8));
       ColumnFamilyHandle handle = db.createColumnFamily(columnFamilyDescriptor);
       handleIdToNameMap.put(handle.getID(), name);
+      metadataManager.createEntry(name, false);
       return new RocksDBStore(name, columnFamilyDescriptor, handle, db, stripeCount);
-    }
-  }
-
-  ByteStore getDefaultDB() throws RocksDBException {
-    if (inMemory) {
-      return new MapStore(DEFAULT);
-    } else {
-      final ColumnFamilyHandle handle = db.getDefaultColumnFamily();
-      handleIdToNameMap.put(handle.getID(), DEFAULT);
-      return new RocksDBStore(DEFAULT, null /* dropping and creating default is not supported */ ,
-          db.getDefaultColumnFamily(), db, stripeCount);
     }
   }
 
@@ -196,6 +186,12 @@ class ByteStoreManager implements AutoCloseable {
         maps.put(name, store);
       }
     }
+
+    // update the metadata manager
+    metadataManager = new StoreMetadataManagerImpl();
+    for (String tableName : handleIdToNameMap.values()) {
+      metadataManager.createEntry(tableName, true);
+    }
   }
 
   private void registerMetrics(DBOptions dbOptions) {
@@ -264,18 +260,29 @@ class ByteStoreManager implements AutoCloseable {
   }
 
   /**
-   * Replay updates since the given transaction number on the given handler.
+   * Replay updates from the last commit on to the handler.
    *
-   * @param transactionNumber transaction number
-   * @param replayHandler     replay handler
-   * @throws DatastoreException if there are errors during replay
+   * @param replayHandler replay handler
+   * @return if replaying succeeded
    */
-  void replaySince(final long transactionNumber, ReplayHandler replayHandler) {
+  boolean replayDelta(ReplayHandler replayHandler) {
     if (inMemory) {
-      return;
+      return false;
     }
 
-    try (WriteBatch.Handler handler = new ReplayHandlerAdapter(replayHandler, handleIdToNameMap);
+    final long lowest = metadataManager.getLowestTransactionNumber();
+    if (lowest == -1L) {
+      LOGGER.info("Could not deduce transaction number to replay from");
+      return false;
+    }
+
+    LOGGER.debug("Replaying updates from {}", lowest);
+    replaySince(lowest, replayHandler);
+    return true;
+  }
+
+  void replaySince(final long transactionNumber, ReplayHandler replayHandler) {
+    try (ReplayHandlerAdapter handler = new ReplayHandlerAdapter(replayHandler, handleIdToNameMap);
          TransactionLogIterator iterator = db.getUpdatesSince(transactionNumber)) {
       while (iterator.isValid()) {
         iterator.status();
@@ -292,23 +299,28 @@ class ByteStoreManager implements AutoCloseable {
         }
         iterator.next(); // requires isValid
       }
+
+      for (String updatedStore : handler.getUpdatedStores()) {
+        final long latestTransactionNumber = metadataManager.getLatestTransactionNumber();
+        metadataManager.setLatestTransactionNumber(updatedStore, latestTransactionNumber, latestTransactionNumber);
+      }
     } catch (RocksDBException e) {
       throw new DatastoreException(e);
     }
-
-    // the latest transaction number can be updated on all the updated stores here, but let'd do so lazily,
-    // and wait for the regular update process
   }
 
   /**
-   * Get the latest transaction number.
+   * Get the store metadata manager.
    *
-   * Note that the number returned is not per store; the number is global.
-   *
-   * @return latest transaction number
+   * @return store metadata manager
    */
-  long getLatestTransactionNumber() {
-    return inMemory ? 0 : db.getLatestSequenceNumber();
+  StoreMetadataManager getMetadataManager() {
+    if (inMemory) {
+      return StoreMetadataManager.NO_OP;
+    }
+
+    Preconditions.checkState(metadataManager != null, "#start was not invoked, so metadataManager is not available");
+    return metadataManager;
   }
 
   @Override
@@ -321,5 +333,144 @@ class ByteStoreManager implements AutoCloseable {
     closeException.suppressingClose(defaultHandle);
     closeException.suppressingClose(db);
     closeException.close();
+  }
+
+  /**
+   * Implementation that manages metadata with {@link RocksDB}.
+   */
+  final class StoreMetadataManagerImpl implements StoreMetadataManager {
+    private final Serializer<StoreMetadata> valueSerializer = Serializer.of(StoreMetadata.getSchema());
+
+    // in-memory holder of the latest transaction numbers. The second-to-last transaction number is persisted
+    private final ConcurrentMap<String, Long> latestTransactionNumbers = Maps.newConcurrentMap();
+
+    private final ByteStore metadataStore;
+
+    private volatile boolean allowUpdates = false;
+
+    private StoreMetadataManagerImpl() {
+      metadataStore = new RocksDBStore(DEFAULT, null /* dropping and creating default is not supported */,
+          db.getDefaultColumnFamily(), db, stripeCount);
+    }
+
+    /**
+     * Creates an entry in the metadata store if the table is not {@code preexisting} or if the table was not
+     * previously added.
+     *
+     * @param storeName store name
+     * @param preexisting preexisting
+     */
+    private void createEntry(String storeName, boolean preexisting) {
+      LOGGER.trace("Creating metastore entry for: '{}' and preexisting: '{}'", storeName, preexisting);
+      final StoreMetadata storeMetadata = new StoreMetadata()
+          .setTableName(storeName);
+
+      if (preexisting) {
+        // this is a old table, and so if there is no history, flag it as -1
+
+        final Optional<StoreMetadata> value = getValue(metadataStore.get(getKey(storeName)));
+        if (!value.isPresent()) {
+          storeMetadata.setLatestTransactionNumber(-1L);
+          metadataStore.put(getKey(storeName), getValue(storeMetadata));
+        } else {
+          LOGGER.trace("Metadata for {} already exists with transaction number {}",
+              value.get().getTableName(), value.get().getLatestTransactionNumber());
+        }
+      } else {
+        // this is a new table, and therefore the value should reflect the latest transaction number
+
+        storeMetadata.setLatestTransactionNumber(getLatestTransactionNumber());
+        assert !metadataStore.contains(getKey(storeName));
+
+        metadataStore.put(getKey(storeName), getValue(storeMetadata));
+      }
+    }
+
+    /**
+     * Block updates to the metadata store.
+     */
+    @VisibleForTesting
+    void blockUpdates() {
+      allowUpdates = false;
+    }
+
+    @Override
+    public void allowUpdates() {
+      allowUpdates = true;
+    }
+
+    @Override
+    public long getLatestTransactionNumber() {
+      return db.getLatestSequenceNumber();
+    }
+
+    @Override
+    public void setLatestTransactionNumber(String storeName, long transactionNumber) {
+      if (!allowUpdates) {
+        return;
+      }
+
+      Optional<Long> lastNumber = Optional.ofNullable(latestTransactionNumbers.get(storeName));
+      if (!lastNumber.isPresent()) {
+        final Optional<StoreMetadata> lastMetadata = getValue(metadataStore.get(getKey(storeName)));
+        lastNumber = lastMetadata.map(StoreMetadata::getLatestTransactionNumber);
+      }
+
+      // Replaying from current transaction number is necessary, but may not be sufficient. However,
+      // replaying from the previous transaction number is sufficient (in fact, more than sufficient sometimes).
+      final long penultimateNumber = lastNumber.orElse(transactionNumber);
+
+      setLatestTransactionNumber(storeName, transactionNumber, penultimateNumber);
+    }
+
+    private void setLatestTransactionNumber(String storeName, long transactionNumber, long penultimateNumber) {
+      final StoreMetadata storeMetadata = new StoreMetadata()
+          .setTableName(storeName)
+          .setLatestTransactionNumber(penultimateNumber);
+
+      latestTransactionNumbers.put(storeName, transactionNumber);
+      LOGGER.trace("Setting {} as transaction number for store '{}'", penultimateNumber, storeName);
+      metadataStore.put(getKey(storeName), getValue(storeMetadata));
+    }
+
+    /**
+     * Get the lowest transaction number across all stores.
+     *
+     * @return lowest transaction number, or {@code -1} if lowest is not found
+     */
+    long getLowestTransactionNumber() {
+      final long[] lowest = {Long.MAX_VALUE};
+      for (Map.Entry<byte[], byte[]> tuple : metadataStore.find()) {
+        final Optional<StoreMetadata> value = getValue(tuple.getValue());
+        value.ifPresent(storeMetadata -> {
+          final long transactionNumber = storeMetadata.getLatestTransactionNumber();
+          if (transactionNumber < lowest[0]) {
+            lowest[0] = transactionNumber;
+          }
+        });
+      }
+
+      if (lowest[0] == Long.MAX_VALUE) {
+        lowest[0] = -1L;
+      }
+      return lowest[0];
+    }
+
+    @VisibleForTesting
+    Long getFromCache(String storeName) {
+      return latestTransactionNumbers.get(storeName);
+    }
+
+    private byte[] getKey(String key) {
+      return StringSerializer.INSTANCE.convert(key);
+    }
+
+    private byte[] getValue(StoreMetadata info) {
+      return valueSerializer.convert(info);
+    }
+
+    private Optional<StoreMetadata> getValue(byte[] info) {
+      return Optional.ofNullable(info).map(valueSerializer::revert);
+    }
   }
 }

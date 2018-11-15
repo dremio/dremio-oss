@@ -82,13 +82,19 @@ public class Mappify {
       Preconditions.checkArgument(args.size() == 1);
       CompleteType type = args.get(0).getCompleteType();
       if(!type.isStruct()){
-        throw UserException.functionError().message("The kvgen function can only be used when operating against maps. The type you were attempting to apply it to was a %s.", type.toString()).build(logger);
+        throw UserException.functionError()
+            .message("The kvgen function can only be used when operating against maps. The type you were attempting to apply it to was a %s.",
+                type.toString())
+            .build(logger);
       }
 
       List<Field> children = type.getChildren();
 
       if(children.isEmpty()){
-        throw UserException.functionError().message("The kvgen function can only be used when operating against maps. The type you were attempting to apply it to was a %s.", type.toString()).build(logger);
+        throw UserException.functionError()
+            .message("The kvgen function can only be used when operating against maps. The type you were attempting to apply it to was a %s.",
+                type.toString())
+            .build(logger);
       }
 
 

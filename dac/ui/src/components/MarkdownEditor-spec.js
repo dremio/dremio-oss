@@ -76,5 +76,42 @@ describe('MarkdownEditor', () => {
     });
   });
 
+  describe('marked', () => {
+    const marked = require('marked');
+
+    const getCleanMarkup = markeup => marked(markeup).replace(/\r\n|\r|\n/g, ''); // remove new lines charactes
+
+    const originalOptions = { ...marked.defaults };
+    afterEach(() => {
+      marked.setOptions(originalOptions);
+    });
+
+    // This functionality was broken by initial version of markedjsOverrides.js. So put tests here
+    // to avoid this in future.
+    it('Table is rendered', () => {
+      const inputString = `| a | b | c | d | e |
+      |---|---|---|---|---|
+      | 1 | 2 | 3 | 4 | 5 |`;
+      const html = '<table><thead><tr><th>a</th><th>b</th><th>c</th><th>d</th><th>e</th></tr></thead><tbody><tr><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td></tr></tbody></table>';
+      expect(getCleanMarkup(inputString)).to.be.equal(html);
+    });
+
+    const listOptionTests = isSmartLists => {
+      // This functionality was broken by initial version of markedjsOverrides.js. So put tests here
+      // to avoid this in future.
+      it(`should render unordered list ${isSmartLists ? 'with' : 'without'} smartList option`, () => {
+        marked.setOptions({
+          smartLists: isSmartLists
+        });
+        const inputString = '* item 1.\n* item 2.';
+        const html = '<ul><li>item 1.</li><li>item 2.</li></ul>';
+        expect(getCleanMarkup(inputString)).to.be.equal(html);
+      });
+    };
+    [true, false].forEach(listOptionTests);
+  });
+
+
+
   // other part is hard to test as it requires mounting of the react-simple-mde, which fails in test environment
 });

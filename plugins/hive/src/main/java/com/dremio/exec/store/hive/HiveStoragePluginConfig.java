@@ -69,10 +69,10 @@ public class HiveStoragePluginConfig extends BaseHiveStoragePluginConfig<HiveSto
         break;
       case SQL:
         // Turn on sql-based authorization
-        hiveConf.set(ConfVars.HIVE_AUTHORIZATION_ENABLED.varname, "true");
-        hiveConf.set(ConfVars.HIVE_AUTHENTICATOR_MANAGER.varname, "org.apache.hadoop.hive.ql.security.ProxyUserAuthenticator");
-        hiveConf.set(ConfVars.HIVE_AUTHORIZATION_MANAGER.varname, "org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdHiveAuthorizerFactory");
-        hiveConf.set(ConfVars.HIVE_SERVER2_ENABLE_DOAS.varname, "false");
+        setConf(hiveConf, ConfVars.HIVE_AUTHORIZATION_ENABLED, true);
+        setConf(hiveConf, ConfVars.HIVE_AUTHENTICATOR_MANAGER, "org.apache.hadoop.hive.ql.security.ProxyUserAuthenticator");
+        setConf(hiveConf, ConfVars.HIVE_AUTHORIZATION_MANAGER, "org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdHiveAuthorizerFactory");
+        setConf(hiveConf, ConfVars.HIVE_SERVER2_ENABLE_DOAS, false);
         break;
       default:
         // Code should not reach here

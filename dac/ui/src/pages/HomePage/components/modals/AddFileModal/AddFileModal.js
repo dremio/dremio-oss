@@ -34,7 +34,6 @@ import {
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import { getHomeContents } from 'selectors/datasets';
 import { getViewState } from 'selectors/resources';
-import { getEntityType } from 'utils/pathUtils';
 import { resetViewState } from 'actions/resources';
 
 import FileFormatForm from '../../forms/FileFormatForm';
@@ -174,8 +173,7 @@ export class AddFileModal extends Component {
 
 function mapStateToProps(state) {
   const pathname = state.routing.locationBeforeTransitions.pathname;
-  const parentType = getEntityType(pathname);
-  const parentEntity = getHomeContents(state, parentType, pathname) || Immutable.Map();
+  const parentEntity = getHomeContents(state, pathname) || Immutable.Map();
   const fileName = state.form.addFile && state.form.addFile.name ? state.form.addFile.name.value : undefined;
   let file;
   if (parentEntity && fileName) {

@@ -709,6 +709,32 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       DEFAULT_BATCH, expected);
   }
 
+  @Test
+  public void hugeBatch() throws Exception {
+    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("a"), f("b"))),
+      JoinRelType.INNER);
+
+    final int batchSize = 65536;
+    final DataRow[] leftRows = new DataRow[batchSize];
+    final DataRow[] rightRows = new DataRow[batchSize];
+    final DataRow[] expectedRows = new DataRow[batchSize];
+    for (int i = 0; i < batchSize; i++) {
+      leftRows[i] = tr((long)i);
+      rightRows[i] = tr((long)i);
+      expectedRows[i] = tr((long)i, (long)i);
+    }
+
+    final Table left = t(th("a"), leftRows);
+    final Table right = t(th("b"), rightRows);
+    final Table expected = t(th("b", "a"), expectedRows);
+
+    validateDual(
+      joinInfo.operator, joinInfo.clazz,
+      left.toGenerator(getTestAllocator()),
+      right.toGenerator(getTestAllocator()),
+      batchSize, expected);
+  }
+
   private static final class ManyColumnsGenerator implements Generator {
     private final int columns;
     private final int rows;

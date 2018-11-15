@@ -105,9 +105,17 @@ public class ElasticConnectionPool implements AutoCloseable {
   //Version 5.3.x or higher
   private static final Version ELASTICSEARCH_VERSION_5_3_X = new Version(5, 3, 0);
 
+  enum TLSValidationMode {
+    STRICT,
+    VERIFY_CA,
+    UNSECURE,
+    OFF
+  }
+
   private volatile ImmutableMap<String, WebTarget> clients;
   private Client client;
   private final List<Host> hosts;
+  private final TLSValidationMode sslMode;
   private final String protocol;
   private final String username;
   private final String password;
@@ -148,12 +156,13 @@ public class ElasticConnectionPool implements AutoCloseable {
 
   public ElasticConnectionPool(
       List<Host> hosts,
-      boolean enableSsl,
+      TLSValidationMode tlsMode,
       String username,
       String password,
       int readTimeoutMillis,
       boolean useWhitelist){
-    this.protocol = enableSsl ? "https" : "http";
+    this.sslMode = tlsMode;
+    this.protocol = tlsMode != TLSValidationMode.OFF ? "https" : "http";
     this.hosts = ImmutableList.copyOf(hosts);
     this.username = username;
     this.password = password;
@@ -168,12 +177,24 @@ public class ElasticConnectionPool implements AutoCloseable {
     ClientConfig configuration = new ClientConfig();
     configuration.property(ClientProperties.READ_TIMEOUT, readTimeoutMillis);
 
-    client = ClientBuilder.newBuilder()
-        .withConfig(configuration)
-        .hostnameVerifier(SSLHelper.newAllValidHostnameVerifier())
-        .sslContext(SSLHelper.newAllTrustingSSLContext("SSL"))
-        .build();
+    ClientBuilder builder = ClientBuilder.newBuilder()
+        .withConfig(configuration);
 
+    switch(sslMode) {
+    case UNSECURE:
+      builder.sslContext(SSLHelper.newAllTrustingSSLContext("SSL"));
+      // fall-through
+    case VERIFY_CA:
+      builder.hostnameVerifier(SSLHelper.newAllValidHostnameVerifier());
+      // fall-through
+    case STRICT:
+      break;
+
+    case OFF:
+      // no TLS/SSL configuration
+    }
+
+    client = builder.build();
     client.register(GZipEncoder.class);
     client.register(DeflateEncoder.class);
     client.register(EncodingFilter.class);

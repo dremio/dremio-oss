@@ -83,7 +83,7 @@ public class DedicatedFragmentRunnable implements Runnable {
 
       @Override
       public int getThread() {
-        return (int) currentThread.getId();
+        return currentThread != null ? (int) currentThread.getId() : -1;
       }
 
       @Override

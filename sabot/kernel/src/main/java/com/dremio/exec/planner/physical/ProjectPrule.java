@@ -116,10 +116,13 @@ public class ProjectPrule extends Prule {
   private RelCollation convertRelCollation(RelCollation src, Map<Integer, Integer> inToOut) {
     List<RelFieldCollation> newFields = Lists.newArrayList();
 
+    // If we find a collation field that doesn't survive in the output, that field and all collations following that
+    // field should be dropped (since sorting by A then B is different than just sorting by B)
     for ( RelFieldCollation field : src.getFieldCollations()) {
-      if (inToOut.containsKey(field.getFieldIndex())) {
-        newFields.add(new RelFieldCollation(inToOut.get(field.getFieldIndex()), field.getDirection(), field.nullDirection));
+      if (!inToOut.containsKey(field.getFieldIndex())) {
+        break;
       }
+      newFields.add(new RelFieldCollation(inToOut.get(field.getFieldIndex()), field.getDirection(), field.nullDirection));
     }
 
     if (newFields.isEmpty()) {

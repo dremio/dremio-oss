@@ -83,14 +83,17 @@ export default class VirtualizedTableViewer extends Component {
     this.lastSpeed = speed;
   }
 
-  renderHeader = ({ dataKey, sortBy, sortDirection }, style) => {
+  renderHeader = ({ label, dataKey, sortBy, sortDirection }, style, infoContent) => {
     const isSorted = sortBy === dataKey;
     const headerClassName = isSorted ? classNames({
       'sort-asc': sortDirection === SortDirection.ASC,
       'sort-desc': sortDirection === SortDirection.DESC
     }) : '';
     return (
-      <div className={headerClassName} style={style}>{dataKey}</div>
+      <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+        <div className={headerClassName} style={style}>{ label === undefined ? dataKey : label} </div>
+        {infoContent}
+      </span>
     );
   }
 
@@ -145,11 +148,12 @@ export default class VirtualizedTableViewer extends Component {
               >
                 {columns.map((item) =>
                   <Column
-                    key={item.title}
+                    key={item.key}
                     dataKey={item.key}
                     className={item.className}
+                    label={item.label}
                     style={item.style}
-                    headerRenderer={(options) => this.renderHeader(options, item.style)}
+                    headerRenderer={(options) => this.renderHeader(options, item.style, item.infoContent)}
                     width={item.width || 100}
                     flexGrow={item.flexGrow}
                     disableSort={item.disableSort}

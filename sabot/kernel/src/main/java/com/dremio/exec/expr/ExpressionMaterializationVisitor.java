@@ -21,10 +21,8 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
-import java.util.Set;
 
 import org.apache.arrow.vector.complex.FieldIdUtil2;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
@@ -210,18 +208,6 @@ class ExpressionMaterializationVisitor
     }
 
     return matchedFuncHolder.getExpr(call.getName(), argsWithCast);
-
-
-  }
-  private static final Set<String> UNION_FUNCTIONS;
-
-  static {
-    UNION_FUNCTIONS = new HashSet<>();
-    for (MinorType t : MinorType.values()) {
-      UNION_FUNCTIONS.add("assert_" + t.name().toLowerCase());
-      UNION_FUNCTIONS.add("is_" + t.name().toLowerCase());
-    }
-    UNION_FUNCTIONS.add("typeof");
   }
 
   private boolean hasUnionInput(FunctionCall call) {
@@ -344,6 +330,7 @@ class ExpressionMaterializationVisitor
     if (type == MinorType.LIST || type == MinorType.STRUCT) {
       return getExceptionFunction(String.format("Unable to convert given types. Operation unsupported for %s types", type));
     }
+    // TODO(DX-13724): not all "assert_..." functions are available
     String castFuncName = String.format("assert_%s", type.toString());
     Collections.singletonList(arg);
     return new FunctionCall(castFuncName, Collections.singletonList(arg));
@@ -357,6 +344,7 @@ class ExpressionMaterializationVisitor
    * @return
    */
   private LogicalExpression getIsTypeExpressionForType(MinorType type, LogicalExpression arg) {
+    // TODO(DX-13724): not all "is_..." functions are available
     String isFuncName = String.format("is_%s", type.toString());
     List<LogicalExpression> args = Lists.newArrayList();
     args.add(arg);

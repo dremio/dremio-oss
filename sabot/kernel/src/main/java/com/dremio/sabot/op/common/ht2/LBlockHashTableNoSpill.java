@@ -62,7 +62,7 @@ public final class LBlockHashTableNoSpill implements AutoCloseable {
 
 
   private final HashConfigWrapper config;
-  private final ResizeListener listener;
+  private final ResizeListenerNoSpill listener;
 
   private final PivotDef pivot;
   private final int defaultVariableLengthSize;
@@ -92,7 +92,7 @@ public final class LBlockHashTableNoSpill implements AutoCloseable {
   private ArrowBuf traceBuf;
   private long traceBufNext;
 
-  public LBlockHashTableNoSpill(HashConfig config, PivotDef pivot, BufferAllocator allocator, int initialSize, int defaultVariableLengthSize, ResizeListener listener) {
+  public LBlockHashTableNoSpill(HashConfig config, PivotDef pivot, BufferAllocator allocator, int initialSize, int defaultVariableLengthSize, ResizeListenerNoSpill listener) {
     this.pivot = pivot;
     this.allocator = allocator;
     this.config = new HashConfigWrapper(config);
@@ -311,7 +311,7 @@ public final class LBlockHashTableNoSpill implements AutoCloseable {
   private void addDataBlocks(){
 
     // make sure can fit the next batch.
-    listener.addBatch();
+    listener.resized(currentOrdinal + MAX_VALUES_PER_BATCH);
 
     try(RollbackCloseable rollbackable = new RollbackCloseable()) {
 

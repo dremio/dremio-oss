@@ -737,6 +737,13 @@ public class TestParquetWriter extends BaseTestQuery {
 
   @Test
   public void testFileSize() throws Exception {
+    final Path tmpSchemaPath = new Path(getDfsTestTmpSchemaLocation());
+    final Path targetPath = new Path(tmpSchemaPath, "testFileSize");
+
+    final Configuration hadoopConf = new Configuration();
+    final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
+    assertTrue(newFs.mkdirs(targetPath));
+
     final BufferAllocator ALLOCATOR = new RootAllocator(Long.MAX_VALUE);
 
     OptionManager optionManager = mock(OptionManager.class);
@@ -753,9 +760,8 @@ public class TestParquetWriter extends BaseTestQuery {
     when(opContext.getStats()).thenReturn(operatorStats);
 
     ParquetWriter writerConf = mock(ParquetWriter.class);
-    Configuration hadoopConf = new Configuration();
     when(writerConf.getFsConf()).thenReturn(hadoopConf);
-    when(writerConf.getLocation()).thenReturn(getDfsTestTmpSchemaLocation());
+    when(writerConf.getLocation()).thenReturn(targetPath.toUri().toString());
     when(writerConf.getUserName()).thenReturn("testuser");
 
     ParquetRecordWriter writer = new ParquetRecordWriter(opContext, writerConf, new ParquetFormatConfig());
@@ -787,9 +793,7 @@ public class TestParquetWriter extends BaseTestQuery {
 
     verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(), fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(), partitionCaptor.capture());
 
-    Path path = new Path(getDfsTestTmpSchemaLocation());
-    FileSystem newFs = path.getFileSystem(hadoopConf);
-    for (FileStatus file : newFs.listStatus(path)) {
+    for (FileStatus file : newFs.listStatus(targetPath)) {
       if (file.getPath().toString().endsWith(".parquet")) { //complex243_json is in here for some reason?
         assertEquals(Long.valueOf(fileSizeCaptor.getValue()), Long.valueOf(file.getLen()));
         break;
@@ -802,6 +806,13 @@ public class TestParquetWriter extends BaseTestQuery {
 
   @Test
   public void testOutOfMemory() throws Exception {
+    final Path tmpSchemaPath = new Path(getDfsTestTmpSchemaLocation());
+    final Path targetPath = new Path(tmpSchemaPath, "testOutOfMemory");
+
+    final Configuration hadoopConf = new Configuration();
+    final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
+    assertTrue(newFs.mkdirs(targetPath));
+
     final BufferAllocator ALLOCATOR = new RootAllocator(128);
 
     OptionManager optionManager = mock(OptionManager.class);
@@ -818,20 +829,14 @@ public class TestParquetWriter extends BaseTestQuery {
     when(opContext.getStats()).thenReturn(operatorStats);
 
     ParquetWriter writerConf = mock(ParquetWriter.class);
-    Configuration hadoopConf = new Configuration();
     when(writerConf.getFsConf()).thenReturn(hadoopConf);
-    when(writerConf.getLocation()).thenReturn(getDfsTestTmpSchemaLocation());
+    when(writerConf.getLocation()).thenReturn(targetPath.toUri().toString());
     when(writerConf.getUserName()).thenReturn("testuser");
 
     ParquetRecordWriter writer = new ParquetRecordWriter(opContext, writerConf, new ParquetFormatConfig());
 
     RecordWriter.OutputEntryListener outputEntryListener = mock(RecordWriter.OutputEntryListener.class);
     RecordWriter.WriteStatsListener writeStatsListener = mock(RecordWriter.WriteStatsListener.class);
-    ArgumentCaptor<Long> recordWrittenCaptor = ArgumentCaptor.forClass(long.class);
-    ArgumentCaptor<Long> fileSizeCaptor = ArgumentCaptor.forClass(long.class);
-    ArgumentCaptor<String> pathCaptor = ArgumentCaptor.forClass(String.class);
-    ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
-    ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
 
     BigIntVector bigIntVector = new BigIntVector("key", ALLOCATOR);
     bigIntVector.allocateNew(2);
@@ -918,12 +923,14 @@ public class TestParquetWriter extends BaseTestQuery {
     if ((!dir.exists() && !dir.mkdirs()) || (dir.exists() && !dir.isDirectory())) {
       throw new RuntimeException("can't create dir " + dir);
     }
+    // CAUTION: There's no ordering guarantee about which file will be read first
+    // so make sure that each file has an incompatible schema compared to the other one.
     File input1 = new File(dir, "1.json");
     File input2 = new File(dir, "2.json");
     try (FileWriter fw = new FileWriter(input1)) {
       fw.append("{\"a\":\"foo\"}\n");
       fw.append("{\"a\":\"bar\"}\n");
-      fw.append("{\"a\":\"baz\"}\n");
+      fw.append("{\"a\":\"baz\", \"c\": \"foz\"}\n");
     }
     try (FileWriter fw = new FileWriter(input2)) {
       fw.append("{\"b\":\"foo\"}\n");

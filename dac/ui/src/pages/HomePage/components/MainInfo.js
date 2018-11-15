@@ -35,6 +35,8 @@ import FontIcon from 'components/Icon/FontIcon';
 import { ENTITY_TYPES } from 'constants/Constants';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 import Art from '@app/components/Art';
+import { WikiButton } from '@app/pages/HomePage/components/WikiButton';
+import { TagsAlert } from '@app/pages/HomePage/components/TagsAlert';
 
 import { tableStyles } from '../tableStyles';
 import BrowseTable from './BrowseTable';
@@ -229,11 +231,14 @@ export class MainInfoView extends Component {
   getTableColumns() {
     const { intl } = this.props;
     return [
-      { key: 'name', title: intl.formatMessage({id: 'Common.Name'}), flexGrow: 1 },
-      { key: 'jobs', title: intl.formatMessage({id: 'Job.Jobs'}), style: tableStyles.digitColumn, width: 40 },
+      { key: 'name',
+        label: intl.formatMessage({id: 'Common.Name'}),
+        infoContent: <TagsAlert />,
+        flexGrow: 1 },
+      { key: 'jobs', label: intl.formatMessage({id: 'Job.Jobs'}), style: tableStyles.digitColumn, width: 40 },
       {
         key: 'action',
-        title: intl.formatMessage({id: 'Common.Action'}),
+        label: intl.formatMessage({id: 'Common.Action'}),
         style: tableStyles.actionColumn,
         width: 105,
         className: 'row-buttons',
@@ -297,6 +302,7 @@ export class MainInfoView extends Component {
   render() {
     const { entity, viewState } = this.props;
     const { pathname } = this.context.location;
+    const showWiki = entity && !entity.get('fileSystemFolder'); // should be removed when DX-13804 would be fixed
 
     const buttons = entity && <HeaderButtons
       entity={entity}
@@ -305,6 +311,10 @@ export class MainInfoView extends Component {
       toggleVisibility={this.toggleRightTree}
       isWikiShown={this.state.isWikiShown}
       onWiki={this.toggleWikiShow}
+      additionalButton={showWiki && <WikiButton key='wikiButton'
+        isSelected={this.state.isWikiShown}
+        onClick={this.toggleWikiShow}
+      />}
     />;
 
     return (
@@ -313,7 +323,7 @@ export class MainInfoView extends Component {
         buttons={buttons}
         key={pathname} /* trick to clear out the searchbox on navigation */
         columns={this.getTableColumns()}
-        rightSidebar={<WikiView item={entity} />}
+        rightSidebar={showWiki ? <WikiView item={entity} /> : null}
         rightSidebarExpanded={this.state.isWikiShown}
         tableData={this.getTableData()}
         viewState={viewState}

@@ -51,9 +51,6 @@ import com.google.common.collect.Lists;
 public class FunctionRegistry {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionRegistry.class);
 
-  // key: function name (lowercase) value: list of functions with that name
-  private final ArrayListMultimap<String, BaseFunctionHolder> registeredFunctions = ArrayListMultimap.create();
-
   private static final ImmutableMap<String, Pair<Integer, Integer>> funcToRange = ImmutableMap.<String, Pair<Integer, Integer>> builder()
       // CONCAT is allowed to take [1, infinity) number of arguments.
       // Currently, this flexibility is offered by RexToExpr to rewrite it as
@@ -73,6 +70,9 @@ public class FunctionRegistry {
   public static final SqlFunction E_FUNCTION =
     new SqlFunction(new SqlIdentifier("E", SqlParserPos.ZERO), ReturnTypes.DOUBLE,
       null, OperandTypes.NILADIC, null, SqlFunctionCategory.NUMERIC);
+
+  // key: function name (lowercase) value: list of functions with that name
+  private final ArrayListMultimap<String, BaseFunctionHolder> registeredFunctions = ArrayListMultimap.create();
 
   public FunctionRegistry(ScanResult classpathScan) {
     FunctionConverter converter = new FunctionConverter();
@@ -121,6 +121,8 @@ public class FunctionRegistry {
       }
       logger.trace("Registered functions: [\n{}]", allFunctions);
     }
+
+    // TODO(DX-13734): Add validation in FunctionRegistry to ensure required functions are registered
   }
 
   public int size(){

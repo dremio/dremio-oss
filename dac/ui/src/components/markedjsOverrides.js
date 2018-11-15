@@ -30,6 +30,23 @@ marked.setOptions({
 
 /* eslint-disable */ // disable errors, as this is an original source code
 // it is mostly original code without any changes. Search for '[Dremio override]' comment to find altered code
+function splitCells(tableRow, count) {
+  var cells = tableRow.replace(/([^\\])\|/g, '$1 |').split(/ +\| */),
+      i = 0;
+
+  if (cells.length > count) {
+    cells.splice(count);
+  } else {
+    while (cells.length < count) cells.push('');
+  }
+
+  for (; i < cells.length; i++) {
+    cells[i] = cells[i].replace(/\\\|/g, '|');
+  }
+  return cells;
+}
+
+
 marked.Lexer.prototype.token = function(src, top) {
   src = src.replace(/^ +$/gm, '');
   let next,
@@ -204,7 +221,12 @@ marked.Lexer.prototype.token = function(src, top) {
         // Determine whether the next list item belongs here.
         // Backpedal if it does not belong in this list.
         if (this.options.smartLists && i !== l - 1) {
-          b = block.bullet.exec(cap[i + 1])[0];
+          // [Dremio override] DX-12872 --------------------------
+          // Original code used private variable 'block' that is exposed through Lexer.rules
+          b = marked.Lexer.rules.bullet.exec(cap[i + 1])[0]; // here
+          // original code was
+          //b = block.bullet.exec(cap[i + 1])[0];
+          // end of [Dremio override] --------------------------
           if (bull !== b && !(bull.length > 1 && b.length > 1)) {
             src = cap.slice(i + 1).join('\n') + src;
             i = l - 1;

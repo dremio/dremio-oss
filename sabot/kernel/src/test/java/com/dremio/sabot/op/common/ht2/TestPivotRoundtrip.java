@@ -303,6 +303,90 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
   }
 
   @Test
+  public void boolManyKeys() throws Exception {
+    final int count = 1024;
+    for (int keyCount = 1; keyCount < 66; keyCount ++) {
+      try (
+        IntVector intInKey = new IntVector("intInKey", allocator);
+        IntVector intOutKey = new IntVector("intOutKey", allocator);
+        ) {
+        final List<BitVector> inKeys = new ArrayList<>();
+        final List<BitVector> outKeys = new ArrayList<>();
+        final List<FieldVectorPair> probeFields = new ArrayList<>();
+
+        intInKey.allocateNew(count);
+
+        for (int i = 0; i < count; i++) {
+          if (i % 5 == 0) {
+            intInKey.setSafe(i, i);
+          }
+        }
+        intOutKey.setValueCount(count);
+
+        probeFields.add(new FieldVectorPair(intInKey, intOutKey));
+
+        BitVector inKey;
+        BitVector outKey;
+        for (int index = 0; index < keyCount; index++) {
+          inKey = new BitVector("inKey_" + index, allocator);
+          inKey.allocateNew(count);
+          inKeys.add(inKey);
+
+          // Test data:
+          // - in the pivot/unpivot code, we process in groups of 64 bits at a time
+          // - test data will mirror that setup
+          assert (count % WORD_BITS) == 0 : String.format("test data code, below, assumes count is a multiple of %d. Instead count=%d", WORD_BITS, count);
+          for (int i = 0; i < count; i += WORD_BITS) {
+            if ((i / WORD_BITS) % 3 == 0) {
+              // all set: F, T, F, T, F, ...
+              for (int j = 0; j < WORD_BITS; j++) {
+                inKey.set(i + j, (j & 0x01));
+              }
+            } else if ((i / WORD_BITS) % 3 == 1) {
+              // every 3rd one set: 0, 3, 6, ..., to F, T, F, T, F, ...
+              for (int j = 0; j < WORD_BITS; j++) {
+                if (j % 3 == 0) {
+                  inKey.set(i + j, (j & 0x01));
+                }
+              }
+            } else {
+              // all blank: no-op
+            }
+          }
+          inKey.setValueCount(count);
+
+          outKey = new BitVector("outKey_" + index, allocator);
+          outKeys.add(outKey);
+          probeFields.add(new FieldVectorPair(inKey, outKey));
+        }
+
+        final PivotDef pivot = PivotBuilder.getBlockDefinition(probeFields);
+        try (
+          final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
+          final VariableBlockVector vbv = new VariableBlockVector(allocator, pivot.getVariableCount());
+        ) {
+          fbv.ensureAvailableBlocks(count);
+          Pivots.pivot(pivot, count, fbv, vbv);
+
+          Unpivots.unpivot(pivot, fbv, vbv, 0, count);
+
+          for (int i = 0; i < count; i++) {
+            for (int j = 0; j < keyCount; j++) {
+              assertEquals(inKeys.get(j).getObject(i), outKeys.get(j).getObject(i));
+            }
+            assertEquals(intInKey.getObject(i), intOutKey.getObject(i));
+          }
+        }
+
+        for (int i = 0; i < keyCount; i++) {
+          inKeys.get(i).close();
+          outKeys.get(i).close();
+        }
+      }
+    }
+  }
+
+  @Test
   public void boolNullEveryOther() throws Exception {
     final int count = 1024;
     try (

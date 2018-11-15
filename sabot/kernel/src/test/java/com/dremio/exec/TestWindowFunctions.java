@@ -15,6 +15,7 @@
  */
 package com.dremio.exec;
 
+import org.joda.time.LocalDateTime;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -23,6 +24,7 @@ import com.dremio.PlanTestBase;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.foreman.UnsupportedFunctionException;
@@ -983,6 +985,39 @@ public class TestWindowFunctions extends BaseTestQuery {
       test(query);
     } catch(UserException ex) {
       assert(ex.getMessage().contains("Expression 'l_partkey' is not being grouped"));
+    }
+  }
+
+  @Test
+  public void testWindowAndStreamingAgg() throws Exception {
+    String query = "select data_date as col1, sum(score1) as col2, sum(scorelag) as col3 \n" +
+      "from \n" +
+      "(\n" +
+      "\tselect \n" +
+      "\t  id, \n" +
+      "\t  data_date, \n" +
+      "\t  score1, \n" +
+      "\t  lag(score1) over (partition by id order by data_date) as scorelag \n" +
+      "\tfrom (\n" +
+      "      SELECT x as id, cast(y as bigint) as score1, cast(z as date) as data_date\n" +
+      "      FROM (values ('test1', 10, '2018-01-01'), ('test1', 20, '2018-02-01'), ('test1', 30, '2018-03-01'), ('test2', 10, '2018-01-01'), ('test2', 20, '2018-02-01'), ('test2', 30, '2018-03-01')) as tbl(x, y, z)\n" +
+      "    )\n" +
+      ") a \n" +
+      "group by data_date \n" +
+      "order by data_date\n";
+
+    try(
+      AutoCloseable ignored = withOption(PlannerSettings.HASHAGG, false);
+    ) {
+      testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("col1", "col2", "col3")
+        .baselineValues(new LocalDateTime(2018, 1, 01, 0, 0), 20L, null)
+        .baselineValues(new LocalDateTime(2018, 2, 01, 0, 0), 40L, 20L)
+        .baselineValues(new LocalDateTime(2018, 3, 01, 0, 0), 60L, 40L)
+        .build()
+        .run();
     }
   }
 }

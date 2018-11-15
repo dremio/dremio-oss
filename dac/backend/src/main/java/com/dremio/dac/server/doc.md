@@ -1564,6 +1564,7 @@
 ```
 { /** Folder **/
   contents: {
+    canTagsBeSkipped: true | false,
     datasets: [
       {
         datasetConfig: {
@@ -2581,6 +2582,7 @@
   config: {
   },
   contents: { /** NamespaceTree **/
+    canTagsBeSkipped: true | false,
     datasets: [
       {
         datasetConfig: {
@@ -2921,6 +2923,7 @@
       config: {
       },
       contents: { /** NamespaceTree **/
+        canTagsBeSkipped: true | false,
         datasets: [
           {
             datasetConfig: {
@@ -3256,6 +3259,7 @@
 ```
 {
   contents: { /** NamespaceTree **/
+    canTagsBeSkipped: true | false,
     datasets: [
       {
         datasetConfig: {
@@ -3578,6 +3582,7 @@
 ```
 {
   contents: { /** NamespaceTree **/
+    canTagsBeSkipped: true | false,
     datasets: [
       {
         datasetConfig: {
@@ -3890,6 +3895,7 @@
   spaces: [
     {
       contents: { /** NamespaceTree **/
+        canTagsBeSkipped: true | false,
         datasets: [
           {
             datasetConfig: {

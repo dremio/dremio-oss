@@ -56,11 +56,11 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
    * and remainderLinkOffset is the next link record that should be processed.
    */
   private int remainderLinkBatch = -1;
-  private short remainderLinkOffset = -1;
+  private int remainderLinkOffset = -1;
 
   private int nextProbeIndex = 0;
   private int remainderBuildLinkBatch = -1;
-  private short remainderBuildLinkOffset = -1;
+  private int remainderBuildLinkOffset = -1;
 
   private ArrowBuf[] links;
   private ArrowBuf[] starts;
@@ -125,7 +125,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
     int remainderOrdinalBatchIndex = this.remainderOrdinalBatchIndex;
     int currentClearOrdinalOffset = remainderOrdinalOffset;
     int currentLinkBatch = remainderLinkBatch;
-    short currentLinkOffset = remainderLinkOffset;
+    int currentLinkOffset = remainderLinkOffset;
 
     BitSet currentBitset = remainderOrdinalBatchIndex < 0 ? null : keyMatches[remainderOrdinalBatchIndex];
 
@@ -169,7 +169,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
             startIndex = starts[remainderOrdinalBatchIndex];
             long linkMemAddr = startIndex.memoryAddress() + currentClearOrdinalOffset * HashTable.BUILD_RECORD_LINK_SIZE;
             currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
-            currentLinkOffset = PlatformDependent.getShort(linkMemAddr + 4);
+            currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + 4));
           }
           while ((currentLinkBatch != -1) && (outputRecords < targetRecordsPerBatch)) {
             int composite = (currentLinkBatch << SHIFT_SIZE) | (currentLinkOffset & HashTable.BATCH_MASK);
@@ -178,7 +178,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
 
             long linkMemAddr = links[currentLinkBatch].memoryAddress() + currentLinkOffset * BUILD_RECORD_LINK_SIZE;
             currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
-            currentLinkOffset = PlatformDependent.getShort(linkMemAddr + 4);
+            currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + 4));
           }
           if (currentLinkBatch != -1) {
             // More records for current key should be processed.
@@ -223,7 +223,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
     int outputRecords = 0;
     int currentProbeIndex = this.nextProbeIndex;
     int currentLinkBatch = this.remainderBuildLinkBatch;
-    short currentLinkOffset = this.remainderBuildLinkOffset;
+    int currentLinkOffset = this.remainderBuildLinkOffset;
     while (outputRecords < targetRecordsPerBatch && currentProbeIndex < probeMax) {
       final int indexInBuild = hashTable.containsKey(currentProbeIndex, true);
       if (indexInBuild == -1) { // not a matching key.
@@ -241,7 +241,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
             ((indexInBuild) % HashTable.BATCH_SIZE) * BUILD_RECORD_LINK_SIZE;
 
           currentLinkBatch = PlatformDependent.getInt(memStart);
-          currentLinkOffset = PlatformDependent.getShort(memStart + 4);
+          currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(memStart + 4));
 
           /* The key in the build side at indexInBuild has a matching key in the probe side.
            * Set the bit corresponding to this index so if we are doing a FULL or RIGHT join
@@ -258,7 +258,7 @@ public abstract class HashJoinProbeTemplate implements HashJoinProbe {
 
           long linkMemAddr = links[currentLinkBatch].memoryAddress() + currentLinkOffset * BUILD_RECORD_LINK_SIZE;
           currentLinkBatch = PlatformDependent.getInt(linkMemAddr);
-          currentLinkOffset = PlatformDependent.getShort(linkMemAddr + 4);
+          currentLinkOffset = Short.toUnsignedInt(PlatformDependent.getShort(linkMemAddr + 4));
         }
         if (currentLinkBatch != -1) {
           // More records for current key should be processed.

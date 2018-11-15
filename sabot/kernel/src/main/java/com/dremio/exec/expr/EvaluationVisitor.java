@@ -28,6 +28,7 @@ import java.util.Stack;
 
 import org.apache.arrow.vector.ValueHolderHelper;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.complex.writer.FieldWriter;
 
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CastExpression;
@@ -230,13 +231,55 @@ public class EvaluationVisitor {
     public HoldingContainer visitIfExpression(IfExpression ifExpr, ClassGenerator<?> generator) throws RuntimeException {
       JBlock local = generator.getEvalBlock();
 
-      HoldingContainer output = generator.declare(ifExpr.getCompleteType());
-
       JBlock conditionalBlock = new JBlock(false, false);
       IfCondition c = ifExpr.ifCondition;
 
       HoldingContainer holdingContainer = c.condition.accept(this, generator);
-      final JConditional jc = conditionalBlock._if(holdingContainer.getIsSet().eq(JExpr.lit(1)).cand(holdingContainer.getValue().eq(JExpr.lit(1))));
+
+      if (ifExpr.getCompleteType().isComplex() || ifExpr.getCompleteType().isUnion()) {
+        JVar complexOutput = generator.declareClassField("inputReader", generator.getModel()._ref(FieldReader.class));
+
+        final JConditional jc = conditionalBlock._if(holdingContainer.getIsSet().eq(JExpr.lit(1))
+            .cand(holdingContainer.getValue().eq(JExpr.lit(1))));
+        generator.nestEvalBlock(jc._then());
+        HoldingContainer thenExpr = c.expression.accept(this, generator);
+        generator.unNestEvalBlock();
+
+        if (thenExpr.isConstant()) {
+          JClass nrClass = generator.getModel().ref(org.apache.arrow.vector.complex.impl.NullReader.class);
+          JExpression nullReader = nrClass.staticRef("INSTANCE");
+          jc._then().assign(complexOutput, nullReader);
+        } else {
+          final CompleteType fieldType = thenExpr.getCompleteType();
+          final JExpression fieldReader = fieldType.isUnion()
+              ? thenExpr.getHolder().ref("reader") : thenExpr.getHolder();
+          jc._then().assign(complexOutput, fieldReader);
+        }
+
+        generator.nestEvalBlock(jc._else());
+        HoldingContainer elseExpr = ifExpr.elseExpression.accept(this, generator);
+        generator.unNestEvalBlock();
+
+        if (elseExpr.isConstant()) {
+          JClass nrClass = generator.getModel().ref(org.apache.arrow.vector.complex.impl.NullReader.class);
+          JExpression nullReader = nrClass.staticRef("INSTANCE");
+          jc._else().assign(complexOutput, nullReader);
+        } else {
+          final CompleteType fieldType = elseExpr.getCompleteType();
+          final JExpression fieldReader = fieldType.isUnion()
+              ? elseExpr.getHolder().ref("reader") : elseExpr.getHolder();
+          jc._else().assign(complexOutput, fieldReader);
+        }
+
+        HoldingContainer out = new HoldingContainer(ifExpr.getCompleteType(), complexOutput, null, null, false, true);
+        local.add(conditionalBlock);
+        return out;
+      }
+
+      HoldingContainer output = generator.declare(ifExpr.getCompleteType());
+
+      final JConditional jc = conditionalBlock._if(holdingContainer.getIsSet().eq(JExpr.lit(1))
+          .cand(holdingContainer.getValue().eq(JExpr.lit(1))));
 
       generator.nestEvalBlock(jc._then());
 
@@ -247,8 +290,6 @@ public class EvaluationVisitor {
       JConditional newCond = jc._then()._if(thenExpr.getIsSet().ne(JExpr.lit(0)));
       JBlock b = newCond._then();
       b.assign(output.getHolder(), thenExpr.getHolder());
-//        b.assign(output.getIsSet(), thenExpr.getIsSet());
-//        b.assign(output.getValue(), thenExpr.getValue());
 
       generator.nestEvalBlock(jc._else());
 
@@ -438,11 +479,24 @@ public class EvaluationVisitor {
                 TypeHelper.getWriterImpl(getArrowMinorType(inputContainer.getCompleteType().toMinorType())));
         JType writerIFace = generator.getModel()._ref(
             TypeHelper.getWriterInterface(getArrowMinorType(inputContainer.getCompleteType().toMinorType())));
+
         JVar writer = generator.declareClassField("writer", writerIFace);
         generator.getSetupBlock().assign(writer, JExpr._new(writerImpl).arg(vv));
         generator.getEvalBlock().add(writer.invoke("setPosition").arg(outIndex));
-        String copyMethod = inputContainer.isSingularRepeated() ? "copyAsValueSingle" : "copyAsValue";
-        generator.getEvalBlock().add(inputContainer.getHolder().invoke(copyMethod).arg(writer));
+
+        if (child.getCompleteType().isUnion() || child.getCompleteType().isComplex()) {
+          final JClass complexCopierClass = generator.getModel()
+              .ref(org.apache.arrow.vector.complex.impl.ComplexCopier.class);
+          final JExpression castedWriter = JExpr.cast(generator.getModel().ref(FieldWriter.class), writer);
+          generator.getEvalBlock()
+              .add(complexCopierClass.staticInvoke("copy")
+                  .arg(inputContainer.getHolder())
+                  .arg(castedWriter));
+        } else {
+          String copyMethod = inputContainer.isSingularRepeated() ? "copyAsValueSingle" : "copyAsValue";
+          generator.getEvalBlock().add(inputContainer.getHolder().invoke(copyMethod).arg(writer));
+        }
+
         if (e.isSafe()) {
           HoldingContainer outputContainer = generator.declare(CompleteType.BIT);
           generator.getEvalBlock().assign(outputContainer.getValue(), JExpr.lit(1));
@@ -549,23 +603,13 @@ public class EvaluationVisitor {
         }
 
         if (complex) {
-          CompleteType finalType = e.getFieldId().getFinalType();
-          // //
           JVar complexReader = generator.declareClassField("reader", generator.getModel()._ref(FieldReader.class));
 
           if (isNullReaderLikely) {
             JConditional jc = generator.getEvalBlock()._if(isNull.eq(JExpr.lit(0)));
 
             JClass nrClass = generator.getModel().ref(org.apache.arrow.vector.complex.impl.NullReader.class);
-            JExpression nullReader;
-            if (complex) {
-              nullReader = nrClass.staticRef("EMPTY_STRUCT_INSTANCE");
-//            } else if (repeated) {
-//              nullReader = nrClass.staticRef("EMPTY_LIST_INSTANCE");
-            } else {
-              nullReader = nrClass.staticRef("CALCITE_INSTANCE");
-            }
-
+            JExpression nullReader = nrClass.staticRef("INSTANCE");
 
             jc._then().assign(complexReader, expr);
             jc._else().assign(complexReader, nullReader);

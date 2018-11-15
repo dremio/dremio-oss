@@ -15,6 +15,7 @@
  */
 import { createSelector } from 'reselect';
 import Immutable from 'immutable';
+import { getEntityType } from '@app/utils/pathUtils';
 
 import { HOME_SPACE_NAME, RECENT_SPACE_NAME } from 'constants/Constants';
 
@@ -229,19 +230,30 @@ export const getAllDatasets = createSelector(
   }
 );
 
-// todo: why is this called getHomeContents - seems to do way more than "home"?
-// todo: simplify this
-// The only remaining places this is used are in AddFileModal, and AddFolderModal,
-// which are not actually using it to get "HomeContents".
-// They are just using it to get the parent entity (folder/space/source/home).
-export function getHomeContents(state, entityType, urlPath) {
-  const {entities} = state.resources;
+export const getHomePageEntity = (state, urlPath) => {
+  const { entities } = state.resources;
+  const entityType = getEntityType(urlPath);
   const userName = getUserName(state);
   const finalUrlPath = urlPath === '/' ? `/home/%40${encodeURIComponent(userName)}` : urlPath;
   const entity = entities.get(entityType).find(e => e.getIn(['links', 'self']) === finalUrlPath); // todo: safe for all types?
   if (!entity) {
     return;
   }
+  return entity;
+};
+
+// todo: why is this called getHomeContents - seems to do way more than "home"?
+// todo: simplify this
+// The only remaining places this is used are in AddFileModal, and AddFolderModal,
+// which are not actually using it to get "HomeContents".
+// They are just using it to get the parent entity (folder/space/source/home).
+export function getHomeContents(state, urlPath) {
+  const entity = getHomePageEntity(state, urlPath);
+
+  if (!entity) {
+    return;
+  }
+
   return entity.set('contents', denormalizeHomeContents(state, entity.get('contents')));
 }
 

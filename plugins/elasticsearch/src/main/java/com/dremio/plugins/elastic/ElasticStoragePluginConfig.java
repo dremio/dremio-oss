@@ -27,20 +27,17 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AuthenticationType;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
+import com.dremio.exec.catalog.conf.EncryptionValidationMode;
 import com.dremio.exec.catalog.conf.Host;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 
-import io.protostuff.Schema;
 import io.protostuff.Tag;
-import io.protostuff.runtime.RuntimeSchema;
 
 @SourceType(value = "ELASTIC", label = "Elasticsearch")
 public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePluginConfig, ElasticsearchStoragePlugin> {
-
-  private static final Schema<ElasticStoragePluginConfig> SCHEMA = RuntimeSchema.getSchema(ElasticStoragePluginConfig.class);
 
   //  repeated Host host = 1; // default port should be 9200
   //  optional string username = 2;
@@ -56,6 +53,8 @@ public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePlu
   //  optional bool useWhitelist = 12 [default = false];
   //  optional int32 scrollSize = 13 [default = 4000];
   //  optional bool allowPushdownOnNormalizedOrAnalyzedFields = 14 [default = false];
+  //  optional int32 warnOnRowCountMismatch = 15 [ default = false];
+  //  optional EncryptionVerificationMode sslMode = 16;
 
   @NotEmpty
   @Tag(1)
@@ -125,7 +124,19 @@ public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePlu
   @DisplayMetadata(label = "If the number of records returned from Elasticsearch is less than the expected number, warn instead of failing the query")
   public boolean warnOnRowCountMismatch = false;
 
+  @Tag(16)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Validation Mode") // Should be under Encryption section
+  public EncryptionValidationMode encryptionValidationMode = EncryptionValidationMode.CERTIFICATE_AND_HOSTNAME_VALIDATION;
+
   public ElasticStoragePluginConfig() {
+  }
+
+  public static ElasticStoragePluginConfig newMessage() {
+    final ElasticStoragePluginConfig result = new ElasticStoragePluginConfig();
+    // Reset fields
+    result.encryptionValidationMode = null;
+    return result;
   }
 
   public ElasticStoragePluginConfig(
@@ -143,7 +154,8 @@ public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePlu
       boolean useWhitelist,
       int scrollSize,
       boolean allowPushdownOnNormalizedOrAnalyzedFields,
-      boolean warnOnRowCountMismatch) {
+      boolean warnOnRowCountMismatch,
+      EncryptionValidationMode encryptionValidationMode) {
     this.hostList = hostList;
     this.username = username;
     this.password = password;
@@ -159,6 +171,7 @@ public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePlu
     this.scrollSize = scrollSize;
     this.allowPushdownOnNormalizedOrAnalyzedFields = allowPushdownOnNormalizedOrAnalyzedFields;
     this.warnOnRowCountMismatch = warnOnRowCountMismatch;
+    this.encryptionValidationMode = encryptionValidationMode;
   }
 
   public String getReadTimeoutFormatted() {

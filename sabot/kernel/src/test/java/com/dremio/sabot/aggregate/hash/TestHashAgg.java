@@ -26,7 +26,7 @@ import java.util.List;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.BitVectorHelper;
-import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperatorNoSpill;
+import com.dremio.sabot.op.aggregate.vectorized.nospill.VectorizedHashAggOperatorNoSpill;
 import org.junit.Ignore;
 import org.junit.Test;
 

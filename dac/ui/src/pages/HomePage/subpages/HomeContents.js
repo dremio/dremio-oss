@@ -106,7 +106,7 @@ function mapStateToProps(state, props) {
 
   return {
     rightTreeVisible: state.ui.get('rightTreeVisible'),
-    entity: getHomeContents(state, entityType, location.pathname),
+    entity: getHomeContents(state, location.pathname),
     entityType,
     viewState: getViewState(state, VIEW_ID)
   };

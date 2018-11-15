@@ -15,7 +15,9 @@
  */
 package com.dremio.exec.store.hive;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -35,7 +37,7 @@ import io.protostuff.Tag;
  */
 public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>, P extends StoragePlugin> extends ConnectionConf<T, P>{
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseHiveStoragePluginConfig.class);
-
+  private static final String DREMIO_SOURCE_CONFIGURATION_SOURCE = "Dremio source configuration";
   /*
    * Hostname where Hive metastore server is running
    */
@@ -77,29 +79,32 @@ public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>
     final HiveConf hiveConf = new HiveConf();
 
     final String metastoreURI = String.format("thrift://%s:%d", Preconditions.checkNotNull(config.hostname, "Hive hostname must be provided."), config.port);
-    hiveConf.set(HiveConf.ConfVars.METASTOREURIS.varname, metastoreURI);
+    setConf(hiveConf, HiveConf.ConfVars.METASTOREURIS, metastoreURI);
 
     if (config.enableSasl) {
-      hiveConf.set(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL.varname, "true");
+      setConf(hiveConf, HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL, true);
       if (config.kerberosPrincipal != null) {
-        hiveConf.set(HiveConf.ConfVars.METASTORE_KERBEROS_PRINCIPAL.varname, config.kerberosPrincipal);
+        setConf(hiveConf, HiveConf.ConfVars.METASTORE_KERBEROS_PRINCIPAL, config.kerberosPrincipal);
       }
     }
 
-    // Check if zero-copy has been set by user
-    boolean useZeroCopyNotSet = true;
+    // Used to capture properties set by user
+    final Set<String> userPropertyNames = new HashSet<>();
     if(config.propertyList != null) {
       for(Property prop : config.propertyList) {
-        useZeroCopyNotSet = useZeroCopyNotSet && !OrcConf.USE_ZEROCOPY.getAttribute().equals(prop.name)
-            && !HiveConf.ConfVars.HIVE_ORC_ZEROCOPY.varname.equals(prop.name);
-        hiveConf.set(prop.name, prop.value);
+        userPropertyNames.add(prop.name);
+        setConf(hiveConf, prop.name, prop.value);
         if(logger.isTraceEnabled()){
           logger.trace("HiveConfig Override {}={}", prop.name, prop.value);
         }
       }
     }
 
-    if (useZeroCopyNotSet) {
+    // Check if zero-copy has been set by user
+    boolean zeroCopySetByUser = userPropertyNames.contains(OrcConf.USE_ZEROCOPY.getAttribute())
+        || userPropertyNames.contains(HiveConf.ConfVars.HIVE_ORC_ZEROCOPY.varname);
+    // Configure zero-copy for ORC reader
+    if (!zeroCopySetByUser) {
       if (VM.isWindowsHost() || VM.isMacOSHost()) {
         logger.debug("MacOS or Windows host detected. Not automatically enabling ORC zero-copy feature");
       } else {
@@ -110,7 +115,7 @@ public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>
           logger.debug("MapRFS detected. Not automatically enabling ORC zero-copy feature");
         } else {
           logger.debug("Linux host detected. Enabling ORC zero-copy feature");
-          hiveConf.setBoolean(HiveConf.ConfVars.HIVE_ORC_ZEROCOPY.varname, true);
+          setConf(hiveConf, HiveConf.ConfVars.HIVE_ORC_ZEROCOPY, true);
         }
       }
     } else {
@@ -121,8 +126,33 @@ public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>
         logger.error("ORC zero-copy feature has been manually disabled. This is not recommended and might cause memory issues");
       }
     }
-    // Configure zero-copy for ORC reader
+
+    // Check if ORC Footer cache has been configured by user
+    boolean orcStripCacheSetByUser = userPropertyNames.contains(HiveConf.ConfVars.HIVE_ORC_CACHE_STRIPE_DETAILS_SIZE.varname);
+    if (orcStripCacheSetByUser) {
+      logger.error("ORC stripe details cache has been manually configured. This is not recommended and might cause memory issues");
+    } else {
+      logger.debug("Disabling ORC stripe details cache.");
+      setConf(hiveConf, HiveConf.ConfVars.HIVE_ORC_CACHE_STRIPE_DETAILS_SIZE, 0);
+    }
 
     return hiveConf;
   }
+
+  protected static void setConf(HiveConf configuration, String name, String value) {
+    configuration.set(name, value, DREMIO_SOURCE_CONFIGURATION_SOURCE);
+  }
+
+  protected static void setConf(HiveConf configuration, HiveConf.ConfVars var, String value) {
+    setConf(configuration, var.varname, value);
+  }
+
+  protected static void setConf(HiveConf configuration, HiveConf.ConfVars var, int value) {
+    setConf(configuration, var.varname, Integer.toString(value));
+  }
+
+  protected static void setConf(HiveConf configuration, HiveConf.ConfVars var, boolean value) {
+    setConf(configuration, var.varname, Boolean.toString(value));
+  }
+
 }

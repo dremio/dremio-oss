@@ -73,11 +73,14 @@ public class NamespaceTree {
   private final List<File> files;
   private final List<PhysicalDataset> physicalDatasets;
 
+  private boolean canTagsBeSkipped;
+
   public NamespaceTree() {
     folders = new ArrayList<>();
     datasets = new ArrayList<>();
     files = new ArrayList<>();
     physicalDatasets = new ArrayList<>();
+    canTagsBeSkipped = false;
   }
 
   // Spaces, home and sources are top level folders hence can never show in children.
@@ -264,5 +267,13 @@ public class NamespaceTree {
 
   public final List<File> getFiles() {
     return files;
+  }
+
+  public boolean getCanTagsBeSkipped() {
+    return canTagsBeSkipped;
+  }
+
+  public void setCanTagsBeSkipped(boolean canTagsBeSkipped) {
+    this.canTagsBeSkipped = canTagsBeSkipped;
   }
 }

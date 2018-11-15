@@ -20,6 +20,7 @@ import static com.dremio.exec.store.hive.HiveUtilities.createSerDe;
 import static com.dremio.exec.store.hive.HiveUtilities.getInputFormatClass;
 import static com.dremio.exec.store.hive.HiveUtilities.getStructOI;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.security.PrivilegedAction;
@@ -29,11 +30,15 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.io.AcidUtils;
 import org.apache.hadoop.hive.ql.io.RCFileInputFormat;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
+import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.hive.serde2.SerDe;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
@@ -52,6 +57,7 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.HivePluginOptions;
+import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.options.OptionManager;
@@ -171,14 +177,10 @@ class ScanWithHiveReader {
     final boolean isPartitioned = config.getPartitionColumns() != null && config.getPartitionColumns().size() > 0;
     final Optional<String> tableInputFormat = HiveReaderProtoUtil.getTableInputFormat(tableAttr);
 
-    final Class<? extends HiveAbstractReader> tableReaderClass =
-        getNativeReaderClass(tableInputFormat, context.getOptions(), hiveConf, false, isTransactional);
-
     Iterable<RecordReader> readers = null;
 
     try {
       final UserGroupInformation currentUGI = UserGroupInformation.getCurrentUser();
-      final Constructor<? extends HiveAbstractReader> tableReaderCtor = getNativeReaderCtor(tableReaderClass);
       readers = FluentIterable.from(config.getSplits()).transform(new Function<DatasetSplit, RecordReader>(){
 
         @Override
@@ -195,6 +197,17 @@ class ScanWithHiveReader {
                 final StructObjectInspector tableOI = getStructOI(tableSerDe);
                 final SerDe partitionSerDe;
                 final StructObjectInspector partitionOI;
+
+                boolean hasDeltas = false;
+                if (isTransactional) {
+                  OrcSplit orcSplit = (OrcSplit) HiveUtilities.deserializeInputSplit(splitAttr.getInputSplit());
+                  hasDeltas = hasDeltas(orcSplit);
+                }
+
+                final Class<? extends HiveAbstractReader> tableReaderClass =
+                  getNativeReaderClass(tableInputFormat, context.getOptions(), hiveConf, false, isTransactional && hasDeltas);
+
+                final Constructor<? extends HiveAbstractReader> tableReaderCtor = getNativeReaderCtor(tableReaderClass);
 
                 Constructor<? extends HiveAbstractReader> readerCtor = tableReaderCtor;
                 // It is possible to for a partition to have different input format than table input format.
@@ -217,7 +230,7 @@ class ScanWithHiveReader {
                   final Optional<String> partitionInputFormat =
                       HiveReaderProtoUtil.getPartitionInputFormat(tableAttr, splitAttr.getPartitionId());
                   final boolean mixedSchema = !tableOI.equals(partitionOI);
-                  if (!partitionInputFormat.equals(tableInputFormat) || mixedSchema || isTransactional) {
+                  if (!partitionInputFormat.equals(tableInputFormat) || mixedSchema || isTransactional && hasDeltas) {
                     final Class<? extends HiveAbstractReader> partitionReaderClass = getNativeReaderClass(
                         partitionInputFormat, context.getOptions(), jobConf, mixedSchema, isTransactional);
                     readerCtor = getNativeReaderCtor(partitionReaderClass);
@@ -244,5 +257,24 @@ class ScanWithHiveReader {
       AutoCloseables.close(e, readers);
       throw Throwables.propagate(e);
     }
+  }
+
+  private static boolean hasDeltas(OrcSplit orcSplit) throws IOException {
+    final Path path = orcSplit.getPath();
+    final Path root;
+
+    // If the split has a base, extract the base file size, bucket and root path info.
+    if (orcSplit.hasBase()) {
+      if (orcSplit.isOriginal()) {
+        root = path.getParent();
+      } else {
+        root = path.getParent().getParent();
+      }
+    } else {
+      root = path;
+    }
+
+    final Path[] deltas = AcidUtils.deserializeDeltas(root, orcSplit.getDeltas());
+    return deltas.length > 0;
   }
 }

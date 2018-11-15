@@ -147,26 +147,20 @@ public class Unpivots {
   public static void unpivot(PivotDef pivot, final FixedBlockVector fixedVector,
       final VariableBlockVector variableVector, final int start, final int count){
     final int blockWidth = pivot.getBlockWidth();
-    final int totalBitCount = pivot.getBitCount();
-    int bitCount = pivot.getBitCount();
     for(FieldVector v : pivot.getOutputVectors()){
       AllocationHelper.allocate(v, (count - start), 15);
-    }
-    List<ArrowBuf> bitBufs = new ArrayList<>();
-    for(VectorPivotDef v : pivot.getVectorPivots()){
-      final List<ArrowBuf> buffers = v.getOutgoingVector().getFieldBuffers();
-      bitBufs.add(buffers.get(0));
-      if(v.getType().mode == FieldMode.BIT){
-        bitBufs.add(buffers.get(1));
-      }
     }
     final long fixedAddr = fixedVector.getMemoryAddress();
     final long variableAddr = variableVector.getMemoryAddress();
     final long maxVariableAddr = variableVector.getMaxMemoryAddress();
 
     // unpivots bit arrays
-    for(int i =0; i < bitCount; i++){
-      unpivotBits1(fixedAddr, blockWidth, bitBufs.get(totalBitCount - bitCount + i).memoryAddress(), (i/32), i, start, count);
+    for(VectorPivotDef v : pivot.getVectorPivots()){
+      final List<ArrowBuf> buffers = v.getOutgoingVector().getFieldBuffers();
+      unpivotBits1(fixedAddr, blockWidth, buffers.get(0).memoryAddress(), v.getNullByteOffset(), v.getNullBitOffset(), start, count);
+      if(v.getType().mode == FieldMode.BIT){
+        unpivotBits1(fixedAddr, blockWidth, buffers.get(1).memoryAddress(), v.getNullByteOffset(), v.getNullBitOffset() + 1, start, count);
+      }
     }
 
     // unpivot fixed values.

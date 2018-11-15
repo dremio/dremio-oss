@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import {getUserName} from 'selectors/account';
+import { getHomePageEntity } from 'selectors/datasets';
 import * as fromWiki from '@app/reducers/home/wiki';
 
 const rootSelector = state => state.home;
@@ -42,3 +43,7 @@ export const getWikiValue = (state, entityId) => fromWiki.getWiki(rootSelector(s
 export const getWikiVersion = (state, entityId) => fromWiki.getWikiVersion(rootSelector(state).wiki, entityId);
 export const isWikiLoading = (state, entityId) => fromWiki.isWikiLoading(rootSelector(state).wiki, entityId);
 export const getErrorInfo = (state, entityId) => fromWiki.getErrorInfo(rootSelector(state).wiki, entityId);
+export const getCanTagsBeSkipped = (state, urlPath) => {
+  const entity = getHomePageEntity(state, urlPath);
+  return entity ? entity.getIn(['contents', 'canTagsBeSkipped'], false) : false;
+};

@@ -33,6 +33,7 @@ import org.apache.hadoop.hive.ql.exec.vector.ColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.DecimalColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.DoubleColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.StructColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.TimestampColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
@@ -67,11 +68,12 @@ public class HiveORCCopiers {
    * @return
    */
   public static ORCCopier[] createCopiers(final List<Integer> projectedColOrdinals, final ValueVector[] output,
-      final VectorizedRowBatch input) {
+      final VectorizedRowBatch input, boolean isOriginal) {
     final int numColumns = output.length;
     final ORCCopier[] copiers = new ORCCopier[numColumns];
+    final ColumnVector[] cols = isOriginal ? input.cols : ((StructColumnVector) input.cols[HiveORCVectorizedReader.TRANS_ROW_COLUMN_INDEX]).fields;
     for (int i = 0; i < numColumns; i++) {
-      copiers[i] = createCopier(output[i], input.cols[projectedColOrdinals.get(i)]);
+      copiers[i] = createCopier(output[i], cols[projectedColOrdinals.get(i)]);
     }
 
     return copiers;

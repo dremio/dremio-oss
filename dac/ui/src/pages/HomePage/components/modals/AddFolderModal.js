@@ -81,7 +81,7 @@ function mapStateToProps(state) {
   const parentType = getEntityType(pathname);
 
   return {
-    parentEntity: getHomeContents(state, parentType, pathname) || Immutable.Map(),
+    parentEntity: getHomeContents(state, pathname) || Immutable.Map(),
     parentType,
     viewState: getViewState(state, VIEW_ID)
   };

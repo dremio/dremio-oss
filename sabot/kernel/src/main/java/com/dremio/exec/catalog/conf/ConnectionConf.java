@@ -34,6 +34,7 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
+import com.google.common.base.Defaults;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 
@@ -41,7 +42,6 @@ import io.protostuff.ByteString;
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtobufIOUtil;
 import io.protostuff.Schema;
-import io.protostuff.runtime.RuntimeSchema;
 
 /**
  * Abstract class describing a Source Configuration.
@@ -64,7 +64,7 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
 
   @SuppressWarnings("unchecked")
   protected ConnectionConf() {
-    this.schema = (Schema<T>) RuntimeSchema.getSchema(getClass());
+    this.schema = (Schema<T>) ConnectionSchema.getSchema(getClass());
   }
 
   public void clearSecrets() {
@@ -93,26 +93,11 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
     try {
       for(Field field : this.getClass().getDeclaredFields()) {
         if(predicate.apply(field)) {
-          if(field.getType().equals(int.class)) {
-            field.setInt(this, 0);
-          } else if (field.getType().equals(double.class)) {
-            field.setDouble(this, 0);
-          } else if (field.getType().equals(long.class)) {
-            field.setLong(this, 0);
-          } else if (field.getType().equals(float.class)) {
-            field.setFloat(this, 0);
-          } else if (field.getType().equals(short.class)) {
-            field.setShort(this, (short) 0);
-          } else if (field.getType().equals(byte.class)) {
-            field.setByte(this, (byte) 0);
-          } else if (field.getType().equals(char.class)) {
-            field.setChar(field.getType(), (char) 0);
-          } else if (field.getType().equals(boolean.class)) {
-            field.setBoolean(this, false);
-          } else if (isSecret && field.getType().equals(String.class)) {
+          if (isSecret && field.getType() == String.class) {
             field.set(this, USE_EXISTING_SECRET_VALUE);
           } else {
-            field.set(this, null);
+            Object defaultValue = Defaults.defaultValue(field.getType());
+            field.set(this, defaultValue);
           }
         }
       }

@@ -299,8 +299,9 @@ public class TestFrameworkTest extends BaseTestQuery{
         .baselineColumns("employee_id", "first_name", "last_name")
         .build().run();
     } catch (Exception ex) {
-      assertThat(ex.getMessage(), CoreMatchers.containsString(
-          "at position 0 column '`employee_id`' mismatched values, expected: 12(Integer) but received 12(Long)"));
+      assertThat(ex.getMessage(), CoreMatchers.containsString("at position 0 column '`employee_id`' mismatched values,"));
+      assertThat(ex.getMessage(), CoreMatchers.containsString("expected (Integer)"));
+      assertThat(ex.getMessage(), CoreMatchers.containsString("but received (Long):"));
       // this indicates successful completion of the test
       return;
     }
@@ -317,8 +318,9 @@ public class TestFrameworkTest extends BaseTestQuery{
           .baselineColumns("employee_id", "first_name", "last_name")
           .build().run();
     } catch (Exception ex) {
-      assertThat(ex.getMessage(), CoreMatchers.containsString(
-          "at position 0 column '`employee_id`' mismatched values, expected: 12(String) but received 16(String)"));
+      assertThat(ex.getMessage(), CoreMatchers.containsString("at position 0 column '`employee_id`' mismatched values,"));
+      assertThat(ex.getMessage(), CoreMatchers.containsString("expected (String):"));
+      assertThat(ex.getMessage(), CoreMatchers.containsString("but received (String):"));
       // this indicates successful completion of the test
       return;
     }
@@ -383,9 +385,11 @@ public class TestFrameworkTest extends BaseTestQuery{
           .optionSettingQueriesForBaseline("alter system set \"store.json.all_text_mode\" = true")
           .build().run();
     } catch (Exception ex) {
-      assertThat(ex.getMessage(), CoreMatchers.containsString(
-          "at position 1 column '`field_1`' mismatched values, " +
-          "expected: [\"5\",\"2\",\"3\",\"4\",\"1\",\"2\"](JsonStringArrayList) but received [\"5\"](JsonStringArrayList)"));
+      assertThat(ex.getMessage(), CoreMatchers.containsString("at position 1 column '`field_1`' mismatched values,"));
+      assertThat(ex.getMessage(), CoreMatchers.containsString("expected (JsonStringArrayList):"));
+      assertThat(ex.getMessage(), CoreMatchers.containsString("[\"5\",\"2\",\"3\",\"4\",\"1\",\"2\"]"));
+      assertThat(ex.getMessage(), CoreMatchers.containsString("but received (JsonStringArrayList):"));
+      assertThat(ex.getMessage(), CoreMatchers.containsString("[\"5\"]"));
       // this indicates successful completion of the test
       test("alter system set \"store.json.all_text_mode\" = false");
       return;

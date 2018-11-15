@@ -19,7 +19,6 @@ import { connect } from 'react-redux';
 import Art from 'components/Art';
 import PropTypes from 'prop-types';
 import { withRouter } from 'react-router';
-import { getEntityType } from '@app/utils/pathUtils';
 import SimpleButton from '@app/components/Buttons/SimpleButton';
 import { isWikiPresent } from '@app/selectors/home';
 import { getHomeContents } from '@app/selectors/datasets';
@@ -30,11 +29,9 @@ import {
 } from './WikiButton.less';
 
 const maspStatToProps = (state, {
-  location,
-  isSelected
+  location
 }) => {
-  const entityType = getEntityType(location.pathname);
-  const entityId = getHomeContents(state, entityType, location.pathname).get('id');
+  const entityId = getHomeContents(state, location.pathname).get('id');
   return {
     hasWiki: isWikiPresent(state, entityId)
   };

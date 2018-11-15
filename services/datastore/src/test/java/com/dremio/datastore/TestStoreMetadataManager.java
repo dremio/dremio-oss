@@ -37,8 +37,8 @@ public class TestStoreMetadataManager {
     try (ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
       bsm.start();
 
-      StoreMetadataManager smm = new StoreMetadataManager(bsm);
-      smm.start();
+      ByteStoreManager.StoreMetadataManagerImpl smm =
+          (ByteStoreManager.StoreMetadataManagerImpl) bsm.getMetadataManager();
       smm.allowUpdates();
 
       smm.setLatestTransactionNumber(storeName, 1);
@@ -67,16 +67,16 @@ public class TestStoreMetadataManager {
     try (ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
       bsm.start();
 
-      StoreMetadataManager smm = new StoreMetadataManager(bsm);
-      smm.start();
+      ByteStoreManager.StoreMetadataManagerImpl smm =
+          (ByteStoreManager.StoreMetadataManagerImpl) bsm.getMetadataManager();
 
       smm.setLatestTransactionNumber(storeName, 1);
       assertEquals(null, smm.getFromCache(storeName));
-      assertEquals(Long.MAX_VALUE, smm.getLowestTransactionNumber());
+      assertEquals(-1L, smm.getLowestTransactionNumber());
 
       smm.setLatestTransactionNumber(storeName, 2);
       assertEquals(null, smm.getFromCache(storeName));
-      assertEquals(Long.MAX_VALUE, smm.getLowestTransactionNumber());
+      assertEquals(-1L, smm.getLowestTransactionNumber());
 
       smm.allowUpdates();
 
@@ -98,8 +98,8 @@ public class TestStoreMetadataManager {
     try (ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
       bsm.start();
 
-      StoreMetadataManager smm = new StoreMetadataManager(bsm);
-      smm.start();
+      ByteStoreManager.StoreMetadataManagerImpl smm =
+          (ByteStoreManager.StoreMetadataManagerImpl) bsm.getMetadataManager();
       smm.allowUpdates();
 
       smm.setLatestTransactionNumber(storeName, 1);

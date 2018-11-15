@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugin</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>3.0.0-201810262305460004-5c90d75</version>
+    <version>3.0.1-201811132128360291-804fe82</version>
   </parent>
 
   <artifactId>dremio-hbase-plugin</artifactId>

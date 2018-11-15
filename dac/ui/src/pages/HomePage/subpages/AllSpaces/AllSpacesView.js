@@ -108,11 +108,11 @@ export class AllSpacesView extends Component {
   getTableColumns() {
     const { intl } = this.props;
     return [
-      { key: 'name', title: intl.formatMessage({ id: 'Common.Name' }), flexGrow: 1},
-      { key: 'created', title: intl.formatMessage({ id: 'Common.Created' }) },
+      { key: 'name', label: intl.formatMessage({ id: 'Common.Name' }), flexGrow: 1},
+      { key: 'created', label: intl.formatMessage({ id: 'Common.Created' }) },
       {
         key: 'action',
-        title: intl.formatMessage({ id: 'Common.Action' }),
+        label: intl.formatMessage({ id: 'Common.Action' }),
         style: tableStyles.actionColumn,
         disableSort: true,
         width: 60

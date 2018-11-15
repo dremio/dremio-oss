@@ -484,4 +484,70 @@ public class TestJsonReader extends PlanTestBase {
         .sqlBaselineQuery("SELECT count(id) FROM cp.\"json/map_list_map.json\"")
         .go();
   }
+
+  @Test
+  public void caseStruct1() throws Exception {
+    final String query = "SELECT CASE WHEN t.a.b = 1 THEN t.a ELSE null END AS a FROM cp.\"jsoninput/input4.json\" t";
+
+    testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("a")
+        .baselineValues(mapOf("b", 1L, "c", mapOf("d", 2L)))
+        .build()
+        .run();
+  }
+
+  @Test
+  public void caseStruct2() throws Exception {
+    final String query = "SELECT MAPPIFY(CASE WHEN t.a.b = 1 THEN t.a ELSE null END) AS a" +
+        " FROM cp.\"jsoninput/input4.json\" t";
+
+    testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("a")
+        .baselineValues(listOf(
+            mapOf("key", "b", "value", 1L),
+            mapOf("key", "c", "value", mapOf("d", 2L))))
+        .build()
+        .run();
+  }
+
+  @Test
+  public void caseList1() throws Exception {
+    final String query = "SELECT FLATTEN(CASE WHEN t.z[0].orange = 'yellow' THEN t.rl[0] ELSE t.l END) AS a" +
+        " FROM cp.\"jsoninput/input2.json\" t";
+
+    testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("a")
+        .baselineValues(2L)
+        .baselineValues(1L)
+        .baselineValues(4L)
+        .baselineValues(2L)
+        .baselineValues(4L)
+        .baselineValues(2L)
+        .build()
+        .run();
+  }
+
+
+  @Test
+  public void caseList2() throws Exception {
+    final String query = "SELECT FLATTEN(CASE WHEN t.z[0].orange = 'yellow' THEN null ELSE t.l END) AS a" +
+        " FROM cp.\"jsoninput/input2.json\" t";
+
+    testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("a")
+        .baselineValues(4L)
+        .baselineValues(2L)
+        .baselineValues(4L)
+        .baselineValues(2L)
+        .build()
+        .run();
+  }
 }

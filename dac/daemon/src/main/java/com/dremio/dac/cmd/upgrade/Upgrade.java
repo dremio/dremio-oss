@@ -195,7 +195,8 @@ public class Upgrade {
 
     List<UpgradeTask> tasksToRun = new ArrayList<>();
     for(UpgradeTask task: upgradeTasks) {
-      if (kvStoreVersion.compareTo(task.getMaxVersion()) >= 0) {
+      // Use upgrade comparator and do not rely on Version's one
+      if (UPGRADE_VERSION_ORDERING.compare(kvStoreVersion, task.getMaxVersion()) >= 0) {
         if (verbose) {
           System.out.println("Skipping " + task);
         }

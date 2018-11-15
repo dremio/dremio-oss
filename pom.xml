@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-root</artifactId>
-  <version>3.0.0-201810262305460004-5c90d75</version>
+  <version>3.0.1-201811132128360291-804fe82</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Root</name>
@@ -38,7 +38,7 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.10.0-201810032318010077-96f8a83-dremio</arrow.version>
+    <arrow.version>0.10.0-201810190306530881-d55177b-dremio</arrow.version>
     <avatica.version>1.11.0</avatica.version>
     <calcite.version>1.16.0-201810181505000034-69f03c2</calcite.version>
     <db2jcc.version>4.23.42</db2jcc.version>
@@ -49,7 +49,7 @@
     <!-- Currently Hive storage plugin only supports Apache Hive 1.2 or vendor
       specific variants of the Apache Hive 1.2. If the version is changed, make
       sure the jars and their dependencies are updated. -->
-    <hive.version>2.1.1-dremio-201808171815330521-063f87a</hive.version>
+    <hive.version>2.1.1-dremio-201810292032590942-aae4959</hive.version>
     <hbase.version>1.1.3</hbase.version>
     <hadoop.version>2.8.3</hadoop.version>
     <hsqldb.version>2.3.1</hsqldb.version>
@@ -2582,6 +2582,13 @@ limitations under the License.
         <groupId>net.java.dev.jna</groupId>
         <artifactId>jna-platform</artifactId>
         <version>4.5.0</version>
+      </dependency>
+      <!-- azure-data-lake-store-sdk is used by hadoop-azura in apache hadoop,
+          upgrade it to a new version in which some bugs were fixed-->
+      <dependency>
+        <groupId>com.microsoft.azure</groupId>
+        <artifactId>azure-data-lake-store-sdk</artifactId>
+        <version>2.3.2</version>
       </dependency>
       <dependency>
         <groupId>javax.xml.stream</groupId>

@@ -24,7 +24,6 @@ import config from 'utils/config';
 import Art from 'components/Art';
 import { headerRightPadding } from '@app/uiTheme/radium/allSpacesAndAllSources';
 import { ENTITY_TYPES } from 'constants/Constants';
-import { WikiButton } from '@app/pages/HomePage/components/WikiButton';
 
 import HeaderButtonsMixin from 'dyn-load/pages/HomePage/components/HeaderButtonsMixin';
 
@@ -43,8 +42,7 @@ export class HeaderButtons extends Component {
     user: PropTypes.string,
     rightTreeVisible: PropTypes.bool,
     intl: PropTypes.object.isRequired,
-    onWiki: PropTypes.func,
-    isWikiShown: PropTypes.bool
+    additionalButton: PropTypes.node
   };
 
   static defaultProps = {
@@ -150,8 +148,7 @@ export class HeaderButtons extends Component {
   render() {
     const {
       rootEntityType,
-      isWikiShown,
-      onWiki
+      additionalButton
     } = this.props;
     const buttonsForCurrentPage = this.getButtonsForEntityType(rootEntityType);
 
@@ -159,10 +156,7 @@ export class HeaderButtons extends Component {
     return (
       <span className='main-settings-holder' style={styles.mainSettingsHolder}>
         {buttonsForCurrentPage.map(this.renderButton)}
-        <WikiButton key='wikiButton'
-          isSelected={isWikiShown}
-          onClick={onWiki}
-        />
+        {additionalButton}
       </span>
     );
   }

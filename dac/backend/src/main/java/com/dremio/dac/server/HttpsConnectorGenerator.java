@@ -71,7 +71,8 @@ public class HttpsConnectorGenerator {
     }
 
     KeyStore trustStore = null;
-    if (sslConfig.getTrustStorePath() != null) {
+    //noinspection StringEquality
+    if (sslConfig.getTrustStorePath() != SSLConfig.UNSPECIFIED) {
       trustStore = KeyStore.getInstance(sslConfig.getTrustStoreType());
       try (InputStream stream = Files.newInputStream(Paths.get(sslConfig.getTrustStorePath()))) {
         trustStore.load(stream, sslConfig.getTrustStorePassword().toCharArray());

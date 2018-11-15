@@ -662,8 +662,14 @@ public class DremioTestWrapper {
           + new String((byte[])expected, "UTF-8") + " but received " + new String((byte[])actual, "UTF-8"));
     }
     if (!expected.equals(actual)) {
-      throw new Exception("at position " + counter + " column '" + column + "' mismatched values, expected: "
-          + expected + "(" + expected.getClass().getSimpleName() + ") but received " + actual + "(" + actual.getClass().getSimpleName() + ")");
+      throw new Exception(
+          String.format("at position %d column '%s' mismatched values, \nexpected (%s):\n\n%s\n\nbut received (%s):\n\n%s\n\n" +
+                  "Hints:" +
+                  "\n (1) Results are actually wrong" +
+                  "\n (2) If results 'look right', then check if integer type is 'long' and not 'int' (so 1 is 1L)" +
+                  "\n",
+              counter, column, expected.getClass().getSimpleName(), expected, actual.getClass().getSimpleName(),
+              actual));
     }
     return true;
   }

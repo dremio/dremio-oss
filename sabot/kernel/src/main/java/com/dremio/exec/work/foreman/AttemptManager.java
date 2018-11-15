@@ -548,8 +548,7 @@ public class AttemptManager implements Runnable {
       try {
         command.close();
       } catch (final Exception e) {
-        addException(e);
-        logger.error("Unable to release resources for query: {}", queryId);
+        logger.error("Exception while invoking 'close' on command {}", command, e);
       } finally {
         isClosed = true;
       }

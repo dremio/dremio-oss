@@ -54,6 +54,9 @@ public class ErrorHelper {
    */
   public static AdditionalExceptionContext deserializeAdditionalContext(final ByteString byteString) {
     try {
+      if (byteString == null || byteString.isEmpty()) {
+        return null;
+      }
       return ProtobufByteStringSerDe.readValue(additionalContextMapper.readerFor(AdditionalExceptionContext.class),
           byteString, ProtobufByteStringSerDe.Codec.NONE, logger);
     } catch (IOException ignored) {

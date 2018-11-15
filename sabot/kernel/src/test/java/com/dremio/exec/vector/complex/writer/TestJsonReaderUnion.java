@@ -33,9 +33,11 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.proto.UserBitShared.RecordBatchDef;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
+import com.dremio.test.UserExceptionMatcher;
 
 public class TestJsonReaderUnion extends BaseTestQuery {
 
@@ -126,7 +128,7 @@ public class TestJsonReaderUnion extends BaseTestQuery {
   public void testTypeCase() throws Exception {
     String query = "select case when is_bigint(field1) " +
             "then field1 when is_list(field1) then field1[0] " +
-            "when is_map(field1) then t.field1.inner1 end f1 from cp.\"jsoninput/union/a.json\" t";
+            "when is_struct(field1) then t.field1.inner1 end f1 from cp.\"jsoninput/union/a.json\" t";
 
     testBuilder()
             .sqlQuery(query)
@@ -143,7 +145,7 @@ public class TestJsonReaderUnion extends BaseTestQuery {
   public void testSumWithTypeCase() throws Exception {
     String query = "select sum(cast(f1 as bigint)) sum_f1 from " +
             "(select case when is_bigint(field1) then assert_bigint(field1) " +
-            "when is_list(field1) then field1[0] when is_map(field1) then t.field1.inner1 end f1 " +
+            "when is_list(field1) then field1[0] when is_struct(field1) then t.field1.inner1 end f1 " +
             "from cp.\"jsoninput/union/a.json\" t)";
 
     testBuilder()
@@ -256,5 +258,60 @@ public class TestJsonReaderUnion extends BaseTestQuery {
         }
       }
     }
+  }
+
+  @Test
+  public void flattenAssertList() throws Exception {
+    final String query = "SELECT flatten(assert_list(field2)) AS l FROM " +
+        "(SELECT * FROM cp.\"jsoninput/union/a.json\" t WHERE is_list(t.field2))";
+
+    testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("l")
+        .baselineValues(3L)
+        .baselineValues(4.0)
+        .baselineValues("5")
+        .baselineValues(mapOf("inner3", 7L))
+        .baselineValues(4.0)
+        .baselineValues("5")
+        .baselineValues(mapOf("inner4", 9L))
+        .baselineValues(listOf(
+            mapOf("inner5", 10L, "inner6", 11L),
+            mapOf("inner5", 12L, "inner7", 13L)))
+        .go();
+  }
+
+  @Test
+  public void mappifyAssertStruct() throws Exception {
+    final String query = "SELECT mappify(assert_struct(field1)) AS l FROM " +
+        "(SELECT * FROM cp.\"jsoninput/union/a.json\" t WHERE is_struct(t.field1))";
+
+    testBuilder()
+        .sqlQuery(query)
+        .ordered()
+        .baselineColumns("l")
+        .baselineValues(listOf(
+            mapOf("key", "inner1", "value", 3L),
+            mapOf("key", "inner2", "value", 4L)
+        ))
+        .baselineValues(listOf(
+            mapOf("key", "inner1", "value", 3L),
+            mapOf("key", "inner2", "value", listOf(
+                mapOf("innerInner1", 1L, "innerInner2", listOf(
+                    3L, "a"
+                ))
+            ))
+        ))
+        .go();
+  }
+
+  @Test
+  public void assertFailure() throws Exception {
+    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION,
+        "The field must be of struct type or a mixed type that contains a struct type"));
+
+    test("SELECT mappify(assert_struct(field2)) AS l FROM " +
+        "(SELECT * FROM cp.\"jsoninput/union/a.json\" t WHERE is_struct(t.field2))");
   }
 }

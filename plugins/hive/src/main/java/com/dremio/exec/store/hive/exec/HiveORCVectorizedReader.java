@@ -17,27 +17,37 @@ package com.dremio.exec.store.hive.exec;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.ColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.DecimalColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.DoubleColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.StructColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.TimestampColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.hadoop.hive.ql.io.orc.OrcFile;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
+import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
 import org.apache.hadoop.hive.ql.io.orc.Reader;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.hive.serde2.SerDe;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
@@ -65,10 +75,12 @@ import io.netty.buffer.ArrowBuf;
  */
 public class HiveORCVectorizedReader extends HiveAbstractReader {
 
+  /**
+   * For transactional orc files, the row data is stored in the struct vector at position 5
+   */
+  static final int TRANS_ROW_COLUMN_INDEX = 5;
   private org.apache.hadoop.hive.ql.io.orc.RecordReader hiveOrcReader;
   private ORCCopier[] copiers;
-
-  private String[] selectedColNames;
 
   /**
    * Hive vectorized ORC reader reads into this batch. It is a heap based structure and reused until the reader exhaust
@@ -88,7 +100,7 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
 
   @Override
   protected void internalInit(InputSplit inputSplit, JobConf jobConf, ValueVector[] vectors) throws IOException {
-    final FileSplit fSplit = (FileSplit)inputSplit;
+    final OrcSplit fSplit = (OrcSplit)inputSplit;
     final Path path = fSplit.getPath();
 
     final OrcFile.ReaderOptions opts = OrcFile.readerOptions(jobConf);
@@ -98,23 +110,35 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     final Reader.Options options = new Reader.Options();
     long offset = fSplit.getStart();
     long length = fSplit.getLength();
+    options.schema(fSplit.isOriginal() ? hiveReader.getSchema() : hiveReader.getSchema().getChildren().get(TRANS_ROW_COLUMN_INDEX));
     options.range(offset, length);
-    options.include(OrcInputFormat.genIncludedColumns(types, jobConf, true));
+    boolean[] include = OrcInputFormat.genIncludedColumns(types, jobConf, fSplit.isOriginal());
+    // for transactional tables (non original), we need to handle the additional transactional metadata columns
+    if (!fSplit.isOriginal()) {
+      // we include the top level struct, but exclude the transactional metadata columns
+      include = ArrayUtils.addAll(new boolean[]{true, false, false, false, false, false}, include);
+    }
+    options.include(include);
     options.zeroCopyPoolShim(new HiveORCZeroCopyShim(context.getAllocator()));
 
-    selectedColNames = getColumns().stream().map(x -> x.getAsUnescapedPath().toLowerCase()).toArray(String[]::new);
+    String[] selectedColNames = getColumns().stream().map(x -> x.getAsUnescapedPath().toLowerCase()).toArray(String[]::new);
+
+    // there is an extra level of nesting in the transactional tables
+    if (!fSplit.isOriginal()) {
+      selectedColNames = ArrayUtils.addAll(new String[]{"row"}, selectedColNames);
+    }
 
     if (filter != null) {
       final ORCScanFilter orcScanFilter = (ORCScanFilter) filter;
       final SearchArgument sarg = orcScanFilter.getSarg();
-      options.searchArgument(sarg, OrcInputFormat.getSargColumnNames(selectedColNames, types, options.getInclude(), true));
+      options.searchArgument(sarg, OrcInputFormat.getSargColumnNames(selectedColNames, types, options.getInclude(), fSplit.isOriginal()));
     }
 
     hiveOrcReader = hiveReader.rowsOptions(options);
-    hiveBatch = createVectorizedRowBatch(partitionOI);
+    hiveBatch = createVectorizedRowBatch(partitionOI, fSplit.isOriginal());
 
     final List<Integer> projectedColOrdinals = ColumnProjectionUtils.getReadColumnIDs(jobConf);
-    copiers = HiveORCCopiers.createCopiers(projectedColOrdinals, vectors, hiveBatch);
+    copiers = HiveORCCopiers.createCopiers(projectedColOrdinals, vectors, hiveBatch, fSplit.isOriginal());
 
     // Store the number of vectorized columns for stats/to find whether vectorized ORC reader is used or not
     context.getStats().setLongStat(Metric.NUM_VECTORIZED_COLUMNS, vectors.length);
@@ -155,6 +179,54 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     }
   }
 
+  private List<ColumnVector> getVectors(StructObjectInspector rowOI) {
+    return rowOI.getAllStructFieldRefs()
+      .stream()
+      .map((Function<StructField, ColumnVector>) structField -> {
+        Category category = structField.getFieldObjectInspector().getCategory();
+        if (category != Category.PRIMITIVE) {
+          throw UserException.unsupportedError()
+            .message("Vectorized ORC reader is not supported for datatype: %s", category)
+            .build(logger);
+        }
+        PrimitiveObjectInspector poi = (PrimitiveObjectInspector) structField.getFieldObjectInspector();
+        return getColumnVector(poi);
+      })
+      .collect(Collectors.toList());
+
+  }
+
+  private ColumnVector getColumnVector(PrimitiveObjectInspector poi) {
+      switch (poi.getPrimitiveCategory()) {
+      case BOOLEAN:
+      case BYTE:
+      case SHORT:
+      case INT:
+      case LONG:
+      case DATE:
+        return new LongColumnVector(VectorizedRowBatch.DEFAULT_SIZE);
+      case TIMESTAMP:
+        return new TimestampColumnVector(VectorizedRowBatch.DEFAULT_SIZE);
+      case FLOAT:
+      case DOUBLE:
+        return new DoubleColumnVector(VectorizedRowBatch.DEFAULT_SIZE);
+      case BINARY:
+      case STRING:
+      case CHAR:
+      case VARCHAR:
+        return new BytesColumnVector(VectorizedRowBatch.DEFAULT_SIZE);
+      case DECIMAL:
+        DecimalTypeInfo tInfo = (DecimalTypeInfo) poi.getTypeInfo();
+        return new DecimalColumnVector(VectorizedRowBatch.DEFAULT_SIZE,
+          tInfo.precision(), tInfo.scale()
+        );
+      default:
+        throw UserException.unsupportedError()
+          .message("Vectorized ORC reader is not supported for datatype: %s", poi.getPrimitiveCategory())
+          .build(logger);
+      }
+  }
+
   /**
    * Helper method that creates {@link VectorizedRowBatch}. For each selected column an input vector is created in the
    * batch. For unselected columns the vector entry is going to be null. The order of input vectors in batch should
@@ -163,60 +235,36 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
    * @param rowOI Used to find the ordinal of the selected column.
    * @return
    */
-  private VectorizedRowBatch createVectorizedRowBatch(StructObjectInspector rowOI) {
+  private VectorizedRowBatch createVectorizedRowBatch(StructObjectInspector rowOI, boolean isOriginal) {
     final List<? extends StructField> fieldRefs = rowOI.getAllStructFieldRefs();
-    final VectorizedRowBatch result = new VectorizedRowBatch(fieldRefs.size());
-    for (int j = 0; j < fieldRefs.size(); j++) {
-      final ObjectInspector foi = fieldRefs.get(j).getFieldObjectInspector();
-      switch (foi.getCategory()) {
-        case PRIMITIVE: {
-          final PrimitiveObjectInspector poi = (PrimitiveObjectInspector) foi;
-          switch (poi.getPrimitiveCategory()) {
-            case BOOLEAN:
-            case BYTE:
-            case SHORT:
-            case INT:
-            case LONG:
-            case DATE:
-              result.cols[j] = new LongColumnVector(VectorizedRowBatch.DEFAULT_SIZE);
-              break;
-            case TIMESTAMP:
-              result.cols[j] = new TimestampColumnVector(VectorizedRowBatch.DEFAULT_SIZE);
-              break;
-            case FLOAT:
-            case DOUBLE:
-              result.cols[j] = new DoubleColumnVector(VectorizedRowBatch.DEFAULT_SIZE);
-              break;
-            case BINARY:
-            case STRING:
-            case CHAR:
-            case VARCHAR:
-              result.cols[j] = new BytesColumnVector(VectorizedRowBatch.DEFAULT_SIZE);
-              break;
-            case DECIMAL:
-              DecimalTypeInfo tInfo = (DecimalTypeInfo) poi.getTypeInfo();
-              result.cols[j] = new DecimalColumnVector(VectorizedRowBatch.DEFAULT_SIZE,
-                  tInfo.precision(), tInfo.scale()
-              );
-              break;
-            default:
-              throw UserException.unsupportedError()
-                  .message("Vectorized ORC reader is not supported for datatype: %s", poi.getPrimitiveCategory())
-                  .build(logger);
-          }
-          break;
-        }
+    final List<ColumnVector> vectors = getVectors(rowOI);
 
-        default:
-          throw UserException.unsupportedError()
-              .message("Vectorized ORC reader is not supported for datatype: %s", foi.getCategory())
-              .build(logger);
-      }
+    final VectorizedRowBatch result = new VectorizedRowBatch(fieldRefs.size());
+
+    ColumnVector[] vectorArray =  vectors.toArray(new ColumnVector[0]);
+
+    if (!isOriginal) {
+      vectorArray = createTransactionalVectors(vectorArray);
     }
 
+    result.cols = vectorArray;
     result.numCols = fieldRefs.size();
     result.reset();
     return result;
+  }
+
+  private ColumnVector[] createTransactionalVectors(ColumnVector[] dataVectors) {
+    ColumnVector[] transVectors = new ColumnVector[6];
+
+    transVectors[0] = new LongColumnVector(VectorizedRowBatch.DEFAULT_SIZE);
+    transVectors[1] = new LongColumnVector(VectorizedRowBatch.DEFAULT_SIZE);
+    transVectors[2] = new LongColumnVector(VectorizedRowBatch.DEFAULT_SIZE);
+    transVectors[3] = new LongColumnVector(VectorizedRowBatch.DEFAULT_SIZE);
+    transVectors[4] = new LongColumnVector(VectorizedRowBatch.DEFAULT_SIZE);
+
+    transVectors[5] = new StructColumnVector(dataVectors.length, dataVectors);
+
+    return transVectors;
   }
 
   @Override
