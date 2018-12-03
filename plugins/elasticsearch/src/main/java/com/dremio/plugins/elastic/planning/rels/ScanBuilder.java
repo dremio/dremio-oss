@@ -44,7 +44,7 @@ import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.store.SplitWork;
-import com.dremio.plugins.elastic.ElasticStoragePluginConfig;
+import com.dremio.plugins.elastic.ElasticsearchConf;
 import com.dremio.plugins.elastic.planning.ElasticsearchGroupScan;
 import com.dremio.plugins.elastic.planning.ElasticsearchScanSpec;
 import com.dremio.plugins.elastic.planning.rules.ExpressionNotAnalyzableException;
@@ -174,8 +174,8 @@ public class ScanBuilder {
 
   }
 
-  protected int applyFetch(SearchRequestBuilder searchRequest, ElasticStoragePluginConfig config, ElasticsearchLimit limit, ElasticsearchFilter filter, ElasticsearchSample sample){
-    final int configuredFetchSize = config.scrollSize;
+  protected int applyFetch(SearchRequestBuilder searchRequest, ElasticsearchConf config, ElasticsearchLimit limit, ElasticsearchFilter filter, ElasticsearchSample sample){
+    final int configuredFetchSize = config.getScrollSize();
     int fetch = configuredFetchSize;
     // If there is a limit or sample, add it to the search builder.
     if (limit != null) {
@@ -230,7 +230,9 @@ public class ScanBuilder {
 
       applyEdgeProjection(searchRequest, scan);
       applyFilter(searchRequest, scan, filter, tableAttributes);
-      final int fetch = applyFetch(searchRequest, scan.getPluginId().<ElasticStoragePluginConfig>getConnectionConf(), limit, filter, sample);
+      final int fetch = applyFetch(searchRequest,
+        ElasticsearchConf.createElasticsearchConf(scan.getPluginId().getConnectionConf()),
+        limit, filter, sample);
 
       ElasticsearchScanSpec scanSpec = new ElasticsearchScanSpec(
           tableAttributes.getResource(),

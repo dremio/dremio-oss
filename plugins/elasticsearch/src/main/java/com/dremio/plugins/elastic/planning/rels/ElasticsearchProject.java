@@ -47,7 +47,7 @@ import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.plugins.elastic.ElasticStoragePluginConfig;
+import com.dremio.plugins.elastic.ElasticsearchConf;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
 import com.dremio.plugins.elastic.planning.rules.ProjectAnalyzer;
 import com.dremio.plugins.elastic.planning.rules.SchemaField;
@@ -64,19 +64,19 @@ public class ElasticsearchProject extends ProjectRelBase implements Elasticsearc
     super(Prel.PHYSICAL, cluster, traits, input, projects, rowType);
     this.needsScript = !MoreRelOptUtil.isSimpleColumnSelection(this);
     this.pluginId = pluginId;
-    this.scriptsEnabled =  pluginId.<ElasticStoragePluginConfig>getConnectionConf().scriptsEnabled;
+    this.scriptsEnabled = ElasticsearchConf.createElasticsearchConf(pluginId.getConnectionConf()).isScriptsEnabled();
   }
 
   public boolean canPushdown(ElasticIntermediateScanPrel scan, FunctionLookupContext functionLookupContext, Set<ElasticSpecialType> disallowedSpecialTypes){
-    ElasticStoragePluginConfig config = scan.getPluginId().getConnectionConf();
-    final boolean scriptsEnabled = config.scriptsEnabled;
-    final boolean painlessAllowed = config.usePainless;
+    ElasticsearchConf config = ElasticsearchConf.createElasticsearchConf(scan.getPluginId().getConnectionConf());
+    final boolean scriptsEnabled = config.isScriptsEnabled();
+    final boolean painlessAllowed = config.isUsePainless();
     final boolean supportsV5Features = pluginId.getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
     for (RexNode originalExpression : getProjects()) {
       try {
         final RexNode expr = SchemaField.convert(originalExpression, scan, disallowedSpecialTypes);
         ProjectAnalyzer.getScript(expr, painlessAllowed, supportsV5Features, scriptsEnabled, true,
-            config.allowPushdownOnNormalizedOrAnalyzedFields);
+            config.isAllowPushdownOnNormalizedOrAnalyzedFields());
       } catch (Exception e) {
         logger.debug("Exception while attempting pushdown.", e);
         return false;

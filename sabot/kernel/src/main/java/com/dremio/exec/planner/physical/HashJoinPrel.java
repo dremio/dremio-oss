@@ -163,6 +163,7 @@ public class HashJoinPrel  extends JoinPrel {
     case TIMESTAMP:
     case VARBINARY:
     case VARCHAR:
+    case DECIMAL:
       return true;
     default:
       return false;

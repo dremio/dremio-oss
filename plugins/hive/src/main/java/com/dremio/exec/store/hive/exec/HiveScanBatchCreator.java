@@ -37,7 +37,7 @@ public class HiveScanBatchCreator implements ProducerOperator.Creator<HiveSubSca
 
     final HiveTableXattr tableAttr;
     try {
-      tableAttr = HiveTableXattr.parseFrom(config.getExtendedProperty().toByteArray());
+      tableAttr = HiveTableXattr.parseFrom(config.getExtendedProperty());
     } catch (InvalidProtocolBufferException e) {
       throw new ExecutionSetupException("Failure parsing table extended properties.", e);
     }

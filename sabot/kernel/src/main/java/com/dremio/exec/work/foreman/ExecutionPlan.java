@@ -15,11 +15,13 @@
  */
 package com.dremio.exec.work.foreman;
 
+import java.util.Collections;
 import java.util.List;
 
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.Root;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
+import com.dremio.exec.proto.CoordExecRPC.SharedData;
 import com.google.common.base.Preconditions;
 
 /**
@@ -30,17 +32,21 @@ public class ExecutionPlan {
   private final Root rootOperator;
   private final List<PlanFragment> fragments;
 
-  public ExecutionPlan(final PhysicalPlan physicalPlan, final List<PlanFragment> fragments) {
+  private final List<SharedData> sharedData;
+
+  public ExecutionPlan(final PhysicalPlan physicalPlan, final List<PlanFragment> fragments, final List<SharedData> sharedData) {
     Preconditions.checkNotNull(physicalPlan, "physical plan is required");
     this.rootOperator = physicalPlan.getRoot();
     this.fragments = Preconditions.checkNotNull(fragments, "work unit is required");
     this.cost = physicalPlan.getCost();
+    this.sharedData = sharedData;
   }
 
   public ExecutionPlan(final Root rootOperator, final double cost, final List<PlanFragment> fragments) {
     this.rootOperator = Preconditions.checkNotNull(rootOperator, "Root operator is required");
     this.fragments = Preconditions.checkNotNull(fragments, "work unit is required");
     this.cost = cost;
+    this.sharedData = Collections.emptyList();
   }
 
   public double getCost(){
@@ -53,6 +59,10 @@ public class ExecutionPlan {
 
   public Root getRootOperator() {
     return rootOperator;
+  }
+
+  public List<SharedData> getSharedData() {
+    return sharedData;
   }
 
   @Override

@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugin</groupId>
-    <version>3.0.1-201811132128360291-804fe82</version>
+    <version>3.0.5-201812021947440442-9a23f45</version>
   </parent>
 
   <artifactId>dremio-elasticsearch-plugin</artifactId>
@@ -56,6 +56,10 @@
   </profiles>
 
   <dependencies>
+    <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk-core</artifactId>
+    </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.datatype</groupId>
       <artifactId>jackson-datatype-guava</artifactId>

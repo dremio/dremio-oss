@@ -141,6 +141,15 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
     return new FileSystemWrapper(fsConf, fs, stats);
   }
 
+  public static FileSystemWrapper get(URI uri, Configuration fsConf, OperatorStats stats) throws IOException {
+    FileSystem fs = FileSystem.get(uri, fsConf);
+    return new FileSystemWrapper(fsConf, fs, stats);
+  }
+
+  OperatorStats getOperatorStats() {
+    return operatorStats;
+  }
+
   @Override
   public void setConf(Configuration conf) {
     // Guard against setConf(null) call that is called as part of superclass constructor (Configured) of the

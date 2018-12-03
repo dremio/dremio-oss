@@ -89,7 +89,7 @@ class ElasticTableBuilder implements SourceTableDefinition {
   private final DatasetConfig oldConfig;
   private final BufferAllocator allocator;
   private final SabotConfig config;
-  private final ElasticStoragePluginConfig pluginConfig;
+  private final ElasticsearchConf pluginConfig;
   private final OptionManager optionManager;
   private final ElasticMapping mapping;
   private final List<String> aliasIndices;
@@ -106,7 +106,7 @@ class ElasticTableBuilder implements SourceTableDefinition {
       DatasetConfig oldConfig,
       BufferAllocator allocator,
       SabotConfig config,
-      ElasticStoragePluginConfig pluginConfig,
+      ElasticsearchConf pluginConfig,
       OptionManager optionManager,
       ElasticMapping mapping,
       List<String> aliasIndices,
@@ -236,12 +236,13 @@ class ElasticTableBuilder implements SourceTableDefinition {
         shard.add(ee.getAsJsonObject().get("shard").getAsInt());
         index.add(ee.getAsJsonObject().get("index").getAsString());
         String node = ee.getAsJsonObject().get("node").getAsString();
-        String host = nodes.getAsJsonObject(node).get("host").getAsString();
-        hosts.add(host);
+        final JsonElement host = nodes.getAsJsonObject(node).get("host");
+        if (host != null) {
+          hosts.add(host.getAsString());
+        }
       }
       Preconditions.checkArgument(shard.size() == 1, "Expected one shard, received %d.", shard.size());
       Preconditions.checkArgument(index.size() == 1, "Expected one index, received %d.", index.size());
-      Preconditions.checkState(hosts.size() > 0, "No hosts found for shard:" + s);
       s++;
 
       final String onlyIndex = index.iterator().next();

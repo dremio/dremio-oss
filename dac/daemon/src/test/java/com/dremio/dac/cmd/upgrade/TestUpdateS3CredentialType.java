@@ -29,6 +29,7 @@ import com.dremio.datastore.KVStore;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.plugins.s3.store.S3PluginConfig;
 import com.dremio.service.namespace.NamespaceKey;
@@ -47,14 +48,14 @@ public class TestUpdateS3CredentialType extends DremioTest {
   public void checkUpdateNullToNone() throws Exception {
     S3PluginConfig s3PluginConfig = new S3PluginConfig();
     s3PluginConfig.accessKey = null;
-    checkUpdateHelper(s3PluginConfig, S3PluginConfig.AuthenticationType.NONE);
+    checkUpdateHelper(s3PluginConfig, AWSAuthenticationType.NONE);
   }
 
   @Test
   public void checkUpdateEmptyToNone() throws Exception {
     S3PluginConfig s3PluginConfig = new S3PluginConfig();
     s3PluginConfig.accessKey = "";
-    checkUpdateHelper(s3PluginConfig, S3PluginConfig.AuthenticationType.NONE);
+    checkUpdateHelper(s3PluginConfig, AWSAuthenticationType.NONE);
   }
 
   @Test
@@ -62,10 +63,10 @@ public class TestUpdateS3CredentialType extends DremioTest {
     S3PluginConfig s3PluginConfig = new S3PluginConfig();
     s3PluginConfig.accessKey = "ACCESS_KEY";
     s3PluginConfig.accessSecret = "ACCESS_SECRET";
-    checkUpdateHelper(s3PluginConfig, S3PluginConfig.AuthenticationType.ACCESS_KEY);
+    checkUpdateHelper(s3PluginConfig, AWSAuthenticationType.ACCESS_KEY);
   }
 
-  private void checkUpdateHelper(S3PluginConfig s3OldPluginConfig, S3PluginConfig.AuthenticationType authenticationType) throws Exception {
+  private void checkUpdateHelper(S3PluginConfig s3OldPluginConfig, AWSAuthenticationType authenticationType) throws Exception {
     try (final KVStoreProvider kvStoreProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false)) {
       kvStoreProvider.start();
       KVStore<byte[], NameSpaceContainer> namespace = kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);

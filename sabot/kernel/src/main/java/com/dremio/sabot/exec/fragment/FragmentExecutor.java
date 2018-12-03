@@ -20,6 +20,7 @@ import static com.dremio.sabot.exec.fragment.FragmentExecutorBuilder.WORK_QUEUE_
 
 import java.io.IOException;
 import java.security.PrivilegedExceptionAction;
+import java.util.List;
 import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -35,8 +36,10 @@ import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.PhysicalPlanReader;
+import com.dremio.exec.planner.fragment.SharedDataMap;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
+import com.dremio.exec.proto.CoordExecRPC.SharedData;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
@@ -109,6 +112,7 @@ public class FragmentExecutor {
   private final SchemaChangeListener updater;
   private final ContextInformation contextInfo;
   private final OperatorContextCreator contextCreator;
+  private final List<SharedData> sharedData;
   private final FunctionLookupContext functionLookupContext;
   private final TunnelProvider tunnelProvider;
   private final FlushableSendingAccountor flushable;
@@ -150,6 +154,7 @@ public class FragmentExecutor {
       SchemaChangeListener updater,
       ContextInformation contextInfo,
       OperatorContextCreator contextCreator,
+      List<SharedData> sharedData,
       FunctionLookupContext functionLookupContext,
       TunnelProvider tunnelProvider,
       FlushableSendingAccountor flushable,
@@ -174,6 +179,7 @@ public class FragmentExecutor {
     this.updater = updater;
     this.contextInfo = contextInfo;
     this.contextCreator = contextCreator;
+    this.sharedData = sharedData;
     this.tunnelProvider = tunnelProvider;
     this.flushable = flushable;
     this.fragmentOptions = fragmentOptions;
@@ -330,7 +336,7 @@ public class FragmentExecutor {
       Long.MAX_VALUE);
     contextCreator.setFragmentOutputAllocator(outputAllocator);
 
-    final PhysicalOperator rootOperator = reader.readFragmentOperator(fragment.getFragmentJson(), fragment.getFragmentCodec());
+    final PhysicalOperator rootOperator = reader.readFragmentOperator(fragment.getFragmentJson(), fragment.getFragmentCodec(), SharedDataMap.create(sharedData, fragment.getHandle()));
 
     final OperatorCreator operatorCreator = new UserDelegatingOperatorCreator(contextInfo.getQueryUser(), opCreator);
     pipeline = PipelineCreator.get(

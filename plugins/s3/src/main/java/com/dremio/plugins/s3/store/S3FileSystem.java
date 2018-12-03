@@ -16,7 +16,6 @@
 package com.dremio.plugins.s3.store;
 
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
-import static com.dremio.plugins.s3.store.S3StoragePlugin.AWS_CREDENTIALS_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
 import static org.apache.hadoop.fs.s3a.Constants.ENDPOINT;
 
@@ -119,8 +118,8 @@ public class S3FileSystem extends ContainerFileSystem {
             .transform(input -> input.trim())
             .filter(input -> !Strings.isNullOrEmpty(input));
 
-    if ((getConf().get(AWS_CREDENTIALS_PROVIDER) == ACCESS_KEY_PROVIDER)
-      || (getConf().get(AWS_CREDENTIALS_PROVIDER) == EC2_METADATA_PROVIDER)){
+    if ((getConf().get(S3Constants.AWS_CREDENTIALS_PROVIDER) == ACCESS_KEY_PROVIDER)
+      || (getConf().get(S3Constants.AWS_CREDENTIALS_PROVIDER) == EC2_METADATA_PROVIDER)){
       // if we have authentication to access S3, add in owner buckets.
       buckets = buckets.append(FluentIterable.from(s3.listBuckets()).transform(input -> input.getName()));
     }

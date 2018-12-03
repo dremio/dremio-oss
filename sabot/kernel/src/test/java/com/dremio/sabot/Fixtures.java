@@ -1012,7 +1012,7 @@ public final class Fixtures {
 
     @Override
     ArrowType getType() {
-      return new ArrowType.Decimal(38, 0);
+      return new ArrowType.Decimal(38 , 0);
     }
 
     @Override

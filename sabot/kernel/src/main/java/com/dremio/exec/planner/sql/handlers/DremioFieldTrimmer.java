@@ -18,6 +18,7 @@ package com.dremio.exec.planner.sql.handlers;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,20 +28,28 @@ import java.util.stream.StreamSupport;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.rel.RelCollations;
+import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.SetOp;
+import org.apache.calcite.rel.core.Window;
+import org.apache.calcite.rel.core.Window.RexWinAggCall;
+import org.apache.calcite.rel.logical.LogicalWindow;
 import org.apache.calcite.rel.rules.MultiJoin;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.rel.type.RelRecordType;
+import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexPermuteInputsShuttle;
 import org.apache.calcite.rex.RexVisitor;
 import org.apache.calcite.rex.RexVisitorImpl;
+import org.apache.calcite.rex.RexWindowBound;
+import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql2rel.RelFieldTrimmer;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.ImmutableBitSet;
@@ -364,6 +373,235 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
     return result(newMultiJoin, mapping);
   }
 
+  public TrimResult trimFields(LogicalWindow window, ImmutableBitSet fieldsUsed, Set<RelDataTypeField> extraFields) {
+    // Fields:
+    //
+    // Window rowtype
+    // | input fields | agg functions |
+    //
+    // Rowtype used internally by the Window operator for groups:
+    // | input fields | constants (hold by Window node) |
+    //
+    // Input rowtype:
+    // | input fields |
+    //
+    // Trimming operations:
+    // 1. If an agg is not used, don't include it in the group
+    // 2. If a group is not used, remove the group
+    // 3. If no group, skip the operator
+    // 4. If a constant is not used, don't include it in the new window operator
+    //
+    // General description of the algorithm:
+    // 1. Identify input fields and constants in use
+    //    - input fields directly used by caller
+    //    - input fields used by agg call, if agg call used by caller
+    //    - input fields used by window group if at least one agg from the group is used by caller
+    //    - constants used by call call, if agg call used by caller
+    // 2. Trim input
+    //    - only use list of used input fields (do not include constants) when calling for trimChild
+    //      as it will confuse callee.
+    // 3. Create new operator and final mapping
+    //    - create a mapping combining input mapping and constants in use to rewrite expressions
+    //    - if no agg is actually used by caller, return early with the new input and a copy of the
+    //      input mapping matching the number of fields (skip the current operator)
+    //    - Go over each group/agg call used by caller, and rewrite them by visiting them with the
+    //      mapping combining input and constants
+    //    - create a new window operator and return operator and mapping to caller
+
+
+    final RelDataType rowType = window.getRowType();
+    final int fieldCount = rowType.getFieldCount();
+
+    final RelNode input = window.getInput();
+    final int inputFieldCount = input.getRowType().getFieldCount();
+
+    final Set<RelDataTypeField> inputExtraFields = new LinkedHashSet<>(extraFields);
+    final RelOptUtil.InputFinder inputFinder = new RelOptUtil.InputFinder(inputExtraFields);
+
+    //
+    // 1. Identify input fields and constants in use
+    //
+    for(Integer bit: fieldsUsed) {
+      if (bit >= inputFieldCount) {
+        // exit if it goes over the input fields
+        break;
+      }
+      inputFinder.inputBitSet.set(bit);
+    }
+
+    // number of agg calls and agg calls actually used
+    int aggCalls = 0;
+    int aggCallsUsed = 0;
+
+    // Capture which input fields and constants are used by the agg calls
+    // thanks to the visitor
+    for (final Window.Group group: window.groups) {
+      boolean groupUsed = false;
+      for(final RexWinAggCall aggCall: group.aggCalls) {
+        int offset = inputFieldCount + aggCalls;
+        aggCalls++;
+
+        if (!fieldsUsed.get(offset)) {
+          continue;
+        }
+
+        aggCallsUsed++;
+        groupUsed = true;
+        aggCall.accept(inputFinder);
+      }
+
+      // If no agg from the group are being used, do not include group fields
+      if (!groupUsed) {
+        continue;
+      }
+
+      group.lowerBound.accept(inputFinder);
+      group.upperBound.accept(inputFinder);
+
+      // Add partition fields
+      inputFinder.inputBitSet.addAll(group.keys);
+
+      // Add collation fields
+      for(RelFieldCollation fieldCollation: group.collation().getFieldCollations()) {
+        inputFinder.inputBitSet.set(fieldCollation.getFieldIndex());
+      }
+    }
+    // Create the final bitset containing both input and constants used
+    final ImmutableBitSet inputAndConstantsFieldsUsed = inputFinder.inputBitSet.build();
+
+    //
+    // 2. Trim input
+    //
+
+    // Create input with trimmed columns. Need a bitset containing only input fields
+    final ImmutableBitSet inputFieldsUsed = inputAndConstantsFieldsUsed.intersect(ImmutableBitSet.range(inputFieldCount));
+    final int constantsUsed = inputAndConstantsFieldsUsed.cardinality() - inputFieldsUsed.cardinality();
+    final TrimResult trimResult = trimChild(window, input, inputFieldsUsed, inputExtraFields);
+    RelNode newInput = trimResult.left;
+    Mapping inputMapping = trimResult.right;
+
+    // If the input is unchanged, and we need to project all columns,
+    // there's nothing we can do.
+    if (newInput == input && fieldsUsed.cardinality() == fieldCount) {
+      return result(window, Mappings.createIdentity(fieldCount));
+    }
+
+    //
+    // 3. Create new operator and final mapping
+    //
+    // if new input cardinality is 0, create a dummy project
+    // Note that the returned mapping is not a valid INVERSE_SURJECTION mapping
+    // as it does not include a source for each target!
+    if (inputFieldsUsed.cardinality() == 0) {
+      final TrimResult dummyResult = dummyProject(inputFieldCount, newInput);
+      newInput = dummyResult.left;
+      inputMapping = dummyResult.right;
+    }
+
+    // Create a new input mapping which includes constants
+    final int newInputFieldCount = newInput.getRowType().getFieldCount();
+    final Mapping inputAndConstantsMapping = Mappings.create(MappingType.INVERSE_SURJECTION,
+        inputFieldCount + window.constants.size(), newInputFieldCount + constantsUsed);
+    // include input mappping
+    inputMapping.forEach(pair -> inputAndConstantsMapping.set(pair.source, pair.target));
+
+    // Add constant mapping (while trimming list of constants)
+    final List<RexLiteral> newConstants = new ArrayList<>();
+    for(int i = 0; i < window.constants.size(); i++) {
+      int index = inputFieldCount + i;
+      if (inputAndConstantsFieldsUsed.get(index)) {
+        inputAndConstantsMapping.set(index, newInputFieldCount + newConstants.size());
+        newConstants.add(window.constants.get(i));
+      }
+    }
+
+    // Create a new mapping. Include all the input fields
+    final Mapping mapping = Mappings.create(MappingType.INVERSE_SURJECTION, fieldCount, newInputFieldCount + aggCallsUsed);
+    // Remap the field projects (1:1 remap)
+    inputMapping.forEach(pair -> mapping.set(pair.source, pair.target));
+
+    // Degenerated case: no agg calls being used, skip this operator!
+    if (aggCallsUsed == 0) {
+      return result(newInput, mapping);
+    }
+
+    // Create/Rewrite a new window operator by dropping unnecessary groups/agg calls
+    // and permutting the inputs
+    final RexPermuteInputsShuttle shuttle = new RexPermuteInputsShuttle(inputAndConstantsMapping, newInput);
+    final List<Window.Group> newGroups = new ArrayList<>();
+
+    int oldOffset = inputFieldCount;
+    int newOffset = newInputFieldCount;
+    for (final Window.Group group: window.groups) {
+      final List<RexWinAggCall> newCalls = new ArrayList<>();
+      for(final RexWinAggCall agg: group.aggCalls) {
+        if (!fieldsUsed.get(oldOffset)) {
+          // Skip unused aggs
+          oldOffset++;
+          continue;
+        }
+
+        RexWinAggCall newCall = permuteWinAggCall(agg, shuttle, newCalls.size());
+        newCalls.add(newCall);
+        mapping.set(oldOffset, newOffset);
+        oldOffset++;
+        newOffset++;
+      }
+
+      // If no agg from the group, let's skip the group
+      if (newCalls.isEmpty()) {
+        continue;
+      }
+
+      final RexWindowBound newLowerBound = group.lowerBound.accept(shuttle);
+      final RexWindowBound newUpperBound = group.upperBound.accept(shuttle);
+
+      // Remap partition fields
+      final ImmutableBitSet newKeys = Mappings.apply(inputAndConstantsMapping, group.keys);
+
+      // Remap collation fields
+      final List<RelFieldCollation> newFieldCollations = new ArrayList<>();
+      for(RelFieldCollation fieldCollation: group.collation().getFieldCollations()) {
+        newFieldCollations.add(fieldCollation.copy(inputAndConstantsMapping.getTarget(fieldCollation.getFieldIndex())));
+      }
+
+      final Window.Group newGroup = new Window.Group(newKeys, group.isRows, newLowerBound, newUpperBound, RelCollations.of(newFieldCollations), newCalls);
+      newGroups.add(newGroup);
+    }
+    final Mapping permutationMapping;
+
+    // If no input column being used, still need to include the dummy column in the row type
+    // by temporarily adding it to the mapping
+    if (inputFieldsUsed.cardinality() != 0) {
+      permutationMapping = mapping;
+    } else {
+      permutationMapping = Mappings.create(MappingType.INVERSE_SURJECTION, mapping.getSourceCount(), mapping.getTargetCount());
+      mapping.forEach(pair -> permutationMapping.set(pair.source, pair.target));
+      // set a fake mapping for the dummy project
+      permutationMapping.set(0, 0);
+    }
+    final RelDataType newRowType = RelOptUtil.permute(window.getCluster().getTypeFactory(), rowType, permutationMapping);
+
+    // TODO: should there be a relbuilder for window?
+    final LogicalWindow newWindow = LogicalWindow.create(window.getTraitSet(), newInput, newConstants, newRowType, newGroups);
+    return result(newWindow, mapping);
+  }
+
+  private static RexWinAggCall permuteWinAggCall(RexWinAggCall call, RexPermuteInputsShuttle shuttle, int newOrdinal) {
+    // Cast should be safe as the shuttle creates new RexCall instance (but not RexWinAggCall)
+    RexCall newCall = (RexCall) call.accept(shuttle);
+    if (newCall == call && newOrdinal == call.ordinal) {
+      return call;
+    }
+
+    return new RexWinAggCall(
+        (SqlAggFunction) call.getOperator(),
+        call.getType(),
+        newCall.getOperands(),
+        // remap partition ordinal
+        newOrdinal,
+        call.distinct);
+  }
   /**
    * Compute the reference counts of fields in the inputs from the new join condition.
    *

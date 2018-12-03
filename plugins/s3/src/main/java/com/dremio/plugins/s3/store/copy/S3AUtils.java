@@ -25,6 +25,7 @@ import java.net.URLDecoder;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider;
 import org.apache.hadoop.fs.s3a.BasicAWSCredentialsProvider;
 import org.apache.hadoop.fs.s3a.Constants;
 
@@ -73,9 +74,27 @@ public final class S3AUtils {
     try {
       awsClasses = conf.getClasses(S3Constants.AWS_CREDENTIALS_PROVIDER);
     } catch (RuntimeException e) {
-      Throwable c = e.getCause() != null ? e.getCause() : e;
-      throw new IOException("From option " + S3Constants.AWS_CREDENTIALS_PROVIDER +
+      if (e.getCause() instanceof ClassNotFoundException) {
+        //TODO: DX-13815 (Upgrade hadoop mapr version)
+        /**
+         * Hadoop mapr version is based on hadoop 2.7.0 which doesn't implement some credentails providers.
+         * In this case, we cannot find the class and then we will use the credentails chain which is the
+         * same as that in hadoop 2.7.0.
+         * The following code should be removed after DX-13815 (upgrade hadoop mapr version) is done.
+         */
+        Tuple<String, String> creds = getAWSAccessKeys(binding, conf);
+        credentials.add(new BasicAWSCredentialsProvider(creds.first, creds.second));
+        credentials.add(new InstanceProfileCredentialsProvider());
+        credentials.add(new AnonymousAWSCredentialsProvider());
+        // warning for AWS cedentials provider was not found and credentials chain is used instead of specified provider.
+        logger.warn("AWS credentials provider {} was not found, and use credentials chain instead.",
+          conf.get(S3Constants.AWS_CREDENTIALS_PROVIDER));
+        return credentials;
+      } else {
+        Throwable c = e.getCause() != null ? e.getCause() : e;
+        throw new IOException("From option " + S3Constants.AWS_CREDENTIALS_PROVIDER +
           ' ' + c, c);
+      }
     }
     if (awsClasses.length == 0) {
       Tuple<String, String> creds = getAWSAccessKeys(binding, conf);

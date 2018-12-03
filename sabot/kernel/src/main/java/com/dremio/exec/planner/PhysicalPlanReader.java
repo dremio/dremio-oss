@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 import javax.inject.Provider;
@@ -39,6 +41,7 @@ import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.FragmentRoot;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalOperatorUtil;
+import com.dremio.exec.planner.fragment.SharedDataMap;
 import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.MajorTypeSerDe;
@@ -57,6 +60,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.CharStreams;
 import com.hubspot.jackson.datatype.protobuf.ProtobufModule;
 
@@ -71,6 +75,7 @@ public class PhysicalPlanReader {
   private final ObjectReader optionListReader;
   private final ObjectReader operatorReader;
   private final LogicalPlanPersistence lpPersistance;
+  private final Map<String,Object> injectables;
 
   public PhysicalPlanReader(
       SabotConfig config,
@@ -105,16 +110,21 @@ public class PhysicalPlanReader {
     for (Class<? extends PhysicalOperator> subType : subTypes) {
       lpMapper.registerSubtypes(subType);
     }
-    final InjectableValues injectables = new InjectableValues.Std()
-        .addValue(CatalogService.class, catalogService.get())
-        .addValue(ConnectionReader.class, context.getConnectionReaderProvider().get())
-        .addValue(SabotContext.class, context)
-        .addValue(NodeEndpoint.class, endpoint);
+
+    // store this map so that we can use later for fragment plan reader
+    this.injectables = new HashMap<>();
+    this.injectables.put(CatalogService.class.getName(), catalogService.get());
+    this.injectables.put(ConnectionReader.class.getName(), context.getConnectionReaderProvider().get());
+    this.injectables.put(SabotContext.class.getName(), context);
+    this.injectables.put(NodeEndpoint.class.getName(), endpoint);
+
+    InjectableValues.Std injectableValues = new InjectableValues.Std(this.injectables);
+    this.injectables.forEach(injectableValues::addValue);
 
     this.mapper = lpMapper;
-    this.physicalPlanReader = mapper.readerFor(PhysicalPlan.class).with(injectables);
-    this.optionListReader = mapper.readerFor(OptionList.class).with(injectables);
-    this.operatorReader = mapper.readerFor(PhysicalOperator.class).with(injectables);
+    this.physicalPlanReader = mapper.readerFor(PhysicalPlan.class).with(injectableValues);
+    this.optionListReader = mapper.readerFor(OptionList.class).with(injectableValues);
+    this.operatorReader = mapper.readerFor(PhysicalOperator.class).with(injectableValues);
   }
 
   public static class ByteStringDeser extends StdDeserializer<ByteString> {
@@ -192,8 +202,10 @@ public class PhysicalPlanReader {
     return readValue(optionListReader, json, codec);
   }
 
-  public FragmentRoot readFragmentOperator(com.google.protobuf.ByteString json, FragmentCodec codec) throws JsonProcessingException, IOException {
-    PhysicalOperator op = readValue(operatorReader, json, codec);
+  public FragmentRoot readFragmentOperator(com.google.protobuf.ByteString json, FragmentCodec codec, SharedDataMap sharedDataMap) throws JsonProcessingException, IOException {
+    final InjectableValues.Std injectableValues = new InjectableValues.Std(new HashMap<>(injectables));
+    injectableValues.addValue("sharedData", sharedDataMap);
+    PhysicalOperator op = readValue(mapper.readerFor(PhysicalOperator.class).with(injectableValues), json, codec);
     if(op instanceof FragmentRoot){
       return (FragmentRoot) op;
     }else{

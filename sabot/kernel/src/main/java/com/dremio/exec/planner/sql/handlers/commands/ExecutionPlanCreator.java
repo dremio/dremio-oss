@@ -30,6 +30,7 @@ import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.planner.fragment.MakeFragmentsVisitor;
 import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.planner.fragment.SharedDataVisitor;
 import com.dremio.exec.planner.fragment.SimpleParallelizer;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.CoordExecRPC;
@@ -137,7 +138,8 @@ class ExecutionPlanCreator {
       rootOperatorFragment);
 
     traceFragments(queryContext, planFragments);
-    return new ExecutionPlan(plan, planFragments);
+
+    return new ExecutionPlan(plan, planFragments, SharedDataVisitor.collect(rootOperator));
   }
 
   /**
@@ -196,7 +198,8 @@ class ExecutionPlanCreator {
         queryContext.getFunctionRegistry());
 
     traceFragments(queryContext, planFragments);
-    return new ExecutionPlan(plan, planFragments);
+
+    return new ExecutionPlan(plan, planFragments, SharedDataVisitor.collect(rootOperator));
   }
 
   private static void traceFragments(QueryContext queryContext, List<PlanFragment> planFragments) {

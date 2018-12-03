@@ -58,6 +58,7 @@ public interface FormatPlugin {
 
   /**
    * Get a record reader specifically for the purposes of previews.
+   * Return null if the file has no records.
    */
   public RecordReader getRecordReader(final OperatorContext context, final FileSystemWrapper dfs, final FileStatus status) throws ExecutionSetupException;
 }

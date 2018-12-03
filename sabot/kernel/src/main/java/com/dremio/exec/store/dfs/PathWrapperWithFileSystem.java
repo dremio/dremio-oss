@@ -32,7 +32,13 @@ public class PathWrapperWithFileSystem extends Path {
     this.fs = fs;
   }
 
+  @Override
   public FileSystem getFileSystem(Configuration conf) throws IOException {
-    return fs;
+    // Do not return the original filesystem as-is because:
+    // - the path might have been canonicalized and might point to a different URI (viewFS)
+    // - this method might be called from a different security context (and the filesystem
+    //   should reflect this)
+    // Instead recreate a new wrapper (but keep the stats context)
+    return FileSystemWrapper.get(this.toUri(), conf, fs.getOperatorStats());
   }
 }

@@ -16,16 +16,10 @@
 package com.dremio.exec.store.hive.exec;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.fs.Path;
@@ -44,18 +38,14 @@ import org.apache.hadoop.hive.ql.io.orc.Reader;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.hive.serde2.SerDe;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
-import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.orc.OrcProto;
-import org.apache.orc.impl.RecordReaderUtils;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
@@ -66,8 +56,6 @@ import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.ScanOperator.Metric;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Use vectorized reader provided by the Hive to read ORC files. We copy one column completely at a time,
@@ -277,63 +265,4 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     super.close();
   }
 
-  private static class HiveORCZeroCopyShim implements org.apache.orc.Reader.ZeroCopyPoolShim {
-    private static final class ByteBufferWrapper {
-      private final ByteBuffer byteBuffer;
-
-      ByteBufferWrapper(ByteBuffer byteBuffer) {
-        this.byteBuffer = byteBuffer;
-      }
-
-      @Override
-      public boolean equals(Object rhs) {
-        return (rhs instanceof ByteBufferWrapper) && (this.byteBuffer == ((ByteBufferWrapper) rhs).byteBuffer);
-      }
-
-      @Override
-      public int hashCode() {
-        return System.identityHashCode(byteBuffer);
-      }
-    }
-
-    private final Map<ByteBufferWrapper, ArrowBuf> directBufMap = new HashMap<>();
-    private final BufferAllocator allocator;
-    private final RecordReaderUtils.ByteBufferAllocatorPool heapAllocator;
-
-    HiveORCZeroCopyShim(BufferAllocator allocator) {
-      this.allocator = allocator;
-      this.heapAllocator = new RecordReaderUtils.ByteBufferAllocatorPool();
-    }
-
-    @Override
-    public void clear() {
-      // Releasing any remaining direct buffers that were not released due to errors.
-      for (ArrowBuf buf : directBufMap.values()) {
-        buf.release();
-      }
-    }
-
-    @Override
-    public ByteBuffer getBuffer(boolean direct, int length) {
-      if (!direct) {
-        return heapAllocator.getBuffer(false, length);
-      }
-      ArrowBuf buf = allocator.buffer(length);
-      ByteBuffer retBuf = buf.nioBuffer(0, length);
-      directBufMap.put(new ByteBufferWrapper(retBuf), buf);
-      return retBuf;
-    }
-
-    @Override
-    public void putBuffer(ByteBuffer buffer) {
-      if (!buffer.isDirect()) {
-        heapAllocator.putBuffer(buffer);
-        return;
-      }
-      ArrowBuf buf = directBufMap.remove(new ByteBufferWrapper(buffer));
-      if (buf != null) {
-        buf.release();
-      }
-    }
-  }
 }

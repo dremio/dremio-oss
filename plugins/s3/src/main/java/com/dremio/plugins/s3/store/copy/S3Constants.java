@@ -31,6 +31,9 @@ public class S3Constants {
 
   public static final String USER_AGENT_PREFIX = "fs.s3a.user.agent.prefix";
 
+  public static final String FAST_UPLOAD_BUFFER = "fs.s3a.fast.upload.buffer";
+  public static final String FAST_UPLOAD_ACTIVE_BLOCKS = "fs.s3a.fast.upload.active.blocks";
+
   //Enable path style access? Overrides default virtual hosting
   public static final String PATH_STYLE_ACCESS = "fs.s3a.path.style.access";
 

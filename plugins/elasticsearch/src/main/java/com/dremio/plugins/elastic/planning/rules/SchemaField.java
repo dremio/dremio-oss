@@ -42,8 +42,8 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.SchemaPath.SchemaPathVisitor;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticSpecialType;
 import com.dremio.exec.record.TypedFieldId;
-import com.dremio.plugins.elastic.ElasticStoragePluginConfig;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
+import com.dremio.plugins.elastic.ElasticsearchConf;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
 import com.dremio.plugins.elastic.mapping.FieldAnnotation;
 import com.dremio.plugins.elastic.planning.rels.ElasticIntermediateScanPrel;
@@ -381,8 +381,8 @@ public class SchemaField extends RexInputRef {
       this.scan = scan;
       this.isV5 = scan.getPluginId().getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
       this.disallowedSpecialTypes = disallowedSpecialTypes;
-      ElasticStoragePluginConfig config = scan.getPluginId().getConnectionConf();
-      this.isPainless = isV5 && config.usePainless;
+      ElasticsearchConf config = ElasticsearchConf.createElasticsearchConf(scan.getPluginId().getConnectionConf());
+      this.isPainless = isV5 && config.isUsePainless();
     }
 
     @Override

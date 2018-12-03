@@ -96,7 +96,7 @@ public class HandlerToPreparePlan implements CommandRunner<CreatePreparedStateme
       planCache.put(handle, prepared);
 
       // record a partial plan so that we can grab metadata and use it (for example during view creation of via sql).
-      observers.planCompleted(new ExecutionPlan(plan, ImmutableList.of()));
+      observers.planCompleted(new ExecutionPlan(plan, ImmutableList.of(), ImmutableList.of()));
       return 1;
     }catch(Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);

@@ -27,11 +27,8 @@
 
   // markdown element styles -------------------
 
-  @line-height: 25px;
-  @font-size: 12px;
-  @diff: @line-height - @font-size;
-  line-height: @line-height;
-  font-size: @font-size;
+  line-height: 1.5;
+  font-size: 12px;
 
   :global {
 
@@ -41,7 +38,6 @@
         .formLabel();
         @_size: 22px - 2px * (@i - 1);
         font-size: @_size;
-        line-height: max(@_size + @diff, @line-height);
       }
       .generate-headers(@i + 1);
     }
@@ -176,6 +172,10 @@
     .CodeMirror-scroll {
       margin-bottom: -(@vert-padding + @native-scroll-size);
       margin-right: -(@horiz-padding + @native-scroll-size);
+    }
+
+    .CodeMirror-cursor {
+      transform: scaleY(0.65);
     }
 
     .mde-background-mixin(#FFF);

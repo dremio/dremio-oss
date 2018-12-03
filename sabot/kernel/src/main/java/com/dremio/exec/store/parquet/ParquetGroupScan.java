@@ -15,13 +15,14 @@
  */
 package com.dremio.exec.store.parquet;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
@@ -30,6 +31,10 @@ import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.AbstractFileGroupScan;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.file.proto.ParquetDatasetSplitScanXAttr;
+import com.dremio.service.namespace.file.proto.ParquetDatasetSplitXAttr;
+
+import io.protostuff.ByteString;
 
 /**
  * Group scan for file system based tables
@@ -49,15 +54,33 @@ public class ParquetGroupScan extends AbstractFileGroupScan {
 
   @Override
   public SubScan getSpecificScan(List<SplitWork> work) throws ExecutionSetupException {
-    final List<DatasetSplit> splits = new ArrayList<>(work.size());
     final BatchSchema schema = cachedRelDataType == null ? getDataset().getSchema():  BatchSchema.fromCalciteRowType(cachedRelDataType);
-    for(SplitWork split : work){
-      splits.add(split.getSplit());
-    }
+
+    // Create an abridged version of the splits to save network bytes.
+    List<DatasetSplit> splits = work.stream().map(
+        workSplit -> ProtostuffUtil.copy(workSplit.getSplit())
+            .setExtendedProperty(convertToScanXAttr(workSplit.getSplit().getExtendedProperty()))
+    ).collect(Collectors.toList());
+
     return new ParquetSubScan(dataset.getFormatSettings(), splits, getUserName(), schema,
         getDataset().getName().getPathComponents(), filter == null ? null : filter.getConditions(),
         dataset.getStoragePluginId(), columns, dataset.getReadDefinition().getPartitionColumnsList(),
         globalDictionaryEncodedColumns, dataset.getReadDefinition().getExtendedProperty());
+  }
+
+  /*
+   * Copy from a full xattr to a scan xattr.
+   */
+  private ByteString convertToScanXAttr(ByteString xattrFullSerialized) {
+    ParquetDatasetSplitXAttr fullXAttr = ParquetDatasetXAttrSerDe.PARQUET_DATASET_SPLIT_XATTR_SERIALIZER.revert(xattrFullSerialized.toByteArray());;
+
+    ParquetDatasetSplitScanXAttr scanXAttr = new ParquetDatasetSplitScanXAttr();
+    scanXAttr.setPath(fullXAttr.getPath());
+    scanXAttr.setFileLength(fullXAttr.getUpdateKey().getLength());
+    scanXAttr.setStart(fullXAttr.getStart());
+    scanXAttr.setLength(fullXAttr.getLength());
+    scanXAttr.setRowGroupIndex(fullXAttr.getRowGroupIndex());
+    return ByteString.copyFrom(ParquetDatasetXAttrSerDe.PARQUET_DATASET_SPLIT_SCAN_XATTR_SERIALIZER.serialize(scanXAttr));
   }
 
   public ParquetScanFilter getFilter() {

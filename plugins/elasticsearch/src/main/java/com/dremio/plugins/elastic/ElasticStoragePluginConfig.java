@@ -18,14 +18,11 @@ package com.dremio.plugins.elastic;
 import java.util.List;
 
 import javax.inject.Provider;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
 
 import org.hibernate.validator.constraints.NotEmpty;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AuthenticationType;
-import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.EncryptionValidationMode;
 import com.dremio.exec.catalog.conf.Host;
@@ -36,8 +33,11 @@ import com.dremio.exec.server.SabotContext;
 
 import io.protostuff.Tag;
 
+/**
+ * Configuration for regular Elasticsearch storage plugin.
+ */
 @SourceType(value = "ELASTIC", label = "Elasticsearch")
-public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePluginConfig, ElasticsearchStoragePlugin> {
+public class ElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<ElasticStoragePluginConfig, ElasticsearchStoragePlugin> {
 
   //  repeated Host host = 1; // default port should be 9200
   //  optional string username = 2;
@@ -58,7 +58,7 @@ public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePlu
 
   @NotEmpty
   @Tag(1)
-  public List<Host> hostList; // default port should be 9200
+  public List<Host> hostList;
 
   @Tag(2)
   public String username;
@@ -70,66 +70,17 @@ public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePlu
   @Tag(4)
   public AuthenticationType authenticationType = AuthenticationType.ANONYMOUS;
 
-  @Tag(5)
-  @DisplayMetadata(label = "Use scripts for query pushdown")
-  public boolean scriptsEnabled = true;
-
-  @Tag(6)
-  @DisplayMetadata(label = "Show hidden indices that start with a dot (.)")
-  public boolean showHiddenIndices = false;
-
   @Tag(7)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Encrypt connection")
   public boolean sslEnabled = false;
 
-  @Tag(8)
-  @DisplayMetadata(label = "Show _id columns")
-  public boolean showIdColumn = false;
-
-  @Min(1)
-  @Tag(9)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Read timeout (milliseconds)")
-  public int readTimeoutMillis = 60000;
-
-  @Min(1)
-  @Tag(10)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Scroll timeout (milliseconds)")
-  public int scrollTimeoutMillis = 300000;
-
-  @Tag(11)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Use Painless scripting with Elasticsearch 5.0+")
-  public boolean usePainless = true;
-
   @Tag(12)
   @DisplayMetadata(label = "Managed Elasticsearch service")
   public boolean useWhitelist = false;
 
-  @Tag(13)
-  @Min(127)
-  @Max(65535)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Scroll size")
-  public int scrollSize = 4000;
-
-  @Tag(14)
-  @DisplayMetadata(label = "Use index/doc fields when pushing down aggregates and filters on analyzed and normalized fields (may produce unexpected results)")
-  public boolean allowPushdownOnNormalizedOrAnalyzedFields = false;
-
-  @Tag(15)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "If the number of records returned from Elasticsearch is less than the expected number, warn instead of failing the query")
-  public boolean warnOnRowCountMismatch = false;
-
-  @Tag(16)
-  @NotMetadataImpacting
-  @DisplayMetadata(label = "Validation Mode") // Should be under Encryption section
-  public EncryptionValidationMode encryptionValidationMode = EncryptionValidationMode.CERTIFICATE_AND_HOSTNAME_VALIDATION;
-
   public ElasticStoragePluginConfig() {
+    super();
   }
 
   public static ElasticStoragePluginConfig newMessage() {
@@ -156,35 +107,43 @@ public class ElasticStoragePluginConfig extends ConnectionConf<ElasticStoragePlu
       boolean allowPushdownOnNormalizedOrAnalyzedFields,
       boolean warnOnRowCountMismatch,
       EncryptionValidationMode encryptionValidationMode) {
+    super(scriptsEnabled, showHiddenIndices, showIdColumn, readTimeoutMillis, scrollTimeoutMillis, usePainless,
+      scrollSize, allowPushdownOnNormalizedOrAnalyzedFields, warnOnRowCountMismatch, encryptionValidationMode);
     this.hostList = hostList;
     this.username = username;
     this.password = password;
     this.authenticationType = authenticationType;
-    this.scriptsEnabled = scriptsEnabled;
-    this.showHiddenIndices = showHiddenIndices;
     this.sslEnabled = sslEnabled;
-    this.showIdColumn = showIdColumn;
-    this.readTimeoutMillis = readTimeoutMillis;
-    this.scrollTimeoutMillis = scrollTimeoutMillis;
-    this.usePainless = usePainless;
     this.useWhitelist = useWhitelist;
-    this.scrollSize = scrollSize;
-    this.allowPushdownOnNormalizedOrAnalyzedFields = allowPushdownOnNormalizedOrAnalyzedFields;
-    this.warnOnRowCountMismatch = warnOnRowCountMismatch;
-    this.encryptionValidationMode = encryptionValidationMode;
-  }
-
-  public String getReadTimeoutFormatted() {
-    return readTimeoutMillis + "ms";
-  }
-
-  public String getScrollTimeoutFormatted() {
-    return scrollTimeoutMillis + "ms";
   }
 
   @Override
   public ElasticsearchStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new ElasticsearchStoragePlugin(this, context, name);
+    return new ElasticsearchStoragePlugin(createElasticsearchConf(this), context, name);
   }
 
+  public static ElasticsearchConf createElasticsearchConf(ElasticStoragePluginConfig elasticStoragePluginConfig) {
+    ElasticsearchConf.AuthenticationType authenticationType;
+    switch (elasticStoragePluginConfig.authenticationType) {
+      case ANONYMOUS:
+        authenticationType = ElasticsearchConf.AuthenticationType.NONE;
+        break;
+      case MASTER:
+        authenticationType = ElasticsearchConf.AuthenticationType.ES_ACCOUNT;
+        break;
+      default:
+        authenticationType = ElasticsearchConf.AuthenticationType.NONE;
+    }
+    ElasticsearchConf elasticsearchConf = new ElasticsearchConf(
+      elasticStoragePluginConfig.hostList, elasticStoragePluginConfig.username,
+      elasticStoragePluginConfig.password, "", "", "", authenticationType,
+      elasticStoragePluginConfig.scriptsEnabled, elasticStoragePluginConfig.showHiddenIndices,
+      elasticStoragePluginConfig.sslEnabled, elasticStoragePluginConfig.showIdColumn,
+      elasticStoragePluginConfig.readTimeoutMillis, elasticStoragePluginConfig.scrollTimeoutMillis,
+      elasticStoragePluginConfig.usePainless, elasticStoragePluginConfig.useWhitelist,
+      elasticStoragePluginConfig.scrollSize, elasticStoragePluginConfig.allowPushdownOnNormalizedOrAnalyzedFields,
+      elasticStoragePluginConfig.warnOnRowCountMismatch,
+      elasticStoragePluginConfig.encryptionValidationMode);
+    return elasticsearchConf;
+  }
 }

@@ -73,8 +73,8 @@ import com.dremio.elastic.proto.ElasticReaderProto.ElasticSpecialType;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.impl.RegexpUtil;
 import com.dremio.lucene.queryparser.classic.QueryConverter;
-import com.dremio.plugins.elastic.ElasticStoragePluginConfig;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
+import com.dremio.plugins.elastic.ElasticsearchConf;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
 import com.dremio.plugins.elastic.mapping.FieldAnnotation;
 import com.dremio.plugins.elastic.planning.rels.ElasticIntermediateScanPrel;
@@ -190,7 +190,7 @@ public class PredicateAnalyzer {
 
       try {
         QueryExpression e = (QueryExpression) expression.accept(
-            new Visitor(scan.getCluster().getRexBuilder(), scan.getPluginId().getConnectionConf()));
+            new Visitor(scan.getCluster().getRexBuilder(), ElasticsearchConf.createElasticsearchConf(scan.getPluginId().getConnectionConf())));
 
         if (e != null && e.isPartial()) {
           e = CompoundQueryExpression.completeAnd(e, genScriptFilter(expression, scan.getPluginId(), null));
@@ -245,14 +245,14 @@ public class PredicateAnalyzer {
       throws ExpressionNotAnalyzableException {
     try {
       final boolean supportsV5Features = pluginId.getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
-      final ElasticStoragePluginConfig config = pluginId.getConnectionConf();
+      final ElasticsearchConf config = ElasticsearchConf.createElasticsearchConf(pluginId.getConnectionConf());
       final Script script = ProjectAnalyzer.getScript(
           expression,
-          config.usePainless,
+          config.isUsePainless(),
           supportsV5Features,
-          config.scriptsEnabled,
+          config.isScriptsEnabled(),
           false, /* _source is not available in filter context */
-          config.allowPushdownOnNormalizedOrAnalyzedFields);
+          config.isAllowPushdownOnNormalizedOrAnalyzedFields());
       QueryBuilder builder = scriptQuery(script);
       return builder;
     } catch (Throwable t) {
@@ -275,9 +275,9 @@ public class PredicateAnalyzer {
   private static class Visitor extends RexVisitorImpl<Expression> {
 
     private final RexBuilder rexBuilder;
-    private final ElasticStoragePluginConfig config;
+    private final ElasticsearchConf config;
 
-    protected Visitor(RexBuilder rexBuilder, ElasticStoragePluginConfig config) {
+    protected Visitor(RexBuilder rexBuilder, ElasticsearchConf config) {
       super(true);
       this.rexBuilder = rexBuilder;
       this.config = config;
@@ -520,7 +520,7 @@ public class PredicateAnalyzer {
       }
 
       // Analyzed text fields and normalized keyword fields cannot be pushed down unless allowed in settings
-      if (!config.allowPushdownOnNormalizedOrAnalyzedFields &&
+      if (!config.isAllowPushdownOnNormalizedOrAnalyzedFields() &&
           fieldExpression.getAnnotation() != null && fieldExpression.getType().isText() &&
           (fieldExpression.getAnnotation().isAnalyzed() || fieldExpression.getAnnotation().isNormalized())) {
         throw new PredicateAnalyzerException(

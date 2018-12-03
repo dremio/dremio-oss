@@ -140,13 +140,17 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       BatchSchema schema,
       Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns) throws IOException {
     return new ParquetGroupScanUtils(userName, selection, plugin, this, selection.getSelectionRoot(), columns, schema,
-      globalDictionaryColumns, null);
+      globalDictionaryColumns, null, context.getOptionManager());
   }
 
   @Override
   public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper fs, FileStatus status) throws ExecutionSetupException {
     try {
-      return new PreviewReader(context, fs, status);
+      final ParquetMetadata footer = ParquetFileReader.readFooter(fsPlugin.getFsConf(), status, ParquetMetadataConverter.NO_FILTER);
+      if (footer.getBlocks().size() == 0) {
+        return null;
+      }
+      return new PreviewReader(context, fs, status, footer);
     } catch (IOException e) {
       throw new ExecutionSetupException(e);
     }
@@ -172,13 +176,14 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
     public PreviewReader(
         OperatorContext context,
         FileSystemWrapper fs,
-        FileStatus status
+        FileStatus status,
+        ParquetMetadata footer
         ) throws IOException {
       super();
       this.context = context;
       this.fs = fs;
       this.status = status;
-      this.footer = ParquetFileReader.readFooter(fsPlugin.getFsConf(), status, ParquetMetadataConverter.NO_FILTER);
+      this.footer = footer;
       this.dateStatus = ParquetReaderUtility.detectCorruptDates(footer, GroupScan.ALL_COLUMNS, getConfig().autoCorrectCorruptDates);
       this.schemaHelper = SchemaDerivationHelper.builder()
           .readInt96AsTimeStamp(context.getOptions().getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR))

@@ -32,6 +32,7 @@ import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
+import com.dremio.exec.proto.CoordExecRPC.SharedData;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.RpcException;
@@ -70,7 +71,7 @@ class FragmentStarter {
 
   public void start(ExecutionPlan plan, AttemptObserver observer) throws Exception {
     try{
-      startFragments(plan.getFragments(), observer);
+      startFragments(plan, observer);
     } catch(ForemanException ex){
       exception.addException(ex);
     } finally {
@@ -82,10 +83,11 @@ class FragmentStarter {
    * Set up the fragments for execution. Some may be local, and some may be remote.
    * Messages are sent immediately, so they may start returning data even before we complete this.
    *
-   * @param fragments the fragments
+   * @param plan the execution plan
    * @throws ForemanException
    */
-  protected void startFragments(final Collection<PlanFragment> fragments, AttemptObserver observer) throws ForemanException {
+  protected void startFragments(ExecutionPlan plan, AttemptObserver observer) throws ForemanException {
+    final Collection<PlanFragment> fragments = plan.getFragments();
     if (fragments.isEmpty()) {
       // nothing to do here
       return;
@@ -134,7 +136,7 @@ class FragmentStarter {
     Stopwatch stopwatch = Stopwatch.createStarted();
     // send remote intermediate fragments
     for (final NodeEndpoint ep : intFragmentMap.keySet()) {
-      sendRemoteFragments(ep, intFragmentMap.get(ep), endpointLatch, fragmentSubmitFailures);
+      sendRemoteFragments(ep, intFragmentMap.get(ep), plan.getSharedData(), endpointLatch, fragmentSubmitFailures);
     }
 
     final long timeout = RPC_WAIT_IN_MSECS_PER_FRAGMENT * numIntFragments;
@@ -180,7 +182,7 @@ class FragmentStarter {
      * the regular sendListener event delivery.
      */
     for (final NodeEndpoint ep : leafFragmentMap.keySet()) {
-      sendRemoteFragments(ep, leafFragmentMap.get(ep), null, null);
+      sendRemoteFragments(ep, leafFragmentMap.get(ep), plan.getSharedData(), null, null);
     }
     stopwatch.stop();
     // No waiting on acks of sent leaf fragments; so this number is not be reliable
@@ -196,7 +198,7 @@ class FragmentStarter {
    * @param fragmentSubmitFailures the submission failure counter used to track the requests to all endpoints
    */
   private void sendRemoteFragments(final NodeEndpoint assignment, final Collection<PlanFragment> fragments,
-      final CountDownLatch latch, final FragmentSubmitFailures fragmentSubmitFailures) {
+      List<SharedData> sharedData, final CountDownLatch latch, final FragmentSubmitFailures fragmentSubmitFailures) {
 
     final InitializeFragments.Builder fb = InitializeFragments.newBuilder();
     for(final PlanFragment planFragment : fragments) {
@@ -213,6 +215,7 @@ class FragmentStarter {
       }
       fb.setSchedulingInfo(schedulingInfo);
     }
+    fb.addAllSharedData(sharedData);
     final InitializeFragments initFrags = fb.build();
 
     logger.debug("Sending remote fragments to \nNode:\n{} \n\nData:\n{}", assignment, initFrags);

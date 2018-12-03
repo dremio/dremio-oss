@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet;
 
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.Serializer;
+import com.dremio.service.namespace.file.proto.ParquetDatasetSplitScanXAttr;
 import com.dremio.service.namespace.file.proto.ParquetDatasetSplitXAttr;
 import com.dremio.service.namespace.file.proto.ParquetDatasetXAttr;
 
@@ -26,4 +27,5 @@ import com.dremio.service.namespace.file.proto.ParquetDatasetXAttr;
 public class ParquetDatasetXAttrSerDe {
   public static final Serializer<ParquetDatasetXAttr> PARQUET_DATASET_XATTR_SERIALIZER = ProtostuffSerializer.of(ParquetDatasetXAttr.getSchema());
   public static final Serializer<ParquetDatasetSplitXAttr> PARQUET_DATASET_SPLIT_XATTR_SERIALIZER = ProtostuffSerializer.of(ParquetDatasetSplitXAttr.getSchema());
+  public static final Serializer<ParquetDatasetSplitScanXAttr> PARQUET_DATASET_SPLIT_SCAN_XATTR_SERIALIZER = ProtostuffSerializer.of(ParquetDatasetSplitScanXAttr.getSchema());
 }

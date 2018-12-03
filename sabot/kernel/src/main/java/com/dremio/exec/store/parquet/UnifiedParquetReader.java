@@ -57,7 +57,7 @@ import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator.Metric;
-import com.dremio.service.namespace.file.proto.ParquetDatasetSplitXAttr;
+import com.dremio.service.namespace.file.proto.ParquetDatasetSplitScanXAttr;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
@@ -69,7 +69,7 @@ public class UnifiedParquetReader implements RecordReader {
 
   private final OperatorContext context;
   private final ParquetMetadata footer;
-  private final ParquetDatasetSplitXAttr readEntry;
+  private final ParquetDatasetSplitScanXAttr readEntry;
   private final SchemaDerivationHelper schemaHelper;
   private final boolean vectorize;
   private final boolean enableDetailedTracing;
@@ -96,7 +96,7 @@ public class UnifiedParquetReader implements RecordReader {
       List<SchemaPath> realFields,
       Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
       List<ParquetFilterCondition> filterConditions,
-      ParquetDatasetSplitXAttr readEntry,
+      ParquetDatasetSplitScanXAttr readEntry,
       FileSystem fs,
       ParquetMetadata footer,
       GlobalDictionaries dictionaries,

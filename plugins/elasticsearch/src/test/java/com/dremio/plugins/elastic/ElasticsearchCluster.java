@@ -15,6 +15,10 @@
  */
 package com.dremio.plugins.elastic;
 
+import static com.dremio.plugins.elastic.ElasticsearchConf.AuthenticationType.ACCESS_KEY;
+import static com.dremio.plugins.elastic.ElasticsearchConf.AuthenticationType.EC2_METADATA;
+import static com.dremio.plugins.elastic.ElasticsearchConf.AuthenticationType.ES_ACCOUNT;
+import static com.dremio.plugins.elastic.ElasticsearchConf.AuthenticationType.NONE;
 import static com.dremio.plugins.elastic.ElasticsearchConstants.DEFAULT_READ_TIMEOUT_MILLIS;
 import static com.dremio.plugins.elastic.ElasticsearchConstants.DEFAULT_SCROLL_TIMEOUT_MILLIS;
 import static java.lang.String.format;
@@ -76,6 +80,7 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.AuthenticationType;
 import com.dremio.exec.catalog.conf.EncryptionValidationMode;
 import com.dremio.exec.catalog.conf.Host;
@@ -115,6 +120,23 @@ public class ElasticsearchCluster implements Closeable {
   private static final String CLUSTER_NAME = "dremio-test-cluster";
   private static final String NODE_NAME_PREFIX = "elastic-test-node-";
 
+  private final String host;
+  private final Integer port;
+  private final String username;
+  private final String password;
+  private final String accessKey;
+  private final String accessSecret;
+  private final boolean overwriteRegion;
+  private final String regionName;
+  private final ElasticsearchConf.AuthenticationType authenticationType;
+  /* Authentication type used to access elasticsearch for the unit tests.
+   * ES_ACCOUNT: provide user/password as credentials to access regular elasticsearch.
+   * ACCESS_KEY: provide access key/secret and region as credentials to access Amazon Elasticsearch Service.
+   * EC2_METADATA: provide region and use the EC2 metadata to get credentials to access Amazon Elasticsearch Service.
+   * NONE: access elasticsearch anonymously.
+   */
+  private final String testAuthenticationType;
+
   private final Random random;
 
   private Server proxy;
@@ -124,6 +146,7 @@ public class ElasticsearchCluster implements Closeable {
   private final boolean scriptsEnabled;
   private final boolean showIDColumn;
   private final boolean sslEnabled;
+  private final boolean useWhiteList;
 
   private ElasticConnectionPool pool;
   private ElasticConnection connection;
@@ -146,15 +169,46 @@ public class ElasticsearchCluster implements Closeable {
     this.random = random;
     this.scriptsEnabled = scriptsEnabled;
     this.showIDColumn = showIDColumn;
-    this.sslEnabled = sslEnabled;
+
+    this.testAuthenticationType = System.getProperty("dremio.elastic.authentication.type", "NONE").toUpperCase();
+    switch (testAuthenticationType) {
+      case "ES_ACCOUNT":
+        this.authenticationType = ES_ACCOUNT;
+        this.sslEnabled = sslEnabled;
+        this.useWhiteList = false;
+        break;
+      case "ACCESS_KEY":
+        this.authenticationType = ACCESS_KEY;
+        this.sslEnabled = true;
+        this.useWhiteList = true;
+        break;
+      case "EC2_METADATA":
+        this.authenticationType = EC2_METADATA;
+        this.sslEnabled = true;
+        this.useWhiteList = true;
+        break;
+      default:
+        this.authenticationType = NONE;
+        this.sslEnabled = sslEnabled;
+        this.useWhiteList = false;
+        break;
+    }
+    this.host = System.getProperty("dremio.elastic.host", "127.0.0.1");
+    this.port = Integer.valueOf(System.getProperty("dremio.elastic.port", Integer.toString(sslEnabled ? sslPort : ELASTICSEARCH_PORT)));
+    this.username = System.getProperty("dremio.elastic.username", "");
+    this.password = System.getProperty("dremio.elastic.password", "");
+    this.accessKey = System.getProperty("dremio.elastic.access.key", "");
+    this.accessSecret = System.getProperty("dremio.elastic.access.secret", "");
+    this.overwriteRegion = "true".equals(System.getProperty("dremio.elastic.region.overwrite", "false"));
+    this.regionName = System.getProperty("dremio.elastic.region.name", "");
     initClient();
   }
 
   private void initClient() throws IOException {
-    int port = sslEnabled ? sslPort : ELASTICSEARCH_PORT;
-    List<Host> hosts = ImmutableList.of(new Host("127.0.0.1", port));
+    List<Host> hosts = ImmutableList.of(new Host(host, port));
 
-    this.pool = new ElasticConnectionPool(hosts, sslEnabled ? TLSValidationMode.UNSECURE : TLSValidationMode.OFF, null, null, 10000, false);
+    this.pool = new ElasticConnectionPool(hosts, sslEnabled ? TLSValidationMode.UNSECURE : TLSValidationMode.OFF, new ElasticsearchAuthentication(hosts, authenticationType,
+      username, password, accessKey, accessSecret, regionName), 10000, useWhiteList);
     pool.connect();
     connection = pool.getRandomConnection();
     webTarget = connection.getTarget();
@@ -257,15 +311,19 @@ public class ElasticsearchCluster implements Closeable {
    * Creates a storage plugin config with values suitable for creating
    * connections to the embedded elasticsearch cluster.
    */
-  public ElasticStoragePluginConfig config(boolean allowPushdownAnalyzedOrNormalizedFields) {
-
-    final int port = sslEnabled ? sslPort : ELASTICSEARCH_PORT;
-
-    ElasticStoragePluginConfig config = new ElasticStoragePluginConfig(
-        ImmutableList.<Host>of(new Host("127.0.0.1", port)),
-        null, /* username */
-        null, /* password */
-        AuthenticationType.ANONYMOUS,
+  public BaseElasticStoragePluginConfig config(boolean allowPushdownAnalyzedOrNormalizedFields) {
+    if ((this.authenticationType == ES_ACCOUNT) || (this.authenticationType == NONE)) {
+      AuthenticationType authenticationType;
+      if (this.authenticationType == ES_ACCOUNT) {
+        authenticationType = AuthenticationType.MASTER;
+      } else {
+        authenticationType = AuthenticationType.ANONYMOUS;
+      }
+      ElasticStoragePluginConfig config = new ElasticStoragePluginConfig(
+        ImmutableList.<Host>of(new Host(host, port)),
+        username, /* username */
+        password, /* password */
+        authenticationType,
         scriptsEnabled, /* Scripts enabled */
         false, /* Show Hidden Indices */
         sslEnabled,
@@ -273,16 +331,44 @@ public class ElasticsearchCluster implements Closeable {
         DEFAULT_READ_TIMEOUT_MILLIS,
         DEFAULT_SCROLL_TIMEOUT_MILLIS,
         true, /* use painless */
-        false, /* use whitelist */
+        useWhiteList, /* use whitelist */
         scrollSize,
         allowPushdownAnalyzedOrNormalizedFields, /* allow group by on normalized fields */
         false, /* warn on row count mismatch */
         EncryptionValidationMode.NO_VALIDATION
-        );
-    return config;
+      );
+      return config;
+    } else {
+      AWSAuthenticationType authenticationType;
+      if (this.authenticationType == ACCESS_KEY) {
+        authenticationType = AWSAuthenticationType.ACCESS_KEY;
+      } else {
+        authenticationType = AWSAuthenticationType.EC2_METADATA;
+      }
+      AmazonElasticStoragePluginConfig config = new AmazonElasticStoragePluginConfig(
+        host, /* Amazon Elasticsearch Service hostname */
+        port, /* Amazon Elasticsearch Service port */
+        accessKey, /* AWS access key */
+        accessSecret, /* AWS access secret */
+        overwriteRegion, /* overwrite region */
+        regionName, /* region name */
+        authenticationType,
+        scriptsEnabled, /* Scripts enabled */
+        false, /* Show Hidden Indices */
+        showIDColumn,
+        DEFAULT_READ_TIMEOUT_MILLIS,
+        DEFAULT_SCROLL_TIMEOUT_MILLIS,
+        true, /* use painless */
+        scrollSize,
+        allowPushdownAnalyzedOrNormalizedFields, /* allow group by on normalized fields */
+        false, /* warn on row count mismatch */
+        EncryptionValidationMode.NO_VALIDATION
+      );
+      return config;
+    }
   }
 
-  public ElasticStoragePluginConfig config() {
+  public BaseElasticStoragePluginConfig config() {
     return config(false);
   }
 

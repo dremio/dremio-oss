@@ -64,7 +64,8 @@
     overflow: auto;
     margin: 0;
     min-width: @min-screen-width;
-    min-height: @min-screen-height;
+    //DX-13499: min-height causing flickering with AutoSizer
+    //min-height: @min-screen-height;
     position: relative; /* so modal portal can be position: absolute relative to body */
 
     * {

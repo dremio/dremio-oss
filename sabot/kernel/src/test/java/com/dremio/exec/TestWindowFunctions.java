@@ -15,12 +15,15 @@
  */
 package com.dremio.exec;
 
+import java.util.stream.IntStream;
+
 import org.joda.time.LocalDateTime;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.PlanTestBase;
+import com.dremio.TestBuilder;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
@@ -1019,5 +1022,25 @@ public class TestWindowFunctions extends BaseTestQuery {
         .build()
         .run();
     }
+  }
+
+  @Test
+  public void testWindowCount() throws Exception {
+    final String query = "select count(*) over() as cnt \n" +
+        "from cp.\"tpch/nation.parquet\"";
+    // Validate the plan
+    final String[] expectedPlan = {"Window.*partition \\{\\} order by \\[\\].*\\[COUNT\\(\\)\\]",
+        "Scan.*columns=\\[\\].*"};
+    final String[] excludedPatterns = {"Scan.*columns=\\[`.*`\\].*"};
+    PlanTestBase.testPlanMatchingPatterns(query, expectedPlan, excludedPatterns);
+    TestBuilder builder = testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("cnt");
+
+    // Adding 25 times 25
+    IntStream.range(0, 25).forEach((ignored) -> builder.baselineValues(25L));
+
+     builder.go();
   }
 }

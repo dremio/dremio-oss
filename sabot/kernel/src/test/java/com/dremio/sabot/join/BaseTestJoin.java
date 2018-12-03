@@ -21,17 +21,22 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.BaseFixedWidthVector;
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.holders.DecimalHolder;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.junit.Test;
 
 import com.dremio.common.logical.data.JoinCondition;
-import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.common.types.Types;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
@@ -735,27 +740,63 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       batchSize, expected);
   }
 
-  private static final class ManyColumnsGenerator implements Generator {
+  @Test
+  public void testDecimalJoin() throws Exception {
+    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER);
+    final Table expected = t(
+      th("id2", "name2", "id1", "name1"),
+      tr(BigDecimal.valueOf(1), "b2", BigDecimal.valueOf(1), "a2"),
+      tr(BigDecimal.valueOf(2), "b3", BigDecimal.valueOf(2), "a3")
+    );
+
+    final Table left = t(
+      th("id1", "name1"),
+      tr(BigDecimal.valueOf(1), "a2"),
+      tr(BigDecimal.valueOf(2), "a3")
+      );
+
+    final Table right = t(
+      th("id2", "name2"),
+      tr(BigDecimal.valueOf(1), "b2"),
+      tr(BigDecimal.valueOf(2), "b3"),
+      tr(BigDecimal.valueOf(3), "b4")
+      );
+    validateDual(
+      joinInfo.operator, joinInfo.clazz,
+      left.toGenerator(getTestAllocator()),
+      right.toGenerator(getTestAllocator()),
+      DEFAULT_BATCH, expected);
+  }
+
+  private static final class ManyColumnsGenerator<T extends BaseFixedWidthVector> implements Generator {
     private final int columns;
     private final int rows;
     private final VectorContainer result;
-    private final List<IntVector> vectors;
+    private final List<T> vectors;
+    private final Class<T> clazz;
+    private final DataGen generatorMethod;
 
     private int offset = 0;
 
-    public ManyColumnsGenerator(BufferAllocator allocator, String prefix, int columns, int rows) {
+    public ManyColumnsGenerator(BufferAllocator allocator, String prefix, int columns, int rows,
+                                Class<T> clazz, ArrowType arrowType, DataGen generatorMethod) {
       this.columns = columns;
       this.rows = rows;
       result = new VectorContainer(allocator);
+      this.clazz = clazz;
 
-      ImmutableList.Builder<IntVector> vectorsBuilder = ImmutableList.builder();
+      ImmutableList.Builder<T> vectorsBuilder = ImmutableList.builder();
       for(int i = 0; i<columns; i++) {
-        IntVector vector = result.addOrGet(String.format("%s_%d", prefix, i + 1), Types.optional(MinorType.INT), IntVector.class);
+        Field field = new Field(String.format("%s_%d", prefix, i + 1), true,
+              arrowType, null);
+        T vector = result.addOrGet(field);
         vectorsBuilder.add(vector);
       }
       this.vectors = vectorsBuilder.build();
 
       result.buildSchema(SelectionVectorMode.NONE);
+
+      this.generatorMethod = generatorMethod;
     }
 
     @Override
@@ -768,8 +809,9 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       result.allocateNew();
       for(int i = 0; i<count; i++) {
         int col = 0;
-        for(IntVector vector: vectors) {
-          vector.setSafe(i, (offset + i) * columns + col);
+        for(T vector: vectors) {
+          int value = (offset + i) * columns + col;
+          generatorMethod.apply(i, value, vector);
           col++;
         }
       }
@@ -789,6 +831,22 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     public void close() throws Exception {
       result.close();
     }
+  }
+
+  private static void insertIntoIntVector(int index, int value, BaseFixedWidthVector vector) {
+    IntVector vec = (IntVector)vector;
+    vec.setSafe(index, value);
+  }
+
+  private static void insertIntoDecimalVector(int index, int value, BaseFixedWidthVector vector) {
+    DecimalVector vec = (DecimalVector)vector;
+    DecimalHolder holder = new DecimalHolder();
+    holder.buffer = vec.getDataBuffer();
+    DecimalUtility.writeBigDecimalToArrowBuf(new BigDecimal(value), holder.buffer, 0);
+    holder.start = 0;
+    holder.scale = 0;
+    holder.precision = 38;
+    vec.setSafe(index, holder);
   }
 
   private static HeaderRow getHeader(String leftPrefix, int leftColumns, String rightPrefix, int rightColumns) {
@@ -820,6 +878,25 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     return rows;
   }
 
+  private static DataRow[] getDataDecimal( int leftColumns, int rightColumns, int count) {
+    DataRow[] rows = new DataRow[count];
+
+    for(int i = 0; i<count; i++) {
+      Object[] objects = new Object[leftColumns + rightColumns];
+
+      for(int j = 0; j<leftColumns; j++) {
+        objects[j] = new BigDecimal(i).multiply(new BigDecimal(leftColumns)).add(new BigDecimal(j));
+      }
+      for(int j = 0; j<rightColumns; j++) {
+        objects[j + leftColumns] = new BigDecimal(i).multiply(new BigDecimal(rightColumns)).add(new
+          BigDecimal(j));
+      }
+      rows[i] = tr(objects);
+    }
+
+    return rows;
+  }
+
   protected void baseManyColumns() throws Exception {
     int columns = 1000;
     int leftColumns = columns;
@@ -829,8 +906,31 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
     Table expected = t(getHeader("right", rightColumns, "left", leftColumns), false, getData(columns, leftColumns, 1));
     validateDual(joinInfo.operator, joinInfo.clazz,
-        new ManyColumnsGenerator(getTestAllocator(), "left", leftColumns, 1),
-        new ManyColumnsGenerator(getTestAllocator(), "right", rightColumns, 1),
-        DEFAULT_BATCH, expected);
+      new ManyColumnsGenerator<IntVector>(getTestAllocator(), "left", leftColumns, 1, IntVector
+        .class, new ArrowType.Int(32, true),  BaseTestJoin::insertIntoIntVector),
+      new ManyColumnsGenerator<IntVector>(getTestAllocator(), "right", rightColumns, 1, IntVector
+        .class, new ArrowType.Int(32, true), BaseTestJoin::insertIntoIntVector),
+      DEFAULT_BATCH, expected);
   }
+
+  protected void baseManyColumnsDecimal() throws Exception {
+    int columns = 1000;
+    int leftColumns = columns;
+    int rightColumns = columns;
+
+    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("left_1"), f("right_1"))), JoinRelType.LEFT);
+
+    Table expected = t(getHeader("right", rightColumns, "left", leftColumns), false, getDataDecimal(columns, leftColumns, 1));
+    validateDual(joinInfo.operator, joinInfo.clazz,
+      new ManyColumnsGenerator<DecimalVector>(getTestAllocator(), "left", leftColumns, 1,
+        DecimalVector.class, new ArrowType.Decimal(38, 0), BaseTestJoin::insertIntoDecimalVector),
+      new ManyColumnsGenerator<DecimalVector>(getTestAllocator(), "right", rightColumns, 1,
+        DecimalVector.class, new ArrowType.Decimal(38, 0), BaseTestJoin::insertIntoDecimalVector),
+      DEFAULT_BATCH, expected);
+  }
+
+  public interface DataGen {
+    void apply(Integer value, Integer column, BaseFixedWidthVector inputVector);
+  }
+
 }

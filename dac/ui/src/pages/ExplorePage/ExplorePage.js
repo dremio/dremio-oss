@@ -29,6 +29,7 @@ import HistoryLineController from './components/Timeline/HistoryLineController';
 import ExplorePageContentWrapper from './subpages/ExplorePageContentWrapper';
 
 const GRID_TABLE_MARGIN = 15;
+const EXPLORE_PAGE_MIN_HEIGHT = 700;
 
 @pureRender
 class ExplorePage extends Component {
@@ -118,13 +119,16 @@ class ExplorePage extends Component {
       WebkitUserSelect: selectState,
       MsUserSelect: selectState
     };
+    const minHeightOverride = {
+      minHeight: EXPLORE_PAGE_MIN_HEIGHT
+    };
 
     // Note the DocumentTitle for this page lives in ExploreInfoHeader
 
     return (
       <div id='grid-page'
         ref='ExplorePageView'
-        style={{...this.props.style, dragStyle, cursor}}>
+        style={{...this.props.style, dragStyle, cursor, ...minHeightOverride}}>
         <MainHeader />
         <div className='grid-wrap'>
           <ExplorePageContentWrapper

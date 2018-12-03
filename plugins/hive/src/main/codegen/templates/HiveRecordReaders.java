@@ -45,9 +45,19 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 
+<#if entry.hiveReader == "Orc">
+import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
+import org.apache.hadoop.hive.ql.io.orc.OrcStruct;
+</#if>
 import org.apache.hadoop.hive.ql.io.sarg.ConvertAstToSearchArg;
+<#if entry.hiveReader == "Orc">
+import org.apache.hadoop.hive.ql.io.orc.Reader;
+</#if>
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
+<#if entry.hiveReader == "Orc">
+import org.apache.hadoop.io.NullWritable;
+</#if>
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -64,9 +74,17 @@ import org.apache.hadoop.mapred.Reporter;
 
 public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
 
-  private Object key;
-  private Object value;
-  private RecordReader<Object, Object> reader;
+<#-- Specialized reader for Hive ORC, allowing zero copy to use the Dremio allocator -->
+<#if entry.hiveReader == "Orc">
+  <#assign KeyType="NullWritable">
+  <#assign ValueType="OrcStruct">
+<#else>
+  <#assign KeyType="Object">
+  <#assign ValueType="Object">
+</#if>
+  private ${KeyType} key;
+  private ${ValueType} value;
+  private RecordReader<${KeyType}, ${ValueType}> reader;
   // Converter which converts data from partition schema to table schema.
   protected Converter partTblObjectInspectorConverter;
 
@@ -86,9 +104,14 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
       jobConf.set(ColumnProjectionUtils.READ_COLUMN_NAMES_CONF_STR, jobConf.get(serdeConstants.LIST_COLUMNS));
       jobConf.set(ConvertAstToSearchArg.SARG_PUSHDOWN, scanFilter.getKryoBase64EncodedFilter());
     }
-</#if>
 
+    final Reader.Options options = new Reader.Options()
+      .zeroCopyPoolShim(new HiveORCZeroCopyShim(context.getAllocator()));
+
+    reader = ((OrcInputFormat)jobConf.getInputFormat()).getRecordReader(inputSplit, jobConf, Reporter.NULL, options);
+<#else>
     reader = jobConf.getInputFormat().getRecordReader(inputSplit, jobConf, Reporter.NULL);
+</#if>
 
     if(logger.isTraceEnabled()) {
       logger.trace("hive reader created: {} for inputSplit {}", reader.getClass().getName(), inputSplit.toString());
@@ -108,7 +131,7 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
 
   @Override
   public int populateData() throws IOException, SerDeException {
-    final RecordReader<Object, Object> reader = this.reader;
+    final RecordReader<${KeyType}, ${ValueType}> reader = this.reader;
     final Converter partTblObjectInspectorConverter = this.partTblObjectInspectorConverter;
     final int numRowsPerBatch = (int) this.numRowsPerBatch;
 
@@ -118,9 +141,9 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
     final ObjectInspector[] selectedColumnObjInspectors = this.selectedColumnObjInspectors;
     final HiveFieldConverter[] selectedColumnFieldConverters = this.selectedColumnFieldConverters;
     final ValueVector[] vectors = this.vectors;
-    final Object key = this.key;
-    final Object value = this.value;
-    
+    final ${KeyType} key = this.key;
+    final ${ValueType} value = this.value;
+
     int recordCount = 0;
     while (recordCount < numRowsPerBatch && reader.next(key, value)) {
       Object deSerializedValue = partitionSerDe.deserialize((Writable) value);

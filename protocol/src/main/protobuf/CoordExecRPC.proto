@@ -53,6 +53,14 @@ message FragmentStatus {
 message InitializeFragments {
   repeated PlanFragment fragment = 1;
   optional SchedulingInfo scheduling_info = 2;
+  repeated SharedData shared_data = 3;
+}
+
+message SharedData {
+  optional int32 major_fragment_id = 1;
+  optional int32 operator_id = 2;
+  optional string name = 3;
+  optional bytes value = 4;
 }
 
 message SchedulingInfo {

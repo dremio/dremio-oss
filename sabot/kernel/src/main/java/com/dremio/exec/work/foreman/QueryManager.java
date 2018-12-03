@@ -82,6 +82,7 @@ class QueryManager {
   private final QueryId queryId;
   private final Pointer<QueryId> prepareId;
   private final QueryContext context;
+  private final CoordToExecTunnelCreator tunnelCreator;
   private final CompletionListener completionListener;
   private final PlanCaptureAttemptObserver capturer;
   private final ResourceAllocationResultObserver resourceAllocationResultObserver;
@@ -108,6 +109,7 @@ class QueryManager {
   public QueryManager(
     final QueryId queryId,
     final QueryContext context,
+    final CoordToExecTunnelCreator tunnelCreator,
     final CompletionListener completionListener,
     final Pointer<QueryId> prepareId,
     final AttemptObservers observers,
@@ -115,6 +117,7 @@ class QueryManager {
     final boolean includeDatasetProfiles,
     final Catalog catalog) {
     this.queryId =  queryId;
+    this.tunnelCreator = tunnelCreator;
     this.completionListener = completionListener;
     this.context = context;
     this.prepareId = prepareId;
@@ -237,7 +240,7 @@ class QueryManager {
    *    fragments). The actual cancel is done by delegating the cancel to the work bus.
    * (3) Leaf fragment: running, send the cancel signal through a tunnel. The cancel is done directly.
    */
-  void cancelExecutingFragments(final CoordToExecTunnelCreator creator) {
+  void cancelExecutingFragments() {
     for(final FragmentData data : fragmentDataMap.values()) {
       switch(data.getState()) {
       case SENDING:
@@ -246,7 +249,7 @@ class QueryManager {
         final FragmentHandle handle = data.getHandle();
         final NodeEndpoint endpoint = data.getEndpoint();
         // TODO is the CancelListener redundant? Does the FragmentStatusListener get notified of the same?
-        creator.getTunnel(endpoint).cancelFragment(new SignalListener(endpoint, handle,
+        tunnelCreator.getTunnel(endpoint).cancelFragment(new SignalListener(endpoint, handle,
             SignalListener.Signal.CANCEL), handle);
         break;
 
@@ -554,8 +557,15 @@ class QueryManager {
       case FAILED:
         logger.info("Fragment {} failed, cancelling remaining fragments.", QueryIdHelper.getQueryIdentifier(status.getHandle()));
         completionListener.failed(UserRemoteException.create(status.getProfile().getError()));
-        // fall-through.
+        fragmentDone(status);
+        break;
       case FINISHED:
+        FragmentHandle fragmentHandle = status.getHandle();
+        if (fragmentHandle.getMajorFragmentId() == 0) {
+          cancelExecutingFragments();
+        }
+        fragmentDone(status);
+        break;
       case CANCELLED:
         fragmentDone(status);
         break;

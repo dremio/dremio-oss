@@ -20,10 +20,12 @@ import static com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.UPDATE
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -35,15 +37,17 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.physical.base.ScanStats;
 import com.dremio.exec.physical.base.ScanStats.GroupScanProperty;
+import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
-import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.dfs.CompleteFileWork.FileWorkImpl;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -56,6 +60,7 @@ import com.dremio.exec.store.schedule.CompleteWork;
 import com.dremio.exec.store.schedule.EndpointByteMap;
 import com.dremio.exec.store.schedule.EndpointByteMapImpl;
 import com.dremio.exec.util.ImpersonationUtil;
+import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
@@ -87,9 +92,11 @@ public class ParquetGroupScanUtils {
   private Map<SchemaPath, Long> columnValueCounts;
   // Map from file names to maps of column name to partition value mappings
   private Map<FileStatus, Map<SchemaPath, Object>> partitionValueMap = Maps.newHashMap();
-  private Map<SchemaPath, MajorType> columnTypeMap = Maps.newHashMap();
+  // Preserve order of insertion, need it to prune the map later if it goes above threshold.
+  private Map<SchemaPath, MajorType> columnTypeMap = Maps.newLinkedHashMap();
 
   private final BatchSchema schema;
+  private final OptionManager optionManager;
 
   /**
    * total number of rows (obtained from parquet footer)
@@ -97,15 +104,15 @@ public class ParquetGroupScanUtils {
   private long rowCount;
 
   public ParquetGroupScanUtils(
-      String userName,
-      FileSelection selection,
-      FileSystemPlugin plugin,
-      ParquetFormatPlugin formatPlugin,
-      String selectionRoot,
-      List<SchemaPath> columns,
-      BatchSchema schema,
-      Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns,
-      List<ParquetFilterCondition> conditions)
+    String userName,
+    FileSelection selection,
+    FileSystemPlugin plugin,
+    ParquetFormatPlugin formatPlugin,
+    String selectionRoot,
+    List<SchemaPath> columns,
+    BatchSchema schema,
+    Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns,
+    List<ParquetFilterCondition> conditions, SystemOptionManager optionManager)
       throws IOException {
     this.schema = schema;
     this.formatPlugin = formatPlugin;
@@ -117,6 +124,7 @@ public class ParquetGroupScanUtils {
     this.entries = selection.getStatuses();
 
     this.globalDictionaryColumns = (globalDictionaryColumns == null)? Collections.<String, GlobalDictionaryFieldInfo>emptyMap() : globalDictionaryColumns;
+    this.optionManager = optionManager;
     init();
   }
 
@@ -259,6 +267,7 @@ public class ParquetGroupScanUtils {
     return (columnChunkMetaData != null) &&
       ((columnChunkMetaData.hasSingleValue() && (columnChunkMetaData.getNulls() == null || columnChunkMetaData.getNulls() == 0) ||
         (columnChunkMetaData.getNulls() != null && rowCount == columnChunkMetaData.getNulls())));
+
   }
 
   public static class RowGroupInfo extends FileWorkImpl implements CompleteWork {
@@ -304,7 +313,7 @@ public class ParquetGroupScanUtils {
     public void setEndpointByteMap(EndpointByteMap byteMap) {
       this.byteMap = byteMap;
       this.affinities = Lists.newArrayList();
-      final Iterator<ObjectLongCursor<CoordinationProtos.NodeEndpoint>> nodeEndpointIterator = byteMap.iterator();
+      final Iterator<ObjectLongCursor<NodeEndpoint>> nodeEndpointIterator = byteMap.iterator();
       while (nodeEndpointIterator.hasNext()) {
         ObjectLongCursor<NodeEndpoint> nodeEndPoint = nodeEndpointIterator.next();
         affinities.add(new EndpointAffinity(nodeEndPoint.key, nodeEndPoint.value));
@@ -402,6 +411,10 @@ public class ParquetGroupScanUtils {
                 if (newCount != 0) {
                   columnValueCounts.put(schemaPath, columnValueCounts.get(schemaPath) + newCount);
                 }
+              } else {
+                // Set to no column stats since at-least one row group exists where
+                // stats are in-correct.
+                columnValueCounts.put(schemaPath, GroupScan.NO_COLUMN_STATS);
               }
             }
           } else {
@@ -451,16 +464,54 @@ public class ParquetGroupScanUtils {
         rowGroupIdx++;
       }
 
+      if (file.getRowGroups().size() == 0) {
+        continue;
+      }
+
       Map<SchemaPath, Object> map = partitionValueMap.get(file.getStatus());
       if (map == null) {
         map = Maps.newHashMap();
         partitionValueMap.put(file.getStatus(), map);
       }
       map.put(SchemaPath.getSimplePath(UPDATE_COLUMN), file.getStatus().getModificationTime());
-
     }
+
+    eliminateSomePartitionColumns();
+
     logger.debug("Table: {}, partition columns {}", selectionRoot, columnTypeMap.keySet());
     logger.debug("Took {} ms to gather Parquet table metadata.", watch.elapsed(TimeUnit.MILLISECONDS));
+  }
+
+  private void eliminateSomePartitionColumns() {
+
+    // DX-14064: don't consider columns that are all null partition columns.
+    if (optionManager.getOption(ExecConstants.PARQUET_ELIMINATE_NULL_PARTITIONS)) {
+    // filter out only those columns who we know have zero count i.e. all the row groups
+    // have stats for this column and they are all null.
+    columnTypeMap = columnTypeMap.entrySet()
+        .stream()
+        .filter(e -> e.getKey().getAsUnescapedPath().equals(IncrementalUpdateUtils.UPDATE_COLUMN)
+          || columnValueCounts.get(e.getKey()) != 0)
+        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1,
+                 LinkedHashMap::new));
+    }
+
+    // DX-14064: Limit the total number of partition columns to a defined threshold.
+    final int maxPartitionColumns = (int) optionManager.getOption(ExecConstants.PARQUET_MAX_PARTITION_COLUMNS_VALIDATOR);
+    if (columnTypeMap.size() > maxPartitionColumns) {
+      logger.debug("Table: {} having partitioned column count {} which is more than the " +
+        "threshold {}, pruning.", selectionRoot, columnTypeMap.size(), maxPartitionColumns);
+      Map<SchemaPath, MajorType> prunedColumnTypeMap = Maps.newLinkedHashMap();
+      int i = 0;
+      for(Map.Entry<SchemaPath, MajorType> columnTypeMapEntry : columnTypeMap.entrySet()) {
+        prunedColumnTypeMap.put(columnTypeMapEntry.getKey(), columnTypeMapEntry.getValue());
+        i++;
+        if (i == maxPartitionColumns) {
+          break;
+        }
+      }
+      columnTypeMap = prunedColumnTypeMap;
+    }
   }
 
   private <T> T getRandom(List<T> list) {

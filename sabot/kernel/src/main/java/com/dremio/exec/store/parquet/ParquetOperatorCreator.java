@@ -43,7 +43,7 @@ import com.dremio.sabot.op.spi.ProducerOperator;
 import com.dremio.sabot.op.spi.ProducerOperator.Creator;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.file.FileFormat;
-import com.dremio.service.namespace.file.proto.ParquetDatasetSplitXAttr;
+import com.dremio.service.namespace.file.proto.ParquetDatasetSplitScanXAttr;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.google.common.base.Function;
 import com.google.common.base.Stopwatch;
@@ -111,7 +111,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
 
         try {
           Path p = new Path(split.getSplitXAttr().getPath());
-          Long length = split.getSplitXAttr().getUpdateKey().getLength();
+          Long length = split.getSplitXAttr().getFileLength();
           if (length == null || !context.getOptions().getOption(ExecConstants.PARQUET_CACHED_ENTITY_SET_FILE_SIZE)) {
             length = fs.getFileStatus(p).getLen();
           }
@@ -156,18 +156,18 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
 
   private static class ParquetDatasetSplit implements Comparable {
     private final DatasetSplit datasetSplit;
-    private final ParquetDatasetSplitXAttr splitXAttr;
+    private final ParquetDatasetSplitScanXAttr splitXAttr;
 
     ParquetDatasetSplit(DatasetSplit datasetSplit) {
       this.datasetSplit = datasetSplit;
-      this.splitXAttr = ParquetDatasetXAttrSerDe.PARQUET_DATASET_SPLIT_XATTR_SERIALIZER.revert(datasetSplit.getExtendedProperty().toByteArray());;
+      this.splitXAttr = ParquetDatasetXAttrSerDe.PARQUET_DATASET_SPLIT_SCAN_XATTR_SERIALIZER.revert(datasetSplit.getExtendedProperty().toByteArray());;
     }
 
     DatasetSplit getDatasetSplit() {
       return datasetSplit;
     }
 
-    ParquetDatasetSplitXAttr getSplitXAttr() {
+    ParquetDatasetSplitScanXAttr getSplitXAttr() {
       return splitXAttr;
     }
 

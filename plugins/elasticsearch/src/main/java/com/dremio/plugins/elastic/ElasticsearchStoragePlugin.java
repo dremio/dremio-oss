@@ -86,21 +86,21 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
 
   private final String name;
   private final SabotContext context;
-  private final ElasticStoragePluginConfig config;
+  private final ElasticsearchConf config;
   private final ElasticConnectionPool connectionPool;
 
-  public ElasticsearchStoragePlugin(ElasticStoragePluginConfig config, SabotContext context, String name) {
+  public ElasticsearchStoragePlugin(ElasticsearchConf config, SabotContext context, String name) {
     this.config = config;
     this.context = context;
     this.name = name;
 
     final TLSValidationMode tlsMode;
-    if (!config.sslEnabled) {
+    if (!config.isSslEnabled()) {
       tlsMode = TLSValidationMode.OFF;
     } else {
       // If encryption is enabled, but validation is not set (upgrade?),
       // assume the highest level of security.
-      final EncryptionValidationMode encryptionValidationMode = Optional.ofNullable(config.encryptionValidationMode)
+      final EncryptionValidationMode encryptionValidationMode = Optional.ofNullable(config.getEncryptionValidationMode())
           .orElse(EncryptionValidationMode.CERTIFICATE_AND_HOSTNAME_VALIDATION);
       switch(encryptionValidationMode) {
       case CERTIFICATE_AND_HOSTNAME_VALIDATION:
@@ -119,19 +119,24 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
     }
 
     this.connectionPool = new ElasticConnectionPool(
-        config.hostList,
+        config.getHostList(),
         tlsMode,
-        config.username,
-        config.password,
-        config.readTimeoutMillis,
-        config.useWhitelist);
+        new ElasticsearchAuthentication(config.getHostList(),
+          config.getAuthenticationType(),
+          config.getUsername(),
+          config.getPassword(),
+          config.getAccessKey(),
+          config.getAccessSecret(),
+          config.getRegionName()),
+        config.getReadTimeoutMillis(),
+        config.isUseWhitelist());
   }
 
   public SabotContext getContext() {
     return context;
   }
 
-  public ElasticStoragePluginConfig getConfig(){
+  public ElasticsearchConf getConfig(){
     return config;
   }
 
@@ -325,7 +330,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
     boolean failures = false;
 
     ArrayListMultimap<ElasticAliasMappingName, ElasticIndex> aliases = ArrayListMultimap.create();
-    final boolean includeHiddenSchemas = config.showHiddenIndices;
+    final boolean includeHiddenSchemas = config.isShowHiddenIndices();
         for(ElasticIndex index : clusterMetadata.getIndices()){
       for(ElasticMapping mapping : index.getMappings()){
         try {

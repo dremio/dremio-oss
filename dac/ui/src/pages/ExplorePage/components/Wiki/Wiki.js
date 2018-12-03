@@ -303,7 +303,8 @@ export class WikiView extends PureComponent {
 
     // If wiki is empty we show empty content placeholder with "Add wiki" button and hide edit button in toolbar
     return (
-      <ViewStateWrapper viewState={getLoadViewState(showLoadMask)}>
+      <ViewStateWrapper viewState={getLoadViewState(showLoadMask)}
+        style={{ height: 'auto', display: 'flex', flex: 1, minHeight: 0 }}>
         <div className={layout} data-qa='wikiSection'>
           <div className={classNames(leftColumn, className)} data-qa='wikiWrapper'>
             <ViewStateWrapper viewState={this.state.wikiViewState}

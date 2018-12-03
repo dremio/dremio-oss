@@ -48,7 +48,7 @@ import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator;
-import com.dremio.service.namespace.file.proto.ParquetDatasetSplitXAttr;
+import com.dremio.service.namespace.file.proto.ParquetDatasetSplitScanXAttr;
 import com.google.common.collect.Lists;
 
 /**
@@ -116,7 +116,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
       innerReaders = Lists.newArrayList();
       for (int rowGroupNum : rowGroupNums) {
-        ParquetDatasetSplitXAttr split = new ParquetDatasetSplitXAttr();
+        ParquetDatasetSplitScanXAttr split = new ParquetDatasetSplitScanXAttr();
         split.setRowGroupIndex(rowGroupNum);
         split.setPath(Path.getPathWithoutSchemeAndAuthority(finalPath).toString());
         split.setStart(0l);

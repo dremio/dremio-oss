@@ -15,10 +15,16 @@
  */
 package com.dremio.exec.physical.base;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map.Entry;
+
 import com.dremio.common.graph.GraphVisitor;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.record.BatchSchema;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
+import com.google.protobuf.ByteString;
 
 public abstract class AbstractBase implements PhysicalOperator{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractBase.class);
@@ -121,4 +127,9 @@ public abstract class AbstractBase implements PhysicalOperator{
   }
 
   protected abstract BatchSchema constructSchema(FunctionLookupContext context);
+
+  @JsonIgnore
+  public Collection<Entry<String, ByteString>> getSharedData() {
+    return Collections.emptyList();
+  }
 }

@@ -17,6 +17,8 @@ package com.dremio.exec.store.parquet;
 
 import static java.util.Arrays.asList;
 
+import java.nio.file.Paths;
+
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -254,4 +256,9 @@ public class TestParquetComplex extends BaseTestQuery {
             .go();
   }
 
+  @Test
+  public void testZeroRowParquet() throws Exception {
+    String currentPath = Paths.get(".").toAbsolutePath().normalize().toString();
+    test("select * from dfs.\"" + currentPath + "/src/test/resources/store/parquet/zero-rows\"");
+  }
 }

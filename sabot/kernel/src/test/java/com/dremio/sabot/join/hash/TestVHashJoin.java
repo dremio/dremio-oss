@@ -36,4 +36,9 @@ public class TestVHashJoin extends BaseTestJoin {
   public void manyColumns() throws Exception {
     baseManyColumns();
   }
+
+  @Test
+  public void manyColumnsDecimal() throws Exception {
+    baseManyColumnsDecimal();
+  }
 }

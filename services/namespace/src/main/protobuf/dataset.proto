@@ -132,6 +132,8 @@ enum PartitionValueType {
 }
 
 message PartitionValue {
+  option (extends_class) = "com.dremio.service.namespace.AbstractNonNullSerializer";
+
   optional PartitionValueType type = 1;
   
   // The column name.

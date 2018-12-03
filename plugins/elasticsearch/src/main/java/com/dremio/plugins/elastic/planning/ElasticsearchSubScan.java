@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.elastic.planning;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -57,6 +58,11 @@ public class ElasticsearchSubScan extends SubScanWithProjection {
     super(userName, schema, tableSchemaPath, columns);
     this.pluginId = pluginId;
     this.splits = splits;
+    for (DatasetSplit split : this.splits) {
+      if (split.getAffinitiesList() == null) {
+        split.setAffinitiesList(new ArrayList<>());
+      }
+    }
     this.spec = spec;
     this.extendedProperty = extendedProperty;
   }

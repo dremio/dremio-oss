@@ -146,7 +146,7 @@ public class AttemptManager implements Runnable {
       options.applyOptions(optionManager);
     }
 
-    this.queryManager = new QueryManager(queryId, this.queryContext, new CompletionListenerImpl(), prepareId,
+    this.queryManager = new QueryManager(queryId, this.queryContext, this.tunnelCreator, new CompletionListenerImpl(), prepareId,
       observers, optionManager.getOption(PlannerSettings.VERBOSE_PROFILE),
       optionManager.getOption(PlannerSettings.INCLUDE_DATASET_PROFILE), this.queryContext.getCatalog());
 
@@ -609,7 +609,7 @@ public class AttemptManager implements Runnable {
           case CANCELED: {
             assert exception == null;
             recordNewState(QueryState.CANCELED);
-            queryManager.cancelExecutingFragments(tunnelCreator);
+            queryManager.cancelExecutingFragments();
             foremanResult.setCompleted(QueryState.CANCELED);
           /*
            * We don't close the foremanResult until we've gotten
@@ -630,7 +630,7 @@ public class AttemptManager implements Runnable {
           case FAILED: {
             assert exception != null;
             recordNewState(QueryState.FAILED);
-            queryManager.cancelExecutingFragments(tunnelCreator);
+            queryManager.cancelExecutingFragments();
             foremanResult.setFailed(exception);
             foremanResult.close();
             return;

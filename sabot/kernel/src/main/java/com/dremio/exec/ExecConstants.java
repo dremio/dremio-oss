@@ -70,7 +70,7 @@ public interface ExecConstants {
   // Set this value to set the execution preference
   // Default value to use in the operators (for now, only projector and filter use this default)
   String QUERY_EXEC_OPTION_KEY = "exec.preferred.codegenerator";
-  EnumValidator<EvaluationType.CodeGenOption> QUERY_EXEC_OPTION = new EnumValidator<EvaluationType.CodeGenOption>(
+  EnumValidator<EvaluationType.CodeGenOption> QUERY_EXEC_OPTION = new EnumValidator<>(
     QUERY_EXEC_OPTION_KEY, EvaluationType.CodeGenOption.class, EvaluationType.CodeGenOption.DEFAULT);
 
   // This is the execution preference used internally.
@@ -139,6 +139,10 @@ public interface ExecConstants {
 
   String PARQUET_MEMORY_THRESHOLD = "store.parquet.memory_threshold";
   LongValidator PARQUET_MEMORY_THRESHOLD_VALIDATOR = new LongValidator(PARQUET_MEMORY_THRESHOLD, 512*1024*1024);
+
+  LongValidator PARQUET_MAX_PARTITION_COLUMNS_VALIDATOR = new RangeLongValidator("store.parquet.partition_column_limit", 0, 500, 25);
+
+  BooleanValidator PARQUET_ELIMINATE_NULL_PARTITIONS = new BooleanValidator("store.parquet.exclude_null_implicit_partitions", true);
 
   String PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING = "store.parquet.enable_dictionary_encoding";
   BooleanValidator PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_VALIDATOR = new BooleanValidator(

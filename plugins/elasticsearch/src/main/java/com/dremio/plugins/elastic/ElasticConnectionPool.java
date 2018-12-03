@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.elastic;
 
+import static com.dremio.plugins.elastic.ElasticsearchRequestClientFilter.REGION_NAME;
 import static java.lang.String.format;
 
 import java.io.IOException;
@@ -40,6 +41,8 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
 
+import org.glassfish.hk2.utilities.Binder;
+import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.JerseyInvocation;
@@ -51,6 +54,7 @@ import org.glassfish.jersey.message.GZipEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.dremio.common.DeferredException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserException.Builder;
@@ -117,8 +121,7 @@ public class ElasticConnectionPool implements AutoCloseable {
   private final List<Host> hosts;
   private final TLSValidationMode sslMode;
   private final String protocol;
-  private final String username;
-  private final String password;
+  private final ElasticsearchAuthentication elasticsearchAuthentication;
   private final int readTimeoutMillis;
   private final boolean useWhitelist;
 
@@ -157,25 +160,33 @@ public class ElasticConnectionPool implements AutoCloseable {
   public ElasticConnectionPool(
       List<Host> hosts,
       TLSValidationMode tlsMode,
-      String username,
-      String password,
+      ElasticsearchAuthentication elasticsearchAuthentication,
       int readTimeoutMillis,
       boolean useWhitelist){
     this.sslMode = tlsMode;
     this.protocol = tlsMode != TLSValidationMode.OFF ? "https" : "http";
     this.hosts = ImmutableList.copyOf(hosts);
-    this.username = username;
-    this.password = password;
+    this.elasticsearchAuthentication = elasticsearchAuthentication;
     this.readTimeoutMillis = readTimeoutMillis;
     this.useWhitelist = useWhitelist;
 
   }
 
   public void connect() throws IOException {
-
-
     ClientConfig configuration = new ClientConfig();
     configuration.property(ClientProperties.READ_TIMEOUT, readTimeoutMillis);
+    AWSCredentialsProvider awsCredentialsProvider = elasticsearchAuthentication.getAwsCredentialsProvider();
+    if (awsCredentialsProvider != null) {
+      configuration.property(REGION_NAME, elasticsearchAuthentication.getRegionName());
+      configuration.register(ElasticsearchRequestClientFilter.class);
+      Binder binder = new AbstractBinder() {
+        @Override
+        protected void configure() {
+          bind(awsCredentialsProvider).to(AWSCredentialsProvider.class);
+        }
+      };
+      configuration.register(binder);
+    }
 
     ClientBuilder builder = ClientBuilder.newBuilder()
         .withConfig(configuration);
@@ -207,8 +218,9 @@ public class ElasticConnectionPool implements AutoCloseable {
     final JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
     provider.setMapper(ElasticMappingSet.MAPPER);
     client.register(provider);
-    if (username != null) {
-      client.register(HttpAuthenticationFeature.basic(username, password));
+    HttpAuthenticationFeature httpAuthenticationFeature = elasticsearchAuthentication.getHttpAuthenticationFeature();
+    if (httpAuthenticationFeature != null) {
+      client.register(httpAuthenticationFeature);
     }
 
     updateClients();
@@ -355,8 +367,6 @@ public class ElasticConnectionPool implements AutoCloseable {
       for (Host givenHost : this.hosts) {
         hosts.add(new HostAndAddress(givenHost.hostname, givenHost.toCompound()));
       }
-
-      return hosts;
     }
 
     final Result nodesResult;
@@ -371,7 +381,12 @@ public class ElasticConnectionPool implements AutoCloseable {
     List<Message> nodeVersionInformation = new ArrayList<>();
     for (Entry<String, JsonElement> entry : nodes.entrySet()) {
       final JsonObject nodeObject = entry.getValue().getAsJsonObject();
-      final String host = nodeObject.get("host").getAsString();
+      final String host;
+      if (useWhitelist) {
+        host = nodeObject.get("name").getAsString();
+      } else {
+        host = nodeObject.get("host").getAsString();
+      }
       Version hostVersion = Version.parse(nodeObject.get("version").getAsString());
       if (minVersionInCluster == null || minVersionInCluster.compareTo(hostVersion) > 0) {
         minVersionInCluster = hostVersion;
@@ -382,36 +397,38 @@ public class ElasticConnectionPool implements AutoCloseable {
       throw UserException.connectionError().message("Unable to get Elasticsearch node version information.").build(logger);
     }
 
-    for (Entry<String, JsonElement> entry : nodes.entrySet()) {
-      final JsonObject nodeObject = entry.getValue().getAsJsonObject();
-      final String host = nodeObject.get("host").getAsString();
+    if (!useWhitelist) {
+      for (Entry<String, JsonElement> entry : nodes.entrySet()) {
+        final JsonObject nodeObject = entry.getValue().getAsJsonObject();
+        final String host = nodeObject.get("host").getAsString();
 
-      // From 5.0.0v onwards, elasticsearch nodes api has changed and returns a slightly different response.
-      // https://github.com/elastic/elasticsearch/pull/19218
-      // So instead of using http_address, use publish_address always.
-      final JsonObject httpObject = nodeObject.get("http").getAsJsonObject();
-      final String httpOriginal = httpObject.get("publish_address").getAsString();
+        // From 5.0.0v onwards, elasticsearch nodes api has changed and returns a slightly different response.
+        // https://github.com/elastic/elasticsearch/pull/19218
+        // So instead of using http_address, use publish_address always.
+        final JsonObject httpObject = nodeObject.get("http").getAsJsonObject();
+        final String httpOriginal = httpObject.get("publish_address").getAsString();
 
-      // DX-4266  Depending on the settings, http_address can return the following, and we should handle them properly
-      // <ip>:<port>
-      // <hostname>/<ip>:<port>
-      // This should not apply to publish_address, which we are now using above, but as a precaution, keeping the below code
-      final String[] httpOriginalAddresses = httpOriginal.split("/");
-      String http = null;
-      if (httpOriginalAddresses != null && httpOriginalAddresses.length >= 1) {
-        for (String oneAddress : httpOriginalAddresses) {
-          if (oneAddress.contains(":") && oneAddress.indexOf(":") < oneAddress.length() - 1) {
-            http = oneAddress;
-            break;
+        // DX-4266  Depending on the settings, http_address can return the following, and we should handle them properly
+        // <ip>:<port>
+        // <hostname>/<ip>:<port>
+        // This should not apply to publish_address, which we are now using above, but as a precaution, keeping the below code
+        final String[] httpOriginalAddresses = httpOriginal.split("/");
+        String http = null;
+        if (httpOriginalAddresses != null && httpOriginalAddresses.length >= 1) {
+          for (String oneAddress : httpOriginalAddresses) {
+            if (oneAddress.contains(":") && oneAddress.indexOf(":") < oneAddress.length() - 1) {
+              http = oneAddress;
+              break;
+            }
           }
         }
-      }
-      if (http == null) {
-        throw new RuntimeException("Could not parse the _nodes information from Elasticserach cluster, found invalid http_address " + httpOriginal);
-      }
+        if (http == null) {
+          throw new RuntimeException("Could not parse the _nodes information from Elasticserach cluster, found invalid http_address " + httpOriginal);
+        }
 
-      hosts.add(new HostAndAddress(host, http));
+        hosts.add(new HostAndAddress(host, http));
 
+      }
     }
 
     // Assert minimum version for Elasticsearch

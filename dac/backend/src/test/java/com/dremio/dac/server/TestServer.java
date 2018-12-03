@@ -34,6 +34,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.util.List;
 
 import javax.ws.rs.client.Entity;
@@ -142,6 +143,16 @@ public class TestServer extends BaseTestServer {
 
   @Test // fix for DX-1469
   public void testNASSubDirectory() throws Exception {
+    File dataSetDir  = new File((System.getProperty("user.dir") + "/src/test/resources/datasets"));
+    // get all subdirs
+    String[] directories = dataSetDir.list(new FilenameFilter() {
+      @Override
+      public boolean accept(File current, String name) {
+        return new File(current, name).isDirectory();
+      }
+    });
+    int dataSetFiles = dataSetDir.listFiles().length - directories.length;
+
     // create a NAS space that points to some sub-folder of the file system
     final SourceService sourceService = newSourceService();
     {
@@ -157,8 +168,11 @@ public class TestServer extends BaseTestServer {
     final NamespaceTree tree = source.getContents();
 
     // make sure we didn't get the root's content
-    assertEquals("source should only list the content of the subfolder", 5, tree.getFolders().size());
-    assertEquals("source should only list the content of the subfolder", 3, tree.getFiles().size());
+    assertEquals("source should only list the content of the subfolder", directories.length, tree
+      .getFolders()
+      .size());
+    assertEquals("source should only list the content of the subfolder", dataSetFiles , tree
+      .getFiles().size());
 
     assertNull(expectSuccess(getBuilder(getAPIv2().path("source/nas_sub").queryParam("includeContents", false)).buildGet(), SourceUI.class).getContents());
   }

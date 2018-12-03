@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (C) 2017-2018 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 51.3 (57544) - http://www.bohemiancoding.com/sketch -->
+    <title>Source/Amazon Elasticsearch</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Source/Amazon-Elasticsearch" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Source/S3" fill="#E6E6E6">
+            <circle id="Oval" cx="24" cy="24" r="24"></circle>
+        </g>
+        <g id="Analytics/AmazonES" transform="translate(5.000000, 0.000000)" fill-rule="nonzero">
+            <g id="Group">
+                <polygon id="Shape" fill="#9D5025" points="0.0163235294 35.810241 2.38323529 37.0192771 3.34088235 36.796988 3.52044118 19.989759 2.38323529 19.9355422 0.0163235294 20.1686747"></polygon>
+                <polygon id="Shape" fill="#F58534" points="6.63823529 36.0216867 2.38323529 37.0192771 2.38323529 19.9355422 6.63823529 20.1361446"></polygon>
+                <polygon id="Shape" fill="#9D5025" points="4.60867647 38.0981928 8.66779412 40.1475904 11.2958824 39.3126506 11.2958824 12.8710843 8.66779412 12.3722892 4.60867647 13.586747"></polygon>
+                <polygon id="Shape" fill="#F58534" points="15.6161765 37.9355422 8.66779412 40.1475904 8.66779412 12.3722892 15.6161765 13.7006024"></polygon>
+                <polygon id="Shape" fill="#9D5025" points="30.9711765 13.2018072 30.9711765 32.3945783 35.6288235 33.1210843 35.6288235 12.3722892"></polygon>
+                <polygon id="Shape" fill="#6B3B19" points="20.1867647 12.0903614 21.1335294 6.24578313 34.6222059 11.1795181 34.6222059 14.2807229 31.0419118 14.7849398"></polygon>
+                <polygon id="Shape" fill="#FCBF92" points="18.9298529 33.8096386 22.8420588 38.4506024 34.6222059 34.4656627 34.6222059 31.2993976 31.0092647 30.7951807"></polygon>
+                <polygon id="Shape" fill="#9D5025" points="11.9161765 41.7361446 18.5 44.9891566 22.3958824 43.0481928 23.68 3.10662651 18.5 0.531325301 11.9161765 3.81144578"></polygon>
+                <path d="M18.5,0.542168675 L18.5,45 L37,35.7831325 L37,9.75903614 L18.5,0.542168675 Z M34.6222059,31.2993976 L24.0445588,34.4656627 L24.0445588,11.1524096 L34.6276471,14.2915663 L34.6222059,31.2993976 Z" id="Shape" fill="#F58534"></path>
+            </g>
+        </g>
+    </g>
+</svg>

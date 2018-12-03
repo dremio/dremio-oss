@@ -124,49 +124,56 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
       SampleMutator mutator = new SampleMutator(sampleAllocator)
     ){
       final Optional<FileStatus> firstFileO = selection.getFirstFile();
-      if(!firstFileO.isPresent()) {
+      if (!firstFileO.isPresent()) {
         throw UserException.dataReadError().message("Unable to find any files for datasets.").build(logger);
       }
-      final FileStatus firstFile = firstFileO.get();
-      final ParquetMetadata footer = ParquetFileReader.readFooter(fsPlugin.getFsConf(), firstFile, ParquetMetadataConverter.NO_FILTER);
-      final ParquetReaderUtility.DateCorruptionStatus dateStatus = ParquetReaderUtility.detectCorruptDates(footer, GroupScan.ALL_COLUMNS,
-        ((ParquetFormatPlugin)formatPlugin).getConfig().autoCorrectCorruptDates);
-      final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
-          .readInt96AsTimeStamp( operatorContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
+      for (FileStatus firstFile : selection.getFileStatuses()) {
+        ParquetMetadata footer = ParquetFileReader.readFooter(fsPlugin.getFsConf(), firstFile, ParquetMetadataConverter.NO_FILTER);
+
+        if (footer.getBlocks().size() == 0) {
+          continue;
+        }
+
+        final ParquetReaderUtility.DateCorruptionStatus dateStatus = ParquetReaderUtility.detectCorruptDates(footer, GroupScan.ALL_COLUMNS,
+          ((ParquetFormatPlugin) formatPlugin).getConfig().autoCorrectCorruptDates);
+        final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
+          .readInt96AsTimeStamp(operatorContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
           .dateCorruptionStatus(dateStatus)
           .build();
 
-      boolean isAccelerator = fsPlugin.getId().getName().equals("__accelerator");
+        boolean isAccelerator = fsPlugin.getId().getName().equals("__accelerator");
 
-      final ImplicitFilesystemColumnFinder finder = new  ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS, isAccelerator);
+        final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS, isAccelerator);
 
-      try(InputStreamProvider streamProvider = new InputStreamProvider(fs, firstFile.getPath(), false);
-          RecordReader reader = new AdditionalColumnsRecordReader(
-            new ParquetRowiseReader(operatorContext,
-                footer,
-                0,
-                firstFile.getPath().toString(),
-                GroupScan.ALL_COLUMNS,
-                fs,
-                schemaHelper,
-                streamProvider
-              ),
-              finder.getImplicitFieldsForSample(selection)
-            )
-      ) {
+        try (InputStreamProvider streamProvider = new InputStreamProvider(fs, firstFile.getPath(), false);
+             RecordReader reader = new AdditionalColumnsRecordReader(
+               new ParquetRowiseReader(operatorContext,
+                 footer,
+                 0,
+                 firstFile.getPath().toString(),
+                 GroupScan.ALL_COLUMNS,
+                 fs,
+                 schemaHelper,
+                 streamProvider
+               ),
+               finder.getImplicitFieldsForSample(selection)
+             )
+        ) {
 
-        reader.setup(mutator);
+          reader.setup(mutator);
 
-        mutator.allocate(100);
-        //TODO DX-3873: remove the next() call here. We need this for now since we don't populate inner list types until next.
-        reader.next();
+          mutator.allocate(100);
+          //TODO DX-3873: remove the next() call here. We need this for now since we don't populate inner list types until next.
+          reader.next();
 
-        mutator.getContainer().buildSchema(BatchSchema.SelectionVectorMode.NONE);
-        return mutator.getContainer().getSchema();
+          mutator.getContainer().buildSchema(BatchSchema.SelectionVectorMode.NONE);
+          return mutator.getContainer().getSchema();
+        }
       }
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+    throw UserException.dataReadError().message("Only empty parquet files found.").build(logger);
   }
 
   @Override

@@ -134,6 +134,16 @@ message ParquetDatasetSplitXAttr {
   repeated ColumnValueCount columnValueCounts = 6;
 }
 
+// This is an abridged version of the ParquetDatasetSplitXAttr, containing only the information
+// used in sub-scans (sent-on-wire to the executor nodes).
+message ParquetDatasetSplitScanXAttr {
+  optional string path = 1;
+  optional int64 fileLength = 2; // can save an fs call.
+  optional int64 start = 3;
+  optional int64 length = 4;
+  optional int32 rowGroupIndex = 5;
+}
+
 message ParquetDatasetXAttr {
   optional string selectionRoot = 1;
   optional DictionaryEncodedColumns dictionaryEncodedColumns = 2;

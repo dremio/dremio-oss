@@ -15,8 +15,13 @@
  */
 package com.dremio.exec.store.hive;
 
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
@@ -33,10 +38,13 @@ import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.google.protobuf.ByteString;
 
 public class HiveGroupScan extends AbstractGroupScan {
 
   private final ScanFilter filter;
+
+  public static final String HIVE_ATTRIBUTE_KEY = "HiveTableXattr";
 
   public HiveGroupScan(
       TableMetadata dataset,
@@ -57,7 +65,7 @@ public class HiveGroupScan extends AbstractGroupScan {
     String userName = storageImpersonationEnabled ? getUserName() : ImpersonationUtil.getProcessUserName();
     final ReadDefinition readDefinition = dataset.getReadDefinition();
     return new HiveSubScan(splits, userName, schema, dataset.getName().getPathComponents(), filter, dataset.getStoragePluginId(), columns,
-        readDefinition.getExtendedProperty(), readDefinition.getPartitionColumnsList());
+        readDefinition.getPartitionColumnsList());
   }
 
   @Override
@@ -70,5 +78,14 @@ public class HiveGroupScan extends AbstractGroupScan {
     return CoreOperatorType.HIVE_SUB_SCAN_VALUE;
   }
 
+  @Override
+  public List<Entry<String, ByteString>> getSharedData() {
+    return Collections.singletonList(
+      new SimpleEntry<>(
+        HIVE_ATTRIBUTE_KEY,
+        ByteString.copyFrom(dataset.getReadDefinition().getExtendedProperty().asReadOnlyByteBuffer())
+      )
+    );
+  }
 
 }

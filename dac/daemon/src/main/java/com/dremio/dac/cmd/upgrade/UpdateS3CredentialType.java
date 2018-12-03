@@ -19,6 +19,7 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 
 import java.util.List;
 
+import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.plugins.s3.store.S3PluginConfig;
 import com.dremio.service.namespace.NamespaceService;
@@ -43,8 +44,8 @@ public class UpdateS3CredentialType extends UpgradeTask {
       ConnectionConf<?, ?> connectionConf = context.getConnectionReader().getConnectionConf(sourceConfig);
       if (connectionConf instanceof S3PluginConfig) {
         S3PluginConfig s3PluginConfig = (S3PluginConfig) connectionConf;
-        if ((s3PluginConfig.credentialType == S3PluginConfig.AuthenticationType.ACCESS_KEY) && isNullOrEmpty(s3PluginConfig.accessKey)) {
-          s3PluginConfig.credentialType = S3PluginConfig.AuthenticationType.NONE;
+        if ((s3PluginConfig.credentialType == AWSAuthenticationType.ACCESS_KEY) && isNullOrEmpty(s3PluginConfig.accessKey)) {
+          s3PluginConfig.credentialType = AWSAuthenticationType.NONE;
           sourceConfig.setConnectionConf(s3PluginConfig);
           namespaceService.addOrUpdateSource(sourceConfig.getKey(), sourceConfig);
         }

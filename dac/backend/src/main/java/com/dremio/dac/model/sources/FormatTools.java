@@ -305,10 +305,14 @@ public class FormatTools {
         }
 
 
-        try(
-            // Reader can be closed since data that we're using will be transferred to allocator owned by us
-            // when added to RecordBatchData.
-            RecordReader reader = formatPlugin.getRecordReader(opCtxt, filesystem, status)) {
+        try (
+          // Reader can be closed since data that we're using will be transferred to allocator owned by us
+          // when added to RecordBatchData.
+          RecordReader reader = formatPlugin.getRecordReader(opCtxt, filesystem, status)) {
+
+          if (reader == null) {
+            continue;
+          }
 
           reader.setup(mutator);
 
@@ -318,14 +322,14 @@ public class FormatTools {
           // we have to keep doing this since otherwise the separate parquet row groups my not be read
           // (if each is smaller than target).
           while (
-              records < targetRecords
+            records < targetRecords
               && !(records > minRecords && timer.elapsed(TimeUnit.MILLISECONDS) > maxReadTime)
-              ) {
+            ) {
 
             reader.allocate(fieldVectorMap);
             output = reader.next();
 
-            if(first) {
+            if (first) {
               first = false;
               container.buildSchema();
 
@@ -338,7 +342,7 @@ public class FormatTools {
               }
             }
 
-            if(output == 0) {
+            if (output == 0) {
               break;
             }
 
@@ -347,9 +351,9 @@ public class FormatTools {
             batches.add();
           }
         }
-
-        data = new ReleasingData(cls, batches);
       }
+
+      data = new ReleasingData(cls, batches);
 
       cls.commit();
       return new JobDataFragmentWrapper(0, data);

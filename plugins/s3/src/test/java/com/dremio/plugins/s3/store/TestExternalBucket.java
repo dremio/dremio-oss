@@ -26,6 +26,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.Test;
 
+import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
 import com.google.common.collect.ImmutableList;
@@ -42,7 +43,7 @@ public class TestExternalBucket {
       Configuration config = new Configuration();
       S3PluginConfig s3 = new S3PluginConfig();
       s3.externalBucketList = ImmutableList.of("landsat-pds", "commoncrawl");
-      s3.credentialType = S3PluginConfig.AuthenticationType.NONE;
+      s3.credentialType = AWSAuthenticationType.NONE;
 
       SabotContext context = mock(SabotContext.class);
       S3StoragePlugin plugin = s3.newPlugin(context, "test-plugin", null);

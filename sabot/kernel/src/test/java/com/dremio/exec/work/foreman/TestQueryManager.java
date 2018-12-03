@@ -99,7 +99,7 @@ public class TestQueryManager extends DremioTest {
   public void testNodeDead() {
     InOrder inOrder = Mockito.inOrder(completionListener);
     AttemptObservers observers = AttemptObservers.of(observer);
-    QueryManager queryManager = new QueryManager(queryId, context, completionListener, new Pointer<>(), observers, true, true, catalog);
+    QueryManager queryManager = new QueryManager(queryId, context, null, completionListener, new Pointer<>(), observers, true, true, catalog);
 
     final NodeEndpoint endpoint = NodeEndpoint.newBuilder().setAddress("host1").setFabricPort(12345).build();
     PlanFragment fragment = PlanFragment.newBuilder()
@@ -126,7 +126,7 @@ public class TestQueryManager extends DremioTest {
 
     when(context.getCurrentEndpoint()).thenReturn(endpoint);
 
-    QueryManager queryManager = new QueryManager(queryId, context, completionListener, new Pointer<>(), observers, true, true, catalog);
+    QueryManager queryManager = new QueryManager(queryId, context, null, completionListener, new Pointer<>(), observers, true, true, catalog);
 
     ResourceSchedulingDecisionInfo result = new ResourceSchedulingDecisionInfo();
     result.setQueueId("abcd");

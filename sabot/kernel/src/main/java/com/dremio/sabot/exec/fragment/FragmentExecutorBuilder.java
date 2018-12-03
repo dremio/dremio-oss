@@ -36,6 +36,7 @@ import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
+import com.dremio.exec.proto.CoordExecRPC.SharedData;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.record.NamespaceUpdater;
@@ -148,7 +149,8 @@ public class FragmentExecutorBuilder {
   public FragmentExecutor build(final QueryTicket queryTicket,
                                 final PlanFragment fragment,
                                 final EventProvider eventProvider,
-                                final SchedulingInfo schedulingInfo) throws Exception {
+                                final SchedulingInfo schedulingInfo,
+                                final List<SharedData> sharedData) throws Exception {
 
     final AutoCloseableList services = new AutoCloseableList();
 
@@ -238,6 +240,7 @@ public class FragmentExecutorBuilder {
           schemaUpdater,
           contextInfo,
           creator,
+          sharedData,
           funcRegistry,
           tunnelProvider,
           flushable,

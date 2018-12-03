@@ -15,7 +15,9 @@
  */
 package com.dremio.exec.physical.base;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map.Entry;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.graph.GraphValue;
@@ -29,6 +31,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import com.google.protobuf.ByteString;
 
 @JsonInclude(Include.NON_NULL)
 @JsonPropertyOrder({ "@id" })
@@ -92,4 +95,8 @@ public interface PhysicalOperator extends GraphValue<PhysicalOperator> {
 
   @JsonIgnore
   public int getOperatorType();
+
+
+  @JsonIgnore
+  Collection<Entry<String, ByteString>> getSharedData();
 }

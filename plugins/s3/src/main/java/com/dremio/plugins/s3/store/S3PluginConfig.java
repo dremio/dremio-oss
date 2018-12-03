@@ -22,6 +22,7 @@ import javax.inject.Provider;
 import org.apache.hadoop.fs.Path;
 
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
 import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
@@ -38,15 +39,6 @@ import io.protostuff.Tag;
  */
 @SourceType(value = "S3", label = "Amazon S3")
 public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlugin> {
-  /**
-   * Authentication type.
-   * ACCESS_KEY uses credentials, EC2_METADATA uses IAM roles in EC2 instance and NONE access S3 as anonymous.
-   */
-  public enum AuthenticationType {
-    @Tag(1) @DisplayMetadata(label = "AWS Access Key") ACCESS_KEY,
-    @Tag(2) @DisplayMetadata(label = "EC2 Metadata") EC2_METADATA,
-    @Tag(3) @DisplayMetadata(label = "No Authentication") NONE;
-  }
 
   //  optional string access_key = 1;
   //  optional string access_secret = 2;
@@ -55,7 +47,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   //  repeated Property property = 5;
   //  optional bool allow_create_drop = 6;
   //  optional string root_path = 7;
-  //  optional AuthenticationType credential_type = 8;
+  //  optional AWSAuthenticationType credential_type = 8;
 
   @Tag(1)
   @DisplayMetadata(label = "AWS Access Key")
@@ -87,7 +79,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   public String rootPath = "/";
 
   @Tag(8)
-  public AuthenticationType credentialType = AuthenticationType.ACCESS_KEY;
+  public AWSAuthenticationType credentialType = AWSAuthenticationType.ACCESS_KEY;
 
   @Override
   public S3StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {

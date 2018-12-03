@@ -18,6 +18,7 @@ package com.dremio.sabot.exec;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -34,6 +35,7 @@ import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
 import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
+import com.dremio.exec.proto.CoordExecRPC.SharedData;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
@@ -219,6 +221,8 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     final NodeEndpoint identity;
     final SchedulingInfo schedulingInfo;
 
+    List<SharedData> sharedData;
+
     QueryStarterImpl(final InitializeFragments fragments, final FragmentExecutorBuilder builder,
                      final ResponseSender sender, final NodeEndpoint identity, final SchedulingInfo schedulingInfo) {
       this.fragments = fragments;
@@ -231,6 +235,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     @Override
     public void buildAndStartQuery(final QueryTicket queryTicket) {
       try {
+        this.sharedData = fragments.getSharedDataList();
         for (int i = 0; i < fragments.getFragmentCount(); i++) {
           startFragment(queryTicket, fragments.getFragment(i), schedulingInfo);
         }
@@ -263,7 +268,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
 
       try {
         final EventProvider eventProvider = getEventProvider(fragment.getHandle());
-        startFragment(builder.build(queryTicket, fragment, eventProvider, schedulingInfo));
+        startFragment(builder.build(queryTicket, fragment, eventProvider, schedulingInfo, sharedData));
       } catch (final Exception e) {
         throw new UserRpcException(identity, "Failure while trying to start remote fragment", e);
       } catch (final OutOfMemoryError t) {

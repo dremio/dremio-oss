@@ -53,7 +53,7 @@ import com.dremio.plugins.elastic.ElasticActions.Search;
 import com.dremio.plugins.elastic.ElasticActions.SearchBytes;
 import com.dremio.plugins.elastic.ElasticActions.SearchScroll;
 import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
-import com.dremio.plugins.elastic.ElasticStoragePluginConfig;
+import com.dremio.plugins.elastic.ElasticsearchConf;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.ElasticMapping;
@@ -72,7 +72,6 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import com.google.common.io.ByteStreams;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import io.protostuff.ByteString;
@@ -98,7 +97,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
   private final OperatorStats stats;
   private final String resource;
   private final ElasticsearchScanSpec spec;
-  private final ElasticStoragePluginConfig config;
+  private final ElasticsearchConf config;
   private final ElasticSplitXattr splitAttributes;
   private final boolean usingElasticProjection;
   private final FieldReadDefinition readDefinition;
@@ -129,7 +128,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       ElasticConnection connection,
       List<SchemaPath> columns,
       FieldReadDefinition readDefinition,
-      ElasticStoragePluginConfig config) throws InvalidProtocolBufferException {
+      ElasticsearchConf config) throws InvalidProtocolBufferException {
     super(context, columns);
     this.plugin = plugin;
     this.tableAttributes = tableAttributes;
@@ -145,7 +144,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
     this.splitAttributes = split == null ? null : ElasticSplitXattr.parseFrom(split.getExtendedProperty().toByteArray());
     this.resource = split == null ? spec.getResource() : splitAttributes.getResource();
     this.metaUIDSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.UID)) || isStarQuery();
-    this.metaIDSelected = config.showIdColumn && (getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.ID)) || isStarQuery());
+    this.metaIDSelected = config.isShowIdColumn() && (getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.ID)) || isStarQuery());
     this.metaTypeSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.TYPE)) || isStarQuery();
     this.metaIndexSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.INDEX)) || isStarQuery();
 
@@ -254,7 +253,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
 
   private void getFirstPage() {
     assert state == State.INIT;
-    int searchSize = config.scrollSize;
+    int searchSize = config.getScrollSize();
     int fetch = spec.getFetch();
     if (fetch >= 0 &&  fetch < searchSize) {
       searchSize = fetch;
@@ -377,7 +376,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
         final String latest = new String(bytes, Charsets.UTF_8);
         final boolean timedOut = latest.contains(TIMED_OUT);
 
-        if (!timedOut && config.warnOnRowCountMismatch) {
+        if (!timedOut && config.isWarnOnRowCountMismatch()) {
           logger.warn("Dremio didn't receive as many results from Elasticsearch as expected. Expected {}. Received: {}", totalSize, totalCount);
           state = State.DEPLETED;
           break;

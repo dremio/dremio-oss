@@ -504,7 +504,7 @@ class DatasetBuilder implements SourceTableDefinition {
         } else {
           root = path.getParent().getParent();
         }
-        size += orcSplit.getFileLength();
+        size += orcSplit.getLength();
         bucket = AcidUtils.parseBaseBucketFilename(orcSplit.getPath(), conf).getBucket();
       } else {
         root = path;
