@@ -327,16 +327,15 @@ public class TestPhysicalDatasets extends BaseTestServer {
 
   @Test
   public void testQueryOnFolder() throws Exception {
-    TextFileConfig fileConfig = new TextFileConfig();
-    fileConfig.setFieldDelimiter(",");
-    fileConfig.setName("comma.txt");
+    ParquetFileConfig fileConfig = new ParquetFileConfig();
+    fileConfig.setName("parquet");
 
     String filePath = getUrlPath("/datasets/folderdataset");
     String fileParentPath = getUrlPath("/datasets/");
 
     doc("preview data for source folder");
     JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_preview/" + filePath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
-    assertEquals(12, data.getReturnedRowCount());
+    assertEquals(25, data.getReturnedRowCount());
 
     expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
 
@@ -774,11 +773,11 @@ public class TestPhysicalDatasets extends BaseTestServer {
   }
 
   @Test
-  public void testIgnoreHiddenFile() throws Exception {
+  public void testIgnoreHiddenFiles() throws Exception {
     String filePath = getUrlPath("/datasets/folderdataset/");
     FileFormat fileFormat = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildGet(),
       FileFormatUI.class).getFileFormat();
-    assertEquals(FileType.TEXT, fileFormat.getFileType());
+    assertEquals(FileType.PARQUET, fileFormat.getFileType());
 
   }
 

@@ -17,9 +17,11 @@ package com.dremio.exec.planner.common;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.calcite.plan.CopyWithCluster.CopyToCluster;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.sql.validate.SqlValidatorUtil;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.google.common.base.Preconditions;
@@ -66,4 +68,14 @@ public interface JdbcRelImpl extends RelNode, CopyToCluster {
    */
   RelNode revert(List<RelNode> revertedInputs);
 
+  /**
+   * Return an equivalent node with column aliases that are compatible with the target data source.
+   *
+   * @param suggester The strategy used to make generated aliases unique.
+   * @param usedAliases The set of aliases already used.
+   */
+  default RelNode shortenAliases(SqlValidatorUtil.Suggester suggester, Set<String> usedAliases) {
+    // Default behavior for nodes that do not result in column aliases.
+    return this;
+  }
 }

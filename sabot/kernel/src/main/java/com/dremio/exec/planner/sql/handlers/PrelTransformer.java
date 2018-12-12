@@ -745,12 +745,16 @@ public class PrelTransformer {
 
     final RelNode finalConvertedNode;
     if (transformer.failed() || found) {
-      log("Failed to pushdown RexSubquery", jdbcPushed, logger, null);
-      finalConvertedNode = convertedNodeWithoutRexSubquery.accept(new InjectSample(leafLimitEnabled)).accept(new ConvertJdbcLogicalToJdbcRel());
+      log("Failed to pushdown RexSubquery. Applying JDBC pushdown to query with IN/EXISTS/SCALAR sub-queries converted to joins.", jdbcPushed, logger, null);
+      final RelNode expandedWithSample = convertedNodeWithoutRexSubquery.accept(new InjectSample(leafLimitEnabled));
+      finalConvertedNode = transform(config,PlannerType.HEP_AC, PlannerPhase.JDBC_PUSHDOWN, expandedWithSample,
+        expandedWithSample.getTraitSet(), false).accept(new ConvertJdbcLogicalToJdbcRel());
     } else {
-      finalConvertedNode = jdbcPushed.accept(new ConvertJdbcLogicalToJdbcRel());
+      finalConvertedNode = jdbcPushed.accept(new ShortenJdbcColumnAliases()).accept(new ConvertJdbcLogicalToJdbcRel());
     }
     config.getObserver().planRelTransform(PlannerPhase.JDBC_PUSHDOWN, null, convertedNode, finalConvertedNode, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+
+
 
     return finalConvertedNode;
   }

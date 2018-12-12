@@ -17,6 +17,7 @@ package com.dremio.dac.service.collaboration;
 
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -256,17 +257,27 @@ public class CollaborationHelper {
     return results.get();
   }
 
-  public Iterable<Map.Entry<String, CollaborationTag>> getTagsForIds(Set<String> ids) {
+  public TagsSearchResult getTagsForIds(Set<String> ids) {
+    // If you alter this number, alter a message in TagsAlert.js
+    final int maxTagRequestCount = 200;
+
     FindByCondition findByCondition = new FindByCondition();
+    Map<String, CollaborationTag> tags = new HashMap<>();
 
     List<SearchQuery> queries = new ArrayList<>();
-
-    ids.forEach(input -> {
+    ids.stream().limit(maxTagRequestCount).forEach(input -> {
       queries.add(SearchQueryUtils.newTermQuery(CollaborationTagStore.ENTITY_ID, input));
     });
 
     findByCondition.setCondition(SearchQueryUtils.or(queries));
 
-    return tagsStore.find(findByCondition);
+    tagsStore.find(findByCondition).forEach(pair -> {
+      tags.put(pair.getKey(), pair.getValue());
+    });
+
+    return new TagsSearchResult(tags, ids.size() > maxTagRequestCount);
   }
 }
+
+
+

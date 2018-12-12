@@ -23,9 +23,9 @@ import static java.util.Collections.singletonList;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.ws.rs.core.SecurityContext;
@@ -49,6 +49,7 @@ import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
+import com.dremio.dac.service.collaboration.TagsSearchResult;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.PhysicalDatasetNotFoundException;
@@ -461,26 +462,15 @@ public class SourceService {
 
   // Process all items in the namespacetree and get their tags in one go
   private void fillInTags(NamespaceTree ns) {
-    Map<String, CollaborationTag> tags = new HashMap<>();
-    // If you alter this number, alter a message in TagsAlert.js
-    final int maxTagRequestCount = 200; // to avoid DX-13766.
     List<File> files = ns.getFiles();
-    final int size = files.size();
-    final int filesToProcess = Math.min(size, maxTagRequestCount);
+    TagsSearchResult tagsInfo = collaborationService.getTagsForIds(files.stream().map(File::getId).
+      collect(Collectors.toSet()));
+    Map<String, CollaborationTag> tags = tagsInfo.getTags();
 
     //we populate tags not for all files
-    ns.setCanTagsBeSkipped(size > maxTagRequestCount);
+    ns.setCanTagsBeSkipped(tagsInfo.getCanTagsBeSkipped());
 
-    for(int i = 0; i < filesToProcess; i++) {
-      tags.put(files.get(i).getId(), null);
-    }
-
-    collaborationService.getTagsForIds(tags.keySet()).forEach(input -> {
-      tags.replace(input.getKey(), input.getValue());
-    });
-
-
-    for(int i = 0; i < filesToProcess; i++) {
+    for(int i = 0; i < files.size(); i++) {
       File input = files.get(i);
       CollaborationTag collaborationTag = tags.get(input.getId());
       if (collaborationTag != null) {

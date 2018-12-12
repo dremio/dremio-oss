@@ -24,7 +24,7 @@ const mapStateToProps = (state, { location }) => ({
 });
 
 export const TagsAlertView = ({ showAlert }) => {
-  // see SourceService.fillInTags methods for max count number
+  // see CollaborationHelper.getTagsForIds, variable 'maxTagRequestCount' methods for max count number
   return showAlert ? <Alert text='Tags are only shown inline for the first 200 items.' /> : null;
 };
 TagsAlertView.propTypes = {

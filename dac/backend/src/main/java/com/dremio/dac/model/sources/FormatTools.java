@@ -176,7 +176,9 @@ public class FormatTools {
       status = fs.getFileStatus(path);
     } catch(IOException ex) {
       // we could return unknown but if there no files, what's the point.
-      throw new IllegalStateException("No files detected or unable to read data.", ex);
+      throw UserException.ioExceptionError(ex)
+        .message("No files detected or unable to read file format with selected option.")
+        .build(logger);
     }
 
     if(status.isFile()) {
@@ -196,14 +198,22 @@ public class FormatTools {
       }
 
       // if we fall through, we didn't find any files.
-      throw new IllegalStateException("No files detected or unable to read data.");
+      throw UserException.ioExceptionError()
+      .message("No files were found.")
+      .build(logger);
     } catch (IOException ex) {
-      throw new IllegalStateException("Unable to read data.", ex);
+      throw UserException.ioExceptionError(ex)
+        .message("Unable to read file with selected format.")
+        .build(logger);
+
     }
   }
 
   private static RemoteIterator<LocatedFileStatus> excludeHidden(RemoteIterator<LocatedFileStatus> delegate) {
-    return RemoteIterators.filter(delegate, t -> !t.getPath().getName().startsWith("."));
+    return RemoteIterators.filter(delegate, t -> (
+        !t.getPath().getName().startsWith(".") &&
+        !t.getPath().getName().startsWith("_")
+        ));
   }
 
   private static FileFormat asFormat(NamespaceKey key, Path path, boolean isFolder) {
