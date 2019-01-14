@@ -13,7 +13,7 @@
     "lint:path": "eslint --cache",
     "lint": "eslint --cache ./ ${DREMIO_UI_SRC:-src}",
     "postshrinkwrap": "shankwrap fsevents nan",
-    "postinstall": "[ \"$(uname -s)\" == \"Darwin\" ] && npm install fsevents --no-save || true",
+    "postinstall": "[ \"$(uname -s)\" = \"Darwin\" ] && npm install fsevents --no-save || true",
     "update-shrinkwrap": "rm -rf node_modules npm-shrinkwrap.json && npm install --registry https://registry.npmjs.org && npm shrinkwrap --dev",
     "builddev": "webpack",
     "build": "npm run lint && NODE_ENV=production webpack --bail",
