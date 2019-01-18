@@ -145,6 +145,34 @@ public class TypeHelper extends BasicTypeHelper {
     throw new UnsupportedOperationException(String.format("no loader for vector %s", v));
   }
 
+  public static void loadFromValidityAndDataBuffers(ValueVector v, SerializedField metadata, ArrowBuf dataBuffer, ArrowBuf validityBuffer) {
+    if (v instanceof ZeroVector) {
+      throw new UnsupportedOperationException(String.format("this loader is not supported for vector %s", v));
+    } else if (v instanceof UnionVector) {
+      throw new UnsupportedOperationException(String.format("this loader is not supported for vector %s", v));
+    } else if (v instanceof ListVector) {
+      throw new UnsupportedOperationException(String.format("this loader is not supported for vector %s", v));
+    } else if (v instanceof StructVector) {
+      throw new UnsupportedOperationException(String.format("this loader is not supported for vector %s", v));
+    } else if (v instanceof NonNullableStructVector) {
+      throw new UnsupportedOperationException(String.format("this loader is not supported for vector %s", v));
+    } else
+    <#list vv.types as type>
+    <#list type.minor as minor>
+    <#assign typeMapping = TypeMappings[minor.class]!{}>
+      <#assign supported = typeMapping.supported!true>
+      <#assign dremioMinorType = typeMapping.minor_type!minor.class?upper_case>
+      <#if supported>
+    if (v instanceof ${minor.class}Vector) {
+      new Nullable${minor.class}VectorHelper((${minor.class}Vector) v).loadFromValidityAndDataBuffers(metadata, dataBuffer, validityBuffer);
+      return;
+    }
+    </#if>
+    </#list>
+    </#list>
+    throw new UnsupportedOperationException(String.format("no loader for vector %s", v));
+  }
+
   public static void loadData(ValueVector v, SerializedField metadata, ArrowBuf buffer) {
     <#list vv.types as type>
     <#list type.minor as minor>

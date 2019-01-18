@@ -29,7 +29,7 @@ public abstract class BaseFormatPlugin implements FormatPlugin {
     this.fsPlugin = fsPlugin;
   }
 
-  protected FileSystemPlugin getFsPlugin() {
+  public FileSystemPlugin getFsPlugin() {
     return fsPlugin;
   }
 

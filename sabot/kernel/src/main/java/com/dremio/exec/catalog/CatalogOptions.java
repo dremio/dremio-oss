@@ -40,4 +40,8 @@ public interface CatalogOptions {
   // When metadata impacting configuration parameter is changed, if old metadata should be kept
   BooleanValidator STORAGE_PLUGIN_KEEP_METADATA_ON_REPLACE =
       new BooleanValidator("store.plugin.keep_metadata_on_replace", false);
+
+  // Maximum number of leaf columns allowed for metadata
+  LongValidator METADATA_LEAF_COLUMN_MAX = new PositiveLongValidator("store.plugin.max_metadata_leaf_columns", Integer.MAX_VALUE, 800);
+
 }

@@ -41,6 +41,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.MinorType;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -91,10 +92,17 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
   private List<DatasetSplit> cachedParquetSplits;
   private boolean builtAll = false;
 
-  public ParquetFormatDatasetAccessor(DatasetConfig oldConfig, FileSystemWrapper fs, FileSelection fileSelection, FileSystemPlugin fsPlugin,
-                                      NamespaceKey tableSchemaPath, String tableName, FileUpdateKey updateKey,
-                                      ParquetFormatPlugin formatPlugin) {
-    super(fs, fileSelection, fsPlugin, tableSchemaPath, updateKey, formatPlugin, oldConfig);
+  public ParquetFormatDatasetAccessor(
+      DatasetConfig oldConfig,
+      FileSystemWrapper fs,
+      FileSelection fileSelection,
+      FileSystemPlugin fsPlugin,
+      NamespaceKey tableSchemaPath,
+      FileUpdateKey updateKey,
+      ParquetFormatPlugin formatPlugin,
+      int maxLeafColumns
+  ) {
+    super(fs, fileSelection, fsPlugin, tableSchemaPath, updateKey, formatPlugin, oldConfig, maxLeafColumns);
     this.oldConfig = oldConfig;
   }
 
@@ -115,7 +123,7 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
   }
 
   @Override
-  public BatchSchema getBatchSchema(final FileSelection selection, final FileSystemWrapper fs) {
+  public BatchSchema getBatchSchema(final FileSelection selection, final FileSystemWrapper fs) throws Exception {
     final SabotContext context = ((ParquetFormatPlugin)formatPlugin).getContext();
     try (
       BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
@@ -166,11 +174,15 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
           reader.next();
 
           mutator.getContainer().buildSchema(BatchSchema.SelectionVectorMode.NONE);
-          return mutator.getContainer().getSchema();
+          final BatchSchema schema = mutator.getContainer().getSchema();
+          if (schema.getFieldCount() > maxLeafColumns) {
+            throw new ColumnCountTooLargeException(
+                String.format("Using datasets with more than %d columns is currently disabled.", maxLeafColumns));
+          }
+
+          return schema;
         }
       }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
     throw UserException.dataReadError().message("Only empty parquet files found.").build(logger);
   }

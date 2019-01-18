@@ -47,6 +47,7 @@ import com.dremio.dac.model.job.JobDataFragmentWrapper;
 import com.dremio.dac.model.job.ReleaseAfterSerialization;
 import com.dremio.dac.service.errors.PhysicalDatasetNotFoundException;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.ContextService;
@@ -274,12 +275,11 @@ public class FormatTools {
 
   private JobDataFragment getData(FileFormat format, FileSystemPlugin plugin, FileSystemWrapper filesystem, Nextable<? extends FileStatus> files) throws Exception {
 
-
-
     final int minRecords = (int) context.getOptionManager().getOption(MIN_RECORDS);
     final long maxReadTime = context.getOptionManager().getOption(MAX_READTIME_MS);
     final int batchSize = (int) context.getOptionManager().getOption(BATCH_SIZE);
     final int targetRecords = (int) context.getOptionManager().getOption(TARGET_RECORDS);
+    final int maxLeafColumns = (int) context.getOptionManager().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX);
 
     // we need to keep reading data until we get to target records. This could happen on the first scanner or take many.
 
@@ -342,6 +342,11 @@ public class FormatTools {
             if (first) {
               first = false;
               container.buildSchema();
+              if (container.getSchema().getFieldCount() > maxLeafColumns) {
+                throw UserException.validationError()
+                    .message("Using datasets with more than %d columns is currently disabled.", maxLeafColumns)
+                    .build(logger);
+              }
 
               // call to reset state.
               mutator.isSchemaChanged();

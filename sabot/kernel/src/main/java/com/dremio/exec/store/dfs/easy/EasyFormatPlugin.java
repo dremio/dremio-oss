@@ -175,8 +175,17 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
   public abstract int getWriterOperatorType();
 
   @Override
-  public FileSystemDatasetAccessor getDatasetAccessor(DatasetConfig oldConfig, FileSystemWrapper fs, FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, String tableName, FileUpdateKey updateKey) {
-    return new EasyFormatDatasetAccessor(fs, fileSelection, fsPlugin, tableSchemaPath, tableName, updateKey, this, oldConfig);
+  public FileSystemDatasetAccessor getDatasetAccessor(
+      DatasetConfig oldConfig,
+      FileSystemWrapper fs,
+      FileSelection fileSelection,
+      FileSystemPlugin fsPlugin,
+      NamespaceKey tableSchemaPath,
+      FileUpdateKey updateKey,
+      int maxLeafColumns
+  ) {
+    return new EasyFormatDatasetAccessor(fs, fileSelection, fsPlugin, tableSchemaPath, updateKey, this, oldConfig,
+        maxLeafColumns);
   }
 
   protected ScanStats getScanStats(final EasyGroupScanUtils scan) {

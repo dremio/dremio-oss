@@ -84,6 +84,7 @@ class SourceMetadataManager implements AutoCloseable {
   private final Provider<StoragePlugin> plugin;
   private final Runnable refreshTask;
   private final Object runLock = new Object();
+  private final Provider<Integer> maxMetadataLeafColumns;
 
   private volatile Cancellable lastTask;
   private volatile long defaultRefreshMs;
@@ -107,6 +108,7 @@ class SourceMetadataManager implements AutoCloseable {
     this.refreshTask = Runnables.combo(new RefreshTask());
     this.saver = new DatasetSaver(systemUserNamespaceService,
         key -> localUpdateTime.put(key, System.currentTimeMillis()));
+    this.maxMetadataLeafColumns = msp.getMaxMetadataColumns();
   }
 
   DatasetSaver getSaver() {
@@ -325,13 +327,21 @@ class SourceMetadataManager implements AutoCloseable {
   }
 
   private boolean refreshFull(MetadataPolicy metadataPolicy) throws NamespaceException {
+
+    final DatasetRetrievalOptions retrievalOptions;
     if(metadataPolicy == null) {
       metadataPolicy = msp.getMetadataPolicy();
+      retrievalOptions = msp.getDefaultRetrievalOptions(); // based on msp.getMetadataPolicy();
+    } else {
+      final int maxLeafColumns = maxMetadataLeafColumns.get();
+      retrievalOptions = DatasetRetrievalOptions.fromMetadataPolicy(metadataPolicy)
+          .toBuilder()
+          .setMaxMetadataLeafColumns(maxLeafColumns)
+          .build();
     }
+    retrievalOptions.withFallback(DatasetRetrievalOptions.DEFAULT);
 
-    final DatasetRetrievalOptions retrievalOptions = DatasetRetrievalOptions.fromMetadataPolicy(metadataPolicy)
-        .withFallback(DatasetRetrievalOptions.DEFAULT);
-
+    final int maxLeafColumns = retrievalOptions.maxMetadataLeafColumns();
     boolean refreshResult = false;
     /*
      * Assume everything in the namespace is deleted. As we discover the datasets from source, remove found entries
@@ -398,15 +408,18 @@ class SourceMetadataManager implements AutoCloseable {
             }
           } else {
             if (result.getStatus() == UpdateStatus.CHANGED) {
-              saver.completeSave(result.getDataset(), config);
+              saver.datasetSave(result.getDataset(), config, maxLeafColumns);
               refreshResult = true;
             }
             knownKeys.add(foundKey);
             removeFoldersOnPathFromOprhanSet(foundKey, orphanedFolders);
           }
-        } catch(NamespaceNotFoundException nfe) {
-          // Race condition: someone removed a dataset from the system namespace while we were iterating.
-          // No-op
+        } catch (NamespaceNotFoundException | DatasetMetadataTooLargeException ignored) {
+          // no-op
+          // catch NamespaceNotFoundException due to race condition: someone removed a dataset from the system
+          // namespace while we were iterating
+          // catch DatasetMetadataTooLargeException too avoid saving or logging large metadata
+          logger.debug("Did not save '{}' due to a failure", foundKey, ignored);
         } catch(Exception ex) {
           logger.warn("Failure while attempting to update metadata for table {}.", foundKey, ex);
         }
@@ -432,11 +445,15 @@ class SourceMetadataManager implements AutoCloseable {
             if(metadataPolicy.getDatasetUpdateMode() != UpdateMode.PREFETCH){
               saver.shallowSave(accessor);
             } else {
-              saver.completeSave(accessor, null);
+              saver.datasetSave(accessor, null, maxLeafColumns);
             }
             refreshResult = true;
           } catch (ConcurrentModificationException ex) {
             logger.debug("There was a concurrent exception while trying to refresh a dataset. This generally means another user did something that conflicted with the refresh mechnaism.", ex);
+          } catch (DatasetMetadataTooLargeException ignored) {
+            // no-op
+            // catch DatasetMetadataTooLargeException too avoid saving or logging large metadata
+            logger.debug("Did not save '{}' due to a failure", accessor.getName(), ignored);
           }
           removeFoldersOnPathFromOprhanSet(accessor.getName(), orphanedFolders);
         }
@@ -499,6 +516,7 @@ class SourceMetadataManager implements AutoCloseable {
 
   UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions) {
     retrievalOptions.withFallback(msp.getDefaultRetrievalOptions());
+    final int maxMetadataColumns = retrievalOptions.maxMetadataLeafColumns();
 
     DatasetConfig config = null;
     try {
@@ -539,6 +557,10 @@ class SourceMetadataManager implements AutoCloseable {
       } else {
         definition = plugin.get().getDataset(key, config, retrievalOptions);
       }
+    } catch (DatasetMetadataTooLargeException e) {
+        throw UserException.validationError(e)
+          .message(String.format("Using datasets with more than %d columns is currently disabled.", maxMetadataColumns))
+          .build(logger);
     } catch (Exception ex) {
       throw UserException.dataReadError(ex)
           .message("Failure while attempting to read metadata for table [%s] from source", key)
@@ -570,7 +592,14 @@ class SourceMetadataManager implements AutoCloseable {
           .build(logger);
     }
 
-    saver.completeSave(definition, config);
+    try {
+      saver.datasetSave(definition, config, msp.getMaxMetadataColumns().get());
+    } catch (DatasetMetadataTooLargeException e) {
+      throw UserException.validationError(e)
+          .message(String.format("Using datasets with more than %d columns is currently disabled.",
+              maxMetadataLeafColumns.get()))
+          .build(logger);
+    }
     return UpdateStatus.CHANGED;
   }
 

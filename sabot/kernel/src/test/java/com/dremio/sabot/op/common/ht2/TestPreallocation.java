@@ -54,13 +54,6 @@ public class TestPreallocation {
 
     MAX_VALUES_PER_BATCH = 1024;
     testPreallocationHelper();
-
-    /* try with HT batch size as arbitrary non power of 2 */
-    MAX_VALUES_PER_BATCH = 940;
-    testPreallocationHelper();
-
-    MAX_VALUES_PER_BATCH = 1017;
-    testPreallocationHelper();
   }
 
   private void testPreallocationHelper() throws Exception {
@@ -231,7 +224,7 @@ public class TestPreallocation {
       assertArrayEquals(expectedOrdinals, actualOrdinals);
 
       /* accumulate */
-      accumulator.accumulate(offsets.memoryAddress(), records);
+      accumulator.accumulate(offsets.memoryAddress(), records, hashTable.getBitsInChunk(), hashTable.getChunkOffsetMask());
     }
   }
 }

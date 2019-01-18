@@ -25,12 +25,18 @@ import org.apache.calcite.schema.TableMacro;
 import org.apache.calcite.schema.TranslatableTable;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.CatalogOptions;
+import com.dremio.exec.catalog.DatasetMetadataTooLargeException;
 import com.dremio.exec.store.MaterializedDatasetTable;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.QuietAccessor;
 import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.TableInstance;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.google.common.base.Throwables;
 
 /**
  * Implementation of a table macro that generates a table based on parameters
@@ -86,15 +92,63 @@ public final class WithOptionsTableMacro implements TableMacro {
   @Override
   public TranslatableTable apply(final List<Object> arguments) {
     try {
-      SourceTableDefinition definition = plugin.getDatasetWithOptions(new NamespaceKey (tableSchemaPath), new TableInstance(sig, arguments), schemaConfig.getIgnoreAuthErrors(), schemaConfig.getUserName());
+      final SourceTableDefinition definition = plugin.getDatasetWithOptions(
+          new NamespaceKey (tableSchemaPath),
+          new TableInstance(sig, arguments),
+          schemaConfig.getIgnoreAuthErrors(),
+          schemaConfig.getUserName(),
+          (int) schemaConfig.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX)
+      );
       if(definition == null){
-        throw UserException.validationError().message("Unable to read table %s using provided options.",  new NamespaceKey(tableSchemaPath).toString()).build(logger);
+        throw UserException.validationError()
+            .message("Unable to read table %s using provided options.",
+                new NamespaceKey(tableSchemaPath).toString())
+            .build(logger);
       }
-      return new MaterializedDatasetTable(plugin, schemaConfig.getUserName(), new QuietAccessor(definition));
 
+      return new MaterializedDatasetTable(plugin, schemaConfig.getUserName(), new QuietAccessor(
+          wrapDefinition(definition)));
     } catch (Exception e) {
+      Throwables.throwIfUnchecked(e);
       throw new RuntimeException(e);
     }
   }
 
+  // wrap definition to catch metadata related exceptions
+  private static SourceTableDefinition wrapDefinition(final SourceTableDefinition inner) {
+    return new SourceTableDefinition() {
+      @Override
+      public NamespaceKey getName() {
+        return inner.getName();
+      }
+
+      @Override
+      public DatasetConfig getDataset() throws Exception {
+        try {
+          return inner.getDataset();
+        } catch (DatasetMetadataTooLargeException e) {
+          throw UserException.validationError(e).build(logger);
+        }
+      }
+
+      @Override
+      public List<DatasetSplit> getSplits() throws Exception {
+        try {
+          return inner.getSplits();
+        } catch (DatasetMetadataTooLargeException e) {
+          throw UserException.validationError(e).build(logger);
+        }
+      }
+
+      @Override
+      public boolean isSaveable() {
+        return inner.isSaveable();
+      }
+
+      @Override
+      public DatasetType getType() {
+        return inner.getType();
+      }
+    };
+  }
 }

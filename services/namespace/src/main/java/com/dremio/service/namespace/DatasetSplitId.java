@@ -315,8 +315,11 @@ public final class DatasetSplitId implements Comparable<DatasetSplitId> {
      */
     public static final SplitOrphansRetentionPolicy KEEP_VALID_SPLITS = (metadataPolicy, dataset) -> {
       long expirationMs = Optional.ofNullable(metadataPolicy).map(MetadataPolicy::getDatasetDefinitionExpireAfterMs).orElse(Long.MAX_VALUE);
+
+      // Anything less than expiredVersion is considered expired
       long expiredVersion = Math.max(0, System.currentTimeMillis() - expirationMs);
-      // Make sure current version is still valid. Some sources don't change split version if dataset is refreshed
+
+      // Make sure current version (or higher) is still valid. Some sources don't change split version if dataset is refreshed
       // (assuming split info do not change)
       long minVersion = Math.min(dataset.getReadDefinition().getSplitVersion(), expiredVersion);
 

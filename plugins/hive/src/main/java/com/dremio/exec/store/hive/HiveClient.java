@@ -63,25 +63,17 @@ public class HiveClient implements AutoCloseable {
    * @throws MetaException
    */
   public static HiveClient createClientWithAuthz(final HiveClient processUserMetaStoreClient,
-      final HiveConf hiveConf, final String userName) throws MetaException {
+      final HiveConf hiveConf, final String userName, final UserGroupInformation ugiForRpc) throws MetaException {
     try {
       HiveConf hiveConfForClient = hiveConf;
-      final UserGroupInformation ugiForRpc; // UGI credentials to use for RPC communication with Hive MetaStore server
       boolean needDelegationToken = false;
-      if (!hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_ENABLE_DOAS)) {
-        // If the user impersonation is disabled in Hive storage plugin (not Drill impersonation), use the process
-        // user UGI credentials.
-        ugiForRpc = ImpersonationUtil.getProcessUserUGI();
-      } else {
-        ugiForRpc = ImpersonationUtil.createProxyUgi(userName);
-        if (hiveConf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_SASL)) {
-          // When SASL is enabled for proxy user create a delegation token. Currently HiveMetaStoreClient can create
-          // client transport for proxy users only when the authentication mechanims is DIGEST (through use of
-          // delegation tokens).
-          hiveConfForClient = new HiveConf(hiveConf);
-          getAndSetDelegationToken(hiveConfForClient, ugiForRpc, processUserMetaStoreClient);
-          needDelegationToken = true;
-        }
+      if (hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_ENABLE_DOAS) && hiveConf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_SASL)) {
+        // When SASL is enabled for proxy user create a delegation token. Currently HiveMetaStoreClient can create
+        // client transport for proxy users only when the authentication mechanims is DIGEST (through use of
+        // delegation tokens).
+        hiveConfForClient = new HiveConf(hiveConf);
+        getAndSetDelegationToken(hiveConfForClient, ugiForRpc, processUserMetaStoreClient);
+        needDelegationToken = true;
       }
 
       final HiveClient client = new HiveClientWithAuthz(hiveConfForClient, ugiForRpc,

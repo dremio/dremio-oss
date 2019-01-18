@@ -33,7 +33,8 @@ public class CountOneAccumulator extends BaseSingleAccumulator {
           computationVectorAllocator);
   }
 
-  public void accumulate(final long memoryAddr, final int count){
+  public void accumulate(final long memoryAddr, final int count,
+                         final int bitsInChunk, final int chunkOffsetMask){
     final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
     final long[] valueAddresses = this.valueAddresses;
     final int maxValuesPerBatch = super.maxValuesPerBatch;
@@ -41,8 +42,8 @@ public class CountOneAccumulator extends BaseSingleAccumulator {
       /* get the hash table ordinal */
       final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
       /* get the target addresses of accumulation vector */
-      final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
-      final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+      final int chunkIndex = tableIndex >>> bitsInChunk;
+      final int chunkOffset = tableIndex & chunkOffsetMask;
       final long countAddr = valueAddresses[chunkIndex] + chunkOffset * ACCUMULATOR_WIDTH;
       /* store the accumulated values(count) at the target location of accumulation vector */
       PlatformDependent.putLong(countAddr, PlatformDependent.getLong(countAddr) + 1);

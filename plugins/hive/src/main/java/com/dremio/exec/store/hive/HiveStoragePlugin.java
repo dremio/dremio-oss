@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.hive;
 
-import static com.dremio.service.namespace.capabilities.SourceCapabilities.STORAGE_IMPERSONATION;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -34,6 +32,7 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.AccessControlException;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.orc.OrcConf;
 import org.apache.thrift.TException;
 
@@ -63,7 +62,6 @@ import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.MessageLevel;
 import com.dremio.service.namespace.SourceState.SourceStatus;
 import com.dremio.service.namespace.SourceTableDefinition;
-import com.dremio.service.namespace.capabilities.BooleanCapabilityValue;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.users.SystemUser;
@@ -164,7 +162,7 @@ public class HiveStoragePlugin implements StoragePlugin {
           if (readSignature.getType() == HiveReadSignatureType.FILESYSTEM) {
             // get list of partition properties from read definition
             HiveTableXattr tableXattr = HiveTableXattr.parseFrom(datasetConfig.getReadDefinition().getExtendedProperty().toByteArray());
-            return hasFSPermission(user, key, readSignature.getFsPartitionUpdateKeysList(), tableXattr);
+            return hasFSPermission(getUsername(user), key, readSignature.getFsPartitionUpdateKeysList(), tableXattr);
           }
         }
       }
@@ -184,7 +182,7 @@ public class HiveStoragePlugin implements StoragePlugin {
 
   @Override
   public SourceCapabilities getSourceCapabilities() {
-    return new SourceCapabilities(new BooleanCapabilityValue(STORAGE_IMPERSONATION, storageImpersonationEnabled));
+    return new SourceCapabilities();
   }
 
   @Override
@@ -448,6 +446,7 @@ public class HiveStoragePlugin implements StoragePlugin {
               new NamespaceKey(datasetConfig.getFullPathList()),
               true,
               false,
+              retrievalOptions.maxMetadataLeafColumns(),
               getStatsParams(),
               hiveConf,
               datasetConfig);
@@ -462,8 +461,12 @@ public class HiveStoragePlugin implements StoragePlugin {
 
   private String getStorageUser(String user){
     if(storageImpersonationEnabled){
-      return user;
+      return getUsername(user);
     } return SystemUser.SYSTEM_USERNAME;
+  }
+
+  protected Boolean isStorageImpersonationEnabled() {
+    return storageImpersonationEnabled;
   }
 
   private StatsEstimationParameters getStatsParams() {
@@ -484,6 +487,7 @@ public class HiveStoragePlugin implements StoragePlugin {
         datasetPath,
         false, // we can't assume the path is canonized, so we'll have to hit the source
         retrievalOptions.ignoreAuthzErrors(),
+        retrievalOptions.maxMetadataLeafColumns(),
         getStatsParams(),
         hiveConf,
         oldConfig);
@@ -522,6 +526,7 @@ public class HiveStoragePlugin implements StoragePlugin {
               new NamespaceKey(ImmutableList.of(name, dbName, table)),
               true, // we got the path from HiveClient so it's safe to assume it's canonized
               retrievalOptions.ignoreAuthzErrors(),
+              retrievalOptions.maxMetadataLeafColumns(),
               getStatsParams(),
               hiveConf,
               null);
@@ -593,7 +598,16 @@ public class HiveStoragePlugin implements StoragePlugin {
         .build(new CacheLoader<String, HiveClient>() {
           @Override
           public HiveClient load(String userName) throws Exception {
-            return HiveClient.createClientWithAuthz(processUserMetastoreClient, hiveConf, userName);
+            final UserGroupInformation ugiForRpc;
+
+            if (!storageImpersonationEnabled) {
+              // If the user impersonation is disabled in Hive storage plugin, use the process user UGI credentials.
+              ugiForRpc = ImpersonationUtil.getProcessUserUGI();
+            } else {
+              ugiForRpc = ImpersonationUtil.createProxyUgi(getUsername(userName));
+            }
+
+            return HiveClient.createClientWithAuthz(processUserMetastoreClient, hiveConf, userName, ugiForRpc);
           }
         });
     } else {
@@ -602,5 +616,10 @@ public class HiveStoragePlugin implements StoragePlugin {
     }
   }
 
-
+  public String getUsername(String name) {
+    if (isStorageImpersonationEnabled()) {
+      return name;
+    }
+    return SystemUser.SYSTEM_USERNAME;
+  }
 }

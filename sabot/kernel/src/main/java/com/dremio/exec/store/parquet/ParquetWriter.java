@@ -18,6 +18,7 @@ package com.dremio.exec.store.parquet;
 import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
@@ -108,5 +109,10 @@ public class ParquetWriter extends FileSystemWriter {
   @JsonIgnore
   public boolean isPdfs() {
     return plugin.getFs().isPdfs();
+  }
+
+  @JsonIgnore
+  public UserGroupInformation getUGI() {
+    return formatPlugin.getFsPlugin().getUGIForUser(getUserName());
   }
 }

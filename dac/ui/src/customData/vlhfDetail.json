@@ -511,7 +511,7 @@
                 "validate": {"isRequired": true}
               },
               {
-                "propName": "config.enableImpersonation"
+                "propName": "config.impersonationMode"
               }
             ]
           }
@@ -616,6 +616,9 @@
         "sections": [
           {
             "elements": [
+              {
+                "propName": "config.impersonationUserDelegationMode"
+              },
               {
                 "emptyLabel": "No properties added",
                 "addLabel": "Add property",

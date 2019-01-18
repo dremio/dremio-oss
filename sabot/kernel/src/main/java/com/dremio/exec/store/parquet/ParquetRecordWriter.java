@@ -84,7 +84,6 @@ import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
 import com.dremio.exec.store.ParquetOutputRecordWriter;
 import com.dremio.exec.store.WritePartition;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -175,7 +174,8 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
         new ParquetDirectByteBufferAllocator(codecAllocator), pageSize);
     this.extraMetaData.put(DREMIO_VERSION_PROPERTY, DremioVersionInfo.getVersion());
     this.extraMetaData.put(IS_DATE_CORRECT_PROPERTY, "true");
-    this.proxyUserUGI = ImpersonationUtil.createProxyUgi(writer.getUserName());
+
+    this.proxyUserUGI = writer.getUGI();
 
     FragmentHandle handle = context.getFragmentHandle();
     String fragmentId = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());

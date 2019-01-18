@@ -46,7 +46,8 @@ public class SumAccumulators {
       setNullAndZero(vector);
     }
 
-    public void accumulate(final long memoryAddr, final int count) {
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       final long incomingBit = getInput().getValidityBufferAddress();
       final long incomingValue =  getInput().getDataBufferAddress();
@@ -63,8 +64,8 @@ public class SumAccumulators {
         final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
         final int newVal = PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH_INPUT)) * bitVal;
         /* get the hash table batch index */
-        final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
-        final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
         /* get the target addresses of accumulation vector */
         final long sumAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
@@ -92,7 +93,8 @@ public class SumAccumulators {
       setNullAndZero(vector);
     }
 
-    public void accumulate(final long memoryAddr, final int count) {
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       final long incomingBit = getInput().getValidityBufferAddress();
       final long incomingValue =  getInput().getDataBufferAddress();
@@ -109,8 +111,8 @@ public class SumAccumulators {
         final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
         final float newVal = Float.intBitsToFloat(PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH_INPUT)) * bitVal);
         /* get the hash table batch index */
-        final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
-        final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
         /* get the target addresses of accumulation vector */
         final long sumAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
@@ -205,7 +207,8 @@ public class SumAccumulators {
       setNullAndZero(vector);
     }
 
-    public void accumulate(final long memoryAddr, final int count) {
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
@@ -223,8 +226,8 @@ public class SumAccumulators {
         final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
         final long newVal = PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH_INPUT)) * bitVal;
         /* get the hash table batch index */
-        final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
-        final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
         /* get the target addresses of accumulation vector */
         final long sumAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
@@ -322,7 +325,8 @@ public class SumAccumulators {
       setNullAndZero(vector);
     }
 
-    public void accumulate(final long memoryAddr, final int count) {
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       final long incomingBit = getInput().getValidityBufferAddress();
       final long incomingValue =  getInput().getDataBufferAddress();
@@ -339,8 +343,8 @@ public class SumAccumulators {
         final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
         final double newVal = Double.longBitsToDouble(PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH_INPUT)) * bitVal);
         /* get the hash table batch index */
-        final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
-        final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
         /* get the target addresses of accumulation vector */
         final long sumAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
@@ -368,7 +372,8 @@ public class SumAccumulators {
       setNullAndZero(vector);
     }
 
-    public void accumulate(final long memoryAddr, final int count) {
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
       final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
@@ -387,8 +392,8 @@ public class SumAccumulators {
         final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
         java.math.BigDecimal newVal = DecimalAccumulatorUtils.getBigDecimal(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
         /* get the hash table batch index */
-        final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
-        final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
         /* get the target addresses of accumulation vector */
         final long sumAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);

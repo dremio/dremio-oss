@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
@@ -148,7 +149,9 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       }
     });
 
-    final ScanOperator scan = new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, readers.iterator(), globalDictionaries);
+    final UserGroupInformation ugi = plugin.getUGIForUser(config.getUserName());
+
+    final ScanOperator scan = new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, readers.iterator(), globalDictionaries, ugi);
     logger.debug("Took {} ms to create Parquet Scan SqlOperatorImpl.", watch.elapsed(TimeUnit.MILLISECONDS));
     return scan;
   }

@@ -29,8 +29,9 @@ import org.apache.arrow.vector.SchemaChangeCallBack;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
@@ -69,7 +70,7 @@ import io.netty.buffer.ArrowBuf;
  * Record batch used for a particular scan. Operators against one or more
  */
 public class ScanOperator implements ProducerOperator {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScanOperator.class);
+  private static final Logger logger = LoggerFactory.getLogger(ScanOperator.class);
   private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(ScanOperator.class);
 
   /** Main collection of fields' value vectors. */
@@ -98,7 +99,7 @@ public class ScanOperator implements ProducerOperator {
 
   /** Fields' value vectors indexed by fields' keys. */
   private final Map<String, ValueVector> fieldVectorMap = Maps.newHashMap();
-  private ProducerOperator.State state = State.NEEDS_SETUP;
+  private State state = State.NEEDS_SETUP;
   private final OperatorContext context;
   private Iterator<RecordReader> readers;
   private RecordReader currentReader;
@@ -114,10 +115,15 @@ public class ScanOperator implements ProducerOperator {
   private final Stopwatch readTime = Stopwatch.createUnstarted();
 
   public ScanOperator(SchemaChangeListener schemaUpdater, SubScan config, OperatorContext context, Iterator<RecordReader> readers) {
-    this(schemaUpdater, config, context, readers, null);
+    this(schemaUpdater, config, context, readers, null, ImpersonationUtil.getProcessUserUGI());
   }
 
-  public ScanOperator(SchemaChangeListener schemaUpdater, SubScan config, OperatorContext context, Iterator<RecordReader> readers, GlobalDictionaries globalDictionaries) {
+  public ScanOperator(SchemaChangeListener schemaUpdater, SubScan config, OperatorContext context, Iterator<RecordReader> readers, UserGroupInformation readerUGI) {
+    this(schemaUpdater, config, context, readers, null, readerUGI);
+  }
+
+  public ScanOperator(SchemaChangeListener schemaUpdater, SubScan config, OperatorContext context,
+                      Iterator<RecordReader> readers, GlobalDictionaries globalDictionaries, UserGroupInformation readerUGI) {
     if (!readers.hasNext()) {
       this.readers = ImmutableList.<RecordReader>of(new EmptyRecordReader(context)).iterator();
     } else {
@@ -134,6 +140,8 @@ public class ScanOperator implements ProducerOperator {
     this.selectedColumns = config.getColumns() == null ? null : ImmutableList.copyOf(config.getColumns());
     this.schemaUpdater = schemaUpdater;
 
+    this.readerUGI = Preconditions.checkNotNull(readerUGI, "The reader UserGroupInformation is missing.");
+
     final OperatorStats stats = context.getStats();
     try {
       // be in the processing state as the fetching the next reader could trigger wait which expects the current state
@@ -146,8 +154,6 @@ public class ScanOperator implements ProducerOperator {
 
     this.outgoing = context.createOutputVectorContainer();
 
-    final String readerUserName = StringUtils.isEmpty(config.getUserName()) ? ImpersonationUtil.getProcessUserName() : config.getUserName();
-    this.readerUGI = ImpersonationUtil.createProxyUgi(readerUserName);
     this.globalDictionaries = globalDictionaries;
 
     this.mutator = new ScanMutator(outgoing, fieldVectorMap, context, callBack);
@@ -216,7 +222,7 @@ public class ScanOperator implements ProducerOperator {
         // no need to close the reader (will be done when closing the operator)
         // but we might as well release any memory that we're holding.
         outgoing.zeroVectors();
-        state = ProducerOperator.State.DONE;
+        state = State.DONE;
         outgoing.setRecordCount(0);
         stats.batchReceived(0, 0, 0);
         return 0;

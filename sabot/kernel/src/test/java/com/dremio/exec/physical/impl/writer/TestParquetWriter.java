@@ -40,6 +40,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.hadoop.util.PageHeaderUtil;
@@ -64,9 +65,12 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.WritePartition;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
+import com.dremio.exec.store.parquet.ParquetFormatPlugin;
 import com.dremio.exec.store.parquet.ParquetRecordWriter;
 import com.dremio.exec.store.parquet.ParquetWriter;
+import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -168,7 +172,7 @@ public class TestParquetWriter extends BaseTestQuery {
     StringBuffer sb = new StringBuffer();
     // create a JSON document with a lot of columns
     sb.append("{");
-    final int numCols = 1000;
+    final int numCols = 799;
     String[] colNames = new String[numCols];
     Object[] values = new Object[numCols];
     for (int i = 0 ; i < numCols - 1; i++) {
@@ -769,6 +773,13 @@ public class TestParquetWriter extends BaseTestQuery {
     when(writerConf.getLocation()).thenReturn(targetPath.toUri().toString());
     when(writerConf.getUserName()).thenReturn("testuser");
 
+    ParquetFormatPlugin formatPlugin = mock(ParquetFormatPlugin.class);
+    FileSystemPlugin fsPlugin = mock(FileSystemPlugin.class);
+    when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);
+
+    UserGroupInformation ugi = ImpersonationUtil.createProxyUgi("testuser");
+    when(writerConf.getUGI()).thenReturn(ugi);
+
     ParquetRecordWriter writer = new ParquetRecordWriter(opContext, writerConf, new ParquetFormatConfig());
 
     RecordWriter.OutputEntryListener outputEntryListener = mock(RecordWriter.OutputEntryListener.class);
@@ -837,6 +848,13 @@ public class TestParquetWriter extends BaseTestQuery {
     when(writerConf.getFsConf()).thenReturn(hadoopConf);
     when(writerConf.getLocation()).thenReturn(targetPath.toUri().toString());
     when(writerConf.getUserName()).thenReturn("testuser");
+
+    ParquetFormatPlugin formatPlugin = mock(ParquetFormatPlugin.class);
+    FileSystemPlugin fsPlugin = mock(FileSystemPlugin.class);
+    when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);
+
+    UserGroupInformation ugi = mock(UserGroupInformation.class);
+    when(writerConf.getUGI()).thenReturn(ugi);
 
     ParquetRecordWriter writer = new ParquetRecordWriter(opContext, writerConf, new ParquetFormatConfig());
 

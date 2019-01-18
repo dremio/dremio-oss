@@ -93,7 +93,6 @@ public final class QBlockHashTable implements AutoCloseable {
 
   /**
    * Add or find a key. Returns the ordinal of the key in the table.
-   * @param blockWidth
    * @param keyFixedVectorAddr
    * @param keyVarVectorAddr
    * @param keyIndex
@@ -275,12 +274,12 @@ public final class QBlockHashTable implements AutoCloseable {
     return insertedOrdinal;
   }
 
-  private void addDataBlocks(){
-
-    // make sure can fit the next batch.
-    listener.addBatch();
+  private void addDataBlocks() {
 
     try(RollbackCloseable rollbackable = new RollbackCloseable()) {
+
+      // make sure can fit the next batch.
+      listener.addBatch();
 
       {
         FixedBlockVector newFixed = new FixedBlockVector(allocator, pivot.getBlockWidth());

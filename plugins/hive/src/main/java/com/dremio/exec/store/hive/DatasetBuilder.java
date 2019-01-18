@@ -66,6 +66,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.DateTimes;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TimedRunnable;
@@ -101,7 +102,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
-
 import io.protostuff.ByteString;
 
 class DatasetBuilder implements SourceTableDefinition {
@@ -123,13 +123,15 @@ class DatasetBuilder implements SourceTableDefinition {
   private boolean built = false;
   private List<DatasetSplit> splits = new ArrayList<>();
   private final boolean ignoreAuthzErrors;
+  private final int maxMetadataLeafColumns;
+
   private final StatsEstimationParameters statsParams;
 
 
   private DatasetBuilder(HiveClient client, String user, NamespaceKey datasetPath, boolean ignoreAuthzErrors,
-      StatsEstimationParameters statsParams, HiveConf hiveConf, String dbName, String tableName, Table table,
-      DatasetConfig oldConfig){
-    if(oldConfig == null){
+      int maxMetadataLeafColumns, StatsEstimationParameters statsParams, HiveConf hiveConf, String dbName,
+      String tableName, Table table, DatasetConfig oldConfig) {
+    if(oldConfig == null) {
       datasetConfig = new DatasetConfig()
           .setPhysicalDataset(new PhysicalDataset())
           .setId(new EntityId().setId(UUID.randomUUID().toString()));
@@ -146,6 +148,7 @@ class DatasetBuilder implements SourceTableDefinition {
     this.dbName = dbName;
     this.tableName = tableName;
     this.ignoreAuthzErrors = ignoreAuthzErrors;
+    this.maxMetadataLeafColumns = maxMetadataLeafColumns;
     this.statsParams = statsParams;
   }
 
@@ -190,6 +193,7 @@ class DatasetBuilder implements SourceTableDefinition {
       NamespaceKey datasetPath,
       boolean isCanonicalDatasetPath,
       boolean ignoreAuthzErrors,
+      int maxMetadataLeafColumns,
       StatsEstimationParameters statsParams,
       HiveConf hiveConf,
       DatasetConfig oldConfig) throws TException {
@@ -232,8 +236,8 @@ class DatasetBuilder implements SourceTableDefinition {
     }
 
     final List<String> canonicalDatasetPath = Lists.newArrayList(datasetPath.getRoot(), canonicalDbName, canonicalTableName);
-    return new DatasetBuilder(client, user, new NamespaceKey(canonicalDatasetPath), ignoreAuthzErrors, statsParams,
-        hiveConf, canonicalDbName, canonicalTableName, table, oldConfig);
+    return new DatasetBuilder(client, user, new NamespaceKey(canonicalDatasetPath), ignoreAuthzErrors, maxMetadataLeafColumns,
+    statsParams, hiveConf, canonicalDbName, canonicalTableName, table, oldConfig);
   }
 
   @Override
@@ -267,12 +271,14 @@ class DatasetBuilder implements SourceTableDefinition {
     // store table properties.
     tableProperties = MetaStoreUtils.getSchema(table.getSd(), table.getSd(), table.getParameters(), table.getDbName(), table.getTableName(), table.getPartitionKeys());
 
+    int leafFieldCounter = 0;
     List<Field> fields = new ArrayList<>();
     List<FieldSchema> hiveFields = table.getSd().getCols();
     for(FieldSchema hiveField : hiveFields) {
       Field f = HiveSchemaConverter.getArrowFieldFromHivePrimitiveType(hiveField.getName(), TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType()));
       if (f != null) {
         fields.add(f);
+        leafFieldCounter = leafFieldCounter(leafFieldCounter);
       }
     }
 
@@ -282,6 +288,7 @@ class DatasetBuilder implements SourceTableDefinition {
               TypeInfoUtils.getTypeInfoFromTypeString(field.getType()));
       if (f != null) {
         fields.add(f);
+        leafFieldCounter = leafFieldCounter(leafFieldCounter);
         partitionColumns.add(field.getName());
       }
     }
@@ -977,5 +984,14 @@ class DatasetBuilder implements SourceTableDefinition {
       partition.getSd(),
       partition.getParameters(),
       partition.getValues());
+  }
+
+  private int leafFieldCounter(int leafCounter) {
+    leafCounter++;
+    if (leafCounter > maxMetadataLeafColumns) {
+      throw new ColumnCountTooLargeException(
+          String.format("Using datasets with more than %d columns is currently disabled.", maxMetadataLeafColumns));
+    }
+    return leafCounter;
   }
 }

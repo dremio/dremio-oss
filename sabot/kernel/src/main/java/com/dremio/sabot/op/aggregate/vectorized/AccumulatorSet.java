@@ -26,6 +26,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.util.Numbers;
 import com.dremio.sabot.op.common.ht2.ResizeListener;
+import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.buffer.ArrowBuf;
 
@@ -38,15 +39,17 @@ import io.netty.buffer.ArrowBuf;
  * on accumulator(s) go through the interfaces provided by AccumulatorSet
  */
 public class AccumulatorSet implements ResizeListener, AutoCloseable {
+
   private final int jointAllocationMin;
   private final int jointAllocationLimit;
   private final BufferAllocator allocator;
   private final Accumulator[] children;
-  private final int[] sizes;
+  private final int[] cumulativeDataBufferSizes;
   private final int[] allocationLevels;
   private final boolean[] visited;
   private final Map<Integer, List<AccumulatorRange>> map;
   private final List<Integer> singleAccumulatorIndexes;
+  private final int validitySizeForSingleAccumulator;
 
   public AccumulatorSet(final long jointAllocationMin, final long jointAllocationLimit,
                         final BufferAllocator allocator, final Accumulator... children) {
@@ -55,15 +58,14 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     this.jointAllocationLimit = (int)jointAllocationLimit;
     this.allocator = allocator;
     this.children = children;
-    this.sizes = new int[children.length];
+    this.cumulativeDataBufferSizes = new int[children.length];
     this.allocationLevels = new int[children.length];
     this.visited = new boolean[children.length];
-    final int numBoundaries = Long.numberOfTrailingZeros(jointAllocationLimit) - Long.numberOfTrailingZeros(jointAllocationMin);
-    this.map = new HashMap<>(numBoundaries);
+    final int numAllocationBuckets = Long.numberOfTrailingZeros(jointAllocationLimit) - Long.numberOfTrailingZeros(jointAllocationMin);
+    this.map = new HashMap<>(numAllocationBuckets);
     this.singleAccumulatorIndexes = new ArrayList<>();
-    if (jointAllocationLimit > 0) {
-      computeAllocationBoundaries(0);
-    }
+    this.validitySizeForSingleAccumulator = children.length > 0 ? children[0].getValidityBufferSize() : 0;
+    computeAllocationBoundaries(0);
   }
 
   /**
@@ -72,113 +74,31 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
    * and end represent indices (inclusive) in the accumulator
    * array.
    */
-  private static class AccumulatorRange {
+  public static class AccumulatorRange {
     private final int start;
     private final int end;
-    AccumulatorRange(final int start, final int end) {
+    private AccumulatorRange(final int start, final int end) {
       this.start = start;
       this.end = end;
+    }
+
+    public int getStart() {
+      return start;
+    }
+
+    public int getEnd() {
+      return end;
     }
   }
 
   @Override
-  public void addBatch() {
-    if (jointAllocationLimit == 0) {
-      addBatchWithoutLimitOptimizedForHeap();
-    } else {
-      addBatchWithLimitOptimizedForDirect();
-    }
+  public void addBatch() throws Exception {
+    addBatchWithLimitOptimizedForDirect();
   }
 
   /**
-   * Add a new batch to accumulators. We first compute the total
-   * buffer size needed for vectors across all accumulators.
-   * We then slice this ArrowBuf and hand over buffers to
-   * individual accumulators. This significantly
-   * reduces the heap overhead associated with large number
-   * of ArrowBufs.
+   * Memory Allocation - Algorithm 3 (currently in use)
    *
-   * The problems with this approach are:
-   *
-   * (1) Since we initially allocate a single large buffer,
-   * we may hit OOM too frequently.
-   *
-   * (2) Direct memory wastage due to power of 2 nature of allocations
-   * in our allocator -- this is also the reason why we will hit
-   * OOM if the total size of buffer is very large
-   */
-  private void addBatchWithoutLimitOptimizedForHeap() {
-    int size = 0;
-    for(Accumulator a : children){
-      size += a.getTotalBufferSize();
-    }
-    /* if we succeed with the following allocation, it means we
-     * have allocated memory for next batch for all accumulators.
-     * however, if we fail (OOM), then the hash table will still
-     * go ahead and revert the new memory allocations on each
-     * and that will be a NO-OP since as far as the individual
-     * accumulators are concerned, no memory allocation was attempted
-     * on them
-     */
-    final ArrowBuf bufferForAllAccumulators = allocator.buffer(size);
-    int offset = 0;
-    for(Accumulator a : children){
-      final int bufferSizeForAccumulator = a.getTotalBufferSize();
-      final ArrowBuf bufferForAccumulator = bufferForAllAccumulators.slice(offset, bufferSizeForAccumulator);
-      offset += bufferSizeForAccumulator;
-      a.addBatch(bufferForAccumulator);
-    }
-    bufferForAllAccumulators.close();
-  }
-
-  /**
-   * Alternative version of previous algorithm where
-   * we do joint allocations for accumulator vectors
-   * but only upto a fixed power of 2 threshold.
-   * This helps to minimize cases where we are requesting
-   * very large chunks of memory and also does a good
-   * job at reducing heap overhead of ArrowBufs.
-   */
-  private void addBatchWithLimitOptimizedForHeapAndDirect() {
-    int size = 0;
-    int start = 0;
-    int i;
-
-    for (i = 0; i < children.length; ++i) {
-      final Accumulator accumulator = children[i];
-      final int bufferSize = accumulator.getTotalBufferSize();
-      size += bufferSize;
-      if (size == jointAllocationLimit) {
-        /* reached exact power of 2 request size, so allocate */
-        allocatePowerOfTwoOrLessAndSlice(size, start, i);
-        size = 0;
-        start = i + 1;
-      } else if (size > jointAllocationLimit) {
-        /* just crossed power of 2 request size, so backoff to go
-         * slightly less than power of 2 and allocate
-         */
-        size -= bufferSize;
-        if (size == 0) {
-          /* this can happen if joint allocation limit
-           * (which is always a power of 2) is set to a low number
-           * and HT batch size is a power of 2
-           */
-          allocatePowerOfTwoOrLessAndSlice(bufferSize, i, i);
-        } else {
-          --i;
-          allocatePowerOfTwoOrLessAndSlice(size, start, i);
-        }
-        size = 0;
-        start = i + 1;
-      }
-    }
-
-    if (size < jointAllocationLimit && size != 0) {
-      allocatePowerOfTwoOrLessAndSlice(size, start, i - 1);
-    }
-  }
-
-  /**
    * We do this computation exactly once. For a given
    * set of accumulators and their buffer sizes,
    * we try to group accumulators into different allocation
@@ -186,7 +106,7 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
    * @param start starting accumulator index
    */
   private void computeAllocationBoundaries(int start) {
-    int size = 0;
+    int dataBufferSize = 0;
     int i;
 
     if (start >= children.length) {
@@ -214,8 +134,8 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     for (i = start; i < children.length; ++i) {
       /* compute cumulative actual buffer sizes for accumulators */
       final Accumulator accumulator = children[i];
-      size += accumulator.getTotalBufferSize();
-      sizes[i] = size;
+      dataBufferSize += accumulator.getDataBufferSize();
+      cumulativeDataBufferSizes[i] = dataBufferSize;
     }
 
     /* use the cumulative sizes computed above to decide the allocation
@@ -224,8 +144,8 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
      * of accumulators.
      */
     for (i = start; i < children.length; ++i) {
-      final int cumulativeSize = sizes[i];
-      if (cumulativeSize > jointAllocationLimit) {
+      final int cumulativeDataSize = cumulativeDataBufferSizes[i];
+      if (cumulativeDataSize > jointAllocationLimit) {
         if (i >= 1 && !visited[i - 1]) {
           final AccumulatorRange range = new AccumulatorRange(start, i - 1);
           addMapping(allocationLevels[i - 1], range);
@@ -238,7 +158,7 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
           singleAccumulatorIndexes.add(i);
         }
       } else {
-        allocationLevels[i] = getAllocationLevelForSize(cumulativeSize);
+        allocationLevels[i] = getAllocationLevelForSize(cumulativeDataSize);
       }
     }
 
@@ -262,12 +182,14 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   }
 
   /**
+   * Memory Allocation - Algorithm 3 (currently in use)
+   *
    * This algorithm is mainly aimed for using direct memory optimally
    * with minimizing wastage (due to power of 2 rounding) as much as
    * possible. We still do joint allocations, but the reduction in
    * heap overhead is least compared to other two algorithms.
    */
-  private void addBatchWithLimitOptimizedForDirect() {
+  private void addBatchWithLimitOptimizedForDirect() throws Exception {
     Set<Map.Entry<Integer, List<AccumulatorRange>>> levelToAccumulatorsMapping = map.entrySet();
     for (Map.Entry<Integer, List<AccumulatorRange>> mapping : levelToAccumulatorsMapping) {
       final int allocationLevel = mapping.getKey();
@@ -277,26 +199,39 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
       }
     }
     for (int singleAccumulatorIndex : singleAccumulatorIndexes) {
-      allocatePowerOfTwoOrLessAndSlice(children[singleAccumulatorIndex].getTotalBufferSize(), singleAccumulatorIndex, singleAccumulatorIndex);
+      allocatePowerOfTwoOrLessAndSlice(children[singleAccumulatorIndex].getDataBufferSize(), singleAccumulatorIndex, singleAccumulatorIndex);
     }
   }
 
-  private void allocatePowerOfTwoOrLessAndSlice(final int size, final int start, int end) {
-    final ArrowBuf bufferForAllAccumulators = allocator.buffer(size);
-    int offset = 0;
-    for(int i = start; i <= end; ++i) {
-      final Accumulator accumulator = children[i];
-      final int bufferSize = accumulator.getTotalBufferSize();
-      final ArrowBuf bufferForSingleAccumulator = bufferForAllAccumulators.slice(offset, bufferSize);
-      offset += bufferSize;
-      accumulator.addBatch(bufferForSingleAccumulator);
-    }
-    bufferForAllAccumulators.close();
+  private void allocatePowerOfTwoOrLessAndSlice(final int totalDataSize, final int start, int end) throws Exception {
+    final int validitySize = this.validitySizeForSingleAccumulator;
+    final int totalValiditySize = validitySize * (end -  start + 1);
+    try(AutoCloseables.RollbackCloseable rollbackable = new AutoCloseables.RollbackCloseable()) {
+      final ArrowBuf validityBufferForAllAccumulators = allocator.buffer(totalValiditySize);
+      rollbackable.add(validityBufferForAllAccumulators);
+      final ArrowBuf dataBufferForAllAccumulators = allocator.buffer(totalDataSize);
+      rollbackable.add(dataBufferForAllAccumulators);
+      int dataOffset = 0;
+      int validityOffset = 0;
+      for(int i = start; i <= end; ++i) {
+        final Accumulator accumulator = children[i];
+        final int dataSize = accumulator.getDataBufferSize();
+        final ArrowBuf validityBuffer = validityBufferForAllAccumulators.slice(validityOffset, validitySize);
+        final ArrowBuf dataBuffer = dataBufferForAllAccumulators.slice(dataOffset, dataSize);
+        validityOffset += validitySize;
+        dataOffset += dataSize;
+        accumulator.addBatch(dataBuffer, validityBuffer);
+      }
+      dataBufferForAllAccumulators.close();
+      validityBufferForAllAccumulators.close();
+      rollbackable.commit();
+    } // hashtable/operator will handle the exception
   }
 
-  public void accumulate(final long memoryAddr, final int count) {
+  public void accumulate(final long memoryAddr, final int count,
+                         final int bitsInChunk, final int chunkOffsetMask) {
     for(Accumulator a : children){
-      a.accumulate(memoryAddr, count);
+      a.accumulate(memoryAddr, count, bitsInChunk, chunkOffsetMask);
     }
   }
 
@@ -359,5 +294,10 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     for(Accumulator a : children){
       a.resetToMinimumSize();
     }
+  }
+
+  @VisibleForTesting
+  public Map<Integer, List<AccumulatorRange>> getMapping() {
+    return map;
   }
 }

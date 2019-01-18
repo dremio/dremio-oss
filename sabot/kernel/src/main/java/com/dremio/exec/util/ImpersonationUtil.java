@@ -140,7 +140,8 @@ public class ImpersonationUtil {
   }
 
   /**
-   * Create and return proxy user {@link org.apache.hadoop.security.UserGroupInformation} for give user name.
+   * Create and return proxy user {@link org.apache.hadoop.security.UserGroupInformation} for the given user name.  If
+   * username is empty/null it throws a IllegalArgumentException.
    *
    * @param proxyUserName Proxy user name (must be valid)
    * @return

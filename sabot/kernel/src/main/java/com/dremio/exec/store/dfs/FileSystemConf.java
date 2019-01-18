@@ -24,7 +24,6 @@ import com.dremio.exec.catalog.conf.Property;
 import com.google.common.collect.ImmutableList;
 
 public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends FileSystemPlugin<C>> extends ConnectionConf<C, P>{
-
   public abstract Path getPath();
 
   public abstract boolean isImpersonationEnabled();

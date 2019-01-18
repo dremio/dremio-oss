@@ -231,6 +231,7 @@ class DatasetManager {
   private DremioTable getTableFromPlugin(NamespaceKey key, DatasetConfig datasetConfig, ManagedStoragePlugin plugin, final MetadataRequestOptions options) {
 
     final Stopwatch stopwatch = Stopwatch.createStarted();
+    final int maxMetadataColumns = plugin.getMaxMetadataColumns().get();
     if(plugin.isValid(datasetConfig, options)) {
       plugin.checkAccess(key, datasetConfig, options);
       final NamespaceKey canonicalKey = new NamespaceKey(datasetConfig.getFullPathList());
@@ -298,6 +299,12 @@ class DatasetManager {
       final DatasetConfig newDatasetConfig = tableDefinition.getDataset();
       final List<DatasetSplit> splits = tableDefinition.getSplits();
       NamespaceUtils.copyFromOldConfig(datasetConfig, newDatasetConfig);
+      if (BatchSchema.fromDataset(newDatasetConfig).getFieldCount() > maxMetadataColumns) {
+        throw UserException.validationError()
+            .message(String.format("Using datasets with more than %d columns is currently disabled.",
+                maxMetadataColumns))
+            .build(logger);
+      }
 
       // if saveable, we'll save whether or not
       if(tableDefinition.isSaveable()) {
@@ -310,6 +317,10 @@ class DatasetManager {
 
       TableMetadata metadata = new TableMetadataImpl(plugin.getId(), newDatasetConfig, options.getSchemaConfig().getUserName(), MaterializedSplitsPointer.of(splits, splits.size()));
       return new NamespaceTable(metadata);
+    } catch (DatasetMetadataTooLargeException e) {
+      throw UserException.validationError(e)
+        .message(String.format("Using datasets with more than %d columns is currently disabled.", maxMetadataColumns))
+        .build(logger);
     } catch(UserException ex) {
       throw ex;
     } catch (Exception e) {
@@ -343,6 +354,7 @@ class DatasetManager {
   }
 
   public boolean createOrUpdateDataset(NamespaceService userNamespaceService, ManagedStoragePlugin plugin, NamespaceKey source, final NamespaceKey datasetPath, final DatasetConfig datasetConfig, NamespaceAttribute... attributes) throws NamespaceException {
+    final int maxLeafColumns = plugin.getMaxMetadataColumns().get();
     if (!isFSBasedDataset(datasetConfig)) {
       return userNamespaceService.tryCreatePhysicalDataset(datasetPath, datasetConfig, attributes);
     }
@@ -369,7 +381,7 @@ class DatasetManager {
         if (datasetAccessor == null) {
           return userNamespaceService.tryCreatePhysicalDataset(datasetPath, datasetConfig, attributes);
         }
-        saveInHomeSpace(userNamespaceService, datasetAccessor, datasetConfig);
+        saveInHomeSpace(userNamespaceService, datasetAccessor, datasetConfig, maxLeafColumns);
       } else {
         final SourceTableDefinition datasetAccessor = plugin.getTable(datasetPath, datasetConfig, false);
         if (datasetAccessor == null) {
@@ -377,7 +389,14 @@ class DatasetManager {
           return userNamespaceService.tryCreatePhysicalDataset(datasetPath, datasetConfig, attributes);
         }
 
-        plugin.getSaver().completeSave(datasetAccessor, oldDatasetConfig, attributes);
+        try {
+          plugin.getSaver()
+            .datasetSave(datasetAccessor, oldDatasetConfig, maxLeafColumns, attributes);
+        } catch (DatasetMetadataTooLargeException e) {
+          throw UserException.validationError()
+            .message(String.format("Using datasets with more than %d columns is currently disabled.", maxLeafColumns))
+            .build(logger);
+        }
       }
     } catch (Exception e) {
       Throwables.propagateIfPossible(e, NamespaceException.class);
@@ -386,7 +405,8 @@ class DatasetManager {
     return true;
   }
 
-  public void createDataset(NamespaceKey key, ManagedStoragePlugin plugin, Function<DatasetConfig, DatasetConfig> datasetMutator){
+  public void createDataset(NamespaceKey key, ManagedStoragePlugin plugin, Function<DatasetConfig, DatasetConfig> datasetMutator) {
+    final int maxLeafColumns = plugin.getMaxMetadataColumns().get();
     DatasetConfig config = null;
     try {
       config = userNamespaceService.getDataset(key);
@@ -408,10 +428,19 @@ class DatasetManager {
       throw UserException.validationError().message("Unable to find requested table %s.", key).build(logger);
     }
 
-    plugin.getSaver().completeSave(datasetMutator == null ? definition : new MutatedSourceTableDefinition(definition, datasetMutator), config);
+    try {
+      plugin.getSaver()
+          .datasetSave(datasetMutator == null ? definition : new MutatedSourceTableDefinition(definition, datasetMutator),
+            config, maxLeafColumns);
+    } catch (DatasetMetadataTooLargeException e) {
+      throw UserException.validationError(e)
+          .message(String.format("Using datasets with more than %d columns is currently disabled.",
+              maxLeafColumns))
+          .build(logger);
+    }
   }
 
-  private void saveInHomeSpace(NamespaceService namespaceService, SourceTableDefinition accessor, DatasetConfig nsConfig) {
+  private void saveInHomeSpace(NamespaceService namespaceService, SourceTableDefinition accessor, DatasetConfig nsConfig, int maxMetadataLeafColumns) {
     Preconditions.checkNotNull(nsConfig);
     final NamespaceKey key = new NamespaceKey(nsConfig.getFullPathList());
     try{
@@ -428,7 +457,11 @@ class DatasetManager {
       // get splits from source
       List<DatasetSplit> splits = accessor.getSplits();
       namespaceService.addOrUpdateDataset(key, nsConfig, splits);
-    }catch(Exception ex){
+    } catch (DatasetMetadataTooLargeException e) {
+      throw UserException.validationError(e)
+        .message(String.format("Using datasets with more than %d columns is currently disabled.", maxMetadataLeafColumns))
+        .build(logger);
+    } catch(Exception ex){
       logger.warn("Failure while retrieving and saving dataset {}.", key, ex);
     }
   }

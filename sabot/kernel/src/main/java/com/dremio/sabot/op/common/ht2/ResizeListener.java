@@ -32,7 +32,7 @@ public interface ResizeListener {
     public void verifyBatchCount(int batches) { }
   };
 
-  void addBatch();
+  void addBatch() throws Exception;
 
   void resetToMinimumSize() throws Exception;
 

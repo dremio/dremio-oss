@@ -81,7 +81,9 @@ public final class LBlockHashTable implements AutoCloseable {
   private int gaps;
 
   private final int variableBlockMaxLength;
-  public final int MAX_VALUES_PER_BATCH;
+  private final int MAX_VALUES_PER_BATCH;
+  private final int BITS_IN_CHUNK;
+  private final int CHUNK_OFFSET_MASK;
 
   private ControlBlock[] controlBlocks;
   private FixedBlockVector[] fixedBlocks = new FixedBlockVector[0];
@@ -122,6 +124,8 @@ public final class LBlockHashTable implements AutoCloseable {
     this.listener = listener;
     /* maximum records that can be stored in hashtable block/chunk */
     this.MAX_VALUES_PER_BATCH = maxHashTableBatchSize;
+    this.BITS_IN_CHUNK = Long.numberOfTrailingZeros(MAX_VALUES_PER_BATCH);
+    this.CHUNK_OFFSET_MASK = 0xFFFFFFFF >>> (32 - BITS_IN_CHUNK);
     this.variableBlockMaxLength = (pivot.getVariableCount() == 0) ? 0 : (MAX_VALUES_PER_BATCH * (((defaultVariableLengthSize + VAR_OFFSET_SIZE) * pivot.getVariableCount()) + VAR_LENGTH_SIZE));
     this.preallocatedSingleBatch = false;
     this.allocatedForFixedBlocks = 0;
@@ -129,6 +133,7 @@ public final class LBlockHashTable implements AutoCloseable {
     this.unusedForFixedBlocks = 0;
     this.unusedForVarBlocks = 0;
     internalInit(LHashCapacities.capacity(this.config, initialSize, false));
+
     logger.debug("initialized hashtable, maxSize:{}, capacity:{}, batches:{}, maxVariableBlockLength:{}, maxValuesPerBatch:{}", maxSize, capacity, batches, variableBlockMaxLength, MAX_VALUES_PER_BATCH);
   }
 
@@ -136,59 +141,63 @@ public final class LBlockHashTable implements AutoCloseable {
     return MAX_VALUES_PER_BATCH;
   }
 
+  public int getBitsInChunk() {
+    return BITS_IN_CHUNK;
+  }
+
+  public int getChunkOffsetMask() {
+    return CHUNK_OFFSET_MASK;
+  }
+
   public int getVariableBlockMaxLength() {
     return variableBlockMaxLength;
   }
 
   private boolean addNewBlock() {
-    return currentOrdinal % MAX_VALUES_PER_BATCH == 0;
-  }
-
-  private int getChunkIndexForOrdinal(final int ordinal) {
-    return Math.abs(ordinal / MAX_VALUES_PER_BATCH);
-  }
-
-  private int getOffsetInChunkForOrdinal(final int ordinal) {
-    return Math.abs(ordinal % MAX_VALUES_PER_BATCH);
+    return (currentOrdinal & CHUNK_OFFSET_MASK) == 0;
   }
 
   /**
-   * Add or find a key. Returns the ordinal of the key in the table.
+   * Search for a key. If the key doesn't exist, insert into the hash table
    * @param keyFixedVectorAddr starting address of fixed vector block
    * @param keyVarVectorAddr starting address of variable vector block
    * @param keyIndex record #
    * @param keyHash hashvalue (hashing is external to the hash table)
-   * @return ordinal of inserted key.
+   * @return ordinal (of newly inserted key or existing key)
    */
   public final int add(final long keyFixedVectorAddr, final long keyVarVectorAddr,
                        final int keyIndex, final int keyHash) {
-    return getOrInsertWithRetry(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash, true);
+    return getOrInsert(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash, true);
   }
 
+  /**
+   * Find a key.
+   * @param keyFixedVectorAddr starting address of fixed vector block
+   * @param keyVarVectorAddr starting address of variable vector block
+   * @param keyIndex record #
+   * @param keyHash hashvalue (hashing is external to the hash table)
+   * @return ordinal if the key exists, -1 otherwise
+   *
+   * This function is used by {@link com.dremio.sabot.op.join.vhash.VectorizedHashJoinOperator}
+   * since the operator has a probe only phase in which it only searches for matching keys
+   */
   public final int find(final long keyFixedVectorAddr, final long keyVarVectorAddr,
                         final int keyIndex, final int keyHash) {
-    return getOrInsertWithRetry(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash, false);
+    return getOrInsert(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash, false);
   }
 
-  private final int getOrInsertWithRetry(final long keyFixedVectorAddr, final long keyVarVectorAddr,
-                                         final int keyIndex, final int keyHash, boolean insertNew) {
-    int returnValue = getOrInsert(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash, insertNew);
-    if (returnValue == RETRY_RETURN_CODE) {
-      returnValue = getOrInsert(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash, insertNew);
-    }
-    return returnValue;
-  }
 
-  private final int getOrInsert(final long keyFixedVectorAddr, final long keyVarVectorAddr,
-                                final int keyIndex, final int keyHash, boolean insertNew) {
+  // TODO: we need to fix the hashjoin operator code to pass addresses directly pointing
+  // to records in pivot buffers and then we can remove this method. right now it is
+  // passing starting address of pivot buffers and the hash table has to repeat
+  // the pointer movement in this method whereas it is something already done by the
+  // operator while computing the hash. once hashjoin code is fixed like hashagg,
+  // we can remove this along with add() and find() methods and directly call
+  // getOrInsertWithRetry with pointers to records inside the pivot buffers, length of record etc
+  private int getOrInsert(final long keyFixedVectorAddr, final long keyVarVectorAddr,
+                          final int keyIndex, final int keyHash, boolean insertNew) {
     final int blockWidth = pivot.getBlockWidth();
-    final boolean fixedOnly = this.fixedOnly;
     final long keyFixedAddr = keyFixedVectorAddr + (blockWidth * keyIndex);
-
-    final long[] tableControlAddresses = this.tableControlAddresses;
-    final long[] tableFixedAddresses = this.tableFixedAddresses;
-    final long[] initVariableAddresses = this.initVariableAddresses;
-
     final long keyVarAddr;
     final int keyVarLen;
     final int dataWidth;
@@ -203,11 +212,65 @@ public final class LBlockHashTable implements AutoCloseable {
       keyVarLen = PlatformDependent.getInt(keyVarAddr);
     }
 
-    // start with a hash index.
-    int controlIndex = keyHash % capacity;
+    return getOrInsertWithRetry(keyFixedAddr, keyVarAddr, keyVarLen, keyHash, dataWidth, insertNew);
+  }
 
-    int controlChunkIndex = getChunkIndexForOrdinal(controlIndex);
-    int offsetInChunk = getOffsetInChunkForOrdinal(controlIndex);
+  /**
+   * {@link com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator} directly
+   * calls this method to pass addresses pointing directly to the record in pivot buffers.
+   * Since the operator computes the hash and passes to hash table, we don't want hash table
+   * to repeat some computation like advancing the pointer in fixed and variable
+   * vector buffers to point to the new record in the pivot buffer etc. Since this is something
+   * that operator already did while computing the hash, we skip repeating all that work
+   * by directly calling into this method.
+   *
+   * @param keyFixedAddr pointer to record in fixed key buffer
+   * @param keyVarAddr pointer to record in variable key buffer
+   * @param keyVarLen length of variable key
+   * @param keyHash 32 bit hash
+   * @param dataWidth width of data in fixed key buffer
+   *
+   * @return for find operation (ordinal if the key exists, -1 otherwise)
+   *         for add operation (ordinal if the key exists or new ordinal after insertion)
+   */
+  public int getOrInsertWithRetry(final long keyFixedAddr, final long keyVarAddr,
+                                  final int  keyVarLen, final int keyHash,
+                                  final int dataWidth, final boolean insertNew) {
+    int returnValue = probeOrInsert(keyFixedAddr, keyVarAddr, keyVarLen, keyHash, dataWidth, insertNew);
+    if (returnValue == RETRY_RETURN_CODE) {
+      returnValue = probeOrInsert(keyFixedAddr, keyVarAddr, keyVarLen, keyHash, dataWidth, insertNew);
+    }
+    return returnValue;
+  }
+
+  /**
+   * Helper method for inserting/searching the hash table.
+   * For a given key, it first searches (linear probing) the hash table
+   * If the key is not found and the caller indicates that the new key
+   * has to be added, this function inserts the given key
+   *
+   * @param keyFixedAddr pointer to record in fixed key buffer
+   * @param keyVarAddr pointer to record in variable key buffer
+   * @param keyVarLen length of variable key
+   * @param keyHash 32 bit hash
+   * @param dataWidth width of data in fixed key buffer
+   *
+   * @return for find operation (ordinal if the key exists, -1 otherwise)
+   *         for add operation (ordinal if the key exists or new ordinal after insertion or -2 if the caller should retry)
+   */
+  private int probeOrInsert(final long keyFixedAddr, final long keyVarAddr, final int keyVarLen,
+                            final int keyHash, final int dataWidth, final boolean insertNew) {
+    final boolean fixedOnly =  this.fixedOnly;
+    final int blockWidth = pivot.getBlockWidth();
+    final long[] tableControlAddresses = this.tableControlAddresses;
+    final long[] tableFixedAddresses = this.tableFixedAddresses;
+    final long[] initVariableAddresses = this.initVariableAddresses;
+
+    // start with a hash index.
+    int controlIndex = keyHash & (capacity - 1);
+
+    int controlChunkIndex = controlIndex >>> BITS_IN_CHUNK;
+    int offsetInChunk = controlIndex & CHUNK_OFFSET_MASK;
     long tableControlAddr = tableControlAddresses[controlChunkIndex] + (offsetInChunk * CONTROL_WIDTH);
     long control = PlatformDependent.getLong(tableControlAddr);
 
@@ -217,8 +280,8 @@ public final class LBlockHashTable implements AutoCloseable {
 
       int ordinal = (int) control;
       if (keyHash == (int) (control >>> 32)){
-        dataChunkIndex = getChunkIndexForOrdinal(ordinal);
-        offsetInChunk = getOffsetInChunkForOrdinal(ordinal);
+        dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
+        offsetInChunk = ordinal & CHUNK_OFFSET_MASK;
         tableDataAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth);
         if(fixedKeyEquals(keyFixedAddr, tableDataAddr, dataWidth) && (fixedOnly || variableKeyEquals(keyVarAddr, initVariableAddresses[dataChunkIndex] + PlatformDependent.getInt(tableDataAddr + dataWidth), keyVarLen))){
           return ordinal;
@@ -226,9 +289,9 @@ public final class LBlockHashTable implements AutoCloseable {
       }
 
       while (true) {
-        controlIndex = (controlIndex - 1) % capacity;
-        controlChunkIndex = getChunkIndexForOrdinal(controlIndex);
-        offsetInChunk = getOffsetInChunkForOrdinal(controlIndex);
+        controlIndex = (controlIndex - 1) & (capacity - 1);
+        controlChunkIndex = controlIndex >>> BITS_IN_CHUNK;
+        offsetInChunk = controlIndex & CHUNK_OFFSET_MASK;
         tableControlAddr = tableControlAddresses[controlChunkIndex] + (offsetInChunk * CONTROL_WIDTH);
         control = PlatformDependent.getLong(tableControlAddr);
 
@@ -236,8 +299,8 @@ public final class LBlockHashTable implements AutoCloseable {
           break keyAbsent;
         } else if(keyHash == (int) (control >>> 32)){
           ordinal = (int) control;
-          dataChunkIndex = getChunkIndexForOrdinal(ordinal);
-          offsetInChunk = getOffsetInChunkForOrdinal(ordinal);
+          dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
+          offsetInChunk = ordinal & CHUNK_OFFSET_MASK;
           tableDataAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth);
           if(fixedKeyEquals(keyFixedAddr, tableDataAddr, dataWidth) && (fixedOnly || variableKeyEquals(keyVarAddr, initVariableAddresses[dataChunkIndex] + PlatformDependent.getInt(tableDataAddr + dataWidth), keyVarLen))){
             // key is present
@@ -248,23 +311,24 @@ public final class LBlockHashTable implements AutoCloseable {
       }
     }
 
-    if(!insertNew){
+    // key not found
+    if(!insertNew) {
+      // caller doesn't want to add key so return
       return -1;
     } else {
-      // key is absent, let's insert.
+      // caller wants to add key so insert
       return insert(blockWidth, tableControlAddr, keyHash, dataWidth, keyFixedAddr, keyVarAddr, keyVarLen);
     }
-
   }
 
-  // Get the length of the variable keys for the record specified by ordinal.
+    // Get the length of the variable keys for the record specified by ordinal.
   public int getVarKeyLength(int ordinal) {
     if (fixedOnly) {
       return 0;
     } else {
       final int blockWidth = pivot.getBlockWidth();
-      final int dataChunkIndex = getChunkIndexForOrdinal(ordinal);
-      final int offsetInChunk = getOffsetInChunkForOrdinal(ordinal);
+      final int dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
+      final int offsetInChunk = ordinal & CHUNK_OFFSET_MASK;
       final long tableVarOffsetAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth) + blockWidth - VAR_OFFSET_SIZE;
       final int tableVarOffset = PlatformDependent.getInt(tableVarOffsetAddr);
       // VAR_LENGTH_SIZE is not added to varLen when pivot it in pivotVariableLengths method, so we need to add it here
@@ -287,8 +351,8 @@ public final class LBlockHashTable implements AutoCloseable {
       for (; keyOffsetAddr < maxAddr; keyOffsetAddr += ORDINAL_SIZE, keyFixedAddr += blockWidth) {
         // Copy the fixed key that is pivoted in Pivots.pivot
         final int ordinal = PlatformDependent.getInt(keyOffsetAddr);
-        final int dataChunkIndex = getChunkIndexForOrdinal(ordinal);
-        final int offsetInChunk = getOffsetInChunkForOrdinal(ordinal);
+        final int dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
+        final int offsetInChunk = ordinal & CHUNK_OFFSET_MASK;
         final long tableFixedAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth);
         Copier.copy(tableFixedAddr, keyFixedAddr, blockWidth);
       }
@@ -297,8 +361,8 @@ public final class LBlockHashTable implements AutoCloseable {
       for (; keyOffsetAddr < maxAddr; keyOffsetAddr += ORDINAL_SIZE, keyFixedAddr += blockWidth) {
         // Copy the fixed keys that is pivoted in Pivots.pivot
         final int ordinal = PlatformDependent.getInt(keyOffsetAddr);
-        final int dataChunkIndex = getChunkIndexForOrdinal(ordinal);
-        final int offsetInChunk = getOffsetInChunkForOrdinal(ordinal);
+        final int dataChunkIndex = ordinal >>> BITS_IN_CHUNK;
+        final int offsetInChunk = ordinal & CHUNK_OFFSET_MASK;
         final long tableFixedAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth);
         Copier.copy(tableFixedAddr, keyFixedAddr, blockWidth - VAR_OFFSET_SIZE);
         // Update the variable offset of the key
@@ -366,7 +430,7 @@ public final class LBlockHashTable implements AutoCloseable {
     }
 
     // Check if we can fit variable component in available space in current chunk.
-    final int currentChunkIndex = getChunkIndexForOrdinal(currentOrdinal);
+    final int currentChunkIndex = currentOrdinal >>> BITS_IN_CHUNK;
     final long tableVarAddr = openVariableAddresses[currentChunkIndex];
     final long tableMaxVarAddr = maxVariableAddresses[currentChunkIndex];
     if (tableMaxVarAddr - tableVarAddr >= keyVarLen + VAR_LENGTH_SIZE) {
@@ -406,14 +470,9 @@ public final class LBlockHashTable implements AutoCloseable {
     }
     final int insertedOrdinal = currentOrdinal;
 
-    long traceBufAddr = 0;
-    if (traceBuf != null) {
-      traceBufAddr = traceBuf.memoryAddress();
-    }
-
     // first we need to make sure we are up to date on the
-    final int dataChunkIndex = getChunkIndexForOrdinal(insertedOrdinal);
-    final int offsetInChunk = getOffsetInChunkForOrdinal(insertedOrdinal);
+    final int dataChunkIndex = insertedOrdinal >>> BITS_IN_CHUNK;
+    final int offsetInChunk = insertedOrdinal & CHUNK_OFFSET_MASK;
     final long tableDataAddr = tableFixedAddresses[dataChunkIndex] + (offsetInChunk * blockWidth);
 
     // set the ordinal value for the insertion.
@@ -654,6 +713,7 @@ public final class LBlockHashTable implements AutoCloseable {
 
       // loop through backwards.
 
+      final int capacity = this.capacity;
       for(int batch =0; batch < oldControlAddrs.length; batch++){
         long addr = oldControlAddrs[batch];
         final long max = addr + MAX_VALUES_PER_BATCH * CONTROL_WIDTH;
@@ -661,16 +721,15 @@ public final class LBlockHashTable implements AutoCloseable {
           long oldControl = PlatformDependent.getLong(oldControlAddr);
 
           if(oldControl != LFREE){
-            int index = ((int) (oldControl >>> 32)) % capacity; // get previously computed hash and slice it.
-            int newChunkIndex = getChunkIndexForOrdinal(index);
-            int offetInChunk = getOffsetInChunkForOrdinal(index);
+            int index = ((int) (oldControl >>> 32)) & (capacity - 1); // get previously computed hash and slice it.
+            int newChunkIndex = index >>> BITS_IN_CHUNK;
+            int offetInChunk = index & CHUNK_OFFSET_MASK;
             long controlAddr = controlAddrs[newChunkIndex] + (offetInChunk * CONTROL_WIDTH);
-
             if (PlatformDependent.getInt(controlAddr) != FREE) {
               while (true) {
-                index = (index - 1) % capacity;
-                newChunkIndex = getChunkIndexForOrdinal(index);
-                offetInChunk = getOffsetInChunkForOrdinal(index);
+                index = (index - 1) & (capacity - 1);
+                newChunkIndex = index >>> BITS_IN_CHUNK;
+                offetInChunk = index & CHUNK_OFFSET_MASK;
                 controlAddr = controlAddrs[newChunkIndex] + (offetInChunk * CONTROL_WIDTH);
                 if (PlatformDependent.getInt(controlAddr) == FREE) {
                   break;
@@ -1053,5 +1112,36 @@ public final class LBlockHashTable implements AutoCloseable {
   public int getCurrentNumberOfBlocks() {
     Preconditions.checkArgument(fixedBlocks.length == variableBlocks.length, "Error: detected inconsistent number of blocks");
     return fixedBlocks.length;
+  }
+
+
+  /**
+   * Compute hash for fixed width key columns only
+   * @param keyDataAddr pointer to the row of fixed width keys in pivot buffer
+   * @param dataWidth width of the entire row (fixed key data + validity)
+   * @param seed seed for computing hash (depends on the iteration of aggregation)
+   * @return 64bit hash
+   */
+  public static long fixedKeyHashCode(long keyDataAddr, int dataWidth, long seed){
+    return mix(XXH64.xxHash64(keyDataAddr, dataWidth, seed));
+  }
+
+  /**
+   * Compute hash for both fixed width and variable width key columns
+   * @param keyDataAddr pointer to the row of fixed width keys in pivot buffer
+   * @param dataWidth width of the entire row (fixed key data + validity)
+   * @param keyVarAddr pointer to the row of variable width keys in pivot buffer
+   * @param varDataLen length of variable width row (data + metadata)
+   * @param seed seed for computing hash (depends on iteration of aggregation)
+   * @return 64bit hash
+   */
+  public static long keyHashCode(long keyDataAddr, int dataWidth, final long keyVarAddr,
+                                  int varDataLen, long seed){
+    final long fixedValue = XXH64.xxHash64(keyDataAddr, dataWidth, seed);
+    return mix(XXH64.xxHash64(keyVarAddr + 4, varDataLen, fixedValue));
+  }
+
+  public static long mix(long hash) {
+    return (hash & 0x7FFFFFFFFFFFFFFFL);
   }
 }

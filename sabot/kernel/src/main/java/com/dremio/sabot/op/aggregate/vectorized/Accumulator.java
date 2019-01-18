@@ -36,7 +36,7 @@ public interface Accumulator extends AutoCloseable {
    *
    * this function works on a per-partition basis.
    */
-  void accumulate(long offsetAddr, int count);
+  void accumulate(long offsetAddr, int count, int bitsInChunk, int chunkOffsetMask);
 
   /**
    * Output the data for the provided the batch index to the output vectors.
@@ -67,13 +67,11 @@ public interface Accumulator extends AutoCloseable {
    */
   FieldVector getInput();
 
-  /**
-   * Get the total memory needed by buffers of this accumulator
-   * @return composite buffer size accounting for both validity and data buffers
-   */
-  int getTotalBufferSize();
+  int getValidityBufferSize();
 
-  void addBatch(final ArrowBuf buffer);
+  int getDataBufferSize();
+
+  void addBatch(final ArrowBuf dataBuffer, final ArrowBuf validityBuffer);
 
   void resetToMinimumSize() throws Exception;
 

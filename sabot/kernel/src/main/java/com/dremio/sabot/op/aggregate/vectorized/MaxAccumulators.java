@@ -46,7 +46,8 @@ public class MaxAccumulators {
       setNullAndValue(vector, INIT);
     }
 
-    public void accumulate(final long memoryAddr, final int count) {
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
       final long maxMemAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
@@ -64,8 +65,8 @@ public class MaxAccumulators {
         final int newVal = PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH_INPUT));
         final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
         /* get the hash table batch index */
-        final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
-        final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
         /* get the target addresses of accumulation vector */
         final long maxAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
@@ -94,7 +95,8 @@ public class MaxAccumulators {
       setNullAndValue(vector, INIT);
     }
 
-    public void accumulate(final long memoryAddr, final int count) {
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
       final long maxMemAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
@@ -112,8 +114,8 @@ public class MaxAccumulators {
         final float newVal = Float.intBitsToFloat(PlatformDependent.getInt(incomingValue + (incomingIndex * WIDTH_INPUT)));
         final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
         /* get the hash table batch index */
-        final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
-        final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
         /* get the target addresses of accumulation vector */
         final long maxAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
@@ -141,7 +143,8 @@ public class MaxAccumulators {
       setNullAndValue(vector, Long.MIN_VALUE);
     }
 
-    public void accumulate(final long memoryAddr, final int count) {
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
       final long maxMemAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
@@ -159,8 +162,8 @@ public class MaxAccumulators {
         final long newVal = PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH_INPUT));
         final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
         /* get the hash table batch index */
-        final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
-        final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
         /* get the target addresses of accumulation vector */
         final long maxAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
@@ -239,7 +242,8 @@ public class MaxAccumulators {
       setNullAndValue(vector, INIT);
     }
 
-    public void accumulate(final long memoryAddr, final int count) {
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
       final long maxMemAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
@@ -257,8 +261,8 @@ public class MaxAccumulators {
         final double newVal = Double.longBitsToDouble(PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH_INPUT)));
         final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
         /* get the hash table batch index */
-        final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
-        final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
         /* get the target addresses of accumulation vector */
         final long maxAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
@@ -287,7 +291,8 @@ public class MaxAccumulators {
       setNullAndValue(vector, INIT);
     }
 
-    public void accumulate(final long memoryAddr, final int count) {
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
       final long maxMemAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
@@ -306,8 +311,8 @@ public class MaxAccumulators {
         java.math.BigDecimal newVal = DecimalAccumulatorUtils.getBigDecimal(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
         final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
         /* get the hash table batch index */
-        final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
-        final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
         /* get the target addresses of accumulation vector */
         final long maxAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
@@ -335,7 +340,8 @@ public class MaxAccumulators {
       setNullAndZero(vector);
     }
 
-    public void accumulate(final long memoryAddr, final int count) {
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
       final long incomingValue = inputVector.getDataBufferAddress();
@@ -364,8 +370,8 @@ public class MaxAccumulators {
         final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
         /* get the index of data in input vector */
         final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
-        final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
-        final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
         final long maxBitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);  // 32-bit read-update-write
         // Update rules:
         // max of two boolean values boils down to doing a bitwise OR on the two
@@ -407,7 +413,8 @@ public class MaxAccumulators {
       setNullAndValue(vector, INIT);
     }
 
-    public void accumulate(final long memoryAddr, final int count) {
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
       final long maxMemAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
       FieldVector inputVector = getInput();
       final long incomingBit = inputVector.getValidityBufferAddress();
@@ -425,8 +432,8 @@ public class MaxAccumulators {
         final long newVal = PlatformDependent.getLong(incomingValue + (incomingIndex * WIDTH_INPUT));
         final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
         /* get the hash table batch index */
-        final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
-        final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
         /* get the target addresses of accumulation vector */
         final long maxAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
         final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);

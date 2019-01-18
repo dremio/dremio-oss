@@ -103,14 +103,6 @@ public class TestVectorizedHashAggPartitionSerializable {
     MAX_VALUES_PER_BATCH = 1024;
     testPartitionRoundTrip1Helper();
     postSpillAccumulatorVectorFields.clear();
-
-    /* try with HT batch size as arbitrary non power of 2 */
-    MAX_VALUES_PER_BATCH = 940;
-    testPartitionRoundTrip1Helper();
-    postSpillAccumulatorVectorFields.clear();
-
-    MAX_VALUES_PER_BATCH = 1017;
-    testPartitionRoundTrip1Helper();
   }
 
   private void testPartitionRoundTrip1Helper() throws Exception {
@@ -269,14 +261,6 @@ public class TestVectorizedHashAggPartitionSerializable {
     MAX_VALUES_PER_BATCH = 1024;
     testPartitionRoundTrip2Helper();
     postSpillAccumulatorVectorFields.clear();
-
-    /* try with HT batch size as arbitrary non power of 2 */
-    MAX_VALUES_PER_BATCH = 940;
-    testPartitionRoundTrip2Helper();
-    postSpillAccumulatorVectorFields.clear();
-
-    MAX_VALUES_PER_BATCH = 1017;
-    testPartitionRoundTrip2Helper();
   }
 
   private void testPartitionRoundTrip2Helper() throws Exception {
@@ -453,7 +437,7 @@ public class TestVectorizedHashAggPartitionSerializable {
         }).when(spillService).getSpillSubdir(any(String.class));
 
         LBlockHashTable sourceHashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000, 10, true, accumulator, MAX_VALUES_PER_BATCH);
-        VectorizedHashAggPartition hashAggPartition =  new VectorizedHashAggPartition(accumulator, sourceHashTable, pivot.getBlockWidth(), "P0");
+        VectorizedHashAggPartition hashAggPartition =  new VectorizedHashAggPartition(accumulator, sourceHashTable, pivot.getBlockWidth(), "P0", offsets);
         final VectorizedHashAggPartitionSpillHandler partitionSpillHandler = new VectorizedHashAggPartitionSpillHandler(hashAggPartitions, fragmentHandle, null, sabotConfig, 1, partitionToLoadSpilledData, spillService, true);
         hashAggPartitions[0] = hashAggPartition;
 
@@ -474,13 +458,14 @@ public class TestVectorizedHashAggPartitionSerializable {
         for (int keyIndex = 0; keyIndex < records; keyIndex++, offsetAddr += VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH) {
           final int keyHash = (int)hashValues.get(keyIndex);
           actualOrdinals[keyIndex] = sourceHashTable.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash);
-          PlatformDependent.putByte(offsetAddr, (byte)hashPartitionIndex);
-          PlatformDependent.putInt(offsetAddr + VectorizedHashAggOperator.HTORDINAL_OFFSET, actualOrdinals[keyIndex]);
-          PlatformDependent.putInt(offsetAddr + VectorizedHashAggOperator.KEYINDEX_OFFSET, keyIndex);
+          hashAggPartition.appendRecord(actualOrdinals[keyIndex], keyIndex);
+          //PlatformDependent.putByte(offsetAddr, (byte)hashPartitionIndex);
+          //PlatformDependent.putInt(offsetAddr + VectorizedHashAggOperator.HTORDINAL_OFFSET, actualOrdinals[keyIndex]);
+          //PlatformDependent.putInt(offsetAddr + VectorizedHashAggOperator.KEYINDEX_OFFSET, keyIndex);
         }
 
         /* accumulate */
-        accumulator.accumulate(offsets.memoryAddress(), records);
+        accumulator.accumulate(offsets.memoryAddress(), records, sourceHashTable.getBitsInChunk(), sourceHashTable.getChunkOffsetMask());
 
         /* check hash table ordinals */
         assertArrayEquals(expectedOrdinals, actualOrdinals);

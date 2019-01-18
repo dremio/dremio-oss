@@ -42,6 +42,7 @@ import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.apache.hadoop.security.AccessControlException;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.parquet.Preconditions;
 
 import com.dremio.common.config.LogicalPlanPersistence;
@@ -182,11 +183,16 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   public FileSystemWrapper getFs(String userName, OperatorStats stats) {
-    if (!config.isImpersonationEnabled()) {
-      userName = ImpersonationUtil.getProcessUserName();
-    }
-    return ImpersonationUtil.createFileSystem(ImpersonationUtil.createProxyUgi(userName), getFsConf(), stats,
+    return ImpersonationUtil.createFileSystem(getUGIForUser(userName), getFsConf(), stats,
         getConnectionUniqueProperties());
+  }
+
+  public UserGroupInformation getUGIForUser(String userName) {
+    if (!config.isImpersonationEnabled()) {
+      return ImpersonationUtil.getProcessUserUGI();
+    }
+
+    return ImpersonationUtil.createProxyUgi(userName);
   }
 
   public Iterable<String> getSubPartitions(List<String> table,
@@ -310,7 +316,13 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return getDatasetWithFormat(datasetPath, oldConfig, formatPluginConfig, retrievalOptions, null);
   }
 
-  SourceTableDefinition getDatasetWithOptions(NamespaceKey datasetPath, TableInstance instance, boolean ignoreAuthErrors, String user) throws Exception{
+  SourceTableDefinition getDatasetWithOptions(
+      NamespaceKey datasetPath,
+      TableInstance instance,
+      boolean ignoreAuthErrors,
+      String user,
+      int maxLeafColumns
+  ) throws Exception {
     final FormatPluginConfig fconfig = optionExtractor.createConfigForTable(instance);
     return getDatasetWithFormat(
         datasetPath,
@@ -318,6 +330,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         fconfig,
         DatasetRetrievalOptions.DEFAULT.toBuilder()
             .setIgnoreAuthzErrors(ignoreAuthErrors)
+            .setMaxMetadataLeafColumns(maxLeafColumns)
             .build(),
         user
     );
@@ -379,7 +392,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         if(formatPlugin == null){
           formatPlugin = formatCreator.newFormatPlugin(formatPluginConfig);
         }
-        datasetAccessor = formatPlugin.getDatasetAccessor(oldConfig, fs, fileSelectionWithoutDir, this, datasetPath, tableName, updateKey);
+        datasetAccessor = formatPlugin.getDatasetAccessor(oldConfig, fs, fileSelectionWithoutDir, this, datasetPath,
+            updateKey, retrievalOptions.maxMetadataLeafColumns());
       }
 
       if (datasetAccessor == null &&
@@ -387,7 +401,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         for (final FormatMatcher matcher : matchers) {
           try {
             if (matcher.matches(fs, fileSelection, codecFactory)) {
-              datasetAccessor = matcher.getFormatPlugin().getDatasetAccessor(oldConfig, fs, fileSelectionWithoutDir, this, datasetPath, tableName, updateKey);
+              datasetAccessor = matcher.getFormatPlugin()
+                  .getDatasetAccessor(oldConfig, fs, fileSelectionWithoutDir, this, datasetPath,
+                      updateKey, retrievalOptions.maxMetadataLeafColumns());
               if (datasetAccessor != null) {
                 break;
               }
@@ -1060,5 +1076,4 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   public Writer getWriter(PhysicalOperator child, String userName, String location, WriterOptions options) throws IOException {
     throw new IllegalStateException("The ctas entry for a file system plugin should invoke get writer on the format plugin directly.");
   }
-
 }

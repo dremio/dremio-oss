@@ -153,7 +153,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
   public SourceTableDefinition getDataset(
       NamespaceKey datasetPath,
       DatasetConfig oldConfig,
-      DatasetRetrievalOptions ignored
+      DatasetRetrievalOptions options
   ) throws Exception {
     FluentIterable<Refresh> refreshes = getSlices(datasetPath.getPathComponents());
     if(refreshes == null) {
@@ -177,7 +177,8 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
       }}).toList();
 
     FileSelection selection = FileSelection.createFromExpanded(allStatus, selectionRoot);
-    return new ParquetFormatDatasetAccessor(oldConfig, getFs(), selection, this, datasetPath, null, EMPTY, formatPlugin);
+    return new ParquetFormatDatasetAccessor(oldConfig, getFs(), selection, this, datasetPath, EMPTY, formatPlugin,
+        options.maxMetadataLeafColumns());
   }
 
   @Override

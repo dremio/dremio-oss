@@ -46,6 +46,7 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   //  optional string root_path = 5 [default = "/"];
   //  optional ShortCircuitFlag short_circuit_enabled = 6
   //  optional string short_circuit_socket_path = 7
+  //  optional bool allow_create_drop = 8
 
   @NotBlank
   @Tag(1)

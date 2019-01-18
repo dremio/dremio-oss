@@ -79,16 +79,6 @@ public class TestSpillingHashAgg extends BaseTestOperator {
         assertEquals(1, stats.getIterations());
         assertEquals(0, stats.getRecursionDepth());
       }
-      try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true);
-           AutoCloseable withInsertionSort = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_INSERTION_SORT_FOR_ACCUMULATION, true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertEquals(0, stats.getSpills());
-        assertEquals(0, stats.getOoms());
-        assertEquals(1, stats.getIterations());
-        assertEquals(0, stats.getRecursionDepth());
-      }
     }
   }
 
@@ -107,16 +97,6 @@ public class TestSpillingHashAgg extends BaseTestOperator {
                                                     VectorizedHashAggOperator.PREALLOC_FAILURE_PARTITIONS));
     try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertEquals(0, stats.getSpills());
-        assertEquals(0, stats.getOoms());
-        assertEquals(1, stats.getIterations());
-        assertEquals(0, stats.getRecursionDepth());
-      }
-      try(CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true);
-          AutoCloseable withInsertionSort = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_INSERTION_SORT_FOR_ACCUMULATION, true)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
@@ -146,16 +126,6 @@ public class TestSpillingHashAgg extends BaseTestOperator {
         assertEquals(1, stats.getIterations());
         assertEquals(0, stats.getRecursionDepth());
       }
-      try(CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true);
-          AutoCloseable withInsertionSort = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_INSERTION_SORT_FOR_ACCUMULATION, true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertEquals(0, stats.getSpills());
-        assertEquals(0, stats.getOoms());
-        assertEquals(1, stats.getIterations());
-        assertEquals(0, stats.getRecursionDepth());
-      }
     }
   }
 
@@ -163,23 +133,12 @@ public class TestSpillingHashAgg extends BaseTestOperator {
   public void testSetupFailureForExtraPartition() throws Exception {
     final HashAggregate agg = getHashAggregate();
     agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(2_300_000);
+    agg.setMaxAllocation(2_400_000);
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
                                                     "Query was cancelled because it exceeded the memory limits set by the administrator.",
                                                     VectorizedHashAggOperator.PREALLOC_FAILURE_LOADING_PARTITION));
     try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertEquals(0, stats.getSpills());
-        assertEquals(0, stats.getOoms());
-        assertEquals(1, stats.getIterations());
-        assertEquals(0, stats.getRecursionDepth());
-      }
-
-      try(CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true);
-          AutoCloseable withInsertionSort = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_INSERTION_SORT_FOR_ACCUMULATION, true)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
@@ -195,23 +154,12 @@ public class TestSpillingHashAgg extends BaseTestOperator {
   public void testSetupFailureForAuxStructures() throws Exception {
     final HashAggregate agg = getHashAggregate();
     agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(2_450_000);
+    agg.setMaxAllocation(2_500_000);
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
                                                     "Query was cancelled because it exceeded the memory limits set by the administrator.",
                                                     VectorizedHashAggOperator.PREALLOC_FAILURE_AUX_STRUCTURES));
     try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertEquals(0, stats.getSpills());
-        assertEquals(0, stats.getOoms());
-        assertEquals(1, stats.getIterations());
-        assertEquals(0, stats.getRecursionDepth());
-      }
-
-      try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true);
-           AutoCloseable withInsertionSort = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_INSERTION_SORT_FOR_ACCUMULATION, true)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
@@ -260,22 +208,8 @@ public class TestSpillingHashAgg extends BaseTestOperator {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 3000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        /* 2 distinct partitions spilled twice and no recursive spilling */
-        assertEquals(4, stats.getSpills());
-        assertEquals(2, stats.getOoms());
-        assertEquals(3, stats.getIterations());
-        assertEquals(1, stats.getRecursionDepth());
-      }
-      try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(3000, getTestAllocator(), true);
-           AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false);
-           AutoCloseable withInsertionSort = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_INSERTION_SORT_FOR_ACCUMULATION, true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 3000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        /* 4 distinct partitions spilled twice and no recursive spilling */
-        assertEquals(4, stats.getSpills());
-        assertEquals(2, stats.getOoms());
-        assertEquals(3, stats.getIterations());
+        assertTrue(stats.getOoms() >= 2);
+        assertTrue(stats.getSpills() >= 2);
         assertEquals(1, stats.getRecursionDepth());
       }
       /* run with allocator limit same as minimum reservation */
@@ -333,21 +267,8 @@ public class TestSpillingHashAgg extends BaseTestOperator {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregationsWithCount();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 3000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        /* 4 distinct partitions spilled twice and no recursive spilling */
-        assertEquals(8, stats.getSpills());
-        assertEquals(4, stats.getOoms());
-        assertEquals(5, stats.getIterations());
-        assertEquals(1, stats.getRecursionDepth());
-      }
-      try(CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(3000, getTestAllocator(), true);
-          AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false);
-          AutoCloseable withInsertionSort = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_INSERTION_SORT_FOR_ACCUMULATION, true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregationsWithCount();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 3000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertEquals(8, stats.getSpills());
-        assertEquals(4, stats.getOoms());
-        assertEquals(5, stats.getIterations());
+        assertTrue(stats.getSpills() >= 4);
+        assertTrue(stats.getOoms() >= 4);
         assertEquals(1, stats.getRecursionDepth());
       }
       /* run with allocator limit same as minimum reservation */
@@ -380,22 +301,8 @@ public class TestSpillingHashAgg extends BaseTestOperator {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        /* 6 distinct partitions spilled twice and no recursive spilling */
-        assertEquals(12, stats.getSpills());
-        assertEquals(6, stats.getOoms());
-        assertEquals(7, stats.getIterations());
-        assertEquals(1, stats.getRecursionDepth());
-      }
-      try(CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(4000, getTestAllocator(), true);
-          AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false);
-          AutoCloseable withInsertionSort = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_INSERTION_SORT_FOR_ACCUMULATION, true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        /* 6 distinct partitions spilled twice and no recursive spilling */
-        assertEquals(12, stats.getSpills());
-        assertEquals(6, stats.getOoms());
-        assertEquals(7, stats.getIterations());
+        assertTrue(stats.getOoms() >= 6);
+        assertTrue(stats.getSpills() >= 6);
         assertEquals(1, stats.getRecursionDepth());
       }
       /* run with allocator limit same as minimum reservation */
@@ -428,28 +335,16 @@ public class TestSpillingHashAgg extends BaseTestOperator {
            AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        /* all partitions spilled with recursive spilling -- 20K rows with largeVarChars
+        /* all partitions spilled with recursive spilling -- 20K rows with largeVarChar
          * set to true ends up generating some varchar column values of size
          * 10KB-20KB and so per varchar block in hashtable, we can store only few records
          * and thus the request for having gap in ordinals and adding a new batch
          * keeps on increasing. This is why extremely large number of spills with each
          * partition being spilled multiple times and recursive spilling
          */
-        assertEquals(447, stats.getSpills());
-        assertEquals(381, stats.getOoms());
-        assertEquals(73, stats.getIterations());
-        assertEquals(2, stats.getRecursionDepth());
-      }
-      try(CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(20000, getTestAllocator(), true);
-          AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false);
-          AutoCloseable withInsertionSort = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_INSERTION_SORT_FOR_ACCUMULATION, true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertEquals(447, stats.getSpills());
-        assertEquals(381, stats.getOoms());
-        assertEquals(73, stats.getIterations());
+        assertTrue(stats.getOoms() >= 370);
+        assertTrue(stats.getSpills() >= 370);
         assertEquals(2, stats.getRecursionDepth());
       }
       /* run with allocator limit same as minimum reservation */
@@ -483,20 +378,8 @@ public class TestSpillingHashAgg extends BaseTestOperator {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertEquals(6, stats.getSpills());
-        assertEquals(3, stats.getOoms());
-        assertEquals(4, stats.getIterations());
-        assertEquals(1, stats.getRecursionDepth());
-      }
-      try(CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(100000, getTestAllocator(), false);
-          AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false);
-          AutoCloseable withInsertionSort = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_INSERTION_SORT_FOR_ACCUMULATION, true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertEquals(6, stats.getSpills());
-        assertEquals(3, stats.getOoms());
-        assertEquals(4, stats.getIterations());
+        assertTrue(stats.getOoms() >= 3);
+        assertTrue(stats.getSpills() >= 3);
         assertEquals(1, stats.getRecursionDepth());
       }
       /* run with allocator limit same as minimum reservation */
@@ -530,20 +413,8 @@ public class TestSpillingHashAgg extends BaseTestOperator {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertTrue("expected number of spills out of range", 24 <= stats.getSpills() && stats.getSpills() <= 27);
-        assertTrue("expected number of ooms out of range", 16 <= stats.getOoms() && stats.getOoms() <= 19);
-        assertEquals(9, stats.getIterations());
-        assertEquals(1, stats.getRecursionDepth());
-      }
-      try(CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1_000_000, getTestAllocator(), false);
-          AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false);
-          AutoCloseable withInsertionSort = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_INSERTION_SORT_FOR_ACCUMULATION, true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertTrue("expected number of spills out of range", 24 <= stats.getSpills() && stats.getSpills() <= 27);
-        assertTrue("expected number of ooms out of range", 16 <= stats.getOoms() && stats.getOoms() <= 19);
-        assertEquals(9, stats.getIterations());
+        assertTrue(stats.getOoms() >= 15);
+        assertTrue(stats.getSpills() >= 15);
         assertEquals(1, stats.getRecursionDepth());
       }
       /* run with allocator limit same as minimum reservation */
@@ -577,20 +448,8 @@ public class TestSpillingHashAgg extends BaseTestOperator {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertTrue("expected number of spills out of range", 77 <= stats.getSpills() && stats.getSpills() <= 80);
-        assertTrue("expected number of ooms out of range", 55 <= stats.getOoms() && stats.getOoms() <= 58);
-        assertEquals(25, stats.getIterations());
-        assertEquals(2, stats.getRecursionDepth());
-      }
-      try(CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2_000_000, getTestAllocator(), false);
-          AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false);
-          AutoCloseable withInsertionSort = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_INSERTION_SORT_FOR_ACCUMULATION, true)) {
-        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
-        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertTrue("expected number of spills out of range", 77 <= stats.getSpills() && stats.getSpills() <= 80);
-        assertTrue("expected number of ooms out of range", 55 <= stats.getOoms() && stats.getOoms() <= 58);
-        assertEquals(25, stats.getIterations());
+        assertTrue(stats.getOoms() >= 50);
+        assertTrue(stats.getSpills() >= 50);
         assertEquals(2, stats.getRecursionDepth());
       }
       /* run with allocator limit same as minimum reservation */
@@ -618,21 +477,18 @@ public class TestSpillingHashAgg extends BaseTestOperator {
            AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_JOINT_ALLOCATION_MAX, 16*1024)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
       }
 
       try(CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1_000_000, getTestAllocator(), false);
           AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_JOINT_ALLOCATION_MAX, 32*1024)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
       }
 
       try(CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1_000_000, getTestAllocator(), false);
           AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_JOINT_ALLOCATION_MAX, 64*1024)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
       }
 
       try(CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1_000_000, getTestAllocator(), false);
@@ -645,7 +501,6 @@ public class TestSpillingHashAgg extends BaseTestOperator {
           AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_JOINT_ALLOCATION_MAX, 256*1024)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
       }
 
       try(CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1_000_000, getTestAllocator(), false);

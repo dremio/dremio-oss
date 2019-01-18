@@ -41,6 +41,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
@@ -179,7 +180,12 @@ public class NamespaceServiceImpl implements NamespaceService {
       switch(container.getType()) {
       case SOURCE: {
         final SourceConfig source = container.getSource();
-        sourceConfigs.put(source.getName(), source);
+        // Normalize source name because no guarantee that the dataset source path will use same capitalization
+        final String sourceName = source.getName().toLowerCase(Locale.ROOT);
+        final SourceConfig existing = sourceConfigs.putIfAbsent(sourceName, source);
+        if (existing != null) {
+          logger.warn("Two different sources with different names under the same key: {} and {}. This might cause metadata issues.", existing.getName(), source.getName());
+        }
         continue;
       }
 
@@ -203,7 +209,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         case PHYSICAL_DATASET:
         case PHYSICAL_DATASET_SOURCE_FILE:
         case PHYSICAL_DATASET_SOURCE_FOLDER:
-          final String sourceName = dataset.getFullPathList().get(0);
+          final String sourceName = dataset.getFullPathList().get(0).toLowerCase(Locale.ROOT);
           SourceConfig source = sourceConfigs.get(sourceName);
           if (source == null) {
             if (missingSources.add(sourceName)) {
@@ -220,7 +226,7 @@ public class NamespaceServiceImpl implements NamespaceService {
 
         default:
           logger.error("Unknown dataset type {}. Cannot check for orphan splits", dataset.getType());
-          continue;
+          return 0;
         }
 
         Range<DatasetSplitId> versionRange = policy.apply(metadataPolicy, dataset);

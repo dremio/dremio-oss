@@ -345,7 +345,16 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
   }
 
   @Override
-  public FileSystemDatasetAccessor getDatasetAccessor(DatasetConfig oldConfig, FileSystemWrapper fs, FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, String tableName, FileUpdateKey updateKey) {
-    return new ParquetFormatDatasetAccessor(oldConfig, fs, fileSelection, fsPlugin, tableSchemaPath, tableName, updateKey, this);
+  public FileSystemDatasetAccessor getDatasetAccessor(
+      DatasetConfig oldConfig,
+      FileSystemWrapper fs,
+      FileSelection fileSelection,
+      FileSystemPlugin fsPlugin,
+      NamespaceKey tableSchemaPath,
+      FileUpdateKey updateKey,
+      int maxLeafColumns
+  ) {
+    return new ParquetFormatDatasetAccessor(oldConfig, fs, fileSelection, fsPlugin, tableSchemaPath,
+        updateKey, this, maxLeafColumns);
   }
 }

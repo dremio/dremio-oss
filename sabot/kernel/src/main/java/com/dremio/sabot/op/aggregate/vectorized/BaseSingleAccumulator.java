@@ -27,7 +27,7 @@ import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
@@ -56,6 +56,13 @@ abstract class BaseSingleAccumulator implements Accumulator {
   private boolean resizeAttempted;
   private int batches;
   private final BufferAllocator computationVectorAllocator;
+  private final int validityBufferSize;
+  private final int dataBufferSize;
+  private final int totalBufferSize;
+
+  // serialized field for loading vector with buffers during addBatch()
+  private final SerializedField serializedField;
+
   /**
    * Accumulator for each partition will transfer the accumulated data from
    * accumulation vector into the corresponding transferVector part of outgoing container
@@ -112,14 +119,23 @@ abstract class BaseSingleAccumulator implements Accumulator {
       this.batches = 0;
     }
     this.computationVectorAllocator = computationVectorAllocator;
-  }
+    // buffer sizes
+    this.validityBufferSize = getValidityBufferSizeFromCount(maxValuesPerBatch);
+    this.totalBufferSize = output.getBufferSizeFor(maxValuesPerBatch);
+    this.dataBufferSize = totalBufferSize - validityBufferSize;
 
-  static int getChunkIndexForOrdinal(final int ordinal, final int batchSize) {
-    return ordinal / batchSize;
-  }
-
-  static int getOffsetInChunkForOrdinal(final int ordinal, final int batchSize) {
-    return ordinal % batchSize;
+    final SerializedField field = TypeHelper.getMetadata(output);
+    final SerializedField.Builder serializedFieldBuilder = field.toBuilder();
+    // top level value count and total buffer size
+    serializedFieldBuilder.setValueCount(maxValuesPerBatch);
+    serializedFieldBuilder.setBufferLength(totalBufferSize);
+    serializedFieldBuilder.clearChild();
+    // add validity child
+    serializedFieldBuilder.addChild(field.getChild(0).toBuilder().setValueCount(maxValuesPerBatch).setBufferLength(validityBufferSize));
+    // add data child
+    serializedFieldBuilder.addChild(field.getChild(1).toBuilder().setValueCount(maxValuesPerBatch).setBufferLength(totalBufferSize - validityBufferSize));
+    // this serialized field will be used for adding all batches (new accumulator vectors) and loading them
+    this.serializedField = serializedFieldBuilder.build();
   }
 
   AccumulatorBuilder.AccumulatorType getType() {
@@ -187,7 +203,7 @@ abstract class BaseSingleAccumulator implements Accumulator {
   }
 
   @Override
-  public void addBatch(final ArrowBuf buffer) {
+  public void addBatch(final ArrowBuf dataBuffer, final ArrowBuf validityBuffer) {
     try {
       FieldVector[] oldAccumulators;
       long[] oldBitAddresses;
@@ -204,14 +220,14 @@ abstract class BaseSingleAccumulator implements Accumulator {
         System.arraycopy(oldValueAddresses, 0, this.valueAddresses, 0, batches);
       }
       /* add a single batch */
-      addBatchHelper(buffer);
+      addBatchHelper(dataBuffer, validityBuffer);
     } catch (Exception e) {
       /* this will be caught by LBlockHashTable and subsequently handled by VectorizedHashAggOperator */
       Throwables.propagate(e);
     }
   }
 
-  private void addBatchHelper(final ArrowBuf buffer) {
+  private void addBatchHelper(final ArrowBuf dataBuffer, final ArrowBuf validityBuffer) {
     resizeAttempted = true;
     /* the memory for accumulator vector comes from the operator's allocator that manages
      * memory for all data structures required for hash agg processing.
@@ -226,7 +242,7 @@ abstract class BaseSingleAccumulator implements Accumulator {
     /* if this step or memory allocation inside any child of NestedAccumulator fails,
      * we have captured enough info to rollback the operation.
      */
-    allocateAccumulatorForNewBatch(vector, buffer);
+    loadAccumulatorForNewBatch(vector, dataBuffer, validityBuffer);
     /* need to clear the data since allocate new doesn't do so and we want to start with clean memory */
     initialize(vector);
     bitAddresses[oldBatches] = vector.getValidityBufferAddress();
@@ -235,31 +251,42 @@ abstract class BaseSingleAccumulator implements Accumulator {
     checkNotNull();
   }
 
-  private void allocateAccumulatorForNewBatch(FieldVector vector, ArrowBuf buf) {
-    final int validitySize = getValidityBufferSizeFromCount(maxValuesPerBatch);
-    final int totalBufferSize = getTotalBufferSize();
-    UserBitShared.SerializedField field = TypeHelper.getMetadata(output);
-    UserBitShared.SerializedField.Builder builder = field.toBuilder();
-    builder.setValueCount(maxValuesPerBatch);
-    builder.setBufferLength(totalBufferSize);
-    builder.clearChild();
-    builder.addChild(field.getChild(0).toBuilder().setValueCount(maxValuesPerBatch).setBufferLength(validitySize));
-    builder.addChild(field.getChild(1).toBuilder().setValueCount(maxValuesPerBatch).setBufferLength(totalBufferSize - validitySize));
-    UserBitShared.SerializedField newField =  builder.build();
-    TypeHelper.load(vector, newField, buf);
-  }
-
   /**
-   * Get the total memory needed by buffers of this accumulator
-   * @return composite buffer size accounting for both validity and data buffers
+   * When LBlockHashTable decides to add a new batch/block,
+   * to all the accumulators under AccumulatorSet, the latter
+   * does memory allocation for accumulators together using an algorithm
+   * that aims for optimal direct and heap memory usage. AccumulatorSet
+   * allocates joint buffers by grouping accumulators into different power of
+   * 2 buckets. So here all we need to do is to load the new accumulator vector
+   * for the new batch with new buffers. To load data into vector from ArrowBufs
+   * we reused the TypeHelper.load() methods which just require the vector structure
+   * and metadata in the form of SerializedField.
+   *
+   * The SerializedField was built exactly once for each type of child accumulator
+   * (of type BaseSingleAccumulator) under AccumulatorSet. Subsequently when we add a
+   * new batch to child accumulator we just create an instance of FieldVector and load it
+   * with new buffers
+   *
+   * @param vector instance of FieldVector (not yet allocated) representing the new accumulator vector for the next batch
+   * @param dataBuffer data buffer for this accumulator vector
+   * @param validityBuffer validity buffer for this accumulator vector
    */
-  @Override
-  public int getTotalBufferSize() {
-    return output.getBufferSizeFor(maxValuesPerBatch);
+  private void loadAccumulatorForNewBatch(final FieldVector vector, final ArrowBuf dataBuffer, final ArrowBuf validityBuffer) {
+    TypeHelper.loadFromValidityAndDataBuffers(vector, serializedField, dataBuffer, validityBuffer);
   }
 
   private static int getValidityBufferSizeFromCount(final int valueCount) {
     return (int) Math.ceil(valueCount / 8.0);
+  }
+
+  @Override
+  public int getValidityBufferSize() {
+    return validityBufferSize;
+  }
+
+  @Override
+  public int getDataBufferSize() {
+    return dataBufferSize;
   }
 
   @Override

@@ -40,6 +40,7 @@ public class InfoSchemaScanCreator implements ProducerOperator.Creator<InfoSchem
             : InfoSchemaConstants.IS_CATALOG_NAME;
     final RecordReader reader =
         table.asReader(catalogName, config.getUserName(), datasetListing, config.getQuery(), config.getColumns());
+
     return new ScanOperator(fec.getSchemaUpdater(), config, context, Collections.singleton(reader).iterator());
   }
 

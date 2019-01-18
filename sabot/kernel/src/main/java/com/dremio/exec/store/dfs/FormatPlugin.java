@@ -54,7 +54,16 @@ public interface FormatPlugin {
 
   public FormatPluginConfig getConfig();
   public String getName();
-  public FileSystemDatasetAccessor getDatasetAccessor(DatasetConfig oldConfig, FileSystemWrapper fs, FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, String tableName, FileUpdateKey updateKey);
+
+  FileSystemDatasetAccessor getDatasetAccessor(
+      DatasetConfig oldConfig,
+      FileSystemWrapper fs,
+      FileSelection fileSelection,
+      FileSystemPlugin fsPlugin,
+      NamespaceKey tableSchemaPath,
+      FileUpdateKey updateKey,
+      int maxLeafColumns
+  );
 
   /**
    * Get a record reader specifically for the purposes of previews.

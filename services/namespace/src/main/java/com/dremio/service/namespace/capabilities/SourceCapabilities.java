@@ -35,7 +35,6 @@ public final class SourceCapabilities {
 
   public static final SourceCapabilities NONE = new SourceCapabilities(ImmutableList.<CapabilityValue<?,?>>of());
 
-  public static final BooleanCapability STORAGE_IMPERSONATION = new BooleanCapability("storage_impersonation", false);
   public static final BooleanCapability REQUIRES_HARD_AFFINITY = new BooleanCapability("requires_hard_affinity", false);
   public static final BooleanCapability SUPPORTS_CONTAINS = new BooleanCapability("supports_contains_operation", false);
 

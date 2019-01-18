@@ -16,14 +16,17 @@
 package com.dremio.exec.store.hive.exec;
 
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.HiveStoragePlugin;
+import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.spi.ProducerOperator;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 @SuppressWarnings("unused")
@@ -42,14 +45,22 @@ public class HiveScanBatchCreator implements ProducerOperator.Creator<HiveSubSca
       throw new ExecutionSetupException("Failure parsing table extended properties.", e);
     }
 
+    final UserGroupInformation proxyUgi = getUGI(storagePlugin, config);
+
     final CompositeReaderConfig compositeConfig = CompositeReaderConfig.getCompound(config.getSchema(), config.getColumns(), config.getPartitionColumns());
     switch(tableAttr.getReaderType()){
     case NATIVE_PARQUET:
-      return ScanWithDremioReader.createProducer(conf, fragmentExecContext, context, config, tableAttr, compositeConfig);
+      return ScanWithDremioReader.createProducer(conf, fragmentExecContext, context, config, tableAttr, compositeConfig, proxyUgi);
     case BASIC:
-      return ScanWithHiveReader.createProducer(conf, fragmentExecContext, context, config, tableAttr, compositeConfig);
+      return ScanWithHiveReader.createProducer(conf, fragmentExecContext, context, config, tableAttr, compositeConfig, proxyUgi);
     default:
       throw new UnsupportedOperationException(tableAttr.getReaderType().name());
     }
+  }
+
+  @VisibleForTesting
+  public UserGroupInformation getUGI(HiveStoragePlugin storagePlugin, HiveSubScan config) {
+    final String userName = storagePlugin.getUsername(config.getUserName());
+    return ImpersonationUtil.createProxyUgi(userName);
   }
 }

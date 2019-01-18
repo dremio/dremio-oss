@@ -112,7 +112,8 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
 
       pluginConfig = PhysicalDatasetUtils.toFormatPlugin(fileConfig, Collections.<String>emptyList());
       final FormatPlugin formatPlugin = formatCreator.newFormatPlugin(pluginConfig);
-      return getDataset(datasetPath, oldConfig, formatPlugin, fs, fileConfig);
+      return getDataset(datasetPath, oldConfig, formatPlugin, fs, fileConfig,
+          retrievalOptions.maxMetadataLeafColumns());
     } catch (NamespaceNotFoundException nfe){
       FormatPluginConfig formatPluginConfig = null;
       if(physicalDataset != null && physicalDataset.getFormatSettings() != null){
@@ -135,7 +136,8 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
 
       final FormatPlugin formatPlugin = formatCreator.newFormatPlugin(formatPluginConfig);
 
-      return getDataset(datasetPath, oldConfig, formatPlugin, fs, datasetConfig.getPhysicalDataset().getFormatSettings());
+      return getDataset(datasetPath, oldConfig, formatPlugin, fs,
+          datasetConfig.getPhysicalDataset().getFormatSettings(), retrievalOptions.maxMetadataLeafColumns());
     } catch (NamespaceNotFoundException nfe){
       if(formatPluginConfig == null) {
         // a home file can only be read from the namespace or using a format options. Without either, it is invalid, return nothing.
@@ -160,7 +162,14 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
     }
   }
 
-  private SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldConfig, FormatPlugin formatPlugin, FileSystemWrapper fs, FileConfig fileConfig) throws IOException {
+  private SourceTableDefinition getDataset(
+      NamespaceKey datasetPath,
+      DatasetConfig oldConfig,
+      FormatPlugin formatPlugin,
+      FileSystemWrapper fs,
+      FileConfig fileConfig,
+      int maxLeafColumns
+  ) throws IOException {
 
     final List<FileSystemCachedEntity> cachedEntities = Lists.newArrayList();
     final FileStatus rootStatus = fs.getFileStatus(new Path(fileConfig.getLocation()));
@@ -193,7 +202,7 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
       // no files in the found directory, not a table.
       return null;
     }
-    return formatPlugin.getDatasetAccessor(oldConfig, fs, fileSelectionWithoutDir, this, datasetPath, datasetPath.getName(), updateKey);
+    return formatPlugin.getDatasetAccessor(oldConfig, fs, fileSelectionWithoutDir, this, datasetPath, updateKey, maxLeafColumns);
   }
 
   private static List<String> relativePath(List<String> tableSchemaPath, Path rootPath) {

@@ -176,8 +176,8 @@ public class SourceResource {
     final ResponseList<SourceTypeTemplate> types = new ResponseList<>();
 
     for(Class<? extends ConnectionConf<?, ?>> input : connectionReader.getAllConnectionConfs().values()) {
-      // we can't use isInternal as its not a static method, instead we only list configurable sources
-      if (isConfigurable(input)) {
+      // we can't use isInternal as its not a static method, instead we only show listable sources
+      if (isListable(input)) {
         types.add(SourceTypeTemplate.fromSourceClass(input, false));
       }
     }
@@ -193,14 +193,19 @@ public class SourceResource {
     final ConnectionReader connectionReader = sabotContext.getConnectionReaderProvider().get();
     Optional<Class<? extends ConnectionConf<?, ?>>> connectionConf = Optional.ofNullable(connectionReader.getAllConnectionConfs().get(name));
     return connectionConf
-        .filter(this::isConfigurable)
-        .map(sourceClass -> SourceTypeTemplate.fromSourceClass(sourceClass, true))
+      .filter(this::isConfigurable)
+      .map(sourceClass -> SourceTypeTemplate.fromSourceClass(sourceClass, true))
         .orElseThrow(() -> new NotFoundException(String.format("Could not find source of type [%s]", name)));
   }
 
   private boolean isConfigurable(Class<? extends ConnectionConf<?, ?>> clazz) {
     SourceType type = clazz.getAnnotation(SourceType.class);
     return type != null && type.configurable();
+  }
+
+  private boolean isListable(Class<? extends ConnectionConf<?, ?>> clazz) {
+    SourceType type = clazz.getAnnotation(SourceType.class);
+    return type != null && type.configurable() && type.listable();
   }
 
   @VisibleForTesting

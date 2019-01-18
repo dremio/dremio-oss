@@ -69,7 +69,8 @@ class ScanWithDremioReader {
       final OperatorContext context,
       final HiveSubScan config,
       final HiveTableXattr tableAttr,
-      final CompositeReaderConfig compositeReader) {
+      final CompositeReaderConfig compositeReader,
+      final UserGroupInformation readerUGI) {
     final JobConf jobConf = new JobConf(hiveConf);
 
     final OptionManager options = context.getOptions();
@@ -78,7 +79,7 @@ class ScanWithDremioReader {
     final ParquetReaderFactory readerFactory = UnifiedParquetReader.getReaderFactory(context.getConfig());
 
     if(config.getSplits().isEmpty()) {
-      return new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, Iterators.singletonIterator(new EmptyRecordReader()));
+      return new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, Iterators.singletonIterator(new EmptyRecordReader()), readerUGI);
     }
 
     Iterable<RecordReader> readers = null;
@@ -139,7 +140,7 @@ class ScanWithDremioReader {
 
         }});
 
-      return new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, readers.iterator());
+      return new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, readers.iterator(), readerUGI);
 
     } catch (final Exception e) {
       if(readers != null) {

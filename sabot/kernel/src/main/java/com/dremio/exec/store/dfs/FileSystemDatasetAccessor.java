@@ -17,6 +17,7 @@ package com.dremio.exec.store.dfs;
 
 import static com.dremio.exec.store.dfs.PhysicalDatasetUtils.toFileFormat;
 
+import java.lang.reflect.UndeclaredThrowableException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,6 +30,8 @@ import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.Serializer;
+import com.dremio.exec.catalog.ColumnCountTooLargeException;
+import com.dremio.exec.catalog.DatasetMetadataTooLargeException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.namespace.DatasetHelper;
@@ -42,6 +45,7 @@ import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.file.proto.FileUpdateKey;
 import com.dremio.service.namespace.proto.EntityId;
 import com.google.common.base.Stopwatch;
+import com.google.common.base.Throwables;
 
 /**
  * Dataset accessor for filesystem based dataset.
@@ -58,18 +62,22 @@ public abstract class FileSystemDatasetAccessor implements SourceTableDefinition
   protected final FormatPlugin formatPlugin;
   protected final FileUpdateKey updateKey;
   protected final DatasetConfig oldConfig;
+  protected final int maxLeafColumns;
 
   private DatasetConfig datasetConfig;
   private ReadDefinition readDefinition;
   private List<DatasetSplit> splits;
 
-  public FileSystemDatasetAccessor(FileSystemWrapper fs,
-                                   FileSelection fileSelection,
-                                   FileSystemPlugin fsPlugin,
-                                   NamespaceKey tableSchemaPath,
-                                   FileUpdateKey updateKey,
-                                   FormatPlugin formatPlugin,
-                                   DatasetConfig oldConfig) {
+  public FileSystemDatasetAccessor(
+      FileSystemWrapper fs,
+      FileSelection fileSelection,
+      FileSystemPlugin fsPlugin,
+      NamespaceKey tableSchemaPath,
+      FileUpdateKey updateKey,
+      FormatPlugin formatPlugin,
+      DatasetConfig oldConfig,
+      int maxLeafColumns
+  ) {
     this.updateKey = updateKey;
     this.fsPlugin =  fsPlugin;
     this.datasetPath = tableSchemaPath;
@@ -77,6 +85,7 @@ public abstract class FileSystemDatasetAccessor implements SourceTableDefinition
     this.fileSelection = fileSelection;
     this.formatPlugin = formatPlugin;
     this.oldConfig = oldConfig;
+    this.maxLeafColumns = maxLeafColumns;
   }
 
   @Override
@@ -130,43 +139,54 @@ public abstract class FileSystemDatasetAccessor implements SourceTableDefinition
   public abstract Collection<DatasetSplit> buildSplits() throws Exception;
   public abstract ReadDefinition buildMetadata() throws Exception;
   public abstract DatasetConfig buildDataset() throws Exception;
-  public abstract BatchSchema getBatchSchema(FileSelection selection, FileSystemWrapper dfs);
+  public abstract BatchSchema getBatchSchema(FileSelection selection, FileSystemWrapper dfs) throws Exception;
 
-  protected DatasetConfig getDatasetInternal(final FileSystemWrapper fs, final FileSelection selection, List<String> tableSchemaPath) {
+  protected final DatasetConfig getDatasetInternal(
+      FileSystemWrapper fs,
+      FileSelection selection,
+      List<String> tableSchemaPath
+  ) {
     final UserGroupInformation processUGI = ImpersonationUtil.getProcessUserUGI();
     try {
       BatchSchema newSchema = processUGI.doAs(
-        new PrivilegedExceptionAction<BatchSchema>() {
-          @Override
-          public BatchSchema run() throws Exception {
+          (PrivilegedExceptionAction<BatchSchema>) () -> {
             final Stopwatch watch = Stopwatch.createStarted();
             try {
               return getBatchSchema(selection, fs);
             } finally {
               logger.debug("Took {} ms to sample the schema of table located at: {}",
-                watch.elapsed(TimeUnit.MILLISECONDS), selection.getSelectionRoot());
+                  watch.elapsed(TimeUnit.MILLISECONDS), selection.getSelectionRoot());
             }
           }
-        }
       );
       DatasetType type = fs.isDirectory(new Path(selection.getSelectionRoot())) ?
-        DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER :
-        DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
+          DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER :
+          DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
       // Merge sampled schema into the existing one, if one already exists
       BatchSchema schema = newSchema;
       if (oldConfig != null && DatasetHelper.getSchemaBytes(oldConfig) != null) {
         schema = BatchSchema.fromDataset(oldConfig).merge(newSchema);
       }
+      if (schema.getFieldCount() > maxLeafColumns) {
+        throw new ColumnCountTooLargeException(
+            String.format("Using datasets with more than %d columns is currently disabled.", maxLeafColumns));
+      }
       return new DatasetConfig()
-        .setName(tableSchemaPath.get(tableSchemaPath.size() - 1))
-        .setType(type)
-        .setFullPathList(tableSchemaPath)
-        .setSchemaVersion(DatasetHelper.CURRENT_VERSION)
-        .setRecordSchema(schema.toByteString())
-        .setPhysicalDataset(new PhysicalDataset()
-          .setFormatSettings(toFileFormat(formatPlugin).asFileConfig().setLocation(selection.getSelectionRoot())));
-
+          .setName(tableSchemaPath.get(tableSchemaPath.size() - 1))
+          .setType(type)
+          .setFullPathList(tableSchemaPath)
+          .setSchemaVersion(DatasetHelper.CURRENT_VERSION)
+          .setRecordSchema(schema.toByteString())
+          .setPhysicalDataset(new PhysicalDataset()
+              .setFormatSettings(toFileFormat(formatPlugin).asFileConfig().setLocation(selection.getSelectionRoot())));
+    } catch (DatasetMetadataTooLargeException e) {
+      throw e;
+    } catch (UndeclaredThrowableException e) {
+      Throwables.throwIfInstanceOf(e.getUndeclaredThrowable(), DatasetMetadataTooLargeException.class);
+      Throwables.throwIfUnchecked(e.getUndeclaredThrowable());
+      throw new RuntimeException(e.getUndeclaredThrowable());
     } catch (Exception e) {
+      Throwables.throwIfUnchecked(e);
       throw new RuntimeException(e);
     }
   }

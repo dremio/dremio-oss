@@ -58,5 +58,4 @@ public class TestHDFSStoragePlugin extends DremioTest {
       assertThat(fsConf.get("foo"), is("bar"));
     }
   }
-
 }

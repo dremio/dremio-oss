@@ -29,4 +29,5 @@ public @interface SourceType {
   String value();
   String label() default "";
   boolean configurable() default true;
+  boolean listable() default true;
 }

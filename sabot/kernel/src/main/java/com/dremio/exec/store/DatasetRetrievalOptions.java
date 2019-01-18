@@ -32,6 +32,7 @@ public class DatasetRetrievalOptions {
   static final boolean DEFAULT_AUTO_PROMOTE;
   public static final DatasetRetrievalOptions DEFAULT;
   public static final DatasetRetrievalOptions IGNORE_AUTHZ_ERRORS;
+  public static final int DEFAULT_MAX_METADATA_LEAF_COLUMNS = 800;
 
   static {
     DEFAULT_AUTO_PROMOTE = DEFAULT_AUTO_PROMOTE_OPTIONAL.orElse(false);
@@ -41,6 +42,7 @@ public class DatasetRetrievalOptions {
         .setDeleteUnavailableDatasets(true)
         .setAutoPromote(DEFAULT_AUTO_PROMOTE)
         .setForceUpdate(false)
+        .setMaxMetadataLeafColumns(DEFAULT_MAX_METADATA_LEAF_COLUMNS)
         .build();
 
     IGNORE_AUTHZ_ERRORS =
@@ -53,6 +55,7 @@ public class DatasetRetrievalOptions {
   private final Optional<Boolean> deleteUnavailableDatasets;
   private final Optional<Boolean> autoPromote;
   private final Optional<Boolean> forceUpdate;
+  private final Optional<Integer> maxMetadataLeafColumns;
 
   private DatasetRetrievalOptions fallback;
 
@@ -63,12 +66,14 @@ public class DatasetRetrievalOptions {
       Boolean ignoreAuthzErrors,
       Boolean deleteUnavailableDatasets,
       Boolean autoPromote,
-      Boolean forceUpdate
+      Boolean forceUpdate,
+      Integer maxMetadataLeafColumns
   ) {
     this.ignoreAuthzErrors = Optional.ofNullable(ignoreAuthzErrors);
     this.deleteUnavailableDatasets = Optional.ofNullable(deleteUnavailableDatasets);
     this.autoPromote = Optional.ofNullable(autoPromote);
     this.forceUpdate = Optional.ofNullable(forceUpdate);
+    this.maxMetadataLeafColumns = Optional.ofNullable(maxMetadataLeafColumns);
   }
 
   public boolean ignoreAuthzErrors() {
@@ -88,6 +93,10 @@ public class DatasetRetrievalOptions {
     return forceUpdate.orElseGet(() -> fallback.forceUpdate());
   }
 
+  public int maxMetadataLeafColumns() {
+    return maxMetadataLeafColumns.orElseGet(() -> fallback.maxMetadataLeafColumns());
+  }
+
   public DatasetRetrievalOptions withFallback(DatasetRetrievalOptions fallback) {
     this.fallback = fallback;
     return this;
@@ -98,7 +107,8 @@ public class DatasetRetrievalOptions {
         .setIgnoreAuthzErrors(ignoreAuthzErrors.orElse(null))
         .setDeleteUnavailableDatasets(deleteUnavailableDatasets.orElse(null))
         .setAutoPromote(autoPromote.orElse(null))
-        .setForceUpdate(forceUpdate.orElse(null));
+        .setForceUpdate(forceUpdate.orElse(null))
+        .setMaxMetadataLeafColumns(maxMetadataLeafColumns.orElse(DEFAULT_MAX_METADATA_LEAF_COLUMNS));
   }
 
   public static class Builder {
@@ -107,6 +117,7 @@ public class DatasetRetrievalOptions {
     private Boolean deleteUnavailableDatasets;
     private Boolean autoPromote;
     private Boolean forceUpdate;
+    private Integer maxMetadataLeafColumns;
 
     private Builder() {
     }
@@ -131,8 +142,13 @@ public class DatasetRetrievalOptions {
       return this;
     }
 
+    public Builder setMaxMetadataLeafColumns(Integer maxMetadataLeafColumns) {
+      this.maxMetadataLeafColumns = maxMetadataLeafColumns;
+      return this;
+    }
+
     public DatasetRetrievalOptions build() {
-      return new DatasetRetrievalOptions(ignoreAuthzErrors, deleteUnavailableDatasets, autoPromote, forceUpdate);
+      return new DatasetRetrievalOptions(ignoreAuthzErrors, deleteUnavailableDatasets, autoPromote, forceUpdate, maxMetadataLeafColumns);
     }
   }
 
@@ -162,6 +178,7 @@ public class DatasetRetrievalOptions {
         .setForceUpdate(false)
         // not an option in policy (or UI)
         .setIgnoreAuthzErrors(false)
+        .setMaxMetadataLeafColumns(DEFAULT_MAX_METADATA_LEAF_COLUMNS)
         .build();
   }
 }

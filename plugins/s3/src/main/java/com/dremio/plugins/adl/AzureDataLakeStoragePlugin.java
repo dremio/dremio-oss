@@ -30,6 +30,17 @@ import com.dremio.exec.store.dfs.FileSystemWrapper;
  * Storage plugin for Microsoft Azure Data Lake
  */
 public class AzureDataLakeStoragePlugin extends FileSystemPlugin<AzureDataLakeConf> {
+
+  // Corresponds to the USE_OFF_HEAP_MEMORY_KEY in the ADLS SDK's StoreOptions class.
+  static final String USE_OFF_HEAP_MEMORY_KEY = "com.microsoft.azure.datalake.store.use_off_heap_memory";
+
+  static {
+    final String useDirectMemoryKey = System.getProperty(USE_OFF_HEAP_MEMORY_KEY);
+    if (useDirectMemoryKey == null) {
+      System.setProperty(USE_OFF_HEAP_MEMORY_KEY, "true");
+    }
+  }
+
   public AzureDataLakeStoragePlugin(AzureDataLakeConf config, SabotContext context, String name, FileSystemWrapper fs,
       Provider<StoragePluginId> idProvider) {
     super(config, context, name, fs, idProvider);

@@ -915,7 +915,8 @@ public class CatalogServiceHelper {
 
     if (object instanceof DatasetConfig) {
       final NamespaceKey namespaceKey = catalog.resolveSingle(new NamespaceKey(((DatasetConfig)object).getFullPathList()));
-      DatasetRetrievalOptions.Builder retrievalOptionsBuilder = DatasetRetrievalOptions.newBuilder();
+      final DatasetRetrievalOptions.Builder retrievalOptionsBuilder = DatasetRetrievalOptions.newBuilder();
+
       if (delete != null) {
         retrievalOptionsBuilder.setDeleteUnavailableDatasets(delete.booleanValue());
       }

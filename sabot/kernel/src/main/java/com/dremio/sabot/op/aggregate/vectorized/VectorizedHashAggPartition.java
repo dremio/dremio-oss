@@ -28,6 +28,9 @@ import com.dremio.sabot.op.common.ht2.LBlockHashTable;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
+import io.netty.buffer.ArrowBuf;
+import io.netty.util.internal.PlatformDependent;
+
 public class VectorizedHashAggPartition implements AutoCloseable {
   boolean spilled;
   final LBlockHashTable hashTable;
@@ -35,6 +38,7 @@ public class VectorizedHashAggPartition implements AutoCloseable {
   final int blockWidth;
   int records;
   int recordsSpilled;
+  ArrowBuf buffer;
   private VectorizedHashAggDiskPartition spillInfo;
   private String identifier;
 
@@ -50,7 +54,8 @@ public class VectorizedHashAggPartition implements AutoCloseable {
   public VectorizedHashAggPartition(final AccumulatorSet accumulator,
                                     final LBlockHashTable hashTable,
                                     final int blockWidth,
-                                    final String identifier) {
+                                    final String identifier,
+                                    final ArrowBuf buffer) {
     Preconditions.checkArgument(hashTable != null, "Error: initializing a partition with invalid hash table");
     this.spilled = false;
     this.records = 0;
@@ -60,6 +65,8 @@ public class VectorizedHashAggPartition implements AutoCloseable {
     this.blockWidth = blockWidth;
     this.spillInfo = null;
     this.identifier = identifier;
+    this.buffer = buffer;
+    buffer.retain(1);
   }
 
   /**
@@ -72,7 +79,8 @@ public class VectorizedHashAggPartition implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(hashTable, accumulator);
+    AutoCloseables.close(hashTable, accumulator, buffer);
+    this.buffer = null;
   }
 
   /**
@@ -133,34 +141,57 @@ public class VectorizedHashAggPartition implements AutoCloseable {
     hashTable.resetToMinimumSize();
   }
 
-  public void bumpRecords(final int increment) {
-    records += increment;
+  /**
+   * {@link VectorizedHashAggOperator} uses this function to record metadata
+   * about a new record that has been inserted into this {@link LBlockHashTable}
+   * of this partition.
+   * Each partition maintains an offset buffer to store a 8 byte tuple < 4 byte ordinal, 4 byte record index>
+   * for each record inserted into the partition.
+   * Note that this buffer is always overwritten (as opposed to zeroed out) for every cycle of consumeData()
+   *
+   * @param ordinal hash table ordinal of the newly inserted record
+   * @param keyIndex absolute index of the record in incoming batch
+   */
+  public void appendRecord(int ordinal, int keyIndex) {
+    long addrNext = buffer.memoryAddress() + (records * VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH);
+    PlatformDependent.putInt(addrNext + VectorizedHashAggOperator.HTORDINAL_OFFSET, ordinal);
+    PlatformDependent.putInt(addrNext + VectorizedHashAggOperator.KEYINDEX_OFFSET, keyIndex);
+    ++records;
   }
 
-  public void resetRecords() {
+  /**
+   * The number of records in the partition are reset to 0 when we finish accumulation for that
+   * partition
+   *
+   *  -- this could be done midway when we decide to spill this partition in accumulateBeforeSpill()
+   *  -- this will also be done at the end of consume cycle when we accumulate for each partition
+   *     in accumulateForAllPartitions()
+   */
+  void resetRecords() {
     records = 0;
   }
 
+  /**
+   * Return the number of records in this partition
+   * @return records
+   */
   public int getRecords() {
     return records;
   }
 
-  public int getRecordsSpilled() {
-    return recordsSpilled;
-  }
 
-  public void bumpRecordsSpilled(final int records) {
+  void bumpRecordsSpilled(final int records) {
     recordsSpilled += records;
   }
 
-  public void resetSpilledRecords() {
+  void resetSpilledRecords() {
     recordsSpilled = 0;
   }
 
   /**
    * Set the partition as not spilled.
    */
-  public void transitionToMemoryOnlyPartition() {
+  void transitionToMemoryOnlyPartition() {
     Preconditions.checkArgument(spilled && spillInfo != null, "Error: expecting a spilled partition");
     this.spilled = false;
     this.spillInfo = null;

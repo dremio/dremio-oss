@@ -30,8 +30,6 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.io.AcidUtils;
@@ -163,10 +161,11 @@ class ScanWithHiveReader {
       final OperatorContext context,
       final HiveSubScan config,
       final HiveTableXattr tableAttr,
-      final CompositeReaderConfig compositeReader){
+      final CompositeReaderConfig compositeReader,
+      final UserGroupInformation readerUGI){
 
     if(config.getSplits().isEmpty()) {
-      return new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, Iterators.singletonIterator(new EmptyRecordReader()));
+      return new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, Iterators.singletonIterator(new EmptyRecordReader()), readerUGI);
     }
 
     final JobConf baseJobConf = new JobConf(hiveConf);
@@ -252,7 +251,7 @@ class ScanWithHiveReader {
             }
           });
         }});
-      return new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, readers.iterator());
+      return new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, readers.iterator(), readerUGI);
     } catch (Exception e) {
       AutoCloseables.close(e, readers);
       throw Throwables.propagate(e);

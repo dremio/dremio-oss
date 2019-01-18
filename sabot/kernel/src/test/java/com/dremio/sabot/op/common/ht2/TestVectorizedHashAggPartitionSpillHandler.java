@@ -102,14 +102,6 @@ public class TestVectorizedHashAggPartitionSpillHandler {
     MAX_VALUES_PER_BATCH = 1024;
     testPartitionSpillHandlerHelper();
     postSpillAccumulatorVectorFields.clear();
-
-    /* try with HT batch size as arbitrary non power of 2 */
-    MAX_VALUES_PER_BATCH = 940;
-    testPartitionSpillHandlerHelper();
-    postSpillAccumulatorVectorFields.clear();
-
-    MAX_VALUES_PER_BATCH = 1017;
-    testPartitionSpillHandlerHelper();
   }
 
   private void testPartitionSpillHandlerHelper() throws Exception {
@@ -258,7 +250,9 @@ public class TestVectorizedHashAggPartitionSpillHandler {
         }
 
         /* accumulate */
-        partitions[i].getAccumulator().accumulate(offsets.memoryAddress(), records);
+        partitions[i].getAccumulator().accumulate(offsets.memoryAddress(), records,
+                                                  partitions[0].getHashTable().getBitsInChunk(),
+                                                  partitions[0].getHashTable().getChunkOffsetMask());
 
         /* check hashtable */
         assertArrayEquals(expectedOrdinals, actualOrdinals);
@@ -287,13 +281,17 @@ public class TestVectorizedHashAggPartitionSpillHandler {
 
     /* mock 4 partitions */
     final int numPartitions = 4;
+    final ArrowBuf combined = allocator.buffer(numPartitions * VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH * MAX_VALUES_PER_BATCH);
     final VectorizedHashAggPartition partitions[] = new VectorizedHashAggPartition[numPartitions];
     for(int i = 0; i < numPartitions; i++) {
       final AccumulatorSet accumulator = createAccumulator(accumulatorInput, allocator, (i == 0));
       LBlockHashTable sourceHashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000, 10, true, accumulator, MAX_VALUES_PER_BATCH);
-      VectorizedHashAggPartition hashAggPartition = new VectorizedHashAggPartition(accumulator, sourceHashTable, pivot.getBlockWidth(), "P" + String.valueOf(i));
+      final ArrowBuf buffer = combined.slice(i * VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH * MAX_VALUES_PER_BATCH,
+        VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH * MAX_VALUES_PER_BATCH);
+      VectorizedHashAggPartition hashAggPartition = new VectorizedHashAggPartition(accumulator, sourceHashTable, pivot.getBlockWidth(), "P" + String.valueOf(i), buffer);
       partitions[i] = hashAggPartition;
     }
+    combined.close();
 
     /* we have just initialized partitions and everything should be in memory */
     verifyStateOfInMemoryPartitions(partitions);

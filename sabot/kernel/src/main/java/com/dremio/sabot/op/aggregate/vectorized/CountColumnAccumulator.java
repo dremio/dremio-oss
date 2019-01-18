@@ -33,7 +33,8 @@ public class CountColumnAccumulator extends BaseSingleAccumulator {
           computationVectorAllocator);
   }
 
-  public void accumulate(final long memoryAddr, final int count){
+  public void accumulate(final long memoryAddr, final int count,
+                         final int bitsInChunk, final int chunkOffsetMask){
     final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
     final long incomingBit = getInput().getValidityBufferAddress();
     final long[] valueAddresses = this.valueAddresses;
@@ -47,8 +48,8 @@ public class CountColumnAccumulator extends BaseSingleAccumulator {
       /* get the corresponding data from input vector -- source data for accumulation */
       final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
       /* get the target addresses of accumulation vector */
-      final int chunkIndex = getChunkIndexForOrdinal(tableIndex, maxValuesPerBatch);
-      final int chunkOffset = getOffsetInChunkForOrdinal(tableIndex, maxValuesPerBatch);
+      final int chunkIndex = tableIndex >>> bitsInChunk;
+      final int chunkOffset = tableIndex & chunkOffsetMask;
       final long countAddr = valueAddresses[chunkIndex] + chunkOffset * 8;
       /* store the accumulated values(count) at the target location of accumulation vector */
       PlatformDependent.putLong(countAddr, PlatformDependent.getLong(countAddr) + bitVal);

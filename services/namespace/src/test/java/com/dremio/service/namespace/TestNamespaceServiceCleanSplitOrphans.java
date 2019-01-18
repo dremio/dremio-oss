@@ -108,10 +108,16 @@ public class TestNamespaceServiceCleanSplitOrphans {
     assertThat(j, is(12));
     deleteDataset(Arrays.asList("test", "dataset3"));
 
+    addSource("OTHER");
+    // Add a dataset which refresh every hour but source capitalization do not match
+    for(int i = 28; i >= 0; i--) {
+      savePhysicalDataset(Arrays.asList("other", "dataset4"), DatasetType.PHYSICAL_DATASET, now - TimeUnit.HOURS.toMillis(i), 100);
+    }
+
     // Assert the total number of splits
     assertThat(
         StreamSupport.stream(splitsStore.find().spliterator(), false).count(),
-        is((long) 10 + 20 + 29 * 100 + 1000 + 12 * 25));
+        is((long) 10 + 20 + 29 * 100 + 1000 + 12 * 25 + 29 * 100));
   }
 
   @After
@@ -124,19 +130,26 @@ public class TestNamespaceServiceCleanSplitOrphans {
     namespaceService.deleteSplitOrphans(KEEP_CURRENT_VERSION_ONLY);
     assertThat(
         namespaceService.getSplitCount(new FindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())),
-        is(10 + 20 + 100 + 1000));
+        is(10 + 20 + 100 + 1000 + 100));
+
+
     DatasetConfig dataset1 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset1")));
     generateSplits(now, 100).forEach(split -> {
       DatasetSplitId id = DatasetSplitId.of(dataset1, split, now);
       assertThat(splitsStore.get(id), is(split));
     });
 
-    DatasetConfig dataset2 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset1")));
-    generateSplits(now, 100).forEach(split -> {
+    DatasetConfig dataset2 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset2")));
+    generateSplits(now, 1000).forEach(split -> {
       DatasetSplitId id = DatasetSplitId.of(dataset2, split, now);
       assertThat(splitsStore.get(id), is(split));
     });
 
+    DatasetConfig dataset4 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("other", "dataset4")));
+    generateSplits(now, 100).forEach(split -> {
+      DatasetSplitId id = DatasetSplitId.of(dataset4, split, now);
+      assertThat(splitsStore.get(id), is(split));
+    });
   }
 
   @Test
@@ -144,7 +157,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
     namespaceService.deleteSplitOrphans(SplitOrphansRetentionPolicy.KEEP_VALID_SPLITS);
     assertThat(
         namespaceService.getSplitCount(new FindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())),
-        is(10 + 20 + 24 * 100 + 1000));
+        is(10 + 20 + 24 * 100 + 1000 + 24 * 100));
     DatasetConfig dataset1 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset1")));
     for(int i = 23; i >= 0; i--) {
       final long splitVersion = now - TimeUnit.HOURS.toMillis(i);
@@ -153,13 +166,22 @@ public class TestNamespaceServiceCleanSplitOrphans {
         assertThat(splitsStore.get(id), is(split));
       });
     }
-    DatasetConfig dataset2 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset1")));
-    generateSplits(now, 100).forEach(split -> {
+
+    DatasetConfig dataset2 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset2")));
+    generateSplits(now, 1000).forEach(split -> {
       DatasetSplitId id = DatasetSplitId.of(dataset2, split, now);
       assertThat(splitsStore.get(id), is(split));
     });
-  }
 
+    DatasetConfig dataset4 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("other", "dataset4")));
+    for(int i = 23; i >= 0; i--) {
+      final long splitVersion = now - TimeUnit.HOURS.toMillis(i);
+      generateSplits(splitVersion, 100).forEach(split -> {
+        DatasetSplitId id = DatasetSplitId.of(dataset4, split, splitVersion);
+        assertThat(splitsStore.get(id), is(split));
+      });
+    }
+  }
 
   private void addHome(String name) throws Exception {
     final HomeConfig home = new HomeConfig()

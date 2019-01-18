@@ -85,6 +85,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
   private final PermissionCheckCache permissionsCache;
   private final SourceMetadataManager metadataManager;
   private final OptionManager options;
+  private final Provider<Integer> maxMetadataColumns;
 
   private volatile SourceConfig sourceConfig;
   private volatile StoragePlugin plugin;
@@ -119,7 +120,8 @@ public class ManagedStoragePlugin implements AutoCloseable {
     this.conf = conf;
     this.metadataPolicy = sourceConfig.getMetadataPolicy() == null ? CatalogService.NEVER_REFRESH_POLICY : sourceConfig.getMetadataPolicy();
     final Provider<Long> authTtlProvider = () -> ManagedStoragePlugin.this.metadataPolicy.getAuthTtlMs();
-
+    this.maxMetadataColumns = () ->
+        (int) ManagedStoragePlugin.this.options.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX);
     this.permissionsCache = new PermissionCheckCache(new StoragePluginProvider(), authTtlProvider, 2500);
     this.plugin = plugin;
     this.options = options;
@@ -186,6 +188,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
+  Provider<Integer> getMaxMetadataColumns() {
+    return maxMetadataColumns;
+  }
+
   public ConnectionConf<?, ?> getConnectionConf() {
     return conf;
   }
@@ -197,6 +203,9 @@ public class ManagedStoragePlugin implements AutoCloseable {
    */
   DatasetRetrievalOptions getDefaultRetrievalOptions() {
     return DatasetRetrievalOptions.fromMetadataPolicy(metadataPolicy)
+        .toBuilder()
+        .setMaxMetadataLeafColumns(maxMetadataColumns.get())
+        .build()
         .withFallback(DatasetRetrievalOptions.DEFAULT);
   }
 

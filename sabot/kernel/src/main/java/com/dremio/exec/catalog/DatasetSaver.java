@@ -18,6 +18,7 @@ package com.dremio.exec.catalog;
 import java.util.List;
 import java.util.UUID;
 
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
@@ -42,8 +43,8 @@ public class DatasetSaver {
   private final MetadataUpdateListener updateListener;
 
   public DatasetSaver(
-      NamespaceService systemUserNamespaceService,
-      MetadataUpdateListener updateListener) {
+    NamespaceService systemUserNamespaceService,
+    MetadataUpdateListener updateListener) {
     this.systemUserNamespaceService = systemUserNamespaceService;
     this.updateListener = updateListener;
   }
@@ -60,14 +61,38 @@ public class DatasetSaver {
     systemUserNamespaceService.addOrUpdateDataset(key, shallow);
   }
 
-  void completeSave(SourceTableDefinition accessor, DatasetConfig oldConfig, NamespaceAttribute... attributes){
+  void shallowSave(DatasetConfig config) throws NamespaceException {
+    systemUserNamespaceService.addOrUpdateDataset(new NamespaceKey(config.getFullPathList()), config);
+  }
+
+  void datasetSave(
+      SourceTableDefinition accessor,
+      DatasetConfig oldConfig,
+      int maxMetadataLeafColumns,
+      NamespaceAttribute... attributes
+  ) throws DatasetMetadataTooLargeException {
     try {
       DatasetConfig newConfig = accessor.getDataset();
+
+      if (BatchSchema.fromDataset(newConfig).getFieldCount() > maxMetadataLeafColumns) {
+        NamespaceUtils.copyFromOldConfig(oldConfig, newConfig);
+        newConfig.setRecordSchema(null);
+        newConfig.setReadDefinition(null);
+
+        shallowSave(newConfig);
+
+        throw new ColumnCountTooLargeException(
+            String.format("Using datasets with more than %d columns is currently disabled.", maxMetadataLeafColumns));
+      }
+
       if (oldConfig != null) {
         NamespaceUtils.copyFromOldConfig(oldConfig, newConfig);
       }
+
       completeSave(newConfig, accessor.getSplits(), attributes);
-    }catch(Exception ex){
+    } catch (DatasetMetadataTooLargeException e) {
+      throw e;
+    } catch (Exception ex){
       logger.warn("Failure while retrieving and saving dataset {}.", accessor.getName(), ex);
     }
   }

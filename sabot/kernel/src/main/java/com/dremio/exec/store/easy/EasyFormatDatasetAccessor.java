@@ -33,6 +33,7 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.hadoop.fs.FileStatus;
 
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
+import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -84,8 +85,17 @@ public class EasyFormatDatasetAccessor extends FileSystemDatasetAccessor {
   private List<DatasetSplit> cachedSplits;
   private boolean builtAll = false;
 
-  public EasyFormatDatasetAccessor(FileSystemWrapper fs, FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, String tableName, FileUpdateKey updateKey, FormatPlugin formatPlugin, DatasetConfig oldConfig) {
-    super(fs, fileSelection, fsPlugin, tableSchemaPath, updateKey, formatPlugin, oldConfig);
+  public EasyFormatDatasetAccessor(
+      FileSystemWrapper fs,
+      FileSelection fileSelection,
+      FileSystemPlugin fsPlugin,
+      NamespaceKey tableSchemaPath,
+      FileUpdateKey updateKey,
+      FormatPlugin formatPlugin,
+      DatasetConfig oldConfig,
+      int maxLeafColumns
+  ) {
+    super(fs, fileSelection, fsPlugin, tableSchemaPath, updateKey, formatPlugin, oldConfig, maxLeafColumns);
   }
 
   @Override
@@ -112,7 +122,7 @@ public class EasyFormatDatasetAccessor extends FileSystemDatasetAccessor {
   }
 
   @Override
-  public BatchSchema getBatchSchema(final FileSelection selection, final FileSystemWrapper dfs) {
+  public BatchSchema getBatchSchema(final FileSelection selection, final FileSystemWrapper dfs) throws Exception {
     final SabotContext context = formatPlugin.getContext();
     try (
       BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
@@ -137,16 +147,19 @@ public class EasyFormatDatasetAccessor extends FileSystemDatasetAccessor {
       try(RecordReader reader = new AdditionalColumnsRecordReader(((EasyFormatPlugin)formatPlugin).getRecordReader(operatorContext, dfs, dataset, GroupScan.ALL_COLUMNS), explorer.getImplicitFieldsForSample(selection))) {
         reader.setup(mutator);
         Map<String, ValueVector> fieldVectorMap = new HashMap<>();
+        int i = 0;
         for (VectorWrapper<?> vw : mutator.getContainer()) {
           fieldVectorMap.put(vw.getField().getName(), vw.getValueVector());
+          if (++i > maxLeafColumns) {
+            throw new ColumnCountTooLargeException(
+                String.format("Using datasets with more than %d columns is currently disabled.", maxLeafColumns));
+          }
         }
         reader.allocate(fieldVectorMap);
         reader.next();
         mutator.getContainer().buildSchema(BatchSchema.SelectionVectorMode.NONE);
         return mutator.getContainer().getSchema();
       }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
   }
 

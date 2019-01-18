@@ -44,7 +44,6 @@ public class HashAggStats {
     REVERSE_TIME,
     UNPIVOT_TIME,
     VECTORIZED,
-    HASHCOMPUTATION_TIME,
     NUM_HASH_PARTITIONS,
     MIN_HASHTABLE_ENTRIES,
     MAX_HASHTABLE_ENTRIES,
@@ -62,7 +61,6 @@ public class HashAggStats {
     TOTAL_RECORDS_SPILLED,    /* total number of records spilled across all spills */
     MAX_RECORDS_SPILLED,      /* maximum number of records spilled across all spills */
     RECURSION_DEPTH,          /* recursion depth, 0 (no spilling), 1 (no recursive spilling), >= 2(recursive spilling) */
-    SORT_ACCUMULATE_TIME,     /* cumulative time taken to sort data for accumulation */
     TOTAL_SPILLED_DATA_SIZE,  /* total size (in bytes) of data spilled by vectorized hash agg operator */
     MAX_SPILLED_DATA_SIZE,    /* max size (in bytes) of data spilled by vectorized hash agg operator */
     MAX_TOTAL_NUM_BUCKETS,    /* max total capacity in hash tables */
@@ -121,8 +119,6 @@ public class HashAggStats {
        * and this method is used specifically for old profiles that
        * will not be carrying ids [10 - 20]
        */
-      case 21:
-        return Metric.HASHCOMPUTATION_TIME.ordinal();
       /* 22 is skipped as it was join related stat */
       case 23:
         return Metric.NUM_HASH_PARTITIONS.ordinal();
@@ -159,10 +155,8 @@ public class HashAggStats {
       case 39:
         return Metric.RECURSION_DEPTH.ordinal();
       case 40:
-        return Metric.SORT_ACCUMULATE_TIME.ordinal();
-      case 41:
         return Metric.TOTAL_SPILLED_DATA_SIZE.ordinal();
-      case 42:
+      case 41:
         return Metric.MAX_SPILLED_DATA_SIZE.ordinal();
       default:
         throw new IllegalStateException("Unexpected metric ID for Vectorized HashAgg");

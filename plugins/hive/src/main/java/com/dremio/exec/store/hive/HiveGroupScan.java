@@ -17,10 +17,8 @@ package com.dremio.exec.store.hive;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -34,8 +32,6 @@ import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.hive.exec.HiveSubScan;
-import com.dremio.exec.util.ImpersonationUtil;
-import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.google.protobuf.ByteString;
@@ -61,10 +57,8 @@ public class HiveGroupScan extends AbstractGroupScan {
     for(SplitWork split : work){
       splits.add(split.getSplit());
     }
-    boolean storageImpersonationEnabled = dataset.getStoragePluginId().getCapabilities().getCapability(SourceCapabilities.STORAGE_IMPERSONATION);
-    String userName = storageImpersonationEnabled ? getUserName() : ImpersonationUtil.getProcessUserName();
     final ReadDefinition readDefinition = dataset.getReadDefinition();
-    return new HiveSubScan(splits, userName, schema, dataset.getName().getPathComponents(), filter, dataset.getStoragePluginId(), columns,
+    return new HiveSubScan(splits, getUserName(), schema, dataset.getName().getPathComponents(), filter, dataset.getStoragePluginId(), columns,
         readDefinition.getPartitionColumnsList());
   }
 

@@ -48,6 +48,8 @@ import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.server.FamilyExpectation;
+import com.dremio.dac.server.UserExceptionMapper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
@@ -258,6 +260,28 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertEquals(3, data2.getColumns().size());
     // with header trimming turned off, we should see the \r character
     assertEquals("address\r", data2.getColumns().get(2).getName());
+  }
+
+  @Test
+  public void commaSeparatedLargeTextFile() throws Exception {
+    TextFileConfig fileConfig = new TextFileConfig();
+    fileConfig.setFieldDelimiter(",");
+    fileConfig.setLineDelimiter("\n");
+    fileConfig.setName("widetable.txt");
+
+    String fileUrlPath = getUrlPath("/datasets/widetable.txt");
+    String fileParentUrlPath = getUrlPath("/datasets/");
+
+    doc("preview data for source file");
+    UserExceptionMapper.ErrorMessageWithContext error = expectError(
+            FamilyExpectation.CLIENT_ERROR,
+            getBuilder(getAPIv2()
+                .path("/source/dacfs_test/file_preview" + fileUrlPath))
+                .buildPost(Entity.json(fileConfig)),
+            UserExceptionMapper.ErrorMessageWithContext.class
+        );
+    assertTrue(error.getErrorMessage().contains("Using datasets with more than"));
+    checkCounts(fileParentUrlPath, "widetable.txt", false /* false because we have not saved dataset yet */, 0, 0, 0);
   }
 
   @Test
