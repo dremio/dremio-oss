@@ -15,14 +15,9 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
-import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.tools.RuleSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -26,12 +26,13 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.DeferredException;
 import com.dremio.common.SerializedExecutor;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.PlannerPhase;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.rpc.RpcOutcomeListener;
@@ -39,7 +40,6 @@ import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
-import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
 /**
@@ -150,7 +150,7 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planSubstituted(final DremioRelOptMaterialization materialization,
+  public void planSubstituted(final DremioMaterialization materialization,
                               final List<RelNode> substitutions,
                               final RelNode target, final long millisTaken) {
     serializedExec.execute(new DeferredRunnable() {

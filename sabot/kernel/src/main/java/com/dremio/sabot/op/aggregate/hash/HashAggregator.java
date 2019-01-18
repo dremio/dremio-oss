@@ -55,4 +55,8 @@ public interface HashAggregator extends AutoCloseable {
 
   int outputBatch(int batchIndex);
 
+  /**
+   * @return The number of entries in the hashtable
+   */
+  long numHashTableEntries();
 }

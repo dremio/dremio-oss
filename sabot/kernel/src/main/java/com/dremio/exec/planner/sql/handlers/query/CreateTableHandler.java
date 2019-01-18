@@ -72,7 +72,7 @@ public class CreateTableHandler implements SqlToPlanHandler {
             .build(logger);
       }
 
-      final Catalog catalog = config.getConverter().getCatalog();
+      final Catalog catalog = config.getContext().getCatalog();
       final NamespaceKey path = catalog.resolveSingle(sqlCreateTable.getPath());
       DremioTable table = catalog.getTableNoResolve(path);
       if(table != null) {

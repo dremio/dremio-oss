@@ -381,7 +381,7 @@ export default class SourceFormJsonPolicy {
 
 
   static addReflectionRefreshTab(config, functionalElements) {
-    if (!config.metadataRefresh) return;
+    const isFileSystemSource = config.metadataRefresh && config.metadataRefresh.isFileSystemSource;
 
     const metadataRefreshEl = {
       type: 'metadata_refresh'
@@ -396,7 +396,7 @@ export default class SourceFormJsonPolicy {
             label: la('Remove dataset definitions if underlying data is unavailable.'),
             propName: 'metadataPolicy.deleteUnavailableDatasets',
             value: true
-          }, config.metadataRefresh.isFileSystemSource && {
+          }, isFileSystemSource && {
             type: 'checkbox',
             label: la('Automatically format files into physical datasets when users issue queries.'),
             propName: 'metadataPolicy.autoPromoteDatasets',

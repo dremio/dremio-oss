@@ -239,11 +239,13 @@ public class CommandCreator {
           context.getSession(),
           observer,
           context.getCatalog(),
-          context.getSubstitutionProviderFactory());
+          context.getSubstitutionProviderFactory(),
+          context.getConfig(),
+          context.getScanResult());
 
       injector.injectChecked(context.getExecutionControls(), "sql-parsing", ForemanSetupException.class);
       final DremioCatalogReader reader = parser.getCatalogReader();
-      final Catalog catalog = reader.getCatalog();
+      final Catalog catalog = context.getCatalog();
       final SqlNode sqlNode = parser.parse(sql);
       final SqlHandlerConfig config = new SqlHandlerConfig(context, parser, observer, parser.getMaterializations());
 

@@ -175,7 +175,10 @@ export class MainInfoView extends Component {
       // select buttons to be shown
       .filter(btn => btn.isShown)
       // return rendered link buttons
-      .map((btnType, index) => <Link to={btnType.link}  key={item.get('id') + index} className='main-settings-btn min-btn'>
+      .map((btnType, index) => <Link to={btnType.link}  key={item.get('id') + index} className='main-settings-btn min-btn'
+        style={{
+          marginRight: 5 // all buttons should have 5px margin. Last settings button should not have any margin
+        }}>
         <button className='settings-button' data-qa={btnType.type}>
           {btnType.label}
         </button>
@@ -235,13 +238,20 @@ export class MainInfoView extends Component {
         label: intl.formatMessage({id: 'Common.Name'}),
         infoContent: <TagsAlert />,
         flexGrow: 1 },
-      { key: 'jobs', label: intl.formatMessage({id: 'Job.Jobs'}), style: tableStyles.digitColumn, width: 40 },
+      {
+        key: 'jobs',
+        label: intl.formatMessage({id: 'Job.Jobs'}),
+        style: tableStyles.digitColumn,
+        headerStyle: { justifyContent: 'flex-end' },
+        width: 40
+      },
       {
         key: 'action',
         label: intl.formatMessage({id: 'Common.Action'}),
         style: tableStyles.actionColumn,
         width: 105,
         className: 'row-buttons',
+        headerClassName: 'row-buttons',
         disableSort: true
       }
     ];
@@ -352,7 +362,6 @@ export const styles = {
   },
   button: {
     borderRadius: '2px',
-    marginRight: '6px',
     height: 23,
     width: 68,
     boxShadow: '0 1px 1px #b2bec7',

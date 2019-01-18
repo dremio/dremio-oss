@@ -16,8 +16,6 @@
 package org.apache.arrow.vector;
 
 
-import org.apache.arrow.vector.types.SerializedFieldHelper;
-
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 

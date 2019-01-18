@@ -19,9 +19,7 @@ import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
 
 import org.apache.arrow.vector.ValueVector;
 
-import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MajorType;
-import com.dremio.common.util.MajorTypeHelper;
 
 
 public class GenericAccessor extends AbstractSqlAccessor {

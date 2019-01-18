@@ -23,6 +23,7 @@ import PropTypes from 'prop-types';
 
 import Tabs from 'components/Tabs';
 import { getViewState } from 'selectors/resources';
+import { getExploreState } from '@app/selectors/explore';
 import { loadCleanData, CLEAN_DATA_VIEW_ID } from 'actions/explore/dataset/get';
 
 import { PALE_BLUE, EXPLORE_HOVER_COLOR } from 'uiTheme/radium/colors';
@@ -106,9 +107,10 @@ class CleanDataContent extends Component {
 }
 
 function mapStateToProps(state) {
+  const explorePageState = getExploreState(state);
   return {
-    single: state.explore.recommended.get('cleanData').get('single'),
-    split: state.explore.recommended.get('cleanData').get('split'),
+    single: explorePageState.recommended.get('cleanData').get('single'),
+    split: explorePageState.recommended.get('cleanData').get('split'),
     viewState: getViewState(state, CLEAN_DATA_VIEW_ID)
   };
 }

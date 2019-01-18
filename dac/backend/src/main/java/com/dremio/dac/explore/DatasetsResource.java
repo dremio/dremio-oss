@@ -28,7 +28,6 @@ import java.util.List;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
-import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -135,19 +134,19 @@ public class DatasetsResource {
     this.catalogServiceHelper = catalogServiceHelper;
   }
 
-  private InitialPreviewResponse newUntitled(DatasetPath fromDatasetPath, DatasetVersion newVersion)
+  private InitialPreviewResponse newUntitled(DatasetPath fromDatasetPath, DatasetVersion newVersion, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     FromTable from = new FromTable(fromDatasetPath.toPathString());
     DatasetSummary summary = getDatasetSummary(fromDatasetPath);
 
-    return newUntitled(from, newVersion, fromDatasetPath.toParentPathList(), summary);
+    return newUntitled(from, newVersion, fromDatasetPath.toParentPathList(), summary, limit);
   }
 
   private InitialPreviewResponse newUntitled(FromBase from, DatasetVersion newVersion, List<String> context,
-                                             DatasetSummary parentSummary)
+                                             DatasetSummary parentSummary, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
 
-    return tool.newUntitled(from, newVersion, context, parentSummary, false);
+    return tool.newUntitled(from, newVersion, context, parentSummary, false, limit);
   }
 
   /**
@@ -165,12 +164,12 @@ public class DatasetsResource {
   @Produces(MediaType.APPLICATION_JSON)
   public InitialPreviewResponse newUnitledSql(
       @QueryParam("newVersion") DatasetVersion newVersion,
-      @QueryParam("limit") @DefaultValue("500") Long limit,
+      @QueryParam("limit") Integer limit,
       /* body */ CreateFromSQL sql)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     try {
       Preconditions.checkNotNull(newVersion, "newVersion should not be null");
-      return newUntitled(new FromSQL(sql.getSql()).setAlias("nested_0"), newVersion, sql.getContext(), null);
+      return newUntitled(new FromSQL(sql.getSql()).setAlias("nested_0"), newVersion, sql.getContext(), null, limit);
     }catch (Exception e) {
       e.printStackTrace();
       throw e;
@@ -201,40 +200,40 @@ public class DatasetsResource {
   public InitialPreviewResponse newUntitledFromParent(
       @QueryParam("parentDataset") DatasetPath parentDataset,
       @QueryParam("newVersion") DatasetVersion newVersion,
-      @QueryParam("limit") Long limit)
+      @QueryParam("limit") Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     Preconditions.checkNotNull(newVersion, "newVersion should not be null");
     try {
-      return newUntitled(parentDataset, newVersion);
+      return newUntitled(parentDataset, newVersion, limit);
     } catch (DatasetNotFoundException | NamespaceException e) {
       // TODO: this should really be a separate API from the UI.
       // didn't find as virtual dataset, let's return as opaque sql (as this could be a source) .
-      return newUntitled(parentDataset, newVersion);
+      return newUntitled(parentDataset, newVersion, limit);
     }
   }
 
-  public InitialPreviewResponse createUntitledFromSourceFile(SourceName sourceName, String path)
+  public InitialPreviewResponse createUntitledFromSourceFile(SourceName sourceName, String path, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     SourceFilePath filePath = SourceFilePath.fromURLPath(sourceName, path);
-    return tool.newUntitled(new FromTable(filePath.toPathString()), DatasetVersion.newVersion(), filePath.toParentPathList());
+    return tool.newUntitled(new FromTable(filePath.toPathString()), DatasetVersion.newVersion(), filePath.toParentPathList(), limit);
   }
 
-  public InitialPreviewResponse createUntitledFromSourceFolder(SourceName sourceName, String path)
+  public InitialPreviewResponse createUntitledFromSourceFolder(SourceName sourceName, String path, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     SourceFolderPath folderPath = SourceFolderPath.fromURLPath(sourceName, path);
-    return tool.newUntitled(new FromTable(folderPath.toPathString()), DatasetVersion.newVersion(), folderPath.toPathList());
+    return tool.newUntitled(new FromTable(folderPath.toPathString()), DatasetVersion.newVersion(), folderPath.toPathList(), limit);
   }
 
-  public InitialPreviewResponse createUntitledFromPhysicalDataset(SourceName sourceName, String path)
+  public InitialPreviewResponse createUntitledFromPhysicalDataset(SourceName sourceName, String path, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     PhysicalDatasetPath datasetPath = PhysicalDatasetPath.fromURLPath(sourceName, path);
-    return tool.newUntitled(new FromTable(datasetPath.toPathString()), DatasetVersion.newVersion(), datasetPath.toParentPathList());
+    return tool.newUntitled(new FromTable(datasetPath.toPathString()), DatasetVersion.newVersion(), datasetPath.toParentPathList(), limit);
   }
 
-  public InitialPreviewResponse createUntitledFromHomeFile(HomeName homeName, String path)
+  public InitialPreviewResponse createUntitledFromHomeFile(HomeName homeName, String path, Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
     FilePath filePath = FilePath.fromURLPath(homeName, path);
-    return tool.newUntitled(new FromTable(filePath.toPathString()), DatasetVersion.newVersion(), filePath.toParentPathList());
+    return tool.newUntitled(new FromTable(filePath.toPathString()), DatasetVersion.newVersion(), filePath.toParentPathList(), limit);
   }
 
 
@@ -245,7 +244,7 @@ public class DatasetsResource {
                                          @QueryParam("order") SortOrder order) throws NamespaceException, DatasetVersionNotFoundException {
     final DatasetSearchUIs datasets = new DatasetSearchUIs();
     for (SearchContainer searchEntity : catalogServiceHelper.searchByQuery(filters)) {
-      datasets.add(new DatasetSearchUI(searchEntity.getNamespaceContainer().getDataset()));
+      datasets.add(new DatasetSearchUI(searchEntity.getNamespaceContainer().getDataset(), searchEntity.getCollaborationTag()));
     }
     return datasets;
   }

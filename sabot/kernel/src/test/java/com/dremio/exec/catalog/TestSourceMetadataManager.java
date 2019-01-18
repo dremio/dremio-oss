@@ -19,7 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -45,7 +45,7 @@ public class TestSourceMetadataManager {
     when(ns.getDataset(any()))
         .thenReturn(
             new DatasetConfig()
-                .setVersion(0L)
+                .setTag("0")
                 .setReadDefinition(new ReadDefinition())
         );
 
@@ -53,7 +53,7 @@ public class TestSourceMetadataManager {
     doAnswer(invocation -> {
       deleted[0] = true;
       return null;
-    }).when(ns).deleteDataset(any(), anyLong());
+    }).when(ns).deleteDataset(any(), anyString());
 
     StoragePlugin.CheckResult result = mock(StoragePlugin.CheckResult.class);
     when(result.getStatus())
@@ -93,7 +93,7 @@ public class TestSourceMetadataManager {
 
     doThrow(new IllegalStateException("should not invoke deleteDataset()"))
         .when(ns)
-        .deleteDataset(any(), anyLong());
+        .deleteDataset(any(), anyString());
 
     StoragePlugin.CheckResult result = mock(StoragePlugin.CheckResult.class);
     when(result.getStatus())
@@ -133,14 +133,14 @@ public class TestSourceMetadataManager {
     when(ns.getDataset(any()))
         .thenReturn(
             new DatasetConfig()
-                .setVersion(0L)
+                .setTag("0")
         );
 
     boolean[] deleted = new boolean[] {false};
     doAnswer(invocation -> {
       deleted[0] = true;
       return null;
-    }).when(ns).deleteDataset(any(), anyLong());
+    }).when(ns).deleteDataset(any(), anyString());
 
     StoragePlugin.CheckResult result = mock(StoragePlugin.CheckResult.class);
     when(result.getStatus())
@@ -179,7 +179,7 @@ public class TestSourceMetadataManager {
 
     doThrow(new IllegalStateException("should not invoke deleteDataset()"))
         .when(ns)
-        .deleteDataset(any(), anyLong());
+        .deleteDataset(any(), anyString());
 
     StoragePlugin.CheckResult result = mock(StoragePlugin.CheckResult.class);
     when(result.getStatus())

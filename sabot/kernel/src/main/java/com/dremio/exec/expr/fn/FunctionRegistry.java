@@ -74,6 +74,10 @@ public class FunctionRegistry {
   // key: function name (lowercase) value: list of functions with that name
   private final ArrayListMultimap<String, BaseFunctionHolder> registeredFunctions = ArrayListMultimap.create();
 
+  public ArrayListMultimap<String, BaseFunctionHolder> getRegisteredFunctions() {
+    return registeredFunctions;
+  }
+
   public FunctionRegistry(ScanResult classpathScan) {
     FunctionConverter converter = new FunctionConverter();
     List<AnnotatedClassDescriptor> providerClasses = classpathScan.getAnnotatedClasses(FunctionTemplate.class.getName());

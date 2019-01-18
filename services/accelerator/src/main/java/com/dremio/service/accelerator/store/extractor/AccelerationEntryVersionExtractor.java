@@ -17,7 +17,6 @@ package com.dremio.service.accelerator.store.extractor;
 
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.service.accelerator.proto.AccelerationEntry;
-import com.google.common.base.Optional;
 
 /**
  * Extracts {@link AccelerationEntry} version
@@ -29,14 +28,17 @@ public class AccelerationEntryVersionExtractor implements VersionExtractor<Accel
   }
 
   @Override
-  public Long incrementVersion(final AccelerationEntry value) {
-    final Long current = value.getDescriptor().getVersion();
-    value.getDescriptor().setVersion(Optional.fromNullable(current).or(-1L) + 1);
-    return current;
+  public void setVersion(final AccelerationEntry value, final Long version) {
+    value.getDescriptor().setVersion(version);
   }
 
   @Override
-  public void setVersion(final AccelerationEntry value, final Long version) {
-    value.getDescriptor().setVersion(version);
+  public String getTag(final AccelerationEntry value) {
+    return value.getDescriptor().getTag();
+  }
+
+  @Override
+  public void setTag(final AccelerationEntry value, String tag) {
+    value.getDescriptor().setTag(tag);
   }
 }

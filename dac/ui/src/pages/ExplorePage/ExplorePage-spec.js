@@ -16,7 +16,7 @@
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 import { hashHeightTopSplitter } from 'constants/explorePage/heightTopSplitter.js';
-import ExplorePage from './ExplorePage';
+import { ExplorePageView as ExplorePage } from './ExplorePage';
 
 describe('ExplorePage', () => {
   let minimalProps;
@@ -35,7 +35,8 @@ describe('ExplorePage', () => {
       toggleRightTree: sinon.spy(),
       rightTreeVisible: true,
       sqlState: true,
-      updateGridSizes: sinon.spy()
+      updateGridSizes: sinon.spy(),
+      onUnmount: () => {}
     };
     commonProps = {
       ...minimalProps,

@@ -18,7 +18,6 @@ package com.dremio.exec.store.parquet.columnreaders;
 import java.io.IOException;
 
 import org.apache.arrow.vector.TimeStampMilliVector;
-import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.SchemaElement;

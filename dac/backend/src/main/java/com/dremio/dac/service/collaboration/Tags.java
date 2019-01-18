@@ -27,12 +27,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public class Tags {
   private final List<String> tags;
-  private final Long version;
+  private final String version;
 
   @JsonCreator
   public Tags(
     @JsonProperty("tags") List<String> tags,
-    @JsonProperty("version") Long version) {
+    @JsonProperty("version") String version) {
     this.tags = (tags == null) ? Collections.emptyList() : tags;
     this.version = version;
   }
@@ -41,11 +41,11 @@ public class Tags {
     return tags;
   }
 
-  public Long getVersion() {
+  public String getVersion() {
     return version;
   }
 
   public static Tags fromCollaborationTag(CollaborationTag collaborationTag) {
-    return new Tags(collaborationTag.getTagsList(), collaborationTag.getVersion());
+    return new Tags(collaborationTag.getTagsList(), collaborationTag.getTag());
   }
 }

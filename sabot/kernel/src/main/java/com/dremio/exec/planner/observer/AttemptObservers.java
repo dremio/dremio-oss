@@ -24,12 +24,13 @@ import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
 
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.PlannerPhase;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.rpc.RpcOutcomeListener;
@@ -37,7 +38,6 @@ import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
-import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
 /**
@@ -157,7 +157,7 @@ public class AttemptObservers implements AttemptObserver {
   }
 
   @Override
-  public void planSubstituted(DremioRelOptMaterialization materialization, List<RelNode> substitutions,
+  public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions,
                               RelNode target, long millisTaken) {
     for (final AttemptObserver observer : observers) {
       observer.planSubstituted(materialization, substitutions, target, millisTaken);

@@ -16,11 +16,11 @@
 package com.dremio.exec.work.protector;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
 

@@ -17,11 +17,8 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.io.IOException;
 
-import io.netty.buffer.ArrowBuf;
-import org.apache.arrow.vector.UInt4Vector;
 import org.apache.arrow.vector.complex.BaseRepeatedValueVector;
 import org.apache.arrow.vector.complex.BaseRepeatedValueVectorHelper;
-import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.RepeatedValueVector;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.SchemaElement;

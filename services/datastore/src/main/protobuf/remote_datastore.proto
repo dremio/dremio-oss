@@ -61,40 +61,18 @@ message PutRequest {
 }
 
 message PutResponse {
-  optional int64 version = 1; // for occ store
+  optional string version = 1; // for occ store
   optional string concurrentModificationError = 2; //occ update operation
 }
 
 message DeleteRequest {
   required string storeId = 1;
   required bytes key = 2;
-  optional int64 previousVersion = 3;
+  optional string previousVersion = 3;
 }
 
 message DeleteResponse {
   optional string concurrentModificationError = 1; //occ update operation
-}
-
-message CheckAndPutRequest {
-  required string storeId = 1;
-  required bytes key = 2;
-  required bytes newValue = 3;
-  optional bytes oldValue = 4; // old value can be null
-}
-
-message CheckAndPutResponse {
-  required bool inserted = 1;
-  optional int64 version = 2; // for occ store
-}
-
-message CheckAndDeleteRequest {
-  required string storeId = 1;
-  required bytes key = 2;
-  required bytes value = 3;
-}
-
-message CheckAndDeleteResponse {
-  required bool deleted = 1;
 }
 
 // IndexedStore requests

@@ -25,8 +25,7 @@ import apiUtils from 'utils/apiUtils/apiUtils';
 
 import { unwrapAction } from './utils';
 import { performWatchedTransform } from './transformWatcher';
-import { waitForRunToComplete } from './runDataset';
-import { loadDataset } from './performLoadDataset';
+import { loadDataset, loadTableData } from './performLoadDataset';
 
 import {
   getTransformData,
@@ -43,14 +42,15 @@ describe('performTransform saga', () => {
   let gen;
   let next;
   const viewId = 'VIEW_ID';
+  const version = 'fooId';
   const datasetResponse = {
     error: false,
     payload: Immutable.fromJS({
       entities: {
-        datasetUI: {fooId: 'dataset'},
-        fullDataset: {fooId: {}}
+        datasetUI: {[version]: 'dataset'},
+        fullDataset: {[version]: {}}
       },
-      result: 'fooId'
+      result: version
     })
   };
 
@@ -198,11 +198,12 @@ describe('performTransform saga', () => {
       expect(action[CALL_API].types[0].type).to.equal(RUN_DATASET_START);
     });
 
-    it('should waitForRunToComplete only if initial request is successful', () => {
+    it('should loadTableData only if initial request is successful', () => {
       gen = doRun(dataset, currentSql, queryContext, undefined, viewId);
       next = gen.next();
       next = gen.next(datasetResponse);
-      expect(next.value.CALL.fn).to.eql(waitForRunToComplete);
+      //should call loadTableData with forceReload = true
+      expect(next.value).to.eql(call(loadTableData, version, true));
       next = gen.next();
       expect(next.done).to.be.true;
 

@@ -22,9 +22,9 @@ import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.dremio.common.types.Types;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.types.Types;
 import com.dremio.exec.planner.sql.VarArgSqlOperator;
 
 public class SqlContains {

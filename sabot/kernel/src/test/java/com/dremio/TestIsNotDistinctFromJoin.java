@@ -15,11 +15,7 @@
  */
 package com.dremio;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
-
-import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestIsNotDistinctFromJoin extends PlanTestBase {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestIsNotDistinctFromJoin.class);

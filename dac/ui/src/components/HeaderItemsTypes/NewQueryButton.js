@@ -18,6 +18,7 @@ import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { FormattedMessage, injectIntl } from 'react-intl';
+import { getExploreState } from '@app/selectors/explore';
 
 import { showConfirmationDialog } from 'actions/confirmation';
 import { resetNewQuery } from 'actions/explore/view';
@@ -102,9 +103,10 @@ export class NewQueryButton extends Component {
 }
 
 function mapStateToProps(state, ownProps) {
+  const explorePage = getExploreState(state); //todo explore page state should not be here
   return {
     location: getLocation(state),
-    currentSql: state.explore.view.get('currentSql')
+    currentSql: explorePage ? explorePage.view.get('currentSql') : null
   };
 }
 

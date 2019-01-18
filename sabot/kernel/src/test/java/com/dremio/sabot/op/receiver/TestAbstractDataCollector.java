@@ -23,17 +23,16 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.dremio.config.DremioConfig;
-import com.dremio.service.scheduler.SchedulerService;
-import com.dremio.service.spill.DefaultSpillServiceOptions;
-import com.dremio.service.spill.SpillService;
-import com.dremio.service.spill.SpillServiceImpl;
+import javax.inject.Provider;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.memory.RootAllocator;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -41,9 +40,10 @@ import com.dremio.exec.proto.ExecProtos;
 import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
-import org.mockito.Mockito;
-
-import javax.inject.Provider;
+import com.dremio.service.scheduler.SchedulerService;
+import com.dremio.service.spill.DefaultSpillServiceOptions;
+import com.dremio.service.spill.SpillService;
+import com.dremio.service.spill.SpillServiceImpl;
 
 public class TestAbstractDataCollector {
 

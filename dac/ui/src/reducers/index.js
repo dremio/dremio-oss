@@ -23,8 +23,7 @@ import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 import intercomUtils from 'utils/intercomUtils';
 import socket from 'utils/socket';
 import developmentOptions from 'dyn-load/reducers/developmentOptions';
-
-import explore from './explore/index';
+import { getExploreState } from '@app/selectors/explore';
 
 import search from './search';
 
@@ -45,7 +44,6 @@ import prodError from './prodError';
 import modulesState, { getData } from './modulesState';
 
 const appReducers = combineReducers({
-  explore,
   resources,
   ui,
   home,
@@ -97,6 +95,9 @@ export default function rootReducer(state, action) {
   return result;
 }
 
-export const getIsExplorePreviewMode = state => state.explore.view.get('isPreviewMode');
+export const getIsExplorePreviewMode = state => {
+  const exloreState = getExploreState(state);
+  return exloreState ? exloreState.view.get('isPreviewMode') : false;
+};
 export const getUser = state => state.account.get('user');
 export const getModuleState = (state, moduleKey) => getData(state.modulesState, moduleKey);

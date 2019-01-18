@@ -28,12 +28,8 @@
  */
 package io.airlift.tpch;
 
-import com.google.common.base.CharMatcher;
-import com.google.common.base.Predicate;
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.io.CharSource;
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.Iterators.filter;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -41,8 +37,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.Iterators.filter;
+import com.google.common.base.CharMatcher;
+import com.google.common.base.Predicate;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.io.CharSource;
 
 public class DistributionLoader
 {

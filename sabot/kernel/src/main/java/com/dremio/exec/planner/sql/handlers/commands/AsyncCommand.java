@@ -34,14 +34,16 @@ import com.dremio.resource.ResourceSchedulingResult;
 import com.dremio.resource.ResourceSet;
 import com.dremio.resource.basic.BasicResourceConstants;
 import com.dremio.resource.basic.QueueType;
+import com.dremio.resource.exception.ResourceAllocationException;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Throwables;
 
 /**
  * Base class for Asynchronous queries.
  */
 public abstract class AsyncCommand<T> implements CommandRunner<T> {
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AsyncCommand.class);
+//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AsyncCommand.class);
 
   protected final QueryContext context;
 
@@ -96,7 +98,7 @@ public abstract class AsyncCommand<T> implements CommandRunner<T> {
       ResourceAllocationUtils.getEndPoints(planningSet);
     ResourceSchedulingProperties resourceSchedulingProperties = new ResourceSchedulingProperties();
     resourceSchedulingProperties.setResourceData(endpoints);
-    resourceSchedulingProperties.setQueryCost(Double.valueOf(planCost));
+    resourceSchedulingProperties.setQueryCost(planCost);
     resourceSchedulingProperties.setQueryType(Utilities.getHumanReadableWorkloadType(context.getWorkloadType()));
 
     long startTimeMs = System.currentTimeMillis();
@@ -111,6 +113,9 @@ public abstract class AsyncCommand<T> implements CommandRunner<T> {
       resourceSchedulingDecisionInfo.setSchedulingEndTimeMs(System.currentTimeMillis());
       observer.resourcesScheduled(resourceSchedulingDecisionInfo);
     } catch (ExecutionException e) {
+      // if the execution exception was caused by a ResourceAllocationException, throw the cause instead
+      Throwables.propagateIfPossible(e.getCause(), ResourceAllocationException.class);
+      // otherwise, wrap into a ForemanSetupException
       throw new ForemanSetupException("Unable to acquire slot for query.", e.getCause());
     }
 

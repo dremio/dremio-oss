@@ -32,6 +32,7 @@ import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.UnionMode;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
+import com.dremio.common.Version;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetVersion;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
@@ -47,6 +48,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.flatbuffers.FlatBufferBuilder;
 
@@ -56,10 +58,23 @@ import io.protostuff.ByteString;
  * To upgrade Arrow Binary Schema to latest Arrow release Dremio uses as of 2.1.0 release
  * Looks like we have 3 stores that store DatasetConfig that contains binary Schema
  */
-public class DatasetConfigUpgrade extends UpgradeTask {
+public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTask {
+
+  //DO NOT MODIFY
+  static final String taskUUID = "18df9bdf-9186-4780-b6bb-91bcb14a7a8b";
 
   public DatasetConfigUpgrade() {
-    super("Upgrade Arrow Schema", VERSION_106, VERSION_210, FIRST_ORDER);
+    super("Upgrade Arrow Schema", ImmutableList.of());
+  }
+
+  @Override
+  public Version getMaxVersion() {
+    return VERSION_210;
+  }
+
+  @Override
+  public String getTaskUUID() {
+    return taskUUID;
   }
 
   @Override
@@ -320,5 +335,10 @@ public class DatasetConfigUpgrade extends UpgradeTask {
       default:
         throw new UnsupportedOperationException("Unsupported type: " + field.typeType());
     }
+  }
+
+  @Override
+  public String toString() {
+    return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
   }
 }

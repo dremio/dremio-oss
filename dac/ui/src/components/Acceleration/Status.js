@@ -26,6 +26,16 @@ export default class Status extends Component {
     style: PropTypes.object
   };
 
+  getTextWithFailureCount = (status, statusMessage) => {
+    const msgId = (status.get('refresh') === 'MANUAL') ?
+      'Reflection.StatusFailedNoReattempt' : 'Reflection.StatusFailedNonFinal';
+    return formatMessage(msgId, {
+      status: statusMessage,
+      failCount: status.get('failureCount')
+    });
+
+  };
+
   render() {
     const { reflection, style } = this.props;
     const status = reflection.get('status');
@@ -34,7 +44,8 @@ export default class Status extends Component {
     let text = '';
     let className = '';
 
-    const statusMessage = status && status.get('availability') === 'AVAILABLE' ? formatMessage('Reflection.StatusCanAccelerate') : formatMessage('Reflection.StatusCannotAccelerate');
+    const statusMessage = status && status.get('availability') === 'AVAILABLE' ?
+      formatMessage('Reflection.StatusCanAccelerate') : formatMessage('Reflection.StatusCannotAccelerate');
 
     if (!reflection.get('enabled')) {
       icon = 'Disabled';
@@ -63,10 +74,7 @@ export default class Status extends Component {
     } else if (status.get('availability') === 'AVAILABLE') {
       if (status.get('failureCount') > 0) {
         icon = 'WarningSolid';
-        text = formatMessage('Reflection.StatusFailedNonFinal', {
-          status: statusMessage,
-          failCount: status.get('failureCount')
-        });
+        text = this.getTextWithFailureCount(status, statusMessage);
       } else if (status.get('refresh') === 'MANUAL') {
         icon = 'OKSolid';
         text = formatMessage('Reflection.StatusManual', {status: statusMessage});
@@ -76,10 +84,7 @@ export default class Status extends Component {
       }
     } else if (status.get('failureCount') > 0) {
       icon = 'WarningSolid';
-      text = formatMessage('Reflection.StatusFailedNonFinal', {
-        status: statusMessage,
-        failCount: status.get('failureCount')
-      });
+      text = this.getTextWithFailureCount(status, statusMessage);
     } else if (status.get('refresh') === 'SCHEDULED') {
       icon = 'Ellipsis';
       text = formatMessage('Reflection.StatusBuilding', {status: statusMessage});

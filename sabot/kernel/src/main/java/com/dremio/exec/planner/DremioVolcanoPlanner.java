@@ -16,6 +16,7 @@
 package com.dremio.exec.planner;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.ConventionTraitDef;
@@ -24,15 +25,14 @@ import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexExecutor;
-import org.apache.calcite.runtime.Hook;
 
-import com.dremio.common.VM;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider.Substitution;
 import com.dremio.exec.planner.logical.CancelFlag;
 import com.dremio.exec.planner.logical.ConstExecutor;
 import com.dremio.exec.planner.physical.DistributionTraitDef;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.SqlConverter;
 
 public class DremioVolcanoPlanner extends VolcanoPlanner {
@@ -40,11 +40,14 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
 
   private final SubstitutionProvider substitutionProvider;
 
-  private CancelFlag cancelFlag = null;
+  private final CancelFlag cancelFlag;
+  private PlannerPhase phase;
 
   private DremioVolcanoPlanner(RelOptCostFactory costFactory, Context context, SubstitutionProvider substitutionProvider) {
     super(costFactory, context);
     this.substitutionProvider = substitutionProvider;
+    this.cancelFlag = new CancelFlag(context.unwrap(PlannerSettings.class).getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
+    this.phase = null;
   }
 
   public static DremioVolcanoPlanner of(final SqlConverter converter) {
@@ -66,35 +69,37 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
   }
 
   @Override
+  public RelNode findBestExp() {
+    cancelFlag.reset();
+    return super.findBestExp();
+  }
+
+  public void setPlannerPhase(PlannerPhase phase) {
+    this.phase = phase;
+  }
+
+  @Override
   protected void registerMaterializations() {
     final List<Substitution> substitutions = substitutionProvider.findSubstitutions(getOriginalRoot());
     LOGGER.debug("found {} substitutions", substitutions.size());
     for (final Substitution substitution : substitutions) {
       if (!isRegistered(substitution.getReplacement())) {
-        RelNode equiv = substitution.getEquivalent();
-        if (equiv == null) {
-          equiv = getRoot();
-        }
-        Hook.SUB.run(substitution);
+        RelNode equiv = substitution.considerThisRootEquivalent() ? getRoot() : substitution.getEquivalent();
         register(substitution.getReplacement(), ensureRegistered(equiv, null));
       }
     }
   }
 
-  public void setCancelFlag(CancelFlag cancelFlag) {
-    this.cancelFlag = cancelFlag;
-  }
-
   @Override
   public void checkCancel() {
-    if(!VM.isDebugEnabled()){
-      if (cancelFlag != null && cancelFlag.isCancelRequested()) {
-        throw UserException.planError()
-            .message("Query was cancelled because planning time exceeded %d seconds", cancelFlag.getTimeoutInSecs())
-            .addContext("Planner Phase", cancelFlag.getPlannerPhase().description)
-            .build(logger);
+    if (cancelFlag.isCancelRequested()) {
+      UserException.Builder builder = UserException.planError()
+          .message("Query was cancelled because planning time exceeded %d seconds", cancelFlag.getTimeoutInSecs());
+      if (phase != null) {
+        builder = builder.addContext("Planner Phase", phase.description);
       }
-      super.checkCancel();
+      throw builder.build(logger);
     }
+    super.checkCancel();
   }
 }

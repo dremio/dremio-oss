@@ -155,7 +155,7 @@ public class FormatTools {
 
       final FileConfig fileConfig = physicalDatasetConfig.getFormatSettings();
       fileFormat = isFolder ? FileFormat.getForFolder(fileConfig) : FileFormat.getForFile(fileConfig);
-      fileFormat.setVersion(physicalDatasetConfig.getVersion());
+      fileFormat.setVersion(physicalDatasetConfig.getTag());
       return fileFormat;
     } catch (PhysicalDatasetNotFoundException nfe) {
       // ignore and fall through to detect the format so we don't have extra nested blocks.
@@ -232,7 +232,7 @@ public class FormatTools {
         .setFullPathList(key.getPathComponents())
         .setName(key.getName())
         .setType(FileFormat.getFileFormatType(Collections.singletonList(FilenameUtils.getExtension(name))))
-        .setVersion(null);
+        .setTag(null);
     return isFolder ? FileFormat.getForFolder(config) : FileFormat.getForFile(config);
   }
 

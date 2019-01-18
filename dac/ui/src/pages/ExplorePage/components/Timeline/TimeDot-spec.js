@@ -93,6 +93,7 @@ describe('TimeDot', () => {
 
     let target;
     let popover;
+    const mockEvent = {target: {getBoundingClientRect: () => ({top: 0, height: 0})}};
 
     beforeEach(() => {
       target = wrapper.find('[data-qa="time-dot-target"]');
@@ -100,13 +101,13 @@ describe('TimeDot', () => {
     });
 
     it('should show on mouse enter', () => {
-      target.simulate('mouseenter');
+      target.simulate('mouseenter', mockEvent);
       expect(wrapper.find('Overlay').props().show).to.be.true;
       target.simulate('mouseleave');
     });
 
     it('should show hide after a delay on mouseleave', (done) => {
-      target.simulate('mouseenter');
+      target.simulate('mouseenter', mockEvent);
       target.simulate('mouseleave');
       expect(wrapper.find('Overlay').props().show).to.be.true;
       setTimeout(() => {
@@ -117,9 +118,9 @@ describe('TimeDot', () => {
     });
 
     it('should hide popover if cursor is moved to a popover', (done) => {
-      target.simulate('mouseenter');
+      target.simulate('mouseenter', mockEvent);
       target.simulate('mouseleave');
-      popover.simulate('mouseenter');
+      popover.simulate('mouseenter', mockEvent);
 
       setTimeout(() => {
         wrapper.update();
@@ -129,11 +130,11 @@ describe('TimeDot', () => {
     });
 
     it('should still show popover if mouse moves back to target', (done) => {
-      target.simulate('mouseenter');
+      target.simulate('mouseenter', mockEvent);
       target.simulate('mouseleave');
-      popover.simulate('mouseenter');
+      popover.simulate('mouseenter', mockEvent);
       popover.simulate('mouseleave');
-      target.simulate('mouseenter');
+      target.simulate('mouseenter', mockEvent);
 
       setTimeout(() => {
         wrapper.update();

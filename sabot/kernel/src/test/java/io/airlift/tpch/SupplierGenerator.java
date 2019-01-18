@@ -30,8 +30,6 @@ package io.airlift.tpch;
 
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.dremio.exec.record.VectorContainer;
-
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 
 public class SupplierGenerator extends TpchGenerator {

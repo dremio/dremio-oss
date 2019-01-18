@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { push } from  'react-router-redux';
+import { push } from 'react-router-redux';
 import flatten from 'lodash/flatten';
 import invariant from 'invariant';
 
@@ -24,7 +24,7 @@ import { constructFullPathAndEncode } from 'utils/pathUtils';
 import apiUtils from 'utils/apiUtils/apiUtils';
 import { performNextAction } from 'actions/explore/nextAction';
 
-import { postDatasetOperation, navigateToNextDataset } from './common';
+import { navigateToNextDataset, postDatasetOperation } from './common';
 import { navigateAfterReapply } from './reapply';
 
 export function saveDataset(dataset, viewId, nextAction) {
@@ -53,9 +53,9 @@ export function saveAsDataset(nextAction, message) {
 
 export function submitSaveDataset(dataset, viewId) {
   return (dispatch) => {
-    const savedVersion = dataset.get('version');
+    const savedTag = dataset.get('version');
     const link = dataset.getIn(['apiLinks', 'self']);
-    const href = `${link}/save?savedVersion=${savedVersion}`;
+    const href = `${link}/save?savedTag=${savedTag}`;
     return dispatch(postDatasetOperation({
       href,
       viewId,

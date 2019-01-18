@@ -155,7 +155,7 @@ public class NamespaceTable implements DremioTable {
   }
 
   @Override
-  public long getVersion() {
+  public String getVersion() {
     return dataset.getVersion();
   }
 

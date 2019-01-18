@@ -28,7 +28,8 @@ public class UpgradeContext {
   private final LogicalPlanPersistence lpPersistence;
   private final ConnectionReader connectionReader;
 
-  UpgradeContext(KVStoreProvider kvStoreProvider, LogicalPlanPersistence lpPersistence, ConnectionReader connectionReader) {
+  UpgradeContext(KVStoreProvider kvStoreProvider, LogicalPlanPersistence lpPersistence,
+                 ConnectionReader connectionReader) {
     this.kvStoreProvider = kvStoreProvider;
     this.lpPersistence = lpPersistence;
     this.connectionReader = connectionReader;

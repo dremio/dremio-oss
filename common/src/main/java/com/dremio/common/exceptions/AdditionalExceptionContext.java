@@ -15,17 +15,16 @@
  */
 package com.dremio.common.exceptions;
 
-
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.protobuf.ByteString;
 
 /**
  * Contextual information specific to a certain error type. This is carried with a user exception.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 public interface AdditionalExceptionContext {
-
   /**
    * Get error type of this context.
    *
@@ -34,4 +33,10 @@ public interface AdditionalExceptionContext {
   @JsonIgnore
   ErrorType getErrorType();
 
+  /**
+   * Serialize this additional context information.
+   *
+   * @return serialized bytes
+   */
+  ByteString toByteString();
 }

@@ -51,7 +51,7 @@ export const sourceProperties = [
   {label: 'MySQL', sourceType: MYSQL},
   {label: 'NAS', sourceType: NAS},
   {label: 'Oracle', sourceType: ORACLE},
-  {label: 'PostgreSQL', sourceType: POSTGRESQL, beta: true},
+  {label: 'PostgreSQL', sourceType: POSTGRESQL},
   {label: 'Azure Data Lake Store', sourceType: ADL, beta: true}
 ];
 

@@ -18,6 +18,7 @@ import PropTypes from 'prop-types';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import Immutable from 'immutable';
 
+import { getExploreState } from '@app/selectors/explore';
 import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
 import filterMappers from 'utils/mappers/ExplorePage/Transform/filterMappers';
 import NewFieldSection from 'components/Forms/NewFieldSection';
@@ -177,7 +178,7 @@ function mapStateToProps(state, props) {
   const columnName = props.transform.get('columnName');
   const transformType = props.transform.get('transformType');
   const columnType = props.transform.get('columnType');
-  const cardValues = state.explore.recommended.getIn(['transform', transformType || 'replace', 'Range', 'values']);
+  const cardValues = getExploreState(state).recommended.getIn(['transform', transformType || 'replace', 'Range', 'values']);
   const defaultValue = getDefaultValue(columnType);
   return {
     cardValues,

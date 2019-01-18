@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.ParquetFileReader;
@@ -145,7 +144,7 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
 
         final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS, isAccelerator);
 
-        try (InputStreamProvider streamProvider = new InputStreamProvider(fs, firstFile.getPath(), false);
+        try (InputStreamProvider streamProvider = new InputStreamProvider(fs, firstFile.getPath(), true);
              RecordReader reader = new AdditionalColumnsRecordReader(
                new ParquetRowiseReader(operatorContext,
                  footer,

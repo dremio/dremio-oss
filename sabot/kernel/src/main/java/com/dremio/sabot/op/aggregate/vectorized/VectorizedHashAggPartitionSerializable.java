@@ -22,13 +22,13 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import com.dremio.common.exceptions.UserException;
 import org.apache.arrow.vector.FieldVector;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.dremio.exec.cache.AbstractStreamSerializable;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.sabot.op.aggregate.vectorized.HashAggPartitionWritableBatch.HashAggPartitionBatchDefinition;
 import com.dremio.sabot.op.common.ht2.LBlockHashTable;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import io.netty.buffer.ArrowBuf;
@@ -64,6 +64,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
   private int numRecordsSpilled;
   private long spilledDataSize;
   private ByteBuffer intBuffer = ByteBuffer.allocate(Integer.SIZE / Byte.SIZE); //byte array of 4 bytes
+  private HashAggPartitionWritableBatch inProgressWritableBatch;
   /**
    * Used to serialize a HashAggPartition to disk. Caller should use
    * this constructor when they decide a particular partition
@@ -252,22 +253,72 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
       new HashAggPartitionWritableBatch(hashTable, fixedBlockBuffers, variableBlockBuffers,
                                         hashAggPartition.blockWidth, hashAggPartition.accumulator,
                                         hashTable.size(), hashTable.getMaxValuesPerBatch());
-    HashAggPartitionWritableBatch.HashAggPartitionBatchDefinition batchDefinition;
-    /* spill one batch at a time */
+    HashAggPartitionBatchDefinition batchDefinition;
+    /* spill entire partition -- one batch at a time */
     while ((batchDefinition = hashTableWritableBatch.getNextWritableBatch()) != null) {
-      /* write chunk metadata */
-      writeBatchDefinition(batchDefinition, output);
-      final ArrowBuf[] buffersToSpill = hashTableWritableBatch.getBuffers();
-      /* write chunk data */
-      for (ArrowBuf buffer: buffersToSpill) {
-        spilledDataSize += buffer.readableBytes();
-        writeArrowBuf(buffer, output);
-      }
-      numBatchesSpilled++;
-      numRecordsSpilled += batchDefinition.accumulatorBatchDef.getRecordCount();
+      writeBatchToStreamHelper(output, hashTableWritableBatch, batchDefinition);
     }
   }
 
+  /**
+   * Writes a batch (comprising of one or more ArrowBufs) to the
+   * provided output stream
+   * @param output output stream handle for a spill file
+   * @param writableBatch batch to spill
+   * @param batchDefinition batch metadata
+   * @throws IOException
+   */
+  private void writeBatchToStreamHelper(final OutputStream output,
+                                        final HashAggPartitionWritableBatch writableBatch,
+                                        final HashAggPartitionBatchDefinition batchDefinition) throws IOException {
+    /* write chunk metadata */
+    writeBatchDefinition(batchDefinition, output);
+    final ArrowBuf[] buffersToSpill = writableBatch.getBuffers();
+      /* write chunk data */
+    for (ArrowBuf buffer: buffersToSpill) {
+      spilledDataSize += buffer.readableBytes();
+      writeArrowBuf(buffer, output);
+    }
+    numBatchesSpilled++;
+    numRecordsSpilled += batchDefinition.accumulatorBatchDef.getRecordCount();
+  }
+
+  /**
+   * Spills a single batch from victim partition to disk
+   *
+   * @param output output stream for the target spill file
+   * @return true if there are no more batches to be spilled, false otherwise
+   * @throws IOException failure while writing to stream
+   */
+  boolean writeBatchToStream(final OutputStream output) throws IOException {
+    if (inProgressWritableBatch == null) {
+      final LBlockHashTable hashTable = hashAggPartition.hashTable;
+      final List<ArrowBuf> fixedBlockBuffers = hashTable.getFixedBlockBuffers();
+      final List<ArrowBuf> variableBlockBuffers = hashTable.getVariableBlockBuffers();
+      Preconditions.checkArgument((fixedBlockBuffers.size() == variableBlockBuffers.size()),
+                                  "ERROR: inconsistent number of buffers in hash table");
+      inProgressWritableBatch = new HashAggPartitionWritableBatch(hashTable, fixedBlockBuffers, variableBlockBuffers,
+                                                                  hashAggPartition.blockWidth, hashAggPartition.accumulator,
+                                                                  hashTable.size(), hashTable.getMaxValuesPerBatch());
+    }
+
+    HashAggPartitionBatchDefinition batchDefinition = inProgressWritableBatch.getNextWritableBatch();
+
+    if (batchDefinition == null) {
+      inProgressWritableBatch = null;
+      return true;
+    }
+
+    writeBatchToStreamHelper(output, inProgressWritableBatch, batchDefinition);
+
+    return false;
+  }
+
+  /**
+   * Check if a partition is empty
+   * @param partitionHashTable partition's hashtable
+   * @return true if partition is empty (0 entries in hashtable), false otherwise
+   */
   private boolean isPartitionEmpty(final LBlockHashTable partitionHashTable) {
     if (partitionHashTable.size() == 0) {
       Preconditions.checkArgument(partitionHashTable.blocks() == 0, "Error: detected inconsistent hashtable state");
@@ -277,14 +328,26 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     return false;
   }
 
+  /**
+   * Get number of batches spilled
+   * @return batches spilled
+   */
   int getNumBatchesSpilled() {
     return numBatchesSpilled;
   }
 
+  /**
+   * Get number of records spilled
+   * @return records spilled
+   */
   int getNumRecordsSpilled() {
     return numRecordsSpilled;
   }
 
+  /**
+   * Get size (in bytes) of data spilled
+   * @return size of spilled data
+   */
   long getSpilledDataSize() {
     return spilledDataSize;
   }
@@ -314,7 +377,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    *
    * @throws IOException
    */
-  private void writeBatchDefinition(final HashAggPartitionWritableBatch.HashAggPartitionBatchDefinition batchDefinition,
+  private void writeBatchDefinition(final HashAggPartitionBatchDefinition batchDefinition,
                                     final OutputStream output) throws IOException {
     output.write(getByteArrayFromInt(batchDefinition.fixedBufferLength));
     output.write(getByteArrayFromInt(batchDefinition.variableBufferLength));

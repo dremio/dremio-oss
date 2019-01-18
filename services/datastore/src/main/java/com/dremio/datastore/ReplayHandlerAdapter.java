@@ -33,19 +33,30 @@ import com.google.common.collect.Sets;
 class ReplayHandlerAdapter extends WriteBatch.Handler {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReplayHandlerAdapter.class);
 
+  private final int defaultFamilyId;
   private final Map<Integer, String> familyIdToName;
   private final ReplayHandler replayHandler;
 
   private final Set<String> updatedStores = Sets.newHashSet();
 
-  ReplayHandlerAdapter(ReplayHandler replayHandler, Map<Integer, String> familyIdToName) {
+  ReplayHandlerAdapter(int defaultFamilyId, ReplayHandler replayHandler, Map<Integer, String> familyIdToName) {
+    this.defaultFamilyId = defaultFamilyId;
     this.replayHandler = replayHandler;
     this.familyIdToName = familyIdToName;
   }
 
   @Override
   public void put(int columnFamilyId, byte[] key, byte[] value) {
+    if (defaultFamilyId == columnFamilyId) {
+      return;
+    }
+
     final String tableName = familyIdToName.get(columnFamilyId);
+    if (tableName == null) {
+      logger.warn("Ignoring put: {}:{}:{}", columnFamilyId, key, value);
+      return;
+    }
+
     logger.trace("Put: {}:{}:{}", tableName, key, value);
 
     replayHandler.put(tableName, key, value);
@@ -71,7 +82,16 @@ class ReplayHandlerAdapter extends WriteBatch.Handler {
 
   @Override
   public void delete(int columnFamilyId, byte[] key)  {
+    if (defaultFamilyId == columnFamilyId) {
+      return;
+    }
+
     final String tableName = familyIdToName.get(columnFamilyId);
+    if (tableName == null) {
+      logger.warn("Ignoring delete: {}:{}", columnFamilyId, key);
+      return;
+    }
+
     logger.trace("Delete: {}:{}", tableName, key);
 
     replayHandler.delete(tableName, key);
@@ -85,7 +105,16 @@ class ReplayHandlerAdapter extends WriteBatch.Handler {
 
   @Override
   public void singleDelete(int columnFamilyId, byte[] key) {
+    if (defaultFamilyId == columnFamilyId) {
+      return;
+    }
+
     final String tableName = familyIdToName.get(columnFamilyId);
+    if (tableName == null) {
+      logger.warn("Ignoring delete: {}:{}", columnFamilyId, key);
+      return;
+    }
+
     logger.trace("Delete: {}:{}", tableName, key);
 
     replayHandler.delete(tableName, key);

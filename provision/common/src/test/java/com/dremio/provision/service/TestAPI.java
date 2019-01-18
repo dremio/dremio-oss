@@ -74,7 +74,7 @@ public class TestAPI {
       registry.bind(KVStoreProvider.class, kvstore);
       kvstore.start();
       registry.start();
-      service = Mockito.spy(new ProvisioningServiceImpl(registry.provider(KVStoreProvider.class), Mockito.mock(NodeProvider.class),
+      service = Mockito.spy(new ProvisioningServiceImpl(DremioConfig.create(), registry.provider(KVStoreProvider.class), Mockito.mock(NodeProvider.class),
         DremioTest.CLASSPATH_SCAN_RESULT));
       service.start();
       resource = new ProvisioningResource(service);
@@ -129,17 +129,17 @@ public class TestAPI {
     for (Map.Entry<ClusterId, Cluster> entry : entries) {
       Cluster clusterEntry = entry.getValue();
       clusterId = clusterEntry.getId();
-      assertTrue(0 == clusterEntry.getClusterConfig().getVersion());
+      assertTrue(clusterEntry.getClusterConfig().getTag().equals("0"));
       count++;
     }
     assertEquals(1, count);
-    clusterConfig.setVersion(0L);
+    clusterConfig.setTag("0");
     service.modifyCluster(clusterId, ClusterState.STOPPED, clusterConfig);
     Cluster clusterModified = store.get(clusterId);
     assertNotNull(clusterModified);
-    assertEquals(2, clusterModified.getClusterConfig().getVersion().intValue());
+    assertTrue(clusterModified.getClusterConfig().getTag().equals("2"));
     assertEquals(ClusterState.STOPPED, clusterModified.getDesiredState());
-    clusterConfig.setVersion(3L);
+    clusterConfig.setTag("3");
     try {
       service.modifyCluster(clusterId, null, clusterConfig);
       fail("Should be version mismatch");
@@ -154,7 +154,7 @@ public class TestAPI {
     // test version mismatch
     ClusterModifyRequest request = new ClusterModifyRequest();
     request.setId(storedCluster.getId().getId());
-    request.setVersion(11L);
+    request.setTag("11");
 
     ClusterConfig config = resource.toClusterConfig(request);
     try {
@@ -168,22 +168,22 @@ public class TestAPI {
 
   @Test
   public void testVersionNotMismatch() throws Exception {
-    long [] versions = new long [] {127,128,129};
-    for (long version : versions) {
+    String [] versions = new String [] {"127","128","129"};
+    for (String version : versions) {
       Cluster storedCluster = clusterCreateHelper();
-      storedCluster.getClusterConfig().setVersion(version);
+      storedCluster.getClusterConfig().setTag(version);
       // test version mismatch
       ClusterModifyRequest request = new ClusterModifyRequest();
       request.setId(storedCluster.getId().getId());
-      request.setVersion(version);
+      request.setTag(version);
 
       ClusterConfig config = resource.toClusterConfig(request);
       try {
         final Cluster modifiedCluster = service.toCluster(config, null, storedCluster);
         service.toAction(storedCluster, modifiedCluster);
       } catch (ConcurrentModificationException e) {
-        fail("Version mismatch - request Version: " + request.getVersion() +
-          ", storedVersion: " + storedCluster.getClusterConfig().getVersion());
+        fail("Version mismatch - request Version: " + request.getTag() +
+          ", storedVersion: " + storedCluster.getClusterConfig().getTag());
       }
     }
   }
@@ -191,7 +191,7 @@ public class TestAPI {
   @Test
   public void testVersionNull() throws Exception {
     Cluster storedCluster = clusterCreateHelper();
-    storedCluster.getClusterConfig().setVersion(12L);
+    storedCluster.getClusterConfig().setTag("12");
     // test version not set
     ClusterModifyRequest request = new ClusterModifyRequest();
     request.setId(storedCluster.getId().getId());
@@ -212,7 +212,7 @@ public class TestAPI {
     service.getConcreteServices().put(ClusterType.YARN, provServiceDelegate);
 
     Cluster storedCluster = clusterCreateHelper();
-    storedCluster.getClusterConfig().setVersion(null);
+    storedCluster.getClusterConfig().setTag(null);
 
     doReturn(new ClusterEnriched()).when(provServiceDelegate).startCluster(any(Cluster.class));
     doReturn(new ClusterEnriched()).when(provServiceDelegate).startCluster(any(Cluster.class));
@@ -254,7 +254,7 @@ public class TestAPI {
     // test DELETED state
     storedCluster.setDesiredState(ClusterState.DELETED);
     request.setId(storedCluster.getId().getId());
-    request.setVersion(12L);
+    request.setTag("12");
     ClusterConfig config = resource.toClusterConfig(request);
 
     try {
@@ -272,7 +272,7 @@ public class TestAPI {
 
     ClusterModifyRequest request = new ClusterModifyRequest();
     request.setId(storedCluster.getId().getId());
-    request.setVersion(12L);
+    request.setTag("12");
 
     // test STOPPING state
     storedCluster.setDesiredState(null);
@@ -295,7 +295,7 @@ public class TestAPI {
 
     ClusterModifyRequest request = new ClusterModifyRequest();
     request.setId(storedCluster.getId().getId());
-    request.setVersion(12L);
+    request.setTag("12");
 
     storedCluster.setState(ClusterState.RUNNING);
     request.setDynamicConfig(new DynamicConfig(2));
@@ -314,7 +314,7 @@ public class TestAPI {
 
     ClusterModifyRequest request = new ClusterModifyRequest();
     request.setId(storedCluster.getId().getId());
-    request.setVersion(12L);
+    request.setTag("12");
 
     storedCluster.setState(ClusterState.RUNNING);
     request.setDynamicConfig(new DynamicConfig(3));
@@ -333,7 +333,7 @@ public class TestAPI {
 
     ClusterModifyRequest request = new ClusterModifyRequest();
     request.setId(storedCluster.getId().getId());
-    request.setVersion(12L);
+    request.setTag("12");
 
     storedCluster.setState(ClusterState.STOPPED);
     request.setDynamicConfig(new DynamicConfig(2));
@@ -353,7 +353,7 @@ public class TestAPI {
 
     ClusterModifyRequest request = new ClusterModifyRequest();
     request.setId(storedCluster.getId().getId());
-    request.setVersion(12L);
+    request.setTag("12");
 
     storedCluster.setState(ClusterState.RUNNING);
     request.setDynamicConfig(new DynamicConfig(2));
@@ -373,7 +373,7 @@ public class TestAPI {
 
     ClusterModifyRequest request = new ClusterModifyRequest();
     request.setId(storedCluster.getId().getId());
-    request.setVersion(12L);
+    request.setTag("12");
 
     storedCluster.setState(ClusterState.RUNNING);
     request.setDynamicConfig(new DynamicConfig(2));
@@ -395,7 +395,7 @@ public class TestAPI {
 
     ClusterModifyRequest request = new ClusterModifyRequest();
     request.setId(storedCluster.getId().getId());
-    request.setVersion(12L);
+    request.setTag("12");
 
     storedCluster.setState(ClusterState.RUNNING);
     request.setDynamicConfig(new DynamicConfig(2));
@@ -417,7 +417,7 @@ public class TestAPI {
 
     ClusterModifyRequest request = new ClusterModifyRequest();
     request.setId(storedCluster.getId().getId());
-    request.setVersion(12L);
+    request.setTag("12");
 
     storedCluster.setState(ClusterState.RUNNING);
     request.setDynamicConfig(new DynamicConfig(2));
@@ -441,7 +441,7 @@ public class TestAPI {
 
     ClusterModifyRequest request = new ClusterModifyRequest();
     request.setId(storedCluster.getId().getId());
-    request.setVersion(12L);
+    request.setTag("12");
 
     storedCluster.setState(ClusterState.RUNNING);
     request.setDynamicConfig(new DynamicConfig(2));
@@ -512,7 +512,7 @@ public class TestAPI {
 
     ClusterModifyRequest request = new ClusterModifyRequest();
     request.setId(storedCluster.getId().getId());
-    request.setVersion(12L);
+    request.setTag("12");
 
     storedCluster.setState(ClusterState.RUNNING);
     request.setDynamicConfig(new DynamicConfig(2));
@@ -532,7 +532,7 @@ public class TestAPI {
 
     ClusterModifyRequest request = new ClusterModifyRequest();
     request.setId(storedCluster.getId().getId());
-    request.setVersion(12L);
+    request.setTag("12");
 
     storedCluster.setState(ClusterState.RUNNING);
     request.setDynamicConfig(new DynamicConfig(2));
@@ -552,7 +552,7 @@ public class TestAPI {
 
     ClusterModifyRequest request = new ClusterModifyRequest();
     request.setId(storedCluster.getId().getId());
-    request.setVersion(12L);
+    request.setTag("12");
 
     storedCluster.setState(ClusterState.RUNNING);
     request.setDynamicConfig(new DynamicConfig(2));
@@ -571,7 +571,7 @@ public class TestAPI {
     storedCluster.setState(ClusterState.RUNNING);
     storedCluster.setId(clusterId);
     ClusterConfig clusterConfig = new ClusterConfig();
-    clusterConfig.setVersion(12L);
+    clusterConfig.setTag("12");
     clusterConfig.setClusterType(ClusterType.YARN);
     clusterConfig.setClusterSpec(new ClusterSpec(2, 4096, 4096, 2));
     clusterConfig.setDistroType(DistroType.MAPR).setIsSecure(true);

@@ -24,7 +24,6 @@ import static org.apache.arrow.vector.types.Types.MinorType.LIST;
 import static org.apache.arrow.vector.types.Types.MinorType.VARCHAR;
 import static org.apache.arrow.vector.types.pojo.FieldType.nullable;
 
-import io.netty.buffer.ArrowBuf;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -33,8 +32,8 @@ import java.util.Random;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.impl.NullableStructWriter;
@@ -42,6 +41,8 @@ import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.JsonStringArrayList;
+import org.apache.arrow.vector.util.JsonStringHashMap;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
@@ -51,8 +52,7 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.Fixtures.DataRow;
 import com.google.common.base.Preconditions;
 
-import org.apache.arrow.vector.util.JsonStringArrayList;
-import org.apache.arrow.vector.util.JsonStringHashMap;
+import io.netty.buffer.ArrowBuf;
 
 /**
  * Generates a table with lot of nested data types and two scalar types

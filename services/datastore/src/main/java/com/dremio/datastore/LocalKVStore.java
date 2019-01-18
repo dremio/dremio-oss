@@ -84,11 +84,6 @@ public class LocalKVStore<K, V> implements KVStore<K, V> {
   }
 
   @Override
-  public boolean checkAndPut(K key, V oldValue, V newValue) {
-    return coreKVStore.checkAndPut(buildKey(key), buildValue(oldValue), buildValue(newValue));
-  }
-
-  @Override
   public boolean contains(K key) {
     return coreKVStore.contains(buildKey(key));
   }
@@ -96,11 +91,6 @@ public class LocalKVStore<K, V> implements KVStore<K, V> {
   @Override
   public void delete(K key) {
     coreKVStore.delete(buildKey(key));
-  }
-
-  @Override
-  public boolean checkAndDelete(K key, V value) {
-    return coreKVStore.checkAndDelete(buildKey(key), buildValue(value));
   }
 
   @Override
@@ -127,7 +117,7 @@ public class LocalKVStore<K, V> implements KVStore<K, V> {
   }
 
   @Override
-  public void delete(K key, long previousVersion) {
+  public void delete(K key, String previousVersion) {
     coreKVStore.delete(buildKey(key), previousVersion);
   }
 

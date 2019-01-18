@@ -16,11 +16,8 @@
 package com.dremio.exec.catalog;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.calcite.schema.Function;
 
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -28,7 +25,6 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.ischema.tables.TablesTable;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -41,7 +37,7 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
  * Interface used to retrieve virtual and physical datasets. This is always contextualized to a single user and
  * default schema. Implementations must be thread-safe
  */
-public interface Catalog {
+public interface Catalog extends SimpleCatalog<Catalog> {
 
   /**
    * Retrieve a table ignoring the default schema.
@@ -50,14 +46,6 @@ public interface Catalog {
    * @return A DremioTable if found, otherwise null.
    */
   DremioTable getTableNoResolve(NamespaceKey key);
-
-  /**
-   * Retrieve a table, first checking the default schema.
-   *
-   * @param key
-   * @return
-   */
-  DremioTable getTable(NamespaceKey key);
 
   /**
    * Retrieve a table
@@ -94,27 +82,6 @@ public interface Catalog {
    */
   boolean containerExists(NamespaceKey path);
 
-  /**
-   * Get a list of all schemas.
-   *
-   * @param path
-   *          The path to contextualize to. If the path has no fields, get all schemas. Note
-   *          that this does include nested schemas.
-   * @return Iterable list of strings of each schema.
-   */
-  Iterable<String> listSchemas(NamespaceKey path);
-
-  Iterable<TablesTable.Table> listDatasets(NamespaceKey path);
-
-  /**
-   * Get a list of functions. Provided specifically for DremioCatalogReader.
-   * @param path
-   * @return
-   */
-  Collection<Function> getFunctions(NamespaceKey path);
-
-  NamespaceKey getDefaultSchema();
-
   String getUser();
 
   /**
@@ -124,14 +91,6 @@ public interface Catalog {
    */
   NamespaceKey resolveToDefault(NamespaceKey key);
 
-  /**
-   * Return a new Catalog contextualized to the provided username and default schema
-   *
-   * @param username
-   * @param newDefaultSchema
-   * @return
-   */
-  Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema);
 
   /**
    * Return a new Catalog contextualized to the provided username
@@ -141,20 +100,13 @@ public interface Catalog {
    */
   Catalog resolveCatalog(String username);
 
-  /**
-   * Return a new Catalog contextualized to the provided default schema
-   * @param newDefaultSchema
-   * @return
-   */
-  Catalog resolveCatalog(NamespaceKey newDefaultSchema);
-
   MetadataStatsCollector getMetadataStatsCollector();
 
   CreateTableEntry createNewTable(final NamespaceKey key, final WriterOptions writerOptions, final Map<String, Object> storageOptions);
 
-  boolean createView(final NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException;
+  void createView(final NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException;
 
-  void updateView(final NamespaceKey key, View view, NamespaceAttribute... attributes);
+  void updateView(final NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException;
 
   void dropView(final NamespaceKey key) throws IOException;
 

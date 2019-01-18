@@ -18,6 +18,7 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import uuid from 'uuid';
 import { connect } from 'react-redux';
+import { getExploreState } from '@app/selectors/explore';
 
 import { ExploreInfoHeader } from '../ExploreInfoHeader';
 import InnerJoin from './InnerJoin';
@@ -199,7 +200,7 @@ export class InnerJoinController extends Component {
 
 function mapStateToProps(state, ownProps) {
   return {
-    recommendation: state.explore.join.getIn(['custom', 'recommendation'])
+    recommendation: getExploreState(state).join.getIn(['custom', 'recommendation'])
   };
 }
 

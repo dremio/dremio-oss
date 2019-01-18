@@ -79,15 +79,18 @@ public class ConfigurationStore {
     }
 
     @Override
-    public Long incrementVersion(ConfigurationEntry value) {
-      final Long currentVersion = value.getVersion();
-      value.setVersion(currentVersion != null ? currentVersion + 1 : 0);
-      return currentVersion;
+    public void setVersion(ConfigurationEntry value, Long tag) {
+      value.setVersion(tag);
     }
 
     @Override
-    public void setVersion(ConfigurationEntry value, Long version) {
-      value.setVersion(version);
+    public String getTag(ConfigurationEntry value) {
+      return value.getTag();
+    }
+
+    @Override
+    public void setTag(ConfigurationEntry value, String tag) {
+      value.setTag(tag);
     }
   }
 }

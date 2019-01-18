@@ -24,7 +24,6 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 
 import com.dremio.BaseTestQuery;
-import com.dremio.TestBuilder;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.google.common.base.Joiner;

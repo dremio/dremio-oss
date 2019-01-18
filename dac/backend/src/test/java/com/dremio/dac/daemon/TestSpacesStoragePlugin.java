@@ -133,8 +133,8 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
 
   public static void cleanup(DACDaemon dremioDaemon) throws Exception {
     final NamespaceService namespaceService = newNamespaceService();
-    namespaceService.deleteSpace(new SpacePath("testA").toNamespaceKey(), namespaceService.getSpace(new SpacePath("testA").toNamespaceKey()).getVersion());
-    namespaceService.deleteSpace(new SpacePath("testB").toNamespaceKey(), namespaceService.getSpace(new SpacePath("testB").toNamespaceKey()).getVersion());
+    namespaceService.deleteSpace(new SpacePath("testA").toNamespaceKey(), namespaceService.getSpace(new SpacePath("testA").toNamespaceKey()).getTag());
+    namespaceService.deleteSpace(new SpacePath("testB").toNamespaceKey(), namespaceService.getSpace(new SpacePath("testB").toNamespaceKey()).getTag());
   }
 
   private JobData runExternalQuery(String sql) {

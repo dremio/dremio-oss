@@ -15,6 +15,8 @@
  */
 package com.dremio.service.reflection.materialization;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 import java.net.URI;
 import java.util.List;
 
@@ -56,7 +58,10 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
     } else {
       connection = path.getScheme() + ":///";
     }
-    this.path = path.getPath();
+    String storagePath = path.getPath();
+    if (!isNullOrEmpty(storagePath)) {
+      this.path = storagePath;
+    }
   }
 
   @Override

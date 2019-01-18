@@ -50,6 +50,8 @@ import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
+import com.dremio.service.listing.DatasetListingService;
+import com.dremio.service.listing.DatasetListingServiceImpl;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -78,6 +80,7 @@ public class TestSystemStoragePluginInitializer {
 
   private KVStoreProvider storeProvider;
   private NamespaceService namespaceService;
+  private DatasetListingService datasetListingService;
   private BufferAllocator allocator;
   private LocalClusterCoordinator clusterCoordinator;
   private CloseableThreadPool pool;
@@ -99,6 +102,10 @@ public class TestSystemStoragePluginInitializer {
     namespaceService = new NamespaceServiceImpl(storeProvider);
     when(sabotContext.getNamespaceService(anyString()))
       .thenReturn(namespaceService);
+
+    datasetListingService = new DatasetListingServiceImpl(DirectProvider.wrap(userName -> namespaceService));
+    when(sabotContext.getDatasetListing())
+        .thenReturn(datasetListingService);
 
     when(sabotContext.getClasspathScan())
       .thenReturn(CLASSPATH_SCAN_RESULT);
@@ -133,6 +140,8 @@ public class TestSystemStoragePluginInitializer {
 
     when(sabotContext.getRoles())
       .thenReturn(Sets.newHashSet(ClusterCoordinator.Role.MASTER, ClusterCoordinator.Role.COORDINATOR));
+    when(sabotContext.isCoordinator())
+      .thenReturn(true);
 
     pool = new CloseableThreadPool("catalog-test");
     fabricService = new FabricServiceImpl(HOSTNAME, 45678, true, THREAD_COUNT, allocator, RESERVATION,
@@ -199,7 +208,7 @@ public class TestSystemStoragePluginInitializer {
     assertEquals("file:///", decryptedUpdatedConfig.getConnection());
     assertNotEquals(decryptedConf.isInternal, decryptedUpdatedConfig.isInternal);
     assertEquals(decryptedConf.path, decryptedUpdatedConfig.path);
-    assertEquals(config.getVersion().longValue()+1, updatedConfig.getVersion().longValue());
+    assertNotEquals(config.getTag(), updatedConfig.getTag());
 
     SourceConfig updatedC2 = new SourceConfig();
     InternalFileConf updatedCConf2 = new InternalFileConf();
@@ -217,7 +226,7 @@ public class TestSystemStoragePluginInitializer {
     InternalFileConf decryptedConf2 = (InternalFileConf) reader.getConnectionConf(updatedConfig2);
     assertTrue(decryptedConf2.getProperties().isEmpty());
 
-    assertEquals(updatedConfig.getVersion().longValue(), updatedConfig2.getVersion().longValue());
+    assertEquals(updatedConfig.getTag(), updatedConfig2.getTag());
 
 
     catalog.deleteSource("mytest");

@@ -104,8 +104,8 @@ export class EditSourceView extends Component {
     }, 2)
     .then((response) => response.json())
     .catch((response) => {
-      response.json().then((error) => {
-        throw new Error(ApiUtils.parseErrorsToObject(error));
+      return response.json().then((error) => {
+        throw error;
       });
     });
   };

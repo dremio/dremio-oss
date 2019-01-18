@@ -94,7 +94,8 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry{
   @Override
   public void register(OperatorTable operatorTable) {
     for (String name : Sets.union(methodsGenericUDF.asMap().keySet(), methodsUDF.asMap().keySet())) {
-      operatorTable.add(name, new HiveUDFOperator(name.toUpperCase(), new HiveSqlReturnTypeInference()));
+      operatorTable.add(name, new HiveUDFOperator(name.toUpperCase(), new
+        PlugginRepositorySqlReturnTypeInference(this)));
     }
   }
 
@@ -224,49 +225,5 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry{
     } catch (Exception e) { /*ignore this*/ }
 
     return null;
-  }
-
-  public class HiveSqlReturnTypeInference implements SqlReturnTypeInference {
-    private HiveSqlReturnTypeInference() {
-
-    }
-
-    @Override
-    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-      for (RelDataType type : opBinding.collectOperandTypes()) {
-        final MinorType minorType = TypeInferenceUtils.getMinorTypeFromCalciteType(type);
-        if(minorType == MinorType.LATE) {
-          return opBinding.getTypeFactory()
-              .createTypeWithNullability(
-                  opBinding.getTypeFactory().createSqlType(SqlTypeName.ANY),
-                  true);
-        }
-      }
-
-      final FunctionCall functionCall = TypeInferenceUtils.convertSqlOperatorBindingToFunctionCall(opBinding);
-      final HiveFuncHolder hiveFuncHolder = getFunction(functionCall);
-      if(hiveFuncHolder == null) {
-        final StringBuilder operandTypes = new StringBuilder();
-        for(int j = 0; j < opBinding.getOperandCount(); ++j) {
-          operandTypes.append(opBinding.getOperandType(j).getSqlTypeName());
-          if(j < opBinding.getOperandCount() - 1) {
-            operandTypes.append(",");
-          }
-        }
-
-        throw UserException
-            .functionError()
-            .message(String.format("%s does not support operand types (%s)",
-                opBinding.getOperator().getName(),
-                operandTypes))
-            .build(logger);
-      }
-
-      return TypeInferenceUtils.createCalciteTypeWithNullability(
-          opBinding.getTypeFactory(),
-          TypeInferenceUtils.getCalciteTypeFromMinorType(hiveFuncHolder.getReturnType().toMinorType()),
-          true,
-          null);
-    }
   }
 }

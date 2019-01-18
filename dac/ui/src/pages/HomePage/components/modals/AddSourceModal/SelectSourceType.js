@@ -52,6 +52,7 @@ export default class SelectSourceType extends Component {
         pillText={pillText}
         disabled={item.disabled}
         iconType={`sources/${item.sourceType}`}
+        icon={item.icon}
         key={item.sourceType}
         onClick={!item.disabled ? this.props.onSelectSource.bind(this, item) : undefined}/>;
     });

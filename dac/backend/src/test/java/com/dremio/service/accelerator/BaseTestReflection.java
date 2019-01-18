@@ -47,7 +47,7 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.PlannerPhase;
-import com.dremio.exec.planner.sql.MaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.store.CatalogService;
@@ -62,7 +62,6 @@ import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -178,7 +177,7 @@ public class BaseTestReflection extends BaseTestServer {
       .setFullPathList(path.toPathList())
       .setName(path.getLeaf().getName())
       .setCreatedAt(System.currentTimeMillis())
-      .setVersion(null)
+      .setTag(null)
       .setOwner(DEFAULT_USERNAME)
       .setPhysicalDataset(new PhysicalDataset()
         .setFormatSettings(new FileConfig().setType(FileType.JSON))
@@ -194,7 +193,6 @@ public class BaseTestReflection extends BaseTestServer {
       .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
       .setQueryType(QueryType.UI_INTERNAL_RUN)
       .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-      .setDatasetVersion(DatasetVersion.NONE)
       .build(), NoOpJobStatusListener.INSTANCE);
     job.getData().loadIfNecessary();
   }
@@ -205,7 +203,6 @@ public class BaseTestReflection extends BaseTestServer {
       .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
       .setQueryType(QueryType.UI_INTERNAL_RUN)
       .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-      .setDatasetVersion(DatasetVersion.NONE)
       .build(), new NoOpJobStatusListener() {
       @Override
       public void planRelTransform(final PlannerPhase phase, final RelNode before, final RelNode after, final long millisTaken) {

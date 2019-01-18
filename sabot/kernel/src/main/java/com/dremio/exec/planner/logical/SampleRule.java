@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.planner.logical;
 
-import org.apache.calcite.rel.RelNode;
-
-import com.dremio.exec.calcite.logical.SampleCrel;
-
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.RelNode;
+
+import com.dremio.exec.calcite.logical.SampleCrel;
 
 /**
  * Convert {@link SampleCrel} to Dremio logical.

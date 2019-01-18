@@ -41,12 +41,20 @@ import com.google.common.base.Preconditions;
 
 public class BaseTestFunction extends BaseTestOperator {
 
+  public static final boolean RUN_INTERPRETED_MODE = true;
+  public static final boolean IGNORE_INTERPRETED_MODE = false;
+
   public void testFunctions(Object[][] tests){
     for(Object[] test : tests){
       testFunction((String) test[0], Arrays.copyOfRange(test, 1, test.length));
     }
   }
 
+  public void testFunctionsCompiledOnly(Object[][] tests){
+    for(Object[] test : tests){
+      testFunctionCompileOnly((String) test[0], Arrays.copyOfRange(test, 1, test.length));
+    }
+  }
 
   /**
    * Evaluate the given expression using the provided inputs and confirm it results in the expected output. Runs both compiled and interpreted tests.
@@ -54,6 +62,19 @@ public class BaseTestFunction extends BaseTestOperator {
    * @param fields All of the input values (n-1), plus the output value (nth value).
    */
   public void testFunction(String stringExpression, Object... fieldsArr) {
+    testFunctionInner(stringExpression, RUN_INTERPRETED_MODE, fieldsArr);
+  }
+
+  /**
+   * Evaluate the given expression only in compiled mode.
+   * Used for functions that are not supported in interpreted mode for e.g. gandiva only functions.
+   */
+  public void testFunctionCompileOnly(String stringExpression, Object... fieldsArr) {
+    testFunctionInner(stringExpression, IGNORE_INTERPRETED_MODE, fieldsArr);
+  }
+
+  private void testFunctionInner(String stringExpression, boolean runInterpretedMode,
+                                 Object[] fieldsArr) {
     try{
       Preconditions.checkArgument(fieldsArr.length > 0, "Must provide an output for a function.");
       final List<Object> fields = Arrays.asList(fieldsArr);
@@ -84,10 +105,12 @@ public class BaseTestFunction extends BaseTestOperator {
         throw new RuntimeException("Failure while testing function using code compilation.", e);
       }
 
-      try{
+      if (runInterpretedMode) {
+        try{
           testInterp(p, expr, input, output);
-      }catch(AssertionError | Exception e){
-        throw new RuntimeException("Failure while testing function using code interpretation.", e);
+        }catch(AssertionError | Exception e){
+          throw new RuntimeException("Failure while testing function using code interpretation.", e);
+        }
       }
 
     }catch(AssertionError | Exception e){
@@ -128,6 +151,8 @@ public class BaseTestFunction extends BaseTestOperator {
   public class FieldExpressionCollector extends AbstractExprVisitor<Void, Void, RuntimeException> {
 
     private Set<String> paths = new HashSet<>();
+
+    public Set<String> getPaths() { return paths; }
 
     @Override
     public Void visitSchemaPath(SchemaPath path, Void value) throws RuntimeException {

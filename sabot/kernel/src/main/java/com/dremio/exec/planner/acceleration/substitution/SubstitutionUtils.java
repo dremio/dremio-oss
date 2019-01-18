@@ -19,7 +19,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.calcite.plan.RelOptMaterialization;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
@@ -29,6 +28,7 @@ import org.apache.calcite.sql.SqlExplainLevel;
 
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.reflection.rules.ReplacementPointer;
 import com.dremio.service.Pointer;
 import com.google.common.base.Preconditions;
@@ -93,14 +93,14 @@ public final class SubstitutionUtils {
     return used.value;
   }
 
-  public static List<RelOptMaterialization> findApplicableMaterializations(
-    final RelNode query, final Collection<RelOptMaterialization> materializations) {
+  public static List<DremioMaterialization> findApplicableMaterializations(
+    final RelNode query, final Collection<DremioMaterialization> materializations) {
     final Set<List<String>> queryTablesUsed = SubstitutionUtils.findTables(query);
     return FluentIterable.from(materializations)
-      .filter(new Predicate<RelOptMaterialization>() {
+      .filter(new Predicate<DremioMaterialization>() {
         @Override
-        public boolean apply(RelOptMaterialization materialization) {
-          return usesTable(queryTablesUsed, materialization.queryRel);
+        public boolean apply(DremioMaterialization materialization) {
+          return usesTable(queryTablesUsed, materialization.getQueryRel());
         }
       })
       .toList();

@@ -21,6 +21,7 @@ import Immutable from 'immutable';
 import { injectIntl, FormattedMessage } from 'react-intl';
 import FontIcon from 'components/Icon/FontIcon';
 import { CENTER } from 'uiTheme/radium/flexStyle';
+import { getExploreState } from '@app/selectors/explore';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
 
@@ -212,13 +213,15 @@ export class QlikStateModal extends Component {
 }
 
 function mapStateToProps(state, props) {
+  const data = getExploreState(state);
+  const ui = data ? data.ui : new Immutable.Map(); //todo explore page state should not be here
   return {
-    qlikError: state.explore.ui.get('qlikError'),
-    qlikInProgress: state.explore.ui.get('qlikInProgress'),
-    qlikDialogVisible: state.explore.ui.get('qlikDialogVisible'),
-    qlikShowDialogDataset: state.explore.ui.get('qlikShowDialogDataset'),
-    qlikAppCreationSuccess: state.explore.ui.get('qlikAppCreationSuccess'),
-    qlikAppInfo: state.explore.ui.get('qlikAppInfo')
+    qlikError: ui.get('qlikError'),
+    qlikInProgress: ui.get('qlikInProgress'),
+    qlikDialogVisible: ui.get('qlikDialogVisible'),
+    qlikShowDialogDataset: ui.get('qlikShowDialogDataset'),
+    qlikAppCreationSuccess: ui.get('qlikAppCreationSuccess'),
+    qlikAppInfo: ui.get('qlikAppInfo')
   };
 }
 

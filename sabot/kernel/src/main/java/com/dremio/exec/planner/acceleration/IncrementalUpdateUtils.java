@@ -19,6 +19,8 @@ import static com.dremio.exec.planner.logical.RelBuilder.newCalciteRelBuilderWit
 
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
@@ -66,38 +68,46 @@ public class IncrementalUpdateUtils {
       this.refreshColumn = refreshColumn;
     }
 
-    public RelNode updateScan(IncrementallyUpdateable scan) {
-      if (UPDATE_COLUMN.equals(refreshColumn)) {
-        return scan;
-      }
+    protected String getRefreshColumn() {
+      return refreshColumn;
+    }
 
+    public RelNode updateScan(IncrementallyUpdateable scan) {
+      RelNode newScan = scan;
       RelDataTypeField refreshField = scan.getRowType().getField(refreshColumn, false, false);
 
-      if(refreshField == null){
-        throw UserException.dataReadError()
-          .message("Table does not include column identified for incremental update of name '%s'.", refreshField.getName())
-          .build(logger);
-      } else if(refreshField.getType().getSqlTypeName() != SqlTypeName.BIGINT){
+      if (refreshField == null) {
+        // Check if the field exist as part of the schema
+        newScan = scan.projectInvisibleColumn(refreshColumn);
+        if (newScan == null) {
+          throw UserException.dataReadError()
+              .message("Table does not include column identified for incremental update of name '%s'.", refreshColumn)
+              .build(logger);
+        }
+        refreshField = newScan.getRowType().getField(refreshColumn, false, false);
+      }
+
+      if(refreshField.getType().getSqlTypeName() != SqlTypeName.BIGINT){
         throw UserException.dataReadError()
           .message("Dremio only supports incremental column update on BIGINT types. The identified column was of type %s.", refreshField.getType().getSqlTypeName())
           .build(logger);
       }
 
-      final RelBuilder relBuilder = newCalciteRelBuilderWithoutContext(scan.getCluster());
+      // No need to add a project if field name is correct
+      if (UPDATE_COLUMN.equals(refreshColumn)) {
+        return newScan;
+      }
 
-      relBuilder.push(scan);
+      final RelBuilder relBuilder = newCalciteRelBuilderWithoutContext(newScan.getCluster());
 
-      List<String> newFieldNames = ImmutableList.<String>builder().addAll(scan.getRowType().getFieldNames()).add(UPDATE_COLUMN).build();
+      relBuilder.push(newScan);
 
-      Iterable<RexInputRef> projects = FluentIterable.from(scan.getRowType().getFieldNames())
-        .transform(new Function<String, RexInputRef>() {
-          @Override
-          public RexInputRef apply(String fieldName) {
-            return relBuilder.field(fieldName);
-          }
-        })
-        .append(relBuilder.field(refreshColumn));
+      List<String> newFieldNames = ImmutableList.<String>builder().addAll(newScan.getRowType().getFieldNames()).add(UPDATE_COLUMN).build();
 
+      Iterable<RexInputRef> projects = Stream.concat(
+          scan.getRowType().getFieldNames().stream().map(relBuilder::field),
+          Stream.of(relBuilder.field(refreshColumn)))
+          .collect(Collectors.toList());
       relBuilder.project(projects, newFieldNames);
 
       return relBuilder.build();
@@ -199,13 +209,17 @@ public class IncrementalUpdateUtils {
   /**
    * Abstract materialization implementation that updates an aggregate materialization plan to only add new data.
    */
-  private abstract static class MaterializationShuttle extends BaseShuttle {
+  public static class MaterializationShuttle extends BaseShuttle {
+    private final long value;
 
-    public MaterializationShuttle(String refreshColumn) {
+    public MaterializationShuttle(String refreshColumn, long value) {
       super(refreshColumn);
+      this.value = value;
     }
 
-    abstract RexNode generateLiteral(RexBuilder rexBuilder, RelDataTypeFactory typeFactory);
+    private RexNode generateLiteral(RexBuilder rexBuilder, RelDataTypeFactory typeFactory){
+      return rexBuilder.makeLiteral(value, typeFactory.createSqlType(SqlTypeName.BIGINT), false);
+    }
 
     @Override
     public RelNode visit(TableScan tableScan) {
@@ -277,46 +291,6 @@ public class IncrementalUpdateUtils {
           }});
       }
       return tableScan;
-    }
-  }
-
-  public static class ColumnMaterializationShuttle extends MaterializationShuttle {
-
-    private final long value;
-
-    public ColumnMaterializationShuttle(String refreshColumn, long value) {
-      super(refreshColumn);
-      this.value = value;
-    }
-
-    @Override
-    public RexNode generateLiteral(RexBuilder rexBuilder, RelDataTypeFactory typeFactory){
-      return rexBuilder.makeLiteral(value, typeFactory.createSqlType(SqlTypeName.BIGINT), false);
-    }
-  }
-
-  /**
-   * For file-based incrementally updated accelerations, the plan for updating materializations is rewritten to add the $updateId
-   * field to the tableScan, and also add a filter to only select files that have a modification time later than the last
-   * updates max($updateId). Aggregations are also modified to include max($updateId) as $updateId.
-   */
-  public static class FileMaterializationShuttle extends MaterializationShuttle {
-
-    private final long timeStamp;
-
-    public FileMaterializationShuttle(long timeStamp) {
-      super(UPDATE_COLUMN);
-      this.timeStamp = timeStamp;
-    }
-
-    @Override
-    public RelNode updateScan(IncrementallyUpdateable updateable){
-      return updateable.projectInvisibleColumn(UPDATE_COLUMN);
-    }
-
-    @Override
-    public RexNode generateLiteral(RexBuilder rexBuilder, RelDataTypeFactory typeFactory){
-      return rexBuilder.makeLiteral(timeStamp, typeFactory.createSqlType(SqlTypeName.BIGINT), false);
     }
   }
 }

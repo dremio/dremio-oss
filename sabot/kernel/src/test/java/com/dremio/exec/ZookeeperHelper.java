@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.util.Properties;
 
 import com.dremio.common.config.SabotConfig;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.util.MiniZooKeeperCluster;
 
 /**

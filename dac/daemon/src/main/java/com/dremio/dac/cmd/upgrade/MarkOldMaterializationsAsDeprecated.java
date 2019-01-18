@@ -23,6 +23,7 @@ import javax.inject.Provider;
 import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.common.Strings;
 
+import com.dremio.common.Version;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.accelerator.proto.LayoutId;
@@ -35,16 +36,30 @@ import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.proto.RefreshId;
 import com.dremio.service.reflection.store.MaterializationStore;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
 /**
  * Marks materializations created before 2.0 as deprecated.
  */
-public class MarkOldMaterializationsAsDeprecated extends UpgradeTask {
+public class MarkOldMaterializationsAsDeprecated extends UpgradeTask implements LegacyUpgradeTask {
+
+  //DO NOT MODIFY
+  static final String taskUUID = "b2bda6ef-6a7a-4f3e-bf69-7e88ada3fa3c";
 
   public MarkOldMaterializationsAsDeprecated() {
-    super("Mark materializations created before 2.0 as deprecated", VERSION_106, VERSION_150, NORMAL_ORDER + 4);
+    super("Mark materializations created before 2.0 as deprecated", ImmutableList.of(SetAccelerationRefreshGrace.taskUUID));
+  }
+
+  @Override
+  public Version getMaxVersion() {
+    return VERSION_150;
+  }
+
+  @Override
+  public String getTaskUUID() {
+    return taskUUID;
   }
 
   @Override
@@ -127,7 +142,7 @@ public class MarkOldMaterializationsAsDeprecated extends UpgradeTask {
         .setReflectionId(reflectionId)
         .setState(MaterializationState.DEPRECATED)
         .setSeriesId(seriesId)
-        .setReflectionGoalVersion(0L)
+        .setLegacyReflectionGoalVersion(0L)
         .setSeriesOrdinal(0);
 
       final RefreshId refreshId = new RefreshId(UUID.randomUUID().toString());
@@ -151,5 +166,10 @@ public class MarkOldMaterializationsAsDeprecated extends UpgradeTask {
     }
 
     return numDeprecated;
+  }
+
+  @Override
+  public String toString() {
+    return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
   }
 }

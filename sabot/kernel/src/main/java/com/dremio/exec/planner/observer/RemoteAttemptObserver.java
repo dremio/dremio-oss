@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.planner.observer;
 
+import com.dremio.common.utils.protos.ExternalIdHelper;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.exec.work.protector.UserResponseHandler;
-import com.dremio.common.utils.protos.QueryWritableBatch;
 
 public class RemoteAttemptObserver extends AbstractAttemptObserver {
 

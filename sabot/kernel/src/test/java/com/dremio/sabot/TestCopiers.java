@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot;
 
+import java.util.concurrent.TimeUnit;
+
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.AllocationReservation;
 import org.apache.arrow.memory.BufferAllocator;
@@ -38,7 +40,6 @@ import com.dremio.sabot.op.sort.external.Sv4HyperContainer;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBufAllocator;
-import java.util.concurrent.TimeUnit;
 
 public class TestCopiers extends BaseTestOperator {
   static final int targetBatchSize = 1023;

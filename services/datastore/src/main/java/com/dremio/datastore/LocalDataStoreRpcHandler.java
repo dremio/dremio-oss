@@ -21,10 +21,6 @@ import java.util.Map;
 
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.KVStore.FindByRange;
-import com.dremio.datastore.RemoteDataStoreProtobuf.CheckAndDeleteRequest;
-import com.dremio.datastore.RemoteDataStoreProtobuf.CheckAndDeleteResponse;
-import com.dremio.datastore.RemoteDataStoreProtobuf.CheckAndPutRequest;
-import com.dremio.datastore.RemoteDataStoreProtobuf.CheckAndPutResponse;
 import com.dremio.datastore.RemoteDataStoreProtobuf.ContainsRequest;
 import com.dremio.datastore.RemoteDataStoreProtobuf.ContainsResponse;
 import com.dremio.datastore.RemoteDataStoreProtobuf.DeleteRequest;
@@ -154,7 +150,7 @@ public class LocalDataStoreRpcHandler extends DefaultDataStoreRpcHandler {
     } catch (ConcurrentModificationException cme) {
       return PutResponse.newBuilder().setConcurrentModificationError(cme.getMessage()).build();
     }
-    return value.getVersion() == null? PutResponse.getDefaultInstance() : PutResponse.newBuilder().setVersion(value.getVersion()).build();
+    return value.getTag() == null? PutResponse.getDefaultInstance() : PutResponse.newBuilder().setVersion(value.getTag()).build();
   }
 
   @Override
@@ -170,31 +166,6 @@ public class LocalDataStoreRpcHandler extends DefaultDataStoreRpcHandler {
       store.delete(store.newKey().setSerializedBytes(request.getKey().toByteArray()));
     }
     return DeleteResponse.getDefaultInstance();
-  }
-
-  @Override
-  public CheckAndPutResponse checkAndPut(CheckAndPutRequest request) {
-    final CoreKVStore<Object, Object> store = coreStoreProvider.getStore(request.getStoreId());
-    final KVStoreTuple<Object> newValue = store.newValue().setSerializedBytes(request.getNewValue().toByteArray());
-    final boolean inserted = store.checkAndPut(
-      store.newKey().setSerializedBytes(request.getKey().toByteArray()),
-      request.hasOldValue()? store.newValue().setSerializedBytes(request.getOldValue().toByteArray()) : store.newValue(),
-      newValue);
-    final CheckAndPutResponse.Builder builder = CheckAndPutResponse.newBuilder();
-    builder.setInserted(inserted);
-    if (newValue.getVersion() != null) {
-      builder.setVersion(newValue.getVersion());
-    }
-    return builder.build();
-  }
-
-  @Override
-  public CheckAndDeleteResponse checkAndDelete(CheckAndDeleteRequest request) {
-    final CoreKVStore<Object, Object> store = coreStoreProvider.getStore(request.getStoreId());
-    final boolean deleted = store.checkAndDelete(
-      store.newKey().setSerializedBytes(request.getKey().toByteArray()),
-      store.newValue().setSerializedBytes(request.getValue().toByteArray()));
-    return CheckAndDeleteResponse.newBuilder().setDeleted(deleted).build();
   }
 
   @Override

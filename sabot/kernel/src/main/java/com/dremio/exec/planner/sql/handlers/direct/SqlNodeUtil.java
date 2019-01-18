@@ -17,7 +17,6 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import java.util.regex.Pattern;
 
-import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.expr.fn.impl.RegexpUtil;

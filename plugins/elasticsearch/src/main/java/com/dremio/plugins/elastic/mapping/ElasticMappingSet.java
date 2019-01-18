@@ -26,12 +26,11 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
 import com.dremio.plugins.elastic.DateFormats;
-import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.DateFormats.FormatterAndType;
+import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -712,7 +711,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
     @Override
     public Object findInjectableValue(Object valueId, DeserializationContext ctxt, BeanProperty forProperty,
-        Object beanInstance) {
+        Object beanInstance) throws JsonMappingException {
       if(valueId != null && CURRENT_NAME.equals(valueId)){
         return ctxt.getParser().getParsingContext().getCurrentName();
       }

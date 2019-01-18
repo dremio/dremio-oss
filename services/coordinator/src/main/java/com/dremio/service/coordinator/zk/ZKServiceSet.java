@@ -80,8 +80,7 @@ final class ZKServiceSet extends AbstractServiceSet implements Service {
   }
 
   void unregister(ZKRegistrationHandle handle) {
-    // when SabotNode is unregistered, clean all the listeners registered in CC.
-    clearListeners();
+    //do not remove listeners, as they are global per service
 
     try {
       discovery.unregisterService(handle.getServiceInstance());
@@ -151,10 +150,14 @@ final class ZKServiceSet extends AbstractServiceSet implements Service {
           public NodeEndpoint apply(ServiceInstance<NodeEndpoint> input) {
             return input.getPayload();
           }
-        });    }
+        });
+  }
+
 
   @Override
   public void close() throws Exception {
+    // might be redundant, as serviceCache clears them upon closure
+    clearListeners();
     serviceCache.close();
   }
 }

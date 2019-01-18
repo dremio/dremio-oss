@@ -53,6 +53,10 @@ describe('ExploreTableCell', () => {
           type: 'INTEGER'
         }]
       }]),
+      columns: Immutable.fromJS([{
+        name: 'col1',
+        status: 'ORIGINAL'
+      }]),
       onCellTextSelect: sinon.spy(),
       preventNextRowsChunkLoad: false,
       isNextRowsChunkLoading: false
@@ -97,12 +101,6 @@ describe('ExploreTableCell', () => {
       const wrapper = shallow(<ExploreTableCell {...emptyStringProps}/>);
       expect(wrapper.find('.cell-wrap').text()).to.eql('empty text');
     });
-  });
-
-  it('should render blank if no cell data', () => {
-    const data = commonProps.data.deleteIn([0, 'row', 0, 'v']);
-    const wrapper = shallow(<ExploreTableCell {...commonProps} data={data}/>);
-    expect(wrapper.find('.cell-wrap').text()).to.eql('null');
   });
 
   describe('#shouldComponentUpdate', function() {
@@ -243,19 +241,17 @@ describe('ExploreTableCell', () => {
       commonProps.isDumbTable = false;
       commonProps.location = { query: {} };
       const instance = shallow(
-        <ExploreTableCell {...commonProps} tableData={Immutable.fromJS({rows: [], columns: []})}/>
+        <ExploreTableCell {...commonProps} columns={Immutable.fromJS([])}/>
       ).instance();
       expect(instance.prohibitSelection(selectionData)).to.be.true;
     });
 
     it('should return false when query.type undefined', function() {
       commonProps.isDumbTable = false;
-      commonProps.tableData = Immutable.fromJS({
-        columns: [{
-          name: 'col1',
-          status: 'ORIGINAL'
-        }]
-      });
+      commonProps.columns = Immutable.fromJS([{
+        name: 'col1',
+        status: 'ORIGINAL'
+      }]);
       commonProps.location = { query: {} };
       const instance = shallow(<ExploreTableCell {...commonProps}/>).instance();
       expect(instance.prohibitSelection(selectionData)).to.be.false;
@@ -263,12 +259,6 @@ describe('ExploreTableCell', () => {
 
     it('should return false when columnStatus is not "HIGHLIGHTED"', function() {
       commonProps.isDumbTable = false;
-      commonProps.tableData = Immutable.fromJS({
-        columns: [{
-          name: 'col1',
-          status: 'ORIGINAL'
-        }]
-      });
       commonProps.location = { query: { type: 'transform'} };
       const instance = shallow(<ExploreTableCell {...commonProps}/>).instance();
       expect(instance.prohibitSelection(selectionData)).to.be.false;
@@ -276,12 +266,7 @@ describe('ExploreTableCell', () => {
 
     it('should return true when columnStatus is "HIGHLIGHTED"', function() {
       commonProps.isDumbTable = false;
-      commonProps.tableData = Immutable.fromJS({
-        columns: [{
-          name: 'col1',
-          status: 'HIGHLIGHTED'
-        }]
-      });
+      commonProps.columns = commonProps.columns.setIn([0, 'status'], 'HIGHLIGHTED');
       commonProps.location = { query: { type: 'transform'} };
       const instance = shallow(<ExploreTableCell {...commonProps}/>).instance();
       expect(instance.prohibitSelection(selectionData)).to.be.true;
@@ -297,9 +282,7 @@ describe('ExploreTableCell', () => {
       props = {
         ...commonProps,
         location: {state: {}},
-        tableData: Immutable.fromJS({
-          columns: [{name: 'col1', type: 'LIST'}]
-        })
+        columns: Immutable.fromJS([{name: 'col1', type: 'LIST'}])
       };
       wrapper = shallow(<ExploreTableCell {...props}/>, {context});
       instance = wrapper.instance();
@@ -351,7 +334,7 @@ describe('ExploreTableCell', () => {
         }
       };
       wrapper.setProps({
-        tableData: props.tableData.setIn(['columns', 0, 'type'], 'TEXT')
+        columns: props.columns.setIn([0, 'type'], 'TEXT')
       });
       instance.onMouseUp();
       expect(props.selectItemsOfList).to.not.be.called;
@@ -361,7 +344,7 @@ describe('ExploreTableCell', () => {
 
     it('should do nothing when columnType is MAP', () => {
       wrapper.setProps({
-        tableData: props.tableData.setIn(['columns', 0, 'type'], 'MAP')
+        columns: props.columns.setIn([0, 'type'], 'MAP')
       });
       instance.onMouseUp();
       expect(props.selectItemsOfList).to.not.be.called;
@@ -371,7 +354,7 @@ describe('ExploreTableCell', () => {
 
     it('should call selectAll for other column types (not TEXT, MAP, LIST)', () => {
       wrapper.setProps({
-        tableData: props.tableData.setIn(['columns', 0, 'type'], 'NUMBER')
+        columns: props.columns.setIn([0, 'type'], 'NUMBER')
       });
       instance.onMouseUp();
       expect(props.selectAll).to.be.calledWith(selectionData.parentElement, 'NUMBER', 'col1', 'column_text');

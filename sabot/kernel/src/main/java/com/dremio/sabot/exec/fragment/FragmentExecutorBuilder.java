@@ -31,6 +31,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.PhysicalPlanReader;
@@ -38,16 +39,15 @@ import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
 import com.dremio.exec.proto.CoordExecRPC.SharedData;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.record.NamespaceUpdater;
 import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.server.options.FragmentOptionManager;
-import com.dremio.options.OptionList;
-import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValue;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.testing.ExecutionControls;
+import com.dremio.options.OptionList;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.driver.SchemaChangeListener;
 import com.dremio.sabot.exec.EventProvider;
@@ -78,6 +78,7 @@ public class FragmentExecutorBuilder {
 
   static final String PIPELINE_RES_GRP = "pipeline";
   static final String WORK_QUEUE_RES_GRP = "work-queue";
+  static final String OOB_QUEUE = "oob-queue";
 
   private final QueriesClerk clerk;
   private final SabotConfig config;
@@ -207,6 +208,12 @@ public class FragmentExecutorBuilder {
       final ContextInformation contextInfo =
           contextInformationFactory.newContextFactory(fragment.getCredentials(), fragment.getContext());
 
+      // create rpc connections
+      final ExecToCoordTunnel coordTunnel = execToCoord.getTunnel(fragment.getForeman());
+      final DeferredException exception = new DeferredException();
+      final StatusHandler handler = new StatusHandler(exception);
+      final TunnelProvider tunnelProvider = new TunnelProviderImpl(flushable.getAccountor(), coordTunnel, dataCreator, handler, sharedResources.getGroup(PIPELINE_RES_GRP));
+
       final OperatorContextCreator creator = new OperatorContextCreator(
           stats,
           allocator,
@@ -220,17 +227,15 @@ public class FragmentExecutorBuilder {
           executorService,
           spillService,
           contextInfo,
-          nodeDebugContextProvider);
+          nodeDebugContextProvider,
+          tunnelProvider,
+          fragment.getAllAssignmentList());
 
-      final ExecToCoordTunnel coordTunnel = execToCoord.getTunnel(fragment.getForeman());
       final FragmentStatusReporter statusReporter = new FragmentStatusReporter(fragment.getHandle(), stats, coordTunnel, allocator);
-      final DeferredException exception = new DeferredException();
-      final StatusHandler handler = new StatusHandler(exception);
-      final TunnelProvider tunnelProvider = new TunnelProviderImpl(flushable.getAccountor(), coordTunnel, dataCreator, handler, sharedResources.getGroup(PIPELINE_RES_GRP));
-
       final FragmentExecutor executor = new FragmentExecutor(
           statusReporter,
           config,
+          controls,
           fragment,
           coord,
           planReader,

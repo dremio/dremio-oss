@@ -31,7 +31,7 @@ message SearchQueryResponseTags {
   required string id = 1;
   required string entityId = 2;
   repeated string tags = 3;
-  optional int64 version = 4;
+  optional string version = 4;
   optional int64 lastModified = 5;
 }
 

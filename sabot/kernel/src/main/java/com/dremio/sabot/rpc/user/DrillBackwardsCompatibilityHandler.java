@@ -18,30 +18,27 @@ package com.dremio.sabot.rpc.user;
 import static com.dremio.common.types.TypeProtos.DataMode.OPTIONAL;
 import static com.dremio.common.types.TypeProtos.DataMode.REQUIRED;
 import static com.dremio.common.types.TypeProtos.MinorType.BIT;
+import static com.dremio.common.types.TypeProtos.MinorType.DECIMAL;
 import static com.dremio.common.types.TypeProtos.MinorType.INTERVALDAY;
 import static com.dremio.common.types.TypeProtos.MinorType.VARBINARY;
 import static com.dremio.common.types.TypeProtos.MinorType.VARCHAR;
-import static com.dremio.common.types.TypeProtos.MinorType.DECIMAL;
-import com.dremio.common.types.Types;
 import static java.lang.String.format;
-import org.apache.arrow.memory.RootAllocator;
 
 import java.math.BigDecimal;
 import java.util.List;
 
-import com.dremio.common.types.TypeProtos;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.UInt1Vector;
 import org.apache.arrow.vector.DecimalHelper;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.slf4j.Logger;
 
+import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MinorType;
-import com.dremio.exec.expr.TypeHelper;
+import com.dremio.common.types.Types;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
+
 import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 

@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.store.easy.excel.xls;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.poi.hssf.model.RecordStream;
 import org.apache.poi.hssf.record.ArrayRecord;
 import org.apache.poi.hssf.record.BlankRecord;
@@ -44,9 +47,6 @@ import org.apache.poi.hssf.record.aggregates.RowRecordsAggregate;
 import org.apache.poi.hssf.record.aggregates.SharedValueManager;
 import org.apache.poi.hssf.record.pivottable.ViewDefinitionRecord;
 import org.apache.poi.ss.util.CellReference;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Handles a Row block that contains all cell values of a sheet along with row formatting information.

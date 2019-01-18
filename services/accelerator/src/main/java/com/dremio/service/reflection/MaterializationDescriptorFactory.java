@@ -15,7 +15,7 @@
  */
 package com.dremio.service.reflection;
 
-import com.dremio.exec.planner.sql.MaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionGoal;

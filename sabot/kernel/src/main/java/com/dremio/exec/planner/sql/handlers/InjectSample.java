@@ -15,15 +15,13 @@
  */
 package com.dremio.exec.planner.sql.handlers;
 
-import org.apache.calcite.plan.Convention;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
 
-import com.dremio.exec.calcite.logical.JdbcCrel;
 import com.dremio.exec.calcite.logical.SampleCrel;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 
-class InjectSample extends StatelessRelShuttleImpl {
+public class InjectSample extends StatelessRelShuttleImpl {
 
   private final boolean addSample;
 

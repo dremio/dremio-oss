@@ -373,20 +373,20 @@ class ExploreUtils {
     sel.addRange(range);
   }
 
-  getHrefForUntitledDatasetConfig = (dottedFullPath, newVersion) => {
+  getHrefForUntitledDatasetConfig = (dottedFullPath, newVersion, doNotWaitJobCompletion) => {
     const pathParam = encodeURIComponent(dottedFullPath);
-    return `/datasets/new_untitled?parentDataset=${pathParam}&newVersion=${newVersion}&limit=${ROWS_LIMIT}`;
+    return `/datasets/new_untitled?parentDataset=${pathParam}&newVersion=${newVersion}&limit=${doNotWaitJobCompletion ? 0 : ROWS_LIMIT}`;
   }
 
   getHrefForDatasetConfig = (resourcePath) => `${resourcePath}?view=explore&limit=50`;
   getPreviewLink = (dataset, tipVersion) => {
     return `${dataset.getIn(['apiLinks', 'self'])}/preview?view=explore` +
-        `${tipVersion ? `&tipVersion=${tipVersion}` : ''}&limit=50`;
+        `${tipVersion ? `&tipVersion=${tipVersion}` : ''}&limit=0`;
   };
 
   getReviewLink = (dataset, tipVersion) =>
     `${dataset.getIn(['apiLinks', 'self'])}/review?jobId=${dataset.get('jobId')}&view=explore` +
-        `${tipVersion ? `&tipVersion=${tipVersion}` : ''}&limit=50`;
+        `${tipVersion ? `&tipVersion=${tipVersion}` : ''}&limit=0`;
 
   getHrefForTransform({ resourceId, tableId }, location) {
     // TODO this should be moved into dataset decorator

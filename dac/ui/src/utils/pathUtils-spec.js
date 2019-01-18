@@ -49,19 +49,23 @@ describe('pathUtils', () => {
     });
 
     it('should return space name', () => {
-      expect(parseResourceId('/space/foo', 'test_user')).to.eql('foo');
+      expect(parseResourceId('/space/foo', 'test_user')).to.eql('"foo"');
     });
 
     it('should return source name', () => {
-      expect(parseResourceId('/source/foo', 'test_user')).to.eql('foo');
+      expect(parseResourceId('/source/foo', 'test_user')).to.eql('"foo"');
     });
 
     it('should return source name with folders', () => {
-      expect(parseResourceId('/source/foo/folder/f1/f2', 'test_user')).to.eql('foo.f1.f2');
+      expect(parseResourceId('/source/foo/folder/f1/f2', 'test_user')).to.eql('"foo"."f1"."f2"');
     });
 
     it('should return username for home path with folder', () => {
-      expect(parseResourceId('/home/@test_user/folder/ff', 'test_user')).to.eql('"@test_user".ff');
+      expect(parseResourceId('/home/@test_user/folder/ff', 'test_user')).to.eql('"@test_user"."ff"');
+    });
+
+    it('should handle folders with dot in name', () => {
+      expect(parseResourceId('/home/@test_user/folder/with.dot', 'test_user')).to.eql('"@test_user"."with.dot"');
     });
   });
 

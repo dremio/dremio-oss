@@ -81,7 +81,8 @@ public class TestSubPathFileSystemPlugin extends BaseTestQuery {
 
     SourceConfig config = pluginId.getConfig();
     config.setId(null);
-    config.setVersion(null);
+    config.setTag(null);
+    config.setConfigOrdinal(null);
     config.setName("subPathDfs");
     config.setConfig(nasConf.toBytesString());
     pluginRegistry.getSystemUserCatalog().createSource(config);

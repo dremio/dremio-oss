@@ -15,10 +15,10 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import io.netty.buffer.ArrowBuf;
-
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+
+import io.netty.buffer.ArrowBuf;
 
 public class HashHelper {
 

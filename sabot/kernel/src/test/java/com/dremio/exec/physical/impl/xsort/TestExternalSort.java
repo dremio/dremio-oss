@@ -17,7 +17,10 @@ package com.dremio.exec.physical.impl.xsort;
 
 import static org.junit.Assert.assertTrue;
 
-import org.junit.Ignore;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -27,10 +30,6 @@ import com.dremio.TestBuilder;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.test.UserExceptionMatcher;
-
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
 
 public class TestExternalSort extends BaseTestQuery {
 

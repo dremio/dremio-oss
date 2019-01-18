@@ -16,7 +16,6 @@
 package com.dremio.exec.testing;
 
 import com.dremio.common.DeferredException;
-import com.dremio.exec.testing.Testable;
 import com.dremio.exec.testing.exception.ParameterizedTestFailure;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;

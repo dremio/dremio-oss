@@ -237,6 +237,7 @@ public class UnifiedParquetReader implements RecordReader {
     for (RecordReader delegateReader : delegates) {
       AutoCloseables.close(delegateReader);
     }
+    AutoCloseables.close(inputStreamProvider);
   }
 
   private void splitColumns(final ParquetMetadata footer,

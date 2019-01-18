@@ -18,13 +18,11 @@ package com.dremio.sabot.driver;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.Describer;
-import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
@@ -36,6 +34,7 @@ import com.dremio.exec.util.BatchPrinter;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.DualInputOperator;
 import com.dremio.sabot.op.spi.Operator;
@@ -89,11 +88,20 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     );
   }
 
+  public int getOperatorId() {
+    return popConfig.getOperatorId();
+  }
+
+  @Override
+  public void workOnOOB(OutOfBandMessage message) {
+    inner.workOnOOB(message);
+  }
+
   public T getInner(){
     return inner;
   }
 
-  public OperatorContext getContext(){
+  public OperatorContext getContext() {
     return context;
   }
 
@@ -130,7 +138,7 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
       .addContext("SqlOperatorImpl", operatorName)
       .addContext("Location",
         String.format("%d:%d:%d", h.getMajorFragmentId(), h.getMinorFragmentId(), operatorId));
-    if (e instanceof OutOfMemoryException || e instanceof OutOfDirectMemoryError) {
+    if (e instanceof OutOfMemoryException || e instanceof OutOfDirectMemoryError || e instanceof OutOfMemoryError) {
       context.getNodeDebugContextProvider().addMemoryContext(builder);
     }
 

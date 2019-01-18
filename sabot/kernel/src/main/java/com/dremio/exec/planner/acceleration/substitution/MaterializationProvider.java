@@ -17,7 +17,7 @@ package com.dremio.exec.planner.acceleration.substitution;
 
 import java.util.List;
 
-import org.apache.calcite.plan.RelOptMaterialization;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
 
 /**
  * Provides a list of materializations for {@link SubstitutionProvider}
@@ -28,6 +28,6 @@ public interface MaterializationProvider {
    * Returns list of materializations that provider considers for substitution.
    *
    */
-  List<RelOptMaterialization> getMaterializations();
+  List<DremioMaterialization> getMaterializations();
 
 }

@@ -186,7 +186,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertEquals(3, data.getColumns().size());
 
     fileConfig.setExtractHeader(true);
-//    fileConfig.setVersion(0L);
+//    fileConfig.setLegacyTag(0L);
     expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath)).buildPut(Entity.json(fileConfig)));
     data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/"+ fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
     assertEquals(3, data.getReturnedRowCount());
@@ -218,7 +218,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
     assertEquals(3, data.getColumns().size());
 
     fileConfig.setExtractHeader(true);
-//    fileConfig.setVersion(0L);
+//    fileConfig.setLegacyTag(0L);
     expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_format/" + fileUrlPath)).buildPut(Entity.json(fileConfig)));
     data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/file_preview/"+ fileUrlPath)).buildPost(Entity.json(fileConfig)), JobDataFragment.class);
     assertEquals(3, data.getReturnedRowCount());

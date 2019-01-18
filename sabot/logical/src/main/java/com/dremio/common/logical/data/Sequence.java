@@ -168,7 +168,7 @@ public class Sequence extends LogicalOperatorBase {
       // set input reference.
       if (id != null) {
 
-        ReadableObjectId rid = ctxt.findObjectId(id, idGenerator);
+        ReadableObjectId rid = ctxt.findObjectId(id, idGenerator, null);
         rid.bindItem(prev);
         // logger.debug("Binding id {} to item {}.", rid.id, rid.item);
 

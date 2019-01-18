@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
+import com.dremio.common.config.SabotConfig;
 import com.dremio.options.OptionManager;
 
 /**
@@ -28,7 +29,9 @@ public class DefaultSubstitutionProviderFactory implements SubstitutionProviderF
 
   @Override
   public SubstitutionProvider getSubstitutionProvider(
-      MaterializationProvider materializationProvider, OptionManager options) {
+      SabotConfig config,
+      MaterializationProvider materializationProvider,
+      OptionManager options) {
     return new UnifyingSubstitutionProvider(materializationProvider);
   }
 }

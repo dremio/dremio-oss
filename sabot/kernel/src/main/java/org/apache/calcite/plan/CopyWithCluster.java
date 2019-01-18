@@ -40,6 +40,7 @@ import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.logical.LogicalWindow;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexCopierWithOver;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexLocalRef;
 import org.apache.calcite.rex.RexNode;
@@ -140,7 +141,7 @@ public class CopyWithCluster extends StatelessRelShuttleImpl {
   }
 
   public RexNode copyOf(RexNode expr) {
-    return expr == null ? null : cluster.getRexBuilder().copy(expr);
+    return expr == null ? null : expr.accept(new RexCopierWithOver(cluster.getRexBuilder()));
   }
 
   public List<RexNode> copyRexNodes(List<RexNode> exprs) {

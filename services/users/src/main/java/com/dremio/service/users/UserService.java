@@ -39,7 +39,7 @@ public interface UserService {
 
   User updateUserName(String oldUserName, String newUserName, User userConfig, String authKey) throws IOException, IllegalArgumentException, UserNotFoundException;
 
-  void deleteUser(String userName, long version) throws UserNotFoundException, IOException;
+  void deleteUser(String userName, String version) throws UserNotFoundException, IOException;
 
   void authenticate(String userName, String password) throws UserLoginException;
 

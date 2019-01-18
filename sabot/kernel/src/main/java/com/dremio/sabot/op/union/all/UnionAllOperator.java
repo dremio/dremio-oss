@@ -25,10 +25,10 @@ import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.config.UnionAll;
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.spi.DualInputOperator;
 import com.google.common.base.Preconditions;

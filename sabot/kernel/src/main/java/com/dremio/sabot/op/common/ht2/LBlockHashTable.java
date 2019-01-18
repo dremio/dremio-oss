@@ -23,13 +23,13 @@ import java.util.Formatter;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.common.util.Numbers;
-import com.google.common.base.Preconditions;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
+import com.dremio.common.util.Numbers;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;

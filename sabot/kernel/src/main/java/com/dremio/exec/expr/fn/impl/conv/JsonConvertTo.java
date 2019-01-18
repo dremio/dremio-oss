@@ -27,8 +27,8 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
-
 import com.dremio.exec.expr.fn.FunctionErrorContext;
+
 import io.netty.buffer.ArrowBuf;
 
 /**

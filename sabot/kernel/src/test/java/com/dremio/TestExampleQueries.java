@@ -372,8 +372,8 @@ public class TestExampleQueries extends PlanTestBase {
         + "from cp.\"customer.json\" group by customer_region_id, fname) as sq(x, y, z) where coalesce(x, 100) = 10";
     testPlanMatchingPatterns(query, new String[] {
         "Filter\\(condition=\\[CASE\\(IS NOT NULL\\(\\$1\\), =\\(\\$1, 10\\), false\\)\\]\\)",
-        "Agg\\(group=\\[\\{0, 1\\}\\], agg\\#0=\\[\\$SUM0\\(\\$2\\)\\], agg\\#1=\\[COUNT\\(\\$2\\)\\]\\)",
-        "Project\\(customer_region_id=\\[\\$0\\], fname=\\[\\$1\\], EXPR\\$2=\\[\\/\\(CAST\\(CASE\\(=\\(\\$3, 0\\), null, \\$2\\)\\):DOUBLE, \\$3\\)\\]\\)" },
+        "Agg\\(group=\\[\\{0, 1\\}\\], agg\\#0=\\[\\SUM\\(\\$2\\)\\], agg\\#1=\\[COUNT\\(\\$2\\)\\]\\)",
+        "Project\\(customer_region_id=\\[\\$0\\], fname=\\[\\$1\\], EXPR\\$2=\\[\\/\\(CAST\\(\\$2\\):DOUBLE, \\$3\\)\\]\\)" },
         null);
   }
 
@@ -1364,7 +1364,6 @@ public class TestExampleQueries extends PlanTestBase {
 
   }
 
-  @Ignore //DX-3852
   @Test  //DRILL_3004
   public void testDRILL_3004() throws Exception {
     final String query =
@@ -1383,7 +1382,7 @@ public class TestExampleQueries extends PlanTestBase {
         .sqlQuery(query)
         .expectsEmptyResultSet()
         .optionSettingQueriesForTestQuery("ALTER SESSION SET \"planner.enable_hashjoin\" = false; " +
-            "ALTER SESSION SET \"planner.disable_exchanges\" = true")
+            "ALTER SESSION SET \"planner.disable_exchanges\" = true; ALTER SESSION SET \"planner.enable_mergejoin\" = true")
         .build()
         .run();
 

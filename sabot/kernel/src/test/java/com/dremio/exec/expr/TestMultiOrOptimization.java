@@ -21,9 +21,9 @@ import org.joda.time.LocalDateTime;
 import org.joda.time.LocalTime;
 import org.junit.Assert;
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Test;
 
+import com.dremio.common.expression.SupportedEngines;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.util.AssertionUtil;
 import com.dremio.options.OptionValue;
@@ -168,6 +168,8 @@ public class TestMultiOrOptimization extends BaseTestFunction {
 
     // test the optimized case
     try {
+      // setting the codegen option to use Java to ensure that the expected code path is exercised
+      testContext.getOptions().setOption(OptionValue.createString(OptionType.SYSTEM, ExecConstants.QUERY_EXEC_OPTION.getOptionName(), SupportedEngines.CodeGenOption.Java.name()));
       InExpression.COUNT.set(0);
       try {
         testFunction(expr, ObjectArrays.concat(objects, result));
@@ -179,6 +181,7 @@ public class TestMultiOrOptimization extends BaseTestFunction {
       Assert.assertEquals("Expected in expression invocation count.", count, InExpression.COUNT.get());
     } finally {
       InExpression.COUNT.set(0);
+      testContext.getOptions().deleteOption(ExecConstants.QUERY_EXEC_OPTION.getOptionName(), OptionType.SYSTEM);
     }
   }
 }

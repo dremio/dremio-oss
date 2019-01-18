@@ -17,18 +17,33 @@ package com.dremio.dac.cmd.upgrade;
 
 import java.util.stream.StreamSupport;
 
+import com.dremio.common.Version;
 import com.dremio.datastore.CoreIndexedStore;
 import com.dremio.datastore.CoreStoreProviderImpl;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Re-indexes all stores that are indexed stores.
  */
-public class ReIndexAllStores extends UpgradeTask {
+public class ReIndexAllStores extends UpgradeTask implements LegacyUpgradeTask {
+
+  //DO NOT MODIFY
+  static final String taskUUID = "5522c3bc-195f-41ba-8bfd-a33f91b1219a";
 
   public ReIndexAllStores() {
-    super("Re index all stores", VERSION_106, VERSION_210, URGENT_ORDER);
+    super("Re index all stores", ImmutableList.of(DatasetConfigUpgrade.taskUUID));
+  }
+
+  @Override
+  public Version getMaxVersion() {
+    return VERSION_210;
+  }
+
+  @Override
+  public String getTaskUUID() {
+    return taskUUID;
   }
 
   @Override
@@ -40,5 +55,10 @@ public class ReIndexAllStores extends UpgradeTask {
         .filter(storeWithId -> storeWithId.getStore() instanceof CoreIndexedStore)
         .map(CoreStoreProviderImpl.StoreWithId::getId)
         .forEach(localStore::reIndex);
+  }
+
+  @Override
+  public String toString() {
+    return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
   }
 }

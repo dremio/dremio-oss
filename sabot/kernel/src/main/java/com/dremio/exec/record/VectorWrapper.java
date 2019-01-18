@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.record;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
 
 import com.dremio.common.expression.SchemaPath;
-
-import org.apache.arrow.memory.BufferAllocator;
 
 
 public interface VectorWrapper<T extends ValueVector> extends AutoCloseable {

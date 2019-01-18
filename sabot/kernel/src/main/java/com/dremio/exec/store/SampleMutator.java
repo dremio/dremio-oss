@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.collect.Maps;

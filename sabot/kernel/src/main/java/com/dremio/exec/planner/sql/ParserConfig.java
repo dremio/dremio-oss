@@ -23,8 +23,8 @@ import org.apache.calcite.sql.validate.SqlConformance;
 
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.parser.impl.ParserWithCompoundIdConverter;
 import com.dremio.exec.planner.sql.parser.impl.ParserImpl;
+import com.dremio.exec.planner.sql.parser.impl.ParserWithCompoundIdConverter;
 import com.dremio.sabot.rpc.user.UserSession;
 
 public class ParserConfig implements SqlParser.Config {

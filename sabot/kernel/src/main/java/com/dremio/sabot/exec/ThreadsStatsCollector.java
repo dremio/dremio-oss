@@ -15,8 +15,6 @@
  */
 package com.dremio.sabot.exec;
 
-import com.carrotsearch.hppc.LongObjectHashMap;
-
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.util.AbstractMap.SimpleEntry;
@@ -24,6 +22,8 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentLinkedDeque;
+
+import com.carrotsearch.hppc.LongObjectHashMap;
 
 /**
  * Collects stats to report CPU usage per thread during the last 5 seconds

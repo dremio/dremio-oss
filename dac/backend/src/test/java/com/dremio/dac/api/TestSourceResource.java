@@ -68,7 +68,7 @@ public class TestSourceResource extends BaseTestServer {
     assertEquals(source.getName(), newSource.getName());
     assertNotNull(source.getState());
 
-    newNamespaceService().deleteSource(new SourcePath(source.getName()).toNamespaceKey(), 0);
+    newNamespaceService().deleteSource(new SourcePath(source.getName()).toNamespaceKey(), source.getTag());
   }
 
   @Test
@@ -108,7 +108,7 @@ public class TestSourceResource extends BaseTestServer {
     assertEquals(source.getTag(), "1");
     assertNotNull(source.getState());
 
-    newNamespaceService().deleteSource(new SourcePath(source.getName()).toNamespaceKey(), 1);
+    newNamespaceService().deleteSource(new SourcePath(source.getName()).toNamespaceKey(), source.getTag());
   }
 
   @Test
@@ -134,9 +134,9 @@ public class TestSourceResource extends BaseTestServer {
 
     // test wrong tag
     updatedSource.setTag("badtag");
-    expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(SOURCES_PATH).path("badid")).buildPut(Entity.entity(updatedSource, JSON)));
+    expectStatus(Response.Status.CONFLICT, getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildPut(Entity.entity(updatedSource, JSON)));
 
-    newNamespaceService().deleteSource(new SourcePath(updatedSource.getName()).toNamespaceKey(), 0);
+    newNamespaceService().deleteSource(new SourcePath(updatedSource.getName()).toNamespaceKey(), createdSourceConfig.getTag());
   }
 
   @Test
@@ -174,8 +174,7 @@ public class TestSourceResource extends BaseTestServer {
     assertEquals(source.getMetadataPolicy().getDatasetRefreshAfterMs(), updatedSource.getMetadataPolicy().getDatasetRefreshAfterMs());
     assertEquals(source.getMetadataPolicy().getNamesRefreshMs(), updatedSource.getMetadataPolicy().getNamesRefreshMs());
 
-
-    newNamespaceService().deleteSource(new SourcePath(createdSourceConfig.getName()).toNamespaceKey(), 1);
+    newNamespaceService().deleteSource(new SourcePath(createdSourceConfig.getName()).toNamespaceKey(), source.getTag());
   }
 
   @Test
@@ -261,7 +260,7 @@ public class TestSourceResource extends BaseTestServer {
     SourceConfig config = new SourceConfig();
     config.setName("Foopy");
     config.setId(new EntityId("id"));
-    config.setVersion(0L);
+    config.setTag("0");
     config.setAccelerationGracePeriod(0L);
     config.setAccelerationRefreshPeriod(0L);
 
@@ -365,7 +364,7 @@ public class TestSourceResource extends BaseTestServer {
 
       expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildPut(Entity.entity(updatedSource, JSON)));
     } finally {
-      newNamespaceService().deleteSource(new SourcePath(createdSourceConfig.getName()).toNamespaceKey(), 1);
+      newNamespaceService().deleteSource(new SourcePath(createdSourceConfig.getName()).toNamespaceKey(), "1");
     }
   }
 }

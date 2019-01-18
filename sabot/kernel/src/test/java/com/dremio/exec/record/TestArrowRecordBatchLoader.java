@@ -19,14 +19,9 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
-import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
-import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
-import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
-import org.junit.Assert;
 import org.junit.Test;
 
-import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.sabot.op.receiver.RawFragmentBatch;
 

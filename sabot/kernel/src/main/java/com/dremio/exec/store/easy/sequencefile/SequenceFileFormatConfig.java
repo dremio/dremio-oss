@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.store.easy.sequencefile;
 
+import java.util.List;
+
 import com.dremio.common.logical.FormatPluginConfig;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
-
-import java.util.List;
 
 @JsonTypeName("sequencefile") @JsonInclude(JsonInclude.Include.NON_DEFAULT)
 public class SequenceFileFormatConfig implements FormatPluginConfig {

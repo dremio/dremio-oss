@@ -17,10 +17,10 @@ package com.dremio.exec.store.easy.excel.xls;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.HashSet;
 
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter;

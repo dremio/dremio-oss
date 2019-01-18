@@ -117,7 +117,9 @@ public final class QueryParser {
         context.getSession(),
         observerForSubstitution,
         catalog,
-        context.getSubstitutionProviderFactory());
+        context.getSubstitutionProviderFactory(),
+        context.getConfig(),
+        context.getScanResult());
   }
 
   /**

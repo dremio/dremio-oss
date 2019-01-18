@@ -15,6 +15,7 @@
  */
 import { createSelector } from 'reselect';
 import Immutable from 'immutable';
+import { getModuleState } from '@app/reducers';
 
 const emptyTable = Immutable.fromJS({
   columns: [],
@@ -24,7 +25,7 @@ const emptyTable = Immutable.fromJS({
 function getJoinTableData(state, props) {
   // here data should be mutable for better perfomance
   const { entities } = state.resources;
-  const joinVersion = state.explore.join.getIn(['custom', 'joinVersion']);
+  const joinVersion = getExploreState(state).join.getIn(['custom', 'joinVersion']);
 
   const table = entities.getIn(['tableData', joinVersion]);
 
@@ -48,11 +49,11 @@ export function getPeekData(state, previewVersion) {
 }
 
 export function getTableViewData(state, datasetVersion) {
-  return state.explore.view.getIn(['tables', datasetVersion]) || Immutable.Map();
+  return getExploreState(state).view.getIn(['tables', datasetVersion]) || Immutable.Map();
 }
 
 export function getTransformViewData(state, href) {
-  return state.explore.view.getIn(['transform', href]);
+  return getExploreState(state).view.getIn(['transform', href]);
 }
 
 export function getPaginationUrl(state, datasetVersion) {
@@ -175,3 +176,7 @@ export const getHistoryItems = createSelector(
   [ getHistoryItemsForHistoryId ],
   historyItems => historyItems
 );
+
+
+export const exploreStateKey = 'explorePage'; // a key that would be used for dynamic redux state
+export const getExploreState = state => getModuleState(state, exploreStateKey);

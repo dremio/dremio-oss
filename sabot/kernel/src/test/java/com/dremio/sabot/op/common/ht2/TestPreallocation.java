@@ -15,30 +15,30 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
-import com.dremio.exec.record.VectorContainer;
-import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
-import com.dremio.sabot.op.aggregate.vectorized.SumAccumulators;
-import com.dremio.sabot.op.aggregate.vectorized.MaxAccumulators;
-import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
-import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
-import com.koloboke.collect.hash.HashConfig;
-
-import org.junit.Test;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.vector.SimpleBigIntVector;
-
-import io.netty.buffer.ArrowBuf;
-import io.netty.util.internal.PlatformDependent;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 import java.util.Random;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.SimpleBigIntVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.junit.Test;
+
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.sabot.op.aggregate.vectorized.Accumulator;
+import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
+import com.dremio.sabot.op.aggregate.vectorized.MaxAccumulators;
+import com.dremio.sabot.op.aggregate.vectorized.SumAccumulators;
+import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
+import com.koloboke.collect.hash.HashConfig;
+
+import io.netty.buffer.ArrowBuf;
+import io.netty.util.internal.PlatformDependent;
 
 public class TestPreallocation {
   private static int MAX_VALUES_PER_BATCH = 0;

@@ -21,6 +21,7 @@ import static com.dremio.sabot.Fixtures.tr;
 
 import org.junit.Test;
 
+import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.physical.config.Filter;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.Fixtures.Table;
@@ -85,5 +86,24 @@ public class TestSimpleFilter extends BaseTestOperator {
     validateSingle(f, FilterOperator.class, input, output);
   }
 
+  @Test
+  public void strlenFilter() throws Exception {
+    LogicalExpression expr = toExpr("(length(c0) + length(c1)) > 10");
+    Filter f = new Filter(null, expr, 1f);
+    Table input = t(
+      th("c0", "c1"),
+      tr("hello", "world"),
+      tr("good", "morning"),
+      tr("bye", "bye"),
+      tr("happy", "birthday")
+    );
 
+    Table output = t(
+      th("c0", "c1"),
+      tr("good", "morning"),
+      tr("happy", "birthday")
+    );
+
+    validateSingle(f, FilterOperator.class, input, output);
+  }
 }

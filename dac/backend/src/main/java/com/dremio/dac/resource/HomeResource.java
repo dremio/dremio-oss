@@ -303,7 +303,7 @@ public class HomeResource {
     final DatasetConfig datasetConfig = toDatasetConfig(fileFormat.asFileConfig(), DatasetType.PHYSICAL_DATASET_HOME_FILE,
       securityContext.getUserPrincipal().getName(), null);
     catalog.createOrUpdateDataset(namespaceService, new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), filePath.toNamespaceKey(), datasetConfig);
-    fileFormat.setVersion(datasetConfig.getVersion());
+    fileFormat.setVersion(datasetConfig.getTag());
     return newFile(
       datasetConfig.getId().getId(),
       filePath,
@@ -378,7 +378,7 @@ public class HomeResource {
   @DELETE
   @Path("file/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
-  public void deleteFile(@PathParam("path") String path, @QueryParam("version") Long version) throws NamespaceException, DACException {
+  public void deleteFile(@PathParam("path") String path, @QueryParam("version") String version) throws NamespaceException, DACException {
     FilePath filePath = FilePath.fromURLPath(homeName, path);
     if (version == null) {
       throw new ClientErrorException("missing version parameter");
@@ -459,7 +459,7 @@ public class HomeResource {
   @DELETE
   @Path("/folder/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
-  public void deleteFolder(@PathParam("path") String path, @QueryParam("version") Long version) throws NamespaceException, FolderNotFoundException {
+  public void deleteFolder(@PathParam("path") String path, @QueryParam("version") String version) throws NamespaceException, FolderNotFoundException {
     FolderPath folderPath = FolderPath.fromURLPath(homeName, path);
     if (version == null) {
       throw new ClientErrorException("missing version parameter");
@@ -495,8 +495,10 @@ public class HomeResource {
   @Path("/new_untitled_from_file/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
-  public InitialPreviewResponse createUntitledFromHomeFile(@PathParam("path") String path)
+  public InitialPreviewResponse createUntitledFromHomeFile(
+      @PathParam("path") String path,
+      @QueryParam("limit") Integer limit)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
-    return datasetsResource.createUntitledFromHomeFile(homeName, path);
+    return datasetsResource.createUntitledFromHomeFile(homeName, path, limit);
   }
 }

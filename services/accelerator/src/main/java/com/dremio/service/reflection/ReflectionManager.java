@@ -63,12 +63,9 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.ReflectionServiceImpl.DescriptorCache;
 import com.dremio.service.reflection.ReflectionServiceImpl.ExpansionHelper;
-import com.dremio.service.reflection.handlers.RefreshDoneHandler;
-import com.dremio.service.reflection.handlers.RefreshStartHandler;
 import com.dremio.service.reflection.proto.DataPartition;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Failure;
@@ -85,6 +82,8 @@ import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.ReflectionState;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.proto.RefreshDecision;
+import com.dremio.service.reflection.refresh.RefreshDoneHandler;
+import com.dremio.service.reflection.refresh.RefreshStartHandler;
 import com.dremio.service.reflection.store.ExternalReflectionStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
@@ -448,14 +447,14 @@ public class ReflectionManager implements Runnable {
       if (goal.getState() == ReflectionGoalState.ENABLED) { // we still need to make sure user didn't create a disabled goal
         reflectionStore.save(create(goal));
       }
-    } else if (!entry.getGoalVersion().equals(goal.getVersion())) {
+    } else if (!entry.getGoalVersion().equals(goal.getTag())) {
       // descriptor changed
       logger.debug("reflection goal {} updated. state {} -> {}", getId(goal), entry.getState(), goal.getState());
       cancelRefreshJobIfAny(entry);
       final boolean enabled = goal.getState() == ReflectionGoalState.ENABLED;
       entry.setState(enabled ? UPDATE : DEPRECATE)
         .setName(goal.getName())
-        .setGoalVersion(goal.getVersion());
+        .setGoalVersion(goal.getTag());
       reflectionStore.save(entry);
     }
   }
@@ -482,7 +481,7 @@ public class ReflectionManager implements Runnable {
       final String query = String.format("DROP TABLE IF EXISTS %s", pathString);
       MaterializationSummary materializationSummary = new MaterializationSummary()
         .setReflectionId(materialization.getReflectionId().getId())
-        .setLayoutVersion(materialization.getReflectionGoalVersion().intValue())
+        .setLayoutVersion(materialization.getReflectionGoalVersion())
         .setMaterializationId(materialization.getId().getId());
       jobsService.submitJob(
         JobRequest.newMaterializationJobBuilder(materializationSummary, SubstitutionSettings.of())
@@ -546,7 +545,8 @@ public class ReflectionManager implements Runnable {
       logger.debug("cancelling materialization job {} for reflection {}", entry.getRefreshJobId().getId(), getId(entry));
       // even though the following method can block if the job's foreman is on a different node, it's not a problem here
       // as we always submit reflection jobs on the same node as the manager
-      jobsService.cancel(SYSTEM_USERNAME, entry.getRefreshJobId(), "Reflection maintenance job cancellation");
+      jobsService.cancel(SYSTEM_USERNAME, entry.getRefreshJobId(),
+          "Query cancelled by Reflection Manager. Reflection configuration is stale");
     } catch (JobException e) {
       logger.warn("Failed to cancel refresh job updated reflection {}", getId(entry), e);
     }
@@ -845,14 +845,11 @@ public class ReflectionManager implements Runnable {
 
   private ReflectionEntry create(ReflectionGoal goal) {
     logger.debug("creating new reflection {}", goal.getId().getId());
-    // retrieve reflection's dataset
-    final DatasetConfig dataset = namespaceService.findDatasetByUUID(goal.getDatasetId());
 
     return new ReflectionEntry()
       .setId(goal.getId())
-      .setGoalVersion(goal.getVersion())
+      .setGoalVersion(goal.getTag())
       .setDatasetId(goal.getDatasetId())
-      .setDatasetVersion(dataset.getVersion())
       .setState(REFRESH)
       .setType(goal.getType())
       .setName(goal.getName());

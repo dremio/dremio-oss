@@ -18,7 +18,7 @@ import { CALL_API } from 'redux-api-middleware';
 import { API_URL_V2 } from 'constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import exploreUtils from 'utils/explore/exploreUtils';
-import fullDatasetSchema from 'schemas/v2/fullDataset';
+import fullDatasetSchema, { datasetWithoutData } from 'schemas/v2/fullDataset';
 
 export const NEW_UNTITLED_START   = 'NEW_UNTITLED_START';
 export const NEW_UNTITLED_SUCCESS = 'NEW_UNTITLED_SUCCESS';
@@ -31,12 +31,12 @@ function newUntitledFetch(dataset, parentFullPath, viewId) {
   // (only one seems to be sent though)
   const meta = { viewId, entity: dataset };
   const newVersion = exploreUtils.getNewDatasetVersion();
-  const href = exploreUtils.getHrefForUntitledDatasetConfig(parentFullPath, newVersion);
+  const href = exploreUtils.getHrefForUntitledDatasetConfig(parentFullPath, newVersion, true);
   return {
     [CALL_API]: {
       types: [
         { type: NEW_UNTITLED_START, meta },
-        schemaUtils.getSuccessActionTypeWithSchema(NEW_UNTITLED_SUCCESS, fullDatasetSchema, meta),
+        schemaUtils.getSuccessActionTypeWithSchema(NEW_UNTITLED_SUCCESS, datasetWithoutData, meta),
         { type: NEW_UNTITLED_FAILURE, meta }
       ],
       method: 'POST',

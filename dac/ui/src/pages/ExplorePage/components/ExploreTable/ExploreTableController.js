@@ -26,7 +26,7 @@ import exploreTransforms from 'utils/exploreTransforms';
 
 import { LIST, MAP } from 'constants/DataTypes';
 
-import { getPeekData, getImmutableTable, getPaginationUrl } from 'selectors/explore';
+import { getPeekData, getImmutableTable, getPaginationUrl, getExploreState } from 'selectors/explore';
 import { getViewState } from 'selectors/resources';
 import { resetViewState } from 'actions/resources';
 import { accessEntity } from 'actions/resources/lru';
@@ -387,6 +387,16 @@ function mapStateToProps(state, ownProps) {
   const { dataset } = ownProps;
   const datasetVersion = dataset && dataset.get('datasetVersion');
   const paginationUrl = getPaginationUrl(state, datasetVersion);
+  const exploreState = getExploreState(state);
+  let explorePageProps = null;
+  if (exploreState) {
+    explorePageProps = {
+      currentSql: exploreState.view.get('currentSql'),
+      queryContext: exploreState.view.get('queryContext'),
+      isResizeInProgress: exploreState.ui.get('isResizeInProgress'),
+      fullCell: exploreState.dataset.get('fullCell')
+    };
+  }
 
   let tableData = ownProps.tableData;
   const previewVersion = location.state && location.state.previewVersion;
@@ -409,10 +419,7 @@ function mapStateToProps(state, ownProps) {
     fullCellViewState: ownProps.isDumbTable ? ownProps.exploreViewState : getViewState(state, FULL_CELL_VIEW_ID),
     cardsViewState: ownProps.isDumbTable ? ownProps.exploreViewState
       : getViewState(state, LOAD_TRANSFORM_CARDS_VIEW_ID),
-    currentSql: state.explore.view.get('currentSql'),
-    queryContext: state.explore.view.get('queryContext'),
-    isResizeInProgress: state.explore.ui.get('isResizeInProgress'),
-    fullCell: state.explore.dataset.get('fullCell')
+    ...explorePageProps
   };
 }
 

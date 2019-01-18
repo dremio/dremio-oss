@@ -15,6 +15,11 @@
  */
 package com.dremio.sabot.aggregate.hash;
 
+import static com.dremio.sabot.Fixtures.Table;
+import static com.dremio.sabot.Fixtures.t;
+import static com.dremio.sabot.Fixtures.th;
+import static com.dremio.sabot.Fixtures.tr;
+
 import java.util.Arrays;
 
 import org.junit.Test;
@@ -23,7 +28,6 @@ import com.dremio.exec.physical.config.HashAggregate;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.op.aggregate.hash.HashAggOperator;
 
-import static com.dremio.sabot.Fixtures.*;
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 
 public class TestStreamAgg extends BaseTestOperator {

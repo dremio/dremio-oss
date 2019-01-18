@@ -19,9 +19,9 @@ import org.apache.arrow.vector.holders.VarBinaryHolder;
 
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
-import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
+import com.dremio.exec.expr.annotations.Output;
 
 /**
  * This and {@link DummyConvertTo} class merely act as a placeholder so that Optiq

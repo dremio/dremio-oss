@@ -18,6 +18,7 @@ import { connect }   from 'react-redux';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
+import { getExploreState } from '@app/selectors/explore';
 
 import SqlAutoComplete from 'pages/ExplorePage/components/SqlEditor/SqlAutoComplete';
 import FunctionsHelpPanel from 'pages/ExplorePage/components/SqlEditor/FunctionsHelpPanel';
@@ -129,7 +130,7 @@ export class AddFieldEditor extends Component {
 
 function mapStateToProps(state) {
   return {
-    height: state.explore.ui.get('sqlSize')
+    height: getExploreState(state).ui.get('sqlSize')
   };
 }
 

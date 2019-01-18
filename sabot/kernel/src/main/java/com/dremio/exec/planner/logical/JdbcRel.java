@@ -24,7 +24,6 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.common.logical.data.LogicalOperator;
-import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.common.JdbcRelBase;
 
 public class JdbcRel extends JdbcRelBase implements Rel, CopyToCluster {

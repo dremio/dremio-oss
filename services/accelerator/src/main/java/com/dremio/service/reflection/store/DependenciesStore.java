@@ -30,7 +30,6 @@ import com.dremio.service.reflection.proto.ReflectionDependencies;
 import com.dremio.service.reflection.proto.ReflectionDependencyEntry;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -83,15 +82,16 @@ public class DependenciesStore {
     }
 
     @Override
-    public Long incrementVersion(ReflectionDependencies value) {
-      final Long current = value.getVersion();
-      value.setVersion(Optional.fromNullable(current).or(-1L) + 1);
-      return current;
+    public void setVersion(ReflectionDependencies value, Long version) {
+      value.setVersion(version);
     }
 
-    @Override
-    public void setVersion(ReflectionDependencies value, Long version) {
-      value.setVersion(version == null ? 0 : version);
+    @Override public String getTag(ReflectionDependencies value) {
+      return value.getTag();
+    }
+
+    @Override public void setTag(ReflectionDependencies value, String tag) {
+      value.setTag(tag);
     }
   }
 

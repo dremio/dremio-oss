@@ -47,6 +47,8 @@ public class TestNewMathFunctions extends BaseTestFunction {
      { "log(10)", Math.log(10)},
      { "log10(10)", Math.log10(10)},
      { "log(2.0, 64.0)", (Math.log(64.0)/Math.log(2.0))},
+     { "log(2.0)", Math.log(2.0)},
+     { "log(2)", Math.log(2.0)},
      { "exp(10)", Math.exp(10)},
      { "degrees(0.5)",  Math.toDegrees(0.5)},
      { "radians(45.0)", Math.toRadians(45.0)},

@@ -23,12 +23,10 @@ import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.types.Types;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.types.Types;
 import com.dremio.common.util.FileUtils;
-import com.dremio.exec.work.foreman.SqlUnsupportedException;
-import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
 import com.google.common.collect.Lists;
 
 public class TestUnionAll extends BaseTestQuery{
@@ -729,8 +727,8 @@ public class TestUnionAll extends BaseTestQuery{
 
     // Validate the plan
     final String[] expectedPlan = {
-        "Scan.*columns=\\[`n_comment`, `n_nationkey`, `n_name`\\]",
-        "Scan.*columns=\\[`r_comment`, `r_regionkey`, `r_name`\\]"};
+        "Scan.*columns=\\[`n_nationkey`, `n_name`, `n_comment`\\]",
+        "Scan.*columns=\\[`r_regionkey`, `r_name`, `r_comment`\\]"};
     final String[] excludedPlan = {};
     PlanTestBase.testPlanMatchingPatterns(query, expectedPlan, excludedPlan);
 

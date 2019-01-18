@@ -138,7 +138,7 @@ public interface NamespaceService {
       throws NamespaceException;
 
   //// DELETE
-  void deleteSource(NamespaceKey sourcePath, long version) throws NamespaceException;
+  void deleteSource(NamespaceKey sourcePath, String version) throws NamespaceException;
 
   /**
    * Delete all of a sources children but leave the source intact.
@@ -146,17 +146,17 @@ public interface NamespaceService {
    * @param version
    * @throws NamespaceException
    */
-  void deleteSourceChildren(final NamespaceKey sourcePath, long version) throws NamespaceException;
+  void deleteSourceChildren(final NamespaceKey sourcePath, String version) throws NamespaceException;
 
-  void deleteSpace(NamespaceKey spacePath, long version) throws NamespaceException;
+  void deleteSpace(NamespaceKey spacePath, String version) throws NamespaceException;
 
   void deleteEntity(NamespaceKey entityPath) throws NamespaceException;
 
-  void deleteDataset(NamespaceKey datasetPath, long version) throws NamespaceException;
+  void deleteDataset(NamespaceKey datasetPath, String version) throws NamespaceException;
 
-  void deleteFolder(NamespaceKey folderPath, long version) throws NamespaceException;
+  void deleteFolder(NamespaceKey folderPath, String version) throws NamespaceException;
 
-  void deleteHome(final NamespaceKey sourcePath, long version) throws NamespaceException;
+  void deleteHome(final NamespaceKey sourcePath, String version) throws NamespaceException;
 
   //// RENAME
   DatasetConfig renameDataset(NamespaceKey oldDatasetPath, NamespaceKey newDatasetPath) throws NamespaceException;

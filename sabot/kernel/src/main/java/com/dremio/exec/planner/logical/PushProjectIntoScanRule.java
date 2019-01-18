@@ -26,6 +26,7 @@ import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
+
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.PrelUtil.ProjectPushInfo;

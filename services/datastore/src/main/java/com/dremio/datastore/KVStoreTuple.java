@@ -25,7 +25,7 @@ public class KVStoreTuple<T> {
 
   private T object;
   private byte[] serializedBytes;
-  private Long version;
+  private String tag;
   private boolean isNull = true;
 
   private final Serializer<T> serializer;
@@ -64,11 +64,16 @@ public class KVStoreTuple<T> {
     return this;
   }
 
-  public KVStoreTuple<T> setVersion(Long version) {
+  public KVStoreTuple<T> setTag(String tag) {
     if (!serializedBytesLoaded && !objectLoaded) {
       throw new IllegalArgumentException("Can not set version in KVStoreTuple without setting actual value or serialized value first.");
     }
-    this.version = version;
+    this.tag = tag;
+
+    if (versionExtractor != null) {
+      versionExtractor.setTag(object, tag);
+    }
+
     versionLoaded = true;
     return this;
   }
@@ -80,12 +85,12 @@ public class KVStoreTuple<T> {
     return serializedBytes;
   }
 
-  public Long getVersion() {
+  public String getTag() {
     if (!versionLoaded) {
       loadVersion();
       versionLoaded = true;
     }
-    return version;
+    return tag;
   }
 
   public boolean isNull() {
@@ -96,16 +101,32 @@ public class KVStoreTuple<T> {
    * Increment old version and reload new version.
    * @return
    */
-  public Long incrementVersion() {
+  public String incrementVersion() {
     if (!versionLoaded) {
       loadVersion();
       versionLoaded = true;
     }
-    Long previousVersion = versionExtractor.incrementVersion(object);
+
+    String previousVersion = versionExtractor.getTag(object);
+    if (previousVersion == null) {
+      versionExtractor.setTag(object, "0");
+    } else {
+      try {
+        versionExtractor.setTag(object, String.valueOf(Long.valueOf(previousVersion) + 1));
+      } catch (NumberFormatException e) {
+        throw new DatastoreException(String.format("Failed to generate incremented value from previous value [%s]", previousVersion), e);
+      }
+    }
+
     // cache next version and reload serialized bytes
-    version = versionExtractor.getVersion(object);
+    tag = versionExtractor.getTag(object);
     loadSerializedValue();
+
     return previousVersion;
+  }
+
+  public AutoCloseable preCommit() {
+    return versionExtractor.preCommit(getObject());
   }
 
   public T getObject() {
@@ -132,13 +153,15 @@ public class KVStoreTuple<T> {
 
   private void loadVersion() {
     if (versionExtractor == null) {
-      version = null;
+      tag = null;
     } else {
       if (!objectLoaded) {
         loadValue();
       }
       if (object != null) {
-        version = versionExtractor.getVersion(object);
+        // load in tag before we do the inline upgrade
+        tag = versionExtractor.getTag(object);
+        doInlineUpgradeToStringTag();
       }
     }
     versionLoaded = true;
@@ -154,14 +177,14 @@ public class KVStoreTuple<T> {
     }
     KVStoreTuple<?> other = (KVStoreTuple<?>) o;
 
-    return Objects.equals(version, other.version) &&
+    return Objects.equals(tag, other.tag) &&
       Objects.equals(serializedBytes, other.serializedBytes) &&
       Objects.equals(object, other.object);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(object, serializedBytes, version);
+    return Objects.hash(object, serializedBytes, tag);
   }
 
   public String toJson() throws IOException {
@@ -170,5 +193,20 @@ public class KVStoreTuple<T> {
 
   public T fromJson(String v) throws IOException {
     return serializer.fromJson(v);
+  }
+
+  void inlineUpgradeToStringTag() { //used to do inline upgrade for the old data with only long version
+    loadVersion();
+  }
+
+  private void doInlineUpgradeToStringTag() {
+    if (object != null) {
+      final Long version = versionExtractor.getVersion(object);
+      if (tag == null && version != null) {
+        tag = String.valueOf(version);
+        versionExtractor.setTag(object, tag);
+        loadSerializedValue();
+      }
+    }
   }
 }

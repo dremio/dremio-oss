@@ -122,7 +122,7 @@ public class ViewTable implements DremioTable {
   }
 
   @Override
-  public long getVersion() {
-    return -1;
+  public String getVersion() {
+    throw new UnsupportedOperationException("getVersion() is not supported");
   }
 }

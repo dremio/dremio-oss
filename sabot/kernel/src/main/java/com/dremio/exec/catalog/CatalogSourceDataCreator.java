@@ -46,18 +46,23 @@ public class CatalogSourceDataCreator implements StoreCreationFunction<KVStore<N
    */
   public static class SourceInternalDataVersionExtractor implements VersionExtractor<SourceInternalData> {
     @Override
+    public String getTag(SourceInternalData value) {
+      return value.getTag();
+    }
+
+    @Override
+    public void setTag(SourceInternalData value, String tag) {
+      value.setTag(tag);
+    }
+
+    @Override
     public Long getVersion(SourceInternalData value) {
       return value.getVersion();
     }
+
     @Override
     public void setVersion(SourceInternalData value, Long version) {
       value.setVersion(version);
-    }
-    @Override
-    public Long incrementVersion(SourceInternalData value) {
-      Long version = getVersion(value);
-      setVersion(value, version == null ? 0 : version + 1);
-      return version;
     }
   }
 

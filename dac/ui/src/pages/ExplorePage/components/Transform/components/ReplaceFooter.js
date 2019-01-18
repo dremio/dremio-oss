@@ -51,7 +51,7 @@ export default class ReplaceFooter extends Component {
   static validate(values) {
     if (values.transformType === 'replace') {
       return applyValidators(values, [
-        isRequiredIfAnotherPropertyEqual('replacementValue', 'replaceType', 'NULL')
+        isRequiredIfAnotherPropertyEqual('replacementValue', 'replaceType', 'NULL', 'Replacement value')
       ]);
     }
   }

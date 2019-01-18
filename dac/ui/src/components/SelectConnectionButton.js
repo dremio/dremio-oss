@@ -16,7 +16,7 @@
 import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
-import Art from 'components/Art';
+import SourceIcon from 'components/Icon/SourceIcon';
 import { DIVIDER } from 'uiTheme/radium/colors';
 
 @Radium
@@ -24,6 +24,7 @@ export default class SelectConnectionButton extends Component {
   static propTypes = {
     label: PropTypes.string.isRequired,
     iconType: PropTypes.string.isRequired,
+    icon: PropTypes.string,
     pillText: PropTypes.string,
     disabled: PropTypes.bool,
     onClick: PropTypes.func
@@ -34,8 +35,12 @@ export default class SelectConnectionButton extends Component {
   }
 
   render() {
-    const { label, iconType, pillText, disabled, onClick } = this.props;
-    const src = iconType === 'sources/NETEZZA' ? `${iconType}.png` : `${iconType}.svg`;
+    const { label, iconType, icon, pillText, disabled, onClick } = this.props;
+    // if icon is provided, use it, otherwise use iconType as an icon file name
+    let src = icon;
+    if (!src) {
+      src = (iconType === 'sources/NETEZZA') ? `${iconType}.png` : `${iconType}.svg`;
+    }
 
     return <button
       disabled={disabled}
@@ -44,7 +49,7 @@ export default class SelectConnectionButton extends Component {
       data-qa={iconType}
       key={iconType}
     >
-      <Art src={src} alt='' style={styles.iconStyle} />
+      <SourceIcon src={src} alt='' style={styles.iconStyle} />
       <h3 style={styles.label}>
         {label}
       </h3>

@@ -15,13 +15,13 @@
  */
 package com.dremio.exec.resolver;
 
+import java.util.List;
+
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.google.common.collect.Lists;
-
-import java.util.List;
 
 public class ExactFunctionResolver implements FunctionResolver {
 

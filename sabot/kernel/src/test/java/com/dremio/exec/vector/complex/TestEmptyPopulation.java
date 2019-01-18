@@ -18,10 +18,7 @@ package com.dremio.exec.vector.complex;
 import static com.dremio.TestBuilder.listOf;
 import static com.dremio.TestBuilder.mapOf;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.arrow.vector.UInt4Vector;
-import org.apache.arrow.vector.complex.BaseRepeatedValueVector;
 import org.apache.arrow.vector.complex.EmptyValuePopulator;
 import org.junit.After;
 import org.junit.Assert;

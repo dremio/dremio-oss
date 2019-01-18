@@ -19,13 +19,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexNode;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 

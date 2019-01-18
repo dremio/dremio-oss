@@ -55,14 +55,11 @@ public class InitialPreviewResponse {
     this.error = error;
   }
 
-  public static InitialPreviewResponse of(DatasetUI dataset, JobDataFragment data, boolean isApproximate,
+  public static InitialPreviewResponse of(DatasetUI dataset, JobId jobId, JobDataFragment data, boolean isApproximate,
       History history, ApiErrorModel error) {
-    if (data == null) {
-      return of(dataset, isApproximate, history, error);
-    } else {
-      return new InitialPreviewResponse(dataset, data, JobResource.getPaginationURL(data.getJobId()),
-        isApproximate, data.getJobId(), history, error);
-    }
+
+    return new InitialPreviewResponse(dataset, data, JobResource.getPaginationURL(jobId),
+      isApproximate, jobId, history, error);
   }
 
   public static InitialPreviewResponse of(DatasetUI dataset, boolean isApproximate,

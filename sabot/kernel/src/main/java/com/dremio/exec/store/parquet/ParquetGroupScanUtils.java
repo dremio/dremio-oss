@@ -486,9 +486,9 @@ public class ParquetGroupScanUtils {
 
     // DX-14064: don't consider columns that are all null partition columns.
     if (optionManager.getOption(ExecConstants.PARQUET_ELIMINATE_NULL_PARTITIONS)) {
-    // filter out only those columns who we know have zero count i.e. all the row groups
-    // have stats for this column and they are all null.
-    columnTypeMap = columnTypeMap.entrySet()
+      // filter out only those columns who we know have zero count i.e. all the row groups
+      // have stats for this column and they are all null.
+      columnTypeMap = columnTypeMap.entrySet()
         .stream()
         .filter(e -> e.getKey().getAsUnescapedPath().equals(IncrementalUpdateUtils.UPDATE_COLUMN)
           || columnValueCounts.get(e.getKey()) != 0)
@@ -504,11 +504,16 @@ public class ParquetGroupScanUtils {
       Map<SchemaPath, MajorType> prunedColumnTypeMap = Maps.newLinkedHashMap();
       int i = 0;
       for(Map.Entry<SchemaPath, MajorType> columnTypeMapEntry : columnTypeMap.entrySet()) {
-        prunedColumnTypeMap.put(columnTypeMapEntry.getKey(), columnTypeMapEntry.getValue());
-        i++;
         if (i == maxPartitionColumns) {
           break;
         }
+        prunedColumnTypeMap.put(columnTypeMapEntry.getKey(), columnTypeMapEntry.getValue());
+        i++;
+      }
+      // handle case where partition identification is turned off.
+      // this is needed to correctly handle incremental reflection refresh.
+      if (prunedColumnTypeMap.size() == 0 ) {
+        prunedColumnTypeMap.put(SchemaPath.getSimplePath(UPDATE_COLUMN), Types.optional(MinorType.BIGINT));
       }
       columnTypeMap = prunedColumnTypeMap;
     }

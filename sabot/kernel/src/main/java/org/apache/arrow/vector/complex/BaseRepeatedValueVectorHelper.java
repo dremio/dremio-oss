@@ -17,18 +17,16 @@ package org.apache.arrow.vector.complex;
 
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 
-import com.dremio.common.types.TypeProtos;
-import com.dremio.exec.proto.UserBitShared;
 import org.apache.arrow.memory.BaseAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseValueVectorHelper;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
 import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 
 import io.netty.buffer.ArrowBuf;
-import org.apache.arrow.vector.util.OversizedAllocationException;
 
 public class BaseRepeatedValueVectorHelper extends BaseValueVectorHelper {
 

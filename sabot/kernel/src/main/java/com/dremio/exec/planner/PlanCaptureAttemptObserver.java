@@ -35,12 +35,12 @@ import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo.Substitution;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
-import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
-import com.dremio.exec.planner.sql.MaterializationDescriptor;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
 import com.dremio.exec.proto.UserBitShared.LayoutMaterializedViewProfile;
@@ -178,7 +178,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   }
 
   @Override
-  public void planSubstituted(DremioRelOptMaterialization materialization,
+  public void planSubstituted(DremioMaterialization materialization,
                               List<RelNode> substitutions,
                               RelNode target, long millisTaken) {
     final String key = materialization.getReflectionId();
@@ -200,7 +200,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         .addAllDisplayColumns(materialization.getLayoutInfo().getDisplayColumns())
         .setNumSubstitutions(substitutions.size())
         .setMillisTakenSubstituting(millisTaken)
-        .setPlan(toStringOrEmpty(materialization.queryRel, false))
+        .setPlan(toStringOrEmpty(materialization.getQueryRel(), false))
         .addNormalizedPlans(toStringOrEmpty(target, false))
         .setSnowflake(materialization.isSnowflake());
     } else {
@@ -291,13 +291,11 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         .setPlan(planAsString);
 
     // dump state of volcano planner to troubleshoot costing issues (or long planning issues).
-    if((verbose || noTransform) && planner instanceof VolcanoPlanner) {
-      StringWriter sw = new StringWriter();
-      PrintWriter pw = new PrintWriter(sw);
-      ((VolcanoPlanner) planner).dump(pw);
-      pw.flush();
-      String dump = sw.toString();
-      b.setPlannerDump(dump);
+    if (verbose || noTransform) {
+      final String dump = getPlanDump(planner);
+      if (dump != null) {
+        b.setPlannerDump(dump);
+      }
       //System.out.println(Thread.currentThread().getName() + ":\n" + dump);
     }
 
@@ -324,6 +322,24 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     }
   }
 
+  private String getPlanDump(RelOptPlanner planner) {
+    if (planner == null) {
+      return null;
+    }
+
+    // Use VolcanoPlanner#dump to get more detailed information
+    if (planner instanceof VolcanoPlanner) {
+      StringWriter sw = new StringWriter();
+      PrintWriter pw = new PrintWriter(sw);
+      ((VolcanoPlanner) planner).dump(pw);
+      pw.flush();
+      return sw.toString();
+    }
+
+    // Print the current tree otherwise
+    RelNode root = planner.getRoot();
+    return RelOptUtil.toString(root);
+  }
   @Override
   public void tablesCollected(Iterable<DremioTable> tables) {
     if (includeDatasetProfiles) {

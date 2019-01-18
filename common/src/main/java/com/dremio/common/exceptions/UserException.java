@@ -530,7 +530,7 @@ public class UserException extends RuntimeException {
     private final UserExceptionContext context;
 
     private String message;
-    private AdditionalExceptionContext additionalContext;
+    private ByteString rawAdditionalContext;
 
     private boolean fixedMessage; // if true, calls to message() are a no op
 
@@ -709,7 +709,7 @@ public class UserException extends RuntimeException {
      */
     public Builder setAdditionalExceptionContext(AdditionalExceptionContext additionalContext) {
       assert additionalContext.getErrorType() == errorType : "error type of context and builder must match";
-      this.additionalContext = additionalContext;
+      this.rawAdditionalContext = additionalContext.toByteString();
       return this;
     }
 
@@ -783,22 +783,22 @@ public class UserException extends RuntimeException {
 
   private final UserExceptionContext context;
 
-  private final AdditionalExceptionContext additionalContext;
+  private final ByteString rawAdditionalContext;
 
   protected UserException(final DremioPBError.ErrorType errorType, final String message, final Throwable cause,
-                          final AdditionalExceptionContext additionalContext) {
+                          final ByteString rawAdditionalContext) {
     super(message, cause);
 
     this.errorType = errorType;
     this.context = new UserExceptionContext();
-    this.additionalContext = additionalContext;
+    this.rawAdditionalContext = rawAdditionalContext;
   }
 
   private UserException(final Builder builder) {
     super(builder.message, builder.cause);
     this.errorType = builder.errorType;
     this.context = builder.context;
-    this.additionalContext = builder.additionalContext;
+    this.rawAdditionalContext = builder.rawAdditionalContext;
   }
 
   /**
@@ -865,22 +865,19 @@ public class UserException extends RuntimeException {
 
     builder.addAllContext(context.getContextAsStrings());
 
-    if (additionalContext != null) {
-      final ByteString serializedContext = ErrorHelper.serializeAdditionalContext(additionalContext);
-      if (serializedContext != null) {
-        builder.setTypeSpecificContext(serializedContext);
-      } // else, see debug log from ErrorHelper
+    if (rawAdditionalContext != null) {
+        builder.setTypeSpecificContext(rawAdditionalContext);
     }
     return builder.build();
   }
 
   /**
-   * Get type specific additional contextual information.
+   * Get serialized type specific additional contextual information.
    *
-   * @return additional context
+   * @return additional context in ByteString format.
    */
-  public AdditionalExceptionContext getAdditionalExceptionContext() {
-    return additionalContext;
+  public ByteString getRawAdditionalExceptionContext() {
+    return rawAdditionalContext;
   }
 
   public List<String> getContextStrings() {

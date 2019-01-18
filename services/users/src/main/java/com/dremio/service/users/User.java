@@ -36,6 +36,6 @@ public interface User {
 
   long getModifiedAt();
 
-  Long getVersion();
+  String getVersion();
 
 }

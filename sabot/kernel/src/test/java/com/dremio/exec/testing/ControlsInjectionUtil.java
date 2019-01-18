@@ -22,8 +22,8 @@ import static org.junit.Assert.fail;
 import java.util.List;
 
 import com.dremio.exec.client.DremioClient;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;

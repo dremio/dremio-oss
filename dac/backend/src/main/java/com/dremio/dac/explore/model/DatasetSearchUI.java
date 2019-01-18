@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.dremio.common.utils.PathUtils;
+import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -51,12 +52,18 @@ public class DatasetSearchUI {
   // matching fields
   private final List<DatasetFieldSearchUI> fields;
 
+  // Dataset tags
+  private List<String> tags;
+
   @JsonIgnore
   private final DatasetVersion datasetVersion;
 
-  public DatasetSearchUI(DatasetConfig datasetConfig) {
+  public DatasetSearchUI(DatasetConfig datasetConfig, CollaborationTag collaborationTag) {
     this.fullPath = datasetConfig.getFullPathList();
     this.datasetType = datasetConfig.getType();
+    if (collaborationTag != null) {
+      this.tags = collaborationTag.getTagsList();
+    }
     if (datasetType == DatasetType.VIRTUAL_DATASET) {
       final VirtualDataset virtualDataset = datasetConfig.getVirtualDataset();
       this.parents = virtualDataset.getParentsList();
@@ -114,6 +121,10 @@ public class DatasetSearchUI {
 
   public DatasetType getDatasetType() {
     return datasetType;
+  }
+
+  public List<String> getTags() {
+    return tags;
   }
 
   /**

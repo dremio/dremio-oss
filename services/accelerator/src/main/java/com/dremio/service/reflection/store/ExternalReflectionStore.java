@@ -36,7 +36,6 @@ import com.dremio.datastore.VersionExtractor;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -129,15 +128,18 @@ public class ExternalReflectionStore {
     }
 
     @Override
-    public Long incrementVersion(ExternalReflection value) {
-      final Long current = value.getVersion();
-      value.setVersion(Optional.fromNullable(current).or(-1L) + 1);
-      return current;
+    public void setVersion(ExternalReflection value, Long version) {
+      value.setVersion(version);
     }
 
     @Override
-    public void setVersion(ExternalReflection value, Long version) {
-      value.setVersion(version == null ? 0 : version);
+    public String getTag(ExternalReflection value) {
+      return value.getTag();
+    }
+
+    @Override
+    public void setTag(ExternalReflection value, String version) {
+      value.setTag(version);
     }
   }
 }

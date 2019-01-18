@@ -20,8 +20,6 @@ import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 
-import org.apache.arrow.vector.util.TransferPair;
-
 public interface Filterer {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Filterer.class);
 

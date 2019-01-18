@@ -21,29 +21,14 @@ import java.util.Iterator;
 import com.dremio.common.expression.visitors.ExprVisitor;
 
 public class NullExpression implements LogicalExpression {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NullExpression.class);
 
   public static final NullExpression INSTANCE = new NullExpression();
+
   private final EvaluationType evaluationType;
 
   protected NullExpression() {
     this.evaluationType = new EvaluationType();
-    addEvaluationType(EvaluationType.ExecutionType.JAVA);
-  }
-
-  @Override
-  public boolean isEvaluationTypeSupported(EvaluationType.ExecutionType executionType) {
-    return evaluationType.isEvaluationTypeSupported(executionType);
-  }
-
-  @Override
-  public void addEvaluationType(EvaluationType.ExecutionType executionType) {
-    evaluationType.addEvaluationType(executionType);
-  }
-
-  @Override
-  public EvaluationType getEvaluationType() {
-    return evaluationType;
+    evaluationType.addEvaluationType(EvaluationType.ExecutionType.JAVA);
   }
 
   @Override

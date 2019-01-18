@@ -20,7 +20,6 @@ import static com.dremio.sabot.Fixtures.time;
 import static com.dremio.sabot.Fixtures.ts;
 
 import org.joda.time.LocalDateTime;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.sabot.BaseTestFunction;

@@ -31,8 +31,8 @@ import com.dremio.exec.ops.OperatorMetricRegistry;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.proto.UserBitShared.MetricValue;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
-import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile.Builder;
+import com.dremio.exec.proto.UserBitShared.StreamProfile;
 
 import de.vandermeer.asciitable.v2.V2_AsciiTable;
 import de.vandermeer.asciitable.v2.render.V2_AsciiTableRenderer;

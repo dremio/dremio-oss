@@ -62,6 +62,8 @@ public class TableauMessageBodyGenerator implements MessageBodyWriter<DatasetCon
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TableauMessageBodyGenerator.class);
 
+  private static final String EMPTY_VERSION = "";
+
   private static final Map<String, String> CUSTOMIZATIONS = ImmutableMap.<String, String>builder()
       .put("CAP_CREATE_TEMP_TABLES", "no")
       .put("CAP_ODBC_BIND_FORCE_DATETIME_AS_CHAR", "no")
@@ -178,6 +180,7 @@ public class TableauMessageBodyGenerator implements MessageBodyWriter<DatasetCon
   private void writeDatasource(final XMLStreamWriter xmlStreamWriter, DatasetConfig datasetConfig, String hostname, MediaType mediaType) throws XMLStreamException {
     xmlStreamWriter.writeStartElement("datasource");
     xmlStreamWriter.writeAttribute("inline", "true");
+    xmlStreamWriter.writeAttribute("version", EMPTY_VERSION);
 
     if (WebServer.MediaType.APPLICATION_TDS_TYPE.equals(mediaType)) {
       writeConnection(xmlStreamWriter, datasetConfig, hostname);

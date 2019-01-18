@@ -101,6 +101,7 @@ export class AddSourceModal extends Component {
   componentWillReceiveProps(nextProps) {
     if (!this.props.isOpen && nextProps.isOpen) {
       this.setState({isTypeSelected: false, selectedFormType: {}});
+      this.props.updateFormDirtyState(false); // mark form not dirty to avoid unsaved prompt
     }
   }
 

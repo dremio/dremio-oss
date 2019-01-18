@@ -15,13 +15,12 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import com.google.common.base.Preconditions;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.FieldVector;
+
 import com.dremio.sabot.op.common.ht2.PivotBuilder.FieldMode;
 import com.dremio.sabot.op.common.ht2.Reallocators.Reallocator;
 import com.google.common.base.Function;

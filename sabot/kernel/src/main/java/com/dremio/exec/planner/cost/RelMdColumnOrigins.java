@@ -34,6 +34,7 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.BuiltInMethod;
 
+import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.common.JdbcRelBase;
 import com.dremio.exec.planner.common.LimitRelBase;
 import com.dremio.exec.planner.common.SampleRelBase;
@@ -66,6 +67,10 @@ public class RelMdColumnOrigins extends org.apache.calcite.rel.metadata.RelMdCol
   }
 
   public Set<RelColumnOrigin> getColumnOrigins(LimitRelBase rel, RelMetadataQuery mq, int iOutputColumn) {
+    return mq.getColumnOrigins(rel.getInput(), iOutputColumn);
+  }
+
+  public Set<RelColumnOrigin> getColumnOrigins(ExpansionNode rel, RelMetadataQuery mq, int iOutputColumn) {
     return mq.getColumnOrigins(rel.getInput(), iOutputColumn);
   }
 

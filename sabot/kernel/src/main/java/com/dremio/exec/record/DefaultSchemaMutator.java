@@ -22,6 +22,7 @@ import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Preconditions;
+
 import io.protostuff.ByteString;
 
 /**

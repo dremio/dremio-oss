@@ -48,7 +48,7 @@ const middleWares = [
   serverErrorMiddleware,
   serverStatusMiddleware,
   sagaMiddleware,
-  isDev && createLogger(),
+  isDev && createLogger({ collapsed: true }),
   routerMiddleware(browserHistory)
 ].filter(Boolean);
 

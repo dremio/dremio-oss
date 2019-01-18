@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { merge, get, set } from 'lodash/object';
-import { applyValidators, isRequired, isNumber, isWholeNumber } from 'utils/validation';
+import { applyValidators, isRequired, isNumber, isWholeNumber, isRequiredIfAnotherPropertyEqual } from 'utils/validation';
 import { getCreatedSource } from 'selectors/resources';
 
 export default class FormUtils {
@@ -142,7 +142,7 @@ export default class FormUtils {
    * @returns {Array}
    */
   static getFieldsFromConfig(sourceFormConfig) {
-    const defaultFields = ['id', 'version'];
+    const defaultFields = ['id', 'version', 'tag'];
     return defaultFields.concat(sourceFormConfig.form.getFields());
   }
 
@@ -265,6 +265,12 @@ export default class FormUtils {
     }
     if (elementConfigJson.validate.isWholeNumber) {
       accumulator.validators.push(isWholeNumber(elementConfigJson.propName, elementConfigJson.label));
+    }
+    if (elementConfigJson.validate.isRequiredIf) {
+      accumulator.validators.push(isRequiredIfAnotherPropertyEqual(elementConfigJson.propName,
+        elementConfigJson.validate.isRequiredIf.otherPropName,
+        elementConfigJson.validate.isRequiredIf.otherPropValue,
+        elementConfigJson.validate.label));
     }
     return accumulator;
   }

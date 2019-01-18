@@ -15,17 +15,6 @@
  */
 package com.dremio.exec.physical.impl.join;
 
-import java.util.LinkedList;
-
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.types.Types.MinorType;
-
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.types.Types;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.sabot.op.sort.external.RecordBatchData;
-
 /**
  * Marks each record that starts a new cluster.
  */

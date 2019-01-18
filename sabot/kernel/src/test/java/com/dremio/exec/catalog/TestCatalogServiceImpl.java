@@ -63,6 +63,8 @@ import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
+import com.dremio.service.listing.DatasetListingService;
+import com.dremio.service.listing.DatasetListingServiceImpl;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -109,6 +111,7 @@ public class TestCatalogServiceImpl {
 
   private KVStoreProvider storeProvider;
   private NamespaceService namespaceService;
+  private DatasetListingService datasetListingService;
   private BufferAllocator allocator;
   private LocalClusterCoordinator clusterCoordinator;
   private CloseableThreadPool pool;
@@ -139,6 +142,10 @@ public class TestCatalogServiceImpl {
     namespaceService = new NamespaceServiceImpl(storeProvider);
     when(sabotContext.getNamespaceService(anyString()))
         .thenReturn(namespaceService);
+
+    datasetListingService = new DatasetListingServiceImpl(DirectProvider.wrap(userName -> namespaceService));
+    when(sabotContext.getDatasetListing())
+        .thenReturn(datasetListingService);
 
     when(sabotContext.getClasspathScan())
         .thenReturn(CLASSPATH_SCAN_RESULT);
@@ -173,6 +180,8 @@ public class TestCatalogServiceImpl {
 
     when(sabotContext.getRoles())
         .thenReturn(Sets.newHashSet(ClusterCoordinator.Role.MASTER, ClusterCoordinator.Role.COORDINATOR));
+    when(sabotContext.isCoordinator())
+        .thenReturn(true);
 
     pool = new CloseableThreadPool("catalog-test");
     fabricService = new FabricServiceImpl(HOSTNAME, 45678, true, THREAD_COUNT, allocator, RESERVATION, MAX_ALLOCATION,
@@ -371,6 +380,41 @@ public class TestCatalogServiceImpl {
     assertTrue(testPassed);
   }
 
+  @Test
+  public void testConcurrencyErrors() throws Exception {
+    // different etag
+    SourceConfig mockUpConfig = new SourceConfig()
+      .setName(MOCK_UP)
+      .setCtime(100L)
+      .setTag("4")
+      .setConfigOrdinal(0L)
+      .setConnectionConf(new MockUpConfig());
+
+    boolean testPassed = false;
+    try {
+      ((CatalogServiceImpl) catalogService).getSystemUserCatalog().deleteSource(mockUpConfig);
+    } catch (UserException ue) {
+      testPassed = true;
+    }
+    assertTrue(testPassed);
+
+    // different version
+    mockUpConfig = new SourceConfig()
+      .setName(MOCK_UP)
+      .setCtime(100L)
+      .setTag("0")
+      .setConfigOrdinal(2L)
+      .setConnectionConf(new MockUpConfig());
+
+    testPassed = false;
+    try {
+      ((CatalogServiceImpl) catalogService).getSystemUserCatalog().deleteSource(mockUpConfig);
+    } catch (UserException ue) {
+      testPassed = true;
+    }
+    assertTrue(testPassed);
+  }
+
   private static SourceTableDefinition newDataset(final String dsPath) {
     final List<String> path = SqlUtils.parseSchemaPath(dsPath);
 
@@ -454,7 +498,7 @@ public class TestCatalogServiceImpl {
 
   private void assertNoDatasetsAfterSourceDeletion() throws Exception {
     final SourceConfig sourceConfig = namespaceService.getSource(mockUpKey);
-    namespaceService.deleteSource(mockUpKey, sourceConfig.getVersion());
+    namespaceService.deleteSource(mockUpKey, sourceConfig.getTag());
 
     assertEquals(0, Iterables.size(namespaceService.getAllDatasets(mockUpKey)));
   }

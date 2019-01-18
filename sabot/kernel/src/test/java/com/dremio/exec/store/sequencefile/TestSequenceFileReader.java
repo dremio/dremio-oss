@@ -15,16 +15,15 @@
  */
 package com.dremio.exec.store.sequencefile;
 
-import java.io.DataOutputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 
+import org.apache.hadoop.io.BytesWritable;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.util.FileUtils;
-
-import org.apache.hadoop.io.BytesWritable;
 
 public class TestSequenceFileReader extends BaseTestQuery {
 

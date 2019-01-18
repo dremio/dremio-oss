@@ -15,14 +15,14 @@
  */
 package com.dremio.exec.store.easy.excel;
 
+import java.util.List;
+
 import com.dremio.common.logical.FormatPluginConfig;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
-
-import java.util.List;
 
 @JsonTypeName("excel") @JsonInclude(JsonInclude.Include.NON_DEFAULT)
 public class ExcelFormatPluginConfig implements FormatPluginConfig {

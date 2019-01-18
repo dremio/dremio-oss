@@ -91,3 +91,17 @@ export const stubArrayFieldMethods = (field) => Object.assign(field, { // eslint
   removeField: sinon.spy(),
   addField: sinon.spy()
 });
+
+// need this as an error in 'afterEach' skips all the tests. The output will say that only 1 test
+// is failed, but there could be multiple test are failed
+export const testWithHooks = ({ beforeFn, afterFn }) => (description, testFn) => {
+  it(description, () => {
+    if (typeof beforeFn === 'function') {
+      beforeFn();
+    }
+    testFn();
+    if (typeof afterFn === 'function') {
+      afterFn();
+    }
+  });
+};

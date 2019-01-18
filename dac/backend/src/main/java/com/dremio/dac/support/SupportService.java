@@ -270,15 +270,18 @@ public class SupportService implements Service {
     }
 
     @Override
-    public Long incrementVersion(ClusterIdentity value) {
-      final Long currentVersion = value.getSerial();
-      value.setSerial(currentVersion != null ? currentVersion + 1 : 0);
-      return currentVersion;
+    public void setVersion(ClusterIdentity value, Long version) {
+      value.setSerial(version);
     }
 
     @Override
-    public void setVersion(ClusterIdentity value, Long version) {
-      value.setSerial(version);
+    public String getTag(ClusterIdentity value) {
+      return value.getTag();
+    }
+
+    @Override
+    public void setTag(ClusterIdentity value, String tag) {
+      value.setTag(tag);
     }
   }
 
@@ -290,7 +293,7 @@ public class SupportService implements Service {
 
     ConfigurationEntry existingSupportEntry = supportStore.get(CLUSTER_ID);
     if (existingSupportEntry != null) {
-      entry.setVersion(existingSupportEntry.getVersion());
+      entry.setTag(existingSupportEntry.getTag());
     }
 
     entry.setValue(convertClusterIdentityToByteString(identity));

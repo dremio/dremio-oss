@@ -61,7 +61,7 @@ message VirtualDatasetUI {
   repeated string fullPath = 12;
   
   // version actually saved of a dataset
-  optional int64 savedVersion = 13;
+  optional string savedTag = 13;
 
   // the origin of each column.
   repeated com.dremio.service.namespace.dataset.proto.FieldOrigin fieldOrigins = 15;

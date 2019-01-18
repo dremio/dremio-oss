@@ -107,7 +107,7 @@ import io.protostuff.ByteString;
 class DatasetBuilder implements SourceTableDefinition {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DatasetBuilder.class);
-
+  private static final int HIVE_SPLITS_GENERATOR_PARALLELISM = 16;
   private static final String EMPTY_STRING = "";
 
   private final HiveClient client;
@@ -395,17 +395,17 @@ class DatasetBuilder implements SourceTableDefinition {
   }
 
   private class HiveSplitsGenerator extends TimedRunnable<HiveSplitWork> {
-    private final JobConf job;
     private final InputFormat<?, ?> format;
+    private final StorageDescriptor storageDescriptor;
     private final HiveStats totalStats;
     private final Partition partition;
     private final int partitionId;
     private final int estimatedRecordSize;
 
-    public HiveSplitsGenerator(JobConf job, InputFormat<?, ?> format, final int estimatedRecordSize,
-        HiveStats totalStats, Partition partition, int partitionId) {
-      this.job = job;
+    public HiveSplitsGenerator(final InputFormat<?, ?> format, StorageDescriptor storageDescriptor,
+                               final int estimatedRecordSize, HiveStats totalStats, Partition partition, int partitionId) {
       this.format = format;
+      this.storageDescriptor = storageDescriptor;
       this.estimatedRecordSize = estimatedRecordSize;
       this.totalStats = totalStats;
       this.partition = partition;
@@ -414,6 +414,13 @@ class DatasetBuilder implements SourceTableDefinition {
 
     @Override
     protected HiveSplitWork runInner() throws Exception {
+      final JobConf job = new JobConf(hiveConf);
+      addConfToJob(job, tableProperties);
+      if (partition != null) {
+        addConfToJob(job, getPartitionMetadata(partition, table));
+      }
+      addInputPath(storageDescriptor, job);
+
       List<DatasetSplit> splits = Lists.newArrayList();
       long totalEstimatedRecords = 0;
 
@@ -539,17 +546,18 @@ class DatasetBuilder implements SourceTableDefinition {
     HiveStats observedStats = new HiveStats(0,0);
 
     Stopwatch splitStart = Stopwatch.createStarted();
+    final JobConf job = new JobConf(hiveConf);
+
     if (metadata.getPartitionColumnsList().isEmpty()) {
-      final JobConf job = new JobConf(hiveConf);
-      addConfToJob(job, tableProperties);
       Class<? extends InputFormat<?, ?>> inputFormat = getInputFormatClass(job, table, null);
       allowParquetNative = allowParquetNative(allowParquetNative, inputFormat);
       job.setInputFormat(inputFormat);
       final InputFormat<?, ?> format = job.getInputFormat();
 
-      if(addInputPath(table.getSd(), job)){
+      StorageDescriptor sd = table.getSd();
+      if(inputPathExists(sd, job)){
         // only generate splits if there is an input path.
-        HiveSplitWork hiveSplitWork = new HiveSplitsGenerator(job, format, estimatedRecordSize, metastoreStats, null, 0).runInner();
+        HiveSplitWork hiveSplitWork = new HiveSplitsGenerator(format, sd, estimatedRecordSize, metastoreStats, null, 0).runInner();
         splits.addAll(hiveSplitWork.getSplits());
         observedStats.add(hiveSplitWork.getHiveStats());
       }
@@ -558,7 +566,7 @@ class DatasetBuilder implements SourceTableDefinition {
       tableExtended.addAllPartitionProperties(Collections.singletonList(getPartitionProperty(tableExtended, fromProperties(tableProperties))));
 
       if (format instanceof FileInputFormat) {
-        final FileSystemPartitionUpdateKey updateKey = getFSBasedUpdateKey(table.getSd().getLocation(), job, isRecursive(tableProperties), 0);
+        final FileSystemPartitionUpdateKey updateKey = getFSBasedUpdateKey(sd.getLocation(), job, isRecursive(tableProperties), 0);
         if (updateKey != null) {
           metadata.setReadSignature(ByteString.copyFrom(
             HiveReadSignature.newBuilder()
@@ -579,10 +587,6 @@ class DatasetBuilder implements SourceTableDefinition {
       for(Partition partition : client.getPartitions(dbName, tableName)) {
         partitionHashes.add(getHash(partition));
         final Properties partitionProperties = getPartitionMetadata(partition, table);
-        final JobConf job = new JobConf(hiveConf);
-
-        addConfToJob(job, tableProperties);
-        addConfToJob(job, partitionProperties);
 
         Class<? extends InputFormat<?, ?>> inputFormat = getInputFormatClass(job, table, partition);
         allowParquetNative = allowParquetNative(allowParquetNative, inputFormat);
@@ -592,11 +596,13 @@ class DatasetBuilder implements SourceTableDefinition {
 
         final InputFormat<?, ?> format = job.getInputFormat();
         final HiveStats totalPartitionStats = getStatsFromProps(partitionProperties);
-        if (addInputPath(partition.getSd(), job)) {
-          splitsGenerators.add(new HiveSplitsGenerator(job, format, estimatedRecordSize, totalPartitionStats, partition, partitionId));
+
+        StorageDescriptor sd = partition.getSd();
+        if (inputPathExists(sd, job)) {
+          splitsGenerators.add(new HiveSplitsGenerator(format, sd, estimatedRecordSize, totalPartitionStats, partition, partitionId));
         }
         if (format instanceof FileInputFormat) {
-          final FileSystemPartitionUpdateKey updateKey = getFSBasedUpdateKey(partition.getSd().getLocation(), job, isRecursive(partitionProperties), partitionId);
+          final FileSystemPartitionUpdateKey updateKey = getFSBasedUpdateKey(sd.getLocation(), job, isRecursive(partitionProperties), partitionId);
           if (updateKey != null) {
             updateKeys.add(updateKey);
           }
@@ -612,7 +618,7 @@ class DatasetBuilder implements SourceTableDefinition {
       tableExtended.addAllPartitionProperties(partitionProps);
 
       if (!splitsGenerators.isEmpty()) {
-        final List<HiveSplitWork> hiveSplitWorks = TimedRunnable.run("Get splits for hive table " + tableName, logger, splitsGenerators, 16);
+        final List<HiveSplitWork> hiveSplitWorks = TimedRunnable.run("Get splits for hive table " + tableName, logger, splitsGenerators, HIVE_SPLITS_GENERATOR_PARALLELISM);
         for (HiveSplitWork splitWork : hiveSplitWorks) {
           splits.addAll(splitWork.getSplits());
           observedStats.add(splitWork.getHiveStats());
@@ -770,16 +776,20 @@ class DatasetBuilder implements SourceTableDefinition {
     return null;
   }
 
-  private static boolean addInputPath(StorageDescriptor sd, JobConf job) throws IOException {
+  private static boolean inputPathExists(StorageDescriptor sd, JobConf job) throws IOException {
     final Path path = new Path(sd.getLocation());
     final FileSystem fs = FileSystemWrapper.get(path, job);
 
     if (fs.exists(path)) {
-      FileInputFormat.addInputPath(job, path);
       return true;
     }
 
     return false;
+  }
+
+  private static void addInputPath(StorageDescriptor sd, JobConf job) {
+    final Path path = new Path(sd.getLocation());
+    FileInputFormat.addInputPath(job, path);
   }
 
   @SuppressWarnings("unchecked")

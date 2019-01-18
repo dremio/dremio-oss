@@ -15,13 +15,13 @@
  */
 package com.dremio.exec.store.dfs;
 
+import java.math.BigDecimal;
+
 import org.apache.arrow.vector.util.DateUtility;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
 import com.dremio.exec.planner.physical.PlannerSettings;
-
-import java.math.BigDecimal;
 
 public class TestParquetPartitionPruning extends PlanTestBase {
 

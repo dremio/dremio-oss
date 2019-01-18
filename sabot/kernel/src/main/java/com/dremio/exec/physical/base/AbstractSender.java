@@ -16,13 +16,12 @@
 package com.dremio.exec.physical.base;
 
 
-import com.dremio.exec.expr.fn.FunctionLookupContext;
+import java.util.List;
+
 import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
-
-import java.util.List;
 
 public abstract class AbstractSender extends AbstractSingle implements Sender {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractSender.class);

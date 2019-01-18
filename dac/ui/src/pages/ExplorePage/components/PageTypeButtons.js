@@ -77,7 +77,7 @@ class ButtonController extends PureComponent {
     } = this.props;
 
     if (selectedPageType !== pageType) {
-      const pathname = changePageTypeInUrl(selectedPageType, location.pathname, pageType);
+      const pathname = changePageTypeInUrl(location.pathname, pageType);
       router.push({...location, pathname});
     }
   };

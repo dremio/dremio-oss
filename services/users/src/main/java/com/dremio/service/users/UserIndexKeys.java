@@ -23,12 +23,23 @@ import com.dremio.datastore.indexed.IndexKey;
  * Search index keys for users
  */
 public interface UserIndexKeys {
-  IndexKey UID = new IndexKey("id", "id", String.class, SearchFieldSorting.FieldType.STRING, false, false);
-  IndexKey NAME = new IndexKey("name", "USERNAME", String.class, SearchFieldSorting.FieldType.STRING, false, false);
-  IndexKey FIRST_NAME = new IndexKey("first", "FIRST_NAME", String.class, SearchFieldSorting.FieldType.STRING, false, false);
-  IndexKey LAST_NAME = new IndexKey("last", "LAST_NAME", String.class, SearchFieldSorting.FieldType.STRING, false, false);
-  IndexKey EMAIL = new IndexKey("email", "EMAIL", String.class, SearchFieldSorting.FieldType.STRING, false, false);
-  IndexKey ROLE = new IndexKey("role", "ROLE", String.class, null, false, false);
+  IndexKey UID = IndexKey.newBuilder("id", "id", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .build();
+  IndexKey NAME = IndexKey.newBuilder("name", "USERNAME", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .build();
+  IndexKey FIRST_NAME = IndexKey.newBuilder("first", "FIRST_NAME", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .build();
+  IndexKey LAST_NAME = IndexKey.newBuilder("last", "LAST_NAME", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .build();
+  IndexKey EMAIL = IndexKey.newBuilder("email", "EMAIL", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .build();
+  IndexKey ROLE = IndexKey.newBuilder("role", "ROLE", String.class)
+    .build();
 
   FilterIndexMapping MAPPING = new FilterIndexMapping(UID, NAME, FIRST_NAME, LAST_NAME, EMAIL);
 

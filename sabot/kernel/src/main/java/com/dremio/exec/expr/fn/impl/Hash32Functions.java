@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.IntHolder;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableDateMilliHolder;
@@ -30,9 +29,9 @@ import org.apache.arrow.vector.holders.NullableVarCharHolder;
 
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
+import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
-import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 
 public class Hash32Functions {
 

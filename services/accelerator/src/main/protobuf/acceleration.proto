@@ -35,7 +35,7 @@ option java_outer_classname = "AccelerationProtobuf";
 // a logical acceleration combines many layouts
 message Acceleration {
   // request version for OCC
-  optional uint64 version = 1;
+  optional uint64 version = 1 [deprecated = true];
   // unique acceleration id
   required AccelerationId id = 2;
   // acceleration type
@@ -54,6 +54,7 @@ message Acceleration {
   required AccelerationMetrics metrics = 9;
   // acceleration pipeline
   required AccelerationPipeline pipeline = 10;
+  optional string tag = 11;
 }
 
 // context for acceleration

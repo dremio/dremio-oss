@@ -31,6 +31,7 @@ enum RpcType {
   REQ_STREAM_COMPLETE = 2;
   REQ_RECORD_BATCH = 3;
   REQ_RECEIVER_FINISHED = 4;
+  REQ_OOB_MESSAGE = 5;
 }
 
 message FragmentRecordBatch {
@@ -53,4 +54,14 @@ message FragmentStreamComplete {
 message FinishedReceiver {
   optional FragmentHandle receiver = 1;
   optional FragmentHandle sender = 2;
+}
+
+message OOBMessage {
+  optional string type = 1;
+  optional bytes data = 2;
+  optional exec.shared.QueryId query_id = 3;
+  optional int32 receiving_major_fragment_id = 4;
+  repeated int32 receiving_minor_fragment_id = 5;
+  optional int32 receiving_operator_id = 6;
+  optional int32 sending_minor_fragment_id = 7;
 }

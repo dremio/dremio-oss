@@ -26,7 +26,6 @@ import java.util.List;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.BitVectorHelper;
-import com.dremio.sabot.op.aggregate.vectorized.nospill.VectorizedHashAggOperatorNoSpill;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -35,6 +34,7 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.HashAggregate;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
@@ -44,6 +44,8 @@ import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.Generator;
 import com.dremio.sabot.op.aggregate.hash.HashAggOperator;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
+import com.dremio.sabot.op.aggregate.vectorized.nospill.VectorizedHashAggOperatorNoSpill;
+import com.dremio.test.UserExceptionMatcher;
 
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 import io.airlift.tpch.TpchGenerator;
@@ -747,9 +749,11 @@ public class TestHashAgg extends BaseTestOperator {
       }
     }
 
-    try (BitGenerator generator = new BitGenerator(allocator, column)) {
-      HashAggregate vectorizedConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, conf.getCardinality());
-      validateSingle(vectorizedConf, VectorizedHashAggOperatorNoSpill.class, generator, expected, 1000);
+    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, false)) {
+      try (BitGenerator generator = new BitGenerator(allocator, column)) {
+        HashAggregate vectorizedConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, conf.getCardinality());
+        validateSingle(vectorizedConf, VectorizedHashAggOperatorNoSpill.class, generator, expected, 1000);
+      }
     }
   }
 
@@ -883,5 +887,46 @@ public class TestHashAgg extends BaseTestOperator {
 
     final HashAggregate conf = new HashAggregate(null, dim, measure, false, 1f);
     validateAggGenerated(conf, inputData, expected);
+  }
+
+  @Test
+  public void minMaxCardinalityLimit() throws Exception {
+    final Table inputData = t(
+      th("x", "y"),
+      tr(1, "a1"),
+      tr(2, "a2"),
+      tr(3, "a3"),
+      tr(1, "b1"),
+      tr(2, "b2"),
+      tr(3, "b3")
+    );
+
+    final List<NamedExpression> dim = Arrays.asList(n("x"));
+    final List<NamedExpression> measure = Arrays.asList(
+      n("count(y)", "cnt"),
+      n("min(y)", "min"),
+      n("max(y)", "max")
+    );
+
+    final Table expected = t(
+      th("x", "cnt", "min", "max"),
+      tr(1, 2l, "a1", "b1"),
+      tr(2, 2l, "a2", "b2"),
+      tr(3, 2l, "a3", "b3"))
+      .orderInsensitive();
+
+    final HashAggregate conf = new HashAggregate(null, dim, measure, false, 1f);
+
+    // String min/max only applies to the row-wise hashagg operator
+    try (AutoCloseable options = with(HashAggOperator.HASHAGG_MINMAX_CARDINALITY_LIMIT, 10)) {
+      HashAggregate vanillaConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, conf.getCardinality());
+      validateSingle(vanillaConf, HashAggOperator.class, inputData, expected);
+    }
+
+    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.FUNCTION, "low-cardinality aggregations"));
+    try (AutoCloseable options = with(HashAggOperator.HASHAGG_MINMAX_CARDINALITY_LIMIT, 1)) {
+      HashAggregate vanillaConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, conf.getCardinality());
+      validateSingle(vanillaConf, HashAggOperator.class, inputData, expected);
+    }
   }
 }

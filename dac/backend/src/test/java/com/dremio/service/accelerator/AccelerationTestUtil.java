@@ -115,7 +115,7 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
     try {
       config = getNamespaceService().getSource(key);
       if (config != null) {
-        getNamespaceService().deleteSource(key, config.getVersion());
+        getNamespaceService().deleteSource(key, config.getTag());
       }
     } catch (NamespaceException e) {
 
@@ -128,7 +128,7 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
     try {
       config = getNamespaceService().getSpace(key);
       if (config != null) {
-        getNamespaceService().deleteSpace(key, config.getVersion());
+        getNamespaceService().deleteSpace(key, config.getTag());
       }
     }catch (NamespaceException e) {
     }
@@ -140,7 +140,7 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
     try {
       config = getNamespaceService().getFolder(key);
       if (config != null) {
-        getNamespaceService().deleteFolder(key, config.getVersion());
+        getNamespaceService().deleteFolder(key, config.getTag());
       }
     }catch (NamespaceException e) {
     }
@@ -168,7 +168,7 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
     try {
       config = getNamespaceService().getDataset(key);
       if (config != null) {
-        getNamespaceService().deleteDataset(key, config.getVersion());
+        getNamespaceService().deleteDataset(key, config.getTag());
       }
     }catch (NamespaceException e) {
     }
@@ -180,7 +180,7 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
         .setFullPathList(path.toPathList())
         .setName(path.getLeaf().getName())
         .setCreatedAt(System.currentTimeMillis())
-        .setVersion(null)
+        .setTag(null)
         .setOwner(DEFAULT_USERNAME)
         .setPhysicalDataset(new PhysicalDataset()
             .setFormatSettings(new FileConfig().setType(FileType.JSON))

@@ -20,9 +20,9 @@ import static com.dremio.service.reflection.ExternalReflectionStatus.STATUS.OUT_
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.dremio.exec.planner.sql.CachedMaterializationDescriptor;
-import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
-import com.dremio.exec.planner.sql.MaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.CachedMaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -58,7 +58,7 @@ class MaterializationCache {
      * tries to expand the descriptor's plan
      * @return expanded descriptor, or null if failed to deserialize the plan
      */
-    DremioRelOptMaterialization expand(MaterializationDescriptor descriptor);
+    DremioMaterialization expand(MaterializationDescriptor descriptor);
 
     /**
      * tries to expand the external materialization's plan.
@@ -122,7 +122,7 @@ class MaterializationCache {
     for (Materialization materialization : provided) {
       final MaterializationDescriptor cachedDescriptor = old.get(materialization.getId().getId());
       if (cachedDescriptor == null ||
-          materialization.getVersion() != cachedDescriptor.getVersion() ||
+          !materialization.getTag().equals(cachedDescriptor.getVersion()) ||
           schemaChanged(cachedDescriptor, materialization)) {
         safeUpdateEntry(updated, materialization);
       } else {
@@ -151,7 +151,7 @@ class MaterializationCache {
     try {
       final MaterializationDescriptor descriptor = provider.getDescriptor(entry);
       if (descriptor != null) {
-        final DremioRelOptMaterialization expanded = provider.expand(descriptor);
+        final DremioMaterialization expanded = provider.expand(descriptor);
         if (expanded != null) {
           cache.put(entry.getId(), new CachedMaterializationDescriptor(descriptor, expanded));
         }

@@ -21,8 +21,6 @@ import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.junit.Test;
 
-import com.dremio.exec.planner.sql.ParserConfig;
-
 public class TestDDLAliases {
 
   private SqlNode parse(String toParse) throws SqlParseException{

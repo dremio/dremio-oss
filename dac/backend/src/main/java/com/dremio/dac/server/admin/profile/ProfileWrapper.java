@@ -195,8 +195,11 @@ public class ProfileWrapper {
         dlb.addItem("Query Cost:", String.format("%.0f", rsp.getQueryCost()));
       }
       if (rsp.hasQueryType()) {
-        dlb.addItem("Query Type:", rsp.getQueryType());
+        dlb.addItem("Query Type:", rsp.getQueryType()); // this maps to WorkloadType internally
       }
+    }
+    if (profile.hasCancelReason()) {
+      dlb.addItem("Cancellation Reason:", profile.getCancelReason());
     }
     return dlb.build();
   }

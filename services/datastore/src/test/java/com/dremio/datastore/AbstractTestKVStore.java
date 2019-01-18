@@ -187,27 +187,6 @@ public abstract class AbstractTestKVStore {
   }
 
   @Test
-  public void testCheckAndPut() throws Exception {
-    boolean updated = kvStore.checkAndPut("key1", null, "value1");
-    assertTrue("Failed to put new value value1 for key key1 for the first time", updated);
-    assertEquals("value1", backend.get("key1"));
-    updated = kvStore.checkAndPut("key2", "value2", "value22");
-    assertFalse("checkAndPut should fail to replace new value value22 with old value value2", updated);
-    assertEquals("value1", backend.get("key1"));
-    updated = kvStore.checkAndPut("key1", "value1", "value11");
-    assertTrue("Failed to put new value value11 for key key1", updated);
-    assertEquals("value11", backend.get("key1"));
-  }
-
-  @Test
-  public void testCheckAndPutWithNullValue() throws Exception {
-    try {
-      kvStore.checkAndPut("key1", "value11", null);
-      fail("KVtore checkAndPut should fail with NullPointerException for null new value");
-    } catch (NullPointerException e) {}
-  }
-
-  @Test
   public void testGetRange() throws Exception {
     // only on kvStore
     getBackend().put("key1", "value1");

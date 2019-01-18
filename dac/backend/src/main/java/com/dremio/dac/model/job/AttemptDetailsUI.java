@@ -18,6 +18,7 @@ package com.dremio.dac.model.job;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobState;
+import com.dremio.service.jobs.AttemptsHelper;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -28,21 +29,33 @@ public class AttemptDetailsUI {
   private final String reason;
   private final JobState result;
   private final String profileUrl;
+  private final Long planningTime;
+  private final Long enqueuedTime;
+  private final Long executionTime;
 
   @JsonCreator
   public AttemptDetailsUI(
       @JsonProperty("reason") String reason,
       @JsonProperty("result") JobState result,
-      @JsonProperty("profileUrl") String profileUrl) {
+      @JsonProperty("profileUrl") String profileUrl,
+      @JsonProperty("planningTime") Long planningTime,
+      @JsonProperty("enqueuedTime") Long enqueuedTime,
+      @JsonProperty("executionTime") Long executionTime) {
     this.reason = reason;
     this.result = result;
     this.profileUrl = profileUrl;
+    this.planningTime = planningTime;
+    this.enqueuedTime = enqueuedTime;
+    this.executionTime = executionTime;
   }
 
   public AttemptDetailsUI(final JobAttempt jobAttempt, final JobId jobId, final int attemptIndex) {
-    reason = AttemptsHelper.constructAttemptReason(jobAttempt.getReason());
+    reason = AttemptsUIHelper.constructAttemptReason(jobAttempt.getReason());
     result = jobAttempt.getState();
     profileUrl = "/profiles/" + jobId.getId() + "?attempt=" + attemptIndex;
+    enqueuedTime = AttemptsHelper.getEnqueuedTime(jobAttempt);
+    planningTime = AttemptsHelper.getPlanningTime(jobAttempt);
+    executionTime = AttemptsHelper.getExecutionTime(jobAttempt);
   }
 
   public String getReason() {
@@ -55,5 +68,17 @@ public class AttemptDetailsUI {
 
   public String getProfileUrl() {
     return profileUrl;
+  }
+
+  public Long getPlanningTime() {
+    return planningTime;
+  }
+
+  public Long getEnqueuedTime() {
+    return enqueuedTime;
+  }
+
+  public Long getExecutionTime() {
+    return executionTime;
   }
 }

@@ -19,6 +19,7 @@ import static com.dremio.sabot.exec.fragment.FragmentExecutorBuilder.PIPELINE_RE
 import static com.dremio.sabot.exec.fragment.FragmentExecutorBuilder.WORK_QUEUE_RES_GRP;
 
 import java.io.IOException;
+import java.security.PrivilegedAction;
 import java.security.PrivilegedExceptionAction;
 import java.util.List;
 import java.util.Set;
@@ -45,6 +46,7 @@ import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.driver.OperatorCreator;
@@ -145,6 +147,7 @@ public class FragmentExecutor {
   public FragmentExecutor(
       FragmentStatusReporter statusReporter,
       SabotConfig config,
+      ExecutionControls executionControls,
       PlanFragment fragment,
       ClusterCoordinator clusterCoordinator,
       PhysicalPlanReader reader,
@@ -188,7 +191,9 @@ public class FragmentExecutor {
     this.deferredException = exception;
     this.sources = sources;
     this.workQueue = new FragmentWorkQueue(sharedResources.getGroup(WORK_QUEUE_RES_GRP));
-    this.buffers = new IncomingBuffers(deferredException, sharedResources.getGroup(PIPELINE_RES_GRP), workQueue, tunnelProvider, fragment, allocator, config, spillService);
+    this.buffers = new IncomingBuffers(
+      deferredException, sharedResources.getGroup(PIPELINE_RES_GRP), workQueue, tunnelProvider,
+      fragment, allocator, config, executionControls, spillService);
     this.eventProvider = eventProvider;
     this.cancelled = SettableFuture.create();
   }
@@ -578,6 +583,20 @@ public class FragmentExecutor {
 
     public void handle(FragmentStreamComplete completion) {
       buffers.completionArrived(completion);
+    }
+
+    public void handle(OutOfBandMessage message) {
+      workQueue.put(() -> {
+        queryUserUgi.doAs((PrivilegedAction<Void>) () -> {
+          try {
+            pipeline.workOnOOB(message);
+          } catch(Exception e) {
+            logger.warn("Failure while handling OOB message. {}", message, e);
+          }
+
+          return null;
+        });
+      });
     }
 
     public void cancel() {

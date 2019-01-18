@@ -85,6 +85,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     height: '100%',
+    overflow: 'hidden', // avoid flickering: since the child of the div with this prop is always AutoSizer, we do not expect overflows
     position: 'relative' // needed for correct positioning of .empty-message
   },
   emptyTable: {

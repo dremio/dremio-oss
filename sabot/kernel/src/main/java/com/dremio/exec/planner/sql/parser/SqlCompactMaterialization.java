@@ -81,7 +81,7 @@ public class SqlCompactMaterialization extends SqlCall implements SqlToPlanHandl
   @Override
   public SqlToPlanHandler toPlanHandler() {
     try {
-      return (SqlToPlanHandler) Class.forName("com.dremio.service.reflection.CompactRefreshHandler").newInstance();
+      return (SqlToPlanHandler) Class.forName("com.dremio.service.reflection.compact.CompactRefreshHandler").newInstance();
     } catch (ReflectiveOperationException e) {
       throw Throwables.propagate(e);
     }

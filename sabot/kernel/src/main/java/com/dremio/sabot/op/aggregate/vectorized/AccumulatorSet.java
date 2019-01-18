@@ -15,18 +15,19 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
-import com.dremio.common.util.Numbers;
-import com.dremio.sabot.op.common.ht2.ResizeListener;
-import io.netty.buffer.ArrowBuf;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.util.Numbers;
+import com.dremio.sabot.op.common.ht2.ResizeListener;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
-import java.util.Set;
-import java.util.ArrayList;
+import io.netty.buffer.ArrowBuf;
 
 /**
  * Represents the set of accumulators of type {@link BaseSingleAccumulator}.
@@ -296,12 +297,6 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   public void accumulate(final long memoryAddr, final int count) {
     for(Accumulator a : children){
       a.accumulate(memoryAddr, count);
-    }
-  }
-
-  public void accumulateNoSpill(final long memoryAddr, final int count) {
-    for(Accumulator a : children){
-      a.accumulateNoSpill(memoryAddr, count);
     }
   }
 

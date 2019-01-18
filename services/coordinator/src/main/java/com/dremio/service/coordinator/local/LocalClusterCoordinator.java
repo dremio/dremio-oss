@@ -17,7 +17,6 @@ package com.dremio.service.coordinator.local;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
@@ -56,7 +55,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
 
   private final ConcurrentMap<String, Election> elections = Maps.newConcurrentMap();
 
-  private final EnumMap<ClusterCoordinator.Role, LocalServiceSet> serviceSets = new EnumMap<>(ClusterCoordinator.Role.class);
+  private final ConcurrentMap<String, LocalServiceSet> serviceSets = new ConcurrentHashMap<>();
 
   /**
    * Returns a new local cluster coordinator, already started
@@ -74,7 +73,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
   public LocalClusterCoordinator() {
     logger.info("Local Cluster Coordinator is up.");
     for(ClusterCoordinator.Role role : ClusterCoordinator.Role.values()) {
-      serviceSets.put(role, new LocalServiceSet(role));
+      serviceSets.put(role.name(), new LocalServiceSet(role.name()));
     }
   }
 
@@ -91,13 +90,18 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
 
   @Override
   public ServiceSet getServiceSet(Role role) {
-    return serviceSets.get(role);
+    return serviceSets.get(role.name());
+  }
+
+  @Override
+  public ServiceSet getOrCreateServiceSet(final String name) {
+    return serviceSets.computeIfAbsent(name, s -> new LocalServiceSet(s));
   }
 
   private final class LocalServiceSet extends AbstractServiceSet implements AutoCloseable {
     private final Map<RegistrationHandle, NodeEndpoint> endpoints = new ConcurrentHashMap<>();
 
-    private final Role role;
+    private final String serviceName;
 
     private class Handle implements RegistrationHandle {
       private final UUID id = UUID.randomUUID();
@@ -128,20 +132,23 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
 
       @Override
       public void close() {
-        // when SabotNode is unregistered, clean all the listeners registered in CC.
-        clearListeners();
-
+        // do not clear listeners, as they are global
         endpoints.remove(this);
+      }
+
+      @Override
+      public int instanceCount() {
+        return endpoints.size();
       }
     }
 
-    public LocalServiceSet(Role role) {
-      this.role = role;
+    public LocalServiceSet(String serviceName) {
+      this.serviceName = serviceName;
     }
 
     @Override
     public RegistrationHandle register(NodeEndpoint endpoint) {
-      logger.debug("Endpoint registered {}. {}", role, endpoint);
+      logger.debug("Endpoint registered {}. {}", serviceName, endpoint);
       final Handle h = new Handle();
       endpoints.put(h, endpoint);
       nodesRegistered(Sets.newHashSet(endpoint));
@@ -155,14 +162,15 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
 
     @Override
     public String toString() {
-      return role.name();
+      return serviceName;
     }
 
     @Override
     public void close() throws Exception {
-      logger.info("Stopping Local Cluster Coordinator");
+      logger.info("Stopping LocalServiceSet");
+      clearListeners();
       endpoints.clear();
-      logger.info("Stopped Local Cluster Coordinator");
+      logger.info("Stopped LocalServiceSet");
     }
   }
 
@@ -245,6 +253,11 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
         @Override
         public void close() {
           leaveElection(candidate);
+        }
+
+        @Override
+        public int instanceCount() {
+          return waiting.size();
         }
       };
     }

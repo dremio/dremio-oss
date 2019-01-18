@@ -83,57 +83,52 @@ function invalidateViewIds(state, action) {
   );
 }
 
+export const getDefaultViewConfig = viewId => ({
+  viewId, isInProgress: false, isFailed: false, isWarning: false, invalidated: false, error: null
+});
+
 function getInitialViewState(viewId) {
-  return Immutable.Map({
-    viewId, isInProgress: false, isFailed: false, isWarning: false, invalidated: false, error: null
-  });
+  return Immutable.Map(getDefaultViewConfig(viewId));
 }
 
-function updateLoadingViewId(state, action) {
-  const {viewId, invalidateViewIds: viewIds} = action.meta;
-  if (!viewId) {
-    return state;
-  }
+export const getViewStateFromAction = (action) => {
+
   // todo: these duck-type sniffers are quite brittle
   // e.g. they used to think a DELETE "success" with a viewId was a "start"
   // Fixed by making sure isSuccessAction checks first and crudFactory sets meta.success.
   // (But should be replaced with something better.)
 
   if (isSuccessAction(action)) {
-    return state.mergeIn([viewId], {
-      viewId,
-      isInProgress: !viewIds || !viewIds.length ? false : state.getIn([...viewId, 'isInProgress']),
+    return {
+      isInProgress: false,
       isFailed: false,
       isWarning: false,
       isAutoPeekFailed: false,
       error: null
-    });
+    };
   }
   if (isStartAction(action)) {
-    return state.mergeIn([viewId], {
-      viewId,
+    return {
       isInProgress: true,
       isFailed: false,
       isWarning: false,
       invalidated: false,
       isAutoPeekFailed: false,
       error: null
-    });
+    };
   }
   if (isAutoPeekError(action)) {
-    return state.mergeIn([viewId], {
-      viewId,
+    return {
       isInProgress: false,
       isFailed: false,
       isWarning: false,
       isAutoPeekFailed: true,
       error: null
-    });
+    };
   }
 
   // FAILURE
-  return state.mergeIn([viewId], {
-    viewId,
+  return {
     isInProgress: false,
     isFailed: true,
     isWarning: false,
@@ -144,6 +139,25 @@ function updateLoadingViewId(state, action) {
       id: uuid.v4(),
       dismissed: false
     }
+  };
+};
+
+function updateLoadingViewId(state, action) {
+  const {viewId, invalidateViewIds: viewIds} = action.meta;
+  if (!viewId) {
+    return state;
+  }
+
+  let newViewState = getViewStateFromAction(action);
+  if (isSuccessAction(action)) {
+    newViewState = {
+      ...newViewState,
+      isInProgress: !viewIds || !viewIds.length ? false : state.getIn([...viewId, 'isInProgress'])
+    };
+  }
+  return state.mergeIn([viewId], {
+    ...newViewState,
+    viewId
   });
 }
 

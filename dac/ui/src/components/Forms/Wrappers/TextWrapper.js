@@ -46,7 +46,7 @@ export default class TextWrapper extends Component {
     const elementConfigJson = elementConfig.getConfig();
     const numberField = (elementConfig.getType() === 'number') ? {type: 'number'} : null;
     const passwordField = (elementConfigJson.secure) ? {type: 'password'} : null;
-    const hoverHelpText = (elementConfigJson.tooltip) ? {hoverHelpText: elementConfig.tooltip} : null;
+    const hoverHelpText = (elementConfigJson.tooltip) ? {hoverHelpText: elementConfigJson.tooltip} : null;
     const isDisabled = (elementConfigJson.disabled ||
       this.props.disabled ||
       // special case in source forms: source name can not be changed after initial creation

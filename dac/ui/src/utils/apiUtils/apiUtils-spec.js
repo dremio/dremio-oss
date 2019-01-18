@@ -74,5 +74,33 @@ describe('apiUtils', () => {
 
       expect(apiUtils.parseErrorsToObject(json)).to.eql(expectedResult);
     });
+
   });
+
+  describe('getErrorMessage', () => {
+    let jsonFn;
+    beforeEach(() => {
+      jsonFn = sinon.stub();
+    });
+
+    it('should return prefix if no message provided', () => {
+      jsonFn.resolves(null);
+      return apiUtils.getErrorMessage('==>', {json: jsonFn}).then((msg) => {
+        expect(msg).to.equal('==>.');
+      });
+    });
+    it('should get errorMessage from error response', () => {
+      jsonFn.resolves({errorMessage: 'Message'});
+      return apiUtils.getErrorMessage('==>', {json: jsonFn}).then((msg) => {
+        expect(msg).to.equal('==>: Message');
+      });
+    });
+    it('should get moreInfo from error response', () => {
+      jsonFn.resolves({moreInfo: 'Info'});
+      return apiUtils.getErrorMessage('==>', {json: jsonFn}).then((msg) => {
+        expect(msg).to.equal('==>: Info');
+      });
+    });
+  });
+
 });

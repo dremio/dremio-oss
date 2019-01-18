@@ -18,7 +18,6 @@ package com.dremio.sabot.op.aggregate.vectorized;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.google.common.base.Preconditions;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Field;

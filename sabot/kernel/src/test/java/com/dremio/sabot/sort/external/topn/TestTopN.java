@@ -15,8 +15,8 @@
  */
 package com.dremio.sabot.sort.external.topn;
 
-import static com.dremio.sabot.Fixtures.tb;
 import static com.dremio.sabot.Fixtures.t;
+import static com.dremio.sabot.Fixtures.tb;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 

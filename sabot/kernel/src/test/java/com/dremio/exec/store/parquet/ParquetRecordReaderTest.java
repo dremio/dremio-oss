@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.util.Text;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.page.DataPageV1;

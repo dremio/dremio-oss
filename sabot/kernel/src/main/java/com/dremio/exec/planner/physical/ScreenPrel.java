@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -27,9 +29,6 @@ import com.dremio.exec.planner.common.ScreenRelBase;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
 
 public class ScreenPrel extends ScreenRelBase implements Prel, HasDistributionAffinity {
 

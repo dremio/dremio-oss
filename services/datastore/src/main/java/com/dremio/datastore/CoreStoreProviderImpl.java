@@ -253,8 +253,14 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
   private boolean reIndexDelta() {
     final ReIndexer reIndexer = new ReIndexer(indexManager, idToStore);
     try {
-      final boolean status = byteManager.replayDelta(reIndexer);
-      logger.debug("Partial re-indexing status: {}, metrics:\n{}", status, reIndexer.getMetrics());
+      final boolean status = byteManager.replayDelta(
+          reIndexer,
+          s -> idToStore.containsKey(s) && // to skip removed and auxiliary indexes
+              idToStore.get(s)
+                  .getStoreBuilderConfig()
+                  .getDocumentConverterClassName() != null
+      );
+      logger.info("Partial re-indexing status: {}, metrics:\n{}", status, reIndexer.getMetrics());
       return status;
     } catch (DatastoreException e) {
       logger.warn("Partial reindexing failed", e);

@@ -133,7 +133,9 @@ public class ResourceAllocationsTest extends BaseTestQuery {
       queryContext.getSession(),
       observer,
       queryContext.getCatalog(),
-      queryContext.getSubstitutionProviderFactory());
+      queryContext.getSubstitutionProviderFactory(),
+      queryContext.getConfig(),
+      queryContext.getScanResult());
     final SqlNode node = converter.parse(sql);
     final SqlHandlerConfig config = new SqlHandlerConfig(queryContext, converter, observer, null);
 

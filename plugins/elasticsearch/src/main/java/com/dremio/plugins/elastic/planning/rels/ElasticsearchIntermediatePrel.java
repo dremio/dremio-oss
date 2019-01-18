@@ -126,7 +126,7 @@ public class ElasticsearchIntermediatePrel extends SinglePrel implements PrelFin
   }
 
   public ElasticsearchIntermediatePrel filter(final Predicate<RelNode> predicate){
-    return withNewInput((ElasticsearchPrel) getInput().accept(new MoreRelOptUtil.SubsetRemover()).accept(new MoreRelOptUtil.NodeRemover(predicate)));
+    return withNewInput((ElasticsearchPrel) getInput().accept(new MoreRelOptUtil.SubsetRemover()).accept(new MoreRelOptUtil.NodeRemover(v -> predicate.apply(v))));
   }
 
   @Override

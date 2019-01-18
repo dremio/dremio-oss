@@ -69,7 +69,7 @@ public class PartialTableMetadata implements TableMetadata {
       try{
         final DatasetConfig newDatasetConfig = datasetAccessor.getDataset();
         newDatasetConfig.setId(datasetConfig.getId());
-        newDatasetConfig.setVersion(datasetConfig.getVersion());
+        newDatasetConfig.setTag(datasetConfig.getTag());
         List<DatasetSplit> splits = datasetAccessor.getSplits();
         ns.addOrUpdateDataset(getName(), newDatasetConfig, splits);
         datasetConfig = newDatasetConfig;
@@ -87,7 +87,7 @@ public class PartialTableMetadata implements TableMetadata {
   }
 
   @Override
-  public long getVersion() {
+  public String getVersion() {
     loadIfNecessary();
     return datasetPointer.getVersion();
   }

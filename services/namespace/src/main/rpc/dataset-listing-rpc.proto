@@ -34,3 +34,22 @@ message DLFindResponse {
   repeated bytes response = 1; // TODO(DX-10857): change from opaque object to protobuf;
   optional string failureMessage = 2;
 }
+
+message DLGetSourcesRequest { // DatasetListingService#getSources
+  optional string username = 1;
+}
+
+message DLGetSourcesResponse {
+  repeated bytes response = 1; // TODO(DX-10857): change from opaque object to protobuf;
+  optional string failureMessage = 2;
+}
+
+message DLGetSourceRequest { // DatasetListingService#getSource
+  optional string username = 1;
+  optional string sourcename = 2;
+}
+
+message DLGetSourceResponse {
+  optional bytes response = 1; // TODO(DX-10857): change from opaque object to protobuf;
+  optional string failureMessage = 2;
+}

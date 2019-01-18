@@ -24,6 +24,7 @@ import PropTypes from 'prop-types';
 import isEmpty from 'lodash/isEmpty';
 
 import { getViewState } from 'selectors/resources';
+import { getExploreState } from '@app/selectors/explore';
 
 import dataStoreUtils from 'utils/dataStoreUtils';
 import exploreUtils from 'utils/explore/exploreUtils';
@@ -208,7 +209,7 @@ function mapStateToProps(state) {
   const transform = exploreUtils.getTransformState(location);
   return {
     transform,
-    sqlSize: state.explore.ui.get('sqlSize'),
+    sqlSize: getExploreState(state).ui.get('sqlSize'),
     cardsViewState: getViewState(state, LOAD_TRANSFORM_CARDS_VIEW_ID),
     location
   };

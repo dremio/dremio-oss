@@ -76,6 +76,7 @@ export class SearchItem extends Component {
   }
 
   getInputText() {
+    const placeholderText = la('Search Catalog...');
     return (
       <div style={styles.searchItem} className='search-item'>
         <FontIcon
@@ -85,9 +86,11 @@ export class SearchItem extends Component {
         <input
           key='textInput'
           type='text'
+          placeholder={placeholderText}
           ref={this.onInputRef}
           onInput={this.onInput}
-          style={{...styles.searchInput, outline: 'none'}}/>
+          style={{...styles.searchInput, outline: 'none'}}
+        />
       </div>
     );
   }

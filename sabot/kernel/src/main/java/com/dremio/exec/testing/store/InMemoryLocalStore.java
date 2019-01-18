@@ -40,12 +40,6 @@ public class InMemoryLocalStore<V> implements PersistentStore<V> {
   }
 
   @Override
-  public boolean putIfAbsent(final String key, final V value) {
-    final V old = store.putIfAbsent(key, value);
-    return value != old;
-  }
-
-  @Override
   public Iterator<Map.Entry<String, V>> getAll() {
     return store.entrySet().iterator();
   }

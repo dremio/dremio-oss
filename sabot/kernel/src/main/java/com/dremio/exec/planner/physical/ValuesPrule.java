@@ -18,11 +18,10 @@ package com.dremio.exec.planner.physical;
 import java.io.IOException;
 
 import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 
-import com.dremio.exec.planner.logical.ValuesRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.planner.logical.ValuesRel;
 
 public class ValuesPrule extends RelOptRule {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ValuesPrule.class);

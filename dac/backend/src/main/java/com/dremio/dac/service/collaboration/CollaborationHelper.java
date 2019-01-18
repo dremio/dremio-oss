@@ -85,7 +85,7 @@ public class CollaborationHelper {
 
     final CollaborationTag collaborationTag = new CollaborationTag();
     collaborationTag.setTagsList(tags.getTags());
-    collaborationTag.setVersion(tags.getVersion());
+    collaborationTag.setTag(tags.getVersion());
     collaborationTag.setEntityId(entityId);
 
     final Optional<CollaborationTag> existingTag = tagsStore.getTagsForEntityId(entityId);

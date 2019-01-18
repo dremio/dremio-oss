@@ -19,9 +19,9 @@ import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.exec.planner.logical.SampleRel;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.planner.logical.SampleRel;
 
 /**
  * Rule to convert {@link SampleRel} to Dremio physical rel which is a {@link SamplePrel}.

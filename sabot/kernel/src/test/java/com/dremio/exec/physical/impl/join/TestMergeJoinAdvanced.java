@@ -39,7 +39,6 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 
-@Ignore("DX-3852")
 public class TestMergeJoinAdvanced extends BaseTestQuery {
   @Rule
   public final TestRule TIMEOUT = TestTools.getTimeoutRule(120, TimeUnit.SECONDS); // Longer timeout than usual.
@@ -47,12 +46,12 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
   // Have to disable hash join to test merge join in this class
   @BeforeClass
   public static void disableHashJoin() throws Exception {
-    test("alter session set \"planner.enable_hashjoin\" = false");
+    test("alter session set \"planner.enable_hashjoin\" = false; alter session set \"planner.enable_mergejoin\" = true");
   }
 
   @AfterClass
   public static void enableHashJoin() throws Exception {
-    test("alter session set \"planner.enable_hashjoin\" = true");
+    test("alter session set \"planner.enable_hashjoin\" = true; alter session set \"planner.enable_mergejoin\" = false");
   }
 
   @Test
@@ -278,6 +277,7 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
     assertEquals(0, testPhysical(plan));
   }
 
+  @Ignore("DX-12609: parquet file format has changed, test case to be upgraded")
   @Test
   public void testMergeJoinExprInCondition() throws Exception {
     final String plan = Files.toString(FileUtils.getResourceAsFile("/join/mergeJoinExpr.json"), Charsets.UTF_8)
@@ -286,6 +286,7 @@ public class TestMergeJoinAdvanced extends BaseTestQuery {
   }
 
 
+  @Ignore("DX-12609: parquet file format has changed, test case to be upgraded")
   @Test
   //the physical plan is obtained for the following SQL query:
   //  "select l.l_partkey, l.l_suppkey, ps.ps_partkey, ps.ps_suppkey "

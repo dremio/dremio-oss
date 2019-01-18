@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>3.0.6-201812082352540436-1f684f9</version>
+    <version>3.1.0-201901172111160703-dc6f6e5</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -250,10 +250,6 @@
       <scope>compile</scope>
     </dependency>    
     <dependency>
-      <groupId>net.sf.jpam</groupId>
-      <artifactId>jpam</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.freemarker</groupId>
       <artifactId>freemarker</artifactId>
       <version>${freemarker.version}</version>
@@ -481,21 +477,21 @@
     <dependency>
       <groupId>org.apache.poi</groupId>
       <artifactId>poi</artifactId>
-      <version>3.14</version>
+      <version>3.17</version>
     </dependency>
     <dependency>
       <groupId>org.apache.poi</groupId>
       <artifactId>poi-ooxml</artifactId>
-      <version>3.14</version>
+      <version>3.17</version>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-resourcescheduler</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.dremio.arrow.gandiva</groupId>
-      <artifactId>gandiva-java</artifactId>
-      <version>0.1-6f11d4ef79b38074151e3107d46477f45ed21d11</version>
+      <groupId>org.apache.arrow.gandiva</groupId>
+      <artifactId>arrow-gandiva</artifactId>
+      <version>${arrow.version}</version>
     </dependency>
   </dependencies>
 
@@ -666,7 +662,6 @@
           <includeTestResources>true</includeTestResources>
           <resourceIncludes>**/*.properties,**/*.conf,**/*.json,**/*.xml</resourceIncludes>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
-          <configLocation>src/main/checkstyle/checkstyle-config.xml</configLocation>
           <suppressionsLocation>src/main/checkstyle/checkstyle-suppressions.xml</suppressionsLocation>
         </configuration>
         <executions>

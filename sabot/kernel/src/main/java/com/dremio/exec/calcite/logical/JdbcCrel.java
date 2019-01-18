@@ -17,11 +17,6 @@ package com.dremio.exec.calcite.logical;
 
 import java.util.List;
 
-import com.dremio.common.logical.data.LogicalOperator;
-import com.dremio.exec.planner.common.JdbcRelImpl;
-import com.dremio.exec.planner.logical.LogicalPlanImplementor;
-import com.dremio.exec.planner.logical.Rel;
-
 import org.apache.calcite.plan.CopyWithCluster;
 import org.apache.calcite.plan.CopyWithCluster.CopyToCluster;
 import org.apache.calcite.plan.RelOptCluster;
@@ -32,8 +27,11 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
+import com.dremio.common.logical.data.LogicalOperator;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
+import com.dremio.exec.planner.logical.LogicalPlanImplementor;
+import com.dremio.exec.planner.logical.Rel;
 
 /**
  * Jdbc rel node on top of jdbc subtree during calcite's planning (convention NONE).

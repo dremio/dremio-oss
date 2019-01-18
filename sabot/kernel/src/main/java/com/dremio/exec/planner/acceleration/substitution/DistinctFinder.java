@@ -15,12 +15,13 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
-import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import java.util.List;
+
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 
-import java.util.List;
+import com.dremio.exec.planner.StatelessRelShuttleImpl;
 
 /**
  * DistinctFinder finds distincts in logical aggregates of the tree.

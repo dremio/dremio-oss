@@ -19,7 +19,6 @@ import wsEvents from './wsEvents';
 import qlik from './qlik';
 import serverStatus from './serverStatus';
 import autoPeek from './autoPeek';
-import runDataset from './runDataset';
 import downloadDataset from './downloadDataset';
 import downloadFile from './downloadFile';
 import signupUser from './signupUser';
@@ -35,7 +34,6 @@ export default function* rootSaga() {
     fork(qlik),
     fork(serverStatus),
     fork(autoPeek),
-    fork(runDataset),
     fork(downloadDataset),
     fork(downloadFile),
     fork(signupUser),

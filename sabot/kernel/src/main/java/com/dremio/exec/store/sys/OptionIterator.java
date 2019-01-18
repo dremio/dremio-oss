@@ -20,11 +20,11 @@ import java.util.Iterator;
 import java.util.List;
 
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.SabotConfigIterable;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.Kind;
 import com.dremio.options.OptionValue.OptionType;
-import com.dremio.exec.server.options.SabotConfigIterable;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;

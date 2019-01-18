@@ -16,7 +16,9 @@
 package com.dremio.exec.store.dfs;
 
 import java.io.IOException;
+
 import org.apache.hadoop.fs.FSDataOutputStream;
+
 import com.dremio.sabot.exec.context.OperatorStats;
 
 /**

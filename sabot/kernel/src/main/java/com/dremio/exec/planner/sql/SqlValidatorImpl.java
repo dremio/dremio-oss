@@ -16,10 +16,18 @@
 package com.dremio.exec.planner.sql;
 
 
+import static org.apache.calcite.util.Static.RESOURCE;
+
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.runtime.CalciteContextException;
+import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
+import org.apache.calcite.sql.validate.SqlValidatorException;
+import org.apache.calcite.sql.validate.SqlValidatorScope;
 
 class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl {
 
@@ -47,4 +55,15 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
     }
   }
 
+  @Override
+  public void validateAggregateParams(SqlCall aggCall, SqlNode filter, SqlValidatorScope scope) {
+    if (filter != null) {
+      Exception e = new SqlValidatorException("Dremio does not currently support aggregate functions with a filter clause", null);
+      SqlParserPos pos = filter.getParserPosition();
+      CalciteContextException ex = RESOURCE.validatorContextPoint(pos.getLineNum(), pos.getColumnNum()).ex(e);
+      ex.setPosition(pos.getLineNum(), pos.getColumnNum());
+      throw ex;
+    }
+    super.validateAggregateParams(aggCall, filter, scope);
+  }
 }

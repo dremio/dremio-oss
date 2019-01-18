@@ -66,8 +66,9 @@ public class ExtendedToRelContext extends NoOpExpander implements ToRelContext {
   public RelRoot expandView(ViewTable view) {
     final RelRoot root;
 
+
     try {
-      root = DremioSqlToRelConverter.expandView(
+      root = DremioSqlToRelConverter.expandView(view.getPath(),
         view.getViewOwner(), view.getView().getSql(), view.getView().getWorkspaceSchemaPath(), sqlConverter);
     } catch (Exception ex) {
       throw UserException.planError(ex)

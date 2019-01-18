@@ -17,10 +17,6 @@ package com.dremio.exec.expr;
 
 import java.util.List;
 
-import com.dremio.common.expression.EvaluationType;
-import com.dremio.sabot.op.llvm.expr.GandivaPushdownSieve;
-import com.dremio.exec.ExecConstants;
-import com.dremio.options.OptionManager;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.Field;
 
@@ -31,6 +27,7 @@ import com.dremio.common.expression.ErrorCollectorImpl;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
+import com.dremio.common.expression.SupportedEngines;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions;
 import com.dremio.common.expression.fn.CastFunctions;
@@ -45,6 +42,8 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.resolver.FunctionResolver;
 import com.dremio.exec.resolver.FunctionResolverFactory;
+import com.dremio.sabot.op.llvm.expr.GandivaPushdownSieve;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 public class ExpressionTreeMaterializer {
@@ -91,60 +90,58 @@ public class ExpressionTreeMaterializer {
 
   public static LogicalExpression materialize(LogicalExpression expr, BatchSchema schema, ErrorCollector errorCollector, FunctionLookupContext functionLookupContext,
       boolean allowComplexWriterExpr) {
-    return materialize(null, expr, schema, errorCollector, functionLookupContext, allowComplexWriterExpr);
-  }
-
-  public static LogicalExpression materialize(OptionManager optionManager,
-                                              LogicalExpression expr,
-                                              BatchSchema schema,
-                                              ErrorCollector errorCollector,
-                                              FunctionLookupContext functionLookupContext,
-                                              boolean allowComplexWriterExpr) {
-    LogicalExpression out = expr.accept(new ExpressionMaterializationVisitor(schema, errorCollector, allowComplexWriterExpr), functionLookupContext);
+    LogicalExpression out =  expr.accept(new ExpressionMaterializationVisitor(schema, errorCollector, allowComplexWriterExpr), functionLookupContext);
 
     if (!errorCollector.hasErrors()) {
       out = out.accept(ConditionalExprOptimizer.INSTANCE, null);
     }
 
     if (out instanceof NullExpression) {
-      out = new TypedNullConstant(CompleteType.INT);
-    }
-
-    String strCodeGenOption = EvaluationType.CodeGenOption.Java.toString();
-    if (optionManager != null) {
-      strCodeGenOption = optionManager.getOption(ExecConstants.INTERNAL_EXEC_OPTION_KEY).getStringVal();
-    }
-
-    EvaluationType.CodeGenOption codeGenOption = EvaluationType.CodeGenOption.getCodeGenOption(strCodeGenOption);
-    switch (codeGenOption) {
-      case Gandiva:
-      case GandivaOnly:
-        return checkGandivaExecution(codeGenOption, schema, out);
-      case Java:
-      default:
-        return out;
+      return new TypedNullConstant(CompleteType.INT);
+    } else {
+      return out;
     }
   }
 
-  private static LogicalExpression checkGandivaExecution(EvaluationType.CodeGenOption codeGenOption,
-                                                         BatchSchema schema,
-                                                         LogicalExpression expr) {
+  /**
+   * ONLY for Projector and Filter to use for setting up code generation to follow.
+   * Use API without the options parameter for all other cases.
+   */
+  public static LogicalExpression materialize(ExpressionEvaluationOptions options,
+                                              LogicalExpression expr,
+                                              BatchSchema schema,
+                                              ErrorCollector errorCollector,
+                                              FunctionLookupContext functionLookupContext,
+                                              boolean allowComplexWriterExpr) {
+    Preconditions.checkNotNull(options);
+    LogicalExpression out = materialize(expr, schema, errorCollector, functionLookupContext,
+      allowComplexWriterExpr);
+
+    SupportedEngines.CodeGenOption codeGenOption = options.getCodeGenOption();
+
+    CodeGenerationContextAnnotator contextAnnotator = new CodeGenerationContextAnnotator();
+    // convert expression tree to a context tree first
+    CodeGenContext contextTree = out.accept(contextAnnotator, null);
+    switch (codeGenOption) {
+      case Gandiva:
+      case GandivaOnly:
+        return annotateGandivaExecution(codeGenOption, schema, contextTree);
+      case Java:
+      default:
+        return contextTree;
+    }
+  }
+
+  private static LogicalExpression annotateGandivaExecution(SupportedEngines.CodeGenOption codeGenOption,
+                                                            BatchSchema schema,
+                                                            CodeGenContext expr) {
     GandivaPushdownSieve gandivaPushdownSieve = new GandivaPushdownSieve();
-    gandivaPushdownSieve.canEvaluate(schema.getSelectionVectorMode(), expr);
+    LogicalExpression modifiedExpression = gandivaPushdownSieve.annotateExpression(schema, expr);
 
-    if (codeGenOption == EvaluationType.CodeGenOption.Gandiva) {
-      return expr;
-    }
-
-    // Gandiva only
-    if (expr.isEvaluationTypeSupported(EvaluationType.ExecutionType.GANDIVA)) {
-      return expr;
-    }
-
-    // Should not reach here in production code. Gandiva only option should be used only for testing
-    // The projector and filter will throw exception while running if this happens
-    logger.info("Materializer returning null because codegen option is GandivaOnly and the expression cannot be evaluated in Gandiva {}", expr);
-    return null;
+    // Return the expression always
+    // The splitter will handle the error in case of the expression cannot be handled in Gandiva and the
+    // option is GandivaOnly
+    return modifiedExpression;
   }
 
   public static LogicalExpression convertToNullableType(LogicalExpression fromExpr, MinorType toType, FunctionLookupContext functionLookupContext, ErrorCollector errorCollector) {

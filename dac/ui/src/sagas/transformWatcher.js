@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { take, race, call, put, select } from 'redux-saga/effects';
+import { take, race, call, put } from 'redux-saga/effects';
 import invariant from 'invariant';
 import moment from 'moment';
 import { delay } from 'redux-saga';
 
-import { getLocation } from 'selectors/routing';
 import { showConfirmationDialog, hideConfirmationDialog} from 'actions/confirmation';
 
 import RealTimeTimer from 'components/RealTimeTimer';
@@ -27,7 +26,7 @@ import { RESET_NEW_QUERY } from 'actions/explore/view';
 import { cancelTransform } from 'actions/explore/dataset/transform';
 
 import {
-  getApiActionEntity, getLocationChangePredicate
+  getApiActionEntity, getExplorePageLocationChangePredicate
 } from './utils';
 
 export const MAX_TIME_PER_OPERATION = 10000;
@@ -54,13 +53,12 @@ export function* performWatchedTransform(apiAction, viewId) {
   // "apiPromise instanceof Promise" always return "false" in IE/Edge. So check for thenable
   invariant(apiPromise && apiPromise.then, 'action must return a Promise');
 
-  const location = yield select(getLocation);
-
+  const locationChangedPredicate = yield call(getExplorePageLocationChangePredicate);
   const raceResults = yield race({
     tableTransform: apiPromise,
     cancel: call(cancelTransformWithModal, viewId),
     resetNewQuery: take(RESET_NEW_QUERY),
-    locationChange: take(getLocationChangePredicate(location))
+    locationChange: take(locationChangedPredicate)
   });
 
   if (!raceResults.cancel) {

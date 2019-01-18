@@ -92,8 +92,8 @@ public class PlannerSettings implements Context{
   public static final OptionValidator HASH_JOIN_SWAP_MARGIN_FACTOR = new RangeDoubleValidator("planner.join.hash_join_swap_margin_factor", 0, 100, 10d);
   public static final String ENABLE_DECIMAL_DATA_TYPE_KEY = "planner.enable_decimal_data_type";
   public static final BooleanValidator TRANSITIVE_JOIN = new BooleanValidator("planner.experimental.transitivejoin", false);
-  public static final BooleanValidator ENABLE_TRANSPOSE_PROJECT_FILTER_LOGICAL = new BooleanValidator("planner.experimental.tpf_logical", true);
-  public static final BooleanValidator ENABLE_PROJECT_CLEANUP_LOGICAL = new BooleanValidator("planner.experimental.pclean_logical", true);
+  public static final BooleanValidator ENABLE_TRANSPOSE_PROJECT_FILTER_LOGICAL = new BooleanValidator("planner.experimental.tpf_logical", false);
+  public static final BooleanValidator ENABLE_PROJECT_CLEANUP_LOGICAL = new BooleanValidator("planner.experimental.pclean_logical", false);
   public static final BooleanValidator ENABLE_CROSS_JOIN = new BooleanValidator("planner.experimental.cross_join", false);
   public static final BooleanValidator ENABLE_DECIMAL_DATA_TYPE = new BooleanValidator(ENABLE_DECIMAL_DATA_TYPE_KEY, false);
   public static final BooleanValidator HEP_OPT = new BooleanValidator("planner.enable_hep_opt", true);

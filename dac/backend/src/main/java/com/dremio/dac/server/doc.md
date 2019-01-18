@@ -16,7 +16,7 @@
 
 ## Resource defined by class com.dremio.dac.explore.DatasetResource
 
- - DELETE /dataset/{cpath}?savedVersion={java.lang.Long}   
+ - DELETE /dataset/{cpath}?savedTag={String}   
    > `<=` [com.dremio.dac.explore.model.DatasetUI](#class-comdremiodacexploremodeldatasetui)   
 
  - GET /dataset/{cpath}   
@@ -128,7 +128,7 @@
  - GET /dataset/{cpath}/version/{version}/parents   
    > `<=` java.util.List`<`[com.dremio.dac.explore.model.ParentDatasetUI](#class-comdremiodacexploremodelparentdatasetui)`>`   
 
- - GET /dataset/{cpath}/version/{version}/preview?tipVersion={com.dremio.service.namespace.dataset.DatasetVersion}   
+ - GET /dataset/{cpath}/version/{version}/preview?tipVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Integer}   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
 
  - POST /dataset/{cpath}/version/{version}/replace   
@@ -143,13 +143,13 @@
    > `=>` [com.dremio.dac.explore.model.ReplaceValuesPreviewReq](#class-comdremiodacexploremodelreplacevaluespreviewreq)   
    > `<=` [com.dremio.dac.explore.model.extract.ReplaceCards$ReplaceValuesCard](#class-comdremiodacexploremodelextractreplacecards$replacevaluescard)   
 
- - GET /dataset/{cpath}/version/{version}/review?jobId={String}&tipVersion={com.dremio.service.namespace.dataset.DatasetVersion}   
+ - GET /dataset/{cpath}/version/{version}/review?jobId={String}&tipVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Integer}   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
 
  - GET /dataset/{cpath}/version/{version}/run?tipVersion={com.dremio.service.namespace.dataset.DatasetVersion}   
    > `<=` [com.dremio.dac.explore.model.InitialRunResponse](#class-comdremiodacexploremodelinitialrunresponse)   
 
- - POST /dataset/{cpath}/version/{version}/save?as={com.dremio.dac.explore.model.DatasetPath}&savedVersion={java.lang.Long}   
+ - POST /dataset/{cpath}/version/{version}/save?as={com.dremio.dac.explore.model.DatasetPath}&savedTag={String}   
    > `=>`   
    > `<=` [com.dremio.dac.explore.model.DatasetUIWithHistory](#class-comdremiodacexploremodeldatasetuiwithhistory)   
 
@@ -182,11 +182,11 @@
  - GET /datasets/summary/{path: .*} (path params: path={String})   
    > `<=` [com.dremio.dac.explore.model.DatasetSummary](#class-comdremiodacexploremodeldatasetsummary)   
 
- - POST /datasets/new_untitled?parentDataset={com.dremio.dac.explore.model.DatasetPath}&newVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Long}   
+ - POST /datasets/new_untitled?parentDataset={com.dremio.dac.explore.model.DatasetPath}&newVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Integer}   
    > `=>`   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
 
- - POST /datasets/new_untitled_sql?newVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Long}500   
+ - POST /datasets/new_untitled_sql?newVersion={com.dremio.service.namespace.dataset.DatasetVersion}&limit={java.lang.Integer}   
    > `=>` [com.dremio.dac.explore.model.CreateFromSQL](#class-comdremiodacexploremodelcreatefromsql)   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
 
@@ -224,7 +224,7 @@
  - GET /home/{homeName}?includeContents={boolean}true   
    > `<=` [com.dremio.dac.model.spaces.Home](#class-comdremiodacmodelspaceshome)   
 
- - DELETE /home/{homeName}/folder/{path: .*}?version={java.lang.Long} (path params: path={String})   
+ - DELETE /home/{homeName}/folder/{path: .*}?version={String} (path params: path={String})   
    > `<=` void   
 
  - GET /home/{homeName}/folder/{path: .*}?includeContents={boolean}true (path params: path={String})   
@@ -234,14 +234,14 @@
    > `=>` [com.dremio.dac.model.folder.FolderName](#class-comdremiodacmodelfolderfoldername)   
    > `<=` [com.dremio.dac.model.folder.Folder](#class-comdremiodacmodelfolderfolder)   
 
- - POST /home/{homeName}/new_untitled_from_file/{path: .*} (path params: path={String})   
+ - POST /home/{homeName}/new_untitled_from_file/{path: .*}?limit={java.lang.Integer} (path params: path={String})   
    > `=>`   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
 
  - GET /home/{homeName}/dataset/{path: .*} (path params: path={String})   
    > `<=` [com.dremio.dac.explore.model.Dataset](#class-comdremiodacexploremodeldataset)   
 
- - DELETE /home/{homeName}/file/{path: .*}?version={java.lang.Long} (path params: path={String})   
+ - DELETE /home/{homeName}/file/{path: .*}?version={String} (path params: path={String})   
    > `<=` void   
 
  - GET /home/{homeName}/file/{path: .*} (path params: path={String})   
@@ -416,7 +416,7 @@
 
 ## Resource defined by class com.dremio.dac.resource.SourceResource
 
- - DELETE /source/{sourceName}?version={java.lang.Long}   
+ - DELETE /source/{sourceName}?version={String}   
    > `<=` void   
 
  - GET /source/{sourceName}?includeContents={boolean}true   
@@ -428,7 +428,7 @@
  - GET /source/{sourceName}/file/{path: .*} (path params: path={String})   
    > `<=` [com.dremio.file.File](#class-comdremiofilefile)   
 
- - DELETE /source/{sourceName}/file_format/{path: .*}?version={java.lang.Long} (path params: path={String})   
+ - DELETE /source/{sourceName}/file_format/{path: .*}?version={String} (path params: path={String})   
    > `<=` void   
 
  - GET /source/{sourceName}/file_format/{path: .*} (path params: path={String})   
@@ -445,7 +445,7 @@
  - GET /source/{sourceName}/folder/{path: .*}?includeContents={boolean}true (path params: path={String})   
    > `<=` [com.dremio.dac.model.folder.Folder](#class-comdremiodacmodelfolderfolder)   
 
- - DELETE /source/{sourceName}/folder_format/{path: .*}?version={java.lang.Long} (path params: path={String})   
+ - DELETE /source/{sourceName}/folder_format/{path: .*}?version={String} (path params: path={String})   
    > `<=` void   
 
  - GET /source/{sourceName}/folder_format/{path: .*} (path params: path={String})   
@@ -459,15 +459,15 @@
    > `=>` [com.dremio.service.namespace.file.FileFormat](#class-comdremioservicenamespacefilefileformat)   
    > `<=` [com.dremio.dac.model.job.JobDataFragment](#class-comdremiodacmodeljobjobdatafragment)   
 
- - POST /source/{sourceName}/new_untitled_from_file/{path: .*} (path params: path={String})   
+ - POST /source/{sourceName}/new_untitled_from_file/{path: .*}?limit={java.lang.Integer} (path params: path={String})   
    > `=>`   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
 
- - POST /source/{sourceName}/new_untitled_from_folder/{path: .*} (path params: path={String})   
+ - POST /source/{sourceName}/new_untitled_from_folder/{path: .*}?limit={java.lang.Integer} (path params: path={String})   
    > `=>`   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
 
- - POST /source/{sourceName}/new_untitled_from_physical_dataset/{path: .*} (path params: path={String})   
+ - POST /source/{sourceName}/new_untitled_from_physical_dataset/{path: .*}?limit={java.lang.Integer} (path params: path={String})   
    > `=>`   
    > `<=` [com.dremio.dac.explore.model.InitialPreviewResponse](#class-comdremiodacexploremodelinitialpreviewresponse)   
 
@@ -491,7 +491,7 @@
 
 ## Resource defined by class com.dremio.dac.resource.SpaceResource
 
- - DELETE /space/{spaceName}?version={java.lang.Long}   
+ - DELETE /space/{spaceName}?version={String}   
    > `<=` void   
 
  - GET /space/{spaceName}?includeContents={boolean}true   
@@ -507,7 +507,7 @@
 
 ## Resource defined by class com.dremio.dac.resource.FolderResource
 
- - DELETE /space/{space}/folder/{path: .*}?version={java.lang.Long} (path params: path={String})   
+ - DELETE /space/{space}/folder/{path: .*}?version={String} (path params: path={String})   
    > `<=` void   
 
  - GET /space/{space}/folder/{path: .*}?includeContents={boolean}true (path params: path={String})   
@@ -573,7 +573,7 @@
 
 ## Resource defined by class com.dremio.dac.resource.UserResource
 
- - DELETE /user/{userName}?version={java.lang.Long} (path params: userName={com.dremio.dac.model.usergroup.UserName})   
+ - DELETE /user/{userName}?version={String} (path params: userName={com.dremio.dac.model.usergroup.UserName})   
    > `<=` javax.ws.rs.core.Response   
 
  - GET /user/{userName} (path params: userName={com.dremio.dac.model.usergroup.UserName})   
@@ -765,7 +765,7 @@
     recordSchema: {
       empty: true | false,
     },
-    savedVersion: 1,
+    savedTag: "abc",
     sql: "abc",
     sqlFieldsList: [
       { /** ViewFieldType **/
@@ -929,6 +929,10 @@
       },
       ...
     ],
+    tags: [
+      "abc",
+      ...
+    ],
   },
   ...
 ]
@@ -992,7 +996,7 @@
     abc: "abc", ...
   },
   sql: "abc",
-  version: 1,
+  version: "abc",
 }
 ```
 
@@ -1027,7 +1031,7 @@
       abc: "abc", ...
     },
     sql: "abc",
-    version: 1,
+    version: "abc",
   },
   history: {
     currentDatasetVersion: "abc",
@@ -1066,7 +1070,7 @@
     location: "abc",
     name: "abc",
     owner: "abc",
-    version: 1,
+    version: "abc",
   },
   id: "abc",
   links: {
@@ -1206,7 +1210,7 @@
       abc: "abc", ...
     },
     sql: "abc",
-    version: 1,
+    version: "abc",
   },
   error: {
     code: "INITIAL_PREVIEW_ERROR" | "NEW_DATASET_QUERY_EXCEPTION" | "INVALID_QUERY",
@@ -1278,7 +1282,7 @@
       abc: "abc", ...
     },
     sql: "abc",
-    version: 1,
+    version: "abc",
   },
   history: {
     currentDatasetVersion: "abc",
@@ -1339,7 +1343,7 @@
       abc: "abc", ...
     },
     sql: "abc",
-    version: 1,
+    version: "abc",
   },
   history: {
     currentDatasetVersion: "abc",
@@ -1645,7 +1649,7 @@
           recordSchema: { /** ByteString **/
             empty: true | false,
           },
-          savedVersion: 1,
+          savedTag: "abc",
           sql: "abc",
           sqlFieldsList: [
             { /** ViewFieldType **/
@@ -1760,7 +1764,7 @@
             location: "abc",
             name: "abc",
             owner: "abc",
-            version: 1,
+            version: "abc",
           },
           id: "abc",
           links: {
@@ -1803,6 +1807,7 @@
             location: "abc",
             name: "abc",
             owner: "abc",
+            tag: "abc",
             type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
             version: 1,
           },
@@ -1812,6 +1817,7 @@
           ],
           id: "abc",
           name: "abc",
+          tag: "abc",
           type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
           version: 1,
         },
@@ -1851,7 +1857,7 @@
     ...
   ],
   urlPath: "abc",
-  version: 1,
+  version: "abc",
 }
 ```
 
@@ -1958,6 +1964,9 @@
   },
   attemptDetails: [
     {
+      enqueuedTime: 1,
+      executionTime: 1,
+      planningTime: 1,
       profileUrl: "abc",
       reason: "abc",
       result: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
@@ -1965,6 +1974,9 @@
     ...
   ],
   attemptsSummary: "abc",
+  cancellationInfo: {
+    message: "abc",
+  },
   dataVolume: 1,
   datasetPathList: [
     "abc",
@@ -2024,7 +2036,8 @@
   },
   materializationFor: {
     datasetId: "abc",
-    layoutVersion: 1,
+    layoutVersion: "abc",
+    legacyLayoutVersion: 1,
     materializationId: "abc",
     reflectionId: "abc",
     reflectionName: "abc",
@@ -2055,6 +2068,12 @@
   },
   resultsAvailable: true | false,
   snowflakeAccelerated: true | false,
+  spillDetails: {
+    hashAggSpilled: true | false,
+    sortSpilled: true | false,
+    totalBytesSpilled: 1,
+  },
+  spilled: true | false,
   sql: "abc",
   startTime: 1,
   state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
@@ -2222,6 +2241,9 @@
         ],
       },
       appId: "abc",
+      cancellationInfo: {
+        message: "abc",
+      },
       client: "abc",
       contextList: [
         "abc",
@@ -2349,7 +2371,8 @@
       ],
       materializationFor: {
         datasetId: "abc",
-        layoutVersion: 1,
+        layoutVersion: "abc",
+        legacyLayoutVersion: 1,
         materializationId: "abc",
         reflectionId: "abc",
         reflectionName: "abc",
@@ -2377,6 +2400,7 @@
       queryType: "UI_RUN" | "UI_PREVIEW" | "UI_INTERNAL_PREVIEW" | "UI_INTERNAL_RUN" | "UI_EXPORT" | "ODBC" | "JDBC" | "REST" | "ACCELERATOR_CREATE" | "ACCELERATOR_DROP" | "UNKNOWN" | "PREPARE_INTERNAL" | "ACCELERATOR_EXPLAIN" | "UI_INITIAL_PREVIEW",
       requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
       resourceSchedulingInfo: {
+        queryCost: 1.0,
         queueId: "abc",
         queueName: "abc",
         resourceSchedulingEnd: 1,
@@ -2440,6 +2464,10 @@
         ...
       ],
       space: "abc",
+      spillJobDetails: {
+        totalBytesSpilledByHashAgg: 1,
+        totalBytesSpilledBySort: 1,
+      },
       sql: "abc",
       startTime: 1,
       user: "abc",
@@ -2468,6 +2496,9 @@
   jobs: [
     {
       accelerated: true | false,
+      cancellationInfo: {
+        message: "abc",
+      },
       datasetPathList: [
         "abc",
         ...
@@ -2496,6 +2527,7 @@
       isComplete: true | false,
       requestType: "GET_CATALOGS" | "GET_COLUMNS" | "GET_SCHEMAS" | "GET_TABLES" | "CREATE_PREPARE" | "EXECUTE_PREPARE" | "RUN_SQL" | "GET_SERVER_META",
       snowflakeAccelerated: true | false,
+      spilled: true | false,
       startTime: 1,
       state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
       user: "abc",
@@ -2546,6 +2578,7 @@
       location: "abc",
       name: "abc",
       owner: "abc",
+      tag: "abc",
       type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
       version: 1,
     },
@@ -2555,6 +2588,7 @@
     ],
     id: "abc",
     name: "abc",
+    tag: "abc",
     type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     version: 1,
   },
@@ -2663,7 +2697,7 @@
           recordSchema: { /** ByteString **/
             empty: true | false,
           },
-          savedVersion: 1,
+          savedTag: "abc",
           sql: "abc",
           sqlFieldsList: [
             { /** ViewFieldType **/
@@ -2778,7 +2812,7 @@
             location: "abc",
             name: "abc",
             owner: "abc",
-            version: 1,
+            version: "abc",
           },
           id: "abc",
           links: {
@@ -2827,7 +2861,7 @@
           ...
         ],
         urlPath: "abc",
-        version: 1,
+        version: "abc",
       },
       ...
     ],
@@ -2846,6 +2880,7 @@
             location: "abc",
             name: "abc",
             owner: "abc",
+            tag: "abc",
             type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
             version: 1,
           },
@@ -2855,6 +2890,7 @@
           ],
           id: "abc",
           name: "abc",
+          tag: "abc",
           type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
           version: 1,
         },
@@ -2906,7 +2942,7 @@
     ],
     status: "good" | "bad" | "warn",
   },
-  version: 1,
+  tag: "abc",
 }
 ```
 
@@ -3004,7 +3040,7 @@
               recordSchema: { /** ByteString **/
                 empty: true | false,
               },
-              savedVersion: 1,
+              savedTag: "abc",
               sql: "abc",
               sqlFieldsList: [
                 { /** ViewFieldType **/
@@ -3119,7 +3155,7 @@
                 location: "abc",
                 name: "abc",
                 owner: "abc",
-                version: 1,
+                version: "abc",
               },
               id: "abc",
               links: {
@@ -3168,7 +3204,7 @@
               ...
             ],
             urlPath: "abc",
-            version: 1,
+            version: "abc",
           },
           ...
         ],
@@ -3187,6 +3223,7 @@
                 location: "abc",
                 name: "abc",
                 owner: "abc",
+                tag: "abc",
                 type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
                 version: 1,
               },
@@ -3196,6 +3233,7 @@
               ],
               id: "abc",
               name: "abc",
+              tag: "abc",
               type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
               version: 1,
             },
@@ -3247,7 +3285,7 @@
         ],
         status: "good" | "bad" | "warn",
       },
-      version: 1,
+      tag: "abc",
     },
     ...
   ],
@@ -3340,7 +3378,7 @@
           recordSchema: { /** ByteString **/
             empty: true | false,
           },
-          savedVersion: 1,
+          savedTag: "abc",
           sql: "abc",
           sqlFieldsList: [
             { /** ViewFieldType **/
@@ -3455,7 +3493,7 @@
             location: "abc",
             name: "abc",
             owner: "abc",
-            version: 1,
+            version: "abc",
           },
           id: "abc",
           links: {
@@ -3504,7 +3542,7 @@
           ...
         ],
         urlPath: "abc",
-        version: 1,
+        version: "abc",
       },
       ...
     ],
@@ -3523,6 +3561,7 @@
             location: "abc",
             name: "abc",
             owner: "abc",
+            tag: "abc",
             type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
             version: 1,
           },
@@ -3532,6 +3571,7 @@
           ],
           id: "abc",
           name: "abc",
+          tag: "abc",
           type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
           version: 1,
         },
@@ -3566,6 +3606,7 @@
       id: "abc",
     },
     owner: "abc",
+    tag: "abc",
     version: 1,
   },
   id: "abc",
@@ -3663,7 +3704,7 @@
           recordSchema: { /** ByteString **/
             empty: true | false,
           },
-          savedVersion: 1,
+          savedTag: "abc",
           sql: "abc",
           sqlFieldsList: [
             { /** ViewFieldType **/
@@ -3778,7 +3819,7 @@
             location: "abc",
             name: "abc",
             owner: "abc",
-            version: 1,
+            version: "abc",
           },
           id: "abc",
           links: {
@@ -3827,7 +3868,7 @@
           ...
         ],
         urlPath: "abc",
-        version: 1,
+        version: "abc",
       },
       ...
     ],
@@ -3846,6 +3887,7 @@
             location: "abc",
             name: "abc",
             owner: "abc",
+            tag: "abc",
             type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
             version: 1,
           },
@@ -3855,6 +3897,7 @@
           ],
           id: "abc",
           name: "abc",
+          tag: "abc",
           type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
           version: 1,
         },
@@ -3884,7 +3927,7 @@
     abc: "abc", ...
   },
   name: "abc",
-  version: 1,
+  version: "abc",
 }
 ```
 
@@ -3976,7 +4019,7 @@
               recordSchema: { /** ByteString **/
                 empty: true | false,
               },
-              savedVersion: 1,
+              savedTag: "abc",
               sql: "abc",
               sqlFieldsList: [
                 { /** ViewFieldType **/
@@ -4091,7 +4134,7 @@
                 location: "abc",
                 name: "abc",
                 owner: "abc",
-                version: 1,
+                version: "abc",
               },
               id: "abc",
               links: {
@@ -4140,7 +4183,7 @@
               ...
             ],
             urlPath: "abc",
-            version: 1,
+            version: "abc",
           },
           ...
         ],
@@ -4159,6 +4202,7 @@
                 location: "abc",
                 name: "abc",
                 owner: "abc",
+                tag: "abc",
                 type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
                 version: 1,
               },
@@ -4168,6 +4212,7 @@
               ],
               id: "abc",
               name: "abc",
+              tag: "abc",
               type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
               version: 1,
             },
@@ -4197,7 +4242,7 @@
         abc: "abc", ...
       },
       name: "abc",
-      version: 1,
+      version: "abc",
     },
     ...
   ],
@@ -4218,7 +4263,7 @@
     id: "abc",
   },
   userName: "abc",
-  version: 1,
+  version: "abc",
 }
 ```
 
@@ -4251,7 +4296,7 @@
       id: "abc",
     },
     userName: "abc",
-    version: 1,
+    version: "abc",
   },
   userName: "abc",
 }
@@ -4279,7 +4324,7 @@
           id: "abc",
         },
         userName: "abc",
-        version: 1,
+        version: "abc",
       },
       userName: "abc",
     },
@@ -4458,7 +4503,7 @@ any
       location: "abc",
       name: "abc",
       owner: "abc",
-      version: 1,
+      version: "abc",
     },
     id: "abc",
     links: {
@@ -4530,6 +4575,7 @@ any
     },
     ...
   ],
+  tag: "abc",
   version: 1,
   virtualCoreCount: 1,
 }
@@ -4594,6 +4640,7 @@ any
     },
     ...
   ],
+  tag: "abc",
   version: 1,
   virtualCoreCount: 1,
 }
@@ -4660,6 +4707,7 @@ any
         },
         ...
       ],
+      tag: "abc",
       version: 1,
       virtualCoreCount: 1,
     },
@@ -4713,6 +4761,7 @@ any
       neverRefresh: true | false,
       refreshField: "abc",
       refreshPeriod: 1,
+      tag: "abc",
       version: 1,
     },
     allowApproxStats: true | false,
@@ -4731,6 +4780,7 @@ any
       location: "abc",
       name: "abc",
       owner: "abc",
+      tag: "abc",
       type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW",
       version: 1,
     },
@@ -4765,6 +4815,7 @@ any
     empty: true | false,
   },
   schemaVersion: 1,
+  tag: "abc",
   type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
   version: 1,
   virtualDataset: {
@@ -4862,7 +4913,7 @@ any
   location: "abc",
   name: "abc",
   owner: "abc",
-  version: 1,
+  version: "abc",
 }
 ```
 
@@ -4924,5 +4975,7 @@ any
 ## class com.dremio.dac.server.JSONPrettyPrintFilter
 ## class com.dremio.dac.server.MediaTypeFilter
 ## class com.dremio.dac.server.TestResourcesFeature
+## class com.fasterxml.jackson.jaxrs.base.JsonMappingExceptionMapper
+## class com.fasterxml.jackson.jaxrs.base.JsonParseExceptionMapper
 ## class org.glassfish.jersey.media.multipart.MultiPartFeature
 ## class org.glassfish.jersey.server.mvc.freemarker.FreemarkerMvcFeature

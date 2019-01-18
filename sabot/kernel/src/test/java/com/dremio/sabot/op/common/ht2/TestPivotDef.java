@@ -15,11 +15,11 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.TimeMilliVector;
 import org.apache.arrow.vector.VarCharVector;

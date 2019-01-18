@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.vector.complex.fn;
 
-import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.ArrowBuf;
-
 import java.io.IOException;
 
 import org.apache.hadoop.fs.Seekable;
+
+import io.netty.buffer.ArrowBuf;
+import io.netty.buffer.ByteBufInputStream;
 
 /**
  * An InputStream that wraps a ArrowBuf and implements the seekable interface.

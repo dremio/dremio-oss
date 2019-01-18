@@ -28,8 +28,8 @@ public class UserRemoteException extends UserException {
 
   private final DremioPBError error;
 
-  private UserRemoteException(DremioPBError error, AdditionalExceptionContext additionalExceptionContext) {
-    super(error.getErrorType(), "Dremio Remote Exception", null, additionalExceptionContext);
+  private UserRemoteException(DremioPBError error) {
+    super(error.getErrorType(), "Dremio Remote Exception", null, error.getTypeSpecificContext());
     this.error = error;
   }
 
@@ -91,8 +91,6 @@ public class UserRemoteException extends UserException {
    * @return user remote exception
    */
   public static UserRemoteException create(DremioPBError error) {
-    final AdditionalExceptionContext additionalContext = error.getTypeSpecificContext() == null ? null :
-        ErrorHelper.deserializeAdditionalContext(error.getTypeSpecificContext());
-    return new UserRemoteException(error, additionalContext);
+    return new UserRemoteException(error);
   }
 }

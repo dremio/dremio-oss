@@ -47,7 +47,7 @@ public class Folder {
   private final String name;
   private final Boolean physicalDataset;
   private final ExtendedConfig extendedConfig;
-  private final Long version;
+  private final String version;
 
   private final NamespacePath folderPath;
 
@@ -69,7 +69,7 @@ public class Folder {
     @JsonProperty("isFileSystemFolder") boolean isFileSystemFolder,
     @JsonProperty("isQueryable") boolean isQueryable,
     @JsonProperty("extendedConfig") ExtendedConfig extendedConfig,
-    @JsonProperty("version") Long version,
+    @JsonProperty("version") String version,
     @JsonProperty("fileformat") FileFormat fileFormat,
     @JsonProperty("contents") NamespaceTree contents,
     @JsonProperty("tags") List<String> tags) {
@@ -122,7 +122,7 @@ public class Folder {
     return extendedConfig;
   }
 
-  public Long getVersion() {
+  public String getVersion() {
     return version;
   }
 
@@ -212,6 +212,6 @@ public class Folder {
   protected static Folder newInstance(NamespacePath folderPath, FolderConfig folderConfig, FileFormat fileFormat, NamespaceTree contents, boolean isQueryable, boolean isFileSystemFolder, List<String> tags) {
     String id = folderConfig.getId() == null ? folderPath.toUrlPath() : folderConfig.getId().getId();
     return new Folder(id, folderConfig.getName(), folderPath.toUrlPath(), folderConfig.getIsPhysicalDataset(),
-        isFileSystemFolder, isQueryable, folderConfig.getExtendedConfig(), folderConfig.getVersion(), fileFormat, contents, tags);
+        isFileSystemFolder, isQueryable, folderConfig.getExtendedConfig(), folderConfig.getTag(), fileFormat, contents, tags);
   }
 }

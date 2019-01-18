@@ -22,6 +22,7 @@ import { LOAD_EXPLORE_ENTITIES_SUCCESS } from 'actions/explore/dataset/get';
 import { RUN_DATASET_SUCCESS } from 'actions/explore/dataset/run';
 
 export const EXPLORE_VIEW_ID = 'EXPLORE_VIEW_ID';
+export const EXPLORE_TABLE_ID = 'EXPLORE_TABLE_ID';
 
 const initialState = Immutable.fromJS({
   queryContext: Immutable.List(),

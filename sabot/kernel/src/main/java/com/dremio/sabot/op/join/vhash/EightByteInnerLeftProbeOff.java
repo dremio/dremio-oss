@@ -15,22 +15,20 @@
  */
 package com.dremio.sabot.op.join.vhash;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.sabot.op.common.ht2.HashComputation;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.SimpleBigIntVector;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.sabot.op.common.ht2.HashComputation;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.koloboke.collect.hash.HashConfig;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
-import org.apache.arrow.vector.SimpleBigIntVector;
 
 public class EightByteInnerLeftProbeOff implements JoinTable {
 

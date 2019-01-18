@@ -19,6 +19,7 @@ package com.dremio.exec.store.dfs;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.core.AggregateCall;

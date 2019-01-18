@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { merge, set, result } from 'lodash/object';
+import { merge, get, set, result } from 'lodash/object';
 import { capitalize } from 'lodash';
 import Immutable from 'immutable';
 
@@ -21,6 +21,12 @@ import Immutable from 'immutable';
 
 export function isEmptyValue(value) {
   return value === '' || value === undefined || value === null;
+}
+
+export function makeLabelFromKey(key) {
+  if (!key) return key;
+  const keyParts = key.split('.');
+  return capitalize(keyParts[keyParts.length - 1]);
 }
 
 export function isEmptyObject(value) {
@@ -76,11 +82,10 @@ export function notEmptyObject(key, message) {
   };
 }
 
-export function isRequiredIfAnotherPropertyEqual(key, dependetKey, dependetValue) {
-
+export function isRequiredIfAnotherPropertyEqual(key, dependetKey, dependetValue, label) {
   return function(values) {
-    if (!values[key] && values[dependetKey] !== dependetValue) {
-      return {[key]: `${key} is required.`};
+    if (!get(values, key) && get(values, dependetKey) === dependetValue) {
+      return set({}, key, `${label || makeLabelFromKey(key)} is required.`);
     }
   };
 }

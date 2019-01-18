@@ -22,8 +22,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 
-import java.util.concurrent.CountDownLatch;
-
 /**
  * See {@link com.dremio.exec.testing.CountDownLatchInjection} Degenerates to
  * {@link com.dremio.exec.testing.PauseInjection#pause}, if initialized to zero count. In any case, this injection

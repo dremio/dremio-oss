@@ -33,7 +33,7 @@ import { loadJoinDataset, setJoinTab, resetJoins, setJoinStep } from 'actions/ex
 import { runTableTransform } from 'actions/explore/dataset/transform';
 import { loadRecommendedJoin } from 'actions/explore/join';
 
-import { getTableColumns, getJoinTable } from 'selectors/explore';
+import { getTableColumns, getJoinTable, getExploreState } from 'selectors/explore';
 import { getLocation } from 'selectors/routing';
 
 import { RECOMMENDED_JOIN, CUSTOM_JOIN} from 'constants/explorePage/joinTabs';
@@ -305,12 +305,13 @@ export class JoinController extends Component {
 
 function mapStateToProps(state, ownProps) {
   const location = getLocation(state);
-  const joinDatasetPathList = state.explore.join.getIn(['custom', 'joinDatasetPathList']);
+  const explorePageState = getExploreState(state);
+  const joinDatasetPathList = explorePageState.join.getIn(['custom', 'joinDatasetPathList']);
   return {
-    joinTab: state.explore.join.get('joinTab'),
+    joinTab: explorePageState.join.get('joinTab'),
     leftColumns: getTableColumns(state, ownProps.dataset.get('datasetVersion'), location),
     rightColumns: getJoinTable(state, ownProps).get('columns'),
-    joinStep: state.explore.join.get('step'),
+    joinStep: explorePageState.join.get('step'),
     initialValues: {
       joinType: 'Inner',
       activeDataset: joinDatasetPathList,

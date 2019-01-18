@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.config.DremioConfig;
 import com.dremio.datastore.CoreStoreProvider.CoreStoreBuilder;
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
 import com.dremio.datastore.indexed.AuxiliaryIndex;
@@ -42,8 +43,16 @@ import com.google.common.collect.ImmutableMap;
 /**
  * Datastore provider for master node.
  */
+@KVStoreProviderType(type="LocalDB")
 public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWithId> {
   private static final Logger logger = LoggerFactory.getLogger(LocalKVStoreProvider.class);
+  public static final String CONFIG_HOSTNAME = "hostName";
+  public static final String CONFIG_BASEDIRECTORY = "baseDirectory";
+  public static final String CONFIG_TIMED = "timed";
+  public static final String CONFIG_VALIDATEOCC = "validateOCC";
+  public static final String CONFIG_DISABLEOCC = "disableOCC";
+  public static final String ERR_FMT = "Missing services.datastore.config.%s in dremio.conf";
+
   private final CoreStoreProviderImpl coreStoreProvider;
   private final Provider<FabricService> fabricService;
   private final BufferAllocator allocator;
@@ -78,11 +87,32 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
       boolean validateOCC,
       boolean disableOCC
   ) {
+
     coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, validateOCC, disableOCC);
     this.fabricService = fabricService;
     this.allocator = allocator;
     this.hostName = hostName;
     this.scan = scan;
+  }
+
+  public LocalKVStoreProvider(
+    ScanResult scan,
+    Provider<FabricService> fabricService,
+    Provider<NodeEndpoint> endpoint,        // unused
+    BufferAllocator allocator,
+    Map<String, Object> config
+  ) {
+    this(scan,
+      fabricService,
+      allocator,
+      String.valueOf(Preconditions.checkNotNull(config.get(CONFIG_HOSTNAME), String.format(ERR_FMT, CONFIG_HOSTNAME))),
+      String.valueOf(Preconditions.checkNotNull(config.get(CONFIG_BASEDIRECTORY), String.format(ERR_FMT, CONFIG_BASEDIRECTORY))),
+      Boolean.valueOf(Preconditions.checkNotNull(config.get(DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL),
+        String.format("Missing %s in dremio.conf", DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL)).toString()),
+      Boolean.valueOf(Preconditions.checkNotNull(config.get(CONFIG_TIMED), String.format(ERR_FMT, CONFIG_TIMED)).toString()),
+      Boolean.parseBoolean(Preconditions.checkNotNull(config.get(CONFIG_VALIDATEOCC), String.format(ERR_FMT, CONFIG_VALIDATEOCC)).toString()),
+      Boolean.parseBoolean(Preconditions.checkNotNull(config.get(CONFIG_DISABLEOCC), String.format(ERR_FMT, CONFIG_DISABLEOCC)).toString())
+    );
   }
 
   @VisibleForTesting

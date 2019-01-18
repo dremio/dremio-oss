@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import javax.inject.Provider;
 
+import com.dremio.common.Version;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.accelerator.proto.Acceleration;
@@ -57,9 +58,23 @@ import com.google.common.collect.Sets;
 /**
  * Upgrades from the old acceleration service to the new reflection service
  */
-public class MoveFromAccelerationsToReflections extends UpgradeTask {
+public class MoveFromAccelerationsToReflections extends UpgradeTask implements LegacyUpgradeTask {
+
+  //DO NOT MODIFY
+  static final String taskUUID = "11e22843-8b8e-43b1-8c46-ba8fd3418e6c";
+
   public MoveFromAccelerationsToReflections() {
-    super("Migrate from accelerations to reflections", VERSION_106, VERSION_150, NORMAL_ORDER + 5);
+    super("Migrate from accelerations to reflections", ImmutableList.of(MarkOldMaterializationsAsDeprecated.taskUUID));
+  }
+
+  @Override
+  public Version getMaxVersion() {
+    return VERSION_150;
+  }
+
+  @Override
+  public String getTaskUUID() {
+    return taskUUID;
   }
 
   @Override
@@ -192,5 +207,10 @@ public class MoveFromAccelerationsToReflections extends UpgradeTask {
       }
     }
     return newFields;
+  }
+
+  @Override
+  public String toString() {
+    return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
   }
 }

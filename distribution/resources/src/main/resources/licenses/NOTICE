@@ -321,8 +321,6 @@ Copyright 2000-2016 JetBrains s.r.o.
 
 Copyright 2003-2005, Ernst de Haan <wfe.dehaan@gmail.com> All rights reserved.
 
-Copyright 2003-2006 Greg Luck
-
 Copyright 2006 SUN MICROSYSTEMS, INC
 
 Copyright 2008 Google Inc.
@@ -416,5 +414,3 @@ This product includes software developed by The Apache Software Foundation (http
 foodmart-data-json Foodmart data set in JSON format Copyright (C) 2013-2013 Pentaho Copyright (C) 2015-2015 Julian Hyde All Rights Reserved.  Based upon the Pentaho mondrian-data-foodmart-json artifact developed as part of the Pentaho Mondrian OLAP engine (http://mondrian.pentaho.com).
 
 protostuff  Copyright 2009 David Yu dyuproject@gmail.com
-
-© 2014 Kohsuke Kawaguchi and other contributors

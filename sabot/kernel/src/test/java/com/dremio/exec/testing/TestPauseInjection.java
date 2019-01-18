@@ -20,10 +20,6 @@ import static org.junit.Assert.fail;
 
 import java.util.concurrent.CountDownLatch;
 
-import com.dremio.service.Pointer;
-import com.dremio.service.coordinator.ClusterCoordinator;
-import com.dremio.service.coordinator.local.LocalClusterCoordinator;
-
 import org.junit.Test;
 import org.slf4j.Logger;
 
@@ -42,6 +38,9 @@ import com.dremio.exec.proto.UserProtos.UserProperties;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.Pointer;
+import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 
 public class TestPauseInjection extends BaseTestQuery {
 

@@ -36,7 +36,7 @@ export default class TagsModal extends Component {
   };
 
   render() {
-    const { tags, isOpen, hide, anchorEl} = this.props;
+    const { tags, isOpen, hide, anchorEl, onTagClick } = this.props;
     //TODO reuse read mode tag;
     return (
       <Popover
@@ -54,7 +54,7 @@ export default class TagsModal extends Component {
             {tags.map((tag, index) => <MenuItem key={`item${index}`}>
               <Tag key={index}
                 className={tagClass}
-                onClick={() => this.props.onTagClick(tag)}
+                onClick={onTagClick ? () => onTagClick(tag) : null}
                 text={tag}
                 title />
             </MenuItem>)}

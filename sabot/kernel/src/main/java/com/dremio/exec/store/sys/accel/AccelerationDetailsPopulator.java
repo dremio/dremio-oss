@@ -19,9 +19,9 @@ import java.util.List;
 
 import org.apache.calcite.rel.RelNode;
 
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 
 /**
@@ -36,7 +36,7 @@ public interface AccelerationDetailsPopulator {
    * @param target
    * @param millisTaken
    */
-  void planSubstituted(DremioRelOptMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken);
+  void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken);
 
   /**
    * report failures during substitution
@@ -61,7 +61,7 @@ public interface AccelerationDetailsPopulator {
 
   AccelerationDetailsPopulator NO_OP = new AccelerationDetailsPopulator() {
     @Override
-    public void planSubstituted(DremioRelOptMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken) {
+    public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken) {
     }
 
     @Override

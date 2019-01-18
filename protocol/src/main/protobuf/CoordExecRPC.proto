@@ -96,6 +96,12 @@ message PlanFragment {
   repeated Collector collector = 17;
   optional FragmentPriority priority = 18;
   optional FragmentCodec fragment_codec = 19;
+  repeated FragmentAssignment all_assignment = 20;
+}
+
+message FragmentAssignment {
+  optional NodeEndpoint assignment = 1;
+  repeated int32 minor_fragment_id = 2;
 }
 
 message FragmentPriority {

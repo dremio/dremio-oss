@@ -23,6 +23,7 @@ export class NotificationContainer extends Component {
 
   constructor(props) {
     super(props);
+    this.addedNotifications = [];
   }
 
   componentDidMount() {
@@ -30,7 +31,11 @@ export class NotificationContainer extends Component {
   }
 
   componentWillReceiveProps(newProps) {
-    const { message, level, autoDismiss } = newProps.notification;
+    const { message, level, autoDismiss, removeMessageType } = newProps.notification;
+    if (removeMessageType) {
+      this.removeMessages(removeMessageType);
+    }
+
     const handleDismiss = () => {
       this.notificationSystem.removeNotification(notification);
       return false;
@@ -47,7 +52,25 @@ export class NotificationContainer extends Component {
       // see https://dremio.atlassian.net/browse/DX-5316 for commentary
       autoDismiss: autoDismiss || (level === 'success' ? 10 : 0)
     });
+    if (notification) {
+      // message is defined if notification is truthy; if message has type, store it in the local list
+      const messageType = message.messageType || (message.get && message.get('messageType'));
+      if (messageType) {
+        this.addedNotifications.push({messageType, notification});
+      }
+    }
   }
+
+  removeMessages = (messageType) => {
+    // remove messages of the given type from notification system and hence from the screen
+    this.addedNotifications.forEach(entry => {
+      if (entry.messageType === messageType) {
+        this.notificationSystem.removeNotification(entry.notification);
+      }
+    });
+    // remove messages of the given type from local array
+    this.addedNotifications = this.addedNotifications.filter(entry => entry.messageType !== messageType);
+  };
 
   render() {
     return (

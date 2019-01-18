@@ -16,11 +16,10 @@
 package com.dremio.exec.store.easy.excel;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.ArrayList;
 
-import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.hadoop.fs.Path;
 
@@ -36,6 +35,8 @@ import com.dremio.exec.store.easy.excel.xls.XlsInputStream;
 import com.dremio.exec.store.easy.excel.xls.XlsRecordProcessor;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
+
+import io.netty.buffer.ArrowBuf;
 
 /**
  * {@link RecordReader} implementation for reading a single sheet in an Excel file. Current support is

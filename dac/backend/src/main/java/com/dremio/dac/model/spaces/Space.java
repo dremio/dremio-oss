@@ -47,7 +47,7 @@ public class Space implements DatasetContainer {
   private final String name;
   private final String description;
   private final int datasetCount;
-  private final Long version;
+  private final String version;
   private final NamespaceTree contents;
   private final Long ctime;
 
@@ -56,7 +56,7 @@ public class Space implements DatasetContainer {
     @JsonProperty("id") @DefaultValue("null") String id, // default is null for new spaces
     @JsonProperty("name") String name,
     @JsonProperty("description") String description,
-    @JsonProperty("version") Long version,
+    @JsonProperty("version") String version,
     @JsonProperty("contents") NamespaceTree contents,
     @JsonProperty("datasetCount") int datasetCount,
     @JsonProperty("ctime") Long ctime
@@ -116,12 +116,12 @@ public class Space implements DatasetContainer {
     return description;
   }
 
-  public Long getVersion() {
+  public String getVersion() {
     return version;
   }
 
   public static Space newInstance(SpaceConfig spaceConfig, NamespaceTree contents, int datasetCount) {
     String id = spaceConfig.getId() != null ? spaceConfig.getId().getId() : null;
-    return new Space(id, spaceConfig.getName(), spaceConfig.getDescription(), spaceConfig.getVersion(), contents, datasetCount, spaceConfig.getCtime());
+    return new Space(id, spaceConfig.getName(), spaceConfig.getDescription(), spaceConfig.getTag(), contents, datasetCount, spaceConfig.getCtime());
   }
 }

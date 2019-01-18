@@ -68,8 +68,9 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
     this.index = index;
   }
 
-  public static final IndexKey ID_KEY = new IndexKey(IndexedStore.ID_FIELD_NAME, IndexedStore.ID_FIELD_NAME,
-      String.class, null, false, true);
+  public static final IndexKey ID_KEY = IndexKey.newBuilder(IndexedStore.ID_FIELD_NAME, IndexedStore.ID_FIELD_NAME, String.class)
+    .setStored(true)
+    .build();
 
   private class ReindexThread extends Thread {
     private final Iterator<Entry<KVStoreTuple<K>, KVStoreTuple<V>>> iterator;
@@ -183,6 +184,16 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
   }
 
   @Override
+  public boolean validateAndPut(KVStoreTuple<K> key, KVStoreTuple<V> newValue, ValueValidator<V> validator) {
+    return base.validateAndPut(key, newValue, validator);
+  }
+
+  @Override
+  public boolean validateAndDelete(KVStoreTuple<K> key, ValueValidator<V> validator) {
+    return base.validateAndDelete(key, validator);
+  }
+
+  @Override
   public KVStoreTuple<V> get(KVStoreTuple<K> key) {
     return base.get(key);
   }
@@ -220,33 +231,8 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
   }
 
   @Override
-  public boolean checkAndPut(KVStoreTuple<K> key, KVStoreTuple<V> oldValue, KVStoreTuple<V> newValue) {
-    boolean changed = base.checkAndPut(key, oldValue, newValue);
-    if (changed) {
-      final Document d = toDoc(key, newValue);
-      if (d != null) {
-        if (oldValue == null) {
-          index.add(d);
-        } else {
-          index.update(keyAsTerm(key), d);
-        }
-      }
-    }
-    return changed;
-  }
-
-  @Override
   public boolean contains(KVStoreTuple<K> key) {
     return base.contains(key);
-  }
-
-  @Override
-  public boolean checkAndDelete(KVStoreTuple<K> key, KVStoreTuple<V> value) {
-    boolean deleted = base.checkAndDelete(key, value);
-    if(deleted){
-      index.deleteDocuments(keyAsTerm(key));
-    }
-    return deleted;
   }
 
   public static Term keyAsTerm(KVStoreTuple<?> key) {
@@ -271,7 +257,7 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
   }
 
   @Override
-  public void delete(KVStoreTuple<K> key, long previousVersion) {
+  public void delete(KVStoreTuple<K> key, String previousVersion) {
     base.delete(key, previousVersion);
     index.deleteDocuments(keyAsTerm(key));
   }

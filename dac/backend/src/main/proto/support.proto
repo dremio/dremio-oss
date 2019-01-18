@@ -22,9 +22,10 @@ option optimize_for = SPEED;
 
 message ClusterIdentity {
   optional string identity = 1;
-  optional int64 serial = 2;
+  optional int64 serial = 2 [deprecated = true];
   optional int64 created = 3;
   optional ClusterVersion version = 4;
+  optional string tag = 5;
 }
 
 message ClusterVersion {

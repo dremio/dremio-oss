@@ -24,18 +24,21 @@ import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 class DatasetSplitVersionExtractor implements VersionExtractor<DatasetSplit> {
   @Override
   public Long getVersion(DatasetSplit value) {
-    return value.getVersion();
-  }
-
-  @Override
-  public Long incrementVersion(DatasetSplit value) {
-    Long version = getVersion(value);
-    setVersion(value, Long.valueOf((version == null) ? 0L : version.longValue() + 1L));
-    return version;
+    return value.getSplitVersion();
   }
 
   @Override
   public void setVersion(DatasetSplit value, Long version) {
     value.setVersion(version);
+  }
+
+  @Override
+  public String getTag(DatasetSplit value) {
+    return value.getTag();
+  }
+
+  @Override
+  public void setTag(DatasetSplit value, String tag) {
+    value.setTag(tag);
   }
 }

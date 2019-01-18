@@ -17,9 +17,8 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.io.IOException;
 
-import org.apache.arrow.vector.VectorDefinitionSetter;
 import org.apache.arrow.vector.ValueVector;
-
+import org.apache.arrow.vector.VectorDefinitionSetter;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.SchemaElement;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;

@@ -19,6 +19,7 @@ package com.dremio.dac.cmd.upgrade;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import com.dremio.common.Version;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.exec.serialization.JacksonSerializer;
 import com.dremio.exec.server.options.SystemOptionManager;
@@ -40,6 +41,7 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.reflection.ReflectionOptions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 /**
@@ -47,11 +49,25 @@ import com.google.common.collect.Lists;
  * --> refreshperiod set to accelerationTTL
  * --> graceperiod set to refreshperiod * 3
  */
-public class SetAccelerationRefreshGrace extends UpgradeTask {
+public class SetAccelerationRefreshGrace extends UpgradeTask implements LegacyUpgradeTask {
+
+  //DO NOT MODIFY
+  static final String taskUUID = "3ea6ba77-3367-43ca-8e63-727b565b544b";
+
   private static final long HOUR_IN_MS = TimeUnit.HOURS.toMillis(1);
 
   public SetAccelerationRefreshGrace() {
-    super("Setting acceleration refresh and grace policy", VERSION_109, VERSION_120, NORMAL_ORDER + 3);
+    super("Setting acceleration refresh and grace policy", ImmutableList.of(SetDatasetExpiry.taskUUID));
+  }
+
+  @Override
+  public Version getMaxVersion() {
+    return VERSION_120;
+  }
+
+  @Override
+  public String getTaskUUID() {
+    return taskUUID;
   }
 
   @Override
@@ -165,5 +181,10 @@ public class SetAccelerationRefreshGrace extends UpgradeTask {
     }
 
     return hasSubHourTTL;
+  }
+
+  @Override
+  public String toString() {
+    return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
   }
 }

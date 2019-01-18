@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;

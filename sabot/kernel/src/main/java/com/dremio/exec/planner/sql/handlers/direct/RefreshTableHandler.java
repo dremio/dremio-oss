@@ -19,6 +19,7 @@ import static com.dremio.exec.planner.sql.handlers.direct.SimpleCommandResult.su
 import static java.util.Collections.singletonList;
 
 import java.util.List;
+
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.catalog.Catalog;

@@ -18,6 +18,10 @@ package com.dremio.exec.planner.physical;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
@@ -28,11 +32,6 @@ import com.dremio.exec.physical.config.TopN;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelTraitSet;
 
 public class TopNPrel extends SinglePrel {
 

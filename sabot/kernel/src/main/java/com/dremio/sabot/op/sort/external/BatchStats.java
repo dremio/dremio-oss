@@ -17,7 +17,6 @@ package com.dremio.sabot.op.sort.external;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.arrow.vector.ValueVector;
 

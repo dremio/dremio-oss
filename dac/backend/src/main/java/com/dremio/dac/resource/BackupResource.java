@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.resource;
 
-import static java.lang.String.format;
-
 import java.io.IOException;
 
 import javax.annotation.security.RolesAllowed;
@@ -28,7 +26,6 @@ import javax.ws.rs.core.SecurityContext;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.permission.FsAction;
 
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
@@ -71,28 +68,7 @@ public class BackupResource {
     final org.apache.hadoop.fs.Path backupDirPath = new org.apache.hadoop.fs.Path(backupDir);
     final FileSystem fs = backupDirPath.getFileSystem(new Configuration());
     // Checking if directory already exists and that the daemon can access it
-    if (!fs.exists(backupDirPath)) {
-      // Checking if parent already exists and has the right permissions
-      org.apache.hadoop.fs.Path parent = backupDirPath.getParent();
-      if (!fs.exists(parent)) {
-        throw new IllegalArgumentException(format("Parent directory %s does not exist.", parent));
-      }
-      if (!fs.isDirectory(parent)) {
-        throw new IllegalArgumentException(format("Path %s is not a directory.", parent));
-      }
-      try {
-        fs.access(parent, FsAction.WRITE_EXECUTE);
-      } catch(org.apache.hadoop.security.AccessControlException e) {
-        throw new IllegalArgumentException(format("Cannot create directory %s: check parent directory permissions.", backupDirPath), e);
-      }
-      fs.mkdirs(backupDirPath);
-    }
-    try {
-      fs.access(backupDirPath, FsAction.ALL);
-    } catch(org.apache.hadoop.security.AccessControlException e) {
-      throw new IllegalArgumentException(format("Path %s is not accessible/writeable.", backupDirPath), e);
-    }
-
+    BackupRestoreUtil.checkOrCreateDirectory(fs, backupDirPath);
     return BackupRestoreUtil.createBackup(fs, backupDirPath, (LocalKVStoreProvider) kvStoreProvider, fileStore.get().getConf());
 
   }

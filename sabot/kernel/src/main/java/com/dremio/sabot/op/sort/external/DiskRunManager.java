@@ -17,7 +17,6 @@ package com.dremio.sabot.op.sort.external;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -39,6 +38,7 @@ import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.data.Order.Ordering;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.cache.VectorAccessibleSerializable;
 import com.dremio.exec.compile.sig.GeneratorMapping;
 import com.dremio.exec.compile.sig.MappingSet;
@@ -46,17 +46,16 @@ import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.CodeGenerator;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.record.selection.SelectionVector4;
-import com.dremio.options.OptionManager;
 import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.vector.CopyUtil;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.copier.Copier;
 import com.dremio.sabot.op.copier.CopierOperator;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
@@ -100,6 +99,7 @@ public class DiskRunManager implements AutoCloseable {
   private boolean compressSpilledBatch;
   private BufferAllocator compressSpilledBatchAllocator;
   private final ExternalSortTracer tracer;
+  private long totalDataSpilled;
 
   private enum MergeState {
     TRY, // Try to reserve memory to copy all runs
@@ -131,6 +131,7 @@ public class DiskRunManager implements AutoCloseable {
       this.parentAllocator = parentAllocator;
       this.compressSpilledBatch = compressSpilledBatch;
       this.tracer = tracer;
+      this.totalDataSpilled = 0;
       if (compressSpilledBatch) {
         long reserve = VectorAccessibleSerializable.RAW_CHUNK_SIZE_TO_COMPRESS * 2;
         compressSpilledBatchAllocator = this.parentAllocator.newChildAllocator("spill_with_snappy", reserve, Long.MAX_VALUE);
@@ -263,6 +264,14 @@ public class DiskRunManager implements AutoCloseable {
         run.close();
       }
     }
+  }
+
+  /**
+   * Return the total amount of data (in bytes) spilled by {@link ExternalSortOperator}
+   * @return total size (in bytes) of data spilled
+   */
+  long getTotalDataSpilled() {
+    return totalDataSpilled;
   }
 
   public int getAvgMaxBatchSize() {
@@ -423,6 +432,7 @@ public class DiskRunManager implements AutoCloseable {
             assert copied > 0 : "couldn't copy any rows, probably run out of memory while doing so";
             outgoing.setAllCount(copied);
             int batchSize = spillBatch(outgoing, copied, out);
+            totalDataSpilled += batchSize;
             recordsSpilledInCurrentIteration += copied;
             maxBatchSize = Math.max(maxBatchSize, batchSize);
             batchCount++;

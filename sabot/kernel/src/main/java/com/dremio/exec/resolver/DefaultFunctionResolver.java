@@ -22,7 +22,6 @@ import java.util.List;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
-import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.util.AssertionUtil;
 import com.google.common.collect.Lists;

@@ -20,11 +20,11 @@ import java.util.Map;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.RecordBatchDef;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.dremio.options.OptionManager;
-import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 

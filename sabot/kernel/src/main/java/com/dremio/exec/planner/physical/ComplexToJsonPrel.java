@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 
@@ -26,8 +27,6 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.ComplexToJson;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-
-import org.apache.calcite.plan.RelTraitSet;
 
 public class ComplexToJsonPrel extends SingleRel implements Prel, CustomPrel {
 

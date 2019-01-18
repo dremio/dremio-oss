@@ -16,7 +16,6 @@
 
 package com.dremio.exec.expr.fn.impl;
 
-import org.apache.arrow.vector.holders.BitHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 
 import com.dremio.exec.expr.SimpleFunction;

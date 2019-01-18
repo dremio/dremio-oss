@@ -45,6 +45,7 @@ import com.dremio.common.Version;
 import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
@@ -75,7 +76,6 @@ import com.dremio.exec.proto.UserProtos.QueryPlanFragments;
 import com.dremio.exec.proto.UserProtos.RpcType;
 import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.proto.UserProtos.UserProperties;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.rpc.BasicClientWithConnection.ServerConnection;
 import com.dremio.exec.rpc.ChannelClosedException;
 import com.dremio.exec.rpc.ConnectionFailedException;
@@ -143,15 +143,19 @@ public class DremioClient implements Closeable, ConnectionThrottle {
       return clusterCoordinator.getServiceSet(role);
     }
 
+    @Override
+    public ServiceSet getOrCreateServiceSet(String serviceName) {
+      return clusterCoordinator.getOrCreateServiceSet(serviceName);
+    }
 
     @Override
     public DistributedSemaphore getSemaphore(String name, int maximumLeases) {
-      return clusterCoordinator.getSemaphore(name, maximumLeases);
+      throw new UnsupportedOperationException("registerService is not supported in client");
     }
 
     @Override
     public RegistrationHandle joinElection(String name, ElectionListener listener) {
-      return clusterCoordinator.joinElection(name, listener);
+      throw new UnsupportedOperationException("registerService is not supported in client");
     }
 
     @Override

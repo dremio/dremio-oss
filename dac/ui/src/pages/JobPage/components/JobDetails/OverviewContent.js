@@ -146,6 +146,10 @@ class OverviewContent extends Component {
     const jobId = jobDetails.get('jobId').get('id');
     const queueName = getQueueName(jobDetails);
     const jobIdUrl = jobsUtils.navigationURLForJobId(jobId, true);
+    const attemptDetails = jobDetails.get('attemptDetails');
+    const haveMultipleAttempts = attemptDetails.size > 1;
+    const durationLabelId = (haveMultipleAttempts) ? 'Job.TotalDuration' : 'Job.Duration';
+
 
     return (
       <div className='detail-row'>
@@ -155,7 +159,10 @@ class OverviewContent extends Component {
           <ListItem label={intl.formatMessage({ id: 'Job.QueryType' })}>
             <span>{intl.formatMessage({ id: this.getFormatMessageIdForQueryType() })}</span>
           </ListItem>
-          <ListItem label={intl.formatMessage({ id: 'Job.Duration' })}>
+          {haveMultipleAttempts && <ListItem label={intl.formatMessage({ id: 'Job.LastAttemptDuration' })}>
+            <span>{this.renderLastAttemptDuration()}</span>
+          </ListItem>}
+          <ListItem label={intl.formatMessage({ id: durationLabelId })}>
             <span>{this.renderJobDuration()}</span>
           </ListItem>
           <ListItem label={intl.formatMessage({ id: 'Job.StartTime' })}>
@@ -185,6 +192,12 @@ class OverviewContent extends Component {
     const failureInfo = this.props.jobDetails.get('failureInfo');
 
     return (failureInfo) ? <JobErrorLog failureInfo={failureInfo} /> : null;
+  }
+
+  renderCancellationLog() {
+    const cancellationInfo = this.props.jobDetails.get('cancellationInfo');
+
+    return (cancellationInfo) ? <JobErrorLog failureInfo={cancellationInfo} /> : null;
   }
 
   renderDatasetBlock() {
@@ -330,6 +343,14 @@ class OverviewContent extends Component {
     );
   }
 
+  renderLastAttemptDuration() {
+    const { jobDetails } = this.props;
+    const attemptDetails = jobDetails.get('attemptDetails');
+    const lastAttempt = attemptDetails.last();
+    const totalTimeMs = lastAttempt.get('enqueuedTime') + lastAttempt.get('executionTime') + lastAttempt.get('planningTime');
+    return jobsUtils.formatJobDuration(totalTimeMs);
+  }
+
 
   render() {
     const { jobDetails, intl } = this.props;
@@ -341,6 +362,7 @@ class OverviewContent extends Component {
       <div>
         {this.renderJobSummary(jobDetails, intl)}
         {this.renderErrorLog()}
+        {this.renderCancellationLog()}
 
         {!this.isMetadataJob() &&
           <div className='detail-row'>

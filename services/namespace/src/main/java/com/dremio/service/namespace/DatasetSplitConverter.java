@@ -53,15 +53,20 @@ public class DatasetSplitConverter implements DocumentConverter<DatasetSplitId, 
       for (PartitionValue pv : split.getPartitionValuesList()) {
         if (pv.getLongValue() != null) {
           final String columnKey =  buildColumnKey(FieldType.LONG, pv.getColumn());
-          final IndexKey indexKey = new IndexKey(columnKey, columnKey, Long.class, FieldType.LONG, false, false);
+          final IndexKey indexKey = IndexKey.newBuilder(columnKey, columnKey, Long.class)
+            .setSortedValueType(FieldType.LONG).build();
           writer.write(indexKey, pv.getLongValue());
         } else if (pv.getIntValue() != null) {
           final String columnKey =  buildColumnKey(FieldType.INTEGER, pv.getColumn());
-          final IndexKey indexKey = new IndexKey(columnKey, columnKey, Integer.class, FieldType.INTEGER, false, false);
+          final IndexKey indexKey = IndexKey.newBuilder(columnKey, columnKey, Integer.class)
+            .setSortedValueType(FieldType.INTEGER)
+            .build();
           writer.write(indexKey, pv.getIntValue());
         } else if (pv.getBinaryValue() != null) {
           final String columnKey =  buildColumnKey(FieldType.STRING, pv.getColumn());
-          final IndexKey indexKey = new IndexKey(columnKey, columnKey, String.class, FieldType.STRING, false, false);
+          final IndexKey indexKey = IndexKey.newBuilder(columnKey, columnKey, String.class)
+            .setSortedValueType(FieldType.STRING)
+            .build();
           byte[] bytes = pv.getBinaryValue().toByteArray();
           if(bytes.length < LARGE_VALUE_CUTOFF){
             // don't index large values as they need to be accurate and the store will cut them off
@@ -69,7 +74,9 @@ public class DatasetSplitConverter implements DocumentConverter<DatasetSplitId, 
           }
         } else if (pv.getStringValue() != null) {
           final String columnKey =  buildColumnKey(FieldType.STRING, pv.getColumn());
-          final IndexKey indexKey = new IndexKey(columnKey, columnKey, String.class, FieldType.STRING, false, false);
+          final IndexKey indexKey = IndexKey.newBuilder(columnKey, columnKey, String.class)
+            .setSortedValueType(FieldType.STRING)
+            .build();
           String str = pv.getStringValue();
           if(str.length() < LARGE_VALUE_CUTOFF){
             // don't index large values as they need to be accurate and the store will cut them off
@@ -77,11 +84,15 @@ public class DatasetSplitConverter implements DocumentConverter<DatasetSplitId, 
           }
         } else if (pv.getDoubleValue() != null) {
           final String columnKey =  buildColumnKey(FieldType.DOUBLE, pv.getColumn());
-          final IndexKey indexKey = new IndexKey(columnKey, columnKey, Double.class, FieldType.DOUBLE, false, false);
+          final IndexKey indexKey = IndexKey.newBuilder(columnKey, columnKey, Double.class)
+            .setSortedValueType(FieldType.DOUBLE)
+            .build();
           writer.write(indexKey, pv.getDoubleValue());
         } else if (pv.getFloatValue() != null) {
           final String columnKey =  buildColumnKey(FieldType.DOUBLE, pv.getColumn());
-          final IndexKey indexKey = new IndexKey(columnKey, columnKey, Double.class, FieldType.DOUBLE, false, false);
+          final IndexKey indexKey = IndexKey.newBuilder(columnKey, columnKey, Double.class)
+            .setSortedValueType(FieldType.DOUBLE)
+            .build();
           writer.write(indexKey, (double) pv.getFloatValue());
         }
       }

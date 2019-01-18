@@ -30,7 +30,8 @@ message SpaceConfig {
   optional bool readonly = 5;
   optional int64 ctime = 6;
   optional ExtendedConfig extendedConfig = 7;
-  optional int64 version = 8;
+  optional int64 version = 8 [deprecated = true];
+  optional string tag = 9;
 }
 
 message FolderConfig {
@@ -39,7 +40,8 @@ message FolderConfig {
   optional string name = 3;
   optional bool isPhysicalDataset = 4; // DEPRECATED not used.
   optional ExtendedConfig extendedConfig = 5;
-  optional int64 version = 6;
+  optional int64 version = 6 [deprecated = true];
+  optional string tag = 7;
 }
 
 message Spaces {
@@ -52,7 +54,8 @@ message HomeConfig {
   optional string owner = 2;
   optional int64 ctime = 3;
   optional ExtendedConfig extendedConfig = 4;
-  optional int64 version = 5;
+  optional int64 version = 5 [deprecated = true];
+  optional string tag = 6;
 }
 
 // These fields are not stored on disk but used to send it over rpc.

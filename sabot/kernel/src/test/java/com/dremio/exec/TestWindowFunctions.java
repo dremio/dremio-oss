@@ -1041,6 +1041,15 @@ public class TestWindowFunctions extends BaseTestQuery {
     // Adding 25 times 25
     IntStream.range(0, 25).forEach((ignored) -> builder.baselineValues(25L));
 
-     builder.go();
+    builder.go();
+  }
+
+  @Test
+  public void testGroupRemoved() throws Exception {
+    String query = "select bar FROM (select sum(min(l_extendedprice)) over (partition by l_partkey) as foo,\n"
+        + " sum(max(l_extendedprice)) over (partition by l_partkey, l_suppkey) as bar"
+        + " from cp.\"tpch/lineitem.parquet\" group by l_partkey, l_suppkey)";
+    // Confirming that query can be planned. See DX-14211
+    test(query);
   }
 }

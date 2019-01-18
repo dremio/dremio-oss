@@ -17,6 +17,7 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -109,7 +110,7 @@ public class CatalogResource {
       return catalogServiceHelper.updateCatalogItem(entity, id);
     } catch (IllegalArgumentException e) {
       throw new NotFoundException(e.getMessage());
-    } catch (ExecutionSetupException e) {
+    } catch (ExecutionSetupException | IOException e) {
       throw new InternalServerErrorException(e);
     } catch (UnsupportedOperationException e) {
       throw new BadRequestException(e.getMessage());

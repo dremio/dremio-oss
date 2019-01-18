@@ -52,7 +52,8 @@ export default class TimeDot extends Component {
     this.canClose = true;
 
     this.state = {
-      open: false
+      open: false,
+      triangleOffsetY: 0
     };
 
     this.popoverHash = {
@@ -93,12 +94,26 @@ export default class TimeDot extends Component {
     }, this.props.hideDelay);
   }
 
-  handleMouseEnter = () => {
+  handleMouseEnter = (e) => {
     if (this.hideTimeout) {
       clearTimeout(this.hideTimeout);
     }
+    const clientRect = e.target.getBoundingClientRect();
+    // to place overlay triangular pointer, calculate it's vertical offset:
+    // starting with Y of the dot and, when popover box is rendered, adjust offset
+    // by the top coordinate of the popover
     this.setState({
-      open: true
+      open: true,
+      triangleOffsetY: clientRect.top + clientRect.height / 2
+    }, () => {
+      setTimeout(() => {
+        const popover = ReactDOM.findDOMNode(this.refs.popover);
+        if (popover) {
+          this.setState((state) => {
+            return {triangleOffsetY : state.triangleOffsetY - popover.offsetTop};
+          });
+        }
+      }, 10);
     });
   }
 
@@ -155,8 +170,8 @@ export default class TimeDot extends Component {
         container={document.body}
         placement='left'
         target={() => ReactDOM.findDOMNode(this.refs.target)}>
-        <div style={styles.popoverWrap}>
-          <div style={styles.triangle}/>
+        <div style={styles.popoverWrap} ref='popover'>
+          <div style={{...styles.triangle, top: this.state.triangleOffsetY}}/>
           <div
             data-qa='time-dot-popover'
             style={styles.popover}>
@@ -204,7 +219,8 @@ const styles = {
     width: 170,
     textDecoration: 'none',
     flexGrow: 1,
-    paddingRight: 10
+    paddingRight: 10,
+    whiteSpace: 'inherit'
   },
   progress: {
     display: 'flex',
@@ -291,7 +307,7 @@ const styles = {
     borderWidth: '5px 0 5px 6px',
     borderColor: `transparent transparent transparent ${NAVY}`,
     right: -5,
-    top: 33,
+    transform: 'translateY(-50%)',
     position: 'absolute',
     backgroundColor: 'transparent'
   },
@@ -306,7 +322,9 @@ const styles = {
   },
   popover: {
     padding: 10,
-    height: 76,
+    minHeight: 46,
+    maxHeight: 298, // to cut last visible line in half in case of overflow
+    overflow: 'hidden',
     width: 344
   }
 };

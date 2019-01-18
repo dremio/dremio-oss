@@ -42,12 +42,12 @@ enum ReflectionState {
 // represent an individual, concrete acceleration
 message ReflectionEntry {
   optional ReflectionId id = 1; // const
-  optional int64 version = 2;
+  optional int64 version = 2 [deprecated = true];
   optional int64 created_at = 3; // const
   optional int64 modified_at = 4;
-  optional int64 goal_version = 5;
+  optional int64 legacy_goal_version = 5;
   optional string dataset_id = 6; // REMOVE, if const in reflection goal
-  optional int64 dataset_version = 7; // is it really needed ?
+  optional int64 dataset_version = 7 [deprecated = true];
   optional string name = 9; // REMOVE, if only accessed in the reflection manager wakeup
   optional ReflectionType type = 10; // REMOVE, if const in reflection goal
   optional RefreshMethod refreshMethod = 13;
@@ -59,6 +59,8 @@ message ReflectionEntry {
   optional int64 last_successful_refresh = 19; // jobEnd of last successful materialization job
   optional bool dont_give_up = 20 [default = false]; // true if the reflection manager should never mark this reflection as FAILED
   optional JobId refresh_job_id = 21;
+  optional string tag = 22;
+  optional string goalVersion = 23;
 }
 
 enum DependencyType {
@@ -74,22 +76,25 @@ message ReflectionDependencyEntry {
 
 message ReflectionDependencies {
   optional ReflectionId id = 1;
-  optional int64 version = 2;
+  optional int64 version = 2 [deprecated = true];
   repeated ReflectionDependencyEntry entry = 3;
+  optional string tag = 4;
 }
 
 message ExternalReflection {
   optional string id = 1;
-  optional int64 version = 2;
+  optional int64 version = 2 [deprecated = true];
   optional string name = 3;
   optional string queryDatasetId = 4;
   optional int32 queryDatasetHash = 5;
   optional string targetDatasetId = 6;
   optional int32 targetDatasetHash = 7;
+  optional string tag = 8;
 }
 
 message RefreshRequest {
   optional string dataset_id = 1;
-  optional int64 version = 2;
+  optional int64 version = 2 [deprecated = true];
   optional int64 requested_at = 3;
+  optional string tag = 4;
 }

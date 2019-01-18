@@ -25,7 +25,6 @@ import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
-import org.apache.arrow.vector.holders.VarCharHolder;
 
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;

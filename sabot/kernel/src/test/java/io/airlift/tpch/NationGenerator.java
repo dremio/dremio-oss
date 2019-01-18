@@ -28,12 +28,13 @@
  */
 package io.airlift.tpch;
 
-import com.google.common.base.Charsets;
-import io.airlift.tpch.GenerationDefinition.TpchTable;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.VarCharVector;
+
+import com.google.common.base.Charsets;
+
+import io.airlift.tpch.GenerationDefinition.TpchTable;
 
 public class NationGenerator extends TpchGenerator {
   private static final int COMMENT_AVERAGE_LENGTH = 72;

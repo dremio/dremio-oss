@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
+import com.dremio.common.Version;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.store.hive.exec.HiveReaderProtoUtil;
 import com.dremio.hive.proto.HiveReaderProto;
@@ -26,6 +27,7 @@ import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import io.protostuff.ByteString;
@@ -33,9 +35,22 @@ import io.protostuff.ByteString;
 /**
  * Rewrite hive dataset config entries to compress the read definitions
  */
-class CompressHiveTableAttrs extends UpgradeTask {
+class CompressHiveTableAttrs extends UpgradeTask implements LegacyUpgradeTask {
+  //DO NOT MODIFY
+  static final String taskUUID = "285abdab-19b9-493b-8c2e-f2759c6bbd04";
+
   public CompressHiveTableAttrs() {
-    super("Compressing Hive Table attributes", VERSION_106, VERSION_203, NORMAL_ORDER + 9);
+    super("Compressing Hive Table attributes", ImmutableList.of(ConvertJoinInfo.taskUUID));
+  }
+
+  @Override
+  public Version getMaxVersion() {
+    return VERSION_203;
+  }
+
+  @Override
+  public String getTaskUUID() {
+    return taskUUID;
   }
 
   @Override
@@ -81,5 +96,10 @@ class CompressHiveTableAttrs extends UpgradeTask {
     } catch (NamespaceException | InvalidProtocolBufferException e) {
       throw new RuntimeException("CompressHiveTableAttrs failed", e);
     }
+  }
+
+  @Override
+  public String toString() {
+    return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
   }
 }

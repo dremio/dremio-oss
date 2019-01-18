@@ -18,23 +18,16 @@ import { push, replace } from 'react-router-redux';
 
 import { API_URL_V2 } from 'constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
-import fullDatasetSchema from 'schemas/v2/fullDataset';
+import { datasetWithoutData } from 'schemas/v2/fullDataset';
 import { performNextAction } from 'actions/explore/nextAction';
 
 export const REAPPLY_DATASET_START   = 'REAPPLY_DATASET_START';
 export const REAPPLY_DATASET_SUCCESS = 'REAPPLY_DATASET_SUCCESS';
 export const REAPPLY_DATASET_FAILURE = 'REAPPLY_DATASET_FAILURE';
 
-export function editOriginalSql(previousDatasetId, selfApiUrl, nextAction, viewId, replaceNav) {
+export function editOriginalSql(previousDatasetId, selfApiUrl) {
   return (dispatch) => {
-    return dispatch(fetchOriginalSql(previousDatasetId,
-      selfApiUrl,
-      viewId)).then((response) => {
-        if (!response.error) {
-          dispatch(navigateAfterReapply(response, replaceNav, nextAction));
-        }
-        return response;
-      });
+    return dispatch(fetchOriginalSql(previousDatasetId, selfApiUrl));
   };
 }
 
@@ -44,7 +37,7 @@ function fetchOriginalSql(previousDatasetId, selfApiUrl, viewId) {
     [CALL_API]: {
       types: [
         { type: REAPPLY_DATASET_START, meta },
-        schemaUtils.getSuccessActionTypeWithSchema(REAPPLY_DATASET_SUCCESS, fullDatasetSchema, meta),
+        schemaUtils.getSuccessActionTypeWithSchema(REAPPLY_DATASET_SUCCESS, datasetWithoutData, meta),
         { type: REAPPLY_DATASET_FAILURE, meta: { ...meta, notification: true }}
       ],
       method: 'POST',

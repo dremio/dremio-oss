@@ -15,19 +15,14 @@
  */
 package com.dremio.exec.vector.accessor;
 
+import java.math.BigDecimal;
+
 import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 
-import com.dremio.common.types.Types;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
-
-import java.io.InputStream;
-import java.io.Reader;
-import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
+import com.dremio.common.types.Types;
 
 public class UnionSqlAccessor extends AbstractSqlAccessor {
 

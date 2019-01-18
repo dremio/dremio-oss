@@ -15,65 +15,69 @@
  */
 package com.dremio.exec.expr.fn;
 
+import java.util.Iterator;
+import java.util.List;
+
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.EvaluationType;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.fn.FunctionHolder;
 import com.dremio.exec.expr.FunctionHolderExpr;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 
-import java.util.Iterator;
-import java.util.List;
-
 public class GandivaFunctionHolderExpression extends FunctionHolderExpression implements
   Iterable<LogicalExpression> {
-    static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionHolderExpr.class);
-    private GandivaFunctionHolder holder;
-
-    public GandivaFunctionHolderExpression(String nameUsed, GandivaFunctionHolder holder, List<LogicalExpression> args) {
+  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionHolderExpr.class);
+  private GandivaFunctionHolder holder;
+  // was pushed in 3.0 have to retain this so that serde does not break.
+  private final EvaluationType evaluationType;
+  public GandivaFunctionHolderExpression(String nameUsed, GandivaFunctionHolder holder, List<LogicalExpression> args) {
       super(nameUsed, args);
       this.holder = holder;
-    }
+    this.evaluationType = new EvaluationType();
+    evaluationType.addEvaluationType(EvaluationType.ExecutionType.JAVA);
+  }
 
-    @Override
-    public CompleteType getCompleteType() {
+  @Override
+  public CompleteType getCompleteType() {
       return holder.getReturnType();
     }
 
-    @Override
-    public Iterator<LogicalExpression> iterator() {
+  @Override
+  public Iterator<LogicalExpression> iterator() {
       return args.iterator();
     }
 
-    @Override
-    public FunctionHolder getHolder() {
+  @Override
+  public FunctionHolder getHolder() {
       return holder;
     }
 
-    @Override
-    public boolean isAggregating() {
-      // TODO : https://dremio.atlassian.net/browse/GDV-98
+  @Override
+  public boolean isAggregating() {
+    // TODO : https://dremio.atlassian.net/browse/GDV-98
+    return false;
+  }
+
+  @Override
+  public boolean argConstantOnly(int i) {
+    // TODO : https://dremio.atlassian.net/browse/GDV-98
+    return false;
+  }
+
+  @Override
+  public boolean isRandom() {
       return false;
     }
 
-    @Override
-    public boolean argConstantOnly(int i) {
-      // TODO : https://dremio.atlassian.net/browse/GDV-98
-      return false;
-    }
+  @Override
+  public GandivaFunctionHolderExpression copy(List<LogicalExpression> args) {
+    return new GandivaFunctionHolderExpression(this.nameUsed, this.holder, args);
+  }
 
-    @Override
-    public boolean isRandom() {
-      return false;
-    }
-
-    @Override
-    public GandivaFunctionHolderExpression copy(List<LogicalExpression> args) {
-      return new GandivaFunctionHolderExpression(this.nameUsed, this.holder, args);
-    }
-
-    @Override
-    public int getSelfCost() {
-      return FunctionTemplate.FunctionCostCategory.getDefault().getValue();
-    }
+  @Override
+  public int getSelfCost() {
+    return FunctionTemplate.FunctionCostCategory.getDefault().getValue();
+  }
 }

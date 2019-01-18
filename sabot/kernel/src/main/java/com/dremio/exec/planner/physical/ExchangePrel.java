@@ -16,12 +16,11 @@
 
 package com.dremio.exec.planner.physical;
 
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
 
 public abstract class ExchangePrel extends SinglePrel {
 

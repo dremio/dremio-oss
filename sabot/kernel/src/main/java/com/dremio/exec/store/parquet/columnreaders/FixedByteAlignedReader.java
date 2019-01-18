@@ -17,14 +17,14 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.math.BigDecimal;
 
-import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.VectorDefinitionSetter;
-import org.apache.arrow.vector.DateMilliVector;
-import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
-import org.apache.arrow.vector.VariableWidthVector;
-import org.apache.arrow.vector.util.DecimalUtility;
+import org.apache.arrow.vector.DateMilliVector;
 import org.apache.arrow.vector.DecimalHelper;
+import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VariableWidthVector;
+import org.apache.arrow.vector.VectorDefinitionSetter;
+import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.SchemaElement;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;

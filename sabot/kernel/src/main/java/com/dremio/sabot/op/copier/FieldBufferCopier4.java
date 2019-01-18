@@ -29,7 +29,6 @@ import com.dremio.sabot.op.common.ht2.Reallocators.Reallocator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /**

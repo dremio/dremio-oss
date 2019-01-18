@@ -15,14 +15,11 @@
  */
 package com.dremio.exec.record;
 
-import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
 
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.ListVectorHelper;
-import org.apache.arrow.vector.complex.NonNullableStructVector;
-import org.apache.arrow.vector.complex.NonNullableStructVectorHelper;
 import org.apache.arrow.vector.complex.StructVector;
 import org.apache.arrow.vector.complex.StructVectorHelper;
 import org.apache.arrow.vector.complex.UnionVector;

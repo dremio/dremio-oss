@@ -26,7 +26,6 @@ import { getViewState } from 'selectors/resources';
 
 import UsersView from './UsersView';
 
-// todo: is the search supposed to be getting pushed to the browser URL bar?
 
 @pureRender
 export class Users extends Component {

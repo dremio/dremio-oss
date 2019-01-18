@@ -15,17 +15,15 @@
  */
 package com.dremio.exec.record;
 
-import io.netty.buffer.ArrowBuf;
-
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.AllocationHelper;
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.SerializedFieldHelper;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.ValueVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +36,8 @@ import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+
+import io.netty.buffer.ArrowBuf;
 
 
 /**

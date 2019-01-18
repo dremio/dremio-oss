@@ -319,7 +319,7 @@ public class NamespaceServiceImpl implements NamespaceService {
       isPhysicalDataset(newOrUpdatedEntity.getContainer().getDataset().getType()) &&
       existingContainer.getType() == FOLDER) {
       namespace.delete((new NamespaceInternalKey(new NamespaceKey(existingContainer.getFullPathList()), keyNormalization)).getKey(),
-        existingContainer.getFolder().getVersion());
+        existingContainer.getFolder().getTag());
       return false;
     }
 
@@ -328,8 +328,8 @@ public class NamespaceServiceImpl implements NamespaceService {
     // conditions. A concurrent update should throw that exception rather than the user exceptions
     // thrown later in this check. Note, this duplicates the version check operation that is done
     // inside the kvstore.
-    final Long newVersion = extractor.getVersion(newOrUpdatedEntity.getContainer());
-    final Long oldVersion = extractor.getVersion(existingContainer);
+    final String newVersion = extractor.getTag(newOrUpdatedEntity.getContainer());
+    final String oldVersion = extractor.getTag(existingContainer);
     if(!Objects.equals(newVersion, oldVersion)) {
       final String expectedAction = newVersion == null ? "create" : "update version " + newVersion;
       final String previousValueDesc = oldVersion == null ? "no previous version" : "previous version " + oldVersion;
@@ -481,7 +481,7 @@ public class NamespaceServiceImpl implements NamespaceService {
           break;
         }
         // try again if read definition is not set or splits are not up-to-date.
-        dataset.setVersion(existingDatasetConfig.getVersion());
+        dataset.setTag(existingDatasetConfig.getTag());
       }
     }
   }
@@ -516,8 +516,10 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   public void canSourceConfigBeSaved(SourceConfig newConfig, SourceConfig existingConfig, NamespaceAttribute... attributes) throws ConcurrentModificationException {
-    if (!Objects.equals(newConfig.getVersion(), existingConfig.getVersion())) {
-      throw new ConcurrentModificationException("Source was already created.");
+    if (!Objects.equals(newConfig.getTag(), existingConfig.getTag())) {
+      throw new ConcurrentModificationException(
+        String.format("Source [%s] has been updated, and the given configuration is out of date (current tag: %s, given: %s)",
+          existingConfig.getName(), existingConfig.getTag(), newConfig.getTag()));
     }
   }
 
@@ -910,10 +912,10 @@ public class NamespaceServiceImpl implements NamespaceService {
 
     switch (child.getType()) {
       case FOLDER:
-        namespace.delete(childKey.getKey(), child.getFolder().getVersion());
+        namespace.delete(childKey.getKey(), child.getFolder().getTag());
         break;
       case DATASET:
-        namespace.delete(childKey.getKey(), child.getDataset().getVersion());
+        namespace.delete(childKey.getKey(), child.getDataset().getTag());
         break;
       default:
         // Only leaf level or intermediate namespace container types are expected here.
@@ -922,7 +924,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @VisibleForTesting
-  NameSpaceContainer deleteEntity(final NamespaceKey path, final Type type, long version, boolean deleteRoot) throws NamespaceException {
+  NameSpaceContainer deleteEntity(final NamespaceKey path, final Type type, String version, boolean deleteRoot) throws NamespaceException {
     final List<NameSpaceContainer> entitiesOnPath = getEntitiesOnPath(path);
     final NameSpaceContainer container = lastElement(entitiesOnPath);
     if (container == null) {
@@ -931,7 +933,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     return doDeleteEntity(path, type, version, entitiesOnPath, deleteRoot);
   }
 
-  protected NameSpaceContainer doDeleteEntity(final NamespaceKey path, final Type type, long version, List<NameSpaceContainer> entitiesOnPath, boolean deleteRoot) throws NamespaceException {
+  protected NameSpaceContainer doDeleteEntity(final NamespaceKey path, final Type type, String version, List<NameSpaceContainer> entitiesOnPath, boolean deleteRoot) throws NamespaceException {
     final NamespaceInternalKey key = new NamespaceInternalKey(path, keyNormalization);
     final NameSpaceContainer container = lastElement(entitiesOnPath);
     traverseAndDeleteChildren(key, container);
@@ -942,22 +944,22 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public void deleteHome(final NamespaceKey sourcePath, long version) throws NamespaceException {
+  public void deleteHome(final NamespaceKey sourcePath, String version) throws NamespaceException {
     deleteEntity(sourcePath, HOME, version, true);
   }
 
   @Override
-  public void deleteSourceChildren(final NamespaceKey sourcePath, long version) throws NamespaceException {
+  public void deleteSourceChildren(final NamespaceKey sourcePath, String version) throws NamespaceException {
     deleteEntity(sourcePath, SOURCE, version, false);
   }
 
   @Override
-  public void deleteSource(final NamespaceKey sourcePath, long version) throws NamespaceException {
+  public void deleteSource(final NamespaceKey sourcePath, String version) throws NamespaceException {
     deleteEntity(sourcePath, SOURCE, version, true);
   }
 
   @Override
-  public void deleteSpace(final NamespaceKey spacePath, long version) throws NamespaceException {
+  public void deleteSpace(final NamespaceKey spacePath, String version) throws NamespaceException {
     deleteEntity(spacePath, SPACE, version, true);
   }
 
@@ -967,7 +969,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public void deleteDataset(final NamespaceKey datasetPath, long version) throws NamespaceException {
+  public void deleteDataset(final NamespaceKey datasetPath, String version) throws NamespaceException {
     NameSpaceContainer container = deleteEntity(datasetPath, DATASET, version, true);
     if (container.getDataset().getType() == PHYSICAL_DATASET_SOURCE_FOLDER) {
       // create a folder so that any existing datasets under the folder are now visible
@@ -980,7 +982,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public void deleteFolder(final NamespaceKey folderPath, long version) throws NamespaceException {
+  public void deleteFolder(final NamespaceKey folderPath, String version) throws NamespaceException {
     deleteEntity(folderPath, FOLDER, version, true);
   }
 
@@ -1014,7 +1016,9 @@ public class NamespaceServiceImpl implements NamespaceService {
     datasetConfig.setCreatedAt(System.currentTimeMillis());
     NamespaceEntity newValue = NamespaceEntity.toEntity(DATASET, newDatasetPath, datasetConfig, keyNormalization);
 
+    // in case of upgrade we may have a version here from previous versions, so clear out
     datasetConfig.setVersion(null);
+    datasetConfig.setTag(null);
 
     namespace.put(newValue.getPathKey().getKey(), newValue.getContainer());
     namespace.delete(oldKey.getKey());
@@ -1094,13 +1098,13 @@ public class NamespaceServiceImpl implements NamespaceService {
               return false;
             }
             datasetConfig.setId(currentConfig.getId());
-            datasetConfig.setVersion(currentConfig.getVersion());
+            datasetConfig.setTag(currentConfig.getTag());
           }
         }
         break;
         case FOLDER:
           // delete the folder as it is being converted to a dataset
-          namespace.delete(searchKey.getKey(), existingContainer.getFolder().getVersion());
+          namespace.delete(searchKey.getKey(), existingContainer.getFolder().getTag());
           break;
 
         default:

@@ -245,6 +245,16 @@ public abstract class ContainerFileSystem extends FileSystem {
   }
 
   /**
+   * Returns true iff container with the given name exists.
+   *
+   * @param containerName container name
+   * @return true iff container with the given name exists
+   */
+  public boolean containerExists(final String containerName) {
+    return containerMap.containsKey(containerName);
+  }
+
+  /**
    * Do any initial file system setup before retrieving the containers for the first time.
    * @throws IOException
    */
@@ -271,8 +281,17 @@ public abstract class ContainerFileSystem extends FileSystem {
     return pathComponents.size() == 0;
   }
 
-  private String getContainer(Path path) {
-    List<String> pathComponents = Arrays.asList(removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString()).split(Path.SEPARATOR));
+  /**
+   * Get container name from the path.
+   *
+   * @param path path
+   * @return container name
+   */
+  private static String getContainerName(Path path) {
+    final List<String> pathComponents = Arrays.asList(
+        removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString())
+            .split(Path.SEPARATOR)
+    );
     return pathComponents.get(0);
   }
 
@@ -282,17 +301,17 @@ public abstract class ContainerFileSystem extends FileSystem {
   }
 
   private ContainerHolder getFileSystemForPath(Path path) throws IOException {
-    final String name = getContainer(path);
+    final String name = getContainerName(path);
     ContainerHolder container = containerMap.get(name);
 
     if (container == null) {
       try {
-        synchronized(refreshLock) {
+        synchronized (refreshLock) {
           container = containerMap.get(name);
-          if(container == null) {
+          if (container == null) {
             container = getUnknownContainer(name);
-            if(container == null) {
-              throw new IOException(String.format("Unable to find %s named %s.", containerName, name));
+            if (container == null) {
+              throw new ContainerNotFoundException(String.format("Unable to find %s named %s.", containerName, name));
             }
 
             ImmutableMap.Builder<String, ContainerHolder> newMap = ImmutableMap.builder();
@@ -301,6 +320,8 @@ public abstract class ContainerFileSystem extends FileSystem {
             containerMap = newMap.build();
           }
         }
+      } catch (IOException ex) {
+        throw ex;
       } catch (Exception ex) {
         throw new IOException(String.format("Unable to retrieve %s named %s.", containerName, name), ex);
       }
@@ -335,7 +356,7 @@ public abstract class ContainerFileSystem extends FileSystem {
 
   @Override
   public boolean rename(Path src, Path dst) throws IOException {
-    Preconditions.checkArgument(getContainer(src).equals(getContainer(dst)), String.format("Cannot rename files across %ss.", containerName));
+    Preconditions.checkArgument(getContainerName(src).equals(getContainerName(dst)), String.format("Cannot rename files across %ss.", containerName));
     return getFileSystemForPath(src).fs().rename(pathWithoutContainer(src), pathWithoutContainer(dst));
   }
 
@@ -352,7 +373,7 @@ public abstract class ContainerFileSystem extends FileSystem {
 
   @Override
   protected RemoteIterator<LocatedFileStatus> listLocatedStatus(Path f, final PathFilter filter) throws FileNotFoundException, IOException {
-    final String container = getContainer(f);
+    final String container = getContainerName(f);
     final PathFilter alteredFilter = (path) -> {
       return filter.accept(transform(path, container));
     };
@@ -365,7 +386,7 @@ public abstract class ContainerFileSystem extends FileSystem {
 
   @Override
   public RemoteIterator<LocatedFileStatus> listFiles(Path f, boolean recursive) throws FileNotFoundException, IOException {
-    final String container = getContainer(f);
+    final String container = getContainerName(f);
     return RemoteIterators.transform(
         getFileSystemForPath(f).fs().listFiles(pathWithoutContainer(f), recursive),
         t -> new LocatedFileStatus(ContainerFileSystem.transform(t, container), t.getBlockLocations())
@@ -386,7 +407,7 @@ public abstract class ContainerFileSystem extends FileSystem {
       }).toArray(FileStatus.class);
     }
 
-    final String containerName = getContainer(f);
+    final String containerName = getContainerName(f);
     final Path pathWithoutContainerName = pathWithoutContainer(f);
     return FluentIterable.of(getFileSystemForPath(f).fs().listStatus(pathWithoutContainerName))
         .transform(new Function<FileStatus, CorrectableFileStatus>(){
@@ -472,12 +493,21 @@ public abstract class ContainerFileSystem extends FileSystem {
   }
 
   @Override
+  public boolean exists(Path f) throws IOException {
+    try {
+      return super.exists(f);
+    } catch (ContainerNotFoundException ignored) {
+      return false;
+    }
+  }
+
+  @Override
   public FileStatus getFileStatus(Path f) throws IOException {
     if (isRoot(f)) {
       return new FileStatus(0, true, 0, 0, 0, f);
     }
     FileStatus fileStatus = getFileSystemForPath(f).fs().getFileStatus(pathWithoutContainer(f));
-    return transform(fileStatus, getContainer(f));
+    return transform(fileStatus, getContainerName(f));
   }
 
   @Override

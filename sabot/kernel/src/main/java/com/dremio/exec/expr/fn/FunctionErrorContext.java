@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.expr.fn;
 
-import com.dremio.exec.record.BatchSchema;
-
 /**
  * Injectable used in SimpleFunction definitions. Function code uses an object of this interface to construct exceptions
  * that have a full context -- in particular, where in the original expression did the function occur.

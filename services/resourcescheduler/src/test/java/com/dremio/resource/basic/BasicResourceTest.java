@@ -18,6 +18,7 @@ package com.dremio.resource.basic;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -41,6 +42,7 @@ import com.dremio.resource.ResourceSchedulingProperties;
 import com.dremio.resource.ResourceSchedulingResult;
 import com.dremio.resource.ResourceSet;
 import com.dremio.resource.common.ResourceSchedulingContext;
+import com.dremio.resource.exception.ResourceAllocationException;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.DistributedSemaphore;
@@ -201,7 +203,8 @@ public class BasicResourceTest {
         resourceAllocator.allocate(resourceSchedulingContext2, resourceSchedulingProperties).getResourceSetFuture().get();
       fail("Should not be able to scheudle 3rd job with limit 2");
     } catch(ExecutionException e) {
-      // should come here
+      assertTrue(e.getCause() instanceof ResourceAllocationException);
+      assertTrue(e.getMessage().contains("Workload Manager"));
     }
 
     resourceSet.getResourceAllocations().forEach((v) -> assertEquals(4096, v.getMemory()));
@@ -272,8 +275,8 @@ public class BasicResourceTest {
       resourceAllocator.allocate(resourceSchedulingContext2, resourceSchedulingProperties).getResourceSetFuture().get();
       fail("Should not be able to schedule");
     } catch(ExecutionException e) {
-      logger.error("ExecutionException cause: ", e.getCause());
-      // should come here
+      assertTrue(e.getCause() instanceof ResourceAllocationException);
+      assertTrue(e.getMessage().contains("Workload Manager"));
     }
     resourceAllocator.close();
   }

@@ -392,7 +392,6 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         pageReadStore.close();
         pageReadStore = null;
       }
-      inputStreamProvider.close();
     } catch (IOException e) {
       logger.warn("Failure while closing PageReadStore", e);
     }

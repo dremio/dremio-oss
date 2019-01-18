@@ -17,9 +17,9 @@ package com.dremio.exec.planner.logical;
 
 import java.util.List;
 
-import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

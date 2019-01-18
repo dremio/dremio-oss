@@ -16,9 +16,9 @@
 
 package com.dremio.exec.planner;
 
-import com.google.common.collect.ImmutableList;
-
 import java.util.List;
+
+import com.google.common.collect.ImmutableList;
 
 /**
  * Abstract class for simple partition. It contains the

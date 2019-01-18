@@ -18,12 +18,14 @@ package com.dremio.exec.planner.sql.handlers.direct;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlDescribeTable;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.RelConversionException;
+
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.DremioPrepareTable;

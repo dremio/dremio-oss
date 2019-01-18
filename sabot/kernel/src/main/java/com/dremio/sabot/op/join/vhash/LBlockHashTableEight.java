@@ -16,17 +16,16 @@
 package com.dremio.sabot.op.join.vhash;
 
 
-
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.sabot.op.common.ht2.HashComputation;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
+import com.dremio.sabot.op.common.ht2.HashComputation;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;

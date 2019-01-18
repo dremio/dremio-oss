@@ -29,22 +29,17 @@ export default class NumberFormatUtils {
     return Number(parseFloat(value).toFixed(precision)).toString();
   }
 
-  static makeMemoryValueString = (value) => {
-    let unit = 'MB';
-    let num = 0;
-    // the logic of selecting unit and value is preserved to match one in ByteField / MultiplierField component
-    // it uses lower units in cases where there would be a long decimal
-    for (const [key, multiplier] of MEMORY_UNITS) {
-      if (value < multiplier) break;
-      if (NumberFormatUtils.stringifyWithoutExponent(value / multiplier).match(/\.[0-9]{3}/)) break;
-      unit = key;
-      num = +(value / multiplier).toFixed(2);
-    }
-    return `${num} ${unit}`;
-  };
-
-  static stringifyWithoutExponent = (number) => {
-    return number.toFixed(20).replace(/\.?0+$/, '');
+  /**
+   * Memory units policy standards are a mess. See https://wiki.ubuntu.com/UnitsPolicy
+   * This solution follows discussion at
+   *   https://stackoverflow.com/questions/10420352/converting-file-size-in-bytes-to-human-readable-string
+   * The result shows with up to 2 decimals after point using binary notation (IEC).
+   * @param bytes
+   * @return {string}
+   */
+  static makeMemoryValueString = function(bytes) {
+    const i = bytes === 0 ? 0 : Math.floor( Math.log(bytes) / Math.log(1024) );
+    return (bytes / Math.pow(1024, i)).toFixed(2).replace(/\.?0+$/, '') + ' ' + ['B', 'kB', 'MB', 'GB', 'TB'][i];
   };
 
 }

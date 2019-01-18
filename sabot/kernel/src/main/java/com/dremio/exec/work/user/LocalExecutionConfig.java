@@ -15,10 +15,10 @@
  */
 package com.dremio.exec.work.user;
 
+import static com.dremio.options.OptionValue.OptionType.QUERY;
 import static com.dremio.options.OptionValue.createBoolean;
 import static com.dremio.options.OptionValue.createLong;
 import static com.dremio.options.OptionValue.createString;
-import static com.dremio.options.OptionValue.OptionType.QUERY;
 
 import java.util.List;
 

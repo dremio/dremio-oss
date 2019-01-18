@@ -15,9 +15,6 @@
  */
 package com.dremio.exec.expr.fn;
 
-import com.dremio.common.expression.LogicalExpression;
-import com.google.common.collect.ImmutableList;
-
 /**
  *
  */

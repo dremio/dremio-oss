@@ -116,7 +116,7 @@ export default class DragColumnMenu extends Component {
           onChange={this.onFilterChange}
           className={search}
         />
-        <div style={{flexGrow: 1}}>
+        <div style={{flexGrow: 1, overflow: 'hidden'}}>
           <AutoSizer>
             {({ height, width }) => (
               <List

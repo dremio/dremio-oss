@@ -18,12 +18,10 @@ package com.dremio.exec.physical.config;
 import java.util.List;
 
 import com.dremio.common.logical.data.Order.Ordering;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;

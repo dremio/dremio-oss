@@ -19,27 +19,27 @@ import static com.dremio.sabot.CustomGenerator.ID;
 import static java.util.Collections.singletonList;
 import static org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING;
 import static org.apache.calcite.rel.RelFieldCollation.NullDirection.FIRST;
+import static org.junit.Assert.assertEquals;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.util.TestTools;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import static org.junit.Assert.assertEquals;
+import org.junit.rules.TestRule;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.CustomGenerator;
 import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
-import org.junit.rules.TestRule;
-
-import java.util.concurrent.TimeUnit;
 
 public class TestSortOp extends BaseTestOperator {
 

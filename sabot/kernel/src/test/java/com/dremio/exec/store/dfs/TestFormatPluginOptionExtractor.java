@@ -23,9 +23,6 @@ import java.util.Collection;
 import org.junit.Test;
 
 import com.dremio.exec.ExecTest;
-import com.dremio.exec.store.dfs.FormatPluginOptionExtractor;
-import com.dremio.exec.store.dfs.FormatPluginOptionsDescriptor;
-import com.dremio.exec.store.dfs.NamedFormatPluginConfig;
 import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 

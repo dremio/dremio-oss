@@ -29,23 +29,7 @@ public class CompleteTypeInLogicalExpression implements LogicalExpression {
   public CompleteTypeInLogicalExpression(CompleteType type) {
     this.type = type;
     this.evaluationType = new EvaluationType();
-    addEvaluationType(EvaluationType.ExecutionType.JAVA);
-  }
-
-  @Override
-  public boolean isEvaluationTypeSupported(EvaluationType.ExecutionType executionType) {
-    return evaluationType.isEvaluationTypeSupported(executionType);
-  }
-
-  @Override
-  public void addEvaluationType(EvaluationType.ExecutionType executionType) {
-    evaluationType.addEvaluationType(executionType);
-  }
-
-  @Override
-  public EvaluationType getEvaluationType() {
-    return evaluationType;
-  }
+    evaluationType.addEvaluationType(EvaluationType.ExecutionType.JAVA);  }
 
   @Override
   public CompleteType getCompleteType() {

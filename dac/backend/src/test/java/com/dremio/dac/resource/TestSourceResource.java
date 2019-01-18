@@ -68,7 +68,7 @@ public class TestSourceResource extends BaseTestServer {
       assertEquals(source.getAccelerationRefreshPeriod(), result.getAccelerationRefreshPeriod());
       assertEquals(source.getAccelerationGracePeriod(), result.getAccelerationGracePeriod());
 
-      newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), 0);
+      newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), result.getTag());
     }
   }
 
@@ -95,10 +95,8 @@ public class TestSourceResource extends BaseTestServer {
     assertNotNull(result.getAccelerationRefreshPeriod());
     assertNotNull(result.getAccelerationGracePeriod());
 
-    newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), 0);
+    newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), result.getTag());
   }
-
-
 
   @Test
   public void testSourceHasDefaultRefreshPolicy() throws Exception {
@@ -127,6 +125,6 @@ public class TestSourceResource extends BaseTestServer {
     assertEquals(CatalogService.DEFAULT_REFRESH_MILLIS, result.getMetadataPolicy().getDatasetDefinitionRefreshAfterMillis());
     assertEquals(CatalogService.DEFAULT_EXPIRE_MILLIS, result.getMetadataPolicy().getDatasetDefinitionExpireAfterMillis());
 
-    newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), 0);
+    newNamespaceService().deleteSource(new SourcePath(sourceName).toNamespaceKey(), result.getTag());
   }
 }

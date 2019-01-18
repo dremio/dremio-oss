@@ -15,10 +15,6 @@
  */
 package com.dremio.datastore;
 
-import com.dremio.datastore.RemoteDataStoreProtobuf.CheckAndDeleteRequest;
-import com.dremio.datastore.RemoteDataStoreProtobuf.CheckAndDeleteResponse;
-import com.dremio.datastore.RemoteDataStoreProtobuf.CheckAndPutRequest;
-import com.dremio.datastore.RemoteDataStoreProtobuf.CheckAndPutResponse;
 import com.dremio.datastore.RemoteDataStoreProtobuf.ContainsRequest;
 import com.dremio.datastore.RemoteDataStoreProtobuf.ContainsResponse;
 import com.dremio.datastore.RemoteDataStoreProtobuf.DeleteRequest;
@@ -72,14 +68,6 @@ public class DefaultDataStoreRpcHandler {
   }
 
   public DeleteResponse delete(DeleteRequest request) {
-    throw new UnsupportedOperationException("Remote datastore operations are not supported on this host " + hostName);
-  }
-
-  public CheckAndPutResponse checkAndPut(CheckAndPutRequest request) {
-    throw new UnsupportedOperationException("Remote datastore operations are not supported on this host " + hostName);
-  }
-
-  public CheckAndDeleteResponse checkAndDelete(CheckAndDeleteRequest request) {
     throw new UnsupportedOperationException("Remote datastore operations are not supported on this host " + hostName);
   }
 

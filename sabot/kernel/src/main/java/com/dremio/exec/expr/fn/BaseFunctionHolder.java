@@ -307,6 +307,7 @@ public abstract class BaseFunctionHolder extends AbstractFunctionHolder {
     return this.parameters[i].isFieldReader;
   }
 
+  @Override
   public CompleteType getReturnType(final List<LogicalExpression> args) {
     return derivation.getOutputType(returnValue.type, args);
   }

@@ -215,7 +215,7 @@ public class TestDatasetProfiles extends BaseTestServer {
       .setFullPathList(path.toPathList())
       .setName(path.getLeaf().getName())
       .setCreatedAt(System.currentTimeMillis())
-      .setVersion(null)
+      .setTag(null)
       .setOwner(DEFAULT_USERNAME)
       .setPhysicalDataset(new PhysicalDataset()
         .setFormatSettings(new FileConfig().setType(FileType.JSON))

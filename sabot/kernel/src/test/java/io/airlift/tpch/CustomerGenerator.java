@@ -30,12 +30,13 @@ package io.airlift.tpch;
 
 import static java.util.Locale.ENGLISH;
 
+import java.time.LocalDate;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.VarCharVector;
-import io.airlift.tpch.GenerationDefinition.TpchTable;
 
-import java.time.LocalDate;
+import io.airlift.tpch.GenerationDefinition.TpchTable;
 
 class CustomerGenerator extends TpchGenerator {
   public static final int SCALE_BASE = 150_000;

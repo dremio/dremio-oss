@@ -92,6 +92,7 @@ public class TestNamespaceService {
 
       final SourceConfig src1 = addSource(namespaceService, "src1");
       Assert.assertEquals(src1, namespaceService.getSource((new NamespaceKey(src1.getName()))));
+      Assert.assertEquals(src1.getConfigOrdinal().longValue(), 0L);
 
       // Add some entries under "src1"
       addFolder(namespaceService, "src1.fld1");
@@ -112,22 +113,23 @@ public class TestNamespaceService {
       // updates
       src1.setCtime(2001L);
       src2.setCtime(2001L);
-      namespaceService.addOrUpdateSource(new NamespaceKey(src1.getName()), src1.setVersion(0L));
-      namespaceService.addOrUpdateSource(new NamespaceKey(src2.getName()), src2.setVersion(0L));
+      namespaceService.addOrUpdateSource(new NamespaceKey(src1.getName()), src1.setTag("0"));
+      namespaceService.addOrUpdateSource(new NamespaceKey(src2.getName()), src2.setTag("0"));
 
       SourceConfig newSrc1 = namespaceService.getSource(new NamespaceKey(src1.getName()));
       SourceConfig newSrc2 = namespaceService.getSource(new NamespaceKey(src2.getName()));
       Assert.assertEquals(src1, newSrc1);
       Assert.assertEquals(src2, newSrc2);
+      Assert.assertEquals(newSrc1.getConfigOrdinal().longValue(), 1L);
 
       // deletes
       try {
-        namespaceService.deleteSource(new NamespaceKey("src2"), 1234L);
+        namespaceService.deleteSource(new NamespaceKey("src2"), "1234");
         fail("deleteSource didn't throw exception");
       } catch (ConcurrentModificationException nfe) {
       }
 
-      namespaceService.deleteSource(new NamespaceKey("src1"), newSrc1.getVersion());
+      namespaceService.deleteSource(new NamespaceKey("src1"), newSrc1.getTag());
 
       verifySourceNotInNamespace(namespaceService, new NamespaceKey("src1"));
       // Check entries under "src1" no longer exists in namespace
@@ -135,7 +137,7 @@ public class TestNamespaceService {
       verifyDSNotInNamespace(namespaceService, new NamespaceKey("src1.ds1"));
       verifyDSNotInNamespace(namespaceService, new NamespaceKey("src1.fld1.ds2"));
 
-      namespaceService.deleteSource(new NamespaceKey("src2"), newSrc2.getVersion());
+      namespaceService.deleteSource(new NamespaceKey("src2"), newSrc2.getTag());
       verifySourceNotInNamespace(namespaceService, new NamespaceKey("src2"));
 
       // Re-add a source with name "src1" and make sure it contains no child entries
@@ -182,20 +184,16 @@ public class TestNamespaceService {
       space1.setName("space1");
       space1.setCtime(1000L);
       namespaceService.addOrUpdateSpace(new NamespaceKey(space1.getName()), space1);
-      Assert.assertEquals(0L, space1.getVersion().longValue());
 
       SpaceConfig newSpace1 = namespaceService.getSpace(new NamespaceKey(space1.getName()));
       Assert.assertEquals(space1, newSpace1);
-      Assert.assertEquals(0L, space1.getVersion().longValue());
 
       space2.setName("space2");
       space2.setCtime(2000L);
       namespaceService.addOrUpdateSpace(new NamespaceKey(space2.getName()), space2);
-      Assert.assertEquals(0L, space2.getVersion().longValue());
 
       SpaceConfig newSpace2 = namespaceService.getSpace(new NamespaceKey(space2.getName()));
       Assert.assertEquals(space2, newSpace2);
-      Assert.assertEquals(0L, space2.getVersion().longValue());
 
       // no match
       try {
@@ -209,27 +207,25 @@ public class TestNamespaceService {
       space1.setCtime(2001L);
       space2.setCtime(2001L);
       namespaceService.addOrUpdateSpace(new NamespaceKey(space1.getName()), space1);
-      Assert.assertEquals(1L, space1.getVersion().longValue());
       namespaceService.addOrUpdateSpace(new NamespaceKey(space2.getName()), space2);
-      Assert.assertEquals(1L, space2.getVersion().longValue());
 
       assertEquals(space1, namespaceService.getSpace(new NamespaceKey("space1")));
       assertEquals(space2, namespaceService.getSpace(new NamespaceKey("space2")));
 
       // deletes
       try {
-        namespaceService.deleteSpace(new NamespaceKey("space1"), 1234L);
+        namespaceService.deleteSpace(new NamespaceKey("space1"), "1234");
         fail("deleteSpace didn't throw exception");
       } catch (ConcurrentModificationException nfe) {
       }
 
-      namespaceService.deleteSpace(new NamespaceKey("space1"), space1.getVersion());
+      namespaceService.deleteSpace(new NamespaceKey("space1"), space1.getTag());
       try {
         namespaceService.getSpace(new NamespaceKey("space1"));
         fail("getSpace didn't throw exception");
       } catch (NamespaceNotFoundException nfe) {
       }
-      namespaceService.deleteSpace(new NamespaceKey("space2"), space2.getVersion());
+      namespaceService.deleteSpace(new NamespaceKey("space2"), space2.getTag());
       try {
         namespaceService.getSpace(new NamespaceKey("space2"));
         fail("getSpace didn't throw exception");
@@ -578,12 +574,12 @@ public class TestNamespaceService {
 
       assertEquals(3, ns.getAllDatasets(new NamespaceKey("src1")).size());
       // delete folder datasets so that the dataset underneath them are now visible
-      ns.deleteDataset(new NamespaceKey(asList("src1", "foo")), ns.getDataset(new NamespaceKey(asList("src1", "foo"))).getVersion());
+      ns.deleteDataset(new NamespaceKey(asList("src1", "foo")), ns.getDataset(new NamespaceKey(asList("src1", "foo"))).getLegacyTag());
       assertEquals(3, ns.getAllDatasets(new NamespaceKey("src1")).size());
       //Make sure datasets under "src1.foo" are uncovered
       assertEquals(1, ns.getAllDatasets(new NamespaceKey(PathUtils.parseFullPath("src1.foo"))).size());
 
-      ns.deleteDataset(new NamespaceKey(asList("src1", "foo", "bar")), ns.getDataset(new NamespaceKey(asList("src1", "foo", "bar"))).getVersion());
+      ns.deleteDataset(new NamespaceKey(asList("src1", "foo", "bar")), ns.getDataset(new NamespaceKey(asList("src1", "foo", "bar"))).getLegacyTag());
       assertEquals(3, ns.getAllDatasets(new NamespaceKey("src1")).size());
 
       final List<NamespaceKey> sourceTwoDatasets = ns.getAllDatasets(new NamespaceKey("src2"));
@@ -803,7 +799,7 @@ public class TestNamespaceService {
       readDefinition.setSplitVersion(lastSplitVersion);
 
       datasetConfig.setType(PHYSICAL_DATASET);
-      datasetConfig.setVersion(null);
+      datasetConfig.setTag(null);
       datasetConfig.setId(new EntityId().setId(UUID.randomUUID().toString()));
       datasetConfig.setName("testDatasetSplitsInsert");
       datasetConfig.setFullPathList(Lists.newArrayList("test", "testDatasetSplitsInsert"));
@@ -816,7 +812,7 @@ public class TestNamespaceService {
       for (int i = 0; i < 10; i++) {
         splits.add(new DatasetSplit()
           .setRowCount((long) i)
-          .setVersion(0L)
+          .setTag("0")
           .setSize((long) i)
           .setAffinitiesList(Lists.<Affinity>newArrayList(new Affinity().setHost("node" + i)))
           .setPartitionValuesList(Lists.newArrayList(new PartitionValue().setColumn("column" + i).setIntValue(i).setType(PartitionValueType.IMPLICIT)))
@@ -865,7 +861,7 @@ public class TestNamespaceService {
       // add another split
       splits.add(new DatasetSplit()
         .setRowCount(11L)
-        .setVersion(0L)
+        .setTag("0")
         .setSize(11L)
         .setAffinitiesList(Lists.<Affinity>newArrayList(new Affinity().setHost("node" + 11)))
         .setPartitionValuesList(Lists.newArrayList(new PartitionValue().setColumn("column" + 11).setIntValue(11).setType(PartitionValueType.IMPLICIT)))
@@ -899,11 +895,35 @@ public class TestNamespaceService {
       final NamespaceServiceImpl ns = new NamespaceServiceImpl(kvstore);
 
       try {
-        ns.deleteEntity(new NamespaceKey(Arrays.asList("does", "not", "exist")), NameSpaceContainer.Type.FOLDER, 123L, true);
+        ns.deleteEntity(new NamespaceKey(Arrays.asList("does", "not", "exist")), NameSpaceContainer.Type.FOLDER, "123", true);
         fail("deleteEntity should have failed.");
       } catch(NamespaceNotFoundException e) {
         // Expected
       }
     }
+  }
+
+  @Test
+  public void testNamespaceContainerVersionExtractor() throws Exception {
+    NameSpaceContainerVersionExtractor versionExtractor = new NameSpaceContainerVersionExtractor();
+
+    NameSpaceContainer container = new NameSpaceContainer();
+    container.setType(NameSpaceContainer.Type.SOURCE);
+
+    SourceConfig config = new SourceConfig();
+    container.setSource(config);
+
+    // test precommit for sources, which increments the version
+    versionExtractor.preCommit(container);
+    assertEquals(0, config.getConfigOrdinal().longValue());
+
+    versionExtractor.preCommit(container);
+    assertEquals(1, config.getConfigOrdinal().longValue());
+
+    // test preCommit rollback
+    AutoCloseable autoCloseable = versionExtractor.preCommit(container);
+    assertEquals(2, config.getConfigOrdinal().longValue());
+    autoCloseable.close();
+    assertEquals(1, config.getConfigOrdinal().longValue());
   }
 }

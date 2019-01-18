@@ -19,15 +19,14 @@ package com.dremio.exec.planner.physical;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.UnorderedDeMuxExchange;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
 
 public class UnorderedDeMuxExchangePrel extends ExchangePrel {
 

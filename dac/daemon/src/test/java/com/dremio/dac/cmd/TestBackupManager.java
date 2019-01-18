@@ -25,7 +25,6 @@ import java.io.File;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -63,6 +62,7 @@ import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -139,7 +139,8 @@ public class TestBackupManager extends BaseTestServer {
 
     // add dataset, delete dataset, upload file
     getPopulator().putDS("DG", "dsg11", new FromSQL("select * from DG.dsg9 t1 left join DG.dsg8 t2 on t1.A=t2.age").wrap());
-    newDatasetVersionMutator().deleteDataset(new DatasetPath("DG.dsg10"), 0);
+    DatasetPath datasetPath = new DatasetPath("DG.dsg10");
+    newDatasetVersionMutator().deleteDataset(datasetPath, NamespaceUtils.getVersion(datasetPath.toNamespaceKey(), newNamespaceService()));
 
     File tmpFile = TEMP_FOLDER.newFile();
     Files.write(FileUtils.getResourceAsString("/datasets/text/comma.txt"), tmpFile, UTF_8);
@@ -152,8 +153,8 @@ public class TestBackupManager extends BaseTestServer {
     // take backup 2 using rest api
     final URI backupPath = BaseTestServer.folder1.newFolder().getAbsoluteFile().toURI();
     Path backupDir2 = new Path(
-        Backup.createBackup(dacConfig, DEFAULT_USERNAME, DEFAULT_PASSWORD, Optional.empty(), backupPath)
-            .getBackupPath());
+      Backup.createBackup(dacConfig, DEFAULT_USERNAME, DEFAULT_PASSWORD, false, backupPath)
+      .getBackupPath());
 
     // destroy everything
     l(HomeFileTool.class).clearUploads();
@@ -176,7 +177,7 @@ public class TestBackupManager extends BaseTestServer {
     assertEquals("dsg11", dsg11.getName());
 
     try {
-      newNamespaceService().getDataset(new DatasetPath("DG.dsg10").toNamespaceKey());
+      newNamespaceService().getDataset(datasetPath.toNamespaceKey());
       fail("DG.dsg10 should have been deleted in backup 2");
     } catch (NamespaceNotFoundException e) {
     }
@@ -199,7 +200,7 @@ public class TestBackupManager extends BaseTestServer {
     startDaemon();
 
     cp1.checkEquals(checkPoint());
-    DatasetConfig dsg10 = newNamespaceService().getDataset(new DatasetPath("DG.dsg10").toNamespaceKey());
+    DatasetConfig dsg10 = newNamespaceService().getDataset(datasetPath.toNamespaceKey());
     assertNotNull(dsg10);
     assertEquals("dsg10", dsg10.getName());
 

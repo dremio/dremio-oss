@@ -324,28 +324,40 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
-  public boolean createView(final NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException {
+  public void createView(final NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException {
     switch(getType(key, true)) {
       case SOURCE:
-        return asMutable(key, "does not support create view").createView(key, view, options.getSchemaConfig());
+        asMutable(key, "does not support create view")
+          .createOrUpdateView(key, view, options.getSchemaConfig());
+        break;
       case SPACE:
       case HOME:
-        context.getViewCreator(getUser()).createView(key.getPathComponents(), view.getSql(), Collections.<String>emptyList(), attributes);
-        return true;
+        context.getViewCreator(getUser())
+          .createView(key.getPathComponents(), view.getSql(), Collections.<String>emptyList(), attributes);
+        break;
       default:
-        throw UserException.unsupportedError().message("Cannot create view in %s.", key).build(logger);
+        throw UserException.unsupportedError()
+          .message("Cannot create view in %s.", key)
+          .build(logger);
     }
   }
 
   @Override
-  public void updateView(NamespaceKey key, View view, NamespaceAttribute... attributes) {
+  public void updateView(NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException {
     switch(getType(key, true)) {
+      case SOURCE:
+        asMutable(key, "does not support update view")
+          .createOrUpdateView(key, view, options.getSchemaConfig());
+        break;
       case SPACE:
       case HOME:
-        context.getViewCreator(getUser()).updateView(key.getPathComponents(), view.getSql(), view.getWorkspaceSchemaPath(), attributes);
+        context.getViewCreator(getUser())
+          .updateView(key.getPathComponents(), view.getSql(), view.getWorkspaceSchemaPath(), attributes);
         break;
       default:
-        throw UserException.unsupportedError().message("Cannot create view in %s.", key).build(logger);
+        throw UserException.unsupportedError()
+          .message("Cannot update view in %s.", key)
+          .build(logger);
     }
   }
 

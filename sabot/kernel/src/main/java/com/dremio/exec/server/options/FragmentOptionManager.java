@@ -17,7 +17,6 @@ package com.dremio.exec.server.options;
 
 import java.util.Map;
 
-
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
@@ -44,7 +43,7 @@ public class FragmentOptionManager extends InMemoryOptionManager {
   }
 
   @Override
-  boolean supportsOptionType(OptionType type) {
+  protected boolean supportsOptionType(OptionType type) {
     throw new UnsupportedOperationException("FragmentOptionManager does not support the given option value.");
   }
 

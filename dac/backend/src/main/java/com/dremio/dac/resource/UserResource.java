@@ -149,7 +149,7 @@ public class UserResource {
   @RolesAllowed("admin")
   @DELETE
   @Produces(MediaType.APPLICATION_JSON)
-  public Response deleteUser(@PathParam("userName") UserName userName, @QueryParam("version") Long version) throws IOException, UserNotFoundException {
+  public Response deleteUser(@PathParam("userName") UserName userName, @QueryParam("version") String version) throws IOException, UserNotFoundException {
     if (version == null) {
       throw new ClientErrorException("missing version parameter");
     }
@@ -165,7 +165,7 @@ public class UserResource {
     try {
       final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath(userName.getName())).toNamespaceKey();
       final HomeConfig homeConfig = namespaceService.getHome(homeKey);
-      namespaceService.deleteHome(homeKey, homeConfig.getVersion());
+      namespaceService.deleteHome(homeKey, homeConfig.getTag());
     } catch (NamespaceNotFoundException ex) {
       logger.debug("Home space is not found", ex);
     } catch (NamespaceException ex) {

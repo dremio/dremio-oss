@@ -28,6 +28,7 @@ public class ReturnValueExpression implements LogicalExpression {
 
   private LogicalExpression child;
   private boolean returnTrueOnOne;
+  // was pushed in 3.0 have to retain this so that serde does not break.
   private final EvaluationType evaluationType;
 
   public ReturnValueExpression(LogicalExpression child) {
@@ -38,26 +39,11 @@ public class ReturnValueExpression implements LogicalExpression {
     this.child = child;
     this.returnTrueOnOne = returnTrueOnOne;
     this.evaluationType = new EvaluationType();
-    addEvaluationType(EvaluationType.ExecutionType.JAVA);
+    evaluationType.addEvaluationType(EvaluationType.ExecutionType.JAVA);
   }
 
   public LogicalExpression getChild() {
     return child;
-  }
-
-  @Override
-  public boolean isEvaluationTypeSupported(EvaluationType.ExecutionType executionType) {
-    return evaluationType.isEvaluationTypeSupported(executionType);
-  }
-
-  @Override
-  public void addEvaluationType(EvaluationType.ExecutionType executionType) {
-    evaluationType.addEvaluationType(executionType);
-  }
-
-  @Override
-  public EvaluationType getEvaluationType() {
-    return evaluationType;
   }
 
   @Override

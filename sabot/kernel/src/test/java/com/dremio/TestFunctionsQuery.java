@@ -515,6 +515,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
 
   @Test
   public void testRoundWithParamFunction() throws Exception {
+    // this tests constant reduction
     String query = "SELECT " +
         "round(1234.4567, 2) as T_1, " +
         "round(-1234.4567, 2) as T_2, " +
@@ -525,16 +526,31 @@ public class TestFunctionsQuery extends BaseTestQuery {
         "round(1234, -4) as T_7, " +
         "round(-1234, -4) as T_8, " +
         "round(8124674407369523212, -4) as T_9, " +
-        "round(81246744073695.395, 1) as T_10 " +
+        "round(81246744073695.395, 1) as T_10, " +
+        "round(6.05, 1) as T_11, " +
+        "round(-6.05, 1) as T_12 " +
         "FROM cp.\"tpch/region.parquet\" limit 1";
 
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
-        .baselineColumns("T_1", "T_2", "T_3", "T_4", "T_5", "T_6", "T_7", "T_8", "T_9", "T_10")
-        .baselineValues(1234.46D, -1234.46D, 1200.0D, -1200.0D, 1234, -1234, 0, 0, 8124674407369520000L, 81246744073695.4D)
+        .baselineColumns("T_1", "T_2", "T_3", "T_4", "T_5", "T_6", "T_7", "T_8", "T_9", "T_10", "T_11", "T_12")
+        .baselineValues(1234.46D, -1234.46D, 1200.0D, -1200.0D, 1234, -1234, 0, 0, 8124674407369520000L,
+            81246744073695.4D, 6.1D, -6.1D)
         .go();
+  }
 
+  @Test
+  public void testRoundWithParamFunction2() throws Exception {
+    String query = "SELECT round(float4_col, 0) as t1, round(float8_col, 0) as t2 " +
+        "FROM cp.\"parquet/all_scalar_types.parquet\"";
+
+    testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("t1", "t2")
+        .baselineValues(1.0F, 1.0D)
+        .go();
   }
 
   @Test

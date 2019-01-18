@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.store.dfs;
 
-import org.apache.hadoop.io.compress.CompressionCodecFactory;
-
 import java.io.IOException;
+
+import org.apache.hadoop.io.compress.CompressionCodecFactory;
 
 public abstract class FormatMatcher {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FormatMatcher.class);

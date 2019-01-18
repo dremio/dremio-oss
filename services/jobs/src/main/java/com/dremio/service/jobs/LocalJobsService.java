@@ -95,6 +95,7 @@ import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.RootSchemaFinder;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.fragment.PlanningSet;
@@ -104,7 +105,6 @@ import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.SchemaUserBitShared;
 import com.dremio.exec.proto.UserBitShared;
@@ -118,6 +118,7 @@ import com.dremio.exec.proto.UserProtos.QueryPriority;
 import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.proto.UserProtos.SubmissionSource;
 import com.dremio.exec.proto.beans.NodeEndpoint;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
@@ -149,6 +150,7 @@ import com.dremio.service.BindingCreator;
 import com.dremio.service.job.proto.Acceleration;
 import com.dremio.service.job.proto.ExtraInfo;
 import com.dremio.service.job.proto.JobAttempt;
+import com.dremio.service.job.proto.JobCancellationInfo;
 import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
@@ -377,7 +379,7 @@ public class LocalJobsService implements JobsService {
     final JobAttempt jobAttempt = new JobAttempt()
         .setInfo(jobInfo)
         .setEndpoint(identity)
-        .setState(STARTING)
+        .setState(ENQUEUED)
         .setDetails(new JobDetails());
     final Job job = new Job(jobId, jobAttempt);
 
@@ -401,8 +403,7 @@ public class LocalJobsService implements JobsService {
 
     // (3) register listener
     final QueryListener jobObserver = new QueryListener(job, statusListener);
-    Preconditions.checkArgument(store.checkAndPut(job.getJobId(), null, toJobResult(job)),
-        "Job had a duplicate jobId. " + job);
+    store.put(job.getJobId(), toJobResult(job));
     runningJobs.put(jobId, jobObserver);
 
     final boolean isPrepare = queryType.equals(QueryType.PREPARE_INTERNAL);
@@ -827,7 +828,7 @@ public class LocalJobsService implements JobsService {
             .setInfo(jobInfo)
             .setEndpoint(identity)
             .setDetails(new JobDetails())
-            .setState(STARTING);
+            .setState(ENQUEUED);
 
       final Job job = new Job(jobId, jobAttempt);
 
@@ -900,7 +901,7 @@ public class LocalJobsService implements JobsService {
                 .setReason(reason)
                 .setEndpoint(identity)
                 .setDetails(new JobDetails())
-                .setState(STARTING);
+                .setState(ENQUEUED);
 
         job.addAttempt(jobAttempt);
       }
@@ -964,7 +965,7 @@ public class LocalJobsService implements JobsService {
               break;
 
             case CANCELED:
-              this.statusListener.jobCancelled(userResult.getReason());
+              this.statusListener.jobCancelled(userResult.getCancelReason());
               break;
 
             case FAILED:
@@ -1152,7 +1153,7 @@ public class LocalJobsService implements JobsService {
 
     @Override
     public void queryStarted(UserRequest query, String user) {
-      job.getJobAttempt().setState(STARTING);
+      job.getJobAttempt().setState(ENQUEUED);
       job.getJobAttempt().getInfo().setRequestType(query.getRequestType());
       job.getJobAttempt().getInfo().setSql(query.getSql());
       job.getJobAttempt().getInfo().setDescription(query.getDescription());
@@ -1181,7 +1182,7 @@ public class LocalJobsService implements JobsService {
     }
 
     @Override
-    public void planSubstituted(DremioRelOptMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken) {
+    public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken) {
       detailsPopulator.planSubstituted(materialization, substitutions, target, millisTaken);
     }
 
@@ -1227,7 +1228,7 @@ public class LocalJobsService implements JobsService {
       job.getJobAttempt().setAccelerationDetails(
         ByteString.copyFrom(detailsPopulator.computeAcceleration()));
 
-      job.getJobAttempt().setState(ENQUEUED);
+      job.getJobAttempt().setState(STARTING);
       storeJob(job);
 
       if (externalListenerManager != null) {
@@ -1249,7 +1250,8 @@ public class LocalJobsService implements JobsService {
           .setQueueName(resourceSchedulingDecisionInfo.getQueueName())
           .setQueueId(resourceSchedulingDecisionInfo.getQueueId())
           .setResourceSchedulingStart(resourceSchedulingDecisionInfo.getSchedulingStartTimeMs())
-          .setResourceSchedulingEnd(resourceSchedulingDecisionInfo.getSchedulingEndTimeMs());
+          .setResourceSchedulingEnd(resourceSchedulingDecisionInfo.getSchedulingEndTimeMs())
+          .setQueryCost(resourceSchedulingDecisionInfo.getResourceSchedulingProperties().getQueryCost());
         storeJob(job);
       }
     }
@@ -1319,6 +1321,11 @@ public class LocalJobsService implements JobsService {
 
         if (metadata.getScanPaths() != null) {
           jobInfo.setScanPathsList(metadata.getScanPaths());
+        }
+        BatchSchema schema = metadata.getBatchSchema();
+        if (schema != null) {
+          // There is DX-14280. We will be able to remove clone call, when it would be resolved.
+          jobInfo.setBatchSchema(schema.clone(BatchSchema.SelectionVectorMode.NONE).toByteString());
         }
 
         storeJob(job);
@@ -1431,14 +1438,27 @@ public class LocalJobsService implements JobsService {
         jobInfo.getResourceSchedulingInfo().setQueueName(profile.getResourceSchedulingProfile().getQueueName());
         jobInfo.getResourceSchedulingInfo().setQueueId(profile.getResourceSchedulingProfile().getQueueId());
       }
-      if (state == QueryState.FAILED) {
+      switch (state) {
+      case FAILED:
         if (profile.hasError()) {
           jobInfo.setFailureInfo(profile.getError());
         }
         if (profile.hasVerboseError()) {
           jobInfo.setDetailedFailureInfo(JobsServiceUtil.toFailureInfo(profile.getVerboseError()));
         }
+        break;
+      case CANCELED:
+        if (profile.hasCancelReason()) {
+          final JobCancellationInfo cancellationInfo = new JobCancellationInfo();
+          cancellationInfo.setMessage(profile.getCancelReason());
+          jobInfo.setCancellationInfo(cancellationInfo);
+        }
+        break;
+      default:
+        // nothing
       }
+
+      jobInfo.setSpillJobDetails(profileParser.getSpillDetails());
       jobInfo.setOutputTableList(Arrays.asList(storageName, jobAttempt.getAttemptId()));
 
       jobAttempt.setStats(profileParser.getJobStats());

@@ -20,6 +20,7 @@ import Radium from 'radium';
 import Immutable from 'immutable';
 import jobsUtils from 'utils/jobsUtils';
 import FileUtils from 'utils/FileUtils';
+import NumberFormatUtils from 'utils/numberFormatUtils';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 import FontIcon from 'components/Icon/FontIcon';
 import CodeMirror from 'components/CodeMirror';
@@ -167,16 +168,48 @@ class DetailsContent extends Component {
     );
   }
 
+  getSpilledOperations(spillDetails) {
+    if (!spillDetails) return null;
+
+    const haveAgg = spillDetails.get('hashAggSpilled');
+    const haveSort = spillDetails.get('sortSpilled');
+    const operations = haveAgg && haveSort && la('Aggregate') || haveAgg && la('Aggregate') || haveSort && la('Sort');
+    return (
+      <ListItem label={la('Spilled Operations:')}>
+        <span>{operations}</span>
+      </ListItem>
+    );
+  }
+
+  getTotalSpilled(spillDetails) {
+    if (!spillDetails) return null;
+
+    const memoryValue = spillDetails.get('totalBytesSpilled', 0);
+    const memoryString = NumberFormatUtils.makeMemoryValueString(memoryValue);
+    return (
+      <ListItem label={la('Total Spilled:')}>
+        <span>{memoryString}</span>
+      </ListItem>
+    );
+  }
+
   render() {
     const { jobDetails } = this.props;
     const datasetsList = jobDetails.get('tableDatasetProfiles');
+    const spilledDetails = jobDetails.get('spilled') && jobDetails.get('spillDetails');
+    const attemptDetails = jobDetails.get('attemptDetails');
+    const lastAttempt = attemptDetails.last();
+
     return (
       <div>
         <div className='detail-row'>
           <h4>{la('Plan')}</h4>
           <ul>
-            <ListItem label={la('Time Spent')}>
-              <span>{jobsUtils.msToHHMMSS(jobDetails && jobDetails.get('timeSpentInPlanning'))}</span>
+            <ListItem label={la('Planning Time')}>
+              <span>{jobsUtils.msToHHMMSS(lastAttempt && lastAttempt.get('planningTime'))}</span>
+            </ListItem>
+            <ListItem label={la('Enqueued Time')}>
+              <span>{jobsUtils.formatJobDuration(lastAttempt && lastAttempt.get('enqueuedTime'))}</span>
             </ListItem>
           </ul>
         </div>
@@ -187,9 +220,14 @@ class DetailsContent extends Component {
         <div className='detail-row'>
           <h4>{la('Process')}</h4>
           <ul>
+            <ListItem label={la('Execution Time')}>
+              <span>{jobsUtils.formatJobDuration(lastAttempt && lastAttempt.get('executionTime'))}</span>
+            </ListItem>
             <ListItem label={la('Top Operations')}>
               {this.getTopOperations(jobDetails.get('topOperations'))}
             </ListItem>
+            {this.getSpilledOperations(spilledDetails)}
+            {this.getTotalSpilled(spilledDetails)}
           </ul>
         </div>
         <div className='detail-row'>

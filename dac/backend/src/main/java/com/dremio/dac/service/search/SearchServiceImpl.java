@@ -60,6 +60,8 @@ import com.dremio.services.configuration.ConfigurationStore;
  * Search Service - allows searching of namespace entities using a separate search index
  */
 public class SearchServiceImpl implements SearchService {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SearchServiceImpl.class);
+
   static final int MAX_SEARCH_RESULTS = 50;
 
   private final Provider<SabotContext> sabotContext;
@@ -86,7 +88,13 @@ public class SearchServiceImpl implements SearchService {
 
   @Override
   public void start() throws Exception {
-    searchIndex = ((LocalKVStoreProvider) storeProvider.get()).getAuxiliaryIndex("catalog-search", DAC_NAMESPACE, SearchIndexManager.NamespaceSearchConverter.class);
+    KVStoreProvider kvStoreProvider = storeProvider.get();
+    if (!(kvStoreProvider instanceof LocalKVStoreProvider)) {
+      logger.warn("Search search could not start as kv store is not local");
+      return;
+    }
+
+    searchIndex = ((LocalKVStoreProvider) kvStoreProvider).getAuxiliaryIndex("catalog-search", DAC_NAMESPACE, SearchIndexManager.NamespaceSearchConverter.class);
     collaborationTagStore = new CollaborationTagStore(storeProvider.get());
     configurationStore = new ConfigurationStore(storeProvider.get());
     manager = new SearchIndexManager(sabotContext.get(), collaborationTagStore, configurationStore, searchIndex);

@@ -83,17 +83,25 @@ export default class VirtualizedTableViewer extends Component {
     this.lastSpeed = speed;
   }
 
-  renderHeader = ({ label, dataKey, sortBy, sortDirection }, style, infoContent) => {
+  renderHeader = ({ label, dataKey, sortBy, sortDirection },
+    /* column */ { style, infoContent, headerStyle }) => {
     const isSorted = sortBy === dataKey;
     const headerClassName = isSorted ? classNames({
       'sort-asc': sortDirection === SortDirection.ASC,
       'sort-desc': sortDirection === SortDirection.DESC
     }) : '';
+    const infoContentStyle = {};
+    if (isSorted) {
+      // sort icon with - 4px to put infoContent closer to sort icon. See .sort-icon() mixin
+      infoContentStyle.marginLeft = 20;
+    }
     return (
-      <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-        <div className={headerClassName} style={style}>{ label === undefined ? dataKey : label} </div>
-        {infoContent}
-      </span>
+      <div style={{ display: 'flex', alignItems: 'center', ...style, ...headerStyle }}>
+        <div className={headerClassName}>{ label === undefined ? dataKey : label} </div>
+        {infoContent && <span style={infoContentStyle}>
+          {infoContent}
+        </span>}
+      </div>
     );
   }
 
@@ -151,9 +159,10 @@ export default class VirtualizedTableViewer extends Component {
                     key={item.key}
                     dataKey={item.key}
                     className={item.className}
+                    headerClassName={item.headerClassName}
                     label={item.label}
                     style={item.style}
-                    headerRenderer={(options) => this.renderHeader(options, item.style, item.infoContent)}
+                    headerRenderer={(options) => this.renderHeader(options, item)}
                     width={item.width || 100}
                     flexGrow={item.flexGrow}
                     disableSort={item.disableSort}
@@ -172,7 +181,8 @@ export default class VirtualizedTableViewer extends Component {
 const styles = {
   base: {
     flexGrow: 1,
-    width: '100%'
+    width: '100%',
+    overflow: 'hidden'
   }
 };
 

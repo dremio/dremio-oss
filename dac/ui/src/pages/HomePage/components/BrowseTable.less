@@ -88,6 +88,8 @@
         position: relative;
 
         .sort-icon() {
+          position: absolute;
+          left: 100%;
           display: block;
           background-image: url(../../../components/Icon/icons/Arrow-Down-Small.svg);
           content: '';
@@ -96,6 +98,7 @@
         }
 
         .sort-asc, .sort-desc {
+          position: relative;
           display: inline-flex;
           align-items: center;
         }
@@ -264,7 +267,8 @@
   }
 
   // avoiding extra right margin on DS list page in Action column
-  .main-info .ReactVirtualized__Table__row .ReactVirtualized__Table__rowColumn.row-buttons {
-    margin-right: 0;
+  .main-info .ReactVirtualized__Table__row .ReactVirtualized__Table__rowColumn.row-buttons,
+  .ReactVirtualized__Table__headerColumn.row-buttons {
+    margin-right: 5px;
   }
 }

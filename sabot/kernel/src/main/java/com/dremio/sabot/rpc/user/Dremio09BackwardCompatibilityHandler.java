@@ -17,20 +17,20 @@ package com.dremio.sabot.rpc.user;
 
 import static com.dremio.common.types.TypeProtos.DataMode.OPTIONAL;
 import static com.dremio.common.types.TypeProtos.DataMode.REQUIRED;
-import static com.dremio.common.types.TypeProtos.MinorType.*;
+import static com.dremio.common.types.TypeProtos.MinorType.DECIMAL;
 import static java.lang.String.format;
 
 import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.DecimalVector;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
+
 import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 

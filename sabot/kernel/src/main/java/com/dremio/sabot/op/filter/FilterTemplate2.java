@@ -17,11 +17,9 @@ package com.dremio.sabot.op.filter;
 
 import javax.inject.Named;
 
-import org.apache.arrow.vector.util.TransferPair;
-
 import com.dremio.exec.exception.SchemaChangeException;
-import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.sabot.exec.context.FunctionContext;
 

@@ -72,8 +72,8 @@ import com.dremio.common.types.Types;
 import com.dremio.exec.planner.StarColumnHelper;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.work.ExecErrorConstants;
-import com.google.common.collect.ImmutableList;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 /**

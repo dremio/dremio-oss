@@ -44,7 +44,7 @@ import com.google.common.collect.Maps;
 public class WorkloadTicket extends TicketWithChildren {
   protected final ConcurrentMap<QueryId, QueryTicket> queryTickets = Maps.newConcurrentMap();
 
-  private final SchedulingGroup<AsyncTaskWrapper> schedulingGroup;
+  private SchedulingGroup<AsyncTaskWrapper> schedulingGroup;
 
   /**
    * Create a WorkloadTicket
@@ -52,6 +52,10 @@ public class WorkloadTicket extends TicketWithChildren {
    */
   public WorkloadTicket(final BufferAllocator allocator, final SchedulingGroup<AsyncTaskWrapper> schedulingGroup) {
     super(allocator);
+    setSchedulingGroup(schedulingGroup);
+  }
+
+  protected void setSchedulingGroup(SchedulingGroup<AsyncTaskWrapper> schedulingGroup) {
     this.schedulingGroup = Preconditions.checkNotNull(schedulingGroup, "scheduling group required");
   }
 

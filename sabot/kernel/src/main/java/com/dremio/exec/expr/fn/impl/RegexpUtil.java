@@ -28,7 +28,7 @@ import com.dremio.exec.expr.fn.FunctionErrorContext;
  */
 
 public class RegexpUtil {
-  private static final String JAVA_REGEX_SPECIALS = "[]()|^-+*?{}$\\";
+  private static final String JAVA_REGEX_SPECIALS = "[]()|^-+*?{}$\\.";
   private static final String SQL_SIMILAR_SPECIALS = "[]()|^-+*_%?{}";
   private static final String [] REG_CHAR_CLASSES = {
       "[:ALPHA:]", "\\p{Alpha}",

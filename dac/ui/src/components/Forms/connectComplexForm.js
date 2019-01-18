@@ -33,7 +33,7 @@ export class InnerComplexForm extends Component {
   };
 
   render() {
-    const {fields, error, children, handleSubmit, onSubmit} = this.props;
+    const {fields, error, children, handleSubmit, onSubmit, settingId} = this.props;
 
     // declare POST so that in case something goes terribly wrong and the browser handles the form
     // we don't put the params in the user-visible URL (e.g. the password when logging in)
@@ -43,6 +43,7 @@ export class InnerComplexForm extends Component {
         method='POST'
         onSubmit={onSubmit ? handleSubmit(onSubmit) : null}
         style={{...styles.innerForm, ...this.props.style}}
+        data-qa={settingId}
         ref='form'>
         {error && <Message messageType='error'
           message={error.message}

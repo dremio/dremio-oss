@@ -18,7 +18,6 @@ package com.dremio.exec.expr;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.options.OptionManager;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
@@ -89,10 +88,13 @@ public class ClassProducerImpl implements ClassProducer {
     }
   }
 
+  /**
+   * ONLY for Projector and Filter to use for setting up code generation to follow.
+   */
   @Override
-  public LogicalExpression materializeAndAllowComplex(OptionManager optionManager, LogicalExpression expr, VectorAccessible batch) {
+  public LogicalExpression materializeAndAllowComplex(ExpressionEvaluationOptions options, LogicalExpression expr, VectorAccessible batch) {
     try(ErrorCollector collector = new ErrorCollectorImpl()){
-      return ExpressionTreeMaterializer.materialize(optionManager, expr, batch != null ? batch.getSchema() : null, collector, functionLookupContext, true);
+      return ExpressionTreeMaterializer.materialize(options, expr, batch != null ? batch.getSchema() : null, collector, functionLookupContext, true);
     }
   }
 

@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.store.easy.excel.xls;
 
-import com.dremio.exec.store.easy.excel.xls.properties.DirectoryProperty;
-import com.google.common.base.Preconditions;
-
 import org.apache.poi.poifs.common.POIFSConstants;
 import org.apache.poi.poifs.storage.BATBlock;
 import org.apache.poi.poifs.storage.HeaderBlock;
+
+import com.dremio.exec.store.easy.excel.xls.properties.DirectoryProperty;
+import com.google.common.base.Preconditions;
 
 /**
  * Special implementation of BlockStore to handle a mini-stream (stream of 64B blocks) stored in a regular

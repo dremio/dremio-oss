@@ -30,7 +30,6 @@ import com.dremio.exec.ExecTest;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
-import com.dremio.exec.record.BatchSchema;
 
 public class ExpressionTreeMaterializerTest extends ExecTest {
 

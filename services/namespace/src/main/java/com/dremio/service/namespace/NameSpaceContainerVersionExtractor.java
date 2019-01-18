@@ -15,13 +15,73 @@
  */
 package com.dremio.service.namespace;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 
 /**
  * version extractor for namespace container.
  */
 final class NameSpaceContainerVersionExtractor implements VersionExtractor<NameSpaceContainer> {
+  @Override
+  public String getTag(NameSpaceContainer value) {
+    switch (value.getType()) {
+      case DATASET:
+        return value.getDataset().getTag();
+      case FOLDER:
+        return value.getFolder().getTag();
+      case HOME:
+        return value.getHome().getTag();
+      case SOURCE:
+        return value.getSource().getTag();
+      case SPACE:
+        return value.getSpace().getTag();
+      default:
+        throw new UnsupportedOperationException("Unknown type: " + value.getType());
+    }
+  }
+
+  @Override
+  public void setTag(NameSpaceContainer value, String version) {
+    switch (value.getType()) {
+      case DATASET:
+        value.getDataset().setTag(version);
+        break;
+      case FOLDER:
+        value.getFolder().setTag(version);
+        break;
+      case HOME:
+        value.getHome().setTag(version);
+        break;
+      case SOURCE:
+        value.getSource().setTag(version);
+        break;
+      case SPACE:
+        value.getSpace().setTag(version);
+        break;
+      default:
+        throw new UnsupportedOperationException("Unknown type: " + value.getType());
+    }
+  }
+
+  @Override
+  public AutoCloseable preCommit(NameSpaceContainer value) {
+    if (value.getType() != NameSpaceContainer.Type.SOURCE) {
+      return AutoCloseables.noop();
+    }
+
+    // for sources, we want to maintain a numeric version so we can distinguish chronological order
+    SourceConfig source = value.getSource();
+    Long configOrdinal= source.getConfigOrdinal();
+
+    value.getSource().setConfigOrdinal(configOrdinal == null ? 0 : configOrdinal + 1);
+
+    return () -> {
+      // rollback the ordinal in case the commit fails
+      value.getSource().setConfigOrdinal(configOrdinal);
+    };
+  }
 
   @Override
   public Long getVersion(NameSpaceContainer value) {
@@ -53,7 +113,6 @@ final class NameSpaceContainerVersionExtractor implements VersionExtractor<NameS
       case HOME:
         value.getHome().setVersion(version);
         break;
-
       case SOURCE:
         value.getSource().setVersion(version);
         break;
@@ -65,10 +124,4 @@ final class NameSpaceContainerVersionExtractor implements VersionExtractor<NameS
     }
   }
 
-  @Override
-  public Long incrementVersion(NameSpaceContainer value) {
-    Long version = getVersion(value);
-    setVersion(value, version == null ? 0 : version + 1);
-    return version;
-  }
 }

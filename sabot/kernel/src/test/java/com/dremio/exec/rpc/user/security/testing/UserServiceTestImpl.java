@@ -116,7 +116,7 @@ public class UserServiceTestImpl implements UserService {
   }
 
   @Override
-  public void deleteUser(String userName, long version) throws UserNotFoundException, IOException {
+  public void deleteUser(String userName, String version) throws UserNotFoundException, IOException {
     throw new UnsupportedOperationException("not supported");
   }
 

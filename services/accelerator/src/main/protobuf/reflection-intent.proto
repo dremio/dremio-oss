@@ -35,7 +35,7 @@ enum ReflectionGoalState {
 
 message ReflectionGoal {
   optional ReflectionId id = 1; // const
-  optional int64 version = 2;
+  optional int64 version = 2 [deprecated = true];
   optional int64 created_at = 3; // const
   optional int64 modified_at = 4;
   optional ReflectionType type = 5; // const, user defined
@@ -43,6 +43,7 @@ message ReflectionGoal {
   optional string name = 7; // user defined
   optional ReflectionDetails details = 8; // user defined
   optional ReflectionGoalState state = 9 [default = ENABLED];
+  optional string tag = 10;
 }
 
 message ReflectionDetails {

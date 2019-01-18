@@ -21,7 +21,9 @@ import { withRouter } from 'react-router';
 import $ from 'jquery';
 
 import { getViewState, getEntity } from 'selectors/resources';
-import { getDataset, getHistory } from 'selectors/explore';
+import { createDynamicStateContainer } from '@app/containers/ModuleStateContainer';
+import explore from '@app/reducers/explore';
+import { getDataset, getHistory, exploreStateKey, getExploreState } from 'selectors/explore';
 import { performLoadDataset } from 'actions/explore/dataset/get';
 import { setCurrentSql } from 'actions/explore/view';
 import { resetViewState } from 'actions/resources';
@@ -358,16 +360,17 @@ function mapStateToProps(state, ownProps) {
   }
 
   dataset = dataset.set('tipVersion', query.tipVersion || dataset.get('datasetVersion'));
+  const explorePageState = getExploreState(state);
 
   return {
     pageType: routeParams.pageType,
     dataset,
     history: getHistory(state, dataset.get('tipVersion')),
     // in New Query, force sql open, but don't change state in localStorage
-    sqlState: state.explore.ui.get('sqlState') || isNewQuery,
-    sqlSize: state.explore.ui.get('sqlSize'),
-    isResizeInProgress: state.explore.ui.get('isResizeInProgress'),
-    initialDatasetVersion: state.explore.ui.get('initialDatasetVersion'),
+    sqlState: explorePageState.ui.get('sqlState') || isNewQuery,
+    sqlSize: explorePageState.ui.get('sqlSize'),
+    isResizeInProgress: explorePageState.ui.get('isResizeInProgress'),
+    initialDatasetVersion: explorePageState.ui.get('initialDatasetVersion'),
     rightTreeVisible: state.ui.get('rightTreeVisible'),
     exploreViewState
   };
@@ -375,7 +378,7 @@ function mapStateToProps(state, ownProps) {
 
 export const ExplorePageController = withRouter(withRouteLeaveSubscription(ExplorePageControllerComponent));
 
-export default withHookProvider(connect(mapStateToProps, {
+const Connected = withHookProvider(connect(mapStateToProps, {
   performLoadDataset,
   setCurrentSql,
   resetViewState,
@@ -385,3 +388,13 @@ export default withHookProvider(connect(mapStateToProps, {
   updateRightTreeVisibility,
   showConfirmationDialog
 })(withDatasetChanges(ExplorePageController)));
+
+const ModuleStateContainer = createDynamicStateContainer(exploreStateKey, explore);
+
+export default props => {
+  return (
+    <ModuleStateContainer>
+      <Connected {...props} />
+    </ModuleStateContainer>
+  );
+};

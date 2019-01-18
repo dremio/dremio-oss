@@ -19,10 +19,12 @@ import ReactDOM from 'react-dom';
 import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
+import { connect } from 'react-redux';
 
 import MainHeader from 'components/MainHeader';
 import { hashHeightTopSplitter } from 'constants/explorePage/heightTopSplitter.js';
 import { PageTypes, pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
+import { clearEntities } from '@app/actions/resources/entities';
 
 import './ExplorePage.less';
 import HistoryLineController from './components/Timeline/HistoryLineController';
@@ -32,7 +34,7 @@ const GRID_TABLE_MARGIN = 15;
 const EXPLORE_PAGE_MIN_HEIGHT = 700;
 
 @pureRender
-class ExplorePage extends Component {
+export class ExplorePageView extends Component {
   static propTypes = {
     pageType: pageTypesProp,
     dataset: PropTypes.instanceOf(Immutable.Map),
@@ -49,7 +51,8 @@ class ExplorePage extends Component {
     updateGridSizes: PropTypes.func.isRequired,
     isResizeInProgress: PropTypes.bool,
     exploreViewState: PropTypes.instanceOf(Immutable.Map),
-    style: PropTypes.object
+    style: PropTypes.object,
+    onUnmount: PropTypes.func.isRequired
   };
 
   state = {
@@ -74,6 +77,7 @@ class ExplorePage extends Component {
 
   componentWillUnmount() {
     $(window).off('resize', this.resize);
+    this.props.onUnmount();
   }
 
   initSqlEditor(props) {
@@ -158,4 +162,7 @@ class ExplorePage extends Component {
   }
 }
 
-export default ExplorePage;
+const clearExploreEntities = () => clearEntities(['history', 'historyItem', 'dataset', 'fullDataset', 'datasetUI', 'tableData']);
+export default connect(null, {
+  onUnmount: clearExploreEntities
+})(ExplorePageView);

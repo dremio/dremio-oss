@@ -17,9 +17,9 @@ package com.dremio.exec.vector;
 
 import org.apache.arrow.vector.ValueVector;
 
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 
 public class VectorValidator {
   public static void validate(VectorAccessible batch) {

@@ -23,6 +23,7 @@ import exploreUtils from 'utils/explore/exploreUtils';
 import { PageTypes, pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
 import { changePageTypeInUrl } from '@app/pages/ExplorePage/pageTypeUtils';
 import { collapseExploreSql } from 'actions/explore/ui';
+import { getExploreState } from '@app/selectors/explore';
 
 import { performTransform } from 'actions/explore/dataset/transform';
 
@@ -69,13 +70,10 @@ export class TableControls extends Component {
 
   getLocationWithoutGraph(location) {
     let newLocation = location;
-    const {
-      pageType
-    } = this.props;
 
     newLocation = {
       ...newLocation,
-      pathname: changePageTypeInUrl(pageType, newLocation.pathname, PageTypes.default)
+      pathname: changePageTypeInUrl(newLocation.pathname, PageTypes.default)
     };
 
     return newLocation;
@@ -165,9 +163,11 @@ export class TableControls extends Component {
 function mapStateToProps(state, props) {
   const location = state.routing.locationBeforeTransitions || {};
   const datasetVersion = props.dataset.get('datasetVersion');
+  const explorePageState = getExploreState(state);
+
   return {
-    currentSql: state.explore.view.get('currentSql'),
-    queryContext: state.explore.view.get('queryContext'),
+    currentSql: explorePageState.view.get('currentSql'),
+    queryContext: explorePageState.view.get('queryContext'),
     defaultColumnName: getTableColumns(state, datasetVersion, location).getIn([0, 'name']),
     approximate: getApproximate(state, datasetVersion)
   };

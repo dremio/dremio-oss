@@ -15,20 +15,22 @@
  */
 package com.dremio.sabot.exec;
 
-import com.dremio.exec.exception.FragmentSetupException;
-import com.dremio.exec.proto.ExecProtos.FragmentHandle;
-import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
-import com.dremio.common.utils.protos.QueryIdHelper;
-import com.dremio.sabot.exec.fragment.FragmentExecutor;
-import com.dremio.sabot.exec.rpc.IncomingDataBatch;
-import com.google.common.base.Preconditions;
-import org.joda.time.format.DateTimeFormatter;
-import org.joda.time.format.ISODateTimeFormat;
-
 import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
+
+import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.exception.FragmentSetupException;
+import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
+import com.dremio.sabot.exec.fragment.FragmentExecutor;
+import com.dremio.sabot.exec.fragment.OutOfBandMessage;
+import com.dremio.sabot.exec.rpc.IncomingDataBatch;
+import com.google.common.base.Preconditions;
 
 /**
  * A FragmentHandler ensures proper handling of cancellation/early termination messages even when their corresponding
@@ -85,6 +87,12 @@ public class FragmentHandler implements EventProvider {
   private String formatError(String identifier, int sendingMajorFragmentId, int sendingMinorFragmentId) {
     return String.format("Received %s for %s from %d:%d before fragment executor started",
       identifier, QueryIdHelper.getQueryIdentifier(handle), sendingMajorFragmentId, sendingMinorFragmentId);
+  }
+
+  public void handle(OutOfBandMessage message) {
+    if (executor != null) {
+      executor.getListener().handle(message);
+    }
   }
 
   public void handle(FragmentStreamComplete completion) {

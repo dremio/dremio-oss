@@ -34,8 +34,8 @@ import com.dremio.exec.physical.config.Project;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.filter.FilterOperator;
-import com.dremio.sabot.op.project.ProjectorStats.Metric;
 import com.dremio.sabot.op.project.ProjectOperator;
+import com.dremio.sabot.op.project.ProjectorStats.Metric;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 
 import io.airlift.tpch.GenerationDefinition.TpchTable;

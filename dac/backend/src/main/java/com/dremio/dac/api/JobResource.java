@@ -94,10 +94,10 @@ public class JobResource {
   @POST
   @Path("/{id}/cancel")
   public void cancelJob(@PathParam("id") String id) throws JobException {
-    final String name = securityContext.getUserPrincipal().getName();
+    final String username = securityContext.getUserPrincipal().getName();
 
     try {
-      jobs.cancel(name, new JobId(id), "User Request based Job Cancellation");
+      jobs.cancel(username, new JobId(id), String.format("Query cancelled by user '%s'", username));
     } catch (JobNotFoundException e) {
       throw new NotFoundException(String.format("Could not find a job with id [%s]", id));
     }

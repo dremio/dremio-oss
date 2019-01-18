@@ -26,22 +26,44 @@ public interface DatasetIndexKeys {
 
   String LOWER_CASE_SUFFIX = "_LC";
 
-  IndexKey DATASET_ID = new IndexKey("id", "DATASET_ID", String.class, SearchFieldSorting.FieldType.STRING, true, false);
-  IndexKey DATASET_UUID = new IndexKey("uuid", "DATASET_UUID", String.class, null, true, false);
-  IndexKey DATASET_SQL = new IndexKey("sql", "SQL", String.class, null, true, false);
-  IndexKey DATASET_PARENTS = new IndexKey("par", "PARENTS", String.class, null, false, false); // to get immidiate children
-  IndexKey DATASET_COLUMNS_NAMES = new IndexKey("col", "COLUMNS", String.class, null, true, false);
-  IndexKey DATASET_OWNER = new IndexKey("usr", "OWNER", String.class, null, true, false);
-  IndexKey DATASET_SOURCES = new IndexKey("src", "SOURCE", String.class, null, false, false);
-  IndexKey DATASET_ALLPARENTS = new IndexKey("apar", "ALL_PARENTS", String.class, null, false, false); // get all descendants
+  IndexKey DATASET_ID = IndexKey.newBuilder("id", "DATASET_ID", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .setIncludeInSearchAllFields(true)
+    .build();
+  IndexKey DATASET_UUID = IndexKey.newBuilder("uuid", "DATASET_UUID", String.class)
+    .setIncludeInSearchAllFields(true)
+    .build();
+  IndexKey DATASET_SQL = IndexKey.newBuilder("sql", "SQL", String.class)
+    .setIncludeInSearchAllFields(true)
+    .build();
+  IndexKey DATASET_PARENTS = IndexKey.newBuilder("par", "PARENTS", String.class)
+    .setCanContainMultipleValues(true)
+    .build(); // to get immidiate children
+  IndexKey DATASET_COLUMNS_NAMES = IndexKey.newBuilder("col", "COLUMNS", String.class)
+    .setIncludeInSearchAllFields(true)
+    .setCanContainMultipleValues(true)
+    .build();
+  IndexKey DATASET_OWNER = IndexKey.newBuilder("usr", "OWNER", String.class)
+    .setIncludeInSearchAllFields(true)
+    .build();
+  IndexKey DATASET_SOURCES = IndexKey.newBuilder("src", "SOURCE", String.class)
+    .setCanContainMultipleValues(true)
+    .build();
+  IndexKey DATASET_ALLPARENTS = IndexKey.newBuilder("apar", "ALL_PARENTS", String.class)
+    .setCanContainMultipleValues(true)
+    .build(); // get all descendants
 
   // name and schema without escaping for use in jdbc/odbc and information metadata probes. (for case sensitive matching)
-  IndexKey UNQUOTED_NAME = new IndexKey("uname", "SEARCH_NAME", String.class, null, false, false);
-  IndexKey UNQUOTED_SCHEMA = new IndexKey("uschm","SEARCH_SCHEMA", String.class, null, false, false);
+  IndexKey UNQUOTED_NAME = IndexKey.newBuilder("uname", "SEARCH_NAME", String.class)
+    .build();
+  IndexKey UNQUOTED_SCHEMA = IndexKey.newBuilder("uschm", "SEARCH_SCHEMA", String.class)
+    .build();
 
   // lower-cased paths for case insensitive matching.
-  IndexKey UNQUOTED_LC_NAME = new IndexKey("ulname", UNQUOTED_NAME.getIndexFieldName() + LOWER_CASE_SUFFIX, String.class, null, false, false);
-  IndexKey UNQUOTED_LC_SCHEMA = new IndexKey("ulschm", UNQUOTED_SCHEMA.getIndexFieldName() + LOWER_CASE_SUFFIX, String.class, null, false, false);
+  IndexKey UNQUOTED_LC_NAME = IndexKey.newBuilder("ulname", UNQUOTED_NAME.getIndexFieldName() + LOWER_CASE_SUFFIX, String.class)
+    .build();
+  IndexKey UNQUOTED_LC_SCHEMA = IndexKey.newBuilder("ulschm", UNQUOTED_SCHEMA.getIndexFieldName() + LOWER_CASE_SUFFIX, String.class)
+    .build();
 
 
   // TODO add Physical dataset search index keys

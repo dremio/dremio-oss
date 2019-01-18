@@ -31,6 +31,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.SecurityContext;
 
 import org.glassfish.jersey.server.mvc.Viewable;
 
@@ -66,11 +67,13 @@ public class ProfileResource {
   public static final InstanceSerializer<QueryProfile> SERIALIZER = new ProtoSerializer<>(SchemaUserBitShared.QueryProfile.MERGE, SchemaUserBitShared.QueryProfile.WRITE);
   private final JobsService jobsService;
   private final SabotContext context;
+  private final SecurityContext securityContext;
 
   @Inject
-  public ProfileResource(JobsService jobsService, SabotContext context) {
+  public ProfileResource(JobsService jobsService, SabotContext context, SecurityContext securityContext) {
     this.jobsService = jobsService;
     this.context = context;
+    this.securityContext = securityContext;
   }
 
   @GET
@@ -78,7 +81,8 @@ public class ProfileResource {
   @Produces(MediaType.TEXT_PLAIN)
   public NotificationResponse cancelQuery(@PathParam("queryid") String queryId) {
     try {
-      jobsService.cancel(null, new JobId(queryId), "User Request based Job Cancellation");
+      jobsService.cancel(null, new JobId(queryId), String.format("Query cancelled by user '%s'",
+          securityContext.getUserPrincipal().getName()));
       return new NotificationResponse(ResponseType.OK, "Job cancellation requested");
     } catch(JobWarningException e) {
       return new NotificationResponse(ResponseType.WARN, e.getMessage());

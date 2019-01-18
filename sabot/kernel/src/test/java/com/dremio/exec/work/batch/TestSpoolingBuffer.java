@@ -23,6 +23,8 @@ import static org.mockito.Mockito.mock;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
@@ -35,12 +37,12 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.exec.proto.UserBitShared.QueryId;
-import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
 import com.dremio.sabot.exec.rpc.AckSender;
 import com.dremio.sabot.op.receiver.RawFragmentBatch;
@@ -56,8 +58,15 @@ import io.netty.buffer.ArrowBuf;
 public class TestSpoolingBuffer extends ExecTest {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSpoolingBuffer.class);
 
+  // Test constants.
+  private static final int batchAllocateSize = 1024;
+  private static final int numIterations = 3;
+  private static final int numBatchesToEnqueuePerIteration = 100;
+  private static final int numBatchesToReadPerIteration = 50;
+  private static final int totalBatches = numIterations * numBatchesToEnqueuePerIteration;
+
   @Test
-  public void test() throws Exception {
+  public void testWriteThenRead() throws Exception {
     SharedResource resource = mock(SharedResource.class);
     QueryId queryId = ExternalIdHelper.toQueryId(ExternalIdHelper.generateExternalId());
     FragmentHandle handle = FragmentHandle.newBuilder().setMajorFragmentId(0).setMinorFragmentId(0).setQueryId(queryId).build();
@@ -85,7 +94,7 @@ public class TestSpoolingBuffer extends ExecTest {
     try (BufferAllocator spoolingAllocator = new RootAllocator(Long.MAX_VALUE);
       SpoolingRawBatchBuffer buffer = new SpoolingRawBatchBuffer(resource, config, queue, handle, spillService, spoolingAllocator, 1, 0, 0)) {
 
-      for (int i = 0; i < 100; i++) {
+      for (int i = 0; i < numBatchesToEnqueuePerIteration; i++) {
         try (RawFragmentBatch batch = newBatch(i)) {
           buffer.enqueue(batch);
         }
@@ -97,12 +106,11 @@ public class TestSpoolingBuffer extends ExecTest {
       }
 
       // checks that the batches have been written to disk and are no longer in memory
-      assertEquals(6 * 1024, allocator.getAllocatedMemory());
+      assertEquals(6 * batchAllocateSize, allocator.getAllocatedMemory());
 
-      for (int i = 0; i < 100; i++) {
+      for (int i = 0; i < numBatchesToEnqueuePerIteration; i++) {
         RawFragmentBatch batch = buffer.getNext();
-        assertEquals(1024, batch.getBody().capacity());
-        assertEquals(i, batch.getBody().getInt(0));
+        checkBatch(batch, i);
         batch.close();
       }
 
@@ -111,11 +119,90 @@ public class TestSpoolingBuffer extends ExecTest {
 
   }
 
+  @Test
+  public void testWriteAndReadInterleaved() throws Exception {
+    SharedResource resource = mock(SharedResource.class);
+    QueryId queryId = ExternalIdHelper.toQueryId(ExternalIdHelper.generateExternalId());
+    FragmentHandle handle = FragmentHandle.newBuilder().setMajorFragmentId(0).setMinorFragmentId(0).setQueryId(queryId).build();
+    FragmentWorkQueue queue = mock(FragmentWorkQueue.class);
+    // Use ThreadPoolExecutor instead of Executors to be able to specify a BlockingQueue that can tell the count of
+    // active items still pending.  This count is required to be able to wait for the queue to drain before reading
+    // the buffers in each without shutting down the ExecutorService completely.
+    final ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0L,
+      TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+    doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
+        Runnable work = invocationOnMock.getArgumentAt(0, Runnable.class);
+        executorService.submit(work);
+        return null;
+      }
+    }).when(queue).put(any(Runnable.class));
+
+    SabotConfig config = SabotConfig.create();
+    final SchedulerService schedulerService = mock(SchedulerService.class);
+    final SpillService spillService = new SpillServiceImpl(DremioConfig.create(null, config), new DefaultSpillServiceOptions(),
+      new Provider<SchedulerService>() {
+        @Override
+        public SchedulerService get() {
+          return schedulerService;
+        }
+      });
+
+    try (BufferAllocator spoolingAllocator = new RootAllocator(Long.MAX_VALUE);
+         SpoolingRawBatchBuffer buffer = new SpoolingRawBatchBuffer(resource, config, queue, handle, spillService, spoolingAllocator, 1, 0, 0)) {
+
+      RawFragmentBatch nextReadBatch;
+      int nBatches = 0, readCount;
+
+      for (int iter = 0; iter < numIterations; iter++) {
+        for (int i = 0; i < numBatchesToEnqueuePerIteration; i++) {
+          try (RawFragmentBatch nextEnqueueBatch = newBatch(iter * numBatchesToEnqueuePerIteration + i)) {
+            buffer.enqueue(nextEnqueueBatch);
+          }
+        }
+
+        while (executorService.getQueue().size() != 0) {
+          // Wait for active items in ExecutorService to go to zero so that we are sure that all enqueued buffers
+          // have been able to finish spooling and sendOk().
+          Thread.sleep(100);
+        }
+
+        readCount = 0;
+        while (readCount++ < numBatchesToReadPerIteration && (nextReadBatch = buffer.getNext()) != null) {
+          // Read any available batches but not more than half of what were queued in this iteration.
+          checkBatch(nextReadBatch, nBatches++);
+          nextReadBatch.close();
+        }
+      }
+
+      executorService.shutdown();
+      if (!executorService.awaitTermination(45, TimeUnit.SECONDS)) {
+        Assert.fail("Timed out while waiting for executor termination");
+      }
+
+      while (nBatches < totalBatches && (nextReadBatch = buffer.getNext()) != null) {
+        checkBatch(nextReadBatch, nBatches++);
+        nextReadBatch.close();
+      }
+
+      // check that all batches have been processed and are no longer in memory
+      assertNull(buffer.getNext());
+      assertEquals(0, allocator.getAllocatedMemory());
+    }
+
+  }
+
   private AckSender ackSender = mock(AckSender.class);
 
   private RawFragmentBatch newBatch(int index) {
-    ArrowBuf buffer = allocator.buffer(1024);
+    ArrowBuf buffer = allocator.buffer(batchAllocateSize);
     buffer.setInt(0, index);
     return new RawFragmentBatch(FragmentRecordBatch.getDefaultInstance(), buffer, ackSender);
+  }
+
+  private void checkBatch(RawFragmentBatch checkBatch, int batchIdx) {
+    assertEquals(batchAllocateSize, checkBatch.getBody().capacity());
+    assertEquals(batchIdx, checkBatch.getBody().getInt(0));
   }
 }

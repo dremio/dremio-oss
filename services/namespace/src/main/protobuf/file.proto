@@ -43,8 +43,9 @@ message FileConfig {
   optional string owner = 4;
   optional int64 ctime = 5; // user uploaded files
   optional bytes extendedConfig = 6; // encoded message specific to file type.
-  optional int64 version = 7;
+  optional int64 version = 7 [deprecated = true];
   optional string location = 8; // path where file is uploaded
+  optional string tag = 9;
 }
 
 

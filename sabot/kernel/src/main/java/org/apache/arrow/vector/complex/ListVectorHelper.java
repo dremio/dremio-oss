@@ -18,7 +18,6 @@ package org.apache.arrow.vector.complex;
 
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 
-import org.apache.arrow.vector.BaseValueVectorHelper;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;

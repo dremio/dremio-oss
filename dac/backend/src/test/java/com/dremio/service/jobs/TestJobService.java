@@ -27,8 +27,9 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
-
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -40,7 +41,7 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.InitialTransformAndRunResponse;
 import com.dremio.dac.model.job.AttemptDetailsUI;
-import com.dremio.dac.model.job.AttemptsHelper;
+import com.dremio.dac.model.job.AttemptsUIHelper;
 import com.dremio.dac.model.job.JobDetailsUI;
 import com.dremio.dac.model.job.JobFailureInfo;
 import com.dremio.dac.model.job.JobFailureType;
@@ -71,6 +72,7 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.Origin;
+import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -483,7 +485,7 @@ public class TestJobService extends BaseTestServer {
     job.getJobAttempt().setDetails(new JobDetails());
     job.getJobAttempt().setAttemptId(attemptId);
 
-    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), job.getJobAttempt().getDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), null, null, true, null);
+    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), job.getJobAttempt().getDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), null, null, null, true, null, null);
 
     assertEquals("", detailsUI.getAttemptsSummary());
     assertEquals(1, detailsUI.getAttemptDetails().size());
@@ -531,7 +533,7 @@ public class TestJobService extends BaseTestServer {
     job.getJobAttempt().setDetails(new JobDetails());
     job.getJobAttempt().setAttemptId(attemptId);
 
-    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), job.getJobAttempt().getDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), new JobFailureInfo("Some error message", JobFailureType.UNKNOWN, null), null, false, null);
+    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), job.getJobAttempt().getDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), new JobFailureInfo("Some error message", JobFailureType.UNKNOWN, null), null, null, false, null, null);
 
     assertEquals("", detailsUI.getAttemptsSummary());
     assertEquals(1, detailsUI.getAttemptDetails().size());
@@ -551,7 +553,8 @@ public class TestJobService extends BaseTestServer {
     AttemptId attemptId = AttemptId.of(externalId);
     job.getJobAttempt()
             .setAttemptId(AttemptIdUtils.toString(attemptId))
-            .setState(JobState.FAILED);
+            .setState(JobState.FAILED)
+            .setDetails(new JobDetails());
 
     // 3 more SCHEMA_CHANGE failures
     for (int i = 0; i < 3; i++) {
@@ -560,7 +563,8 @@ public class TestJobService extends BaseTestServer {
               .setInfo(newJobInfo(job.getJobAttempt().getInfo(), 100L+2*i, 100L+2*i+1, "failed"))
               .setAttemptId(AttemptIdUtils.toString(attemptId))
               .setState(JobState.FAILED)
-              .setReason(i == 0 ? AttemptReason.OUT_OF_MEMORY : AttemptReason.SCHEMA_CHANGE);
+              .setReason(i == 0 ? AttemptReason.OUT_OF_MEMORY : AttemptReason.SCHEMA_CHANGE)
+              .setDetails(new JobDetails());
       job.addAttempt(jobAttempt);
     }
 
@@ -570,24 +574,25 @@ public class TestJobService extends BaseTestServer {
             .setInfo(newJobInfo(job.getJobAttempt().getInfo(), 106, 107, null))
             .setAttemptId(AttemptIdUtils.toString(attemptId))
             .setState(JobState.COMPLETED)
-            .setReason(AttemptReason.SCHEMA_CHANGE);
+            .setReason(AttemptReason.SCHEMA_CHANGE)
+            .setDetails(new JobDetails());
     job.addAttempt(jobAttempt);
 
     // retrieve the UI jobDetails
-    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), new JobDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), null, null, false, null);
+    JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), new JobDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(job), null, null, null, false, null, null);
 
     assertEquals(JobState.COMPLETED, detailsUI.getState());
     assertEquals(Long.valueOf(100L), detailsUI.getStartTime());
     assertEquals(Long.valueOf(107L), detailsUI.getEndTime());
     assertNull(detailsUI.getFailureInfo());
     assertEquals(5, detailsUI.getAttemptDetails().size());
-    assertEquals(AttemptsHelper.constructSummary(5, 1, 3), detailsUI.getAttemptsSummary());
+    assertEquals(AttemptsUIHelper.constructSummary(5, 1, 3), detailsUI.getAttemptsSummary());
 
     // check profileUrl
     attemptId = AttemptId.of(externalId);
     for (int i = 0; i < 5; i++, attemptId = attemptId.nextAttempt()) {
       final AttemptDetailsUI attemptDetails = detailsUI.getAttemptDetails().get(i);
-      final String reason = i == 0 ? "" : (i == 1 ? AttemptsHelper.OUT_OF_MEMORY_TEXT : AttemptsHelper.SCHEMA_CHANGE_TEXT);
+      final String reason = i == 0 ? "" : (i == 1 ? AttemptsUIHelper.OUT_OF_MEMORY_TEXT : AttemptsUIHelper.SCHEMA_CHANGE_TEXT);
       checkAttemptDetail(attemptDetails, job.getJobId(), i, i == 4 ? JobState.COMPLETED : JobState.FAILED, reason);
     }
   }
@@ -644,5 +649,45 @@ public class TestJobService extends BaseTestServer {
         .addFilter(JobIndexKeys.DATASET, "dsg10")
         .setSort(JobIndexKeys.END_TIME.getShortName(), SortOrder.ASCENDING);
     assertEquals("/jobs?filters=%7B%22st%22%3A%5B1200%2C2000%5D%2C%22contains%22%3A%5B%22DG%22%5D%2C%22qt%22%3A%5B%22UI%22%2C%22EXTERNAL%22%5D%2C%22ds%22%3A%5B%22dsg10%22%5D%7D&sort=et&order=ASCENDING", jobFilters.toUrl());
+  }
+
+  @Test
+  public void testCTASReplace() throws Exception {
+    NamespaceKey namespaceKey = new NamespaceKey("ctasSpace");
+    SpaceConfig spaceConfig = new SpaceConfig();
+    spaceConfig.setName("ctasSpace");
+
+    newNamespaceService().addOrUpdateSpace(namespaceKey, spaceConfig);
+
+    SqlQuery ctas = getQueryFromSQL("CREATE OR REPLACE VIEW ctasSpace.ctastest AS select * from (VALUES (1))");
+    Job ctasJob = jobsService.submitJob(JobRequest.newBuilder()
+      .setSqlQuery(ctas)
+      .setQueryType(QueryType.UI_RUN)
+      .build(), NoOpJobStatusListener.INSTANCE);
+
+    waitForCompletion(ctasJob);
+
+    ctas = getQueryFromSQL("CREATE OR REPLACE VIEW ctasSpace.ctastest AS select * from (VALUES (2))");
+    ctasJob = jobsService.submitJob(JobRequest.newBuilder()
+      .setSqlQuery(ctas)
+      .setQueryType(QueryType.UI_RUN)
+      .build(), NoOpJobStatusListener.INSTANCE);
+
+    waitForCompletion(ctasJob);
+
+    newNamespaceService().deleteSpace(namespaceKey, newNamespaceService().getSpace(namespaceKey).getTag());
+  }
+
+  private void waitForCompletion(Job job) throws Exception {
+    while (true) {
+      JobState state = job.getJobAttempt().getState();
+
+      Assert.assertTrue("expected job to success successfully", Arrays.asList(JobState.RUNNING, JobState.ENQUEUED, JobState.STARTING, JobState.COMPLETED).contains(state));
+      if (state == JobState.COMPLETED) {
+        break;
+      } else {
+        Thread.sleep(TimeUnit.MILLISECONDS.toMillis(100));
+      }
+    }
   }
 }

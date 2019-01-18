@@ -23,7 +23,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.exec.DremioSystemTestBase;
-import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.google.common.base.Charsets;

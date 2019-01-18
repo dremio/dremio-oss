@@ -25,6 +25,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 
+import com.dremio.common.Version;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
@@ -49,13 +50,27 @@ import com.dremio.service.reflection.proto.ReflectionType;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Upgrade task to migrate old reflection measures to the new ones
  */
-public class MigrateAccelerationMeasures extends UpgradeTask {
+public class MigrateAccelerationMeasures extends UpgradeTask implements LegacyUpgradeTask {
+  //DO NOT MODIFY
+  static final String taskUUID = "2153deff-8117-4edd-bf36-876fb2c61bb5";
+
   public MigrateAccelerationMeasures() {
-    super("Migrate acceleration measures types", VERSION_150, VERSION_210, NORMAL_ORDER + 1);
+    super("Migrate acceleration measures types", ImmutableList.of(UpdateS3CredentialType.taskUUID));
+  }
+
+  @Override
+  public Version getMaxVersion() {
+    return VERSION_210;
+  }
+
+  @Override
+  public String getTaskUUID() {
+    return taskUUID;
   }
 
   @Override
@@ -162,12 +177,12 @@ public class MigrateAccelerationMeasures extends UpgradeTask {
     ReflectionEntry reflectionEntry = reflectionEntriesStore.get(reflectionGoal.getId());
     // protect against missing entries - the goal was created but the manager never woke up to create the entry
     if (reflectionEntry != null) {
-      reflectionEntry.setGoalVersion(updatedReflectionGoal.getVersion());
+      reflectionEntry.setGoalVersion(updatedReflectionGoal.getTag());
 
       Iterable<Materialization> allDone = materializationStore.getAllDone(updatedReflectionGoal.getId());
 
       for (Materialization materialization : allDone) {
-        materialization.setReflectionGoalVersion(updatedReflectionGoal.getVersion());
+        materialization.setReflectionGoalVersion(updatedReflectionGoal.getTag());
         materializationStore.save(materialization);
       }
     }
@@ -179,5 +194,10 @@ public class MigrateAccelerationMeasures extends UpgradeTask {
     defaultMeasures.add(MeasureType.MAX);
 
     return defaultMeasures;
+  }
+
+  @Override
+  public String toString() {
+    return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
   }
 }

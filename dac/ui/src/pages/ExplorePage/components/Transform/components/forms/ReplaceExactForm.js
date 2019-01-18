@@ -18,6 +18,7 @@ import PropTypes from 'prop-types';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import Immutable from 'immutable';
 
+import { getExploreState } from '@app/selectors/explore';
 import NewFieldSection from 'components/Forms/NewFieldSection';
 import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
 import filterMappers from 'utils/mappers/ExplorePage/Transform/filterMappers';
@@ -134,7 +135,7 @@ function mapStateToProps(state, props) {
   const selection = transform.get('selection');
   const cellText = selection.get('cellText');
 
-  const cardValues = state.explore.recommended.getIn(['transform', transform.get('transformType'), 'Exact', 'values']);
+  const cardValues = getExploreState(state).recommended.getIn(['transform', transform.get('transformType'), 'Exact', 'values']);
   const firstCardValue = cardValues && cardValues.getIn(['values', 0, 'value']);
 
   return {

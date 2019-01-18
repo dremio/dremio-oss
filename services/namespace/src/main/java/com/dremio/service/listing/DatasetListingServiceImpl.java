@@ -15,14 +15,17 @@
  */
 package com.dremio.service.listing;
 
+import java.util.List;
 import java.util.Map.Entry;
 
 import javax.inject.Provider;
 
 import com.dremio.datastore.IndexedStore.FindByCondition;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 
 /**
  * Implementation of {@link DatasetListingService} that interacts with {@link NamespaceService} running on this node.
@@ -52,4 +55,17 @@ public class DatasetListingServiceImpl implements DatasetListingService {
         .find(condition);
   }
 
+  @Override
+  public List<SourceConfig> getSources(String username) {
+    return factoryProvider.get()
+      .get(username)
+      .getSources();
+  }
+
+  @Override
+  public SourceConfig getSource(String username, String sourcename) throws NamespaceException {
+    return factoryProvider.get()
+      .get(username)
+      .getSource(new NamespaceKey(sourcename));
+  }
 }

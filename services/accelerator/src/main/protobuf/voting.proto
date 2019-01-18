@@ -35,7 +35,8 @@ message AutoReflection {
   //aggregate reflection id if it exists
   optional string aggReflection = 3;
   //version of reflection
-  optional int64 version = 4;
+  optional int64 version = 4 [deprecated = true];
+  optional string tag = 5;
 }
 
 message VoteKey {
@@ -51,5 +52,6 @@ message Vote {
   //date the vote happened
   optional int64 createdAt = 3;
   //version
-  optional int64 version = 4;
+  optional int64 version = 4 [deprecated = true];
+  optional string tag = 5;
 }

@@ -15,16 +15,14 @@
  */
 package com.dremio.exec.expr.fn;
 
+import java.util.List;
+
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
-import com.dremio.exec.expr.fn.AbstractFunctionHolder;
-import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.sun.codemodel.JVar;
-
-import java.util.List;
 
 public class GandivaFunctionHolder extends AbstractFunctionHolder {
   private final CompleteType[] argTypes;
@@ -82,6 +80,11 @@ public class GandivaFunctionHolder extends AbstractFunctionHolder {
   }
 
   public CompleteType getReturnType() {
+    return returnType;
+  }
+
+  @Override
+  public CompleteType getReturnType(List<LogicalExpression> args) {
     return returnType;
   }
 }

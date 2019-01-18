@@ -17,6 +17,10 @@ package com.dremio.exec.physical.impl.TopN;
 
 import static org.junit.Assert.assertTrue;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -26,10 +30,6 @@ import com.dremio.TestBuilder;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.test.UserExceptionMatcher;
-
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
 
 public class TestTopNSchemaChanges extends BaseTestQuery {
 

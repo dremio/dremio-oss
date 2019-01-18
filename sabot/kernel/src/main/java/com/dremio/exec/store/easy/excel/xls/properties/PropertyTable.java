@@ -15,17 +15,17 @@
  */
 package com.dremio.exec.store.easy.excel.xls.properties;
 
-import com.dremio.exec.store.easy.excel.xls.BlockStore;
-import com.dremio.exec.store.easy.excel.xls.XlsInputStream;
-import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.util.List;
+import java.util.Stack;
 
 import org.apache.poi.poifs.common.POIFSConstants;
 import org.apache.poi.poifs.property.PropertyConstants;
 import org.apache.poi.poifs.storage.HeaderBlock;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Stack;
+import com.dremio.exec.store.easy.excel.xls.BlockStore;
+import com.dremio.exec.store.easy.excel.xls.XlsInputStream;
+import com.google.common.collect.Lists;
 
 /**
  * DIRECTORY table. Contains meta information about the file's structure.<br>

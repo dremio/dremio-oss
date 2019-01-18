@@ -18,7 +18,6 @@ package com.dremio.exec.physical.config;
 
 import java.util.List;
 
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.physical.base.AbstractSender;
 import com.dremio.exec.physical.base.PhysicalOperator;

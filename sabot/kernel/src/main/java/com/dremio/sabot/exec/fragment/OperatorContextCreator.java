@@ -30,25 +30,27 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.util.Numbers;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.NodeDebugContextProvider;
-import com.dremio.options.OptionManager;
 import com.dremio.exec.testing.ExecutionControls;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.sabot.exec.context.FragmentStats;
 import com.dremio.sabot.exec.context.OpProfileDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.service.namespace.NamespaceService;
-import com.google.common.base.Preconditions;
 import com.dremio.service.spill.SpillService;
+import com.google.common.base.Preconditions;
 
 class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
 
@@ -67,12 +69,14 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
   private final SpillService spillService;
   private final ContextInformation contextInformation;
   private final NodeDebugContextProvider nodeDebugContextProvider;
+  private final TunnelProvider tunnelProvider;
+  private final List<FragmentAssignment> assignments;
 
   public OperatorContextCreator(FragmentStats stats, BufferAllocator allocator, CodeCompiler compiler,
                                 SabotConfig config, FragmentHandle handle, ExecutionControls executionControls,
                                 FunctionLookupContext funcRegistry, NamespaceService namespaceService, OptionManager options,
                                 ExecutorService executor, SpillService spillService, ContextInformation contextInformation,
-                                NodeDebugContextProvider nodeDebugContextProvider) {
+                                NodeDebugContextProvider nodeDebugContextProvider, TunnelProvider tunnelProvider, List<FragmentAssignment> assignments) {
     super();
     this.stats = stats;
     this.allocator = allocator;
@@ -88,6 +92,8 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     this.spillService = spillService;
     this.contextInformation = contextInformation;
     this.nodeDebugContextProvider = nodeDebugContextProvider;
+    this.tunnelProvider = tunnelProvider;
+    this.assignments = assignments;
   }
 
   public void setFragmentOutputAllocator(BufferAllocator fragmentOutputAllocator) {
@@ -125,7 +131,9 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
         namespaceService,
         spillService,
         nodeDebugContextProvider,
-        calculateTargetRecordSize(popConfig));
+        calculateTargetRecordSize(popConfig),
+        tunnelProvider,
+        assignments);
       operatorContexts.add(context);
       closeable.commit();
       return context;

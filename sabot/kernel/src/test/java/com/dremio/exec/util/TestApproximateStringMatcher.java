@@ -15,14 +15,12 @@
  */
 package com.dremio.exec.util;
 
-import org.junit.Test;
-
-import com.dremio.exec.util.ApproximateStringMatcher;
+import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import org.junit.Test;
 
 public class TestApproximateStringMatcher {
     @Test

@@ -84,14 +84,14 @@ public class TestCatalogServiceCommunication extends BaseTestServer {
     }
 
     {
+      SourceConfig source = l(NamespaceService.class).getSource(new NamespaceKey(MOCK_UP));
       final SourceConfig mockUpConfig = new SourceConfig()
           .setName(MOCK_UP)
           .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
           .setCtime(100L)
           .setId(new EntityId("source-id"))
-          .setVersion(l(NamespaceService.class)
-              .getSource(new NamespaceKey(MOCK_UP))
-              .getVersion())
+          .setTag(source.getTag())
+          .setConfigOrdinal(source.getConfigOrdinal())
           .setConnectionConf(new MockUpConfig());
 
       catalogServiceImpl.getSystemUserCatalog().updateSource(mockUpConfig);

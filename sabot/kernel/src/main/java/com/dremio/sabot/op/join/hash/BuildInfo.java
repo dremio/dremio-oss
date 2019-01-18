@@ -16,7 +16,6 @@
 package com.dremio.sabot.op.join.hash;
 
 import io.netty.buffer.ArrowBuf;
-import java.util.BitSet;
 
 public class BuildInfo implements AutoCloseable {
   // List of links. Logically it helps maintain a linked list of records with the same key value

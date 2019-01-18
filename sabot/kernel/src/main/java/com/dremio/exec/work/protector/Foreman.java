@@ -244,12 +244,12 @@ public class Foreman {
     return attemptId.getExternalId();
   }
 
-  public synchronized void cancel(String reason) {
+  public synchronized void cancel(String reason, boolean clientCancelled) {
     if (!canceled) {
       canceled = true;
 
       if (attemptManager != null) {
-        attemptManager.cancel(reason);
+        attemptManager.cancel(reason, clientCancelled);
       }
     }
   }
@@ -341,8 +341,7 @@ public class Foreman {
 
             Predicate<DatasetConfig> datasetValidityChecker = Predicates.alwaysTrue();
             if (reason == AttemptReason.INVALID_DATASET_METADATA) {
-              final InvalidMetadataErrorContext context =
-                  (InvalidMetadataErrorContext) result.getException().getAdditionalExceptionContext();
+              final InvalidMetadataErrorContext context = InvalidMetadataErrorContext.fromUserException(result.getException());
               datasetValidityChecker = new Predicate<DatasetConfig>() {
                 final ImmutableSet<List<String>> keys = ImmutableSet.copyOf(context.getPathsToRefresh());
 

@@ -17,6 +17,7 @@ package com.dremio.exec.planner.acceleration;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
+
 import com.google.common.base.Predicate;
 
 /**

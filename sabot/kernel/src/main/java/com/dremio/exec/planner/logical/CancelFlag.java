@@ -18,7 +18,7 @@ package com.dremio.exec.planner.logical;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.dremio.exec.planner.PlannerPhase;
+import com.dremio.common.VM;
 import com.google.common.base.Stopwatch;
 
 public class CancelFlag extends org.apache.calcite.util.CancelFlag {
@@ -26,13 +26,20 @@ public class CancelFlag extends org.apache.calcite.util.CancelFlag {
   private final Stopwatch watch = Stopwatch.createStarted();
   private final long timeout;
   private final TimeUnit timeUnit;
-  private final PlannerPhase plannerPhase;
 
-  public CancelFlag(long timeout, TimeUnit timeUnit, final PlannerPhase plannerPhase) {
+  public CancelFlag(long timeout, TimeUnit timeUnit) {
     super(new AtomicBoolean());
     this.timeout = timeout;
     this.timeUnit = timeUnit;
-    this.plannerPhase = plannerPhase;
+  }
+
+  /**
+   * Reset the flag
+   */
+  public void reset() {
+    this.atomicBoolean.set(false);
+    watch.reset();
+    watch.start();
   }
 
   public long getTimeoutInSecs() {
@@ -44,12 +51,12 @@ public class CancelFlag extends org.apache.calcite.util.CancelFlag {
     return inSecs;
   }
 
-  public PlannerPhase getPlannerPhase() {
-    return plannerPhase;
-  }
-
   @Override
   public boolean isCancelRequested() {
-    return watch.elapsed(timeUnit) > timeout || super.isCancelRequested();
+    if(!VM.isDebugEnabled() && watch.elapsed(timeUnit) > timeout) {
+      return true;
+    }
+
+    return super.isCancelRequested();
   }
 }

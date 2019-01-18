@@ -19,6 +19,7 @@ import java.util.Objects;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
+
 import com.carrotsearch.hppc.ObjectIntHashMap;
 import com.google.common.base.Preconditions;
 

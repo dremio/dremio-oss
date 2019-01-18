@@ -29,7 +29,6 @@ import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
-import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 

@@ -63,16 +63,6 @@ class MapStore implements ByteStore {
   }
 
   @Override
-  public boolean checkAndPut(byte[] key, byte[] oldValue, byte[] newValue) {
-    Preconditions.checkNotNull(newValue);
-    if(oldValue == null){
-      return map.putIfAbsent(key, ByteBuffer.wrap(newValue)) == null;
-    }else {
-      return map.replace(key, ByteBuffer.wrap(oldValue), ByteBuffer.wrap(newValue));
-    }
-  }
-
-  @Override
   public boolean contains(byte[] key) {
     return map.containsKey(key);
   }
@@ -80,12 +70,6 @@ class MapStore implements ByteStore {
   @Override
   public void delete(byte[] key) {
     map.remove(key);
-  }
-
-  @Override
-  public boolean checkAndDelete(byte[] key, byte[] value) {
-    Preconditions.checkNotNull(value);
-    return map.remove(key, ByteBuffer.wrap(value));
   }
 
   @Override
@@ -128,7 +112,7 @@ class MapStore implements ByteStore {
   }
 
   @Override
-  public void delete(byte[] key, long previousVersion) {
+  public void delete(byte[] key, String previousVersion) {
     throw new UnsupportedOperationException("You must use a versioned store to delete by version.");
   }
 
@@ -140,6 +124,33 @@ class MapStore implements ByteStore {
   @Override
   public void deleteAllValues() throws IOException {
     map.clear();
+  }
+
+  @Override
+  public boolean validateAndPut(byte[] key, byte[] newValue, ByteValidator validator) {
+    Preconditions.checkNotNull(newValue);
+    byte[] oldValue = get(key);
+
+    if (!validator.validate(oldValue)) {
+      return false;
+    }
+
+    if (oldValue == null) {
+      return map.putIfAbsent(key, ByteBuffer.wrap(newValue)) == null;
+    } else {
+      return map.replace(key, ByteBuffer.wrap(oldValue), ByteBuffer.wrap(newValue));
+    }
+  }
+
+  @Override
+  public boolean validateAndDelete(byte[] key, ByteValidator validator) {
+    byte[] oldValue = get(key);
+
+    if (!validator.validate(oldValue)) {
+      return false;
+    }
+
+    return map.remove(key, ByteBuffer.wrap(oldValue));
   }
 
   @Override

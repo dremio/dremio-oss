@@ -17,8 +17,11 @@ package com.dremio.dac.server;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -39,6 +42,7 @@ import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.service.datasets.DatasetDownloadManager.DownloadDataResponse;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
+import com.dremio.service.job.proto.JobState;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceKey;
@@ -123,6 +127,29 @@ public class TestDatasetDownload extends BaseTestServer {
       assertEquals("user" + i, downloadedData.get(i).getUser());
       assertEquals(i%25, downloadedData.get(i).getAge());
       assertEquals("address" + i, downloadedData.get(i).getAddress());
+    }
+  }
+
+  @Test
+  public void cancelledDownloadJob() throws Exception {
+    final DatasetPath dsPath = new DatasetPath("DG.testDS2");
+    DatasetUI ds = createDatasetFromSQLAndSave(dsPath,"select * from DG.dsg1 --- comment", asList("cp"));
+
+    final Job job = datasetService.prepareDownload(dsPath, ds.getDatasetVersion(),
+        DownloadFormat.CSV, 500, SampleDataPopulator.DEFAULT_USER_NAME);
+
+    l(JobsService.class).cancel(SampleDataPopulator.DEFAULT_USER_NAME, job.getJobId(), "because I can");
+
+    job.getData().loadIfNecessary();
+
+    if (l(JobsService.class).getJob(job.getJobId()).getJobAttempt().getState() == JobState.CANCELED) {
+      try {
+        datasetService.downloadData(job.getJobAttempt().getInfo().getDownloadInfo(),
+            SampleDataPopulator.DEFAULT_USER_NAME);
+        fail();
+      } catch (Exception e) {
+        assertTrue(e instanceof FileNotFoundException);
+      }
     }
   }
 

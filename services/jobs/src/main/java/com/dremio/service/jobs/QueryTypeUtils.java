@@ -157,8 +157,9 @@ final class QueryTypeUtils {
       case UI_INITIAL_PREVIEW:
         return WorkloadType.INTERNAL_PREVIEW;
       case UI_RUN:
-      case UI_EXPORT:
         return WorkloadType.UI_RUN;
+      case UI_EXPORT:
+        return WorkloadType.UI_DOWNLOAD;
       case UI_INTERNAL_RUN:
         return WorkloadType.INTERNAL_RUN;
       case JDBC:

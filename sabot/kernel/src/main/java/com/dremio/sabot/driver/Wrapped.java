@@ -24,6 +24,7 @@ import com.dremio.sabot.op.spi.Operator;
  * @param <T> The operator type contained in this wrapper.
  */
 interface Wrapped<T> extends Operator, AutoCloseable {
+  int getOperatorId();
   T getInner();
   OperatorContext getContext();
 }

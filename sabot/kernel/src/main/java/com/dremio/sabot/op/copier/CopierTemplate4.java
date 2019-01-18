@@ -21,17 +21,17 @@ import javax.inject.Named;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.AllocationHelper;
+import org.apache.arrow.vector.DensityAwareVector;
+import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.types.Types;
 import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.common.types.Types;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
-import org.apache.arrow.vector.DensityAwareVector;
-import org.apache.arrow.vector.ValueVector;
 
 public abstract class CopierTemplate4 implements Copier{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CopierTemplate4.class);

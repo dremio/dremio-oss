@@ -17,7 +17,7 @@ import { Component } from 'react';
 import Select from 'components/Fields/Select';
 import FieldWithError from 'components/Fields/FieldWithError';
 import PropTypes from 'prop-types';
-import { flexContainer, selectWrapper, selectBody, selectFieldWithError, tooltipIcon } from './FormWrappers.less';
+import { flexContainer, selectWrapper, selectBody, selectFieldWithError } from './FormWrappers.less';
 
 export default class SelectWrapper extends Component {
   static propTypes = {
@@ -32,9 +32,14 @@ export default class SelectWrapper extends Component {
     const {elementConfig, field} = this.props;
     const isDisabled = (elementConfig.getConfig().disabled || this.props.disabled) ? {disabled: true} : null;
     const tooltip = elementConfig.getConfig().tooltip;
+    const hoverHelpText = (tooltip) ? {hoverHelpText: tooltip} : null;
+
     return (
       <div className={flexContainer}>
-        <FieldWithError label={elementConfig.getConfig().label} labelClass={selectFieldWithError} errorPlacement='top'>
+        <FieldWithError errorPlacement='top'
+                        {...hoverHelpText}
+                        label={elementConfig.getConfig().label}
+                        labelClass={selectFieldWithError} >
           <div className={selectWrapper}>
             <Select
               {...isDisabled}
@@ -43,9 +48,6 @@ export default class SelectWrapper extends Component {
               {...field} />
           </div>
         </FieldWithError>
-        {tooltip &&
-        <HoverHelp content={tooltip} className={tooltipIcon}/>
-        }
       </div>
     );
   }

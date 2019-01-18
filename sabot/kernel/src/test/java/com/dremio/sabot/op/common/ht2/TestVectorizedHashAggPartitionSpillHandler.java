@@ -16,12 +16,12 @@
 
 package com.dremio.sabot.op.common.ht2;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -36,42 +36,42 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.SimpleBigIntVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartition;
-import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggDiskPartition;
-import com.dremio.sabot.op.aggregate.vectorized.SumAccumulators;
+import com.dremio.common.config.SabotConfig;
+import com.dremio.exec.proto.ExecProtos;
+import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.work.AttemptId;
 import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
-import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
-import com.dremio.sabot.op.aggregate.vectorized.MaxAccumulators;
-import com.dremio.sabot.op.aggregate.vectorized.MinAccumulators;
 import com.dremio.sabot.op.aggregate.vectorized.CountColumnAccumulator;
 import com.dremio.sabot.op.aggregate.vectorized.CountOneAccumulator;
+import com.dremio.sabot.op.aggregate.vectorized.MaxAccumulators;
+import com.dremio.sabot.op.aggregate.vectorized.MinAccumulators;
 import com.dremio.sabot.op.aggregate.vectorized.PartitionToLoadSpilledData;
+import com.dremio.sabot.op.aggregate.vectorized.SumAccumulators;
+import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggDiskPartition;
+import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
+import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartition;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartitionSpillHandler;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartitionSpillHandler.SpilledPartitionIterator;
 import com.dremio.service.spill.SpillDirectory;
 import com.dremio.service.spill.SpillService;
-import com.google.common.io.Files;
-import com.dremio.common.config.SabotConfig;
-import com.dremio.exec.proto.ExecProtos;
-import com.dremio.exec.work.AttemptId;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.Lists;
-import com.dremio.exec.record.VectorContainer;
+import com.google.common.io.Files;
 import com.koloboke.collect.hash.HashConfig;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for {@link VectorizedHashAggPartitionSpillHandler}

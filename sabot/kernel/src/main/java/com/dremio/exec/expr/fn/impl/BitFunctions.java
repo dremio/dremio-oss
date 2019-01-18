@@ -20,11 +20,11 @@ import org.apache.arrow.vector.holders.IntHolder;
 
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
+import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
+import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
-import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
-import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 
 /**
  * Function templates for Bit/BOOLEAN functions other than comparison

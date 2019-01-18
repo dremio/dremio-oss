@@ -18,7 +18,6 @@ package com.dremio.exec.planner.acceleration.substitution;
 import java.util.List;
 
 import org.apache.calcite.plan.MaterializedViewSubstitutionVisitor;
-import org.apache.calcite.plan.RelOptMaterialization;
 import org.apache.calcite.plan.hep.HepPlanner;
 import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.plan.hep.HepProgramBuilder;
@@ -29,6 +28,8 @@ import org.apache.calcite.rel.rules.ProjectRemoveRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 
@@ -46,11 +47,11 @@ public class UnifyingSubstitutionProvider extends AbstractSubstitutionProvider {
   }
 
   @Override public List<Substitution> findSubstitutions(final RelNode query) {
-    final List<RelOptMaterialization> materializations =
+    final List<DremioMaterialization> materializations =
       SubstitutionUtils.findApplicableMaterializations(query, getMaterializations());
 
-    final List<Substitution> substitutions = Lists.newArrayList(new Substitution(query, null));
-    for (final RelOptMaterialization materialization : materializations) {
+    final List<Substitution> substitutions = Lists.newArrayList(Substitution.createRootEquivalent(query));
+    for (final DremioMaterialization materialization : materializations) {
       final int count = substitutions.size();
       for (int i = 0; i < count; i++) {
         try {
@@ -80,29 +81,21 @@ public class UnifyingSubstitutionProvider extends AbstractSubstitutionProvider {
    * @param materialization  materialization to apply
    * @return  list of substitutions
    */
-  protected List<Substitution> substitute(RelNode query,
-                                                   final RelOptMaterialization materialization) {
-    // First, if the materialization is in terms of a star table, rewrite
-    // the query in terms of the star table.
-    if (materialization.starTable != null) {
-      final RelNode newRoot = RelOptMaterialization.tryUseStar(query,
-        materialization.starRelOptTable);
-      if (newRoot != null) {
-        query = newRoot;
-      }
-    }
+  protected List<Substitution> substitute(
+      final RelNode query,
+      final DremioMaterialization materialization) {
 
     // Push filters to the bottom, and combine projects on top.
     final HepProgram program = getProgramBuilder().build();
     final HepPlanner hepPlanner = new HepPlanner(program);
 
-    hepPlanner.setRoot(materialization.queryRel);
+    hepPlanner.setRoot(materialization.getQueryRel());
     final RelNode canonicalTarget = hepPlanner.findBestExp();
 
     hepPlanner.setRoot(query);
     final RelNode canonicalQuery = hepPlanner.findBestExp();
 
-    return substitute(canonicalQuery, canonicalTarget, materialization.tableRel);
+    return substitute(canonicalQuery, canonicalTarget, materialization.getTableRel());
   }
 
   /**
@@ -116,10 +109,10 @@ public class UnifyingSubstitutionProvider extends AbstractSubstitutionProvider {
    */
   protected List<Substitution> substitute(
     final RelNode query, final RelNode target, final RelNode replacement) {
-    return Lists.transform(new MaterializedViewSubstitutionVisitor(target, query).go(replacement), new Function<RelNode, Substitution>() {
+    return Lists.transform(new MaterializedViewSubstitutionVisitor(ExpansionNode.removeFromTree(target), ExpansionNode.removeFromTree(query)).go(replacement), new Function<RelNode, Substitution>() {
       @Override
       public Substitution apply(RelNode input) {
-        return new Substitution(input, null);
+        return Substitution.createRootEquivalent(input);
       }
     });
   }

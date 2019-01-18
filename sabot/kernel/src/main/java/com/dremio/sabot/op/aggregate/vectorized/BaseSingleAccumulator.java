@@ -20,16 +20,16 @@ import static java.util.Arrays.asList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.proto.UserBitShared;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.proto.UserBitShared;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 
 import io.netty.buffer.ArrowBuf;

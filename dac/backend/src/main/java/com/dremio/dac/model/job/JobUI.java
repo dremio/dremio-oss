@@ -24,8 +24,10 @@ import java.util.Objects;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.proto.model.job.JobAttemptUI;
+import com.dremio.dac.proto.model.job.JobInfoUI;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.jobs.Job;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -105,13 +107,49 @@ public class JobUI {
     return false;
   }
 
+  private static JobInfoUI convertJobInfo(JobInfo info) {
+    return new JobInfoUI()
+      .setJobId(info.getJobId())
+      .setSql(info.getSql())
+      .setRequestType(info.getRequestType())
+      .setClient(info.getClient())
+      .setUser(info.getUser())
+      .setStartTime(info.getStartTime())
+      .setFinishTime(info.getFinishTime())
+      .setDatasetPathList(info.getDatasetPathList())
+      .setDatasetVersion(info.getDatasetVersion())
+      .setSpace(info.getSpace())
+      .setParentsList(info.getParentsList())
+      .setQueryType(info.getQueryType())
+      .setAppId(info.getAppId())
+      .setFailureInfo(info.getFailureInfo())
+      .setDetailedFailureInfo(info.getDetailedFailureInfo())
+      .setFieldOriginsList(info.getFieldOriginsList())
+      .setResultMetadataList(info.getResultMetadataList())
+      .setAcceleration(info.getAcceleration())
+      .setGrandParentsList(info.getGrandParentsList())
+      .setDownloadInfo(info.getDownloadInfo())
+      .setDescription(info.getDescription())
+      .setMaterializationFor(info.getMaterializationFor())
+      .setOriginalCost(info.getOriginalCost())
+      .setPartitionsList(info.getPartitionsList())
+      .setScanPathsList(info.getScanPathsList())
+      .setJoinAnalysis(info.getJoinAnalysis())
+      .setContextList(info.getContextList())
+      .setResourceSchedulingInfo(info.getResourceSchedulingInfo())
+      .setOutputTableList(info.getOutputTableList())
+      .setCancellationInfo(info.getCancellationInfo())
+      .setSpillJobDetails(info.getSpillJobDetails());
+
+  }
+
   private static JobAttemptUI toUI(JobAttempt attempt) {
     if (attempt == null) {
       return null;
     }
     return new JobAttemptUI()
       .setState(attempt.getState())
-      .setInfo(attempt.getInfo())
+      .setInfo(convertJobInfo(attempt.getInfo()))
       .setStats(attempt.getStats())
       .setDetails(attempt.getDetails())
       .setReason(attempt.getReason())

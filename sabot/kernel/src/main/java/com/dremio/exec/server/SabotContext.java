@@ -17,7 +17,9 @@ package com.dremio.exec.server;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.inject.Provider;
@@ -205,8 +207,20 @@ public class SabotContext implements AutoCloseable {
     return coord.getServiceSet(ClusterCoordinator.Role.COORDINATOR).getAvailableEndpoints();
   }
 
+  public Optional<NodeEndpoint> getMaster() {
+    return Optional.ofNullable(coord.getServiceSet(Role.MASTER).getAvailableEndpoints())
+      .orElse(new ArrayList<>())
+      .stream().findFirst();
+  }
+
   public Collection<NodeEndpoint> getExecutors() {
     return coord.getServiceSet(ClusterCoordinator.Role.EXECUTOR).getAvailableEndpoints();
+  }
+
+  public Optional<NodeEndpoint> getServiceLeader(final String serviceName) {
+    return Optional.ofNullable(coord.getOrCreateServiceSet(serviceName).getAvailableEndpoints())
+      .orElse(new ArrayList<>())
+      .stream().findFirst();
   }
 
   public ClusterResourceInformation getClusterResourceInformation() {

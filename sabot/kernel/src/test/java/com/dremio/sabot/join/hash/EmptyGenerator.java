@@ -18,11 +18,11 @@ package com.dremio.sabot.join.hash;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 
-import com.dremio.common.types.Types;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.types.Types;
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.sabot.Generator;
 
 public class EmptyGenerator implements Generator {

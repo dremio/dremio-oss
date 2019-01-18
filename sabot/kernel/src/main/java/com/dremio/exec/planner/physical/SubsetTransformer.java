@@ -15,13 +15,13 @@
  */
 package com.dremio.exec.planner.physical;
 
-import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.volcano.RelSubset;
+import org.apache.calcite.rel.RelNode;
 
 public abstract class SubsetTransformer<T extends RelNode, E extends Exception> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SubsetTransformer.class);

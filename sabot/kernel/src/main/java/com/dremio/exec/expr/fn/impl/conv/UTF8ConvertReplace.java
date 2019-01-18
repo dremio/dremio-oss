@@ -25,7 +25,7 @@ import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
-import com.dremio.exec.expr.fn.impl.StringFunctionUtil;
+
 import io.netty.buffer.ArrowBuf;
 
 // Function called on convert_from(<string>, 'UTF8', '?') -- with the third argument being the replacement character (empty string OK)

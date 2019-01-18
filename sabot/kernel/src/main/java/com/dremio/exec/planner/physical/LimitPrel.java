@@ -15,9 +15,13 @@
  */
 package com.dremio.exec.planner.physical;
 
-import org.apache.calcite.rel.RelNode;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
+
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 
@@ -26,10 +30,6 @@ import com.dremio.exec.physical.config.Limit;
 import com.dremio.exec.planner.common.LimitRelBase;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
 
 public class LimitPrel extends LimitRelBase implements Prel {
 

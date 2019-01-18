@@ -137,6 +137,11 @@ public class HiveFuncHolder extends AbstractFunctionHolder {
   }
 
   @Override
+  public CompleteType getReturnType(List<LogicalExpression> args) {
+    return returnType;
+  }
+
+  @Override
   public FunctionTemplate.NullHandling getNullHandling() {
     throw new UnsupportedOperationException("Hive Functions do not support these.");
   }

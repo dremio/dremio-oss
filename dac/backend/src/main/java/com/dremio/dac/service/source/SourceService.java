@@ -153,7 +153,7 @@ public class SourceService {
   }
 
   private SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig, Catalog catalog,  NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException {
-    if(sourceConfig.getVersion() == null) {
+    if(sourceConfig.getTag() == null) {
       catalog.createSource(sourceConfig, attributes);
     } else {
       catalog.updateSource(sourceConfig, attributes);
@@ -184,7 +184,7 @@ public class SourceService {
     validateSourceConfig(sourceConfig);
 
     Preconditions.checkArgument(sourceConfig.getId().getId() == null, "Source id is immutable.");
-    Preconditions.checkArgument(sourceConfig.getVersion() == null, "Source tag is immutable.");
+    Preconditions.checkArgument(sourceConfig.getTag() == null, "Source tag is immutable.");
 
     // check if source already exists with the given name.
     if (namespaceService.exists(new SourcePath(new SourceName(sourceConfig.getName())).toNamespaceKey(), SOURCE)) {
@@ -258,7 +258,7 @@ public class SourceService {
     config.setFullPathList(sourceFilePath.toPathList());
     config.setName(sourceFilePath.getFileName().getName());
     config.setType(FileType.UNKNOWN);
-    config.setVersion(null);
+    config.setTag(null);
     return FileFormat.getForFile(config);
   }
 
@@ -288,7 +288,7 @@ public class SourceService {
           FolderConfig folderConfig = new FolderConfig();
           folderConfig.setFullPathList(path.toPathList());
           folderConfig.setName(path.getFolderName().getName());
-          folderConfig.setVersion(0L);
+          folderConfig.setTag("0");
           addFolderToNamespaceTree(ns, path, folderConfig);
         }
         break;
@@ -299,7 +299,7 @@ public class SourceService {
           PhysicalDatasetConfig datasetConfig = new PhysicalDatasetConfig();
           datasetConfig.setName(path.getFileName().getName());
           datasetConfig.setType(DatasetType.PHYSICAL_DATASET);
-          datasetConfig.setVersion(0L);
+          datasetConfig.setTag("0");
           datasetConfig.setFullPathList(path.toPathList());
           addTableToNamespaceTree(ns,
               new PhysicalDatasetResourcePath(source, path),
@@ -334,8 +334,8 @@ public class SourceService {
           folderConfig.setName(folderPath.getFolderName().getName());
 
           // use version from physical dataset.
-          folderConfig.setVersion(physicalDatasetConfig.getVersion());
-          fileConfig.setVersion(physicalDatasetConfig.getVersion());
+          folderConfig.setTag(physicalDatasetConfig.getTag());
+          fileConfig.setTag(physicalDatasetConfig.getTag());
 
           addFolderTableToNamespaceTree(ns, folderPath, folderConfig, FileFormat.getForFolder(fileConfig), fileConfig.getType() != FileType.UNKNOWN);
         }
@@ -359,7 +359,7 @@ public class SourceService {
     final PhysicalDatasetConfig physicalDatasetConfig = getFilesystemPhysicalDataset(filePath, DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
     final FileConfig fileConfig = physicalDatasetConfig.getFormatSettings();
     fileConfig.setOwner(owner);
-    fileConfig.setVersion(physicalDatasetConfig.getVersion());
+    fileConfig.setTag(physicalDatasetConfig.getTag());
 
     final File file = File.newInstance(physicalDatasetConfig.getId(), filePath, FileFormat.getForFile(fileConfig),
       datasetService.getJobsCount(filePath.toNamespaceKey()),
@@ -409,7 +409,7 @@ public class SourceService {
             .setFullPathList(folderPath.toPathList())
             .setName(folderPath.getFolderName().getName())
             .setIsPhysicalDataset(true)
-            .setVersion(datasetConfig.getVersion());
+            .setTag(datasetConfig.getTag());
         } else {
           throw new SourceFolderNotFoundException(sourceName, folderPath,
             new IllegalArgumentException(folderPath.toString() + " is a virtual dataset"));
@@ -486,7 +486,7 @@ public class SourceService {
     config.setFullPathList(sourceFilePath.toPathList());
     config.setName(sourceFilePath.getFileName().getName());
     config.setType(FileFormat.getFileFormatType(singletonList(FilenameUtils.getExtension(config.getName()))));
-    config.setVersion(null);
+    config.setTag(null);
     return FileFormat.getForFile(config);
   }
 
@@ -513,7 +513,7 @@ public class SourceService {
     } else {
       config.setType(FileType.UNKNOWN);
     }
-    config.setVersion(null);
+    config.setTag(null);
     return FileFormat.getForFolder(config);
   }
 
@@ -574,7 +574,7 @@ public class SourceService {
         new PhysicalDatasetConfig()
           .setName(physicalDatasetPath.getLeaf().getName())
           .setType(DatasetType.PHYSICAL_DATASET)
-          .setVersion(0L)
+          .setTag("0")
           .setFullPathList(physicalDatasetPath.toPathList()),
         jobsCount);
     }
@@ -602,7 +602,7 @@ public class SourceService {
     }
   }
 
-  public void deletePhysicalDataset(SourceName sourceName, PhysicalDatasetPath datasetPath, long version) throws PhysicalDatasetNotFoundException {
+  public void deletePhysicalDataset(SourceName sourceName, PhysicalDatasetPath datasetPath, String version) throws PhysicalDatasetNotFoundException {
     try {
       namespaceService.deleteDataset(datasetPath.toNamespaceKey(), version);
     } catch (NamespaceException nse) {

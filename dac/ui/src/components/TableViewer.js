@@ -102,37 +102,35 @@ export default class TableViewer extends Component {
     </Cell>);
   }
 
-  renderTable = ({width, height}) => {
-    const {
-      rowHeight,
-      tableData,
-      className,
-      columns,
-      ...tableProps
-    } = this.props;
-
-    const tableColumns = columns.map(this.getColumn);
-
-    return (
-      <Table
-        rowHeight={rowHeight}
-        headerHeight={30}
-        width={width}
-        height={height}
-        rowsCount={tableData.size}
-        className={classNames([tableViewerCls, className])}
-        rowClassNameGetter={this.getRowClassName}
-        {...tableProps}>
-        {tableColumns}
-      </Table>
-    );
-  }
-
   render() {
     return (
       <div className={tableViewerContainer}>
         <AutoSizer>
-          {this.renderTable}
+          {({ height, width }) => {
+            const {
+              rowHeight,
+              tableData,
+              className,
+              columns,
+              ...tableProps
+            } = this.props;
+
+            const tableColumns = columns.map(this.getColumn);
+
+            return (
+              <Table
+                rowHeight={rowHeight}
+                headerHeight={30}
+                width={width}
+                height={height}
+                rowsCount={tableData.size}
+                className={classNames([tableViewerCls, className])}
+                rowClassNameGetter={this.getRowClassName}
+                {...tableProps}>
+                {tableColumns}
+              </Table>
+            );
+          }}
         </AutoSizer>
       </div>
     );

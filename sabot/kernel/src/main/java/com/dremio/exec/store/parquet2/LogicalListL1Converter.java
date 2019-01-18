@@ -31,10 +31,9 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.options.OptionManager;
-import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet2.WriterProvider.ListWriterProvider;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.scan.OutputMutator;
 
 /**

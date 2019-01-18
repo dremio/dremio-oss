@@ -19,8 +19,6 @@ import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-import com.dremio.common.util.TestTools;
-
 public class TestInList extends BaseTestQuery{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestInList.class);
 

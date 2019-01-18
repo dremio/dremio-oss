@@ -43,7 +43,6 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -153,7 +152,6 @@ public class ReflectionAnalyzer {
       .setSqlQuery(query)
       .setQueryType(QueryType.UI_INTERNAL_PREVIEW)
       .setDatasetPath(NONE_PATH)
-      .setDatasetVersion(DatasetVersion.NONE)
       .build(), new NoOpJobStatusListener() {
       @Override
       public void jobFailed(final Exception e) {

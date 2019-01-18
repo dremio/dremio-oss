@@ -31,15 +31,10 @@ package com.dremio.exec.store.easy.text.compliant;
  * limitations under the License.
  ******************************************************************************/
 
-import com.dremio.common.exceptions.UserException;
-import io.netty.buffer.ArrowBuf;
-import io.netty.util.internal.PlatformDependent;
-
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 import org.apache.arrow.memory.BoundsChecking;
 import org.apache.commons.io.ByteOrderMark;
@@ -48,8 +43,12 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Seekable;
 import org.apache.hadoop.io.compress.CompressionInputStream;
 
+import com.dremio.common.exceptions.UserException;
 import com.google.common.base.Preconditions;
 import com.univocity.parsers.common.Format;
+
+import io.netty.buffer.ArrowBuf;
+import io.netty.util.internal.PlatformDependent;
 
 /**
  * Class that fronts an InputStream to provide a byte consumption interface.

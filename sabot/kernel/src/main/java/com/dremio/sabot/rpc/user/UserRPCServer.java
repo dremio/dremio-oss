@@ -164,7 +164,8 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
     case RpcType.CANCEL_QUERY_VALUE:
       try {
         final QueryId queryId = QueryId.PARSER.parseFrom(pBody);
-        final Ack ack = worker.cancelQuery(ExternalIdHelper.toExternal(queryId));
+        final Ack ack = worker.cancelQuery(ExternalIdHelper.toExternal(queryId),
+            connection.getSession().getCredentials().getUserName());
         responseSender.send(new Response(RpcType.ACK, ack));
         break;
       } catch (InvalidProtocolBufferException e) {

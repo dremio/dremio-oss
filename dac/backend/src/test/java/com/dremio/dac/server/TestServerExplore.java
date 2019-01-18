@@ -198,6 +198,7 @@ import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.Origin;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
@@ -1667,9 +1668,9 @@ public class TestServerExplore extends BaseTestServer {
     // create few datasets
     VirtualDatasetUI vds = newDataSetFromParent(new DatasetPath("space1.ds12"), "cp.\"tpch/supplier.parquet\"");
     namespaceService.addOrUpdateDataset(new DatasetPath("space1.ds1").toNamespaceKey(),
-        toVirtualDatasetVersion(ProtostuffUtil.copy(vds).setName("ds1").setVersion(DatasetVersion.newVersion())).getDataset());
+        toVirtualDatasetVersion(ProtostuffUtil.copy(vds).setName("ds1").setLegacyTag(DatasetVersion.newVersion())).getDataset());
     namespaceService.addOrUpdateDataset(new DatasetPath("space1.ds2").toNamespaceKey(),
-      toVirtualDatasetVersion(ProtostuffUtil.copy(vds).setName("ds2").setVersion(DatasetVersion.newVersion())).getDataset());
+      toVirtualDatasetVersion(ProtostuffUtil.copy(vds).setName("ds2").setLegacyTag(DatasetVersion.newVersion())).getDataset());
 
     getDatasetService().deleteDataset(new DatasetPath("space1.ds1"), 0);
     getDatasetService().deleteDataset(new DatasetPath("space1.ds2"), 0);
@@ -1699,9 +1700,11 @@ public class TestServerExplore extends BaseTestServer {
   @Test
   public void testCreateDatasets() throws Exception {
     expectSuccess(getBuilder(getAPIv2().path("space/spaceCreateDataset")).buildPut(Entity.json(new Space(null, "spaceCreateDataset", null, null, null, 0, null))), Space.class);
-    DatasetUI ds1 = createDatasetFromSQLAndSave(new DatasetPath("spaceCreateDataset.ds1"),
+    DatasetPath datasetPath = new DatasetPath("spaceCreateDataset.ds1");
+    DatasetUI ds1 = createDatasetFromSQLAndSave(datasetPath,
         "select s.s_name from cp.\"tpch/supplier.parquet\" s", asList("cp"));
-    assertEquals(ds1.getVersion(), new Long(0));
+    DatasetConfig dataset = l(NamespaceService.class).getDataset(datasetPath.toNamespaceKey());
+    assertEquals(ds1.getVersion(), dataset.getTag());
 
     getDataset(getDatasetPath(ds1));
 

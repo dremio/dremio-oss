@@ -17,6 +17,7 @@ package com.dremio.dac.cmd.upgrade;
 
 import java.util.concurrent.TimeUnit;
 
+import com.dremio.common.Version;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -25,6 +26,7 @@ import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 
 /**
  * For each source, upgrade its MetadataPolicy deprecated 'dataset_definition_ttl_ms' field
@@ -33,11 +35,25 @@ import com.google.common.base.Throwables;
  *     - CatalogService.DEFAULT_EXPIRE_MILLIS, if dataset_definition_ttl_ms is at its old default (30 minutes)
  *     - 3 * dataset_definition_ttl_ms, if not
  */
-public class SetDatasetExpiry extends UpgradeTask {
+public class SetDatasetExpiry extends UpgradeTask implements LegacyUpgradeTask {
+
+  //DO NOT MODIFY
+  static final String taskUUID = "7ce8ae11-5b8a-4ffe-96a6-413391764db5";
+
   private static final long ORIGINAL_DEFAULT_REFRESH_MILLIS = TimeUnit.MILLISECONDS.convert(30, TimeUnit.MINUTES);
 
   public SetDatasetExpiry() {
-    super("Setting dataset expiry", VERSION_109, VERSION_111, NORMAL_ORDER + 2);
+    super("Setting dataset expiry", ImmutableList.of(MigrateAccelerationMeasures.taskUUID));
+  }
+
+  @Override
+  public Version getMaxVersion() {
+    return VERSION_111;
+  }
+
+  @Override
+  public String getTaskUUID() {
+    return taskUUID;
   }
 
   @Override
@@ -63,5 +79,10 @@ public class SetDatasetExpiry extends UpgradeTask {
         }
       }
     }
+  }
+
+  @Override
+  public String toString() {
+    return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
   }
 }

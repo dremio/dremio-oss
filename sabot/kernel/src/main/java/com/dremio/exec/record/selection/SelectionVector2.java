@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.record.selection;
 
-import io.netty.buffer.ArrowBuf;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 
 import com.dremio.exec.record.DeadBuf;
+
+import io.netty.buffer.ArrowBuf;
 
 /**
  * A selection vector that fronts, at most, a

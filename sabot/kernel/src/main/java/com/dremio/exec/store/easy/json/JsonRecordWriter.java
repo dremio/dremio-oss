@@ -98,7 +98,7 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
     try {
       this.fileName = fs.canonicalizePath(partition.qualified(location, prefix + "_0." + extension));
       stream = fs.create(fileName);
-      JsonGenerator generator = factory.createGenerator(stream).useDefaultPrettyPrinter();
+      JsonGenerator generator = factory.createGenerator(stream.getWrappedStream()).useDefaultPrettyPrinter();
       if (uglify) {
         generator = generator.setPrettyPrinter(new MinimalPrettyPrinter(LINE_FEED));
       }

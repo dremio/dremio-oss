@@ -15,13 +15,13 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import java.util.Iterator;
+import java.util.List;
+import java.util.Queue;
+
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Joiner;
-
-import java.util.Queue;
-import java.util.Iterator;
-import java.util.List;
 
 class VectorizedHashAggDebug {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedHashAggDebug.class);

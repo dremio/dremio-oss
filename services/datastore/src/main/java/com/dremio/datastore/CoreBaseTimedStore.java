@@ -93,16 +93,9 @@ abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
   }
 
   @Override
-  public void delete(KVStoreTuple<K> key, long previousVersion) {
+  public void delete(KVStoreTuple<K> key, String previousVersion) {
     try (TimedBlock b = time(name + ".delete(K, long)")) {
       kvStore.delete(key, previousVersion);
-    }
-  }
-
-  @Override
-  public boolean checkAndPut(KVStoreTuple<K> key, KVStoreTuple<V> oldValue, KVStoreTuple<V> newValue) {
-    try (TimedBlock b = time(name + ".checkAndPut")) {
-      return kvStore.checkAndPut(key, oldValue, newValue);
     }
   }
 
@@ -114,9 +107,16 @@ abstract class CoreBaseTimedStore<K, V> implements CoreKVStore<K, V> {
   }
 
   @Override
-  public boolean checkAndDelete(KVStoreTuple<K> key, KVStoreTuple<V> value) {
-    try (TimedBlock b = time(name + ".checkAndDelete")) {
-      return kvStore.checkAndDelete(key, value);
+  public boolean validateAndPut(KVStoreTuple<K> key, KVStoreTuple<V> newValue, ValueValidator<V> validator) {
+    try (TimedBlock b = time(name + ".validateAndPut")) {
+      return kvStore.validateAndPut(key, newValue, validator);
+    }
+  }
+
+  @Override
+  public boolean validateAndDelete(KVStoreTuple<K> key, ValueValidator<V> validator) {
+    try (TimedBlock b = time(name + ".validateAndPut")) {
+      return kvStore.validateAndDelete(key, validator);
     }
   }
 

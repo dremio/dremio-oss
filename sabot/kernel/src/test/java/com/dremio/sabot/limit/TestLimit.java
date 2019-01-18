@@ -15,10 +15,13 @@
  */
 package com.dremio.sabot.limit;
 
-import static org.junit.Assert.*;
+import static com.dremio.sabot.Fixtures.Table;
+import static com.dremio.sabot.Fixtures.t;
+import static com.dremio.sabot.Fixtures.th;
+import static com.dremio.sabot.Fixtures.tr;
+import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
-import static com.dremio.sabot.Fixtures.*;
 
 import com.dremio.exec.physical.config.Limit;
 import com.dremio.sabot.BaseTestOperator;
@@ -26,8 +29,8 @@ import com.dremio.sabot.Generator;
 import com.dremio.sabot.op.limit.LimitOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 
-import io.airlift.tpch.TpchGenerator;
 import io.airlift.tpch.GenerationDefinition.TpchTable;
+import io.airlift.tpch.TpchGenerator;
 
 public class TestLimit extends BaseTestOperator {
 

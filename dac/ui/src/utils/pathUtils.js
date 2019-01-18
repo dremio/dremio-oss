@@ -87,10 +87,11 @@ export function parseResourceId(pathname, username) {
   const parts = pathname.split('/');
   let resourceId = parts[2];
   if (parts.length === 2 || ['source', 'space'].indexOf(parts[1]) === -1) {
-    resourceId = `"@${username}"`;
+    resourceId = `@${username}`;
   }
+  resourceId = `"${resourceId}"`;
   if (parts[3] === 'folder') {
-    return [resourceId].concat(parts.slice(4)).join('.');
+    return [resourceId].concat(parts.slice(4).map(it => `"${it}"`)).join('.');
   }
   return resourceId;
 }

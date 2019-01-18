@@ -18,28 +18,25 @@ package com.dremio.sabot.exec;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nullable;
 
-
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
 import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
-import com.dremio.exec.proto.CoordExecRPC.SharedData;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
@@ -49,6 +46,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.FragmentWorkManager.ExitCallback;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
+import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.exec.rpc.IncomingDataBatch;
 import com.dremio.sabot.task.AsyncTaskWrapper;
 import com.dremio.sabot.task.TaskPool;
@@ -178,6 +176,13 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     handlers.getUnchecked(handle).handle(batch);
   }
 
+  public void handle(OutOfBandMessage message) {
+    for(Integer minorFragmentId : message.getTargetMinorFragmentIds()) {
+      FragmentHandle handle = FragmentHandle.newBuilder().setQueryId(message.getQueryId()).setMajorFragmentId(message.getMajorFragmentId()).setMinorFragmentId(minorFragmentId).build();
+      handlers.getUnchecked(handle).handle(message);
+    }
+  }
+
   @Override
   public void close() throws Exception {
     // we could call handlers.cleanUp() to remove all expired elements but we don't really care as we may still log a warning
@@ -221,8 +226,6 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     final NodeEndpoint identity;
     final SchedulingInfo schedulingInfo;
 
-    List<SharedData> sharedData;
-
     QueryStarterImpl(final InitializeFragments fragments, final FragmentExecutorBuilder builder,
                      final ResponseSender sender, final NodeEndpoint identity, final SchedulingInfo schedulingInfo) {
       this.fragments = fragments;
@@ -235,7 +238,6 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     @Override
     public void buildAndStartQuery(final QueryTicket queryTicket) {
       try {
-        this.sharedData = fragments.getSharedDataList();
         for (int i = 0; i < fragments.getFragmentCount(); i++) {
           startFragment(queryTicket, fragments.getFragment(i), schedulingInfo);
         }
@@ -268,7 +270,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
 
       try {
         final EventProvider eventProvider = getEventProvider(fragment.getHandle());
-        startFragment(builder.build(queryTicket, fragment, eventProvider, schedulingInfo, sharedData));
+        startFragment(builder.build(queryTicket, fragment, eventProvider, schedulingInfo, fragments.getSharedDataList()));
       } catch (final Exception e) {
         throw new UserRpcException(identity, "Failure while trying to start remote fragment", e);
       } catch (final OutOfMemoryError t) {

@@ -16,11 +16,14 @@
 package com.dremio.sabot.driver;
 
 import java.util.List;
+import java.util.Map;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.sabot.exec.context.SharedResourcesContext;
+import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.op.spi.TerminalOperator;
 import com.dremio.sabot.task.Task.State;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * Responsible for pumping data between operators. Moves up and down a set of
@@ -30,6 +33,7 @@ public class Pipeline implements AutoCloseable {
 
   private Pipe currentPipe;
   private final List<Wrapped<?>> operators;
+  private final Map<Integer, Wrapped<?>> operatorMap;
   private final TerminalOperator terminal;
   private final Pipe terminalPipe;
   private final SharedResourcesContext sharedResourcesContext;
@@ -49,6 +53,12 @@ public class Pipeline implements AutoCloseable {
       terminalPipe = terminalPipe.getRequiredUpstream();
     }
     this.operators = operators;
+
+    ImmutableMap.Builder<Integer, Wrapped<?>> builder = ImmutableMap.builder();
+    for(Wrapped<?> w : operators) {
+      builder.put(w.getOperatorId(), w);
+    }
+    this.operatorMap = builder.build();
     this.currentPipe = terminalPipe;
     this.terminal = terminal;
     this.sharedResourcesContext = sharedResourcesContext;
@@ -60,6 +70,23 @@ public class Pipeline implements AutoCloseable {
 
   public TerminalOperator getTerminalOperator(){
     return terminal;
+  }
+
+  public void workOnOOB(OutOfBandMessage message) {
+    Wrapped<?> wrapped = operatorMap.get(message.getOperatorId());
+    switch(wrapped.getState().getMasterState()) {
+    case BLOCKED:
+    case CAN_CONSUME:
+    case CAN_CONSUME_L:
+    case CAN_CONSUME_R:
+    case CAN_PRODUCE:
+      wrapped.workOnOOB(message);
+      break;
+    case DONE:
+    case NEEDS_SETUP:
+    default:
+      // noop since the operator can't do anything with the message.
+    }
   }
 
   /**

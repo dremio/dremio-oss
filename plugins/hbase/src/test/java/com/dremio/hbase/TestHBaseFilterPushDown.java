@@ -17,12 +17,19 @@ package com.dremio.hbase;
 
 import java.util.regex.Pattern;
 
+import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
 
 public class TestHBaseFilterPushDown extends BaseHBaseTest {
+
+  @Before
+  public void resetSession() throws Exception {
+    test("ALTER SESSION RESET ALL");
+    test("ALTER SESSION SET \"planner.experimental.tpf_logical\"= true");
+  }
 
   @Test
   public void testFilterPushDownRowKeyEqual() throws Exception {

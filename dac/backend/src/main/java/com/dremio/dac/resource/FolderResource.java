@@ -100,7 +100,7 @@ public class FolderResource {
   @DELETE
   @Path("/folder/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
-  public void deleteFolder(@PathParam("path") String path, @QueryParam("version") Long version) throws NamespaceException, FolderNotFoundException {
+  public void deleteFolder(@PathParam("path") String path, @QueryParam("version") String version) throws NamespaceException, FolderNotFoundException {
     FolderPath folderPath = FolderPath.fromURLPath(spaceName, path);
     if (version == null) {
       throw new ClientErrorException("missing version parameter");

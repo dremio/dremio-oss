@@ -82,7 +82,7 @@ public abstract class FileFormat {
   private String owner;
   private List<String> fullPath;
   private long ctime;
-  private Long version;
+  private String version;
   private boolean isFolder = false;
   private String location;
 
@@ -190,7 +190,7 @@ public abstract class FileFormat {
     return ctime;
   }
 
-  public Long getVersion() {
+  public String getVersion() {
     return version;
   }
 
@@ -210,7 +210,7 @@ public abstract class FileFormat {
     this.ctime = ctime;
   }
 
-  public void setVersion(Long version) {
+  public void setVersion(String version) {
     this.version = version;
   }
 
@@ -228,7 +228,7 @@ public abstract class FileFormat {
     fc.setOwner(owner);
     fc.setCtime(ctime);
     fc.setType(getFileType());
-    fc.setVersion(getVersion());
+    fc.setTag(getVersion());
     fc.setLocation(location);
     byte[] bytes = ProtobufIOUtil.toByteArray(this, (Schema) getPrivateSchema(), buffer);
     fc.setExtendedConfig(ByteString.copyFrom(bytes));
@@ -276,7 +276,7 @@ public abstract class FileFormat {
     fileFormat.setName(fileConfig.getName());
     fileFormat.setOwner(fileConfig.getOwner());
     fileFormat.setFullPath(fileConfig.getFullPathList());
-    fileFormat.setVersion(fileConfig.getVersion());
+    fileFormat.setVersion(fileConfig.getTag());
     fileFormat.setLocation(fileConfig.getLocation());
     return fileFormat;
   }

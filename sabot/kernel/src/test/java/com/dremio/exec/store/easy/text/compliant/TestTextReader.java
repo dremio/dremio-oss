@@ -15,6 +15,12 @@
  */
 package com.dremio.exec.store.easy.text.compliant;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
+import java.io.File;
+import java.io.FileWriter;
+
 import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -23,12 +29,6 @@ import org.junit.Test;
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.exec.proto.UserBitShared;
-
-import java.io.File;
-import java.io.FileWriter;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /**
  * Class to test exception handling for TextInput related to bad lineDelimiter and

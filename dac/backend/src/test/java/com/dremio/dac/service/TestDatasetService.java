@@ -73,19 +73,19 @@ public class TestDatasetService extends BaseTestServer {
     clearAllDataExceptUser();
   }
 
-  private Pair<String, Long> createDS(DatasetVersionMutator service, String path, String name, String table, String version, Pair<String, Long> idVersionPair)
+  private Pair<String, String> createDS(DatasetVersionMutator service, String path, String name, String table, String version, Pair<String, String> idVersionPair)
       throws NamespaceException, DatasetNotFoundException {
     return createDS(service, path, name, table, new DatasetVersion(version), idVersionPair);
   }
 
-  private Pair<String, Long> createDS(DatasetVersionMutator service, String path, String name, String table, DatasetVersion version,
-      Pair<String, Long> idVersionPair)
+  private Pair<String, String> createDS(DatasetVersionMutator service, String path, String name, String table, DatasetVersion version,
+      Pair<String, String> idVersionPair)
       throws NamespaceException, DatasetNotFoundException {
     DatasetPath path1 = new DatasetPath(path);
     VirtualDatasetUI ds1 = new VirtualDatasetUI();
     ds1.setFullPathList(path1.toPathList());
     ds1.setVersion(version);
-    ds1.setSavedVersion(idVersionPair == null ? null : idVersionPair.getValue());
+    ds1.setSavedTag(idVersionPair == null ? null : idVersionPair.getValue());
     ds1.setName(name);
     ds1.setState(new VirtualDatasetState()
         .setFrom(new FromTable(path1.toPathString()).wrap()));
@@ -98,35 +98,35 @@ public class TestDatasetService extends BaseTestServer {
     service.put(ds1);
     service.putVersion(ds1);
     VirtualDatasetUI dsOut = service.get(path1);
-    return Pair.of(dsOut.getId(), dsOut.getSavedVersion());
+    return Pair.of(dsOut.getId(), dsOut.getSavedTag());
   }
 
-  private long createPhysicalDS(NamespaceService ns, String path, DatasetType datasetType) throws NamespaceException{
+  private String createPhysicalDS(NamespaceService ns, String path, DatasetType datasetType) throws NamespaceException{
     DatasetConfig datasetConfig = new DatasetConfig();
     PhysicalDatasetPath physicalDatasetPath = new PhysicalDatasetPath(path);
     datasetConfig.setType(datasetType);
     datasetConfig.setFullPathList(physicalDatasetPath.toPathList());
     datasetConfig.setName(physicalDatasetPath.getLeaf().getName());
     datasetConfig.setCreatedAt(System.currentTimeMillis());
-    datasetConfig.setVersion(null);
+    datasetConfig.setTag(null);
     datasetConfig.setOwner("test_user");
     datasetConfig.setPhysicalDataset(new PhysicalDataset());
     ns.addOrUpdateDataset(physicalDatasetPath.toNamespaceKey(), datasetConfig);
-    return datasetConfig.getVersion();
+    return datasetConfig.getTag();
   }
 
-  private long createPhysicalDSInHome(NamespaceService ns, String path, DatasetType datasetType) throws NamespaceException{
+  private String createPhysicalDSInHome(NamespaceService ns, String path, DatasetType datasetType) throws NamespaceException{
     DatasetConfig datasetConfig = new DatasetConfig();
     FilePath filePath  = new FilePath(path);
     datasetConfig.setType(datasetType);
     datasetConfig.setFullPathList(filePath.toPathList());
     datasetConfig.setName(filePath.getFileName().toString());
     datasetConfig.setCreatedAt(System.currentTimeMillis());
-    datasetConfig.setVersion(null);
+    datasetConfig.setTag(null);
     datasetConfig.setOwner("test_user");
     datasetConfig.setPhysicalDataset(new PhysicalDataset());
     ns.addOrUpdateDataset(filePath.toNamespaceKey(), datasetConfig);
-    return datasetConfig.getVersion();
+    return datasetConfig.getTag();
   }
 
   @Test
@@ -144,7 +144,7 @@ public class TestDatasetService extends BaseTestServer {
     config.setName("c");
     namespaceService.addOrUpdateSpace(new SpacePath(new SpaceName(config.getName())).toNamespaceKey(), config);
 
-    Pair<String, Long> vds1 = createDS(service, "a.ds1", "ds1", "sky1", "11", null);
+    Pair<String, String> vds1 = createDS(service, "a.ds1", "ds1", "sky1", "11", null);
     createDS(service, "b.ds2", "ds2", "sky2", "11", null);
     createDS(service, "b.ds3", "ds3", "sky3", "11", null);
     createDS(service, "a.ds4", "ds4", "sky4", "11", null);
@@ -165,10 +165,10 @@ public class TestDatasetService extends BaseTestServer {
     final DatasetVersion v1 = DatasetVersion.newVersion();
     final DatasetVersion v2 = DatasetVersion.newVersion();
     final DatasetVersion v3 = DatasetVersion.newVersion();
-    Pair<String, Long> vds1_1 = createDS(service, "a.ds1", "ds1", "sky1", "100", vds1);
-    Pair<String, Long> vds1_2 = createDS(service, "a.ds1", "ds1", "sky1", v1, vds1_1);
-    Pair<String, Long> vds1_3 = createDS(service, "a.ds1", "ds1", "sky1", v2, vds1_2);
-    Pair<String, Long> vds1_4 = createDS(service, "a.ds1", "ds1", "sky1", "001", vds1_3);
+    Pair<String, String> vds1_1 = createDS(service, "a.ds1", "ds1", "sky1", "100", vds1);
+    Pair<String, String> vds1_2 = createDS(service, "a.ds1", "ds1", "sky1", v1, vds1_1);
+    Pair<String, String> vds1_3 = createDS(service, "a.ds1", "ds1", "sky1", v2, vds1_2);
+    Pair<String, String> vds1_4 = createDS(service, "a.ds1", "ds1", "sky1", "001", vds1_3);
     createDS(service, "a.ds1", "ds1", "sky1", v3, vds1_4);
 
     Set<DatasetVersion> versions = new HashSet<>();

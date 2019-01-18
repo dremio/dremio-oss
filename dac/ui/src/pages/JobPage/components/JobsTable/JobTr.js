@@ -108,7 +108,10 @@ export default class JobTr extends Component {
             </div>
             <div style={styles.durationStyle} className='duration'>
               {jobDuration}
-              {job.get('accelerated') && <Art src={flame} alt={flameAlt} style={{paddingLeft: 5, height: 20}} title/>}
+              {job.get('accelerated') &&
+              <Art src={flame} alt={flameAlt} style={styles.smallIcon} title/>}
+              {job.get('spilled') &&
+              <Art src='DiskSpill.svg' alt={formatMessage('Job.SpilledHover')} style={styles.smallIcon} title/>}
             </div>
             <div className='endTime'>{jobFinishTime}</div>
           </div>
@@ -164,5 +167,9 @@ const styles = {
   durationStyle: {
     display: 'flex',
     alignItems: 'center'
+  },
+  smallIcon: {
+    paddingLeft: 5,
+    height: 20
   }
 };

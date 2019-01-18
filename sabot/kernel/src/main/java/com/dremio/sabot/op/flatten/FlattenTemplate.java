@@ -19,21 +19,20 @@ import java.util.List;
 
 import javax.inject.Named;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.BaseRepeatedValueVector;
 import org.apache.arrow.vector.complex.RepeatedValueVector;
 import org.apache.arrow.vector.util.OversizedAllocationException;
-import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.util.TransferPair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.exception.SchemaChangeException;
-import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.project.Projector.ComplexWriterCreator;
 import com.google.common.collect.ImmutableList;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class FlattenTemplate implements Flattener {
   private static final Logger logger = LoggerFactory.getLogger(FlattenTemplate.class);

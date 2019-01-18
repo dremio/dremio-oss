@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.store.parquet;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -22,9 +25,6 @@ import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.util.TestTools;
-
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 public class TestParquetGroupScan extends BaseTestQuery {
 

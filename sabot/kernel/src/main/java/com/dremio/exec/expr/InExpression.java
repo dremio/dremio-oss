@@ -40,6 +40,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.sun.codemodel.JClass;
 import com.sun.codemodel.JCodeModel;
+
 import io.netty.buffer.ArrowBuf;
 
 /**

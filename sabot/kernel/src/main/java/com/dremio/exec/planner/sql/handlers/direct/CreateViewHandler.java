@@ -25,6 +25,7 @@ import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.sql.ParserConfig;
@@ -57,13 +58,16 @@ public class CreateViewHandler extends SimpleDirectHandler {
       final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
       final RelNode queryRelNode = convertedRelNode.getConvertedNode();
       final RelNode newViewRelNode = SqlHandlerUtil.resolveNewTableRel(true, createView.getFieldNames(), validatedRowType, queryRelNode);
-      NamespaceKey viewPath = config.getContext().getCatalog().resolveSingle(createView.getPath());
-      NamespaceKey defaultSchema = config.getContext().getCatalog().getDefaultSchema();
+      Catalog catalog = config.getContext().getCatalog();
+      NamespaceKey viewPath = catalog.resolveSingle(createView.getPath());
+      NamespaceKey defaultSchema = catalog.getDefaultSchema();
 
-      final DremioTable existingTable = config.getConverter().getCatalogReader().getCatalog().getTableNoResolve(viewPath);
+      final DremioTable existingTable = config.getContext().getCatalog().getTableNoResolve(viewPath);
       List<String> viewContext = defaultSchema == null ? null : defaultSchema.getPathComponents();
 
       final View view = new View(newViewName, viewSql, newViewRelNode.getRowType(), viewContext);
+
+      boolean replaced = false;
 
       if (existingTable != null) {
         if (existingTable.getJdbcTableType() != Schema.TableType.VIEW) {
@@ -83,10 +87,13 @@ public class CreateViewHandler extends SimpleDirectHandler {
               )
               .build(logger);
         }
+
+        config.getContext().getCatalog().updateView(viewPath, view);
+        replaced = true;
+      } else {
+        config.getContext().getCatalog().createView(viewPath, view);
       }
 
-
-      final boolean replaced = config.getContext().getCatalog().createView(viewPath, view);
       return Collections.singletonList(SimpleCommandResult.successful("View '%s' %s successfully",
           viewPath, replaced ? "replaced" : "created"));
   }

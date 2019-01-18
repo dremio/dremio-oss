@@ -17,6 +17,7 @@ package com.dremio.datastore;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.ConcurrentModificationException;
@@ -44,16 +45,28 @@ public abstract class AbstractTestOCCKVStore {
   public final ExpectedException exception = ExpectedException.none();
 
   private static class Value {
+    private String tag;
     private Long version;
-    public Value(Long version) {
+
+    public Value(String tag) {
       super();
-      this.version = version;
+      this.tag = tag;
     }
-    public Long getVersion() {
-      return version;
+
+    public String getTag() {
+      return tag;
     }
+
+    public void setTag(String tag) {
+      this.tag = tag;
+    }
+
     public void setVersion(Long version) {
       this.version = version;
+    }
+
+    public Long getVersion() {
+      return version;
     }
   }
 
@@ -75,17 +88,27 @@ public abstract class AbstractTestOCCKVStore {
 
     @Override
     public byte[] convert(Value v) {
-      return v.version == null? Longs.toByteArray(-1) : Longs.toByteArray(v.version);
+      return v.tag == null? Longs.toByteArray(-1) : Longs.toByteArray(Long.valueOf(v.tag));
     }
 
     @Override
     public Value revert(byte[] v) {
       long version = Longs.fromByteArray(v);
-      return new Value(version == -1 ? null : version);
+      return new Value(version == -1 ? null : Long.toString(version));
     }
   }
 
   private static final class ValueVersionExtractor implements VersionExtractor<Value> {
+    @Override
+    public String getTag(Value value) {
+      return value.getTag();
+    }
+
+    @Override
+    public void setTag(Value value, String tag) {
+      value.setTag(tag);
+    }
+
     @Override
     public void setVersion(Value value, Long version) {
       value.setVersion(version);
@@ -96,12 +119,6 @@ public abstract class AbstractTestOCCKVStore {
       return value.getVersion();
     }
 
-    @Override
-    public Long incrementVersion(Value value) {
-      Long v = value.getVersion();
-      value.setVersion(v == null ? 0L : v + 1);
-      return v;
-    }
   }
 
   abstract KVStoreProvider createKKStoreProvider() throws Exception;
@@ -123,11 +140,11 @@ public abstract class AbstractTestOCCKVStore {
     @Override
     public KVStore<String, Value> build(StoreBuildingFactory factory) {
       return factory.<String, Value>newStore()
-      .name("test-occ")
-      .keySerializer(StringSerializer.class)
-      .valueSerializer(ValueSerializer.class)
-      .versionExtractor(ValueVersionExtractor.class)
-      .build();
+        .name("test-occ")
+        .keySerializer(StringSerializer.class)
+        .valueSerializer(ValueSerializer.class)
+        .versionExtractor(ValueVersionExtractor.class)
+        .build();
     }
 
   }
@@ -140,7 +157,7 @@ public abstract class AbstractTestOCCKVStore {
   @Test
   public void testMissingPrevious() {
     exception.expect(ConcurrentModificationException.class);
-    s.put("a", new Value(0L));
+    s.put("a", new Value("0"));
   }
 
   @Test
@@ -152,32 +169,42 @@ public abstract class AbstractTestOCCKVStore {
   public void testUpdate() {
     Value v = new Value(null);
     s.put("a", v);
-    assertEquals(0L, v.getVersion().longValue());
+    assertEquals("0", v.getTag());
     s.put("a", v);
-    assertEquals(1L, v.getVersion().longValue());
+    assertEquals("1", v.getTag());
     s.put("a", v);
-    assertEquals(2L, v.getVersion().longValue());
+    assertEquals("2", v.getTag());
   }
 
   @Test
   public void testConcurrentUpdate() {
     Value v0 = new Value(null);
     s.put("a", v0);
-    Value v1 = new Value(v0.getVersion());
-    assertEquals(0L, v0.getVersion().longValue());
+    Value v1 = new Value(v0.getTag());
+    assertEquals("0", v0.getTag());
     s.put("a", v0);
-    assertEquals(1L, v0.getVersion().longValue());
+    assertEquals("1", v0.getTag());
 
-    exception.expect(ConcurrentModificationException.class);
-    s.put("a", v1);
+    boolean threw = false;
+    final String previousVersion = v1.getTag();
+    try {
+      s.put("a", v1);
+    } catch (ConcurrentModificationException e) {
+      threw = true;
+    }
+
+    assertTrue(threw);
+
+    // ensure that v1 doesn't get mutated if the update fails
+    assertEquals(previousVersion, v1.getTag());
   }
 
   @Test
   public void testDelete() {
     Value v = new Value(null);
     s.put("a", v);
-    assertEquals(0L, v.getVersion().longValue());
-    s.delete("a", v.getVersion());
+    assertEquals("0", v.getTag());
+    s.delete("a", v.getTag());
     assertFalse(s.contains("a"));
   }
 
@@ -185,13 +212,32 @@ public abstract class AbstractTestOCCKVStore {
   public void testDeleteBadVersion() {
     Value v0 = new Value(null);
     s.put("a", v0);
-    assertEquals(0L, v0.getVersion().longValue());
-    Value v1 = new Value(v0.getVersion());
+    assertEquals("0", v0.getTag());
+    Value v1 = new Value(v0.getTag());
     s.put("a", v1);
-    assertEquals(1L, v1.getVersion().longValue());
+    assertEquals("1", v1.getTag());
 
     exception.expect(ConcurrentModificationException.class);
-    s.delete("a", v0.getVersion());
+    s.delete("a", v0.getTag());
   }
 
+  @Test
+  public void testOnFlyUpdateToString() {
+    //Set only long version and save to store
+    Value v0 = new Value(null);
+    v0.setVersion(0L);
+
+    KVStoreTuple<Value> tuple = new KVStoreTuple(new ValueSerializer(), new ValueVersionExtractor());
+    tuple.setObject(v0);
+    assertEquals("0", tuple.getTag());
+
+    // Make sure that the inline upgrade doesn't overwrite an existing tag
+    Value v1 = new Value(null);
+    v1.setVersion(0L);
+    v1.setTag("1");
+
+    KVStoreTuple<Value> tuple1 = new KVStoreTuple(new ValueSerializer(), new ValueVersionExtractor());
+    tuple1.setObject(v1);
+    assertEquals("1", tuple1.getTag());
+  }
 }

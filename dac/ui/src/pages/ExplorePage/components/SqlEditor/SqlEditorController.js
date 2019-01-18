@@ -23,6 +23,7 @@ import { FormattedMessage } from 'react-intl';
 import PropTypes from 'prop-types';
 
 import SimpleButton from 'components/Buttons/SimpleButton';
+import { getExploreState } from '@app/selectors/explore';
 
 import { editOriginalSql } from 'actions/explore/dataset/reapply';
 import { setCurrentSql, setQueryContext } from 'actions/explore/view';
@@ -158,7 +159,7 @@ export class SqlEditorController extends Component {
     } = this.props;
 
     const reapply = () => {
-      editSql(dataset.get('id'), dataset.getIn(['apiLinks', 'self']), null, null, true);
+      editSql(dataset.get('id'), dataset.getIn(['apiLinks', 'self']));
     };
 
     if (this.isDatasetReadyForReapply()) {
@@ -298,10 +299,11 @@ export class SqlEditorController extends Component {
 }
 
 function mapStateToProps(state) {
+  const explorePageState = getExploreState(state);
   return {
-    currentSql: state.explore.view.get('currentSql'),
-    queryContext: state.explore.view.get('queryContext'),
-    focusKey: state.explore.view.get('sqlEditorFocusKey'),
+    currentSql: explorePageState.view.get('currentSql'),
+    queryContext: explorePageState.view.get('queryContext'),
+    focusKey: explorePageState.view.get('sqlEditorFocusKey'),
     datasetSummary: state.resources.entities.get('datasetSummary')
   };
 }

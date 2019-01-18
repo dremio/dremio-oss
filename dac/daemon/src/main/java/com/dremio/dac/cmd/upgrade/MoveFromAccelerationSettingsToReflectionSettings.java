@@ -17,6 +17,7 @@ package com.dremio.dac.cmd.upgrade;
 
 import java.util.List;
 
+import com.dremio.common.Version;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceException;
@@ -29,14 +30,29 @@ import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.ReflectionUtils;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 /**
  * Migrates pre-1.5 acceleration settings on sources and datasets to the new ReflectionSettings store.
  */
-public class MoveFromAccelerationSettingsToReflectionSettings extends UpgradeTask {
+public class MoveFromAccelerationSettingsToReflectionSettings extends UpgradeTask implements LegacyUpgradeTask {
+
+  //DO NOT MODIFY
+  static final String taskUUID = "bf38c3f3-68dc-41f1-b5e1-40e76f29d54d";
+
   public MoveFromAccelerationSettingsToReflectionSettings() {
-    super("Migrate from acceleration settings to reflection settings", VERSION_106, VERSION_150, NORMAL_ORDER + 7);
+    super("Migrate from acceleration settings to reflection settings", ImmutableList.of(DeleteInternalSources.taskUUID));
+  }
+
+  @Override
+  public Version getMaxVersion() {
+    return VERSION_150;
+  }
+
+  @Override
+  public String getTaskUUID() {
+    return taskUUID;
   }
 
   @Override
@@ -93,5 +109,10 @@ public class MoveFromAccelerationSettingsToReflectionSettings extends UpgradeTas
       }
 
     }
+  }
+
+  @Override
+  public String toString() {
+    return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
   }
 }

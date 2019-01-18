@@ -67,7 +67,11 @@ public class YarnController {
   final DremioConfig dremioConfig;
 
   public YarnController() {
-    dremioConfig = DremioConfig.create();
+    this(DremioConfig.create());
+  }
+
+  public YarnController(DremioConfig config) {
+    dremioConfig = config;
   }
 
   public TwillRunnerService getTwillService(ClusterId key) {

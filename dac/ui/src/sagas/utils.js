@@ -13,9 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { call, select } from 'redux-saga/effects';
 import { CALL_API, isRSAA } from 'redux-api-middleware';
 import invariant from 'invariant';
 import deepEqual from 'deep-equal';
+import { excludePageType } from '@app/pages/ExplorePage/pageTypeUtils';
+import { getLocation } from '@app/selectors/routing';
+
 
 export const LOCATION_CHANGE = '@@router/LOCATION_CHANGE';
 
@@ -32,6 +36,39 @@ export function getLocationChangePredicate(oldLocation) {
         !deepEqual(oldLocation.query, payload.query) ||
         !deepEqual(oldLocation.state, payload.state)
       );
+  };
+}
+
+
+/**
+ * Returns a predicate, that returns true if explore page url was changed due to:
+ * 1) Navigation out of explore page
+ * 2) Current dataset or version of a dataset is changed
+ * Note: navigation between data/wiki/graph tabs is not treated as page change
+ * @yields {func} that monitors for a location change event
+ */
+export function* getExplorePageLocationChangePredicate() {
+  const location = yield select(getLocation);
+  return yield call(getExplorePageLocationChangePredicateImpl, location);
+}
+
+//export for tests
+// is used for data load cancelation purposes
+export function getExplorePageLocationChangePredicateImpl(oldLocation) {
+  return (action) => {
+    const { payload } = action;
+    if (!payload) {
+      return false;
+    }
+    return action.type === LOCATION_CHANGE &&
+    (
+      excludePageType(oldLocation.pathname) !== excludePageType(payload.pathname) ||
+      !deepEqual(oldLocation.query, payload.query)
+      // do not check state here as in getLocationChangePredicate above. For case of 'save as' state is changed to show a modal,
+      // but we should not cancel data loading
+      // state would look like:
+      // { modal: "SaveAsDatasetModal" }
+    );
   };
 }
 

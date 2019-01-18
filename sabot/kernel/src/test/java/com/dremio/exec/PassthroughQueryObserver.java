@@ -15,12 +15,12 @@
  */
 package com.dremio.exec;
 
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.BaseRpcOutcomeListener;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.protector.UserResult;
-import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnection;
 
 public class PassthroughQueryObserver extends AbstractAttemptObserver {

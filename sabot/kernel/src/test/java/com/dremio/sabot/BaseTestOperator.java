@@ -78,18 +78,18 @@ import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.NodeDebugContextProvider;
-import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValue;
-import com.dremio.options.OptionValue.OptionType;
 import com.dremio.exec.server.options.SystemOptionManager;
-import com.dremio.options.TypeValidators.BooleanValidator;
-import com.dremio.options.TypeValidators.DoubleValidator;
-import com.dremio.options.TypeValidators.LongValidator;
-import com.dremio.options.TypeValidators.StringValidator;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.exec.work.AttemptId;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
+import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.DoubleValidator;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.StringValidator;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.driver.SchemaChangeListener;
@@ -118,6 +118,7 @@ import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.spill.SpillService;
 import com.dremio.service.spill.SpillServiceImpl;
 import com.dremio.test.DremioTest;
+import com.google.common.collect.ImmutableList;
 
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 import io.airlift.tpch.TpchGenerator;
@@ -131,7 +132,7 @@ public class BaseTestOperator extends ExecTest {
   public static TemporaryFolder testFolder = new TemporaryFolder();
 
   protected static OperatorTestContext testContext;
-  private final List<AutoCloseable> testCloseables = new ArrayList<>();
+  protected final List<AutoCloseable> testCloseables = new ArrayList<>();
   private BufferAllocator testAllocator;
 
   @BeforeClass
@@ -344,7 +345,7 @@ public class BaseTestOperator extends ExecTest {
       return functionLookup;
     }
 
-    protected OperatorContextImpl getNewOperatorContext(BufferAllocator child, PhysicalOperator pop, int targetBatchSize) throws Exception {
+    public OperatorContextImpl getNewOperatorContext(BufferAllocator child, PhysicalOperator pop, int targetBatchSize) throws Exception {
       OperatorStats stats = new OperatorStats(new OpProfileDef(1, 1, 1), child);
       final NamespaceService namespaceService = new NamespaceServiceImpl(testContext.storeProvider);
       final DremioConfig dremioConfig = DremioConfig.create(null, config);
@@ -378,7 +379,10 @@ public class BaseTestOperator extends ExecTest {
           namespaceService,
           spillService,
           NodeDebugContextProvider.NOOP,
-          targetBatchSize);
+          targetBatchSize,
+          Mockito.mock(TunnelProvider.class),
+          ImmutableList.of()
+          );
     }
 
     public ClassProducer newClassProducer(BufferManager bufferManager) {

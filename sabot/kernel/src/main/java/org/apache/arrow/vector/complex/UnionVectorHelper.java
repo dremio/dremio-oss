@@ -16,13 +16,12 @@
 package org.apache.arrow.vector.complex;
 
 
-import com.dremio.common.types.TypeProtos;
-import org.apache.arrow.vector.BaseValueVectorHelper;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.common.types.Types;
+import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.types.Types;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.NamePart;

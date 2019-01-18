@@ -68,7 +68,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
   private boolean datasetCountBounded = false;
   private SourceState state;
 
-  private Long version;
+  private String tag;
   // acceleration grace and refresh periods
   private Long accelerationGracePeriod;
   private Long accelerationRefreshPeriod;
@@ -192,12 +192,12 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     this.description = description;
   }
 
-  public Long getVersion() {
-    return version;
+  public String getTag() {
+    return tag;
   }
 
-  public void setVersion(Long version) {
-    this.version = version;
+  public void setTag(String tag) {
+    this.tag = tag;
   }
 
   public NamespaceTree getContents() {
@@ -260,7 +260,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     c.setImg(img);
     c.setConfig(config.toBytesString());
     c.setDescription(description);
-    c.setVersion(version);
+    c.setTag(tag);
     c.setAccelerationRefreshPeriod(accelerationRefreshPeriod);
     c.setAccelerationGracePeriod(accelerationGracePeriod);
     c.setAccelerationNeverExpire(Boolean.TRUE.equals(accelerationNeverExpire));
@@ -306,7 +306,7 @@ public class SourceUI implements AddressableResource, DatasetContainer {
     source.setName(sourceConfig.getName());
     source.setState(SourceState.GOOD);
     source.setMetadataPolicy(UIMetadataPolicy.of(sourceConfig.getMetadataPolicy()));
-    source.setVersion(sourceConfig.getVersion());
+    source.setTag(sourceConfig.getTag());
     source.setAccelerationRefreshPeriod(sourceConfig.getAccelerationRefreshPeriod());
     source.setAccelerationGracePeriod(sourceConfig.getAccelerationGracePeriod());
     source.setAccelerationNeverExpire(sourceConfig.getAccelerationNeverExpire());

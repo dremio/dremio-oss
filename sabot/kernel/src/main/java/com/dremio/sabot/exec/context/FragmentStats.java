@@ -15,21 +15,21 @@
  */
 package com.dremio.sabot.exec.context;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.sabot.threads.sharedres.SharedResourceType;
-import com.google.common.base.Stopwatch;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.BlockedResourceDuration;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
+import com.dremio.sabot.threads.sharedres.SharedResourceType;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
-
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
  * Holds statistics of a particular (minor) fragment.

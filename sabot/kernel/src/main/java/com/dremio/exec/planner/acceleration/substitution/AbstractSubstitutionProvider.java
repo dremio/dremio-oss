@@ -16,14 +16,9 @@
 package com.dremio.exec.planner.acceleration.substitution;
 
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
-import org.apache.calcite.plan.RelOptMaterialization;
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.tools.RuleSet;
-
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.google.common.base.Preconditions;
 
@@ -44,7 +39,7 @@ public abstract class AbstractSubstitutionProvider implements SubstitutionProvid
     return provider;
   }
 
-  public List<RelOptMaterialization> getMaterializations() {
+  public List<DremioMaterialization> getMaterializations() {
     return getMaterializationProvider().getMaterializations();
   }
 

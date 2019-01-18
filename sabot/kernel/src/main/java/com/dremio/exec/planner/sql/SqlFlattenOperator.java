@@ -20,6 +20,7 @@ import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.OperandTypes;
+
 import com.google.common.base.Objects;
 
 public class SqlFlattenOperator extends SqlFunction {

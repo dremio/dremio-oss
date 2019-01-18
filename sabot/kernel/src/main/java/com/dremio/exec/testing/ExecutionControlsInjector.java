@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.testing;
 
-import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
+
+import com.google.common.base.Preconditions;
 
 /**
  * Injects exceptions and pauses at execution time for testing. Any class that wants to simulate exceptions

@@ -31,11 +31,12 @@ message MaterializedLayout {
   // unique layout id
   required LayoutId layoutId = 1;
   // version for occ
-  optional uint64 version = 2;
+  optional uint64 version = 2 [deprecated = true];
   // list of available materializations
   repeated Materialization materialization = 3;
   //state
   optional MaterializedLayoutState state = 4 [state = ACTIVE];
+  optional string tag = 5;
 }
 
 message MaterializationId {

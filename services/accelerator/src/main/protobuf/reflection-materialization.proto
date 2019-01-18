@@ -32,7 +32,7 @@ message MaterializationId {
 
 message Materialization {
   optional MaterializationId id = 1;
-  optional int64 version = 2;
+  optional int64 version = 2 [deprecated = true];
   optional int64 created_at = 3;
   optional int64 modified_at = 4;
   optional ReflectionId reflection_id = 5;
@@ -40,7 +40,8 @@ message Materialization {
   optional int64 expiration = 12; // should be computed
   optional int64 last_refresh_from_pds = 14;
   optional bytes logical_plan = 15;
-  optional int64 reflection_goal_version = 17;
+  optional int64 logical_plan_stripped_hash = 26;
+  optional int64 legacy_reflection_goal_version = 17;
   optional JoinAnalysis join_analysis = 18;
   optional Failure failure = 13; // failure details set if state is failed
   
@@ -50,6 +51,8 @@ message Materialization {
   optional int64 init_refresh_execution = 20;
   optional string init_refresh_job_id = 21;
   optional int32 seriesOrdinal = 22 [default = 0];
+  optional string tag = 24;
+  optional string reflectionGoalVersion = 25;
 }
 
 message RefreshId {
@@ -89,6 +92,7 @@ message RefreshDecision {
   optional com.dremio.service.namespace.dataset.proto.AccelerationSettings acceleration_settings = 4;
   optional int32 dataset_hash = 5;
   optional bytes logical_plan = 6;
+  optional int64 logical_plan_stripped_hash = 9;
   repeated ScanPath scan_paths = 7;
   optional int32 series_ordinal = 8 [default = 0];
 }

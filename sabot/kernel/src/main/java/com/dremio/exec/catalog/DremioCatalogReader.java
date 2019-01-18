@@ -70,13 +70,13 @@ import com.google.common.collect.Lists;
  */
 public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.CatalogReader, SqlOperatorTable {
 
-  protected final Catalog catalog;
+  protected final SimpleCatalog<?> catalog;
   protected final JavaTypeFactory typeFactory;
 
   private final List<List<String>> schemaPaths;
 
   public DremioCatalogReader(
-      Catalog catalog,
+      SimpleCatalog<?> catalog,
       RelDataTypeFactory typeFactory) {
     this.catalog = catalog;
     this.typeFactory = (JavaTypeFactory) typeFactory;
@@ -101,11 +101,6 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   @Override
   public RelDataType getNamedType(SqlIdentifier paramSqlIdentifier) {
     return null;
-  }
-
-
-  public Catalog getCatalog() {
-    return catalog;
   }
 
   /**
@@ -297,4 +292,6 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     }
     return null;
   }
+
+
 }

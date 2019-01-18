@@ -70,6 +70,11 @@ public abstract class AbstractFunctionHolder implements FunctionHolder {
   public abstract boolean isReturnTypeIndependent();
 
   /**
+   * The final return type even if it is dependent on input;
+   */
+  public abstract CompleteType getReturnType(final List<LogicalExpression> args);
+
+  /**
    * Returns how the method handles null inputs.
    * For e.g. isNotNull would be NULL_NEVER, add(a+b) would NULL IF NULL.
    * @return the appropriate null handling for the method.

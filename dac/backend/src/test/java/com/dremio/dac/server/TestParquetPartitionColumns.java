@@ -24,7 +24,9 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import com.dremio.QueryTestUtil;
 import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
@@ -47,11 +49,36 @@ public class TestParquetPartitionColumns extends BaseTestServer {
 
   @Test
   public void testGroupScan() throws Exception {
-    // create vds with decimal types
-    final String sName = "s1" + Math.random();
 
+    List<String> partitionColumnList = getPartitionColumnsForDataSet("datasets/parquet");
+
+    Assert.assertEquals(25, partitionColumnList.size());
+    Assert.assertEquals( "row1", partitionColumnList.get(1));
+
+  }
+
+  @Test
+  public void testGroupScanWithPartitionIdentificationOff() throws Exception {
+    long defaultValue = ExecConstants.PARQUET_MAX_PARTITION_COLUMNS_VALIDATOR.getDefault().getNumVal();
+    try {
+
+      QueryTestUtil.test(getRpcClient(), "alter system set \"store.parquet" +
+        ".partition_column_limit\" = 0");
+
+      List<String> partitionColumnList = getPartitionColumnsForDataSet
+        ("datasets/parquet_no_partition_identification");
+
+      Assert.assertEquals(1, partitionColumnList.size());
+      Assert.assertEquals( "$_dremio_$_update_$", partitionColumnList.get(0));
+    } finally {
+      QueryTestUtil.test(getRpcClient(), "alter system set \"store.parquet" +
+        ".partition_column_limit\" = " + defaultValue);
+    }
+  }
+
+  private List<String> getPartitionColumnsForDataSet(String folder) throws Exception {
     URL stream = (TestParquetPartitionColumns.class.getClassLoader()
-      .getResource("datasets/parquet"));
+      .getResource(folder));
 
     File fileDir = new File(stream.getFile());
     DatasetPath parquet = new DatasetPath(ImmutableList.of("dfs", fileDir.getAbsolutePath()));
@@ -63,13 +90,10 @@ public class TestParquetPartitionColumns extends BaseTestServer {
       .build())
       .getTable(config.getId().getId());
 
-    List<String> partitionColumnList = table.getDatasetConfig().getReadDefinition()
+    return table.getDatasetConfig().getReadDefinition()
       .getPartitionColumnsList();
-
-    Assert.assertEquals(25, partitionColumnList.size());
-    Assert.assertEquals( "row1", partitionColumnList.get(1));
-
   }
+
 
   private NamespaceService getNamespaceService() {
     return p(NamespaceService.class).get();

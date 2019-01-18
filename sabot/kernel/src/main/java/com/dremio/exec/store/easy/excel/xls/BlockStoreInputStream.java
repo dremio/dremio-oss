@@ -15,10 +15,10 @@
  */
 package com.dremio.exec.store.easy.excel.xls;
 
-import org.apache.poi.poifs.common.POIFSConstants;
-
 import java.io.IOException;
 import java.io.InputStream;
+
+import org.apache.poi.poifs.common.POIFSConstants;
 
 import com.google.common.base.Preconditions;
 

@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -263,26 +264,28 @@ class ByteStoreManager implements AutoCloseable {
    * Replay updates from the last commit on to the handler.
    *
    * @param replayHandler replay handler
+   * @param predicate     predicate to apply
    * @return if replaying succeeded
    */
-  boolean replayDelta(ReplayHandler replayHandler) {
+  boolean replayDelta(ReplayHandler replayHandler, Predicate<String> predicate) {
     if (inMemory) {
       return false;
     }
 
-    final long lowest = metadataManager.getLowestTransactionNumber();
+    final long lowest = metadataManager.getLowestTransactionNumber(predicate);
     if (lowest == -1L) {
       LOGGER.info("Could not deduce transaction number to replay from");
       return false;
     }
 
-    LOGGER.debug("Replaying updates from {}", lowest);
+    LOGGER.info("Replaying updates from {}", lowest);
     replaySince(lowest, replayHandler);
     return true;
   }
 
   void replaySince(final long transactionNumber, ReplayHandler replayHandler) {
-    try (ReplayHandlerAdapter handler = new ReplayHandlerAdapter(replayHandler, handleIdToNameMap);
+    try (ReplayHandlerAdapter handler =
+             new ReplayHandlerAdapter(db.getDefaultColumnFamily().getID(), replayHandler, handleIdToNameMap);
          TransactionLogIterator iterator = db.getUpdatesSince(transactionNumber)) {
       while (iterator.isValid()) {
         iterator.status();
@@ -434,20 +437,22 @@ class ByteStoreManager implements AutoCloseable {
     }
 
     /**
-     * Get the lowest transaction number across all stores.
+     * Get the lowest transaction number across stores that satisfy the given predicate.
      *
+     * @param predicate predicate to apply
      * @return lowest transaction number, or {@code -1} if lowest is not found
      */
-    long getLowestTransactionNumber() {
+    long getLowestTransactionNumber(Predicate<String> predicate) {
       final long[] lowest = {Long.MAX_VALUE};
       for (Map.Entry<byte[], byte[]> tuple : metadataStore.find()) {
         final Optional<StoreMetadata> value = getValue(tuple.getValue());
-        value.ifPresent(storeMetadata -> {
-          final long transactionNumber = storeMetadata.getLatestTransactionNumber();
-          if (transactionNumber < lowest[0]) {
-            lowest[0] = transactionNumber;
-          }
-        });
+        value.filter(storeMetadata -> predicate.test(storeMetadata.getTableName()))
+            .ifPresent(storeMetadata -> {
+              final long transactionNumber = storeMetadata.getLatestTransactionNumber();
+              if (transactionNumber < lowest[0]) {
+                lowest[0] = transactionNumber;
+              }
+            });
       }
 
       if (lowest[0] == Long.MAX_VALUE) {

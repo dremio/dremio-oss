@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-root</artifactId>
-  <version>3.0.6-201812082352540436-1f684f9</version>
+  <version>3.1.0-201901172111160703-dc6f6e5</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Root</name>
@@ -38,9 +38,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.10.0-201810190306530881-d55177b-dremio</arrow.version>
+    <arrow.version>0.12.0-20181212083703-a1eff5f3ee-dremio</arrow.version>
     <avatica.version>1.11.0</avatica.version>
-    <calcite.version>1.16.0-201810181505000034-69f03c2</calcite.version>
+    <calcite.version>1.16.0-201812242205090326-0cada7b</calcite.version>
     <db2jcc.version>4.23.42</db2jcc.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
@@ -53,9 +53,9 @@
     <hbase.version>1.1.3</hbase.version>
     <hadoop.version>2.8.3</hadoop.version>
     <hsqldb.version>2.3.1</hsqldb.version>
-    <jackson.version>2.7.9</jackson.version>
+    <jackson.version>2.9.7</jackson.version>
     <jersey.version>2.25.1</jersey.version>
-    <jetty.version>9.2.22.v20170606</jetty.version>
+    <jetty.version>9.2.26.v20180806</jetty.version>
     <javax.ws.rs-api.version>2.0.1</javax.ws.rs-api.version>
     <junit.version>4.12</junit.version>
     <lilith.version>0.9.44</lilith.version>
@@ -66,7 +66,7 @@
     <netty.version>4.1.22.Final</netty.version>
     <!-- latest is 2.0.17.Final as of 10/28/18, but we run into this https://github.com/line/armeria/pull/1278 -->
     <netty.boringssl.version>2.0.10.Final</netty.boringssl.version>
-    <parquet.version>1.8.1-fast-201808062344590567-7d04803</parquet.version>
+    <parquet.version>1.8.1-fast-201810222024530884-012b95c</parquet.version>
     <postgresql.version>42.1.1.jre7</postgresql.version>
     <protobuf.version>2.5.0</protobuf.version>
     <protostuff.version>1.4.4</protostuff.version>
@@ -78,7 +78,7 @@
     <curator.version>2.12.0</curator.version>
     <aws-sdk.version>1.11.156</aws-sdk.version>
     <openhft-affinity.version>3.1.7</openhft-affinity.version>
-    <fbs.version>1.2.0-3f79e055</fbs.version>
+    <fbs.version>1.9.0</fbs.version>
 
     <!-- Use ES 5.5 instead of 5.6. The 5.6 client sends "source" instead of "inline" which isn't supported with older ES5 servers. -->
     <elasticsearch.version>5.5.3</elasticsearch.version>
@@ -1361,8 +1361,8 @@ limitations under the License.
         <version>1.2.1</version>
       </dependency>
       <dependency>
-        <groupId>com.vlkan</groupId>
-        <artifactId>flatbuffers</artifactId>
+        <groupId>com.google.flatbuffers</groupId>
+        <artifactId>flatbuffers-java</artifactId>
         <version>${fbs.version}</version>
       </dependency>
       <dependency>
@@ -1450,29 +1450,6 @@ limitations under the License.
         <groupId>net.hydromatic</groupId>
         <artifactId>scott-data-hsqldb</artifactId>
         <version>${scott-data-hsqldb.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>net.sf.jpam</groupId>
-        <artifactId>jpam</artifactId>
-        <version>1.1</version>
-        <exclusions>
-          <exclusion>
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>checkstyle</groupId>
-            <artifactId>checkstyle</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>checkstyle</groupId>
-            <artifactId>checkstyle-optional</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.antlr</groupId>
@@ -1657,10 +1634,6 @@ limitations under the License.
           <exclusion>
             <groupId>javax.servlet</groupId>
             <artifactId>servlet-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.mortbay.jetty</groupId>
-            <artifactId>jetty-util</artifactId>
           </exclusion>
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
@@ -2573,7 +2546,7 @@ limitations under the License.
       <dependency>
         <groupId>xalan</groupId>
         <artifactId>xalan</artifactId>
-        <version>2.7.1</version>
+        <version>2.7.2</version>
       </dependency>
       <dependency>
         <groupId>net.openhft</groupId>

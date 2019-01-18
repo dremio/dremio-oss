@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.api;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
@@ -104,6 +106,7 @@ public class TestJobResource extends BaseTestServer {
 
       if (jobState == JobState.CANCELED) {
         expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(JOB_PATH).path(id).path("results").queryParam("limit", 1000)).buildGet());
+        assertEquals("Query cancelled by user 'dremio'", status.getCancellationReason());
         break;
       } else if (jobState == JobState.COMPLETED) {
         // the job could complete before the cancel request, so make sure the test doesn't fail in that case.

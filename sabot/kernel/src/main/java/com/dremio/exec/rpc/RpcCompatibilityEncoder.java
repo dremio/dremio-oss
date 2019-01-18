@@ -20,7 +20,6 @@ import java.util.List;
 import com.dremio.common.exceptions.ErrorCompatibility;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
-import com.dremio.exec.rpc.OutboundRpcMessage;
 import com.google.protobuf.MessageLite;
 
 import io.netty.channel.ChannelHandlerContext;

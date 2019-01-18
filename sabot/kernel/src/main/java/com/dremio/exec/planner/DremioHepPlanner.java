@@ -16,6 +16,7 @@
 package com.dremio.exec.planner;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.Convention;
@@ -27,17 +28,33 @@ import org.apache.calcite.plan.hep.HepPlanner;
 import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelCollations;
+import org.apache.calcite.rel.RelNode;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.logical.CancelFlag;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DistributionTraitDef;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.google.common.collect.ImmutableList;
 
 public class DremioHepPlanner extends HepPlanner {
-  public DremioHepPlanner(final HepProgram program, final Context context, final RelOptCostFactory costFactory) {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioHepPlanner.class);
+
+  private final CancelFlag cancelFlag;
+  private final PlannerPhase phase;
+
+  public DremioHepPlanner(final HepProgram program, final Context context, final RelOptCostFactory costFactory, PlannerPhase phase) {
     super(program, context, false, null, costFactory);
+    this.cancelFlag = new CancelFlag(context.unwrap(PlannerSettings.class).getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
+    this.phase = phase;
   }
 
-  // HepPlanner doesn't check cancelFlag, so no need to override setCancelFlag/checkCancel.
+  @Override
+  public RelNode findBestExp() {
+    cancelFlag.reset();
+    return super.findBestExp();
+  }
+
 
   @Override
   public RelTraitSet emptyTraitSet() {
@@ -48,4 +65,18 @@ public class DremioHepPlanner extends HepPlanner {
   public List<RelTraitDef> getRelTraitDefs() {
     return ImmutableList.<RelTraitDef>of(ConventionTraitDef.INSTANCE, DistributionTraitDef.INSTANCE, RelCollationTraitDef.INSTANCE);
   }
+
+  @Override
+  public void checkCancel() {
+    if (cancelFlag.isCancelRequested()) {
+      UserException.Builder builder = UserException.planError()
+          .message("Query was cancelled because planning time exceeded %d seconds", cancelFlag.getTimeoutInSecs());
+      if (phase != null) {
+        builder = builder.addContext("Planner Phase", phase.description);
+      }
+      throw builder.build(logger);
+    }
+    super.checkCancel();
+  }
+
 }

@@ -17,6 +17,7 @@ package com.dremio.exec.planner.acceleration.substitution;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalJoin;
+
 import com.dremio.exec.planner.RoutingShuttle;
 
 /**

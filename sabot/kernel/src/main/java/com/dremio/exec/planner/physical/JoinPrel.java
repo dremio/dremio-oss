@@ -19,12 +19,12 @@ package com.dremio.exec.planner.physical;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.calcite.rel.InvalidRelException;
-import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.InvalidRelException;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexNode;

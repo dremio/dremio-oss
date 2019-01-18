@@ -15,9 +15,7 @@
  */
 package com.dremio.exec.store.excel;
 
-import com.dremio.common.exceptions.UserException;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 

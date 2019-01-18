@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.nodes.NodeProvider;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.config.DremioConfig;
 import com.dremio.datastore.KVStore;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.ProtostuffSerializer;
@@ -70,7 +71,7 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
   public static final int MIN_MEMORY_REQUIRED_MB = 8192;
   public static final int LARGE_SYSTEMS_MIN_MEMORY_MB = 32768; // DX-10446
 
-
+  private final DremioConfig dremioConfig;
   private final Map<ClusterType, ProvisioningServiceDelegate> concreteServices = Maps.newHashMap();
   private final NodeProvider executionNodeProvider;
   private final ScanResult classpathScan;
@@ -79,9 +80,11 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
   private KVStore<ClusterId, Cluster> store;
 
   public ProvisioningServiceImpl(
+      final DremioConfig config,
       final Provider<KVStoreProvider> storeProvider,
       final NodeProvider executionNodeProvider,
       ScanResult classpathScan) {
+    this.dremioConfig = config;
     this.kvStoreProvider = Preconditions.checkNotNull(storeProvider, "store provider is required");
     this.executionNodeProvider = executionNodeProvider;
     this.classpathScan = classpathScan;
@@ -96,8 +99,8 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     for (Class<? extends ProvisioningServiceDelegate> provisioningServiceClass : serviceClasses) {
       try {
         Constructor<? extends ProvisioningServiceDelegate> ctor =
-          provisioningServiceClass.getConstructor(ProvisioningStateListener.class, NodeProvider.class);
-        ProvisioningServiceDelegate provisioningService = ctor.newInstance(this, executionNodeProvider);
+          provisioningServiceClass.getConstructor(DremioConfig.class, ProvisioningStateListener.class, NodeProvider.class);
+        ProvisioningServiceDelegate provisioningService = ctor.newInstance(dremioConfig, this, executionNodeProvider);
         concreteServices.put(provisioningService.getType(), provisioningService);
       } catch (InstantiationException e) {
         logger.error("Unable to create instance of % class", provisioningServiceClass.getName(), e);
@@ -436,7 +439,7 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     clusterConfig.setDistroType(Optional.fromNullable(
       storedCluster.getClusterConfig().getDistroType()).or(DistroType.OTHER));
     clusterConfig.setIsSecure(Optional.fromNullable(storedCluster.getClusterConfig().getIsSecure()).or(false));
-    clusterConfig.setVersion(request.getVersion());
+    clusterConfig.setTag(request.getTag());
     if (storedCluster.getClusterConfig().getName() != null) {
       clusterConfig.setName(Optional.fromNullable(request.getName()).or(
         storedCluster.getClusterConfig().getName()));
@@ -495,13 +498,13 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
   Action toAction(Cluster storedCluster, final Cluster modifiedCluster) throws
     ProvisioningHandlingException {
 
-    Preconditions.checkNotNull(modifiedCluster.getClusterConfig().getVersion(), "Version in modified cluster has to be set");
+    Preconditions.checkNotNull(modifiedCluster.getClusterConfig().getTag(), "Version in modified cluster has to be set");
 
-    final long storedVersion = storedCluster.getClusterConfig().getVersion().longValue();
-    final long incomingVersion = modifiedCluster.getClusterConfig().getVersion().longValue();
-    if (storedVersion != incomingVersion) {
+    final String storedVersion = storedCluster.getClusterConfig().getTag();
+    final String incomingVersion = modifiedCluster.getClusterConfig().getTag();
+    if (!incomingVersion.equals(storedVersion)) {
       throw new ConcurrentModificationException(String.format("Version of submitted Cluster does not match stored. " +
-        "Stored Version: %d . Provided Version: %d . Please refetch", storedVersion, incomingVersion));
+        "Stored Version: %s . Provided Version: %s . Please refetch", storedVersion, incomingVersion));
     }
     if (ClusterState.DELETED == storedCluster.getDesiredState()) {
       throw new IllegalStateException("Cluster in the process of deletion. No modification is allowed");
@@ -637,15 +640,18 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     }
 
     @Override
-    public Long incrementVersion(final Cluster value) {
-      final Long current = value.getClusterConfig().getVersion();
-      value.getClusterConfig().setVersion(Optional.fromNullable(value.getClusterConfig().getVersion()).or(-1L) + 1);
-      return current;
+    public void setVersion(final Cluster value, final Long version) {
+      value.getClusterConfig().setVersion(version);
     }
 
     @Override
-    public void setVersion(final Cluster value, final Long version) {
-      value.getClusterConfig().setVersion(version);
+    public String getTag(Cluster value) {
+      return value.getClusterConfig().getTag();
+    }
+
+    @Override
+    public void setTag(final Cluster value, final String tag) {
+      value.getClusterConfig().setTag(tag);
     }
   }
 }

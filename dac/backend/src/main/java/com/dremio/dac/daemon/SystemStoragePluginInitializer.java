@@ -138,7 +138,8 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     updatedConfig
       .setId(oldConfig.getId())
       .setCtime(oldConfig.getCtime())
-      .setVersion(oldConfig.getVersion());
+      .setTag(oldConfig.getTag())
+      .setConfigOrdinal(oldConfig.getConfigOrdinal());
     // if old and new configs match don't update
     if (oldConfig.equals(updatedConfig)) {
       return;

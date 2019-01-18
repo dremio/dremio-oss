@@ -15,11 +15,12 @@
  */
 import { Component } from 'react';
 import ByteField from 'components/Fields/ByteField';
+import FieldWithError from 'components/Fields/FieldWithError';
 import FormUtils from 'utils/FormUtils/FormUtils';
 import PropTypes from 'prop-types';
 
 // style classes the same as for duration field
-import { durationLabel, durationBody } from './FormWrappers.less';
+import { durationLabel, durationBody, fieldWithError } from './FormWrappers.less';
 
 export default class ByteWrapper extends Component {
   static propTypes = {
@@ -38,12 +39,17 @@ export default class ByteWrapper extends Component {
     return (
       <div>
         <div className={durationLabel}>{elementConfig.getConfig().label}</div>
-        <ByteField {...fieldProps}
-          value={adjustedValue}
-          min={FormUtils.getMinByte(elementConfig.getConfig().minOption)}
-          disabled={disabled}
-          valueMultiplier={valueMultiplier}
-          className={durationBody}/>
+        <FieldWithError errorPlacement='top'
+          {...field}
+          className={fieldWithError}
+          name={elementConfig.getPropName()}>
+          <ByteField {...fieldProps}
+            value={adjustedValue}
+            min={FormUtils.getMinByte(elementConfig.getConfig().minOption)}
+            disabled={disabled}
+            valueMultiplier={valueMultiplier}
+            className={durationBody}/>
+        </FieldWithError>
       </div>
     );
   }

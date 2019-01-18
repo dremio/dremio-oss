@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.store;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -23,6 +26,10 @@ import java.nio.file.StandardOpenOption;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.store.dfs.InternalFileConf;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 
 public class TestMetadataRefresh extends BaseTestQuery {
 
@@ -86,19 +93,172 @@ public class TestMetadataRefresh extends BaseTestQuery {
       .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
       .build().run();
 
-    // delete the directory
+    // verify that REFRESH METADATA optional paramaters are being handled properly
 
+
+    // FORCE UPDATE throws an exception on a PHYSICAL_DATASET_SOURCE_FOLDER
+    try {
+      testBuilder()
+        .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA FORCE UPDATE")
+        .unOrdered()
+        .baselineColumns("ok", "summary")
+        .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
+        .build().run();
+      fail("REFRESH METADATA FORCE UPDATE on a folder didn't throw a RpcException");
+    } catch (RpcException e) {
+      assertTrue(e.getMessage()
+        .contains("only file based datasets can have empty read signature"));
+    }
+
+    // LAZY UPDATE, no change expected
+    testBuilder()
+      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA LAZY UPDATE")
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
+      .build().run();
+
+    // FORCE UPDATE on a PHYSICAL_DATASET_SOURCE_FILE, source should be refreshed
+    testBuilder()
+      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh.\"f1.json\" REFRESH METADATA FORCE UPDATE")
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, "Metadata for table 'dfs_test.blue.metadata_refresh.f1.json' refreshed.")
+      .build().run();
+
+    // LAZY UPDATE on a PHYSICAL_DATASET_SOURCE_FILE, source should be refreshed
+    testBuilder()
+      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh.\"f1.json\" REFRESH METADATA LAZY UPDATE")
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, "Metadata for table 'dfs_test.blue.metadata_refresh.f1.json' refreshed.")
+      .build().run();
+
+    // MAINTAIN WHEN MISSING, no change expected
+    testBuilder()
+      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA MAINTAIN WHEN MISSING")
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
+      .build().run();
+
+    // DELETE WHEN MISSING, no change expected
+    testBuilder()
+      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA DELETE WHEN MISSING")
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
+      .build().run();
+
+    // verify that we can pass in multiple parameters, no change expected
+    testBuilder()
+      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA AVOID PROMOTION LAZY UPDATE MAINTAIN WHEN MISSING")
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
+      .build().run();
+
+    // delete the directory
     Files.delete(root.resolve("f1.json"));
     Files.delete(root.resolve("f2.json"));
     Files.delete(root);
 
-    // refresh again, expect deletion.
+    // MAINTAIN WHEN MISSING with missing data, no change expected
     testBuilder()
-      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA")
+      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA MAINTAIN WHEN MISSING")
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
+      .build().run();
+
+    // DELETE WHEN MISSING with missing data, expect all metadata to be removed
+    testBuilder()
+      .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA DELETE WHEN MISSING")
       .unOrdered()
       .baselineColumns("ok", "summary")
       .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' no longer exists, metadata removed.")
       .build().run();
+  }
 
+  @Test
+  public void testRefreshWithoutAutoPromote() throws Exception {
+    Path root = Paths.get(getDfsTestTmpSchemaLocation(), "blue", "metadata_refresh");
+    Files.createDirectories(root);
+
+    Files.write(root.resolve("f1.json"), "{a:1}".getBytes(), StandardOpenOption.CREATE);
+
+    CatalogServiceImpl catalog = (CatalogServiceImpl) nodes[0].getContext().getCatalogService();
+    String name = "dfs_test_without_autopromote";
+
+    {
+      SourceConfig c = new SourceConfig();
+      InternalFileConf conf = new InternalFileConf();
+      conf.connection = "file:///";
+      conf.path = getDfsTestTmpSchemaLocation();
+      c.setConnectionConf(conf);
+      c.setName(name);
+      c.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
+      catalog.getSystemUserCatalog().createSource(c);
+    }
+
+    // wait for source to be created
+    Thread.sleep(1200);
+
+    try {
+      testBuilder()
+        .sqlQuery("select count(*) as a from %s.blue.metadata_refresh", name)
+        .unOrdered()
+        .baselineColumns("a")
+        .baselineValues(1L)
+        .build().run();
+      fail("Source should be unavailable.");
+    } catch (Exception e) {
+      assertTrue(e.getMessage()
+        .contains(String.format("Table '%s.blue.metadata_refresh' not found", name)));
+    }
+
+    // AUTO PROMOTION, data source should be promoted and Table metadata should be refreshed
+    testBuilder()
+      .sqlQuery("ALTER TABLE %s.blue.metadata_refresh REFRESH METADATA AUTO PROMOTION", name)
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, String.format("Metadata for table '%s.blue.metadata_refresh' refreshed.", name))
+      .build().run();
+
+    testBuilder()
+        .sqlQuery("select count(*) as a from %s.blue.metadata_refresh", name)
+        .unOrdered()
+        .baselineColumns("a")
+        .baselineValues(1L)
+        .build().run();
+
+    // delete all data from source
+    Files.delete(root.resolve("f1.json"));
+    Files.delete(root);
+
+    // AVOID PROMOTION, no change expected
+    testBuilder()
+      .sqlQuery("ALTER TABLE %s.blue.metadata_refresh REFRESH METADATA AVOID PROMOTION MAINTAIN WHEN MISSING", name)
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, String.format("Table '%s.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.", name))
+      .build().run();
+
+    // verify we still have table information, but missing data
+    try {
+      testBuilder()
+        .sqlQuery("select count(*) as a from %s.blue.metadata_refresh", name)
+        .unOrdered()
+        .baselineColumns("a")
+        .baselineValues(1L)
+        .build().run();
+      fail("Data should be unavailable.");
+    } catch (Exception e) {
+      assertTrue(e.getMessage()
+        .contains("Failure reading JSON file"));
+    }
+
+    // cleanup
+    catalog.deleteSource(name);
   }
 }

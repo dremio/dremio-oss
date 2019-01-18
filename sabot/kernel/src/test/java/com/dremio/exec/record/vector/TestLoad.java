@@ -20,13 +20,11 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.List;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
+import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.GenerateSampleData;
 import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.AllocationHelper;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.junit.Test;
 

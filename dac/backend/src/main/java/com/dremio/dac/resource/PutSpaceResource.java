@@ -62,7 +62,7 @@ public class PutSpaceResource {
       .setId(space.getId() != null ? new EntityId(space.getId()) : null)
       .setName(space.getName())
       .setDescription(space.getDescription())
-      .setVersion(space.getVersion());
+      .setTag(space.getVersion());
 
     service.addOrUpdateSpace(spacePath.toNamespaceKey(), spaceConfig);
     return service.getSpace(spacePath.toNamespaceKey());

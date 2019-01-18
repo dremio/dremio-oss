@@ -16,9 +16,11 @@
 package com.dremio.exec.planner.sql;
 
 import java.util.List;
+
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlIdentifier;
+
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.catalog.Catalog;

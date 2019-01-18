@@ -15,12 +15,12 @@
  */
 package com.dremio.exec.store.dfs;
 
+import java.util.Iterator;
+import java.util.List;
+
 import org.apache.hadoop.fs.FileStatus;
 
 import com.dremio.exec.store.PartitionExplorer;
-
-import java.util.Iterator;
-import java.util.List;
 
 public class SubDirectoryList implements Iterable<String>{
   final List<FileStatus> fileStatuses;

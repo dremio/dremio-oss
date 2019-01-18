@@ -18,11 +18,10 @@ package com.dremio.exec.planner.physical;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.List;
 
-import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexNode;
 
 import com.dremio.exec.physical.base.PhysicalOperator;

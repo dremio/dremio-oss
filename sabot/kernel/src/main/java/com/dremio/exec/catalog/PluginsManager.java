@@ -39,8 +39,9 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.util.DebugCheck;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
+import com.dremio.service.listing.DatasetListingService;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.SourceStatus;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -74,7 +75,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
   private final ConnectionReader reader;
   private final SabotContext context;
   private final SchedulerService scheduler;
-  private final NamespaceService ns;
+  private final DatasetListingService datasetListing;
   private final ConcurrentHashMap<String, ManagedStoragePlugin> plugins = new ConcurrentHashMap<>();
   private final ReadLock readLock;
   private final WriteLock writeLock;
@@ -91,7 +92,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     this.sourceDataStore = sourceDataStore;
     this.context = context;
     this.scheduler = scheduler;
-    this.ns = context.getNamespaceService(SystemUser.SYSTEM_USERNAME);
+    this.datasetListing = context.getDatasetListing();
     ReentrantReadWriteLock rwlock = new ReentrantReadWriteLock();
     readLock = rwlock.readLock();
     writeLock = rwlock.writeLock();
@@ -140,12 +141,12 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     return plugins.values();
   }
 
-  public void start() {
+  public void start() throws NamespaceException {
 
     // hold write lock for life of startup.
     try (AutoCloseableLock l = writeLock()) {
       ImmutableMap.Builder<String, CheckedFuture<SourceState, Exception>> futuresBuilder = ImmutableMap.builder();
-      for(SourceConfig source : ns.getSources()) {
+      for (SourceConfig source : datasetListing.getSources(SystemUser.SYSTEM_USERNAME)) {
         ManagedStoragePlugin plugin = newPlugin(source);
 
         futuresBuilder.put(source.getName(), plugin.startAsync());

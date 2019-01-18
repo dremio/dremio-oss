@@ -23,7 +23,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-root</artifactId>
-    <version>3.0.6-201812082352540436-1f684f9</version>
+    <version>3.1.0-201901172111160703-dc6f6e5</version>
   </parent>
 
   <artifactId>dremio-common</artifactId>
@@ -78,7 +78,7 @@
             <configuration>
               <artifactItems>
                 <artifactItem>
-                  <groupId>com.vlkan</groupId>
+                  <groupId>com.github.icexelloss</groupId>
                   <artifactId>flatc-${os.detected.classifier}</artifactId>
                   <version>${fbs.version}</version>
                   <type>exe</type>
@@ -205,8 +205,8 @@
       <artifactId>config</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.vlkan</groupId>
-      <artifactId>flatbuffers</artifactId>
+      <groupId>com.google.flatbuffers</groupId>
+      <artifactId>flatbuffers-java</artifactId>
     </dependency>
     <dependency>
       <groupId>io.netty</groupId>

@@ -31,6 +31,7 @@ import javax.annotation.Nullable;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.hadoop.fs.FileStatus;
+
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;

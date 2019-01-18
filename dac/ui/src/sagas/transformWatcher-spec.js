@@ -45,7 +45,7 @@ describe('transformWatcher saga', () => {
       next = gen.next();
       expect(next.value).to.eql(put(apiAction));
       next = gen.next(new Promise(() => {}));
-      next = gen.next(); // select(getLocation)
+      next = gen.next(() => true); // getExplorePageLocationChangePredicate
       expect(next.value.RACE).to.not.be.undefined;
     });
 

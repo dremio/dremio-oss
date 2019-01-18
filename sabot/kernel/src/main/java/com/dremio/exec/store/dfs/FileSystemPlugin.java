@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
@@ -51,8 +50,8 @@ import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.DatasetSplitsPointer;
+import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.DotFile;
@@ -72,11 +71,11 @@ import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.SchemaEntity;
 import com.dremio.exec.store.SchemaEntity.SchemaEntityType;
-import com.dremio.exec.store.dfs.SchemaMutability.MutationType;
 import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.TimedRunnable;
+import com.dremio.exec.store.dfs.SchemaMutability.MutationType;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.service.namespace.NamespaceException;
@@ -773,7 +772,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public boolean createView(NamespaceKey key, View view, SchemaConfig schemaConfig) throws IOException {
+  public boolean createOrUpdateView(NamespaceKey key, View view, SchemaConfig schemaConfig) throws IOException {
     if(!getMutability().hasMutationCapability(MutationType.VIEW, schemaConfig.isSystemUser())) {
       throw UserException.parseError()
         .message("Unable to create view. Schema [%s] is immutable for this user.", key.getParent())
@@ -890,22 +889,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
       final Path fsPath = PathUtils.toFSPath(fullPath);
 
-      // Generate unique identifier which will be added as a suffix to the table name
-      ThreadLocalRandom r = ThreadLocalRandom.current();
-      long time =  (System.currentTimeMillis()/1000);
-      Long p1 = ((Integer.MAX_VALUE - time) << 32) + r.nextInt();
-      Long p2 = r.nextLong();
-      final String fileNameDelimiter = FileSystemWrapper.HIDDEN_FILE_PREFIX;
-      final String newFileName = FileSystemWrapper.HIDDEN_FILE_PREFIX + fsPath.getName() + fileNameDelimiter
-              + p1 + fileNameDelimiter + p2;
-
-      Path renamePath = new Path(fsPath.getParent(), newFileName);
-      if (!fs.rename(fsPath, renamePath)) {
-        throw UserException.ioExceptionError()
-            .message("Failed to rename folder %s -> %s prior to deletion", fsPath, renamePath)
-            .build(logger);
-      }
-      if (!fs.delete(renamePath, true)) {
+      if (!fs.delete(fsPath, true)) {
         throw UserException.ioExceptionError()
             .message("Failed to drop table: %s", PathUtils.constructFullPath(tableSchemaPath))
             .build(logger);
@@ -1019,6 +1003,17 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return config.getConnectionUniqueProperties();
   }
 
+  protected static String getTableName(final NamespaceKey key) {
+    final String tableName;
+    if(key.size() == 2) {
+      tableName = key.getLeaf();
+    } else {
+      List<String> subString = key.getPathComponents().subList(1, key.size());
+      tableName = Joiner.on('/').join(subString);
+    }
+    return tableName;
+  }
+
   @Override
   public CreateTableEntry createNewTable(SchemaConfig config, NamespaceKey key, WriterOptions writerOptions, Map<String, Object> storageOptions) {
     if(!getMutability().hasMutationCapability(MutationType.TABLE, config.isSystemUser())) {
@@ -1027,13 +1022,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         .build(logger);
     }
 
-    final String tableName;
-    if(key.size() == 2) {
-      tableName = key.getLeaf();
-    } else {
-      List<String> subString = key.getPathComponents().subList(1, key.size());
-      tableName = Joiner.on('/').join(subString);
-    }
+    final String tableName = getTableName(key);
 
     final FormatPlugin formatPlugin;
     if (storageOptions == null || storageOptions.isEmpty()) {

@@ -20,8 +20,6 @@ import static org.junit.Assert.assertEquals;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.junit.Test;
 
-import com.dremio.exec.planner.sql.SqlConverter;
-
 public class TestSQLConverter {
 
   private void validateFormattedIs(String sql, SqlParserPos pos, String expected) {

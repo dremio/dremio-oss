@@ -3,10 +3,9 @@
   {"sourceType": "S3", "tags": ["beta"]},
   {"sourceType": "HBASE", "tags": ["beta"]},
   {"sourceType": "MONGO", "tags": ["beta"]},
-  {"sourceType": "POSTGRES", "tags": ["beta"]},
   {"sourceType": "ADL", "tags": ["beta"]},
+  {"sourceType": "TERADATA", "tags": ["beta"]},
   {"sourceType": "CASSANDRA", "disabled": true},
   {"sourceType": "SALESFORCE", "disabled": true},
-  {"sourceType": "NETEZZA", "disabled": true},
-  {"sourceType": "TERADATA", "disabled": true}
+  {"sourceType": "NETEZZA", "disabled": true}
 ]

@@ -112,25 +112,6 @@ public abstract class AbstractTestIndexedStore {
   }
 
   @Test
-  public void checkAndPut() throws Exception {
-    store.put("a", d1);
-    checkFindByName(d1);
-    assertEquals(true, store.checkAndPut("a", d1, d2));
-    checkFindByName(d2);
-    assertNoResultByName(d1.name);
-  }
-
-  @Test
-  public void failedCheckAndPut(){
-    store.put("a", d1);
-    checkFindByName(d1);
-    assertEquals(false, store.checkAndPut("a", d2, d3));
-
-    // shouldn't have been replaced.
-    checkFindByName(d1);
-  }
-
-  @Test
   public void counts(){
     store.put("a", d1);
     store.put("b", d2);
@@ -151,16 +132,6 @@ public abstract class AbstractTestIndexedStore {
         store.find(new FindByCondition().setCondition("n==" + d1.name, MAPPING))
         ));
 
-  }
-
-  @Test
-  public void failedDelete() {
-    store.put("a", d1);
-    checkFindByName(d1);
-    assertEquals(false, store.checkAndDelete("a", d2));
-
-    // shouldn't be deleted.
-    checkFindByName(d1);
   }
 
   private void checkFindByName(Doughnut d){
@@ -187,9 +158,18 @@ public abstract class AbstractTestIndexedStore {
     Assert.assertEquals(d, doughnuts.get(0));
   }
 
-  private static final IndexKey NAME = new IndexKey("n", "name", String.class, SearchFieldSorting.FieldType.STRING, false, true);
-  private static final IndexKey FLAVOR = new IndexKey("f", "flavor", String.class, SearchFieldSorting.FieldType.STRING, false, true);
-  private static final IndexKey PRICE = new IndexKey("p", "price", Double.class, SearchFieldSorting.FieldType.DOUBLE, false, true);
+  private static final IndexKey NAME = IndexKey.newBuilder("n", "name", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .setStored(true)
+    .build();
+  private static final IndexKey FLAVOR = IndexKey.newBuilder("f", "flavor", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .setStored(true)
+    .build();
+  private static final IndexKey PRICE = IndexKey.newBuilder("p", "price", Double.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.DOUBLE)
+    .setStored(true)
+    .build();
   static final FilterIndexMapping MAPPING = new FilterIndexMapping(NAME, FLAVOR, PRICE);
 
   private static final class TestDocumentConverter implements KVStoreProvider.DocumentConverter<String, Doughnut> {

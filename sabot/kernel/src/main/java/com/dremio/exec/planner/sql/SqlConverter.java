@@ -15,16 +15,21 @@
  */
 package com.dremio.exec.planner.sql;
 
+import java.util.List;
+
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlExplainLevel;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
@@ -35,8 +40,12 @@ import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 import org.apache.calcite.sql.util.SqlShuttle;
 import org.apache.calcite.sql2rel.RelDecorrelator;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
+import org.apache.calcite.util.ImmutableIntList;
+import org.apache.calcite.util.Pair;
 
+import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioCatalogReader;
@@ -44,12 +53,14 @@ import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.exec.planner.DremioRexBuilder;
 import com.dremio.exec.planner.DremioVolcanoPlanner;
+import com.dremio.exec.planner.acceleration.MaterializationList;
 import com.dremio.exec.planner.acceleration.substitution.AccelerationAwareSubstitutionProvider;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProviderFactory;
 import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.serialization.RelSerializerFactory;
 import com.dremio.exec.planner.sql.SqlValidatorImpl.FlattenOpCounter;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.RelsWithRexSubQueryFlattener;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
@@ -86,6 +97,8 @@ public class SqlConverter {
   private final UserSession session;
   private final ViewExpansionContext viewExpansionContext;
   private final FlattenOpCounter flattenCounter;
+  private final ScanResult scanResult;
+  private final SabotConfig config;
 
   public SqlConverter(
       final PlannerSettings settings,
@@ -96,7 +109,9 @@ public class SqlConverter {
       final UserSession session,
       final AttemptObserver observer,
       final Catalog catalog,
-      final SubstitutionProviderFactory factory
+      final SubstitutionProviderFactory factory,
+      final SabotConfig config,
+      final ScanResult scanResult
       ) {
     this.nestingLevel = 0;
     this.flattenCounter = new FlattenOpCounter();
@@ -114,14 +129,16 @@ public class SqlConverter {
     this.validator = new SqlValidatorImpl(flattenCounter, opTab, this.catalogReader, typeFactory, DremioSqlConformance.INSTANCE);
     validator.setIdentifierExpansion(true);
     this.materializations = new MaterializationList(this, session, materializationProvider);
-    this.substitutions = AccelerationAwareSubstitutionProvider.of(factory.getSubstitutionProvider(materializations, this.settings.options));
+    this.substitutions = AccelerationAwareSubstitutionProvider.of(factory.getSubstitutionProvider(config, materializations, this.settings.options));
     this.planner = DremioVolcanoPlanner.of(this);
     this.cluster = RelOptCluster.create(planner, new DremioRexBuilder(typeFactory));
     this.cluster.setMetadataProvider(DefaultRelMetadataProvider.INSTANCE);
     this.viewExpansionContext = new ViewExpansionContext(catalog.getUser());
+    this.config = config;
+    this.scanResult = scanResult;
   }
 
-  SqlConverter(SqlConverter parent, DremioCatalogReader catalog) {
+  public SqlConverter(SqlConverter parent, DremioCatalogReader catalog) {
     this.nestingLevel = parent.nestingLevel + 1;
     // since this is level 1 or deeper, we need to use system defaults instead of any overridden edge parser.
     this.parserConfig = parent.parserConfig.cloneWithSystemDefault();
@@ -143,9 +160,11 @@ public class SqlConverter {
     this.validator = new SqlValidatorImpl(parent.flattenCounter, opTab, catalog, typeFactory, DremioSqlConformance.INSTANCE);
     validator.setIdentifierExpansion(true);
     this.viewExpansionContext = parent.viewExpansionContext;
+    this.config = parent.config;
+    this.scanResult = parent.scanResult;
   }
 
-  private static final SqlShuttle STRING_LITERAL_CONVERTER = new SqlShuttle() {
+  public static final SqlShuttle STRING_LITERAL_CONVERTER = new SqlShuttle() {
     @Override
     public SqlNode visit(SqlLiteral literal) {
       if (literal instanceof SqlCharStringLiteral) {
@@ -208,10 +227,6 @@ public class SqlConverter {
     return functionContext;
   }
 
-  public Catalog getCatalog() {
-    return catalogReader.getCatalog();
-  }
-
   public DremioCatalogReader getCatalogReader() {
     return catalogReader;
   }
@@ -240,12 +255,20 @@ public class SqlConverter {
     return substitutions;
   }
 
+  public RelSerializerFactory getSerializerFactory() {
+    return RelSerializerFactory.getFactory(config, scanResult);
+  }
+
+  public SabotConfig getConfig() {
+    return config;
+  }
+
   /**
    * Returns a rel root that defers materialization of scans via {@link com.dremio.exec.planner.logical.ConvertibleScan}
    *
    * Used for serialization.
    */
-  public RelRoot toConvertibleRelRoot(final SqlNode validatedNode, boolean expand) {
+  public RelRootPlus toConvertibleRelRoot(final SqlNode validatedNode, boolean expand) {
 
     final OptionManager o = settings.getOptions();
     final boolean useLegacyDecorrelator = o.getOption(PlannerSettings.USE_LEGACY_DECORRELATOR);
@@ -256,24 +279,44 @@ public class SqlConverter {
       .withConvertTableAccess(false)
       .withExpand(expand)
       .build();
-    final SqlToRelConverter sqlToRelConverter = new DremioSqlToRelConverter(this, validator,
-        new ConvertletTable(functionContext.getContextInformation()), config);
+    final ReflectionAllowedMonitoringConvertletTable convertletTable = new ReflectionAllowedMonitoringConvertletTable(new ConvertletTable(functionContext.getContextInformation()));
+    final SqlToRelConverter sqlToRelConverter = new DremioSqlToRelConverter(this, validator, convertletTable, config);
     // Previously we had "top" = !innerQuery, but calcite only adds project if it is not a top query.
     final RelRoot rel = sqlToRelConverter.convertQuery(validatedNode, false /* needs validate */, false /* top */);
     final RelNode rel2 = sqlToRelConverter.flattenTypes(rel.rel, true);
     final RelNode rel3;
-    if (expand) {
-      rel3 = rel2;
-    } else {
-      // Then we did not expand all the subqueries, so go and flatten the subqueries as well.
-      rel3 = rel2.accept(new RelsWithRexSubQueryFlattener(sqlToRelConverter));
-    }
+    rel3 = expand ? rel2 : rel2.accept(new RelsWithRexSubQueryFlattener(sqlToRelConverter));
     final RelNode rel4 = RelDecorrelator.decorrelateQuery(rel3, useLegacyDecorrelator);
 
     if (logger.isDebugEnabled()) {
       logger.debug("ConvertQuery with expand = {}:\n{}", expand, RelOptUtil.toString(rel4, SqlExplainLevel.ALL_ATTRIBUTES));
     }
-    return RelRoot.of(rel4, rel.kind);
+    return RelRootPlus.of(rel4, rel.kind, convertletTable.isReflectionDisallowed());
+  }
+
+  /**
+   * A RelRoot that carries additional conversion information.
+   */
+  public static class RelRootPlus extends RelRoot {
+
+    private final boolean contextSensitive;
+
+    private RelRootPlus(RelNode rel, RelDataType validatedRowType, SqlKind kind, List<Pair<Integer, String>> fields,
+        RelCollation collation, boolean contextSensitive) {
+      super(rel, validatedRowType, kind, fields, collation);
+      this.contextSensitive = contextSensitive;
+    }
+
+    public static RelRootPlus of(RelNode rel, SqlKind kind, boolean contextSensitive) {
+      RelDataType rowType = rel.getRowType();
+      final ImmutableIntList refs = ImmutableIntList.identity(rowType.getFieldCount());
+      final List<String> names = rowType.getFieldNames();
+      return new RelRootPlus(rel, rowType, kind, Pair.zip(refs, names), RelCollations.EMPTY, contextSensitive);
+    }
+
+    public boolean isContextSensitive() {
+      return contextSensitive;
+    }
   }
 
   /**

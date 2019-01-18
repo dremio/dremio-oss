@@ -15,10 +15,11 @@
  */
 import { Component } from 'react';
 import DurationField from 'components/Fields/DurationField';
+import FieldWithError from 'components/Fields/FieldWithError';
 import FormUtils from 'utils/FormUtils/FormUtils';
 import PropTypes from 'prop-types';
 
-import { durationLabel, durationBody } from './FormWrappers.less';
+import {durationLabel, durationBody, fieldWithError} from './FormWrappers.less';
 
 export default class DurationWrapper extends Component {
   static propTypes = {
@@ -40,11 +41,17 @@ export default class DurationWrapper extends Component {
     return (
       <div>
         <div className={durationLabel}>{elementConfig.getConfig().label}</div>
-        <DurationField {...fieldProps}
-          value={adjustedValue}
-          min={FormUtils.getMinDuration(elementConfig.getConfig().minOption)}
-          disabled={isDisabled}
-          className={durationBody}/>
+        <FieldWithError errorPlacement='top'
+          {...field}
+          className={fieldWithError}
+          name={elementConfig.getPropName()}>
+          <DurationField {...fieldProps}
+            name={elementConfig.getPropName()}
+            value={adjustedValue}
+            min={FormUtils.getMinDuration(elementConfig.getConfig().minOption)}
+            disabled={isDisabled}
+            className={durationBody}/>
+        </FieldWithError>
       </div>
     );
   }

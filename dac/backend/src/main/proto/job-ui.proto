@@ -24,9 +24,49 @@ option optimize_for = SPEED;
 
 option java_outer_classname = "JobProtobuf";
 
+// it is a copy of JobUI without batch schema. Batch schema causes the issues on deserialization
+// We should get rid of proto entities for rest api responses under DX-14336
+message JobInfoUI {
+  required JobId jobId = 1;
+  required string sql = 2;
+  optional exec.bit.RequestType requestType = 3;
+  optional string client = 4; // client from which job was submitted
+  optional string user = 5;
+  optional int64 startTime = 6;
+  optional int64 finishTime = 7;
+  repeated string datasetPath = 8;
+  required string datasetVersion = 9;
+  optional string space = 10;
+  repeated ParentDatasetInfo parents = 11;
+  required QueryType queryType = 12 [DEFAULT = UNKNOWN];
+  optional string appId = 13;
+  optional string failureInfo = 14;
+  optional JobFailureInfo detailedFailureInfo = 26;
+  repeated com.dremio.service.namespace.dataset.proto.FieldOrigin fieldOrigins = 15;
+  repeated JoinInfo joins = 16 [deprecated = true];
+  repeated arrow.fileformat.ArrowFileMetadata resultMetadata = 17;
+  optional Acceleration acceleration = 18;
+  // list of all parents of parents.
+  repeated com.dremio.service.namespace.dataset.proto.ParentDataset grandParents = 19;
+  optional DownloadInfo downloadInfo = 20; // link to download data for UI_EXPORT jobs
+  optional string description = 21;
+  optional MaterializationSummary materializationFor = 22;
+  optional double original_cost = 23 [default = 1.0];
+  repeated string partitions = 24;
+  repeated ScanPath scanPaths = 25;
+  optional JoinAnalysis joinAnalysis = 27;
+  repeated string context = 28;
+  optional ResourceSchedulingInfo resource_scheduling_info = 29;
+  // Schema path to the output table. If not present, should assumed
+  // to be <storage-name>.<job-id>
+  repeated string output_table = 30;
+  optional JobCancellationInfo cancellationInfo = 31;
+  optional SpillJobDetails spillJobDetails = 32;
+}
+
 message JobAttemptUI {
   optional JobState state = 1;
-  optional JobInfo info = 2;
+  optional JobInfoUI info = 2;
   optional JobStats stats = 3;
   optional JobDetails details = 4;
   optional AttemptReason reason = 5;

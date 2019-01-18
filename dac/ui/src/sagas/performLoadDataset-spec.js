@@ -13,11 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { put, select, call } from 'redux-saga/effects';
+import { put, select, call, race, take, fork } from 'redux-saga/effects';
 import { goBack } from 'react-router-redux';
 
 import { getLocation } from 'selectors/routing';
 import { updateViewState } from 'actions/resources';
+import { handleResumeRunDataset } from 'sagas/runDataset';
+import { EXPLORE_TABLE_ID } from 'reducers/explore/view';
+import { loadTableData, CANCEL_TABLE_DATA_LOAD, resetTableViewStateOnPageLeave } from './performLoadDataset';
 
 import {
   performWatchedTransform,
@@ -29,8 +32,9 @@ import { handlePerformLoadDataset, loadDataset } from './performLoadDataset';
 
 describe('performLoadDataset saga', () => {
 
+  const datasetVersion = '123';
   const dataset = Immutable.fromJS({
-    datasetVersion: 123
+    datasetVersion
   });
   const viewId = 'VIEW_ID';
   let location;
@@ -42,6 +46,17 @@ describe('performLoadDataset saga', () => {
       pathname: '/source/foo/path.to.dataset',
       query: {tipVersion: 'abc'}
     };
+  });
+
+  const datasetResponsePayload = Immutable.fromJS({
+    entities: {
+      fullDataset: {
+        [datasetVersion]: {
+          version: datasetVersion
+        }
+      }
+    },
+    result: datasetVersion
   });
 
   describe('handlePerformLoadDataset', () => {
@@ -67,17 +82,13 @@ describe('performLoadDataset saga', () => {
     });
 
     it('should not navigate if dataset has version', () => {
-      next = gen.next({
+      const loadDatasetResponse = {
         error: false,
-        payload: Immutable.fromJS({
-          entities: {
-            fullDataset: {
-              '123': {}
-            },
-            result: '123'
-          }
-        })
-      });
+        payload: datasetResponsePayload
+      };
+      next = gen.next(loadDatasetResponse);
+      expect(next.value).to.eql(call(loadTableData, datasetVersion));
+      next = gen.next();
       expect(next.done).to.be.true;
     });
 
@@ -149,5 +160,54 @@ describe('performLoadDataset saga', () => {
       expect(next.done).to.be.true;
     });
 
+  });
+
+  describe('loadTableData', () => {
+    let loadTableDataGen;
+
+    beforeEach(() => {
+      // common generator flow
+      const forceLoad = false;
+      loadTableDataGen = loadTableData(datasetVersion, forceLoad);
+      next = loadTableDataGen.next();
+      // cancelation of previous calls
+      expect(next.value).to.be.eql(put({ type: CANCEL_TABLE_DATA_LOAD }));
+      loadTableDataGen.next(); //update viewstate
+      next = loadTableDataGen.next(); // race
+      expect(next.value).to.be.eql(race({
+        // data load saga was submitted
+        loadRequestViewState: call(handleResumeRunDataset, datasetVersion, forceLoad),
+        // listener for cancelation action is added
+        isLoadCanceled: take(CANCEL_TABLE_DATA_LOAD),
+        // load task would be canceled and view state would be reset if page for a current dataset is left
+        locationChange: call(resetTableViewStateOnPageLeave)
+      }));
+    });
+    afterEach(() => {
+      // perform a last step and check that a generator is done
+      next = loadTableDataGen.next();
+      expect(next.done).to.be.true;
+    });
+
+    it('load mask is hidden if data loading is completed', () => {
+      const viewState = {};
+      next = loadTableDataGen.next({ loadRequestViewState: viewState });
+      // reset load mask or show an error depending on result view state
+      expect(next.value).to.be.eql(put(updateViewState(EXPLORE_TABLE_ID, viewState)));
+      next = loadTableDataGen.next();
+      // put a non-blocking listener for page leave to reset a view state.
+      // it is useful in case if previous dataset had error
+      expect(next.value).to.be.eql(fork(resetTableViewStateOnPageLeave));
+    });
+
+    it('no actions if load is canceled', () => {
+      // simulate that load cancel action win a race
+      next = loadTableDataGen.next({ isLoadCanceled: {} });
+    });
+
+    it('no actions if page leave event accured', () => {
+      // simulate that page leave action win a race
+      next = loadTableDataGen.next({ locationChange: {} });
+    });
   });
 });

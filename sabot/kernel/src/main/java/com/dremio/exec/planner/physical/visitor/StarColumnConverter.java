@@ -32,7 +32,6 @@ import org.apache.calcite.util.Pair;
 
 import com.dremio.exec.planner.StarColumnHelper;
 import com.dremio.exec.planner.physical.LeafPrel;
-import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectAllowDupPrel;
 import com.dremio.exec.planner.physical.ProjectPrel;

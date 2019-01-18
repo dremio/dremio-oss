@@ -25,8 +25,8 @@ import static org.junit.Assert.fail;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.util.DateUtility;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;

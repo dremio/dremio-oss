@@ -18,13 +18,12 @@ package com.dremio.exec.physical.config;
 import java.util.Collections;
 import java.util.List;
 
-import com.dremio.exec.record.BatchSchema;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.physical.base.AbstractSender;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
+import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;

@@ -16,6 +16,7 @@
 package com.dremio.sabot.exec.context;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -24,12 +25,14 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.server.NodeDebugContextProvider;
-import com.dremio.options.OptionManager;
 import com.dremio.exec.testing.ExecutionControls;
+import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.spill.SpillService;
@@ -96,6 +99,11 @@ public abstract class OperatorContext {
   public abstract NodeDebugContextProvider getNodeDebugContextProvider();
 
   public abstract SpillService getSpillService();
+
+  public abstract TunnelProvider getTunnelProvider();
+
+  public abstract List<FragmentAssignment> getAssignments();
+
 
   public static int getChildCount(PhysicalOperator popConfig) {
     Iterator<PhysicalOperator> iter = popConfig.iterator();

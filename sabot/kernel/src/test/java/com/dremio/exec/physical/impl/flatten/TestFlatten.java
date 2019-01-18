@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import org.apache.arrow.vector.util.JsonStringHashMap;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -38,8 +39,8 @@ import com.dremio.TestBuilder;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.fn.interp.TestConstantFolding;
-import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
+import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.google.common.collect.Lists;
 
 public class TestFlatten extends PlanTestBase {
@@ -63,6 +64,12 @@ public class TestFlatten extends PlanTestBase {
   public static void setupTest() throws Exception {
     String query = "create table dfs_test.parquetTable as select * from cp.\"/jsoninput/input_for_parquet.json\"";
     test(query);
+  }
+
+  @Before
+  public void resetSession() throws Exception {
+    test("ALTER SESSION RESET ALL");
+    test("ALTER SESSION SET \"planner.experimental.tpf_logical\"= true");
   }
 
   @Test
@@ -538,8 +545,12 @@ public class TestFlatten extends PlanTestBase {
 
   }
 
+
   @Test // see DRILL-2146
   public void testFlattenWithStar() throws Exception {
+    // Push down of filter does not work if pclean is not enabled
+    // May be solved later by fixing DX-11163
+    test("SET planner.experimental.pclean_logical=true");
     String root = FileUtils.getResourceAsFile("/store/text/sample.json").toURI().toString();
     String q1 = String.format("select *, flatten(j.topping) tt, flatten(j.batters.batter) bb, j.id " +
         "from dfs_test.\"%s\" j " +

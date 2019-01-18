@@ -25,6 +25,11 @@
 #DREMIO_LOG_DIR=${DREMIO_HOME}/log
 
 #
+# Send logs to console and not to log files. The DREMIO_LOG_DIR is ignored if set.
+#
+#DREMIO_LOG_TO_CONSOLE=1
+
+#
 # Directory where Dremio pidfiles are written
 # Default to $DREMIO_HOME/run
 #

@@ -113,8 +113,7 @@ export function navigateToNextDataset(response, {replaceNav, linkName, isSaveAs,
 
     const mode = isSaveAs ? 'edit' : location.query && location.query.mode;
     const jobId = _getNextJobId(fullDataset);
-    const pathname = changePageTypeInUrl(PageTypes.default, // self link should always be for default page
-      parsedLink.pathname, targetPageType);
+    const pathname = changePageTypeInUrl(parsedLink.pathname, targetPageType);
     const query = {
       ...(keepQuery ? location.query : {}), // Initial dataset request will navigate. Need to not clobber graph query params.
       ...parsedLink.query,

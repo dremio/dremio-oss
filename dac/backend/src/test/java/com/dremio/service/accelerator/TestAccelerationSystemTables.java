@@ -24,7 +24,6 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.LocalJobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -46,7 +45,7 @@ public class TestAccelerationSystemTables extends BaseTestServer {
     jobsService.submitJob(JobRequest.newBuilder()
         .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.reflections"))
         .setDatasetPath(NONE_PATH)
-        .setDatasetVersion(DatasetVersion.NONE).build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
+        .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
   }
 
   @Test
@@ -54,6 +53,6 @@ public class TestAccelerationSystemTables extends BaseTestServer {
     jobsService.submitJob(JobRequest.newBuilder()
         .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.materializations"))
         .setDatasetPath(NONE_PATH)
-        .setDatasetVersion(DatasetVersion.NONE).build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
+        .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
   }
 }

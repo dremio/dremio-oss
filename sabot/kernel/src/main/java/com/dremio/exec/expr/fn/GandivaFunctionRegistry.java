@@ -15,6 +15,19 @@
  */
 package com.dremio.exec.expr.fn;
 
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.apache.arrow.gandiva.evaluator.ExpressionRegistry;
+import org.apache.arrow.gandiva.evaluator.FunctionSignature;
+import org.apache.arrow.gandiva.exceptions.GandivaException;
+import org.apache.calcite.sql.SqlOperator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
@@ -24,45 +37,51 @@ import com.dremio.exec.resolver.TypeCastRules;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import org.apache.arrow.gandiva.evaluator.ExpressionRegistry;
-import org.apache.arrow.gandiva.evaluator.FunctionSignature;
-import org.apache.arrow.gandiva.exceptions.GandivaException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+public class GandivaFunctionRegistry implements PluggableFunctionRegistry {
 
-public class GandivaFunctionRegistry {
-
-  static final Logger logger = LoggerFactory.getLogger(BaseFunctionHolder.class);
+  static final Logger logger = LoggerFactory.getLogger(GandivaFunctionRegistry.class);
 
   private final Map<String, Set<GandivaFunctionHolder>> supportedFunctions = Maps.newHashMap();
 
-  public GandivaFunctionRegistry(SabotConfig config) throws GandivaException {
-    for (FunctionSignature signature : ExpressionRegistry.getInstance().getSupportedFunctions()) {
-      Set<GandivaFunctionHolder> signaturesForName = supportedFunctions.getOrDefault(
-                                                        signature.getName(),Sets.newHashSet());
+  public GandivaFunctionRegistry(SabotConfig config) throws InstantiationException {
+    try {
+      Set<FunctionSignature> supportedFunctions = ExpressionRegistry.getInstance()
+        .getSupportedFunctions();
+      for (FunctionSignature signature : supportedFunctions) {
+        Set<GandivaFunctionHolder> signaturesForName = this.supportedFunctions.getOrDefault(
+          signature.getName(),Sets.newHashSet());
 
-      CompleteType retType = new CompleteType(signature.getReturnType());
-      CompleteType[] args = new CompleteType[signature.getParamTypes().size()];
-      signature.getParamTypes()
-               .stream()
-               .map(arrowType -> new CompleteType (arrowType))
-               .collect(Collectors.<CompleteType>toList())
-               .toArray(args);
-      GandivaFunctionHolder holder = new GandivaFunctionHolder(args,retType,signature.getName());
-      signaturesForName.add(holder);
-      supportedFunctions.put(signature.getName(), signaturesForName);
+        CompleteType retType = new CompleteType(signature.getReturnType());
+        CompleteType[] args = new CompleteType[signature.getParamTypes().size()];
+        signature.getParamTypes()
+          .stream()
+          .map(arrowType -> new CompleteType (arrowType))
+          .collect(Collectors.<CompleteType>toList())
+          .toArray(args);
+        GandivaFunctionHolder holder = new GandivaFunctionHolder(args,retType,signature.getName());
+        signaturesForName.add(holder);
+        this.supportedFunctions.put(signature.getName(), signaturesForName);
+      }
+    } catch (GandivaException | UnsatisfiedLinkError e) {
+      throw new InstantiationException("Error in creating the gandiva repository."
+        + e.getMessage());
     }
   }
+
+  @Override
   public void register(OperatorTable operatorTable) {
-    //TODO : Nothing for now. handled in https://dremio.atlassian.net/browse/DX-12539
+
+    for (String name : supportedFunctions.keySet()) {
+      for (GandivaFunctionHolder holder : supportedFunctions.get(name)) {
+        SqlOperator operator  = GandivaOperator.getSimpleFunction(name, holder.getParamCount(), new
+          PlugginRepositorySqlReturnTypeInference(this));
+        operatorTable.add(name, operator);
+      }
+    }
   }
 
+  @Override
   public AbstractFunctionHolder getFunction(FunctionCall functionCall) {
     int bestcost = Integer.MAX_VALUE;
     int currcost = Integer.MAX_VALUE;

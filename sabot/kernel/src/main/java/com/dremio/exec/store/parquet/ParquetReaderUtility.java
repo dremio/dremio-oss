@@ -40,9 +40,9 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.options.OptionManager;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.exec.work.ExecErrorConstants;
+import com.dremio.options.OptionManager;
 
 /**
  * Utility class where we can capture common logic between the two parquet readers

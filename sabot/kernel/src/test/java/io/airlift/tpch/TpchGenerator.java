@@ -24,17 +24,17 @@ import java.util.Set;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarCharVector;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.types.Types;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.types.Types;
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.sabot.Generator;
 import com.google.common.base.Charsets;
 

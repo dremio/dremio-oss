@@ -18,7 +18,6 @@ package com.dremio.exec.planner.physical.visitor;
 import com.dremio.exec.planner.physical.ExchangePrel;
 import com.dremio.exec.planner.physical.JoinPrel;
 import com.dremio.exec.planner.physical.LeafPrel;
-import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;

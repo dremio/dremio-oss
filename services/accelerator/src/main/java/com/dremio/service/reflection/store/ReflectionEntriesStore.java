@@ -27,10 +27,11 @@ import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.store.Serializers.ReflectionEntrySerializer;
 import com.dremio.service.reflection.store.Serializers.ReflectionIdSerializer;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.Iterables;
 
 /**
  * store the reflection entries
@@ -55,7 +56,9 @@ public class ReflectionEntriesStore {
   }
 
   public ReflectionEntry get(ReflectionId id) {
-    return store.get().get(id);
+    ReflectionEntry value = store.get().get(id);
+    reflectionEntryGoalVersionUpdate(value);
+    return value;
   }
 
   public void save(ReflectionEntry entry) {
@@ -69,7 +72,12 @@ public class ReflectionEntriesStore {
   }
 
   public Iterable<ReflectionEntry> find() {
-    return KVUtil.values(store.get().find());
+    return KVUtil.values(Iterables.transform(store.get().find(), (entry) -> {
+      if(entry != null) {
+        reflectionEntryGoalVersionUpdate(entry.getValue());
+      }
+      return entry;
+    }));
   }
 
   public void delete(ReflectionId id) {
@@ -83,15 +91,18 @@ public class ReflectionEntriesStore {
     }
 
     @Override
-    public Long incrementVersion(ReflectionEntry value) {
-      final Long current = value.getVersion();
-      value.setVersion(Optional.fromNullable(current).or(-1L) + 1);
-      return current;
+    public void setVersion(ReflectionEntry value, Long version) {
+      value.setVersion(version);
     }
 
     @Override
-    public void setVersion(ReflectionEntry value, Long version) {
-      value.setVersion(version);
+    public String getTag(ReflectionEntry value) {
+      return value.getTag();
+    }
+
+    @Override
+    public void setTag(ReflectionEntry value, String tag) {
+      value.setTag(tag);
     }
   }
 
@@ -108,6 +119,16 @@ public class ReflectionEntriesStore {
         .valueSerializer(ReflectionEntrySerializer.class)
         .versionExtractor(ReflectionVersionExtractor.class)
         .build();
+    }
+  }
+
+  public void reflectionEntryGoalVersionUpdate(ReflectionEntry value) {
+    if(value == null) {
+      return;
+    }
+    if(Strings.isNullOrEmpty(value.getGoalVersion())) {
+      String version = value.getLegacyGoalVersion() == null ? null : Long.toString(value.getLegacyGoalVersion());
+      value.setGoalVersion(version);
     }
   }
 }

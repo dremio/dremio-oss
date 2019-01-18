@@ -28,17 +28,17 @@
  */
 package io.airlift.tpch;
 
-import com.google.common.base.Charsets;
-import com.google.common.base.Throwables;
-import com.google.common.io.Resources;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+import static io.airlift.tpch.DistributionLoader.loadDistribution;
 
 import java.io.IOException;
 import java.net.URL;
 import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
-import static io.airlift.tpch.DistributionLoader.loadDistribution;
+import com.google.common.base.Charsets;
+import com.google.common.base.Throwables;
+import com.google.common.io.Resources;
 
 public class Distributions
 {

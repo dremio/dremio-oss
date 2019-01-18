@@ -21,6 +21,7 @@ import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -80,6 +81,7 @@ import com.dremio.services.fabric.api.FabricService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -102,21 +104,19 @@ public class CatalogServiceImpl implements CatalogService {
   private static final long CATALOG_SYNC = TimeUnit.MINUTES.toMillis(3);
   private static final long CHANGE_COMMUNICATION_WAIT = TimeUnit.SECONDS.toMillis(5);
 
-  private static final Comparator<SourceConfig> SOURCE_CONFIG_COMPARATOR = new Comparator<SourceConfig>() {
-    @Override
-    public int compare(SourceConfig s1, SourceConfig s2) {
-      if (s2.getVersion() == null) {
-        if (s1.getVersion() == null) {
-         return 0;
-        }
-        return 1;
-      } else if (s1.getVersion() == null) {
-        return -1;
-      } else {
-        return Long.compare(s1.getVersion(), s2.getVersion());
+  private static final Comparator<SourceConfig> SOURCE_CONFIG_COMPARATOR = (s1, s2) -> {
+    if (s2.getConfigOrdinal() == null) {
+      if (s1.getConfigOrdinal() == null) {
+        return 0;
       }
+      return 1;
+    } else if (s1.getConfigOrdinal() == null) {
+      return -1;
+    } else {
+      return Long.compare(s1.getConfigOrdinal(), s2.getConfigOrdinal());
     }
   };
+
   public static final String CATALOG_SOURCE_DATA_NAMESPACE = "catalog-source-data";
 
   private final Provider<SabotContext> context;
@@ -353,7 +353,7 @@ public class CatalogServiceImpl implements CatalogService {
 
   // used only internally
   private boolean createSourceIfMissing(SourceConfig config, NamespaceAttribute... attributes) {
-    Preconditions.checkArgument(config.getVersion() == null);
+    Preconditions.checkArgument(config.getTag() == null);
     try {
       return createSourceIfMissingWithThrow(config);
     } catch (ConcurrentModificationException ex) {
@@ -365,7 +365,7 @@ public class CatalogServiceImpl implements CatalogService {
   }
 
   public boolean createSourceIfMissingWithThrow(SourceConfig config) throws ConcurrentModificationException {
-    Preconditions.checkArgument(config.getVersion() == null);
+    Preconditions.checkArgument(config.getTag() == null);
     if(!plugins.hasPlugin(config.getName())) {
         createOrUpdateSource(config, true, SystemUser.SYSTEM_USERNAME);
         return true;
@@ -374,12 +374,12 @@ public class CatalogServiceImpl implements CatalogService {
   }
 
   private void createSource(SourceConfig config, String userName, NamespaceAttribute... attributes) {
-    Preconditions.checkArgument(config.getVersion() == null);
+    Preconditions.checkArgument(config.getTag() == null);
     createOrUpdateSource(config, false, userName, attributes);
   }
 
   private void updateSource(SourceConfig config, String userName, NamespaceAttribute... attributes) {
-    Preconditions.checkArgument(config.getVersion() != null);
+    Preconditions.checkArgument(config.getTag() != null);
     createOrUpdateSource(config, false, userName, attributes);
   }
 
@@ -490,26 +490,27 @@ public class CatalogServiceImpl implements CatalogService {
 
         } else if (creationTime == targetCreationTime) {
           final SourceConfig currentConfig = plugin.getConfig();
+
+          compareConfigs(currentConfig, targetConfig);
+
           final int compareTo = SOURCE_CONFIG_COMPARATOR.compare(currentConfig, targetConfig);
 
           if (compareTo > 0) {
             // in-memory source config is newer than the target config, in terms of version
             throw new ConcurrentModificationException(String.format(
-                "Source [%s] was updated, and the given configuration has older version (current: %d, given: %d)",
-                currentConfig.getName(), currentConfig.getVersion(), targetConfig.getVersion()));
+              "Source [%s] was updated, and the given configuration has older version (current: %d, given: %d)",
+              currentConfig.getName(), currentConfig.getConfigOrdinal(), targetConfig.getConfigOrdinal()));
           }
 
           if (compareTo == 0) {
             // in-memory source config has a different version but the same value
             throw new IllegalStateException(String.format(
-                "Current and given configurations for source [%s] have same version (%d) but different values" +
-                    " [current source: %s, given source: %s]",
-                currentConfig.getName(), currentConfig.getVersion(),
-                plugins.getReader().toStringWithoutSecrets(currentConfig),
-                plugins.getReader().toStringWithoutSecrets(targetConfig)));
+              "Current and given configurations for source [%s] have same version (%d) but different values" +
+                " [current source: %s, given source: %s]",
+              currentConfig.getName(), currentConfig.getConfigOrdinal(),
+              plugins.getReader().toStringWithoutSecrets(currentConfig),
+              plugins.getReader().toStringWithoutSecrets(targetConfig)));
           }
-
-          // otherwise (compareTo < 0), target config is newer
         }
         // else (creationTime < targetCreationTime), the source config is new but plugins has an entry with the same
         // name, so replace the plugin regardless of the checks
@@ -580,8 +581,11 @@ public class CatalogServiceImpl implements CatalogService {
         config.setConfig(connectionConf.toBytesString());
 
         namespaceService.canSourceConfigBeSaved(config, existingConfig, attributes);
+
+        // if config can be saved we can set the oridinal
+        config.setConfigOrdinal(existingConfig.getConfigOrdinal());
       } catch (NamespaceNotFoundException ex) {
-        if (config.getVersion() != null) {
+        if (config.getTag() != null) {
           throw new ConcurrentModificationException("Source was already created.");
         }
       }
@@ -594,6 +598,7 @@ public class CatalogServiceImpl implements CatalogService {
       boolean newlyCreated = false;
       Closeable pluginLock = null;
       boolean refreshNames = false;
+      final Stopwatch stopwatchForPlugin = Stopwatch.createStarted();
 
       try {
 
@@ -644,7 +649,7 @@ public class CatalogServiceImpl implements CatalogService {
           if (!keepStaleMetadata) {
             logger.debug("Old metadata data may be bad; deleting all descendants of source [{}]", config.getName());
             // TODO: expensive call on non-master coordinators (sends as many RPC requests as entries under the source)
-            namespaceService.deleteSourceChildren(config.getKey(), config.getVersion());
+            namespaceService.deleteSourceChildren(config.getKey(), config.getTag());
           } else {
             logger.info("Old metadata data may be bad, but preserving descendants of source [{}] because '{}' is enabled",
                 config.getName(), CatalogOptions.STORAGE_PLUGIN_KEEP_METADATA_ON_REPLACE.getOptionName());
@@ -654,7 +659,6 @@ public class CatalogServiceImpl implements CatalogService {
         // Now let's create the plugin in the system namespace.
         // This increments the version in the config object as well.
         namespaceService.addOrUpdateSource(config.getKey(), config, attributes);
-
       } finally {
         if(pluginLock != null) {
           pluginLock.close();
@@ -679,8 +683,8 @@ public class CatalogServiceImpl implements CatalogService {
       // us to avoid two separate threads refreshing simultaneously (possible if we put this above
       // the inline plugin.refresh() call.)
       plugin.initiateMetadataRefresh();
-
-      logger.debug("Source added [{}].", config.getName());
+      stopwatchForPlugin.stop();
+      logger.debug("Source added [{}], took {} milliseconds", config.getName(), stopwatchForPlugin.elapsed(TimeUnit.MILLISECONDS));
 
     } catch (ConcurrentModificationException ex) {
       throw UserException.concurrentModificationError(ex).message("Failure creating/updating source [%s].", config.getName()).build(logger);
@@ -710,7 +714,7 @@ public class CatalogServiceImpl implements CatalogService {
                 break noExistDelete;
               }
 
-              namespaceService.deleteSource(config.getKey(), config.getVersion());
+              namespaceService.deleteSource(config.getKey(), config.getTag());
               sourceDataStore.delete(config.getKey());
             }
 
@@ -722,6 +726,8 @@ public class CatalogServiceImpl implements CatalogService {
         // make sure we're at the latest
         SourceConfig existing = plugin.getConfig();
         if(!existing.equals(config)) {
+          compareConfigs(existing, config);
+
           final int compareTo = SOURCE_CONFIG_COMPARATOR.compare(existing, config);
           if (compareTo == 0) {
             throw new IllegalStateException("Two different configurations shouldn't have the same version.");
@@ -761,7 +767,7 @@ public class CatalogServiceImpl implements CatalogService {
             // we delete the source from the plugin once we confirm that it matches what was requested for deletion.
             // we do this first to ensure the SourceMetadataManager process is killed for this source so that subsequent deletes are correct.
             plugins.deleteSource(config);
-            namespaceService.deleteSource(config.getKey(), config.getVersion());
+            namespaceService.deleteSource(config.getKey(), config.getTag());
             sourceDataStore.delete(config.getKey());
           }
 
@@ -773,6 +779,18 @@ public class CatalogServiceImpl implements CatalogService {
 
     } catch (Exception ex) {
       throw UserException.validationError(ex).message("Failure deleting source [%s].", config.getName()).build(logger);
+    }
+  }
+
+  private void compareConfigs(SourceConfig existing, SourceConfig config) {
+    if (Objects.equals(existing.getTag(), config.getTag())) {
+      // in-memory source config has a different value but the same etag
+      throw new IllegalStateException(String.format(
+        "Current and given configurations for source [%s] have same etag (%s) but different values" +
+          " [current source: %s, given source: %s]",
+        existing.getName(), existing.getTag(),
+        plugins.getReader().toStringWithoutSecrets(existing),
+        plugins.getReader().toStringWithoutSecrets(config)));
     }
   }
 

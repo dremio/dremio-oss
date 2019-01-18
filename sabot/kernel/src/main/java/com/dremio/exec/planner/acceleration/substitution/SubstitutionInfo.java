@@ -18,7 +18,7 @@ package com.dremio.exec.planner.acceleration.substitution;
 import java.util.List;
 import java.util.Objects;
 
-import com.dremio.exec.planner.sql.MaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;

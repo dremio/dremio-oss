@@ -16,11 +16,7 @@
 package com.dremio.exec.ops;
 
 import java.util.Optional;
-import java.util.function.BiConsumer;
 
-import com.dremio.sabot.op.common.hashtable.HashTableStats;
-import com.dremio.sabot.op.filter.FilterStats;
-import com.dremio.sabot.op.project.ProjectorStats;
 import org.apache.commons.lang3.ArrayUtils;
 
 import com.dremio.exec.proto.UserBitShared;
@@ -30,7 +26,9 @@ import com.dremio.exec.proto.UserBitShared.MetricsDef;
 import com.dremio.exec.store.parquet.ParquetRecordWriter;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
+import com.dremio.sabot.op.filter.FilterStats;
 import com.dremio.sabot.op.join.vhash.HashJoinStats;
+import com.dremio.sabot.op.project.ProjectorStats;
 import com.dremio.sabot.op.receiver.merging.MergingReceiverOperator;
 import com.dremio.sabot.op.receiver.unordered.UnorderedReceiverOperator;
 import com.dremio.sabot.op.scan.ScanOperator;

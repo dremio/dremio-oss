@@ -40,7 +40,7 @@ describe('SelectConnectionButton', () => {
 
   it('should render label and icon', () => {
     expect(wrapper.text()).to.contain(commonProps.label);
-    expect(wrapper.find('Art').props().src).to.equal(`${commonProps.iconType}.svg`);
+    expect(wrapper.find('SourceIcon').props().src).to.equal(`${commonProps.iconType}.svg`);
   });
 
   it('should render pillText if set', () => {

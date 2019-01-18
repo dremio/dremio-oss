@@ -17,13 +17,14 @@ package com.dremio.exec.planner.logical;
 
 import java.util.List;
 
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
+
 import com.dremio.common.logical.data.LogicalOperator;
 import com.dremio.common.logical.data.Writer;
 import com.dremio.exec.planner.common.WriterRelBase;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
 
 public class WriterRel extends WriterRelBase implements Rel {
 

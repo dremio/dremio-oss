@@ -25,8 +25,6 @@ import java.util.List;
 
 import javax.inject.Named;
 
-import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
-import com.dremio.sabot.op.common.hashtable.HashTableStats;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.FixedWidthVector;
@@ -51,9 +49,11 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
 import com.dremio.sabot.op.common.hashtable.ChainedHashTable;
 import com.dremio.sabot.op.common.hashtable.HashTable;
 import com.dremio.sabot.op.common.hashtable.HashTableConfig;
+import com.dremio.sabot.op.common.hashtable.HashTableStats;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
@@ -349,6 +349,12 @@ public abstract class HashAggTemplate implements HashAggregator {
 
     return recordCount;
   }
+
+  @Override
+  public long numHashTableEntries() {
+    return htable.size();
+  }
+
 
   // Code-generated methods (implemented in HashAggBatch)
   public abstract void doSetup(@Named("context") FunctionContext context, @Named("incoming") VectorAccessible incoming);

@@ -119,6 +119,13 @@ public abstract class ClusterCoordinator implements Service {
    */
   public abstract ServiceSet getServiceSet(Role role);
 
+  /**
+   * Get or create a {@link ServiceSet} for the given service name
+   * @param serviceName
+   * @return
+   */
+  public abstract ServiceSet getOrCreateServiceSet(String serviceName);
+
   public abstract DistributedSemaphore getSemaphore(String name, int maximumLeases);
 
   /**

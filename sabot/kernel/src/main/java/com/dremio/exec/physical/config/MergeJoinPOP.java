@@ -58,7 +58,6 @@ public class MergeJoinPOP extends AbstractBase{
     this.conditions = conditions;
     Preconditions.checkArgument(joinType != null, "Join type is missing!");
     this.joinType = joinType;
-    Preconditions.checkArgument(joinType != JoinRelType.FULL, "Full outer join not currently supported");
   }
 
   @Override

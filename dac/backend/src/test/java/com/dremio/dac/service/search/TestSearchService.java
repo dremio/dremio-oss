@@ -54,7 +54,8 @@ public class TestSearchService extends BaseTestServer {
   @AfterClass
   public static void after() throws Exception {
     NamespaceService namespaceService = newNamespaceService();
-    namespaceService.deleteSpace(new NamespaceKey("searchSpace"), 0L);
+    NamespaceKey namespaceKey = new NamespaceKey("searchSpace");
+    namespaceService.deleteSpace(namespaceKey, namespaceService.getSpace(namespaceKey).getTag());
   }
 
   @Test

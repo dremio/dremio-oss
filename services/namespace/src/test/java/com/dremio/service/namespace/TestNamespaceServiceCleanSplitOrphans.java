@@ -216,7 +216,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
         .setName(path.get(path.size() - 1))
         .setFullPathList(path)
         .setType(type)
-        .setVersion(oldDataset.map(DatasetConfig::getVersion).orElse(null))
+        .setTag(oldDataset.map(DatasetConfig::getTag).orElse(null))
         .setOwner("dremio"));
 
     final NameSpaceContainer container = new NameSpaceContainer()
@@ -233,7 +233,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
         .mapToObj(i ->
           new DatasetSplit()
           .setRowCount((long) i)
-          .setVersion(0L)
+          .setTag("0")
           .setSize((long) i)
           .setAffinitiesList(Arrays.asList(new Affinity().setHost("node" + i)))
           .setPartitionValuesList(Lists.newArrayList(new PartitionValue().setColumn("column" + i).setIntValue(i).setType(PartitionValueType.IMPLICIT)))
@@ -247,7 +247,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
     final NamespaceKey key = new NamespaceKey(path);
     try {
       DatasetConfig oldDataset = namespaceService.getDataset(key);
-      namespaceService.deleteDataset(key, oldDataset.getVersion());
+      namespaceService.deleteDataset(key, oldDataset.getTag());
     } catch (NamespaceNotFoundException e) {
       // Ignore
     }

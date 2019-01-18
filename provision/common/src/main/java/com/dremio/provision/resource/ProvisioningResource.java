@@ -212,7 +212,7 @@ public class ProvisioningResource {
       response.setError(cluster.getError());
     }
     response.setId(cluster.getId().getId());
-    response.setVersion(cluster.getClusterConfig().getVersion());
+    response.setTag(cluster.getClusterConfig().getTag());
     response.setClusterType(cluster.getClusterConfig().getClusterType());
     response.setName(cluster.getClusterConfig().getName());
     response.setDynamicConfig(new DynamicConfig()
@@ -246,7 +246,7 @@ public class ProvisioningResource {
     ClusterConfig clusterConfig = new ClusterConfig();
     clusterConfig.setName(Optional.fromNullable(clusterModifyRequest.getName()).orNull());
     clusterConfig.setClusterType(clusterModifyRequest.getClusterType());
-    clusterConfig.setVersion(clusterModifyRequest.getVersion());
+    clusterConfig.setTag(clusterModifyRequest.getTag());
     clusterConfig.setSubPropertyList(clusterModifyRequest.getSubPropertyList());
     ClusterSpec clusterSpec = new ClusterSpec();
 

@@ -38,7 +38,7 @@ public interface DremioTable extends TranslatableTable {
    * Provide the version of the dataset, if available. Otherwise, return -1.
    * @return
    */
-  long getVersion();
+  String getVersion();
 
   /**
    * The BatchSchema for the dataset. For the exception of old dot file views, this returns correct

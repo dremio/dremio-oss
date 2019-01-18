@@ -81,6 +81,7 @@ public final class DACDaemon implements AutoCloseable {
   private final boolean isMaster;
   private final boolean isCoordinator;
   private final boolean isExecutor;
+  private final boolean isMasterless;
 
   private final CountDownLatch closed = new CountDownLatch(1);
 
@@ -100,7 +101,8 @@ public final class DACDaemon implements AutoCloseable {
         .withSabotValue(ExecConstants.INITIAL_USER_PORT, incomingConfig.getString(DremioConfig.CLIENT_PORT_INT))
         .withSabotValue(ExecConstants.SPILL_DIRS, incomingConfig.getList(DremioConfig.SPILLING_PATH_STRING))
         .withSabotValue(ExecConstants.REGISTRATION_ADDRESS, incomingConfig.getString(DremioConfig.REGISTRATION_ADDRESS))
-        .withSabotValue(ExecConstants.ZK_SESSION_TIMEOUT, incomingConfig.getString(DremioConfig.ZK_CLIENT_SESSION_TIMEOUT));
+        .withSabotValue(ExecConstants.ZK_SESSION_TIMEOUT, incomingConfig.getString(DremioConfig.ZK_CLIENT_SESSION_TIMEOUT))
+        .withSabotValue(ExecConstants.MASTERLESS_MODE, incomingConfig.getBoolean(DremioConfig.ENABLE_MASTERLESS_BOOL));
 
     // This should be the first thing to do.
     setupHadoopUserUsingKerberosKeytab(config);
@@ -109,7 +111,9 @@ public final class DACDaemon implements AutoCloseable {
     setupDefaultHttpsSSLSocketFactory();
 
     this.dacConfig = new DACConfig(config);
-    this.isMaster = dacConfig.isMaster;
+    this.isMasterless = config.getBoolean(DremioConfig.ENABLE_MASTERLESS_BOOL);
+    // master and masterless are mutually exclusive
+    this.isMaster = (dacConfig.isMaster && !isMasterless);
     this.isCoordinator = config.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL);
     this.isExecutor = config.getBoolean(DremioConfig.ENABLE_EXECUTOR_BOOL);
     this.thisNode = dacConfig.thisNode;
@@ -126,20 +130,22 @@ public final class DACDaemon implements AutoCloseable {
     }
 
     StringBuilder sb = new StringBuilder();
-    if (isMaster) {
-      sb.append("This node is the master node, ");
-      sb.append(dacConfig.thisNode);
-      sb.append(". ");
-    } else {
-      sb.append("This node is not master, waiting on master to register in ZooKeeper");
-      sb.append(". ");
+    if (!isMasterless) {
+      if (isMaster) {
+        sb.append("This node is the master node, ");
+        sb.append(dacConfig.thisNode);
+        sb.append(". ");
+      } else {
+        sb.append("This node is not master, waiting on master to register in ZooKeeper");
+        sb.append(". ");
+      }
     }
 
-    if (isMaster) {
-      final String writePath = config.getString(DremioConfig.LOCAL_WRITE_PATH_STRING);
-      logger.info("Dremio daemon write path: " + config.getString(DremioConfig.LOCAL_WRITE_PATH_STRING));
-      PathUtils.checkWritePath(writePath);
-    }
+    // we should not check it only on master - either check everywhere
+    // or nowhere
+    final String writePath = config.getString(DremioConfig.LOCAL_WRITE_PATH_STRING);
+    logger.info("Dremio daemon write path: " + config.getString(DremioConfig.LOCAL_WRITE_PATH_STRING));
+    PathUtils.checkWritePath(writePath);
 
     sb.append("This node acts as ");
     if (isCoordinator && isExecutor) {
@@ -156,7 +162,7 @@ public final class DACDaemon implements AutoCloseable {
     logger.info(sb.toString());
 
     this.bootstrapRegistry = new SingletonRegistry();
-    if (isMaster) {
+    if (isMaster || isMasterless) {
       registry = new SingletonRegistry();
     } else {
       // retry if service start fails due to master is unavailable.
@@ -181,7 +187,15 @@ public final class DACDaemon implements AutoCloseable {
     try (TimedBlock b = Timer.time("init")) {
       startPreServices();
       startServices();
-      System.out.println("Dremio Daemon Started as " + (isMaster ?  "master" : "worker"));
+      final String text;
+      if (isMaster) {
+        text = "master";
+      } else if (isCoordinator) {
+        text = "coordinator";
+      } else {
+        text = "worker";
+      }
+      System.out.println("Dremio Daemon Started as " + text);
       if(webServer != null){
         System.out.println(String.format("Webserver available at: %s://%s:%d",
             dacConfig.webSSLEnabled() ? "https" : "http", thisNode, webServer.getPort()));

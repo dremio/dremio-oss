@@ -70,6 +70,7 @@ import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.logical.AggregateRule;
 import com.dremio.exec.planner.logical.Conditions;
 import com.dremio.exec.planner.logical.DremioRelFactories;
+import com.dremio.exec.planner.logical.ExpansionDrule;
 import com.dremio.exec.planner.logical.FilterFlattenTransposeRule;
 import com.dremio.exec.planner.logical.FilterJoinRulesUtil;
 import com.dremio.exec.planner.logical.FilterMergeCrule;
@@ -250,10 +251,11 @@ public enum PlannerPhase {
       .add(MergeProjectRule.LOGICAL_INSTANCE);
 
       if (context.getPlannerSettings().isExperimentalBushyJoinOptimizerEnabled()) {
-        return RuleSets.ofList(builder.add(MULTI_JOIN_OPTIMIZE_BUSHY_RULE).build());
+        builder.add(MULTI_JOIN_OPTIMIZE_BUSHY_RULE);
       } else {
-        return RuleSets.ofList(builder.add(LOPT_OPTIMIZE_JOIN_RULE).build());
+        builder.add(LOPT_OPTIMIZE_JOIN_RULE);
       }
+      return RuleSets.ofList(builder.add(JoinRule.FROM_DREL).build());
     }
   },
 
@@ -269,6 +271,7 @@ public enum PlannerPhase {
     public RuleSet getRules(OptimizerRulesContext context) {
 
       List<RelOptRule> moreRules = new ArrayList<>();
+
       if(context.getPlannerSettings().isTransitiveJoinEnabled()) {
         moreRules.add(new JoinPushTransitivePredicatesRule(JoinRel.class, DremioRelFactories.LOGICAL_BUILDER));
       }
@@ -335,19 +338,26 @@ public enum PlannerPhase {
    * Singleton rule that reduces constants inside a {@link LogicalFilter}.
    */
   public static final ReduceExpressionsRule FILTER_REDUCE_EXPRESSIONS_CALCITE_RULE =
-    new FilterReduceExpressionsRule(LogicalFilter.class, true, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+    new FilterReduceExpressionsRule(LogicalFilter.class,
+        ReduceExpressionsRule.DEFAULT_FILTER_OPTIONS.treatDynamicCallsAsNonConstant(false),
+        DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   /**
    * Singleton rule that reduces constants inside a {@link LogicalProject}.
    */
   public static final ReduceExpressionsRule PROJECT_REDUCE_EXPRESSIONS_CALCITE_RULE =
-    new ProjectReduceExpressionsRule(LogicalProject.class, true, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+    new ProjectReduceExpressionsRule(
+        LogicalProject.class,
+        ReduceExpressionsRule.DEFAULT_OPTIONS.treatDynamicCallsAsNonConstant(false),
+        DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   /**
    * Singleton rule that reduces constants inside a {@link LogicalCalc}.
    */
   public static final ReduceExpressionsRule CALC_REDUCE_EXPRESSIONS_CALCITE_RULE =
-    new CalcReduceExpressionsRule(LogicalCalc.class, true, DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+    new CalcReduceExpressionsRule(LogicalCalc.class,
+        ReduceExpressionsRule.DEFAULT_OPTIONS.treatDynamicCallsAsNonConstant(false),
+        DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   /**
    * Planner rule that combines two {@link Filter}s.
@@ -512,6 +522,10 @@ public enum PlannerPhase {
   // These logical rules don't require any context, so singleton instances can be used.
   static final RuleSet LOGICAL_RULE_SET = RuleSets.ofList(ImmutableSet.<RelOptRule>builder()
     .add(
+
+      // remove expansion nodes when converting to logical.
+      ExpansionDrule.INSTANCE,
+
       /*
        * Aggregate optimization rules
        */

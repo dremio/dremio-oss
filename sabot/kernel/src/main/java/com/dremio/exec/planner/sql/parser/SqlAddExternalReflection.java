@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.sql.parser;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.calcite.sql.SqlCall;
@@ -23,15 +22,12 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 
 public class SqlAddExternalReflection extends SqlSystemCall {
 

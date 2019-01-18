@@ -24,11 +24,11 @@ import { newUntitledSql, newUntitledSqlAndRun } from 'actions/explore/dataset/ne
 import { runTableTransform } from 'actions/explore/dataset/transform';
 import { runDataset, transformAndRunDataset } from 'actions/explore/dataset/run';
 import { expandExploreSql } from 'actions/explore/ui';
+import { loadTableData } from '@app/sagas/performLoadDataset';
 
 import apiUtils from 'utils/apiUtils/apiUtils';
 
 import { loadDataset } from './performLoadDataset';
-import { waitForRunToComplete } from './runDataset';
 
 import {
   performWatchedTransform, TransformCanceledError, TransformCanceledByLocationChangeError
@@ -166,11 +166,8 @@ export function* doRun(dataset, sql, queryContext, transformData, viewId) {
     );
   }
   if (response && !response.error) {
-    const fullDataset = apiUtils.getEntityFromResponse('fullDataset', response);
-    const datasetUI = apiUtils.getEntityFromResponse('datasetUI', response);
-    yield call(
-      waitForRunToComplete, datasetUI, fullDataset.get('paginationUrl'), fullDataset.getIn(['jobId', 'id'])
-    );
+    const newDatasetVersion = response.payload.get('result');
+    yield call(loadTableData, newDatasetVersion, true); // true means we should force data reload
   }
   return response;
 }

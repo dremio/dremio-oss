@@ -20,7 +20,6 @@ import static com.dremio.exec.store.easy.arrow.ArrowFormatPlugin.MAGIC_STRING;
 import java.io.IOException;
 import java.util.List;
 
-import com.dremio.sabot.exec.context.OperatorStats;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
@@ -42,6 +41,7 @@ import com.dremio.exec.store.easy.arrow.ArrowFileFormat.ArrowFileFooter;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat.ArrowFileMetadata;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat.ArrowRecordBatchSummary;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 

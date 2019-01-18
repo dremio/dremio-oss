@@ -15,11 +15,13 @@
  */
 import exploreUtils from 'utils/explore/exploreUtils';
 
-import fullDatasetSchema from 'schemas/v2/fullDataset';
+import { datasetWithoutData } from 'schemas/v2/fullDataset';
 
-import { resumeRunDataset } from './run';
 import { loadExploreEntities } from './get';
 
+// this action creator is used only in performLoadDataset saga. We do not expect data in initial response
+// the data should be load as separate call using 'loadNextRows' action. See code of performLoadDataset saga
+// for details
 export const loadExistingDataset = (dataset, viewId, tipVersion) =>
   (dispatch) => {
     const jobId = dataset.get('jobId');
@@ -30,12 +32,7 @@ export const loadExistingDataset = (dataset, viewId, tipVersion) =>
       loadExploreEntities({
         href,
         viewId,
-        schema: fullDatasetSchema
+        schema: datasetWithoutData
       })
-    ).then((action) => {
-      if (!action.error && jobId) {
-        dispatch(resumeRunDataset(action.payload.get('result')));
-      }
-      return action;
-    });
+    );
   };

@@ -59,11 +59,10 @@ import com.google.common.primitives.UnsignedBytes;
  *
  * Note that we use lock striping to minimize contention. Most operations are
  * shared operations (read, write). These have a shared read locks that is used
- * per stripe. However, there are some multiple operation items, notably
- * checkAndPut and checkAndDelete. These do multiple operations and need to
- * ensure a consistent viewpoint of data. As such, we grab an exclusive lock for
- * the desired key range for the life of the set of operations. We use the
- * AutoCloseableLock pattern with try-with-resources to ensure that we avoid any
+ * per stripe. However, there are some multiple operation items.  These do multiple
+ * operations and need to ensure a consistent viewpoint of data. As such, we grab an
+ * exclusive lock for the desired key range for the life of the set of operations. We
+ * use the AutoCloseableLock pattern with try-with-resources to ensure that we avoid any
  * lock leaking.
  *
  * Since the RocksDB interface is native, we need to manage native memory
@@ -413,7 +412,7 @@ class RocksDBStore implements ByteStore {
   }
 
   @Override
-  public boolean checkAndPut(byte[] key, byte[] expectedOldValue, byte[] newValue) {
+  public boolean validateAndPut(byte[] key, byte[] newValue, ByteValidator validator) {
     if (newValue == null) {
       throw new NullPointerException("null values are not allowed in kvstore");
     }
@@ -421,10 +420,27 @@ class RocksDBStore implements ByteStore {
     try (AutoCloseableLock ac = exclusiveLock(key)) {
       throwIfClosed();
       byte[] oldValue = db.get(handle, key);
-      if (!Arrays.equals(oldValue, expectedOldValue)) {
+
+      if (!validator.validate(oldValue)) {
         return false;
       }
+
       db.put(handle, key, newValue);
+      return true;
+    } catch (RocksDBException e) {
+      throw wrap(e);
+    }
+  }
+
+  @Override
+  public boolean validateAndDelete(byte[] key, ByteValidator validator) {
+    try (AutoCloseableLock ac = exclusiveLock(key)) {
+      throwIfClosed();
+      byte[] oldValue = db.get(handle, key);
+      if (!validator.validate(oldValue)) {
+        return false;
+      }
+      db.delete(handle, key);
       return true;
     } catch (RocksDBException e) {
       throw wrap(e);
@@ -452,21 +468,6 @@ class RocksDBStore implements ByteStore {
   }
 
   @Override
-  public boolean checkAndDelete(byte[] key, byte[] expectedOldValue) {
-    try (AutoCloseableLock ac = exclusiveLock(key)) {
-      throwIfClosed();
-      byte[] oldValue = db.get(handle, key);
-      if (!Arrays.equals(oldValue, expectedOldValue)) {
-        return false;
-      }
-      db.delete(handle, key);
-      return true;
-    } catch (RocksDBException e) {
-      throw wrap(e);
-    }
-  }
-
-  @Override
   public Iterable<Entry<byte[], byte[]>> find(com.dremio.datastore.KVStore.FindByRange<byte[]> find) {
     cleanReferences();
     return new RockIterable(find);
@@ -479,7 +480,7 @@ class RocksDBStore implements ByteStore {
   }
 
   @Override
-  public void delete(byte[] key, long previousVersion) {
+  public void delete(byte[] key, String previousVersion) {
     throw new UnsupportedOperationException("You must use a versioned store to delete by version.");
   }
 

@@ -26,7 +26,6 @@ import org.apache.arrow.vector.complex.AbstractStructVector;
 import org.apache.arrow.vector.complex.FieldIdUtil2;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
-import org.apache.commons.lang3.ArrayUtils;
 
 import com.dremio.common.expression.SchemaPath;
 import com.google.common.base.Preconditions;

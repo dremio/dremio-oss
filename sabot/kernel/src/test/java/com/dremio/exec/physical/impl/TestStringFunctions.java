@@ -17,7 +17,6 @@ package com.dremio.exec.physical.impl;
 
 import org.junit.Test;
 
-import com.dremio.common.util.DremioStringUtils;
 import com.dremio.sabot.BaseTestFunction;
 
 public class TestStringFunctions extends BaseTestFunction {
@@ -58,7 +57,20 @@ public class TestStringFunctions extends BaseTestFunction {
       {"like('abc', 'abc')", true},
       {"like('abc', 'a%')", true},
       {"like('abc', '_b_')", true},
-      {"like('abc', 'c')", false}
+      {"like('abc', 'c')", false},
+
+      //See issue DX-12628 (dot must be treated as a literal in LIKE)
+      {"like('abcde', 'abc.')", false},
+      {"like('abc.e', 'abc.')", false},
+      {"like('abcd', 'abc.')", false},
+      {"like('abc.', 'abc.')", true},
+      {"like('abc', 'abc.')", false},
+
+      {"like('abcde', 'abc.%')", false},
+      {"like('abc.e', 'abc.%')", true},
+      {"like('abcd', 'abc.%')", false},
+      {"like('abc.', 'abc.%')", true},
+      {"like('abc', 'abc.%')", false}
     });
   }
 

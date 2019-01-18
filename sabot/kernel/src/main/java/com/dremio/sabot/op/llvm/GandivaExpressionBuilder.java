@@ -19,31 +19,30 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.gandiva.expression.Condition;
+import org.apache.arrow.gandiva.expression.ExpressionTree;
+import org.apache.arrow.gandiva.expression.TreeBuilder;
+import org.apache.arrow.gandiva.expression.TreeNode;
+import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.types.pojo.Field;
+
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.TypedNullConstant;
-import com.dremio.exec.record.VectorAccessible;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import org.apache.arrow.gandiva.expression.Condition;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.FieldVector;
-import org.apache.arrow.gandiva.expression.TreeBuilder;
-import org.apache.arrow.gandiva.expression.TreeNode;
-import org.apache.arrow.gandiva.expression.ExpressionTree;
-
 import com.dremio.common.expression.ValueExpressions.BooleanExpression;
 import com.dremio.common.expression.ValueExpressions.DoubleExpression;
 import com.dremio.common.expression.ValueExpressions.FloatExpression;
 import com.dremio.common.expression.ValueExpressions.IntExpression;
 import com.dremio.common.expression.ValueExpressions.LongExpression;
 import com.dremio.common.expression.ValueExpressions.QuotedString;
-import com.dremio.common.expression.fn.FunctionHolder;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.exec.expr.ValueVectorReadExpression;
+import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
+import com.dremio.exec.expr.fn.GandivaFunctionHolder;
+import com.dremio.exec.record.VectorAccessible;
 import com.google.common.base.Preconditions;
 
 /**
@@ -95,17 +94,16 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
 
   @Override
   public TreeNode visitFunctionHolderExpression(FunctionHolderExpression holder, Void value) throws RuntimeException {
-    FunctionHolder definition = holder.getHolder();
-    Preconditions.checkState(definition instanceof BaseFunctionHolder);
+    AbstractFunctionHolder definition = (AbstractFunctionHolder)holder.getHolder();
+    Preconditions.checkState(definition instanceof BaseFunctionHolder || definition instanceof
+      GandivaFunctionHolder);
 
     List<TreeNode> children = holder.args
       .stream()
       .map(this::acceptExpression)
       .collect(Collectors.toList());
 
-    BaseFunctionHolder baseHolder = (BaseFunctionHolder) holder.getHolder();
-
-    return TreeBuilder.makeFunction(holder.getName(), children, baseHolder.getReturnType(null).getType());
+    return TreeBuilder.makeFunction(holder.getName(), children, definition.getReturnType(holder.args).getType());
   }
 
   @Override

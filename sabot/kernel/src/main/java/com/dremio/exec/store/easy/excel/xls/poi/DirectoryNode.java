@@ -15,17 +15,17 @@
  */
 package com.dremio.exec.store.easy.excel.xls.poi;
 
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.poi.poifs.filesystem.Entry;
+
 import com.dremio.exec.store.easy.excel.xls.BlockStore;
 import com.dremio.exec.store.easy.excel.xls.properties.DirectoryProperty;
 import com.dremio.exec.store.easy.excel.xls.properties.DocumentProperty;
 import com.dremio.exec.store.easy.excel.xls.properties.Property;
 import com.google.common.collect.Maps;
-
-import org.apache.poi.poifs.filesystem.Entry;
-
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Simplified implementation of {@link org.apache.poi.poifs.filesystem.DirectoryNode}

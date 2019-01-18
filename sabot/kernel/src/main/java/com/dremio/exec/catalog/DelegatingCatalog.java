@@ -135,12 +135,12 @@ public class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public boolean createView(NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException {
-    return delegate.createView(key, view, attributes);
+  public void createView(NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException {
+    delegate.createView(key, view, attributes);
   }
 
   @Override
-  public void updateView(NamespaceKey key, View view, NamespaceAttribute... attributes) {
+  public void updateView(NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException {
     delegate.updateView(key, view, attributes);
   }
 

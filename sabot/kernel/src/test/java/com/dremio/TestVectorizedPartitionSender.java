@@ -17,15 +17,15 @@ package com.dremio;
 
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.common.util.TestTools;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.physical.PlannerSettings;
-
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
+
+import com.dremio.common.util.TestTools;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestVectorizedPartitionSender extends BaseTestQuery {
 

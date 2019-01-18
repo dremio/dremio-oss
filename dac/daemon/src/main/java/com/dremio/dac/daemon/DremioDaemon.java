@@ -62,33 +62,26 @@ public class DremioDaemon {
     @Override
     protected void ensureUpgradeSupported(Version storeVersion) {
       // Check if store version is up to date, i.e store version is greater or equal to the greatest version
-      // of all upgrade tasks. If not, and if autoupgrade is not enabled, fail.
+      // of all upgrade tasks. If not, and if auto upgrade is not enabled, fail.
       if (!getDACConfig().isAutoUpgrade()) {
-        getTasksGreatestMaxVersion().ifPresent(maxVersion -> {
           Preconditions.checkState(
-              UPGRADE_VERSION_ORDERING.compare(storeVersion, maxVersion) >= 0,
+              UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) >= 0,
               "KVStore has an older version (%s) than the server (%s), please run the upgrade tool first",
               storeVersion.getVersion(), VERSION.getVersion());
-        });
       }
 
-      // Check if store version is smaller or equal to the code version. If not, and if not allowed by config,
-      // fail.
-      if (!getDACConfig().allowNewerKVStore) {
+      // Check if store version is smaller or equal to the code version.
+      // If not, and if not allowed by config, fail.
+      // Needed to be able to run multiple versions of Dremio on single version of KVStore
+      if (getDACConfig().allowNewerKVStore) {
+        logger.warn(String.format(
+          "This Dremio version %s is older then KVStore version %s", VERSION.getVersion(), storeVersion.getVersion()));
+      } else {
         Preconditions.checkState(
-            UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) <= 0,
-            "KVStore has a newer version (%s) than running Dremio server (%s)",
-            storeVersion.getVersion(), VERSION.getVersion());
+          UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) <= 0,
+          "KVStore has a newer version (%s) than running Dremio server (%s)",
+          storeVersion.getVersion(), VERSION.getVersion());
       }
-
-      // Check if store version is greater or equal to the smallest version of all upgrade tasks.
-      // If not, fail
-      getTasksSmallestMinVersion().ifPresent(minVersion -> {
-        Preconditions.checkState(
-            UPGRADE_VERSION_ORDERING.compare(storeVersion, minVersion) >= 0,
-            "Cannot run upgrade tool on versions below %s",
-            minVersion.getVersion());
-      });
     }
   }
 

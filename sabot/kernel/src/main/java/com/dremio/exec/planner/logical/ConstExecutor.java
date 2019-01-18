@@ -47,14 +47,17 @@ import org.apache.arrow.vector.holders.TimeStampMilliHolder;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 import org.apache.arrow.vector.util.DateUtility;
+import org.apache.calcite.DataContext;
+import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.avatica.util.TimeUnit;
+import org.apache.calcite.linq4j.QueryProvider;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexExecutor;
 import org.apache.calcite.rex.RexExecutorImpl;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.schema.Schemas;
+import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -74,6 +77,7 @@ import com.dremio.exec.expr.fn.impl.StringFunctionHelpers;
 import com.dremio.exec.expr.fn.interpreter.InterpreterEvaluator;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
+import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.collect.ImmutableList;
 
@@ -115,7 +119,7 @@ public class ConstExecutor implements RexExecutor {
     this.funcImplReg = funcImplReg;
     this.udfUtilities = udfUtilities;
     this.plannerSettings = plannerSettings;
-    this.calciteExecutor = new RexExecutorImpl(Schemas.createDataContext(null, null));
+    this.calciteExecutor = new RexExecutorImpl(new DremioDataContext(udfUtilities.getContextInformation()));
   }
 
   @Override
@@ -375,6 +379,45 @@ public class ConstExecutor implements RexExecutor {
 
     return new TimestampString(localDateTime.format(DateTimes.CALCITE_LOCAL_DATETIME_FORMATTER));
   }
+
+  private static class DremioDataContext implements DataContext {
+
+    private final ContextInformation info;
+
+    public DremioDataContext(ContextInformation info) {
+      super();
+      this.info = info;
+    }
+
+    @Override
+    public SchemaPlus getRootSchema() {
+      return null;
+    }
+
+    @Override
+    public JavaTypeFactory getTypeFactory() {
+      return null;
+    }
+
+    @Override
+    public QueryProvider getQueryProvider() {
+      return null;
+    }
+
+    @Override
+    public Object get(String name) {
+
+      switch(name) {
+      case "user":
+        return info.getQueryUser();
+      case "utcTimestamp":
+      case "currentTimestamp":
+      case "localTimestamp":
+        return info.getQueryStartTime();
+      default:
+        return null;
+      }
+    }
+
+  }
 }
-
-

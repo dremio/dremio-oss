@@ -33,7 +33,7 @@ message SourceConfig {
   optional string img = 5;
   optional string description = 6;
   optional bytes config = 7; // encoded message specific to SourceType.
-  optional int64 version = 8;
+  optional int64 version = 8 [deprecated = true];
   optional TimePeriod accelerationTTL = 9 [deprecated = true];
   optional MetadataPolicy metadata_policy = 10;
   optional int64 last_refresh_date = 11 [deprecated = true]; // last refresh date moved to its own key/value store
@@ -41,10 +41,11 @@ message SourceConfig {
   optional int64 accelerationRefreshPeriod = 12;
   // materialization grace period
   optional int64 accelerationGracePeriod = 13;
+  optional string type = 14;
   optional bool accelerationNeverExpire = 15 [default = false];
   optional bool accelerationNeverRefresh = 16 [default = false];
-  
-  optional string type = 14;
+  optional string tag = 17;
+  optional int64 configOrdinal = 18;
 }
 
 // Version notes:
@@ -116,10 +117,11 @@ enum LegacySourceType {
 message SourceInternalData {
   // Source's name
   optional string name = 1;
-  // Version used for OCC
-  optional int64 version = 2;
+  optional int64 version = 2 [deprecated = true];
   // system time (in milliseconds) when this source finished a refresh of the metadata of each of its datasets
   optional int64 last_full_refresh_date_ms = 3;
   // system time (in milliseconds) when this source finished a refresh of the names of its datasets
   optional int64 last_name_refresh_date_ms = 4;
+  // Version used for OCC
+  optional string tag = 5;
 }

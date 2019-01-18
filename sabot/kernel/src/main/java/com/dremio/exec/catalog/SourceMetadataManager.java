@@ -393,7 +393,7 @@ class SourceMetadataManager implements AutoCloseable {
               logger.debug("Unavailable dataset '{}' will not be deleted", foundKey);
             } else {
               // TODO: handle exception
-              systemUserNamespaceService.deleteDataset(foundKey, config.getVersion());
+              systemUserNamespaceService.deleteDataset(foundKey, config.getTag());
               refreshResult = true;
             }
           } else {
@@ -448,7 +448,7 @@ class SourceMetadataManager implements AutoCloseable {
         }
         try {
           final FolderConfig folderConfig = systemUserNamespaceService.getFolder(folderKey);
-          systemUserNamespaceService.deleteFolder(folderKey, folderConfig.getVersion());
+          systemUserNamespaceService.deleteFolder(folderKey, folderConfig.getTag());
           refreshResult = true;
         } catch (NamespaceNotFoundException ex) {
           // no-op
@@ -521,7 +521,7 @@ class SourceMetadataManager implements AutoCloseable {
           }
 
           try {
-            systemUserNamespaceService.deleteDataset(key, config.getVersion());
+            systemUserNamespaceService.deleteDataset(key, config.getTag());
           } catch (NamespaceNotFoundException e) {
             // Ignore...
           }
@@ -555,7 +555,7 @@ class SourceMetadataManager implements AutoCloseable {
 
         // unable to find request table in the plugin, but somehow the entry exists in namespace, so delete it
         try {
-          systemUserNamespaceService.deleteDataset(key, config.getVersion());
+          systemUserNamespaceService.deleteDataset(key, config.getTag());
           return UpdateStatus.DELETED;
         } catch (NamespaceNotFoundException ignored) {
         } catch (Exception e) {

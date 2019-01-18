@@ -19,7 +19,6 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
-import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.Fixtures.DataRow;
 import com.dremio.sabot.Fixtures.HeaderRow;
 import com.dremio.sabot.Fixtures.Table;

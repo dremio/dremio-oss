@@ -29,6 +29,7 @@ import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.resolver.FunctionResolver;
 import com.dremio.options.OptionManager;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
 
 /**
@@ -53,30 +54,48 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
         classpathScan.getImplementations(PluggableFunctionRegistry.class);
 
     for (Class<? extends PluggableFunctionRegistry> clazz : registryClasses) {
-      for (Constructor<?> c : clazz.getConstructors()) {
-        Class<?>[] params = c.getParameterTypes();
-        if (params.length != 1 || params[0] != SabotConfig.class) {
-          logger.warn("Skipping PluggableFunctionRegistry constructor {} for class {} since it doesn't implement a " +
-              "[constructor(SabotConfig)]", c, clazz);
-          continue;
-        }
-
-        try {
-          PluggableFunctionRegistry registry = (PluggableFunctionRegistry)c.newInstance(config);
-          pluggableFuncRegistries.add(registry);
-        } catch(InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-          logger.warn("Unable to instantiate PluggableFunctionRegistry class '{}'. Skipping it.", clazz, e);
-        }
-
-        break;
+      // We want to add Gandiva after all the other repositories so as to not
+      // accidentally override a function from another repository.
+      // If a function is supported in Gandiva it can take precedence later using
+      // the preferred code generator.
+      if (clazz.getName().equals(GandivaFunctionRegistry.class.getName())) {
+        continue;
       }
+      instantiateAndAddRepo(config, clazz);
     }
+    // All others are added should be safe to add Gandiva now.
+    instantiateAndAddRepo(config, GandivaFunctionRegistry.class);
     logger.info("Function registry loaded.  {} functions loaded in {} ms.", functionRegistry.size(), w.elapsed(TimeUnit.MILLISECONDS));
+  }
+
+  private void instantiateAndAddRepo(SabotConfig config, Class<? extends PluggableFunctionRegistry> clazz) {
+    for (Constructor<?> c : clazz.getConstructors()) {
+      Class<?>[] params = c.getParameterTypes();
+      if (params.length != 1 || params[0] != SabotConfig.class) {
+        logger.warn("Skipping PluggableFunctionRegistry constructor {} for class {} since it doesn't implement a " +
+            "[constructor(SabotConfig)]", c, clazz);
+        continue;
+      }
+
+      try {
+        PluggableFunctionRegistry registry = (PluggableFunctionRegistry)c.newInstance(config);
+        pluggableFuncRegistries.add(registry);
+      } catch(InstantiationException | IllegalAccessException | IllegalArgumentException |
+          InvocationTargetException e) {
+        logger.warn("Unable to instantiate PluggableFunctionRegistry class '{}'. Skipping it.", clazz, e);
+      }
+
+      break;
+    }
   }
 
   public FunctionImplementationRegistry(SabotConfig config, ScanResult classpathScan, OptionManager optionManager) {
     this(config, classpathScan);
     this.optionManager = optionManager;
+  }
+
+  public ArrayListMultimap<String, BaseFunctionHolder> getRegisteredFunctions() {
+    return functionRegistry.getRegisteredFunctions();
   }
 
   /**

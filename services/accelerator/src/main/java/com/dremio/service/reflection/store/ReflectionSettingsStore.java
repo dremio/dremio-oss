@@ -26,7 +26,6 @@ import com.dremio.exec.catalog.CatalogSourceDataCreator;
 import com.dremio.service.accelerator.store.serializer.SchemaSerializer;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -41,7 +40,7 @@ public class ReflectionSettingsStore {
 
   public ReflectionSettingsStore(final Provider<KVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvstore provider required");
-    store  =Suppliers.memoize(new Supplier<KVStore<NamespaceKey, AccelerationSettings>>() {
+    store = Suppliers.memoize(new Supplier<KVStore<NamespaceKey, AccelerationSettings>>() {
       @Override
       public KVStore<NamespaceKey, AccelerationSettings> get() {
         return provider.get().getStore(StoreCreator.class);
@@ -68,15 +67,18 @@ public class ReflectionSettingsStore {
     }
 
     @Override
-    public Long incrementVersion(AccelerationSettings value) {
-      final Long current = value.getVersion();
-      value.setVersion(Optional.fromNullable(current).or(-1L) + 1);
-      return current;
+    public void setVersion(AccelerationSettings value, Long version) {
+      value.setVersion(version == null ? 0 : version);
     }
 
     @Override
-    public void setVersion(AccelerationSettings value, Long version) {
-      value.setVersion(version == null ? 0 : version);
+    public String getTag(AccelerationSettings value) {
+      return value.getTag();
+    }
+
+    @Override
+    public void setTag(AccelerationSettings value, String tag) {
+      value.setTag(tag);
     }
   }
 

@@ -16,17 +16,17 @@
 
 package com.dremio.sabot.op.join.hash;
 
+import java.util.BitSet;
+import java.util.List;
+
+import org.apache.calcite.rel.core.JoinRelType;
+
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.common.hashtable.HashTable;
 
 import io.netty.buffer.ArrowBuf;
-
-import java.util.BitSet;
-import java.util.List;
-
-import org.apache.calcite.rel.core.JoinRelType;
 
 public interface HashJoinProbe {
   public static TemplateClassDefinition<HashJoinProbe> TEMPLATE_DEFINITION = new TemplateClassDefinition<HashJoinProbe>(HashJoinProbe.class, HashJoinProbeTemplate.class);

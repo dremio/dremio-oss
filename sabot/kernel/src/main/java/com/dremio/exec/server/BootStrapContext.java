@@ -17,20 +17,20 @@ package com.dremio.exec.server;
 
 import java.util.concurrent.ExecutorService;
 
-import com.codahale.metrics.Gauge;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.memory.DremioRootAllocator;
-import com.dremio.exec.store.sys.MemoryIterator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.config.SabotConfig;
 import com.dremio.common.config.LogicalPlanPersistence;
+import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.memory.DremioRootAllocator;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.rpc.CloseableThreadPool;
+import com.dremio.exec.store.sys.MemoryIterator;
 import com.dremio.metrics.Metrics;
 
 public class BootStrapContext implements AutoCloseable {

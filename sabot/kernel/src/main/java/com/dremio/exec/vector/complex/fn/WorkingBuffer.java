@@ -15,14 +15,14 @@
  */
 package com.dremio.exec.vector.complex.fn;
 
-import io.netty.buffer.ArrowBuf;
-
 import java.io.IOException;
 
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
 import com.google.common.base.Charsets;
+
+import io.netty.buffer.ArrowBuf;
 
 public class WorkingBuffer {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WorkingBuffer.class);

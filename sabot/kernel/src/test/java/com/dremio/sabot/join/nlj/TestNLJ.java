@@ -21,6 +21,7 @@ import static com.dremio.sabot.Fixtures.tr;
 
 import java.util.Arrays;
 import java.util.Collections;
+
 import org.apache.calcite.rel.core.JoinRelType;
 import org.junit.Test;
 
@@ -31,8 +32,8 @@ import com.dremio.sabot.Fixtures.DataRow;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.op.join.nlj.NLJOperator;
 
-import io.airlift.tpch.TpchGenerator;
 import io.airlift.tpch.GenerationDefinition.TpchTable;
+import io.airlift.tpch.TpchGenerator;
 
 public class TestNLJ extends BaseTestOperator {
 

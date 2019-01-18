@@ -15,6 +15,8 @@
  */
 package com.dremio.datastore;
 
+import com.dremio.common.AutoCloseables;
+
 /**
  * Retrieves the version of an entity
  * (For Optimistic Concurrency Control)
@@ -23,22 +25,54 @@ package com.dremio.datastore;
 public interface VersionExtractor<T> {
 
   /**
+   * Retrieves the numeric version.
+   *
+   * This is deprecated, using set/get tag for string versioning.
+   *
    * @param value to extract the version from
    * @return the current version
    */
-  Long getVersion(T value);
+  @Deprecated
+  default Long getVersion(T value) {
+    return null;
+  }
 
   /**
-   * version++: increments the version of the value and returns the previous version
-   * @param value to extract the version from
-   * @return the previous version
-   */
-  Long incrementVersion(T value);
-
-  /**
-   * set version on value
+   * Sets the numeric version on value
+   *
+   * This is deprecated, using set/get tag for string versioning.
+   *
    * @param value to set version on
    * @param version version to set
    */
-  void setVersion(T value, Long version);
+  @Deprecated
+  default void setVersion(T value, Long version) { }
+
+  /**
+   * Called before committing the KV value to the store (and before incrementVersion is called).
+   *
+   * In the case of an remote KV store, this is called before the version retrieved from the master is set.
+   *
+   * @param value that is being committed
+   * @return a AutoClosable that is called if the commit fails
+   */
+  default AutoCloseable preCommit(T value) {
+    return AutoCloseables.noop();
+  }
+
+  /**
+   * Retrieves the tag
+   *
+   * @param value to extract the tag from
+   * @return the current tag
+   */
+  String getTag(T value);
+
+  /**
+   * Sets the tag on value
+   *
+   * @param value to set tag on
+   * @param tag tag to set
+   */
+  void setTag(T value, String tag);
 }

@@ -66,9 +66,9 @@ public class AckSender {
   private void dec(){
     if (0 == count.decrementAndGet()) {
       if(failed.get() == 0){
-        sender.send(ExecToExecConfig.OK);
+        sender.send(ExecProtocol.OK);
       } else {
-        sender.send(ExecToExecConfig.FAIL);
+        sender.send(ExecProtocol.FAIL);
       }
     }
   }

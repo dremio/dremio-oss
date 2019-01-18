@@ -19,7 +19,6 @@ import java.util.Map.Entry;
 
 import org.apache.calcite.schema.Schema.TableType;
 
-import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.service.listing.DatasetListingService;

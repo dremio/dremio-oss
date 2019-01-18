@@ -20,10 +20,10 @@
 package com.dremio.exec.planner;
 
 
-import com.google.common.collect.Lists;
-
 import java.util.Collection;
 import java.util.List;
+
+import com.google.common.collect.Lists;
 
 /**
  * Composite partition location corresponds to a directory in the file system.

@@ -39,6 +39,7 @@ import java.util.Map.Entry;
 import javax.annotation.Nullable;
 import javax.inject.Provider;
 
+
 import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.KVStoreProvider;
@@ -58,9 +59,9 @@ import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.proto.RefreshId;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.FluentIterable;
@@ -101,7 +102,9 @@ public class MaterializationStore {
     @Nullable
     @Override
     public Materialization apply(@Nullable Map.Entry<MaterializationId, Materialization> entry) {
-      return entry == null ? null : entry.getValue();
+      Materialization value = entry == null ? null : entry.getValue();
+      materializationGoalVersionUpdate(value);
+      return value;
     }
   };
 
@@ -220,7 +223,9 @@ public class MaterializationStore {
       return null;
     }
 
-    return entry.getValue();
+    Materialization value = entry.getValue();
+    materializationGoalVersionUpdate(value);
+    return value;
   }
 
   public FluentIterable<Refresh> getRefreshes(final Materialization materialization) {
@@ -289,7 +294,9 @@ public class MaterializationStore {
       return null;
     }
 
-    return entry.getValue();
+    Materialization value = entry.getValue();
+    materializationGoalVersionUpdate(value);
+    return value;
   }
 
   public Materialization getRunningMaterialization(final ReflectionId id) {
@@ -318,7 +325,9 @@ public class MaterializationStore {
       return null;
     }
 
-    return entry.getValue();
+    Materialization value = entry.getValue();
+    materializationGoalVersionUpdate(value);
+    return value;
   }
 
   /**
@@ -392,7 +401,9 @@ public class MaterializationStore {
   }
 
   public Materialization get(MaterializationId materializationId) {
-    return materializationStore.get().get(materializationId);
+    Materialization value = materializationStore.get().get(materializationId);
+    materializationGoalVersionUpdate(value);
+    return value;
   }
 
   public Iterable<Materialization> find(final ReflectionId id) {
@@ -400,6 +411,7 @@ public class MaterializationStore {
       and(notNull(), new Predicate<Materialization>() {
         @Override
         public boolean apply(Materialization m) {
+          materializationGoalVersionUpdate(m);
           return id.equals(m.getReflectionId());
         }
       }));
@@ -420,15 +432,18 @@ public class MaterializationStore {
     }
 
     @Override
-    public Long incrementVersion(Materialization value) {
-      final Long current = value.getVersion();
-      value.setVersion(Optional.fromNullable(current).or(-1L) + 1);
-      return current;
+    public void setVersion(Materialization value, Long version) {
+      value.setVersion(version);
     }
 
     @Override
-    public void setVersion(Materialization value, Long version) {
-      value.setVersion(version == null ? 0 : version);
+    public String getTag(Materialization value) {
+      return value.getTag();
+    }
+
+    @Override
+    public void setTag(Materialization value, String tag) {
+      value.setTag(tag);
     }
   }
 
@@ -481,6 +496,16 @@ public class MaterializationStore {
         .keySerializer(Serializers.RefreshIdSerializer.class)
         .valueSerializer(Serializers.RefreshSerializer.class)
         .buildIndexed(RefreshConverter.class);
+    }
+  }
+
+  public static void materializationGoalVersionUpdate(Materialization value) {
+    if(value == null) {
+      return;
+    }
+    if(Strings.isNullOrEmpty(value.getReflectionGoalVersion())) {
+      String version = value.getLegacyReflectionGoalVersion() == null ? null : Long.toString(value.getLegacyReflectionGoalVersion());
+      value.setReflectionGoalVersion(version);
     }
   }
 }

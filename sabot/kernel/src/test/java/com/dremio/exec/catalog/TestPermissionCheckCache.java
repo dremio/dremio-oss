@@ -29,7 +29,6 @@ import static org.mockito.Mockito.when;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.PermissionCheckCache;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.DirectProvider;

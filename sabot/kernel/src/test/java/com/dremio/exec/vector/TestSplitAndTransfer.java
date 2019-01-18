@@ -19,8 +19,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.util.TransferPair;
 import org.junit.Test;

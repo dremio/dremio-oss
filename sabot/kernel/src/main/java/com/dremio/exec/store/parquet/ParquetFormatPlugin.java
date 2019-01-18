@@ -189,7 +189,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
           .readInt96AsTimeStamp(context.getOptions().getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR))
           .dateCorruptionStatus(dateStatus)
           .build();
-      this.streamProvider = new InputStreamProvider(fs, status.getPath(), false);
+      this.streamProvider = new InputStreamProvider(fs, status.getPath(), true);
     }
 
     @Override

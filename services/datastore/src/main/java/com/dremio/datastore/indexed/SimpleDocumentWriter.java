@@ -26,6 +26,7 @@ import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.BytesRef;
 
 import com.dremio.datastore.KVStoreProvider.DocumentWriter;
@@ -82,8 +83,10 @@ public final class SimpleDocumentWriter implements DocumentWriter {
     Preconditions.checkArgument(key.getValueType() == String.class);
     final boolean sorted = key.isSorted();
     if (sorted) {
-      Preconditions.checkArgument(values.length < 2, "sorted fields cannot have multiple values");
+      checkIfSorted(key, values);
     }
+
+    checkIfMultiValueField(key, values);
 
     final String indexFieldName = key.getIndexFieldName();
     final Store stored = key.isStored() ? Store.YES : Store.NO;
@@ -101,12 +104,14 @@ public final class SimpleDocumentWriter implements DocumentWriter {
     }
   }
 
-  void addToDoc(IndexKey key, byte[]... values){
+  private void addToDoc(IndexKey key, byte[]... values){
     Preconditions.checkArgument(key.getValueType() == String.class);
     final boolean sorted = key.isSorted();
     if (sorted) {
-      Preconditions.checkArgument(values.length < 2, "sorted fields cannot have multiple values");
+      checkIfSorted(key, values);
     }
+
+    checkIfMultiValueField(key, values);
 
     final String indexFieldName = key.getIndexFieldName();
     final Store stored = key.isStored() ? Store.YES : Store.NO;
@@ -124,11 +129,13 @@ public final class SimpleDocumentWriter implements DocumentWriter {
     }
   }
 
-  void addToDoc(IndexKey key, Long value){
+  private void addToDoc(IndexKey key, Long value){
     Preconditions.checkArgument(key.getValueType() == Long.class);
     if(value == null){
       return;
     }
+
+    checkIfMultiValueField(key);
 
     final String indexFieldName = key.getIndexFieldName();
     doc.add(new LongPoint(indexFieldName, value));
@@ -147,6 +154,8 @@ public final class SimpleDocumentWriter implements DocumentWriter {
       return;
     }
 
+    checkIfMultiValueField(key);
+
     final String indexFieldName = key.getIndexFieldName();
     doc.add(new IntPoint(indexFieldName, value));
     if (key.isStored()) {
@@ -158,11 +167,13 @@ public final class SimpleDocumentWriter implements DocumentWriter {
     }
   }
 
-  void addToDoc(IndexKey key, Double value){
+  private void addToDoc(IndexKey key, Double value){
     Preconditions.checkArgument(key.getValueType() == Double.class);
     if(value == null){
       return;
     }
+
+    checkIfMultiValueField(key);
 
     final String indexFieldName = key.getIndexFieldName();
     doc.add(new DoublePoint(indexFieldName, value));
@@ -173,5 +184,29 @@ public final class SimpleDocumentWriter implements DocumentWriter {
       Preconditions.checkArgument(key.getSortedValueType() == SearchFieldSorting.FieldType.DOUBLE);
       doc.add(new DoubleDocValuesField(indexFieldName, value));
     }
+  }
+
+  private void checkIfMultiValueField(IndexKey key) {
+    final IndexableField field = doc.getField(key.getIndexFieldName());
+
+    // ensure that fields that can only contain a single value don't get multiple values
+    if (!key.canContainMultipleValues()) {
+      Preconditions.checkState(field == null,
+        "Cannot add multiple values to field [%s]", key.getIndexFieldName());
+    }
+  }
+
+  private void checkIfMultiValueField(IndexKey key, Object... values) {
+    final IndexableField field = doc.getField(key.getIndexFieldName());
+
+    // ensure that fields that can only contain a single value don't get multiple values
+    if (!key.canContainMultipleValues()) {
+      Preconditions.checkState(field == null && values.length == 1,
+        "Cannot add multiple values to field [%s]", key.getIndexFieldName());
+    }
+  }
+
+  private void checkIfSorted(IndexKey key, Object... values) {
+    Preconditions.checkArgument(values.length < 2, "sorted fields cannot have multiple values");
   }
 }

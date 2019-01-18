@@ -64,7 +64,7 @@ export default class Checkbox extends Component {
 
   renderDummyCheckbox(isChecked, style) {
     return <div className={classNames(dummy, isChecked && 'checked')} style={style}
-      data-qa={this.props.dataQa}>
+      data-qa={this.props.dataQa || 'dummyCheckbox'}>
       {isChecked ? '✔' : '\u00A0'}
     </div>;
   }

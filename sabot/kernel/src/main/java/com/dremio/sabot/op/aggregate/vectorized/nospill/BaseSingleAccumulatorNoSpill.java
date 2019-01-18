@@ -78,9 +78,7 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
     final long[] oldBitAddresses = this.bitAddresses;
     final long[] oldValueAddresses = this.valueAddresses;
 
-    final int newCapBatches = (int) Math.ceil( newCapacity / (LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH * 1.0d) );
-    final int doublingCapBatches = oldBatches * 2;
-    final int newBatches = Math.max(newCapBatches, doublingCapBatches);
+    final int newBatches = (int) Math.ceil( newCapacity / (LBlockHashTableNoSpill.MAX_VALUES_PER_BATCH * 1.0d) );
     initArrs(newBatches);
 
     System.arraycopy(oldAccumulators, 0, this.accumulators, 0, oldBatches);

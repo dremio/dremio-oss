@@ -45,6 +45,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.IOUtils;
+import org.apache.hadoop.security.AccessControlException;
 
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.utils.ProtostuffUtil;
@@ -331,6 +332,38 @@ public final class BackupRestoreUtil {
     localKVStoreProvider.close();
 
     return backupStats;
+  }
+
+  /**
+   * Checks that directory exists and write permission is granted.
+   * @param fs - file system
+   * @param directory - directory to check
+   * @throws IOException
+   */
+  public static void checkOrCreateDirectory(FileSystem fs, Path directory)
+    throws IOException {
+    // Checking if directory already exists and that the daemon can access it
+    if (!fs.exists(directory)) {
+      // Checking if parent already exists and has the right permissions
+      Path parent = directory.getParent();
+      if (!fs.exists(parent)) {
+        throw new IllegalArgumentException(format("Parent directory %s does not exist.", parent));
+      }
+      if (!fs.isDirectory(parent)) {
+        throw new IllegalArgumentException(format("Path %s is not a directory.", parent));
+      }
+      try {
+        fs.access(parent, FsAction.WRITE_EXECUTE);
+      } catch(AccessControlException e) {
+        throw new IllegalArgumentException(format("Cannot create directory %s: check parent directory permissions.", directory), e);
+      }
+      fs.mkdirs(directory);
+    }
+    try {
+      fs.access(directory, FsAction.ALL);
+    } catch(org.apache.hadoop.security.AccessControlException e) {
+      throw new IllegalArgumentException(format("Path %s is not accessible/writeable.", directory), e);
+    }
   }
 
 

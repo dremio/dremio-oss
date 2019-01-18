@@ -32,4 +32,29 @@ public interface CoreKVStore<K, V> extends KVStore<KVStoreTuple<K>, KVStoreTuple
    */
   KVStoreTuple<V> newValue();
 
+  /**
+   * Validate the currently stored value before updating the store
+   *
+   * @param key the key
+   * @param newValue the new value
+   * @param validator a ValueValidator that ensures that the current item stored in the store for the key is valid
+   * @return if the validation succeeded or not
+   */
+  boolean validateAndPut(KVStoreTuple<K> key, KVStoreTuple<V> newValue, ValueValidator<V> validator);
+
+  /**
+   * Validate the currently stored value before removing from the store
+   *
+   * @param key the key
+   * @param validator a ValueValidator that ensures that the current item stored in the store for the key is valid
+   * @return if the validation succeeded or not
+   */
+  boolean validateAndDelete(KVStoreTuple<K> key, ValueValidator<V> validator);
+
+  /**
+   * Value validator
+   */
+  interface ValueValidator<V> {
+    boolean validate(KVStoreTuple<V> oldValue);
+  }
 }

@@ -56,7 +56,7 @@ public class TestDatasetVersionResource extends BaseTestServer {
     // setup space
     NamespaceKey key = new NamespaceKey("dsvTest");
     SpaceConfig space = newNamespaceService().getSpace(key);
-    newNamespaceService().deleteSpace(key, space.getVersion());
+    newNamespaceService().deleteSpace(key, space.getTag());
   }
 
   @Test

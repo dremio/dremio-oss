@@ -17,13 +17,13 @@ package com.dremio.sabot.op.project;
 
 import java.util.List;
 
+import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
+import org.apache.arrow.vector.util.TransferPair;
+
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
-
-import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
-import org.apache.arrow.vector.util.TransferPair;
 
 public interface Projector {
 

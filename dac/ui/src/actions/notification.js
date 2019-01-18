@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 export const ADD_NOTIFICATION = 'ADD_NOTIFICATION';
+export const REMOVE_NOTIFICATION = 'REMOVE_NOTIFICATION';
 
 export function addNotification(message, level, autoDismiss = 0) {
   return {
@@ -21,5 +22,12 @@ export function addNotification(message, level, autoDismiss = 0) {
     message,
     level,
     autoDismiss
+  };
+}
+
+export function removeNotification(messageType) {
+  return {
+    type: REMOVE_NOTIFICATION,
+    messageType
   };
 }

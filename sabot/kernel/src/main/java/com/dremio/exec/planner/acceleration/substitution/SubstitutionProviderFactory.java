@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
+import com.dremio.common.config.SabotConfig;
 import com.dremio.options.OptionManager;
 
 /**
@@ -22,5 +23,5 @@ import com.dremio.options.OptionManager;
  *
  */
 public interface SubstitutionProviderFactory {
-  public SubstitutionProvider getSubstitutionProvider(MaterializationProvider materializationProvider, OptionManager options);
+  public SubstitutionProvider getSubstitutionProvider(SabotConfig config, MaterializationProvider materializationProvider, OptionManager options);
 }

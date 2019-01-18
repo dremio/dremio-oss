@@ -53,12 +53,12 @@ public class TableMetadataImpl implements TableMetadata {
   }
 
   @Override
-  public long getVersion() {
-    if(config.getVersion() == null) {
-      return -1;
+  public String getVersion() {
+    if(config.getTag() == null) {
+      return null;
     }
 
-    return config.getVersion();
+    return config.getTag();
   }
 
   @Override

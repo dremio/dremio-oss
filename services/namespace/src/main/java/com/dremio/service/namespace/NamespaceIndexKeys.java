@@ -15,7 +15,6 @@
  */
 package com.dremio.service.namespace;
 
-import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
 import com.dremio.datastore.indexed.IndexKey;
 
@@ -23,12 +22,26 @@ import com.dremio.datastore.indexed.IndexKey;
  * Index keys for the namespace service.
  */
 public interface NamespaceIndexKeys {
-  IndexKey SOURCE_ID = new IndexKey("id", "SOURCE_ID", String.class, SearchTypes.SearchFieldSorting.FieldType.STRING, false, false);
-  IndexKey SPACE_ID = new IndexKey("id", "SPACE_ID", String.class, SearchTypes.SearchFieldSorting.FieldType.STRING, false, false);
-  IndexKey HOME_ID = new IndexKey("id", "HOME_ID", String.class, SearchTypes.SearchFieldSorting.FieldType.STRING, false, false);
-  IndexKey FOLDER_ID = new IndexKey("id", "FOLDER_ID", String.class, SearchTypes.SearchFieldSorting.FieldType.STRING, false, false);
-  IndexKey ENTITY_TYPE = new IndexKey("enttyp", "ENTITY_TYPE", Integer.class, SearchTypes.SearchFieldSorting.FieldType.INTEGER, false, false);
+  IndexKey SOURCE_ID = IndexKey.newBuilder("id", "SOURCE_ID", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .build();
+  IndexKey SPACE_ID = IndexKey.newBuilder("id", "SPACE_ID", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .build();
+  IndexKey HOME_ID = IndexKey.newBuilder("id", "HOME_ID", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .build();
+  IndexKey FOLDER_ID = IndexKey.newBuilder("id", "FOLDER_ID", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .build();
+  IndexKey ENTITY_TYPE = IndexKey.newBuilder("enttyp", "ENTITY_TYPE", Integer.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.INTEGER)
+    .build();
   // lower case path without escaping.
-  IndexKey UNQUOTED_LC_PATH = new IndexKey("ulpth", "SEARCH_PATH_LC", String.class, SearchFieldSorting.FieldType.STRING, false, false);
-  IndexKey LAST_MODIFIED = new IndexKey("lastmodified", "LAST_MODIFIED", Long.class, SearchFieldSorting.FieldType.LONG, false, false);
+  IndexKey UNQUOTED_LC_PATH = IndexKey.newBuilder("ulpth", "SEARCH_PATH_LC", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .build();
+  IndexKey LAST_MODIFIED = IndexKey.newBuilder("lastmodified", "LAST_MODIFIED", Long.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.LONG)
+    .build();
 }

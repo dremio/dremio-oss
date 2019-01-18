@@ -339,7 +339,7 @@ function fetchRemoveDataset(dataset) {
         }
       ],
       method: 'DELETE',
-      endpoint: `${API_URL_V2}${href}?savedVersion=${dataset.getIn(['datasetConfig', 'savedVersion'])}`    }
+      endpoint: `${API_URL_V2}${href}?savedTag=${dataset.getIn(['datasetConfig', 'savedTag'])}`    }
   };
 }
 

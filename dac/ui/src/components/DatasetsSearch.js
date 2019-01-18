@@ -23,6 +23,7 @@ import ViewStateWrapper from 'components/ViewStateWrapper';
 import { injectIntl } from 'react-intl';
 import Art from 'components/Art';
 import { getIconDataTypeFromDatasetType } from 'utils/iconUtils';
+import { TagList } from '@app/pages/HomePage/components/TagList';
 
 import { bodySmall } from 'uiTheme/radium/typography';
 
@@ -30,6 +31,8 @@ import { bodySmall } from 'uiTheme/radium/typography';
 import { PALE_NAVY, PALE_ORANGE } from 'uiTheme/radium/colors';
 import DatasetItemLabel from './Dataset/DatasetItemLabel';
 import './DatasetsSearch.less';
+
+const emptyList = new Immutable.List();
 
 @injectIntl
 @Radium
@@ -78,6 +81,7 @@ export default class DatasetsSearch extends Component {
           {/* DX-11249 <div style={styles.parentDatasetsHolder} data-qa='ds-parent'>
             {this.getParentItems(value, inputValue)}
           </div> */}
+          <TagList tags={value.get('tags', emptyList)} style={{flex: 1, minWidth: 0}} />
           {this.getActionButtons(value)}
         </div>
       );

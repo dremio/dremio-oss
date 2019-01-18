@@ -178,7 +178,7 @@ public abstract class JoinPruleBase extends Prule {
                                  join.getJoinType());
 
     } else if (physicalJoinType == PhysicalJoinType.MERGE_JOIN) {
-      newJoin = new MergeJoinPrel(join.getCluster(), traitsLeft,
+      newJoin = new MergeJoinPrel(join.getCluster(), traitsLeft /* traits need to be consistent with row type */,
                                   convertedLeft, convertedRight, join.getCondition(),
                                   join.getJoinType());
     }

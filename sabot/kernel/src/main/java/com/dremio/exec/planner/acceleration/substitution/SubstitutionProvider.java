@@ -17,10 +17,11 @@ package com.dremio.exec.planner.acceleration.substitution;
 
 import java.util.List;
 
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.tools.RuleSet;
 
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
+import com.google.common.base.Preconditions;
 
 /**
  * An interface that suggests substitutions to {@link RelOptPlanner planner}.
@@ -50,19 +51,31 @@ public interface SubstitutionProvider {
     private final RelNode replacement;
     private final RelNode equivalent;
 
-    public Substitution(final RelNode replacement, final RelNode equivalent) {
+    private Substitution(final RelNode replacement) {
       this.replacement = replacement;
-      this.equivalent = equivalent;
+      this.equivalent = null;
+    }
+
+    public Substitution(final RelNode replacement, final RelNode equivalent) {
+      this.replacement = Preconditions.checkNotNull(replacement);
+      this.equivalent = Preconditions.checkNotNull(equivalent);
     }
 
     public RelNode getReplacement() {
       return replacement;
     }
 
-    public RelNode getEquivalent() {
-      return equivalent;
+    public boolean considerThisRootEquivalent() {
+      return equivalent == null;
     }
 
+    public RelNode getEquivalent() {
+      return Preconditions.checkNotNull(equivalent);
+    }
+
+    public static Substitution createRootEquivalent(final RelNode replacement) {
+      return new Substitution(replacement);
+    }
   }
 }
 

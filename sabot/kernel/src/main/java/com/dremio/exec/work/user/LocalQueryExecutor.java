@@ -38,10 +38,4 @@ public interface LocalQueryExecutor {
       boolean prepare,
       LocalExecutionConfig config);
 
-  /**
-   * Cancel a locally running query.
-   * @param externalId QueryId of the query to cancel.
-   */
-  void cancelLocalQuery(ExternalId externalId);
-
 }

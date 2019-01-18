@@ -33,7 +33,8 @@ const itemsForStateFilter = [ // todo: `la` loc not building correctly here
   {id: 'RUNNING', label: ('Running'), icon: 'Loader'},
   {id: 'COMPLETED', label: ('Completed'), icon: 'OKSolid'},
   {id: 'FAILED', label: ('Failed'), icon: 'ErrorSolid'},
-  {id: 'CANCELED', label: ('Canceled'), icon: 'Canceled' }
+  {id: 'CANCELED', label: ('Canceled'), icon: 'Canceled' },
+  {id: 'ENQUEUED', label: ('Enqueued'), icon: 'Ellipsis' }
 ];
 
 const itemsForQueryTypeFilter = [ // todo: `la` loc not building correctly here

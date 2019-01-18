@@ -145,7 +145,7 @@ public class DatasetsUtil {
     datasetConfig.setType(DatasetType.VIRTUAL_DATASET);
     datasetConfig.setCreatedAt(virtualDatasetUI.getCreatedAt());
     datasetConfig.setFullPathList(virtualDatasetUI.getFullPathList());
-    datasetConfig.setVersion(virtualDatasetUI.getSavedVersion());
+    datasetConfig.setTag(virtualDatasetUI.getSavedTag());
     datasetConfig.setVirtualDataset(virtualDataset);
     datasetConfig.setRecordSchema(virtualDatasetUI.getRecordSchema());
     if (virtualDatasetUI.getId() != null) {
@@ -185,7 +185,7 @@ public class DatasetsUtil {
     virtualDatasetUI.setName(datasetConfig.getName());
     virtualDatasetUI.setCreatedAt(datasetConfig.getCreatedAt());
     virtualDatasetUI.setFullPathList(datasetConfig.getFullPathList());
-    virtualDatasetUI.setSavedVersion(datasetConfig.getVersion());
+    virtualDatasetUI.setSavedTag(datasetConfig.getTag());
     if (datasetConfig.getId() != null) {
       virtualDatasetUI.setId(datasetConfig.getId().getId());
     }
@@ -219,7 +219,7 @@ public class DatasetsUtil {
     physicalDatasetConfig.setFullPathList(datasetConfig.getFullPathList());
     physicalDatasetConfig.setType(datasetConfig.getType());
     physicalDatasetConfig.setName(datasetConfig.getName());
-    physicalDatasetConfig.setVersion(datasetConfig.getVersion());
+    physicalDatasetConfig.setTag(datasetConfig.getTag());
     physicalDatasetConfig.setId(datasetConfig.getId().getId());
     return physicalDatasetConfig;
   }
@@ -231,7 +231,7 @@ public class DatasetsUtil {
     datasetConfig.setFullPathList(physicalDatasetConfig.getFullPathList());
     datasetConfig.setName(physicalDatasetConfig.getName());
     datasetConfig.setType(physicalDatasetConfig.getType());
-    datasetConfig.setVersion(physicalDatasetConfig.getVersion());
+    datasetConfig.setTag(physicalDatasetConfig.getTag());
     datasetConfig.setPhysicalDataset(new com.dremio.service.namespace.dataset.proto.PhysicalDataset().setFormatSettings(
       physicalDatasetConfig.getFormatSettings()));
     return datasetConfig;
@@ -244,7 +244,7 @@ public class DatasetsUtil {
     datasetConfig.setFullPathList(fileConfig.getFullPathList());
     datasetConfig.setName(fileConfig.getName());
     datasetConfig.setOwner(fileConfig.getOwner());
-    datasetConfig.setVersion(fileConfig.getVersion());
+    datasetConfig.setTag(fileConfig.getTag());
     datasetConfig.setType(datasetType);
     datasetConfig.setCreatedAt(fileConfig.getCtime());
     datasetConfig.setId(id);
@@ -257,7 +257,7 @@ public class DatasetsUtil {
     final FileConfig fileConfig = datasetConfig.getPhysicalDataset().getFormatSettings();
 
     fileConfig.setCtime(datasetConfig.getCreatedAt());
-    fileConfig.setVersion(datasetConfig.getVersion());
+    fileConfig.setTag(datasetConfig.getTag());
     fileConfig.setOwner(datasetConfig.getOwner());
     fileConfig.setFullPathList(datasetConfig.getFullPathList());
     fileConfig.setName(datasetConfig.getName());

@@ -28,11 +28,11 @@ import org.apache.calcite.sql.SqlNode;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.PlannerPhase;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
-import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
@@ -166,7 +166,7 @@ public class HandlerToPreparePlan implements CommandRunner<CreatePreparedStateme
     }
 
     @Override
-    public void planSubstituted(final DremioRelOptMaterialization materialization,
+    public void planSubstituted(final DremioMaterialization materialization,
                                 final List<RelNode> substitutions,
                                 final RelNode target, final long millisTaken) {
       calls.add(observer -> observer.planSubstituted(materialization, substitutions, target, millisTaken));

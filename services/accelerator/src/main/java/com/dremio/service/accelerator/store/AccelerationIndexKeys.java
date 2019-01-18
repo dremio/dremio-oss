@@ -24,17 +24,46 @@ import com.dremio.datastore.indexed.IndexKey;
  * Wrapper around acceleration index keys.
  */
 public final class AccelerationIndexKeys {
-    public static final IndexKey ACCELERATION_ID = new IndexKey("id", "ACCELERATION_ID", String.class, null, false, true);
-    public static final IndexKey ACCELERATION_STATE = new IndexKey("state", "ACCELERATION_STATE", String.class, SearchFieldSorting.FieldType.STRING, false, true);
-    public static final IndexKey LAYOUT_ID = new IndexKey("layout_id", "LAYOUT_ID", String.class, null, false, true);
-    public static final IndexKey LAYOUT_TYPE = new IndexKey("layout_type", "LAYOUT_TYPE", String.class, null, false, true);
-    public static final IndexKey DATASET_PATH = new IndexKey("dataset", "DATASET_PATH", String.class, SearchFieldSorting.FieldType.STRING, true, true);
-    public static final IndexKey PARENT_DATASET_PATH = new IndexKey("parent_dataset", "PARENT_DATASET", String.class, null, true, true);
-    public static final IndexKey JOB_ID = new IndexKey("job", "JOB_ID", String.class, null, false, true);
-    public static final IndexKey MATERIALIZATION_STATE = new IndexKey("mat_state", "MATERIALIZATION_STATE", String.class, null, false, true);
-    public static final IndexKey FOOTPRINT = new IndexKey("footprint", "FOOTPRINT", Long.class, SearchFieldSorting.FieldType.LONG, false, true);
-    public static final IndexKey TOTAL_REQUESTS = new IndexKey("requests", "NUM_REQUESTS", Long.class, SearchFieldSorting.FieldType.LONG, false, true);
-    public static final IndexKey HITS = new IndexKey("hits", "HITS", Long.class, SearchFieldSorting.FieldType.LONG, false, true);
+    public static final IndexKey ACCELERATION_ID = IndexKey.newBuilder("id", "ACCELERATION_ID", String.class)
+      .setStored(true).build();
+    public static final IndexKey ACCELERATION_STATE = IndexKey.newBuilder("state", "ACCELERATION_STATE", String.class)
+      .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+      .setStored(true)
+      .build();
+    public static final IndexKey LAYOUT_ID = IndexKey.newBuilder("layout_id", "LAYOUT_ID", String.class)
+      .setStored(true)
+      .setCanContainMultipleValues(true).build();
+    public static final IndexKey LAYOUT_TYPE = IndexKey.newBuilder("layout_type", "LAYOUT_TYPE", String.class)
+      .setStored(true)
+      .setCanContainMultipleValues(true)
+      .build();
+    public static final IndexKey DATASET_PATH = IndexKey.newBuilder("dataset", "DATASET_PATH", String.class)
+      .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+      .setIncludeInSearchAllFields(true)
+      .setStored(true)
+      .build();
+    public static final IndexKey PARENT_DATASET_PATH = IndexKey.newBuilder("parent_dataset", "PARENT_DATASET", String.class)
+      .setIncludeInSearchAllFields(true)
+      .setStored(true)
+      .setCanContainMultipleValues(true)
+      .build();
+    public static final IndexKey JOB_ID = IndexKey.newBuilder("job", "JOB_ID", String.class)
+      .setStored(true).build();
+    public static final IndexKey MATERIALIZATION_STATE = IndexKey.newBuilder("mat_state", "MATERIALIZATION_STATE", String.class)
+      .setStored(true)
+      .build();
+    public static final IndexKey FOOTPRINT = IndexKey.newBuilder("footprint", "FOOTPRINT", Long.class)
+      .setSortedValueType(SearchFieldSorting.FieldType.LONG)
+      .setStored(true)
+      .build();
+    public static final IndexKey TOTAL_REQUESTS = IndexKey.newBuilder("requests", "NUM_REQUESTS", Long.class)
+      .setSortedValueType(SearchFieldSorting.FieldType.LONG)
+      .setStored(true)
+      .build();
+    public static final IndexKey HITS = IndexKey.newBuilder("hits", "HITS", Long.class)
+      .setSortedValueType(SearchFieldSorting.FieldType.LONG)
+      .setStored(true)
+      .build();
 
     public static final FilterIndexMapping MAPPING = new FilterIndexMapping(ACCELERATION_ID, ACCELERATION_STATE, LAYOUT_ID,
         LAYOUT_TYPE, DATASET_PATH, PARENT_DATASET_PATH, JOB_ID, MATERIALIZATION_STATE, FOOTPRINT, TOTAL_REQUESTS, HITS);

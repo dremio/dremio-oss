@@ -28,27 +28,13 @@ public class HoldingContainerExpression implements LogicalExpression{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HoldingContainerExpression.class);
 
   final HoldingContainer container;
+  // was pushed in 3.0 have to retain this so that serde does not break.
   private final EvaluationType evaluationType;
 
   public HoldingContainerExpression(HoldingContainer container) {
     this.container = container;
     this.evaluationType = new EvaluationType();
-    addEvaluationType(EvaluationType.ExecutionType.JAVA);
-  }
-
-  @Override
-  public boolean isEvaluationTypeSupported(EvaluationType.ExecutionType executionType) {
-    return evaluationType.isEvaluationTypeSupported(executionType);
-  }
-
-  @Override
-  public void addEvaluationType(EvaluationType.ExecutionType executionType) {
-    evaluationType.addEvaluationType(executionType);
-  }
-
-  @Override
-  public EvaluationType getEvaluationType() {
-    return evaluationType;
+    evaluationType.addEvaluationType(EvaluationType.ExecutionType.JAVA);
   }
 
   @Override

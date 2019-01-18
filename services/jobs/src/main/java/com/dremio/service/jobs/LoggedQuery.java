@@ -27,15 +27,26 @@ public class LoggedQuery {
   private final Long start;
   private final Long finish;
   private final JobState outcome;
+  private final String outcomeReason;
   private final String username;
 
-  LoggedQuery(String queryId, String schema, String queryText, Long start, Long finish, JobState outcome, String username) {
+  LoggedQuery(
+      String queryId,
+      String schema,
+      String queryText,
+      Long start,
+      Long finish,
+      JobState outcome,
+      String outcomeReason,
+      String username
+  ) {
     this.queryId = queryId;
     this.schema = schema;
     this.queryText = queryText;
     this.start = start;
     this.finish = finish;
     this.outcome = outcome;
+    this.outcomeReason = outcomeReason;
     this.username = username;
   }
 
@@ -61,6 +72,10 @@ public class LoggedQuery {
 
   public JobState getOutcome() {
     return outcome;
+  }
+
+  public String getOutcomeReason() {
+    return outcomeReason;
   }
 
   public String getUsername() {

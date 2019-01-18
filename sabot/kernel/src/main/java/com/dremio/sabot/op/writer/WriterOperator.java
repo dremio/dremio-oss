@@ -24,6 +24,7 @@ import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
+
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;

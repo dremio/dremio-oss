@@ -84,7 +84,6 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -580,7 +579,7 @@ public class CatalogServiceHelper {
     return getDatasetFromConfig(namespaceService.getDataset(namespaceKey), null);
   }
 
-  private void updateDataset(Dataset dataset, NamespaceAttribute... attributes) throws NamespaceException {
+  private void updateDataset(Dataset dataset, NamespaceAttribute... attributes) throws NamespaceException, IOException {
     Preconditions.checkArgument(dataset.getId() != null, "Dataset Id is missing.");
 
     DatasetConfig currentDatasetConfig = namespaceService.findDatasetByUUID(dataset.getId());
@@ -591,7 +590,7 @@ public class CatalogServiceHelper {
     validateDataset(dataset);
 
     // use the version of the dataset to check for concurrency issues
-    currentDatasetConfig.setVersion(Long.valueOf(dataset.getTag()));
+    currentDatasetConfig.setTag(dataset.getTag());
 
     NamespaceKey namespaceKey = new NamespaceKey(dataset.getPath());
 
@@ -651,10 +650,10 @@ public class CatalogServiceHelper {
 
   private void deleteDataset(DatasetConfig config, String tag) throws NamespaceException, UnsupportedOperationException, IOException {
     // if no tag is passed in, use the latest version
-    long version = config.getVersion();
+    String version = config.getTag();
 
     if (tag != null) {
-      version = Long.parseLong(tag);
+      version = tag;
     }
 
     switch (config.getType()) {
@@ -686,18 +685,13 @@ public class CatalogServiceHelper {
     }
   }
 
-  public void deleteHomeDataset(DatasetConfig config, long version) throws IOException, NamespaceException {
+  public void deleteHomeDataset(DatasetConfig config, String version) throws IOException, NamespaceException {
     FileConfig formatSettings = config.getPhysicalDataset().getFormatSettings();
     homeFileTool.deleteFile(formatSettings.getLocation());
     namespaceService.deleteDataset(new NamespaceKey(config.getFullPathList()), version);
   }
 
-  public void removeFormatFromDataset(DatasetConfig config, long version) {
-    Iterable<ReflectionGoal> reflections = reflectionServiceHelper.getReflectionsForDataset(config.getId().getId());
-    for (ReflectionGoal reflection : reflections) {
-      reflectionServiceHelper.removeReflection(reflection.getId().getId());
-    }
-
+  public void removeFormatFromDataset(DatasetConfig config, String version) {
     PhysicalDatasetPath datasetPath = new PhysicalDatasetPath(config.getFullPathList());
 
     sourceService.deletePhysicalDataset(datasetPath.getSourceName(), datasetPath, version);
@@ -750,7 +744,7 @@ public class CatalogServiceHelper {
     namespaceService.addOrUpdateSpace(namespaceKey, getSpaceConfig(space), attributes);
   }
 
-  protected void deleteSpace(SpaceConfig spaceConfig, long version) throws NamespaceException {
+  protected void deleteSpace(SpaceConfig spaceConfig, String version) throws NamespaceException {
     namespaceService.deleteSpace(new NamespaceKey(spaceConfig.getName()), version);
   }
 
@@ -759,7 +753,7 @@ public class CatalogServiceHelper {
     return fromSourceConfig(sourceConfig, getChildrenForPath(new NamespaceKey(sourceConfig.getName())));
   }
 
-  public CatalogEntity updateCatalogItem(CatalogEntity entity, String id) throws NamespaceException, UnsupportedOperationException, ExecutionSetupException {
+  public CatalogEntity updateCatalogItem(CatalogEntity entity, String id) throws NamespaceException, UnsupportedOperationException, ExecutionSetupException, IOException {
     Preconditions.checkArgument(entity.getId().equals(id), "Ids must match.");
 
     if (entity instanceof Dataset) {
@@ -800,17 +794,17 @@ public class CatalogServiceHelper {
       SourceConfig config = (SourceConfig) object;
 
       if (tag != null) {
-        config.setVersion(Long.valueOf(tag));
+        config.setTag(tag);
       }
 
       sourceService.deleteSource(config);
     } else if (object instanceof SpaceConfig) {
       SpaceConfig config = (SpaceConfig) object;
 
-      long version = config.getVersion();
+      String version = config.getTag();
 
       if (tag != null) {
-        version = Long.parseLong(tag);
+        version = tag;
       }
       deleteSpace(config, version);
     } else if (object instanceof DatasetConfig) {
@@ -824,10 +818,10 @@ public class CatalogServiceHelper {
     } else if (object instanceof FolderConfig) {
       FolderConfig config = (FolderConfig) object;
 
-      long version = config.getVersion();
+      String version = config.getTag();
 
       if (tag != null) {
-        version = Long.parseLong(tag);
+        version = tag;
       }
 
       namespaceService.deleteFolder(new NamespaceKey(config.getFullPathList()), version);
@@ -962,7 +956,7 @@ public class CatalogServiceHelper {
         config.getFullPathList(),
         DatasetsUtil.getArrowFieldsFromDatasetConfig(config),
         config.getCreatedAt(),
-        String.valueOf(config.getVersion()),
+        config.getTag(),
         refreshSettings,
         sql,
         sqlContext,
@@ -991,7 +985,7 @@ public class CatalogServiceHelper {
         config.getFullPathList(),
         DatasetsUtil.getArrowFieldsFromDatasetConfig(config),
         config.getCreatedAt(),
-        String.valueOf(config.getVersion()),
+        String.valueOf(config.getTag()),
         refreshSettings,
         null,
         null,
@@ -1005,7 +999,7 @@ public class CatalogServiceHelper {
     return new Home(
       config.getId().getId(),
       HomeName.getUserHomePath(config.getOwner()).toString(),
-      String.valueOf(config.getVersion()),
+      String.valueOf(config.getTag()),
       children
     );
   }
@@ -1014,7 +1008,7 @@ public class CatalogServiceHelper {
     return new Space(
       config.getId().getId(),
       config.getName(),
-      String.valueOf(config.getVersion()),
+      String.valueOf(config.getTag()),
       config.getCtime(),
       children
     );
@@ -1025,7 +1019,7 @@ public class CatalogServiceHelper {
     config.setName(space.getName());
     config.setId(new EntityId(space.getId()));
     if (space.getTag() != null) {
-      config.setVersion(Long.valueOf(space.getTag()));
+      config.setTag(space.getTag());
     }
     config.setCtime(space.getCreatedAt());
 
@@ -1033,7 +1027,7 @@ public class CatalogServiceHelper {
   }
 
   protected Folder getFolderFromConfig(FolderConfig config, List<CatalogItem> children) {
-    return new Folder(config.getId().getId(), config.getFullPathList(), String.valueOf(config.getVersion()), children);
+    return new Folder(config.getId().getId(), config.getFullPathList(), String.valueOf(config.getTag()), children);
   }
 
   public static FolderConfig getFolderConfig(Folder folder) {
@@ -1042,7 +1036,7 @@ public class CatalogServiceHelper {
     config.setFullPathList(folder.getPath());
     config.setName(Iterables.getLast(folder.getPath()));
     if (folder.getTag() != null) {
-      config.setVersion(Long.valueOf(folder.getTag()));
+      config.setTag(folder.getTag());
     }
 
     return config;

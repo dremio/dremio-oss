@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
@@ -27,9 +29,6 @@ import com.dremio.exec.planner.common.WriterRelBase;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
 
 public class WriterPrel extends WriterRelBase implements Prel {
 

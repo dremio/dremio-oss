@@ -59,7 +59,7 @@ import { getIconDataTypeFromDatasetType } from 'utils/iconUtils';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
 import { formLabel } from 'uiTheme/radium/typography';
-import { getHistory, getTableColumns } from 'selectors/explore';
+import { getHistory, getTableColumns, getExploreState } from 'selectors/explore';
 
 import './ExploreInfoHeader.less';
 
@@ -493,11 +493,12 @@ export class ExploreInfoHeader extends PureComponent {
 }
 
 function mapStateToProps(state, ownProps) {
+  const explorePageState = getExploreState(state);
   return {
     location: state.routing.locationBeforeTransitions || {},
     history: getHistory(state, ownProps.dataset.get('tipVersion')),
-    currentSql: state.explore.view.get('currentSql'),
-    queryContext: state.explore.view.get('queryContext'),
+    currentSql: explorePageState.view.get('currentSql'),
+    queryContext: explorePageState.view.get('queryContext'),
     tableColumns: getTableColumns(state, ownProps.dataset.get('datasetVersion'))
   };
 }

@@ -16,9 +16,8 @@
 package com.dremio.exec.calcite.logical;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.CopyWithCluster;
 import org.apache.calcite.plan.CopyWithCluster.CopyToCluster;
@@ -37,9 +36,7 @@ import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.store.RelOptNamespaceTable;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
-import com.google.common.base.Function;
 import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
 
 public class ScanCrel extends ScanRelBase implements CopyToCluster, IncrementallyUpdateable {
 
@@ -110,18 +107,24 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
 
   @Override
   public TableScan projectInvisibleColumn(String name) {
-    Set<String> names = new HashSet<>();
-    names.addAll(FluentIterable.from(projectedColumns).transform(new Function<SchemaPath, String>(){
-
-      @Override
-      public String apply(SchemaPath input) {
-        return input.getRootSegment().getPath();
-      }}).toList());
-
-    if(names.contains(name)){
+    // Check if already included
+    if (getProjectedColumns().stream().map(path -> path.getRootSegment().getPath())
+        .anyMatch(java.util.function.Predicate.isEqual(name))) {
       // already included.
       return this;
     }
+
+    // Check if present in table schema
+    try {
+      if (getTableMetadata().getSchema().findField(name) == null) {
+        // safe-guarding. Method is supposed to throw if field is not found
+        return null;
+      }
+    } catch (IllegalArgumentException e) {
+      // field not found
+      return null;
+    }
+
     List<SchemaPath> columns = new ArrayList<>();
     columns.addAll(projectedColumns);
     columns.add(SchemaPath.getSimplePath(name));
@@ -130,13 +133,10 @@ public class ScanCrel extends ScanRelBase implements CopyToCluster, Incrementall
 
   @Override
   public ScanCrel filterColumns(final Predicate<String> predicate) {
-    List<SchemaPath> newProjection = FluentIterable.from(getProjectedColumns()).filter(new Predicate<SchemaPath>(){
-
-      @Override
-      public boolean apply(SchemaPath input) {
-        String path = input.getRootSegment().getNameSegment().getPath();
-        return predicate.apply(path);
-      }}).toList();
+    List<SchemaPath> newProjection = getProjectedColumns().stream().filter(input -> {
+      String path = input.getRootSegment().getNameSegment().getPath();
+      return predicate.apply(path);
+    }).collect(Collectors.toList());
 
     return new ScanCrel(getCluster(), getTraitSet(), getPluginId(), getTableMetadata(), newProjection, observedRowcountAdjustment, false);
   }

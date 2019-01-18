@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.function.Function;
 
 import com.dremio.service.job.proto.JobInfo;
+import com.dremio.service.job.proto.JobState;
 
 /**
  * Converts a job to a log entry
@@ -36,6 +37,7 @@ public class JobResultToLogEntryConverter implements Function<Job, LoggedQuery> 
       info.getStartTime(),
       info.getFinishTime(),
       job.getJobAttempt().getState(),
+      job.getJobAttempt().getState() == JobState.CANCELED ? info.getCancellationInfo().getMessage() : null,
       info.getUser()
     );
   }

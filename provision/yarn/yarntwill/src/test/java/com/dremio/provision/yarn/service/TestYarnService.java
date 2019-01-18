@@ -342,7 +342,7 @@ public class TestYarnService {
     @Test
   public void testMemoryLimit() throws Exception {
     Provider provider = Mockito.mock(Provider.class);
-    ProvisioningService service = new ProvisioningServiceImpl(provider, Mockito.mock(NodeProvider.class), null);
+    ProvisioningService service = new ProvisioningServiceImpl(DremioConfig.create(), provider, Mockito.mock(NodeProvider.class), null);
 
     ClusterConfig clusterConfig = new ClusterConfig();
     clusterConfig.setClusterSpec(new ClusterSpec(2, 4096, 2048, 2));
@@ -367,7 +367,7 @@ public class TestYarnService {
       registry.bind(KVStoreProvider.class, kvstore);
       kvstore.start();
       registry.start();
-      ProvisioningService service = new ProvisioningServiceImpl(registry.provider(KVStoreProvider.class), Mockito.mock(NodeProvider.class), DremioTest
+      ProvisioningService service = new ProvisioningServiceImpl(DremioConfig.create(), registry.provider(KVStoreProvider.class), Mockito.mock(NodeProvider.class), DremioTest
         .CLASSPATH_SCAN_RESULT);
       service.start();
       final ClusterConfig clusterConfig = new ClusterConfig();
@@ -405,6 +405,7 @@ public class TestYarnService {
       kvstore.start();
       registry.start();
       ProvisioningService service = Mockito.spy(new ProvisioningServiceImpl(
+          DremioConfig.create(),
           registry.provider(KVStoreProvider.class),
           Mockito.mock(NodeProvider.class),
           DremioTest.CLASSPATH_SCAN_RESULT));

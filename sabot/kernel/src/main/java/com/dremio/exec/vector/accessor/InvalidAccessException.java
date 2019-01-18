@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.vector.accessor;
 
-import java.sql.SQLException;
 import java.sql.SQLNonTransientException;
 
 // ?????? TODO clean this up:

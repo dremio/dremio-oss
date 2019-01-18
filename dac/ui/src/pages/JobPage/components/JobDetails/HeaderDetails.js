@@ -152,9 +152,10 @@ class HeaderDetails extends Component {
               {intl.formatMessage({id: 'Job.State.' + jobDetails.get('state')})}
             </span>
           </div>
-          {jobDetails.get('accelerated')
-            &&
+          {jobDetails.get('accelerated') &&
             <Art src={flame} alt={intl.formatMessage({id: flameAlt})} style={styles.flameIcon} title/>}
+          {jobDetails.get('spilled') &&
+            <Art src='DiskSpill.svg' alt={intl.formatMessage({id: 'Job.SpilledHover'})} style={styles.flameIcon} title/>}
         </div>
         <div style={[styles.rightPart]}>
           {this.getButton()}

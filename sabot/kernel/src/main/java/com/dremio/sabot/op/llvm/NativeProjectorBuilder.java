@@ -18,7 +18,6 @@ package com.dremio.sabot.op.llvm;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.dremio.sabot.exec.context.OperatorStats;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
@@ -26,6 +25,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.sabot.exec.context.OperatorStats;
 
 /**
  * Used to construct a native projector for a set of expressions.
@@ -53,7 +53,7 @@ public class NativeProjectorBuilder {
     exprs.add(pairing);
   }
 
-  public NativeProjectEvaluator build(Schema incomingSchema, OperatorStats stats) throws Exception {
+  public NativeProjectEvaluator build(Schema incomingSchema, OperatorStats stats) throws GandivaException {
     if(exprs.isEmpty()) {
       return NO_OP;
     }

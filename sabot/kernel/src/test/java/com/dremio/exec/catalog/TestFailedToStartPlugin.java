@@ -54,6 +54,7 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
@@ -101,6 +102,8 @@ public class TestFailedToStartPlugin {
       true
     );
     final NamespaceService mockNamespaceService = mock(NamespaceService.class);
+    final DatasetListingService mockDatasetListingService = mock(DatasetListingService.class);
+
     mockUpPlugin = new MockUpPlugin();
     MetadataPolicy rapidRefreshPolicy = new MetadataPolicy()
       .setAuthTtlMs(1L)
@@ -115,6 +118,11 @@ public class TestFailedToStartPlugin {
       .setCtime(100L)
       .setConnectionConf(new MockUpConfig());
 
+    when(mockDatasetListingService.getSources(any(String.class)))
+      .thenReturn(Arrays.asList(mockUpConfig));
+    when(mockDatasetListingService.getSource(any(String.class), any(String.class)))
+      .thenReturn(mockUpConfig);
+
     when(mockNamespaceService.getSources())
       .thenReturn(Arrays.asList(mockUpConfig));
     when(mockNamespaceService.getSource(any(NamespaceKey.class)))
@@ -127,6 +135,8 @@ public class TestFailedToStartPlugin {
     // used in c'tor
     when(sabotContext.getClasspathScan())
       .thenReturn(CLASSPATH_SCAN_RESULT);
+    when(sabotContext.getDatasetListing())
+      .thenReturn(mockDatasetListingService);
     when(sabotContext.getNamespaceService(anyString()))
       .thenReturn(mockNamespaceService);
 

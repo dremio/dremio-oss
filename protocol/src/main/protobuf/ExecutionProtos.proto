@@ -51,3 +51,7 @@ enum RequestType {
   RUN_SQL = 7;
   GET_SERVER_META = 8;
 }
+
+message HashAggSpill {
+  optional int64 memoryUse = 1;
+}

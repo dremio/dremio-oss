@@ -57,6 +57,7 @@ public class DremioConfig extends NestedConfig {
   public static final String EMBEDDED_MASTER_ZK_ENABLED_BOOL = "services.coordinator.master.embedded-zookeeper.enabled";
   public static final String EMBEDDED_MASTER_ZK_ENABLED_PORT_INT = "services.coordinator.master.embedded-zookeeper.port";
   public static final String EMBEDDED_MASTER_ZK_ENABLED_PATH_STRING = "services.coordinator.master.embedded-zookeeper.path";
+  public static final String ENABLE_MASTERLESS_BOOL = "services.masterless";
   public static final String WEB_ENABLED_BOOL = "services.coordinator.web.enabled";
   public static final String WEB_AUTH_TYPE = "services.coordinator.web.auth.type"; // Possible values are "internal", "ldap"
   public static final String WEB_AUTH_LDAP_CONFIG_FILE = "services.coordinator.web.auth.ldap_config";
@@ -131,6 +132,10 @@ public class DremioConfig extends NestedConfig {
 
   // web SSL configuration
   public static final String WEB_SSL_PREFIX = "services.coordinator.web.ssl.";
+
+  // datastore
+  public static final String DATASTORE_TYPE = "services.datastore.type";
+  public static final String DATASTORE_CONFIG = "services.datastore.config";
 
   private final Config unresolved;
   private final Config reference;

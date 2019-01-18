@@ -116,6 +116,10 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
       return (T) this;
     }
 
+    if(paramClass == DremioTable.class) {
+      return (T) table;
+    }
+
     if(paramClass == table.getClass()) {
       return (T) table;
     }

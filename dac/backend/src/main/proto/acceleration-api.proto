@@ -56,8 +56,7 @@ message AccelerationApiDescriptor {
   required LayoutContainerApiDescriptor aggregationLayouts = 6;
   // raw layouts
   required LayoutContainerApiDescriptor rawLayouts = 7;
-  // descriptor version for OCC
-  optional uint64 version = 8;
+  optional uint64 version = 8 [deprecated = true];
   // number of bytes used for the last materialization(0 if none exists)
   optional int32 footprint = 9;
   // total number of accelerated jobs i.e. jobs that hit to this acceleration
@@ -66,6 +65,7 @@ message AccelerationApiDescriptor {
   optional int32 totalRequests = 11;
   // additional error details if state is error
   repeated ApiErrorDetails error = 12;
+  optional string tag = 13;
 }
 
 message ApiErrorDetails {
@@ -155,9 +155,10 @@ message DatasetConfigApiDescriptor {
   // dataset path
   repeated string path = 1;
   required com.dremio.service.namespace.dataset.proto.DatasetType type = 2;
-  optional uint64 version = 3;
+  optional uint64 version = 3 [deprecated = true];
   optional uint64 createdAt = 4;
   optional VirtualDatasetApiDescriptor virtualDataset = 5;
+  optional string tag = 6;
 }
 
 // represents a logical aggregation suggested by user

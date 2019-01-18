@@ -20,6 +20,7 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import com.dremio.common.Version;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
@@ -34,15 +35,30 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Scan for datasets whose id may cause unsafe dataset split ids
  * as they are using reserved characters
  */
-public class UpdateDatasetSplitIdTask extends UpgradeTask {
+public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgradeTask {
+
+  //DO NOT MODIFY
+  static final String taskUUID = "d7cb2438-bc97-4c76-8a7a-ff5493e48e5e";
 
   public UpdateDatasetSplitIdTask() {
-    super("Fix dataset split ids with invalid id", VERSION_203, VERSION_300, NORMAL_ORDER);
+    super("Fix dataset split ids with invalid id",
+      ImmutableList.of(ReIndexAllStores.taskUUID, "ff9f6514-d7e6-44c7-b628-865cd3ce7368"));
+  }
+
+  @Override
+  public String getTaskUUID() {
+    return taskUUID;
+  }
+
+  @Override
+  public Version getMaxVersion() {
+    return VERSION_300;
   }
 
   @Override
@@ -130,5 +146,10 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask {
       final UpdateDatasetSplitIdTask task = new UpdateDatasetSplitIdTask();
       task.upgrade(context);
     }
+  }
+
+  @Override
+  public String toString() {
+    return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
   }
 }

@@ -34,18 +34,20 @@ public class UserResult {
   private final QueryState state;
   private final QueryProfile profile;
   private final UserException exception;
-  private final String reason;
+  private final String cancelReason;
+  private final boolean clientCancelled;
 
   private QueryResult result;
 
   public UserResult(Object extraValue, QueryId queryId, QueryState state, QueryProfile profile,
-                    UserException exception, String reason) {
+                    UserException exception, String cancelReason, boolean clientCancelled) {
     this.extraValue = extraValue;
     this.queryId = queryId;
     this.state = state;
     this.profile = profile;
     this.exception = exception;
-    this.reason = reason;
+    this.cancelReason = cancelReason;
+    this.clientCancelled = clientCancelled;
   }
 
   public QueryResult toQueryResult() {
@@ -58,6 +60,14 @@ public class UserResult {
         resultBuilder.addError(exception.getOrCreatePBError(true));
       }
 
+      if (state == QueryState.CANCELED && !clientCancelled) {
+        // from client POV, CANCELED becomes FAILED only if server caused the cancellation
+        resultBuilder.setQueryState(QueryState.FAILED);
+        resultBuilder.addError(UserException.resourceError()
+            .message(cancelReason)
+            .build(logger)
+            .getOrCreatePBError(true));
+      }
       result = resultBuilder.build();
     }
 
@@ -76,8 +86,8 @@ public class UserResult {
     return exception;
   }
 
-  public String getReason() {
-    return reason;
+  public String getCancelReason() {
+    return cancelReason;
   }
 
   @SuppressWarnings("unchecked")
@@ -94,7 +104,7 @@ public class UserResult {
   }
 
   public UserResult withNewQueryId(QueryId newQueryId) {
-    return new UserResult(extraValue, newQueryId, state, profile, exception, reason);
+    return new UserResult(extraValue, newQueryId, state, profile, exception, cancelReason, clientCancelled);
   }
 
   public UserResult withException(Exception ex) {
@@ -115,7 +125,7 @@ public class UserResult {
       profile = addError(exception, builder).build();
     }
 
-    return new UserResult(extraValue, queryId, QueryState.FAILED, profile, exception, reason);
+    return new UserResult(extraValue, queryId, QueryState.FAILED, profile, exception, cancelReason, clientCancelled);
   }
 
   public static QueryProfile.Builder addError(UserException ex, QueryProfile.Builder profileBuilder) {

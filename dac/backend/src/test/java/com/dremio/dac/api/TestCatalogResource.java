@@ -75,7 +75,7 @@ public class TestCatalogResource extends BaseTestServer {
     // setup space
     NamespaceKey key = new NamespaceKey("mySpace");
     SpaceConfig space = newNamespaceService().getSpace(key);
-    newNamespaceService().deleteSpace(key, space.getVersion());
+    newNamespaceService().deleteSpace(key, space.getTag());
   }
 
   @Test
@@ -164,7 +164,7 @@ public class TestCatalogResource extends BaseTestServer {
     space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
     assertEquals(space.getChildren().size(), 0);
 
-    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), Long.valueOf(space.getTag()));
+    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
   }
 
   @Test
@@ -238,7 +238,7 @@ public class TestCatalogResource extends BaseTestServer {
     folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(), new GenericType<Folder>() {});
     assertEquals(0, folder.getChildren().size());
 
-    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), Long.valueOf(space.getTag()));
+    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
   }
 
   @Test
@@ -265,7 +265,7 @@ public class TestCatalogResource extends BaseTestServer {
       assertEquals(dataset.getVirtualDataset().getSql(), "select " + i);
     }
 
-    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), Long.valueOf(space.getTag()));
+    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
   }
 
   private Thread createVDSInSpace(String name, String spaceName, String sql) {
@@ -321,7 +321,7 @@ public class TestCatalogResource extends BaseTestServer {
     // deleting a folder on a source should fail
     expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(com.dremio.common.utils.PathUtils.encodeURIComponent(id))).buildDelete());
 
-    newNamespaceService().deleteSource(new NamespaceKey(source.getName()), Long.valueOf(source.getTag()));
+    newNamespaceService().deleteSource(new NamespaceKey(source.getName()), source.getTag());
   }
 
   @Test
@@ -401,7 +401,7 @@ public class TestCatalogResource extends BaseTestServer {
     // dataset should no longer exist
     expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(dataset.getId())).buildGet());
 
-    newNamespaceService().deleteSource(new NamespaceKey(source.getName()), Long.valueOf(source.getTag()));
+    newNamespaceService().deleteSource(new NamespaceKey(source.getName()), source.getTag());
   }
 
   @Test
@@ -619,7 +619,7 @@ public class TestCatalogResource extends BaseTestServer {
     assertEquals(source.getTag(), "1");
     assertFalse(config.isAwesome);
 
-    newNamespaceService().deleteSource(new NamespaceKey(source.getName()), Long.valueOf(source.getTag()));
+    newNamespaceService().deleteSource(new NamespaceKey(source.getName()), source.getTag());
   }
 
   private Source createSource() {
@@ -705,7 +705,7 @@ public class TestCatalogResource extends BaseTestServer {
     // test getting a file with a url character in name (?)
     expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path("by-path").path(createdSource.getName()).path("testfiles").path("file_with_?.json")).buildGet(), new GenericType<File>() {});
 
-    newNamespaceService().deleteSource(new NamespaceKey(source.getName()), Long.valueOf(source.getTag()));
+    newNamespaceService().deleteSource(new NamespaceKey(source.getName()), source.getTag());
   }
 
   @Test

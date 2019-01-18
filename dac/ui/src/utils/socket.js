@@ -16,7 +16,7 @@
 import invariant from 'invariant';
 import { WEB_SOCKET_URL } from 'constants/Api';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
-import { addNotification } from 'actions/notification';
+import { addNotification, removeNotification } from 'actions/notification';
 import Immutable from 'immutable';
 
 const PING_INTERVAL = 15000;
@@ -30,6 +30,7 @@ export const WS_MESSAGE_JOB_PROGRESS_LISTEN = 'job-progress-listen';
 
 export const WS_CONNECTION_OPEN = 'WS_CONNECTION_OPEN';
 export const WS_CONNECTION_CLOSE = 'WS_CONNECTION_CLOSE';
+export const WS_CLOSED = 'WS_CLOSED';
 
 export class Socket {
   dispatch = null;
@@ -79,18 +80,23 @@ export class Socket {
   _handleConnectionError = (e) => {
     console.error('SOCKET CONNECTION ERROR', e);
     this._failureCount++;
-    if (this._failureCount === 6) this.dispatch(addNotification(Immutable.Map({code: 'WS_CLOSED'}), 'error'));
+    if (this._failureCount === 6) this.dispatch(addNotification(Immutable.Map({code: WS_CLOSED, messageType: WS_CLOSED}), 'error'));
   }
 
   _handleConnectionClose = () => {
     console.info('SOCKET CONNECTION CLOSE');
-    setTimeout(() => this.dispatch({type: WS_CONNECTION_CLOSE})); // defer because can't dispatch inside a reducer
+    setTimeout(() => { // defer because can't dispatch inside a reducer
+      this.dispatch({type: WS_CONNECTION_CLOSE});
+    });
   }
 
   _handleConnectionEstablished = () => {
     console.info('SOCKET CONNECTION OPEN');
     this._failureCount = 0;
-    setTimeout(() => this.dispatch({type: WS_CONNECTION_OPEN})); // defer because can't dispatch inside a reducer
+    setTimeout(() => { // defer because can't dispatch inside a reducer
+      this.dispatch({type: WS_CONNECTION_OPEN});
+      this.dispatch(removeNotification(WS_CLOSED));
+    });
 
     const keys = Object.keys(this._listenMessages);
     for (let i = 0; i < keys.length; i++) {

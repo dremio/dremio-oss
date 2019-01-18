@@ -20,9 +20,9 @@ import org.apache.arrow.vector.complex.writer.BaseWriter;
 
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
-import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
+import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.fn.OutputDerivation.Dummy;
 
 /**

@@ -17,11 +17,10 @@ package com.dremio.exec;
 
 import java.util.Iterator;
 
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.exec.record.HyperVectorWrapper;
-
-import org.apache.arrow.vector.ValueVector;
 
 public class HyperVectorValueIterator implements Iterator<Object> {
   private Field mf;

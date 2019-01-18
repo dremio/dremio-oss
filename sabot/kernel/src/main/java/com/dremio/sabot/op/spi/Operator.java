@@ -15,6 +15,8 @@
  */
 package com.dremio.sabot.op.spi;
 
+import com.dremio.sabot.exec.fragment.OutOfBandMessage;
+
 /**
  * The base unit of Execution. An operator is expected to consume one or more
  * streams of data input and output those. They are single threaded and designed
@@ -57,6 +59,13 @@ public interface Operator extends AutoCloseable {
 
   OperatorState<?> getState();
 
+  /**
+   * Do work on an out of band message. This can be called as long as the operator is not in NEEDS_SETUP or
+   * DONE state. The default implementation is operator ignoring messages.
+   *
+   * @param message The message to work on.
+   */
+  default void workOnOOB(OutOfBandMessage message) {}
 
   /**
    * A type of operator that can output data.

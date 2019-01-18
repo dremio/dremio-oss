@@ -90,6 +90,7 @@ enum WorkloadType {
   INTERNAL_RUN = 8;
   ACCELERATOR = 9;
   DDL = 10;
+  UI_DOWNLOAD = 11;
 }
 
 message DremioPBError{

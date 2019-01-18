@@ -38,6 +38,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.AccessControlList;
+import com.amazonaws.services.s3.model.AmazonS3Exception;
+import com.amazonaws.services.s3.model.Grant;
 import com.amazonaws.services.s3.model.Region;
 import com.dremio.plugins.s3.store.copy.S3ClientFactory.DefaultS3ClientFactory;
 import com.dremio.plugins.s3.store.copy.S3Constants;
@@ -60,6 +63,7 @@ public class S3FileSystem extends ContainerFileSystem {
   private static final URI S3_URI = URI.create("s3a://aws"); // authority doesn't matter here, it is just to avoid exceptions
 
   private AmazonS3 s3;
+  private String ownerId = null;
 
   // TODO: why static?
   private static final LoadingCache<S3ClientKey, AmazonS3> clientCache = CacheBuilder
@@ -95,6 +99,10 @@ public class S3FileSystem extends ContainerFileSystem {
   protected void setup(Configuration conf) throws IOException {
     try {
       s3 = clientCache.get(S3ClientKey.create(conf));
+
+      if (!S3StoragePlugin.NONE_PROVIDER.equals(conf.get(S3Constants.AWS_CREDENTIALS_PROVIDER))) {
+        ownerId = s3.getS3AccountOwner().getId();
+      }
     } catch (ExecutionException e) {
       if(e.getCause() != null && e.getCause() instanceof IOException) {
         throw (IOException) e.getCause();
@@ -118,13 +126,57 @@ public class S3FileSystem extends ContainerFileSystem {
             .transform(input -> input.trim())
             .filter(input -> !Strings.isNullOrEmpty(input));
 
-    if ((getConf().get(S3Constants.AWS_CREDENTIALS_PROVIDER) == ACCESS_KEY_PROVIDER)
-      || (getConf().get(S3Constants.AWS_CREDENTIALS_PROVIDER) == EC2_METADATA_PROVIDER)){
+    if (ACCESS_KEY_PROVIDER.equals(getConf().get(S3Constants.AWS_CREDENTIALS_PROVIDER))
+        || EC2_METADATA_PROVIDER.equals(getConf().get(S3Constants.AWS_CREDENTIALS_PROVIDER))) {
       // if we have authentication to access S3, add in owner buckets.
       buckets = buckets.append(FluentIterable.from(s3.listBuckets()).transform(input -> input.getName()));
     }
 
     return FluentIterable.from(buckets.toSet()).transform(input -> new BucketCreator(getConf(), input));
+  }
+
+  /**
+   * Checks if the account may have write permission to the given bucket.
+   *
+   * @param bucketName bucket name
+   * @return false (implies no write permission) or true (implies maybe)
+   */
+  boolean mayHaveWritePermission(String bucketName) {
+    assert containerExists(bucketName);
+    if (ownerId == null) {
+      return true; // cannot get ACL for anonymous users
+    }
+
+    final AccessControlList acl;
+    try {
+      acl = s3.getBucketAcl(bucketName);
+    } catch (AmazonS3Exception e) {
+      if ("AccessDenied".equals(e.getErrorCode())) {
+        return false;
+      }
+
+      return true; // getting ACL itself failed
+    }
+
+    // using deprecated method (getGrants) to build with mapr
+    boolean checked = false;
+    for (Grant grant : acl.getGrants()) {
+      if (ownerId.equals(grant.getGrantee().getIdentifier())) {
+        checked = true;
+        switch (grant.getPermission()) {
+        case FullControl:
+        case Write:
+        case WriteAcp:
+          return true;
+
+        default:
+          // there could be multiple grants for same grantee (unclear API)
+          break;
+        }
+      }
+    }
+
+    return !checked;
   }
 
   @Override

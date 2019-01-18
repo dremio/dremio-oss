@@ -23,10 +23,10 @@ import static javax.xml.stream.XMLStreamConstants.START_ELEMENT;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.HashSet;
 
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;

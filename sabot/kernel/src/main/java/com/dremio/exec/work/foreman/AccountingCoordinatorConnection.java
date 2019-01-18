@@ -15,10 +15,10 @@
  */
 package com.dremio.exec.work.foreman;
 
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.sabot.threads.SendingMonitor;
 
 /**

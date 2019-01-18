@@ -15,31 +15,43 @@
  */
 package com.dremio.exec.physical.impl;
 
-import static com.dremio.sabot.Fixtures.*;
+import static com.dremio.sabot.Fixtures.NULL_BIGINT;
+import static com.dremio.sabot.Fixtures.NULL_BINARY;
+import static com.dremio.sabot.Fixtures.NULL_BOOLEAN;
+import static com.dremio.sabot.Fixtures.NULL_DOUBLE;
+import static com.dremio.sabot.Fixtures.NULL_FLOAT;
+import static com.dremio.sabot.Fixtures.NULL_INT;
+import static com.dremio.sabot.Fixtures.NULL_VARCHAR;
+import static com.dremio.sabot.Fixtures.date;
+import static com.dremio.sabot.Fixtures.t;
+import static com.dremio.sabot.Fixtures.th;
+import static com.dremio.sabot.Fixtures.time;
+import static com.dremio.sabot.Fixtures.tr;
+import static com.dremio.sabot.Fixtures.ts;
 
 import java.util.Arrays;
 
-import com.dremio.common.expression.EvaluationType;
-import com.dremio.exec.ExecConstants;
-import com.dremio.options.OptionValue;
 import org.joda.time.LocalDate;
+import org.joda.time.LocalDateTime;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
+import com.dremio.common.expression.SupportedEngines;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.config.Project;
+import com.dremio.options.OptionValue;
 import com.dremio.sabot.BaseTestFunction;
+import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.op.project.ProjectOperator;
 
 /*
  * This class tests native (LLVM) implementation of functions.
  */
-@Ignore
 public class TestNativeFunctions extends BaseTestFunction {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestNativeFunctions.class);
-  private static String execPreferenceGandivaOnly = EvaluationType.CodeGenOption.GandivaOnly.toString();
-  private static String execPreferenceMixed = EvaluationType.CodeGenOption.Gandiva.toString();
-  private static String execPreferenceJava = EvaluationType.CodeGenOption.Java.toString();
+  private static String execPreferenceGandivaOnly = SupportedEngines.CodeGenOption.GandivaOnly.toString();
+  private static String execPreferenceMixed = SupportedEngines.CodeGenOption.Gandiva.toString();
+  private static String execPreferenceJava = SupportedEngines.CodeGenOption.Java.toString();
 
 
   @BeforeClass
@@ -74,6 +86,33 @@ public class TestNativeFunctions extends BaseTestFunction {
   public void testCastDate() throws Exception {
     testFunctions(new Object[][]{
       {"extractYear(castDATE(c0))","79:10:10", 1979l}
+    });
+  }
+
+  @Test
+  public void testDx14049() throws Exception {
+    try {
+      testContext.getOptions().setOption(OptionValue.createString(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.QUERY_EXEC_OPTION_KEY,
+        execPreferenceJava
+      ));
+      testFunctionsCompiledOnly(new Object[][]{
+        {"months_between(c0, castDATE(c1))",new LocalDate(), new LocalDateTime(), 0.0}
+      });
+    } finally {
+      testContext.getOptions().setOption(OptionValue.createString(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.QUERY_EXEC_OPTION_KEY,
+        execPreferenceGandivaOnly
+      ));
+    }
+  }
+
+  @Test
+  public void testGandivaOnlyFunctions() throws Exception {
+    testFunctionsCompiledOnly(new Object[][]{
+      {"starts_with(c0, 'test')","testMe", true}
     });
   }
 

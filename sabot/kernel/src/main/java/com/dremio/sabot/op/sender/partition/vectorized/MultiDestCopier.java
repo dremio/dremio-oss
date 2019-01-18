@@ -31,7 +31,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /**

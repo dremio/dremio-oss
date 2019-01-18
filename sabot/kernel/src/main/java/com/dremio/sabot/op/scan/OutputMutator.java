@@ -15,13 +15,13 @@
  */
 package com.dremio.sabot.op.scan;
 
-import io.netty.buffer.ArrowBuf;
-
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
 
 import com.dremio.exec.exception.SchemaChangeException;
-import org.apache.arrow.vector.ValueVector;
+
+import io.netty.buffer.ArrowBuf;
 
 /**
  * Interface that allows a record reader to modify the current schema.

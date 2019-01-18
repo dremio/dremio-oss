@@ -15,12 +15,9 @@
  */
 package com.dremio.sabot.op.llvm;
 
-import com.dremio.common.expression.LogicalExpression;
-import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.selection.SelectionVector2;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import io.netty.buffer.ArrowBuf;
+import java.util.List;
+import java.util.Set;
+
 import org.apache.arrow.gandiva.evaluator.Filter;
 import org.apache.arrow.gandiva.evaluator.SelectionVector;
 import org.apache.arrow.gandiva.evaluator.SelectionVectorInt16;
@@ -29,8 +26,13 @@ import org.apache.arrow.gandiva.expression.Condition;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 
-import java.util.List;
-import java.util.Set;
+import com.dremio.common.expression.LogicalExpression;
+import com.dremio.exec.record.VectorAccessible;
+import com.dremio.exec.record.selection.SelectionVector2;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
+import io.netty.buffer.ArrowBuf;
 
 /**
  * Adapter to gandiva filter.

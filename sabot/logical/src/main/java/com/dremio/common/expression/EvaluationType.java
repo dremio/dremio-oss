@@ -17,7 +17,8 @@
 package com.dremio.common.expression;
 
 /**
- * Class to capture the supported evaluation types
+ * Dummy class carried forward for backward compatibility purposes,
+ * since in 3.0 expressions had this as one of the properties.
  */
 public class EvaluationType {
   public enum CodeGenOption {

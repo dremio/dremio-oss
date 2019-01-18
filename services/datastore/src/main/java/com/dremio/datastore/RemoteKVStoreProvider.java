@@ -15,6 +15,8 @@
  */
 package com.dremio.datastore;
 
+import java.util.Map;
+
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -27,12 +29,14 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
-
 /**
  * Remote kvstore provider.
  */
+@KVStoreProviderType(type="RemoteDB")
 public class RemoteKVStoreProvider implements KVStoreProvider {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RemoteKVStoreProvider.class);
+  public static final String CONFIG_HOSTNAME = "hostName";
+
   private DatastoreRpcClient rpcClient;
   private final Provider<NodeEndpoint> masterNode;
   private final Provider<FabricService> fabricService;
@@ -47,6 +51,23 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
     this.allocator = allocator;
     this.hostName = hostName;
     this.scan = scan;
+  }
+
+  public RemoteKVStoreProvider(
+    ScanResult scan,
+    Provider<FabricService> fabricService,
+    Provider<NodeEndpoint> masterNode,
+    BufferAllocator allocator,
+    Map<String, Object> config
+  ) {
+    this(scan,
+         masterNode,
+         fabricService,
+         allocator,
+         String.valueOf(Preconditions.checkNotNull(
+           config.get(CONFIG_HOSTNAME), String.format("Missing services.datastore.config.%s in dremio.conf", CONFIG_HOSTNAME))
+         )
+    );
   }
 
   @SuppressWarnings("unchecked")

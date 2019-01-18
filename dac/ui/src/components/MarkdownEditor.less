@@ -71,6 +71,15 @@
       border-left: @border-width solid #dfe2e5;
       color: #6a737d;;
     }
+
+    table { // show scroll for wide tables
+      display: block;
+      overflow-y: auto;
+    }
+
+    img {
+      max-width: 100% // fit image to wiki width
+    }
   }
 
   // -------------------------------------------
@@ -108,6 +117,8 @@
         border: none;
         padding: 0 2px;
         position: relative;
+        top: -1px;
+        line-height: 24px;
 
         &:before {
           content: '';

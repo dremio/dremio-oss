@@ -17,15 +17,15 @@ package com.dremio.exec.sql;
 
 import static org.junit.Assert.assertFalse;
 
+import java.io.File;
+import java.io.PrintStream;
+
 import org.apache.commons.io.FileUtils;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
-
-import java.io.File;
-import java.io.PrintStream;
 
 public class TestCTAS extends PlanTestBase {
   @Test // DRILL-2589

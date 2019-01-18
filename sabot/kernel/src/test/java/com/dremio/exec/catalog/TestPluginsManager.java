@@ -49,6 +49,7 @@ import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
@@ -85,6 +86,7 @@ public class TestPluginsManager {
         true
     );
     final NamespaceService mockNamespaceService = mock(NamespaceService.class);
+    final DatasetListingService mockDatasetListingService = mock(DatasetListingService.class);
 
     final SabotConfig sabotConfig = SabotConfig.create();
     final SabotContext sabotContext = mock(SabotContext.class);
@@ -93,6 +95,8 @@ public class TestPluginsManager {
         .thenReturn(CLASSPATH_SCAN_RESULT);
     when(sabotContext.getNamespaceService(anyString()))
         .thenReturn(mockNamespaceService);
+    when(sabotContext.getDatasetListing())
+        .thenReturn(mockDatasetListingService);
 
     final LogicalPlanPersistence lpp = new LogicalPlanPersistence(SabotConfig.create(), CLASSPATH_SCAN_RESULT);
     when(sabotContext.getLpPersistence())

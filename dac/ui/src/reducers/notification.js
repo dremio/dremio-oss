@@ -40,6 +40,10 @@ export default function notification(state = {}, action) {
       level: action.level,
       autoDismiss: action.autoDismiss
     };
+  case ActionTypes.REMOVE_NOTIFICATION:
+    return {
+      removeMessageType: action.messageType
+    };
   default:
     return state;
   }

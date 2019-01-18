@@ -26,7 +26,7 @@ public interface ServiceSet {
   /**
    * Handle returned by {@code ServiceSet} to unregister itself
    */
-  public interface RegistrationHandle extends AutoCloseable {
+  interface RegistrationHandle extends AutoCloseable {
     /**
      * Unregister the handle
      *
@@ -34,6 +34,13 @@ public interface ServiceSet {
      */
     @Override
     void close();
+
+
+    /**
+     Get the number of registered instances in this {@link ServiceSet}.
+     * @return
+     */
+    int instanceCount();
   }
 
   /**
@@ -74,5 +81,5 @@ public interface ServiceSet {
    * @param listener
    * @throws NullPointerException if listener is {@code null}
    */
-  public void removeNodeStatusListener(NodeStatusListener listener);
+  void removeNodeStatusListener(NodeStatusListener listener);
 }

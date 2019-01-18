@@ -16,7 +16,8 @@
 import {
   applyValidators,
   isRequired, isNumber, isInteger, isWholeNumber,
-  isRegularExpression, isEmail, confirmPassword
+  isRegularExpression, isEmail, confirmPassword,
+  makeLabelFromKey
 } from './validation';
 
 describe('validation', () => {
@@ -100,6 +101,20 @@ describe('validation', () => {
         isRequired('foo.a'),
         isRequired('foo.b')]
       )).to.eql({foo: {a: 'Foo.a is required.', b: 'Foo.b is required.'}});
+    });
+  });
+
+  describe('makeLabelFromKey', () => {
+    it('should return capitalized simple key', () => {
+      expect(makeLabelFromKey('abc')).to.equal('Abc');
+      expect(makeLabelFromKey('ABC')).to.equal('Abc');
+    });
+    it('should take last token from complex key', () => {
+      expect(makeLabelFromKey('a.b.cde')).to.equal('Cde');
+    });
+    it('should handle empty key', () => {
+      expect(makeLabelFromKey('')).to.equal('');
+      expect(makeLabelFromKey(null)).to.equal(null);
     });
   });
 });

@@ -19,10 +19,10 @@ import static com.dremio.sabot.op.common.ht2.LBlockHashTable.VAR_LENGTH_SIZE;
 
 import java.util.List;
 
+import org.apache.arrow.vector.FieldVector;
+
 import com.dremio.common.expression.Describer;
 import com.google.common.base.Preconditions;
-
-import org.apache.arrow.vector.FieldVector;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
@@ -244,6 +244,7 @@ public class BoundedPivots {
         bitTargetAddr += (WORD_BITS * blockLength);
       } else {
         // at least some are set
+        final long newBitTargetAddr = bitTargetAddr + (WORD_BITS * blockLength);
         for (long remainingValidity = validityBitValues, remainingValue = bitValues;
              remainingValidity != 0;
              remainingValidity = remainingValidity >>> 1, remainingValue = remainingValue >>> 1, bitTargetAddr += blockLength) {
@@ -253,6 +254,7 @@ public class BoundedPivots {
           int bitPair = (((isSet * valid) << 1) | valid) << bitOffset;
           PlatformDependent.putInt(bitTargetAddr, PlatformDependent.getInt(bitTargetAddr) | bitPair);
         }
+        bitTargetAddr = newBitTargetAddr;
       }
       srcBitsAddr += WORD_BYTES;
       srcDataAddr += WORD_BYTES;

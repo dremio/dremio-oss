@@ -15,12 +15,13 @@
  */
 package com.dremio.sabot.op.sort.external;
 
+import java.util.List;
+
+import org.apache.arrow.memory.BufferAllocator;
+
 import com.dremio.common.exceptions.UserException;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
-import org.apache.arrow.memory.BufferAllocator;
-
-import java.util.List;
 
 public class ExternalSortTracer {
   private int targetBatchSizeInBytes;

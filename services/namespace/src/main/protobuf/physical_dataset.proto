@@ -31,8 +31,10 @@ message PhysicalDatasetConfig {
   optional com.dremio.service.namespace.file.proto.FileConfig formatSettings = 2;
   optional com.dremio.service.namespace.dataset.proto.DatasetType type = 3;
   repeated string fullPath = 4;
-  optional int64 version = 5;
+  optional int64 version = 5 [deprecated = true];
   optional string id = 8;
+  optional string tag = 9;
+
 }
 
 message AccelerationSettingsDescriptor {

@@ -75,8 +75,14 @@ public class CoreKVStoreImpl<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
   }
 
   @Override
-  public boolean checkAndPut(KVStoreTuple<KEY> key, KVStoreTuple<VALUE> oldValue, KVStoreTuple<VALUE> newValue) {
-    return rawStore.checkAndPut(key.getSerializedBytes(), oldValue.isNull()? null : oldValue.getSerializedBytes(), newValue.getSerializedBytes());
+  public boolean validateAndPut(KVStoreTuple<KEY> key, KVStoreTuple<VALUE> newValue, ValueValidator<VALUE> validator) {
+    return  ((ByteStore) rawStore).validateAndPut(key.getSerializedBytes(), newValue.getSerializedBytes(),
+      (oldValue) -> {
+        // run the validation one level up
+        KVStoreTuple<VALUE> oldValueTuple = newValue().setSerializedBytes(oldValue);
+        return validator.validate(oldValueTuple);
+      }
+    );
   }
 
   @Override
@@ -89,9 +95,21 @@ public class CoreKVStoreImpl<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
     rawStore.delete(key.getSerializedBytes());
   }
 
-  @Override
-  public boolean checkAndDelete(KVStoreTuple<KEY> key, KVStoreTuple<VALUE> value) {
-    return rawStore.checkAndDelete(key.getSerializedBytes(), value.getSerializedBytes());
+  /**
+   * Validate the currently stored value before removing from the store
+   *
+   * @param key the key
+   * @param validator a ValueValidator that ensures that the current item stored in the store for the key is valid
+   * @return if the validation succeeded or not
+   */
+  public boolean validateAndDelete(KVStoreTuple<KEY> key, ValueValidator<VALUE> validator) {
+    return  ((ByteStore) rawStore).validateAndDelete(key.getSerializedBytes(),
+      (oldValue) -> {
+        // run the validation one level up
+        KVStoreTuple<VALUE> oldValueTuple = newValue().setSerializedBytes(oldValue);
+        return validator.validate(oldValueTuple);
+      }
+    );
   }
 
   @Override
@@ -109,7 +127,7 @@ public class CoreKVStoreImpl<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
   }
 
   @Override
-  public void delete(KVStoreTuple<KEY> key, long previousVersion) {
+  public void delete(KVStoreTuple<KEY> key, String previousVersion) {
     rawStore.delete(key.getSerializedBytes(), previousVersion);
   }
 

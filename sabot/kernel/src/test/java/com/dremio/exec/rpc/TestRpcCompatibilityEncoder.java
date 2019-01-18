@@ -28,9 +28,6 @@ import com.dremio.exec.proto.CoordRPC.RpcType;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
-import com.dremio.exec.rpc.Acks;
-import com.dremio.exec.rpc.OutboundRpcMessage;
-import com.dremio.exec.rpc.RpcCompatibilityEncoder;
 
 import io.netty.channel.ChannelHandlerContext;
 

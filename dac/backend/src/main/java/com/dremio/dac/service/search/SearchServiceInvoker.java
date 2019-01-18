@@ -44,6 +44,8 @@ import io.protostuff.ProtobufIOUtil;
  * Adapter that interacts with the {@link SearchService} running on master coordinator.
  */
 public class SearchServiceInvoker implements SearchService {
+  private static final int TYPE_SEARCH_QUERY = 0;
+
   private final boolean isMaster;
   private final Provider<NodeEndpoint> masterEndpoint;
   private final Provider<FabricService> fabricService;
@@ -76,7 +78,7 @@ public class SearchServiceInvoker implements SearchService {
       .name("search-rpc")
       .timeout(10 * 1000);
 
-    this.findEndpointCreator = builder.register(0,
+    this.findEndpointCreator = builder.register(TYPE_SEARCH_QUERY,
       new AbstractReceiveHandler<SearchRPC.SearchQueryRequest, SearchRPC.SearchQueryResponse>(
         SearchRPC.SearchQueryRequest.getDefaultInstance(), SearchRPC.SearchQueryResponse.getDefaultInstance()) {
         @Override
@@ -111,7 +113,7 @@ public class SearchServiceInvoker implements SearchService {
                 .setEntityId(collaborationTag.getEntityId())
                 .setId(collaborationTag.getId())
                 .setLastModified(collaborationTag.getLastModified())
-                .setVersion(collaborationTag.getVersion())
+                .setVersion(collaborationTag.getTag())
                 .build();
 
               rpcBuilder.setTags(searchQueryRequestTags);
@@ -170,7 +172,7 @@ public class SearchServiceInvoker implements SearchService {
       collaborationTag.setEntityId(tagsRPC.getEntityId());
       collaborationTag.setId(tagsRPC.getId());
       collaborationTag.setLastModified(tagsRPC.getLastModified());
-      collaborationTag.setVersion(tagsRPC.getVersion());
+      collaborationTag.setTag(tagsRPC.getVersion());
 
       final NameSpaceContainer nameSpaceContainer = NameSpaceContainer.getSchema().newMessage();
       // TODO(DX-10857): change from opaque object to protobuf

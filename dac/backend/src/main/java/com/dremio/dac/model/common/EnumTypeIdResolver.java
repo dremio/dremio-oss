@@ -90,11 +90,6 @@ public class EnumTypeIdResolver implements TypeIdResolver {
   }
 
   @Override
-  public JavaType typeFromId(String id) {
-    return typeFromId(null, id);
-  }
-
-  @Override
   public JavaType typeFromId(DatabindContext context, String id) {
     JavaType type = nameToType.get(id.toLowerCase());
     if (type == null) {

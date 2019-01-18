@@ -23,8 +23,6 @@ import java.util.Properties;
 
 import javax.inject.Inject;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.arrow.vector.holders.Float8Holder;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;

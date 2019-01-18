@@ -18,7 +18,6 @@ package com.dremio.exec.server.options;
 import java.util.Collection;
 import java.util.Map;
 
-
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
 import com.dremio.common.map.CaseInsensitiveMap;
@@ -119,7 +118,7 @@ public class SessionOptionManager extends InMemoryOptionManager {
   }
 
   @Override
-  boolean supportsOptionType(OptionType type) {
+  protected boolean supportsOptionType(OptionType type) {
     return type == OptionType.SESSION;
   }
 }

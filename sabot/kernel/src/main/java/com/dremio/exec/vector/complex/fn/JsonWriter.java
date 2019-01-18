@@ -27,8 +27,6 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 
 public class JsonWriter {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JsonWriter.class);

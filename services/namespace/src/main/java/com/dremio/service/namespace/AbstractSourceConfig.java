@@ -49,7 +49,7 @@ public abstract class AbstractSourceConfig<T extends AbstractSourceConfig<T>> {
   public abstract ByteString getConfig();
   public abstract String getType();
   public abstract String getName();
-  public abstract Long getVersion();
+  public abstract String getTag();
   public abstract Object getLegacySourceTypeEnum();
 
   public <X extends AbstractConnectionConf> X getConnectionConf(AbstractConnectionReader reader){

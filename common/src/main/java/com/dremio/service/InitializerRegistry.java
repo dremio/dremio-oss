@@ -60,7 +60,7 @@ public class InitializerRegistry implements Service {
           builder.put(functionClass, inited);
         }
       } catch (Exception e) {
-        logger.warn("Unable to load Initializer {}", functionClass.getSimpleName(), e);
+        logger.error("Unable to load Initializer {}", functionClass.getSimpleName(), e);
       }
     }
 

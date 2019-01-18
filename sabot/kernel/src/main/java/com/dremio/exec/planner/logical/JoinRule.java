@@ -20,8 +20,10 @@ import java.util.List;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.type.RelDataType;
@@ -47,6 +49,7 @@ public abstract class JoinRule extends RelOptRule {
 
   public static final RelOptRule TO_CREL = new JoinRuleCrel();
   public static final RelOptRule TO_DREL = new JoinRuleDrel();
+  public static final RelOptRule FROM_DREL = new JoinRuleFromDrel();
 
   private final RelBuilderFactory factory;
 
@@ -55,9 +58,14 @@ public abstract class JoinRule extends RelOptRule {
     this.factory = factory;
   }
 
+  private JoinRule(RelOptRuleOperand operand, RelBuilderFactory factory) {
+    super(operand, "JoinRule");
+    this.factory = factory;
+  }
+
   @Override
   public void onMatch(RelOptRuleCall call) {
-    final LogicalJoin join = call.rel(0);
+    final Join join = call.rel(0);
     final RelNode left = join.getLeft();
     final RelNode right = join.getRight();
     final RelNode convertedLeft = convertIfNecessary(left);
@@ -145,6 +153,29 @@ public abstract class JoinRule extends RelOptRule {
         return false;
       }
       return createFilterWithRemaining;
+    }
+  }
+
+  private static class JoinRuleFromDrel extends JoinRule {
+
+    private JoinRuleFromDrel() {
+      super(RelOptHelper.any(JoinRel.class), DremioRelFactories.LOGICAL_BUILDER);
+    }
+
+    @Override
+    protected RelNode convertIfNecessary(RelNode node) {
+      return node;
+    }
+
+    @Override
+    protected boolean getNewJoinCondition(RelBuilder builder, List<Integer> leftKeys, List<Integer> rightKeys, RexNode condition, RexNode partialCondition, RexNode remaining, JoinRelType joinType, Pointer<RexNode> newJoinCondition) {
+      boolean hasEquiJoins = leftKeys.size() == rightKeys.size() && leftKeys.size() > 0 ;
+      if(!hasEquiJoins || joinType != JoinRelType.INNER) {
+        newJoinCondition.value = RexUtil.composeConjunction(builder.getRexBuilder(), ImmutableList.of(partialCondition, remaining), false);
+        return false;
+      }
+      newJoinCondition.value = partialCondition;
+      return true;
     }
   }
 

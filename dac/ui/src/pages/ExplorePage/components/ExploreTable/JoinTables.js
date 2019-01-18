@@ -23,7 +23,7 @@ import PropTypes from 'prop-types';
 
 import EllipsedText from 'components/EllipsedText';
 import { formLabel, formDescription } from 'uiTheme/radium/typography';
-import { getJoinTable } from 'selectors/explore';
+import { getJoinTable, getExploreState } from 'selectors/explore';
 import { getViewState } from 'selectors/resources';
 import Spinner from 'components/Spinner';
 import { constructFullPath } from 'utils/pathUtils';
@@ -140,13 +140,14 @@ export class JoinTables extends Component {
 }
 
 const mapStateToProps = (state, ownProps) => {
+  const explorePageState = getExploreState(state);
   return {
     joinTableData: getJoinTable(state, ownProps),
     joinViewState: getViewState(state, JOIN_TABLE_VIEW_ID),
-    joinDatasetFullPath: constructFullPath(state.explore.join.getIn(['custom', 'joinDatasetPathList'])),
-    joinTab: state.explore.join.get('joinTab'),
-    joinVersion: state.explore.join.getIn(['custom', 'joinVersion']),
-    joinStep: state.explore.join.get('step')
+    joinDatasetFullPath: constructFullPath(explorePageState.join.getIn(['custom', 'joinDatasetPathList'])),
+    joinTab: explorePageState.join.get('joinTab'),
+    joinVersion: explorePageState.join.getIn(['custom', 'joinVersion']),
+    joinStep: explorePageState.join.get('step')
   };
 };
 

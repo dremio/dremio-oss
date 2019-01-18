@@ -24,9 +24,8 @@ import org.apache.parquet.io.api.RecordMaterializer;
 import org.apache.parquet.schema.MessageType;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.options.OptionManager;
-import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.scan.OutputMutator;
 
 public class ParquetRecordMaterializer extends RecordMaterializer<Void> {

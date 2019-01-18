@@ -62,6 +62,7 @@ import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator.State;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.SystemUser;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 /**
@@ -229,7 +230,9 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
         context.getNamespaceService(),
         null,
         NodeDebugContextProvider.NOOP,
-        60000);
+        60000,
+        null,
+        ImmutableList.of());
     return oc;
   }
 }

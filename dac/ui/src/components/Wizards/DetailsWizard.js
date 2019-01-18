@@ -33,7 +33,7 @@ import { navigateToNextDataset } from 'actions/explore/dataset/common';
 import { runTableTransform, transformHistoryCheck } from 'actions/explore/dataset/transform';
 import { transformPeek } from 'actions/explore/dataset/peek';
 import { getAllDatasets } from 'selectors/datasets';
-import { getImmutableTable } from 'selectors/explore';
+import { getExploreState, getImmutableTable } from 'selectors/explore';
 import { getViewState } from 'selectors/resources';
 
 import { CUSTOM_JOIN } from 'constants/explorePage/joinTabs';
@@ -294,13 +294,14 @@ export class DetailsWizard extends Component {
 
 function mapStateToProps(state, props) {
   const location = state.routing.locationBeforeTransitions || {};
+  const explorePageState = getExploreState(state);
   return {
     detailType: location.query.type,
     tableData: getImmutableTable(state, props.dataset.get('datasetVersion'), location),
-    sqlSize: state.explore.ui.get('sqlSize'),
+    sqlSize: explorePageState.ui.get('sqlSize'),
     allDatasets: getAllDatasets(state, props),
-    recommendedJoins: state.explore.join.getIn(['recommended', 'recommendedJoins']) || Immutable.List([]),
-    activeRecommendedJoin: state.explore.join.getIn(['recommended', 'activeRecommendedJoin']) || Immutable.Map(),
+    recommendedJoins: explorePageState.join.getIn(['recommended', 'recommendedJoins']) || Immutable.List([]),
+    activeRecommendedJoin: explorePageState.join.getIn(['recommended', 'activeRecommendedJoin']) || Immutable.Map(),
     recommendedJoinsViewState: getViewState(state, RECOMMENDED_JOINS_VIEW_ID),
     joinTableViewState: getViewState(state, JOIN_TABLE_VIEW_ID)
   };

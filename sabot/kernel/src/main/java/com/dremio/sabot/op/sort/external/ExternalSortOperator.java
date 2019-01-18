@@ -15,9 +15,6 @@
  */
 package com.dremio.sabot.op.sort.external;
 
-import java.io.IOException;
-
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.calcite.rel.RelFieldCollation.Direction;
@@ -105,10 +102,11 @@ public class ExternalSortOperator implements SingleInputOperator {
     SPILL_COUNT,            // number of times operator spilled to disk
     MERGE_COUNT,            // number of times spills were merged
     PEAK_BATCHES_IN_MEMORY, // maximum number of batches kept in memory
-    MAX_BATCH_SIZE,
-    AVG_BATCH_SIZE,
+    MAX_BATCH_SIZE,         // maximum size of batch spilled amongst all batches spilled from all disk runs
+    AVG_BATCH_SIZE,         // average size of batch spilled amongst all batches spilled from all disk runs
     SPILL_TIME_NANOS,       // time spent spilling to diskRuns while sorting
-    MERGE_TIME_NANOS;       // time spent merging disk runs and spilling
+    MERGE_TIME_NANOS,       // time spent merging disk runs and spilling
+    TOTAL_SPILLED_DATA_SIZE;  // total data spilled by sort operator
 
     @Override
     public int metricId() {
@@ -286,6 +284,7 @@ public class ExternalSortOperator implements SingleInputOperator {
     stats.setLongStat(Metric.AVG_BATCH_SIZE, diskRuns.getAvgMaxBatchSize());
     stats.setLongStat(Metric.SPILL_TIME_NANOS, diskRuns.spillTimeNanos());
     stats.setLongStat(Metric.MERGE_TIME_NANOS, diskRuns.mergeTimeNanos());
+    stats.setLongStat(Metric.TOTAL_SPILLED_DATA_SIZE, diskRuns.getTotalDataSpilled());
   }
 
   private void rotateRuns() {

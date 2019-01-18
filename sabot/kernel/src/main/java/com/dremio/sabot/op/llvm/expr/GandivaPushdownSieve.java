@@ -15,18 +15,26 @@
  */
 package com.dremio.sabot.op.llvm.expr;
 
-import com.dremio.common.expression.CompleteType;
-import com.dremio.common.expression.EvaluationType;
-import com.dremio.common.expression.LogicalExpression;
+import java.util.List;
+import java.util.Set;
+
+import org.apache.arrow.gandiva.evaluator.ExpressionRegistry;
+import org.apache.arrow.gandiva.evaluator.FunctionSignature;
+import org.apache.arrow.gandiva.exceptions.GandivaException;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionHolderExpression;
+import com.dremio.common.expression.IfExpression;
+import com.dremio.common.expression.LogicalExpression;
+import com.dremio.common.expression.NullExpression;
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.expression.SupportedEngines;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions;
-import com.dremio.common.expression.IfExpression;
-import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.expression.NullExpression;
-import com.dremio.common.expression.FunctionCall;
-import com.dremio.common.expression.IfExpression.IfCondition;
 import com.dremio.common.expression.ValueExpressions.BooleanExpression;
 import com.dremio.common.expression.ValueExpressions.DoubleExpression;
 import com.dremio.common.expression.ValueExpressions.FloatExpression;
@@ -34,48 +42,55 @@ import com.dremio.common.expression.ValueExpressions.IntExpression;
 import com.dremio.common.expression.ValueExpressions.LongExpression;
 import com.dremio.common.expression.ValueExpressions.QuotedString;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
+import com.dremio.exec.expr.CodeGenContext;
 import com.dremio.exec.expr.ExpressionSplitHelper;
 import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
+import com.dremio.exec.expr.fn.GandivaFunctionHolder;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.TypedFieldId;
 import com.google.common.collect.Lists;
-import org.apache.arrow.gandiva.evaluator.ExpressionRegistry;
-import org.apache.arrow.gandiva.evaluator.FunctionSignature;
-import org.apache.arrow.gandiva.exceptions.GandivaException;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-
-import java.util.List;
-import java.util.Set;
 
 /**
- * Returns whether an expression can be executed in native code.
- * Also, annotates the expression in case the expression can be evaluated in native code.
+ * Annotates the expression in case the expression can be evaluated in native code.
  */
-public class GandivaPushdownSieve extends AbstractExprVisitor<Boolean, Void, GandivaException> implements ExpressionSplitHelper {
+public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, CodeGenContext, GandivaException>
+  implements ExpressionSplitHelper {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(GandivaPushdownSieve.class);
 
   private static final List<String> supportedBooleanOperators = Lists.newArrayList("booleanAnd",
     "booleanOr");
 
-  public boolean canEvaluate(BatchSchema.SelectionVectorMode incomingSelectionVectorMode, LogicalExpression expr) {
+  public CodeGenContext annotateExpression(BatchSchema batchSchema, CodeGenContext contextExpr) {
     try {
-      // we do not support var len output.
-      if (!isSupportedReturnType(expr.getCompleteType())) {
-        return false;
+      BatchSchema.SelectionVectorMode incomingSelectionVectorMode = batchSchema.getSelectionVectorMode();
+
+      if (incomingSelectionVectorMode != BatchSchema.SelectionVectorMode.NONE) {
+        return contextExpr;
       }
 
-      if (incomingSelectionVectorMode == BatchSchema.SelectionVectorMode.NONE &&
-        expr.accept(this, null)) {
-        return true;
+      // if schema contains complex fields, skip annotation with Gandiva
+      for(Field field : batchSchema.getFields()) {
+        if (field.getType().isComplex()) {
+          return contextExpr;
+        }
       }
+
+      CodeGenContext codeGenContextModifiedExpr = contextExpr.getChild().accept(this, contextExpr);
+
+      if (!isSupportedReturnType(contextExpr.getCompleteType())) {
+        // If the final expression's return type is not supported, remove Gandiva support
+        codeGenContextModifiedExpr.removeSupporteExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
+        codeGenContextModifiedExpr.removeSupporteExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
+      }
+
+      return codeGenContextModifiedExpr;
     } catch (GandivaException gandivaException) {
       logger.error("Exception in running sieve", gandivaException);
       // ignore exception
       // fall-through and return false
     }
-
-    return false;
+    return contextExpr;
   }
 
   @Override
@@ -91,18 +106,19 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<Boolean, Void, Gan
   }
 
   @Override
-  public Boolean visitUnknown(LogicalExpression e, Void value) throws GandivaException {
+  public CodeGenContext visitUnknown(LogicalExpression e, CodeGenContext context) throws GandivaException {
+
     if (e instanceof ValueVectorReadExpression) {
       if (isSupportedField((ValueVectorReadExpression) e)) {
-        e.addEvaluationType(EvaluationType.ExecutionType.GANDIVA);
-        return true;
-      } else {
-        return false;
+        context.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
+        context.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
       }
     } else {
-      logger.info("GandivaPushdownSieve : unknown expression type {}", e.getClass().getCanonicalName());
-      return false;
+      logger.info("GandivaPushdownSieve : unknown expression type {}", e.getClass()
+        .getCanonicalName());
     }
+
+    return context;
   }
 
   private boolean isSupportedField(ValueVectorReadExpression e) throws GandivaException {
@@ -118,53 +134,96 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<Boolean, Void, Gan
     return isSupportedType(type) && !isComplexRead;
   }
 
-  @Override
-  public Boolean visitBooleanOperator(BooleanOperator operator, Void value) throws GandivaException {
-    // check that operator is supported.
-    if (!supportedBooleanOperators.contains(operator.getName())) {
-      return false;
+  // Returns true if the entire sub-tree represented by every element in the list can be evaluated in Gandiva
+  // First, annotate the arguments
+  // Second, check that the entire sub-tree can be evaluated in Gandiva
+  private boolean gandivaSupportsAllSubExprs(List<LogicalExpression> args) throws GandivaException {
+    // first annotate all arguments
+    for(LogicalExpression arg : args) {
+      arg.accept(this, (CodeGenContext)arg);
     }
 
-    // check return type;
-    if (!isSupportedType(operator.getCompleteType())) {
-      return false;
-    }
-
-    for (LogicalExpression arg : operator.args) {
-      if (!arg.accept(this, value)) {
+    for(int i = 0; i < args.size(); i++) {
+      CodeGenContext codegenWrapper = (CodeGenContext)args.get(i);
+      if (!codegenWrapper.isSubExpressionExecutableInEngine(SupportedEngines.Engine.GANDIVA)) {
+        // this sub-expression cannot be evaluated entirely in Gandiva
         return false;
       }
     }
 
-    operator.addEvaluationType(EvaluationType.ExecutionType.GANDIVA);
+    return true;
+  }
+
+  // Check if all column reads involve data types supported by Gandiva
+  private boolean gandivaSupportsAllValueVectorReads(List<LogicalExpression> exps) {
+    for(LogicalExpression exp : exps) {
+      CodeGenContext codeGenContext = (CodeGenContext) exp;
+      if (codeGenContext.getChild() instanceof ValueVectorReadExpression) {
+        if (!codeGenContext.isExpressionExecutableInEngine(SupportedEngines.Engine.GANDIVA)) {
+          return false;
+        }
+      }
+    }
     return true;
   }
 
   @Override
-  public Boolean visitFunctionHolderExpression(FunctionHolderExpression holder, Void value) throws GandivaException {
+  public CodeGenContext visitBooleanOperator(BooleanOperator operator, CodeGenContext context) throws GandivaException {
+    boolean allArgTreesSupported = gandivaSupportsAllSubExprs(operator.args);
 
-    // ignore hive functions.
-    // will be removed once we integrate into dremio fn repository.
-    if (holder.getHolder() == null || !(holder.getHolder() instanceof BaseFunctionHolder)) {
-      return false;
+    // check that operator is supported.
+    if (!supportedBooleanOperators.contains(operator.getName())) {
+      return context;
     }
 
-    if (!isSupportedType(holder.getCompleteType())) {
-      return false;
+    // check return type;
+    if (!isSupportedType(operator.getCompleteType())) {
+      return context;
+    }
+
+    if (allArgTreesSupported) {
+      context.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
+      context.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
+    }
+
+    return context;
+  }
+
+  @Override
+  public CodeGenContext visitFunctionHolderExpression(FunctionHolderExpression holder, CodeGenContext context) throws GandivaException {
+    // ignore hive functions.
+    // will be removed once we integrate into dremio fn repository.
+    if (holder.getHolder() == null || ( !(holder.getHolder() instanceof BaseFunctionHolder) &&
+        !(holder.getHolder() instanceof GandivaFunctionHolder))) {
+      // No need to walk down the tree to annotate
+      return context;
+    }
+
+    boolean allArgTreesSupported = gandivaSupportsAllSubExprs(holder.args);
+
+    // use context to strip context before looking for output type.
+    if (!isSupportedType(context.getCompleteType())) {
+      return context;
     }
 
     if (!isFunctionSupported(holder)) {
-      return false;
+      return context;
     }
 
-    for (LogicalExpression arg : holder.args) {
-      if (!arg.accept(this, value)) {
-        return false;
-      }
+    // The function can definitely be evaluated in Gandiva
+    if (allArgTreesSupported) {
+      context.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
+      context.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
+      return context;
     }
 
-    holder.addEvaluationType(EvaluationType.ExecutionType.GANDIVA);
-    return true;
+    // check if gandiva supports all reads
+    // If so, the function can be evaluated in Gandiva even though the entire sub-tree may not be evaluated in Gandiva
+    if (gandivaSupportsAllValueVectorReads(holder.args)) {
+      context.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
+    }
+
+    return context;
   }
 
   private boolean isFunctionSupported(FunctionHolderExpression holder) throws GandivaException {
@@ -192,125 +251,138 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<Boolean, Void, Gan
   private boolean isSpecificFuntionSupported(FunctionHolderExpression holder) {
     // gandiva cannot yet process date patterns with timezones in it.
     if (holder.getName().equalsIgnoreCase("to_date")) {
-       ValueExpressions.QuotedString pattern = (ValueExpressions.QuotedString)holder.args.get(1);
-       return !pattern.getString().contains("tz");
+      CodeGenContext context = (CodeGenContext)holder.args.get(1);
+      ValueExpressions.QuotedString pattern = (ValueExpressions.QuotedString)context.getChild();
+      return !pattern.getString().contains("tz");
     }
     return true;
   }
 
   @Override
-  public Boolean visitIfExpression(IfExpression ifExpr, Void value) throws GandivaException {
-    // check return type of the expression first.
-    if (!isSupportedType(ifExpr.getCompleteType())) {
-      return false;
+  public CodeGenContext visitIfExpression(IfExpression ifExpr, CodeGenContext context) throws GandivaException {
+    List<LogicalExpression> codeGenTree = Lists.newArrayList(ifExpr.ifCondition.condition,
+      ifExpr.ifCondition.expression, ifExpr.elseExpression);
+    // check return type of the expression, use context to remove
+    // context nodes before computing the return type.
+    if (!isSupportedType(context.getCompleteType())) {
+      return context;
     }
 
-    IfCondition conditions = ifExpr.ifCondition;
-    if (!ifExpr.elseExpression.accept(this, value) ||
-      !conditions.condition.accept(this, value) ||
-      !conditions.expression.accept(this, value)) {
-      return false;
+    boolean ifExprSupported = gandivaSupportsAllSubExprs(codeGenTree);
+
+    if (ifExprSupported) {
+      context.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
+      context.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
+      return context;
     }
 
-    ifExpr.addEvaluationType(EvaluationType.ExecutionType.GANDIVA);
-    return true;
-  }
-
-  private Boolean annotateAndCheckSupportedType(LogicalExpression e) throws GandivaException {
-    if (isSupportedType(e.getCompleteType())) {
-      e.addEvaluationType(EvaluationType.ExecutionType.GANDIVA);
-      return true;
+    if (((CodeGenContext) ifExpr.ifCondition.condition).isExpressionExecutableInEngine(SupportedEngines.Engine.GANDIVA) ||
+      ((CodeGenContext) ifExpr.ifCondition.expression).isExpressionExecutableInEngine(SupportedEngines.Engine.GANDIVA) ||
+      ((CodeGenContext) ifExpr.elseExpression).isExpressionExecutableInEngine(SupportedEngines.Engine.GANDIVA)) {
+      if (gandivaSupportsAllValueVectorReads(codeGenTree)) {
+        context.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
+      }
     }
 
-    return false;
+    return context;
+  }
+
+  private CodeGenContext annotateAndCheckSupportedType(LogicalExpression e, CodeGenContext
+    context) throws GandivaException {
+    if (!isSupportedType(e.getCompleteType())) {
+      return context;
+    }
+    context.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.GANDIVA);
+    context.addSupportedExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
+    return context;
   }
 
   @Override
-  public Boolean visitQuotedStringConstant(QuotedString e, Void value) throws GandivaException {
-    return annotateAndCheckSupportedType(e);
+  public CodeGenContext visitQuotedStringConstant(QuotedString e, CodeGenContext context) throws GandivaException {
+    return annotateAndCheckSupportedType(e, context);
   }
 
   @Override
-  public Boolean visitBooleanConstant(BooleanExpression booleanExpr, Void value) throws GandivaException {
-    return annotateAndCheckSupportedType(booleanExpr);
+  public CodeGenContext visitBooleanConstant(BooleanExpression booleanExpr, CodeGenContext context) throws GandivaException {
+    return annotateAndCheckSupportedType(booleanExpr, context);
   }
 
   @Override
-  public Boolean visitIntConstant(IntExpression intExpr, Void value) throws GandivaException {
-    return annotateAndCheckSupportedType(intExpr);
+  public CodeGenContext visitIntConstant(IntExpression intExpr, CodeGenContext context) throws GandivaException {
+    return annotateAndCheckSupportedType(intExpr, context);
   }
 
   @Override
-  public Boolean visitLongConstant(LongExpression longExpr, Void value) throws GandivaException {
-    return annotateAndCheckSupportedType(longExpr);
+  public CodeGenContext visitLongConstant(LongExpression longExpr, CodeGenContext context) throws GandivaException {
+    return annotateAndCheckSupportedType(longExpr, context);
   }
 
   @Override
-  public Boolean visitFloatConstant(FloatExpression floatExpr, Void value) throws GandivaException {
-    return annotateAndCheckSupportedType(floatExpr);
+  public CodeGenContext visitFloatConstant(FloatExpression floatExpr, CodeGenContext context) throws GandivaException {
+    return annotateAndCheckSupportedType(floatExpr, context);
   }
 
   @Override
-  public Boolean visitDoubleConstant(DoubleExpression doubleExpr, Void value) throws GandivaException {
-    return annotateAndCheckSupportedType(doubleExpr);
+  public CodeGenContext visitDoubleConstant(DoubleExpression doubleExpr, CodeGenContext context) throws GandivaException {
+    return annotateAndCheckSupportedType(doubleExpr, context);
   }
 
   @Override
-  public Boolean visitNullConstant(TypedNullConstant nullConstant, Void value) throws GandivaException {
-    return annotateAndCheckSupportedType(nullConstant);
+  public CodeGenContext visitNullConstant(TypedNullConstant nullConstant, CodeGenContext context) throws GandivaException {
+    return annotateAndCheckSupportedType(nullConstant, context);
   }
 
   @Override
-  public Boolean visitFunctionCall(FunctionCall call, Void value) throws GandivaException {
+  public CodeGenContext visitFunctionCall(FunctionCall call, CodeGenContext context) throws GandivaException {
     throw new GandivaException("Function calls should have been replaced before operator.");
   }
 
   @Override
-  public Boolean visitSchemaPath(SchemaPath path, Void value) throws GandivaException {
+  public CodeGenContext visitSchemaPath(SchemaPath path, CodeGenContext context) throws GandivaException {
     // to do : needed?
-    return visitUnknown(path, value);
+    return visitUnknown(path, context);
   }
 
 
   @Override
-  public Boolean visitDecimalConstant(ValueExpressions.DecimalExpression decExpr,
-                                      Void value) throws GandivaException {
-    return annotateAndCheckSupportedType(decExpr);
+  public CodeGenContext visitDecimalConstant(ValueExpressions.DecimalExpression decExpr,
+                                   CodeGenContext context) throws GandivaException {
+    return annotateAndCheckSupportedType(decExpr, context);
   }
 
   @Override
-  public Boolean visitDateConstant(ValueExpressions.DateExpression dateExpr, Void value)
+  public CodeGenContext visitDateConstant(ValueExpressions.DateExpression dateExpr, CodeGenContext context)
     throws GandivaException {
-    return annotateAndCheckSupportedType(dateExpr);
+    return annotateAndCheckSupportedType(dateExpr, context);
   }
 
   @Override
-  public Boolean visitTimeConstant(ValueExpressions.TimeExpression timExpr,
-                                   Void value) throws GandivaException {
-    return annotateAndCheckSupportedType(timExpr);
+  public CodeGenContext visitTimeConstant(ValueExpressions.TimeExpression timExpr,
+                                CodeGenContext context) throws GandivaException {
+    return annotateAndCheckSupportedType(timExpr, context);
   }
 
   @Override
-  public Boolean visitTimeStampConstant(ValueExpressions.TimeStampExpression timeStampExpr,
-                                        Void value) throws GandivaException {
-    return annotateAndCheckSupportedType(timeStampExpr);
+  public CodeGenContext visitTimeStampConstant(ValueExpressions.TimeStampExpression timeStampExpr,
+                                     CodeGenContext context) throws GandivaException {
+    return annotateAndCheckSupportedType(timeStampExpr, context);
   }
 
   @Override
-  public Boolean visitIntervalYearConstant(ValueExpressions.IntervalYearExpression intervalYearExpr,
-                                           Void value) throws GandivaException {
-    return annotateAndCheckSupportedType(intervalYearExpr);
+  public CodeGenContext visitIntervalYearConstant(ValueExpressions.IntervalYearExpression intervalYearExpr,
+                                        CodeGenContext context) throws GandivaException {
+    return annotateAndCheckSupportedType(intervalYearExpr, context);
   }
 
   @Override
-  public Boolean visitIntervalDayConstant(ValueExpressions.IntervalDayExpression intervalDayExpr,
-                                          Void value) throws GandivaException {
-    return annotateAndCheckSupportedType(intervalDayExpr);
+  public CodeGenContext visitIntervalDayConstant(ValueExpressions.IntervalDayExpression intervalDayExpr,
+                                       CodeGenContext context) throws GandivaException {
+    return annotateAndCheckSupportedType(intervalDayExpr, context);
   }
 
   @Override
-  public Boolean visitNullExpression(NullExpression e, Void value) throws GandivaException {
-    return visitUnknown(e, value);
+  public CodeGenContext visitNullExpression(NullExpression e, CodeGenContext context) throws GandivaException {
+    return visitUnknown(e, context);
   }
 
   private boolean isSupportedType(CompleteType type) throws GandivaException {

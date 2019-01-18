@@ -17,6 +17,7 @@
 package com.dremio.exec.store;
 
 import org.junit.Test;
+
 import com.dremio.BaseTestQuery;
 
 public class TestRefreshSourceStatus extends BaseTestQuery {

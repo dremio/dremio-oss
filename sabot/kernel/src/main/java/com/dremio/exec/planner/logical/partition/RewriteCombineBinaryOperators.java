@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.logical.partition;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
+import java.util.List;
+
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -35,8 +35,8 @@ import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 /**
  * Rewrites an expression tree, replacing chained OR and AND operators with a single N-ary operator

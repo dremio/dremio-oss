@@ -61,8 +61,21 @@ public abstract class JoinRelBase extends Join {
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
-    JoinCategory category = JoinUtils.getJoinCategory(left, right, condition, leftKeys, rightKeys, filterNulls);
-    if (category == JoinCategory.CARTESIAN || category == JoinCategory.INEQUALITY) {
+    JoinCategory category;
+    /*
+     * for costing purpose, we don't use JoinUtils.getJoinCategory()
+     * to get the join category. here we are more interested in knowing
+     * if the join is equality v/s inequality/cartesian join and accordingly
+     * compute the cost. JoinUtils.getJoinCategory() will split out
+     * the equi-join components from join condition and can mis-categorize
+     * an equality join for the purpose of computing plan cost.
+     */
+    if (leftKeys.size() > 0 && rightKeys.size() > 0) {
+      category = JoinCategory.EQUALITY;
+    } else {
+      category = JoinCategory.INEQUALITY;
+    }
+    if (category == JoinCategory.INEQUALITY) {
       if (PrelUtil.getPlannerSettings(planner).isNestedLoopJoinEnabled()) {
         if (PrelUtil.getPlannerSettings(planner).isNlJoinForScalarOnly()) {
           if (hasScalarSubqueryInput()) {

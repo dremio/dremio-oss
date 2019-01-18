@@ -106,6 +106,8 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
 
   private SpillFile spillFile;
   private FSDataOutputStream outputStream;
+  private FSDataInputStream inputStream;
+  private long inputStreamLastKnownLen;
   private final FragmentWorkQueue workQueue;
   private final DeferredException deferred = new DeferredException();
   private SpillManager spillManager;
@@ -123,6 +125,8 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
     this.bufferQueue = new SpoolingBufferQueue();
     this.workQueue = workQueue;
     this.spillService = spillService;
+    this.inputStream = null;
+    this.inputStreamLastKnownLen = 0;
 
     workQueue.put(new Runnable() {
       @Override
@@ -253,7 +257,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
         SpoolingRawBatchBuffer.super.close();
       }};
 
-    AutoCloseables.close(allocator, outputStream, spillFile, this.spillManager, superCloser, deferred);
+    AutoCloseables.close(allocator, outputStream, inputStream, spillFile, this.spillManager, superCloser, deferred);
   }
 
 
@@ -283,6 +287,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
     private RawFragmentBatch batch;
     private BatchState state;
     private int bodyLength;
+    private int totalLength;
     private long start = -1;
     private long check;
 
@@ -348,6 +353,8 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
         FileStatus status = spillFile.getFileStatus();
         long len = status.getLen();
         logger.debug("After spooling batch, stream at position {}. File length {}", stream.getPos(), len);
+        assert start <= len : String.format("write pos %d is greater than len %d", start, len);
+        totalLength = Math.toIntExact(len - start);
         long t = watch.elapsed(TimeUnit.MICROSECONDS);
         logger.debug("Took {} us to spool {} to disk. Rate {} mb/s", t, bodyLength, bodyLength / t);
       } finally {
@@ -375,28 +382,51 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
         // Sometimes, the file isn't quite done writing when we attempt to read it. As such, we need to wait and retry.
         Thread.sleep(duration);
 
-        try(final FSDataInputStream stream = spillFile.open();
-            final ArrowBuf buf = allocator.buffer(bodyLength)) {
-          stream.seek(start);
-          final long currentPos = stream.getPos();
-          final long check = stream.readLong();
-          pos = stream.getPos();
+        try (final ArrowBuf buf = allocator.buffer(bodyLength)) {
+          if (start + totalLength > inputStreamLastKnownLen) {
+            // Try to reuse the inputStream opened for earlier reads, but if current buffer was writtenToStream
+            // after this inputStream was opened, close and reopen a new one to avoid EOF or short read errors.
+            if (inputStream != null) {
+              inputStream.close();
+              inputStream = null;
+            }
+            long newLen = spillFile.getFileStatus().getLen();
+            logger.debug("Opening new inputStream for file {}, start {}, totalLength {}, newLen {}",
+              spillFile.getPath(), start, totalLength, newLen);
+            assert newLen >= inputStreamLastKnownLen : String.format("newLen %d should not be less than prevLen %d",
+              newLen, inputStreamLastKnownLen);
+            assert newLen >= start + totalLength : String.format("file len %d too small for buffer, start %d, len %d",
+                newLen, start, totalLength);
+            inputStreamLastKnownLen = newLen;
+            inputStream = spillFile.open();
+          }
+          inputStream.seek(start);
+          final long currentPos = inputStream.getPos();
+          final long check = inputStream.readLong();
+          pos = inputStream.getPos();
           assert check == this.check : String.format("Check values don't match: %d %d, Position %d", this.check, check, currentPos);
           Stopwatch watch = Stopwatch.createStarted();
-          FragmentRecordBatch header = FragmentRecordBatch.parseDelimitedFrom(stream);
-          pos = stream.getPos();
+          FragmentRecordBatch header = FragmentRecordBatch.parseDelimitedFrom(inputStream);
+          pos = inputStream.getPos();
           assert header != null : "header null after parsing from stream";
           // readIntoArrowBuf is a blocking operation. Safe to use COPY_BUFFER
-          readIntoArrowBuf(stream, buf, bodyLength);
-          pos = stream.getPos();
+          readIntoArrowBuf(inputStream, buf, bodyLength);
+          pos = inputStream.getPos();
           batch = new RawFragmentBatch(header, buf, null);
           long t = watch.elapsed(TimeUnit.MICROSECONDS);
           logger.debug("Took {} us to read {} from disk. Rate {} mb/s", t, bodyLength, bodyLength / t);
           tryAgain = false;
           state = BatchState.AVAILABLE;
         } catch (EOFException e) {
+          // Reset open inputStream
+          if (inputStream != null) {
+            inputStream.close();
+            inputStream = null;
+          }
+          inputStreamLastKnownLen = 0;
           FileStatus status = spillFile.getFileStatus();
-          logger.warn("EOF reading from file {} at pos {}. Current file size: {}", spillFile.getPath(), pos, status.getLen());
+          logger.warn("EOF reading from file {} at pos {}. Current file size: {}. Read start {} & total length {}.",
+            spillFile.getPath(), pos, status.getLen(), start, totalLength);
           duration = Math.max(1, duration * 2);
           if (duration < 60000) {
             continue;

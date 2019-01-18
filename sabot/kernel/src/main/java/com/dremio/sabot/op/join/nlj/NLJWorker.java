@@ -15,12 +15,12 @@
  */
 package com.dremio.sabot.op.join.nlj;
 
+import java.util.LinkedList;
+
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
-
-import java.util.LinkedList;
 
 /**
  * Interface for the nested loop join operator.

@@ -25,15 +25,23 @@ import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.util.ImmutableBitSet;
 
+import com.dremio.common.exceptions.UserException;
+
 
 /**
  * Base class for logical and physical Aggregations implemented in Dremio
  */
 public abstract class AggregateRelBase extends Aggregate {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AggregateRelBase.class);
 
   public AggregateRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode child, boolean indicator,
       ImmutableBitSet groupSet, List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) {
     super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls);
+    aggCalls.forEach(a -> {
+      if (a.filterArg >= 0) {
+        throw UserException.unsupportedError().message("Inline aggregate filtering is not currently supported").build(logger);
+      }
+    });
   }
 
   @Override public double estimateRowCount(RelMetadataQuery mq) {

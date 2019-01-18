@@ -19,40 +19,20 @@ import static java.lang.String.format;
 
 import java.io.IOException;
 import java.net.URI;
-import java.security.KeyStore;
-import java.util.Optional;
+import java.security.GeneralSecurityException;
 
-import javax.net.ssl.HostnameVerifier;
-import javax.net.ssl.SSLContext;
-import javax.ws.rs.ProcessingException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.eclipse.jetty.http.HttpHeader;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
-import com.dremio.config.DremioConfig;
-import com.dremio.dac.model.usergroup.UserLogin;
-import com.dremio.dac.model.usergroup.UserLoginSession;
 import com.dremio.dac.server.DACConfig;
-import com.dremio.dac.server.GenericErrorMessage;
-import com.dremio.dac.server.tokens.TokenUtils;
 import com.dremio.dac.util.BackupRestoreUtil.BackupStats;
-import com.dremio.dac.util.JSONUtil;
-import com.dremio.exec.rpc.ssl.SSLConfigurator;
-import com.dremio.ssl.SSLHelper;
-import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 
 /**
  * Backup command line.
@@ -61,7 +41,7 @@ public class Backup {
   private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
 
   /**
-   * Command line options for backup and restore
+   * Command line options for backup
    */
   @Parameters(separators = "=")
   private static final class BackupManagerOptions {
@@ -71,101 +51,43 @@ public class Backup {
     @Parameter(names= {"-d", "--backupdir"}, description="backup directory path. for example, /mnt/dremio/backups or hdfs://$namenode:8020/dremio/backups", required=true)
     private String backupDir = null;
 
-    @Parameter(names= {"-u", "--user"}, description="username (admin)", required=true, password=true,
+    @Parameter(names= {"-u", "--user"}, description="username (admin)", password=true,
       echoInput=true /* user is prompted when password=true and parameter is required, but passwords are hidden,
        so enable echoing input */)
     private String userName = null;
 
-    @Parameter(names= {"-p", "--password"}, description="password", required=true, password=true)
+    @Parameter(names= {"-p", "--password"}, description="password", password=true)
     private String password = null;
 
     @Parameter(names= {"-a", "--accept-all"}, description="accept all ssl certificates")
     private boolean acceptAll = false;
-
-
-    public static BackupManagerOptions parse(String[] cliArgs) {
-      BackupManagerOptions args = new BackupManagerOptions();
-      JCommander jc = JCommander.newBuilder()
-        .addObject(args)
-        .build();
-      jc.parse(cliArgs);
-      if(args.help){
-        jc.usage();
-        System.exit(0);
-      }
-      return args;
-    }
-  }
-
-  private static <T> T readEntity(Class<T> entityClazz, Invocation invocation) throws IOException {
-    Response response = invocation.invoke();
-    try {
-      response.bufferEntity();
-      if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-        if (response.hasEntity()) {
-          // Try to parse error message as generic error message JSON type
-          try {
-            GenericErrorMessage message = response.readEntity(GenericErrorMessage.class);
-            throw new IOException(format("Status %d (%s): %s (more info: %s)",
-                response.getStatus(),
-                response.getStatusInfo().getReasonPhrase(),
-                message.getErrorMessage(),
-                message.getMoreInfo()));
-          } catch (ProcessingException e) {
-            // Fallback to String if unparsing is unsuccessful
-            throw new IOException(format("Status %d (%s)",
-                response.getStatus(),
-                response.getStatusInfo().getReasonPhrase(),
-                response.readEntity(String.class)));
-          }
-        }
-        throw new IOException(format("Status %d (%s)",
-            response.getStatus(),
-            response.getStatusInfo().getReasonPhrase()));
-      }
-      return response.readEntity(entityClazz);
-    } finally {
-      response.close();
-    }
   }
 
   public static BackupStats createBackup(
-      DACConfig dacConfig,
-      String userName,
-      String password,
-      Optional<KeyStore> trustStore,
-      URI uri)
-      throws IOException {
-    final JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
-    provider.setMapper(JSONUtil.prettyMapper());
-    ClientBuilder clientBuilder = ClientBuilder.newBuilder()
-        .register(provider)
-        .register(MultiPartFeature.class);
+    DACConfig dacConfig,
+    String userName,
+    String password,
+    boolean checkSSLCertificates,
+    URI uri)
+      throws IOException, GeneralSecurityException {
+    final WebClient client = new WebClient(dacConfig, userName, password, checkSSLCertificates);
 
-    if (trustStore.isPresent()) {
-      clientBuilder.trustStore(trustStore.get());
-    } else {
-      SSLContext sslContext = SSLHelper.newAllTrustingSSLContext("SSL");
-      HostnameVerifier verifier = SSLHelper.newAllValidHostnameVerifier();
-      clientBuilder.hostnameVerifier(verifier);
-      clientBuilder.sslContext(sslContext);
-    }
-
-    final Client client = clientBuilder.build();
-    WebTarget target = client.target(format("%s://%s:%d",
-        dacConfig.webSSLEnabled() ? "https" : "http", dacConfig.thisNode, dacConfig.getHttpPort())).path("apiv2");
-
-    final UserLogin userLogin = new UserLogin(userName, password);
-    final UserLoginSession userLoginSession = readEntity(UserLoginSession.class, target.path("/login").request(JSON).buildPost(Entity.json(userLogin)));
-
-
-    return readEntity(BackupStats.class, target.path("/backup").request(JSON).header(HttpHeader.AUTHORIZATION.toString(),
-      TokenUtils.AUTH_HEADER_PREFIX + userLoginSession.getToken()).buildPost(Entity.json(uri.toString())));
+    return client.buildPost(BackupStats.class, "/backup", uri.toString());
   }
 
+  private static boolean validateOnlineOption(BackupManagerOptions options) {
+    return (options.userName != null) && (options.password != null);
+  }
   public static void main(String[] args) {
     final DACConfig dacConfig = DACConfig.newConfig();
-    final BackupManagerOptions options = BackupManagerOptions.parse(args);
+    final BackupManagerOptions options = new BackupManagerOptions();
+    JCommander jc = JCommander.newBuilder().addObject(options).build();
+    jc.parse(args);
+    if(options.help) {
+      jc.usage();
+      System.exit(0);
+    }
+
     try {
       if (!dacConfig.isMaster) {
         throw new UnsupportedOperationException("Backup should be ran on master node. ");
@@ -178,15 +100,16 @@ public class Backup {
       if (scheme == null || "file".equals(scheme)) {
         backupDir = backupDir.makeQualified(URI.create("file:///"), FileSystem.getLocal(new Configuration()).getWorkingDirectory());
       }
+
       URI target = backupDir.toUri();
 
-      final Optional<KeyStore> trustStore = options.acceptAll
-          ? Optional.empty()
-          : new SSLConfigurator(dacConfig.getConfig(), DremioConfig.WEB_SSL_PREFIX, "web").getTrustStore();
-
-      BackupStats backupStats = createBackup(dacConfig, options.userName, options.password, trustStore, target);
+      if (!validateOnlineOption(options)) {
+        throw new ParameterException("User credential is required.");
+      }
+      BackupStats backupStats = createBackup(dacConfig, options.userName, options.password, !options.acceptAll, target);
       System.out.println(format("Backup created at %s, dremio tables %d, uploaded files %d",
         backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles()));
+
     } catch(IOException e) {
       System.err.println(format("Failed to create backup at %s: %s ", options.backupDir, e.getMessage()));
       System.exit(1);

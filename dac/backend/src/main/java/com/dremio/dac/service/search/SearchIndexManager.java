@@ -64,10 +64,16 @@ public class SearchIndexManager implements Runnable {
   private static final Logger logger = LoggerFactory.getLogger(SearchIndexManager.class);
 
   public static final String CONFIG_KEY = "searchLastRefresh";
-  static final IndexKey PATH_UNQUOTED_LC = new IndexKey("pathlc", "PATH_LC", String.class, null, false, false);
-  static final IndexKey NAME_LC = new IndexKey("namelc", "NAME_LC", String.class, null, false, false);
-  static final IndexKey TAGS_LC = new IndexKey("tagslc", "TAGS_LC", String.class, null, false, false);
-  static final IndexKey DATASET_COLUMNS_LC = new IndexKey("dscolumnslc", "DATASET_COLUMNS_LC", String.class, null, false, false);
+  static final IndexKey PATH_UNQUOTED_LC = IndexKey.newBuilder("pathlc", "PATH_LC", String.class)
+    .setCanContainMultipleValues(true).build();
+  static final IndexKey NAME_LC = IndexKey.newBuilder("namelc", "NAME_LC", String.class)
+    .build();
+  static final IndexKey TAGS_LC = IndexKey.newBuilder("tagslc", "TAGS_LC", String.class)
+    .setCanContainMultipleValues(true)
+    .build();
+  static final IndexKey DATASET_COLUMNS_LC = IndexKey.newBuilder("dscolumnslc", "DATASET_COLUMNS_LC", String.class)
+    .setCanContainMultipleValues(true)
+    .build();
 
   private static final long WAKEUP_OVERLAP_MS = 10;
 

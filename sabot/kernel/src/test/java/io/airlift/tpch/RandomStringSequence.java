@@ -28,13 +28,13 @@
  */
 package io.airlift.tpch;
 
-import com.google.common.base.Joiner;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.base.Joiner;
 
 public class RandomStringSequence
         extends AbstractRandomInt

@@ -212,7 +212,7 @@ const styles = {
     flexDirection: 'column',
     flexGrow: 1,
     background: WHITE,
-    overflowY: 'auto'
+    overflowY: 'hidden'
   },
   tableViewerStyleShort: {
     width: '100%'

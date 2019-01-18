@@ -18,6 +18,7 @@ import { CALL_API } from 'redux-api-middleware';
 import {
   LOCATION_CHANGE,
   getLocationChangePredicate,
+  getExplorePageLocationChangePredicateImpl,
   getActionPredicate,
   getApiCallCompletePredicate,
   getApiActionTypes,
@@ -57,6 +58,75 @@ describe('saga utils', () => {
       expect(predicate2(
         {type: LOCATION_CHANGE, payload: {pathname: 'foo', query: {bar: 'bar'}, state: {a: 'different'}}})).to.be.true;
     });
+  });
+
+  describe('getExplorePageLocationChangePredicateImpl', () => {
+    const oldLocation = {
+      pathname: '/resources/resourceId/foo',
+      query: { bar: 'bar'},
+      state: { a: 'b' }
+    };
+    const differentLocation = {
+      pathname: '/resources/resourceId/different',
+      query: { bar: 'different'},
+      state: { a: 'different'}
+    };
+    const predicate = getExplorePageLocationChangePredicateImpl(oldLocation);
+
+    it('returns false if location is not changed', () => {
+      expect(predicate({type: LOCATION_CHANGE, payload: oldLocation})).to.be.false;
+    });
+
+    it('returns false if any action, except location changed action is resecived', () => {
+      expect(predicate({ type: 'foo', payload: differentLocation })).to.be.false;
+      expect(predicate({ type: 'foo' })).to.be.false;
+      expect(predicate({ type: LOCATION_CHANGE, payload: differentLocation })).to.be.true;
+    });
+
+    it('returns true if location.path is changed', () => {
+      expect(predicate({type: LOCATION_CHANGE, payload: {
+        ...oldLocation,
+        pathname: differentLocation.pathname
+      }})).to.be.true;
+      // should return false if we are navigating to graph/wiki tab
+      expect(predicate({type: LOCATION_CHANGE, payload: {
+        ...oldLocation,
+        pathname: oldLocation.pathname + '/graph'
+      }})).to.be.false;
+    });
+
+    it('returns true if location.query is changed', () => {
+      expect(predicate({type: LOCATION_CHANGE, payload: {
+        ...oldLocation,
+        query: differentLocation.query
+      }})).to.be.true;
+
+      expect(predicate({type: LOCATION_CHANGE, payload: {
+        ...oldLocation,
+        query: null
+      }})).to.be.true;
+
+      expect(predicate({type: LOCATION_CHANGE, payload: {
+        ...oldLocation,
+        query: {}
+      }})).to.be.true;
+    });
+
+    it('returns false if location.state is changed', () => {
+      expect(predicate({type: LOCATION_CHANGE, payload: {
+        ...oldLocation,
+        state: differentLocation.state
+      }})).to.be.false;
+      expect(predicate({type: LOCATION_CHANGE, payload: {
+        ...oldLocation,
+        state: null
+      }})).to.be.false;
+      expect(predicate({type: LOCATION_CHANGE, payload: {
+        ...oldLocation,
+        state: {}
+      }})).to.be.false;
+    });
+
   });
 
   describe('getActionPredicate', () => {

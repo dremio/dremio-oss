@@ -17,9 +17,13 @@ package com.dremio.exec.planner;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
+
+import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
 
 /**
  * RelShuttleImpl that overrides the visitChild().  In Calcite, RelShuttleImpl has a stack, which
@@ -37,5 +41,21 @@ public class StatelessRelShuttleImpl extends RelShuttleImpl {
       return parent.copy(parent.getTraitSet(), newInputs);
     }
     return parent;
+  }
+
+  public static Stream<RelNode> find(RelNode target, Predicate<RelNode> predicate) {
+    List<RelNode> items = new ArrayList<>();
+    target.accept(new StatelessRelShuttleImpl() {
+
+      @Override
+      public RelNode visit(RelNode other) {
+        if(predicate.apply(other)) {
+          items.add(other);
+        }
+        return super.visit(other);
+      }
+
+    });
+    return ImmutableList.copyOf(items).stream();
   }
 }

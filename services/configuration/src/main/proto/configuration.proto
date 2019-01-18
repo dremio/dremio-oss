@@ -21,5 +21,7 @@ option optimize_for = SPEED;
 message ConfigurationEntry {
   optional string type = 1;
   optional bytes value = 2;
-  optional int64 version = 3;
+  optional int64 version = 3 [deprecated = true];
+  optional string tag = 4;
+
 }

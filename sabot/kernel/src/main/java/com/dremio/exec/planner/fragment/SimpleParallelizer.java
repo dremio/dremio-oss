@@ -41,6 +41,7 @@ import com.dremio.exec.planner.fragment.Materializer.IndexedFragmentNode;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.Collector;
+import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
 import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
 import com.dremio.exec.proto.CoordExecRPC.IncomingMinorFragment;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
@@ -52,11 +53,13 @@ import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.protobuf.ByteString;
@@ -395,6 +398,27 @@ public class SimpleParallelizer implements ParallelizationParameters {
         (queryContextInfo)
         .setQueryMaxAllocation(wrapper.getMaxAllocation()).build();
 
+      // come up with a list of minor fragments assigned for each endpoint.
+      final List<FragmentAssignment> assignments = new ArrayList<>();
+
+      if(queryContext.getOptions().getOption(VectorizedHashAggOperator.OOB_SPILL_TRIGGER_ENABLED)) {
+
+        // collate by node.
+        ArrayListMultimap<NodeEndpoint, Integer> assignMap = ArrayListMultimap.create();
+        for (int minorFragmentId = 0; minorFragmentId < wrapper.getWidth(); minorFragmentId++) {
+          assignMap.put(wrapper.getAssignedEndpoint(minorFragmentId), minorFragmentId);
+        }
+
+        // create assignment lists.
+        for(NodeEndpoint ep : assignMap.keySet()) {
+          assignments.add(
+            FragmentAssignment.newBuilder()
+              .setAssignment(ep)
+              .addAllMinorFragmentId(assignMap.get(ep))
+              .build());
+        }
+      }
+
       // Create a minorFragment for each major fragment.
       for (int minorFragmentId = 0; minorFragmentId < wrapper.getWidth(); minorFragmentId++) {
         IndexedFragmentNode iNode = new IndexedFragmentNode(minorFragmentId, wrapper);
@@ -434,6 +458,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
             .addAllCollector(CountRequiredFragments.getCollectors(root))
             .setPriority(queryContextInfo.getPriority())
             .setFragmentCodec(fragmentCodec)
+            .addAllAllAssignment(assignments)
             .build();
 
         if(logger.isTraceEnabled()){

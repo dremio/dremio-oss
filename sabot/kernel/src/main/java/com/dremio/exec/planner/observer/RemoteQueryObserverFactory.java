@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.planner.observer;
 
+import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.work.AttemptId;
-import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.exec.work.protector.UserResponseHandler;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.proto.model.attempts.AttemptReason;

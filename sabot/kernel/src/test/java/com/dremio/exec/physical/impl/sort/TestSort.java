@@ -17,7 +17,6 @@ package com.dremio.exec.physical.impl.sort;
 
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;

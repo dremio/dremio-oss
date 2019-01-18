@@ -46,7 +46,7 @@ export class ExploreTableCellView extends Component {
     isDumbTable: PropTypes.bool,
 
     selectAll: PropTypes.func,
-    tableData: PropTypes.object,
+    columns: PropTypes.instanceOf(Immutable.List),
     onCellTextSelect: PropTypes.func,
     selectItemsOfList: PropTypes.func,
     shouldRenderInvisibles: PropTypes.bool, // this is a dangerous/experimental option, it can interfere with other features (e.g. selection dropdown)
@@ -133,7 +133,7 @@ export class ExploreTableCellView extends Component {
 
     const columnName = this.getColumnName(selectionData.oRange.startContainer);
     const columnText = selectionData.oRange.startContainer.data;
-    const columnType = this.props.tableData.get('columns').find(col => col.get('name') === columnName).get('type');
+    const columnType = this.props.columns.find(col => col.get('name') === columnName).get('type');
     const cellValue = this.getCellValue();
     if (columnType === LIST) {
       this.props.selectItemsOfList(columnText, columnName, columnType, selectionData);
@@ -195,10 +195,10 @@ export class ExploreTableCellView extends Component {
       return true;
     }
     const columnName = this.getColumnName(selectionData.oRange.startContainer);
-    const column = this.props.tableData.get('columns').find(col => col.get('name') === columnName);
+    const column = this.props.columns.find(col => col.get('name') === columnName);
     if (!column) return true;
 
-    const columnStatus = this.props.tableData.get('columns').find(col => col.get('name') === columnName).get('status');
+    const columnStatus = this.props.columns.find(col => col.get('name') === columnName).get('status');
     return Boolean(query.type && query.type === 'transform' && columnStatus === 'HIGHLIGHTED');
   }
 

@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>3.0.6-201812082352540436-1f684f9</version>
+    <version>3.1.0-201901172111160703-dc6f6e5</version>
   </parent>
 
   <artifactId>dremio-jdbc-driver</artifactId>
@@ -312,10 +312,6 @@
           <groupId>net.hydromatic</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>jpam</artifactId>
-          <groupId>net.sf.jpam</groupId>
-        </exclusion>
-        <exclusion>
           <artifactId>parquet-generator</artifactId>
           <groupId>org.apache.parquet</groupId>
         </exclusion>
@@ -561,7 +557,6 @@
               <exclude>antlr:*</exclude>
               <exclude>org.ow2.asm:*</exclude>
               <exclude>com.univocity:*</exclude>
-              <exclude>net.sf.jpam:*</exclude>
               <exclude>com.twitter:*</exclude>
               <exclude>org.apache.parquet:*</exclude>
               <exclude>javax.inject:*</exclude>
@@ -791,7 +786,7 @@
                     This is likely due to you adding new dependencies to a sabot-kernel and not updating the excludes in this module. This is important as it minimizes the size of the dependency of Dremio application users.
 
                   </message>
-                  <maxsize>29000000</maxsize>
+                  <maxsize>29100000</maxsize>
                   <minsize>15000000</minsize>
                   <files>
                     <file>${project.build.directory}/dremio-jdbc-driver-${project.version}.jar</file>

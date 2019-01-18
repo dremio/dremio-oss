@@ -50,8 +50,9 @@ message ClusterModifyRequest {
   optional bool isSecure = 9;
 
   required string id = 10;
-  optional uint64 version = 11;
+  optional uint64 version = 11 [deprecated = true];
   optional ClusterDesiredState desiredState = 12;
+  optional string tag = 13;
 }
 
 message DynamicConfig {
@@ -60,7 +61,7 @@ message DynamicConfig {
 
 message ClusterResponse {
   required string id = 1;
-  optional uint64 version = 2;
+  optional uint64 version = 2 [deprecated = true];
   required ClusterState currentState = 3;
   required ClusterType clusterType = 4;
   optional string name = 5;
@@ -75,6 +76,7 @@ message ClusterResponse {
   optional ClusterDesiredState desiredState = 14;
   optional DistroType distroType = 15;
   optional bool isSecure = 16;
+  optional string tag = 17;
 }
 
 message ClusterResponsesByType {

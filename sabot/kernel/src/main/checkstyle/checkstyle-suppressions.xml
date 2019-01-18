@@ -22,5 +22,13 @@
 
 <!--  Checkstyle Suppressions for Dremio -->
 <suppressions>
-  <suppress files="[\\/]generated-sources[\\/]" checks="AvoidStarImport,NeedBraces"/>
+  <suppress files="[\\/]generated-sources[\\/]" checks="AvoidStarImport|NeedBraces"/>
+  <suppress files=".*" checks="NewlineAtEndOfFile|FileLength|RegexpMultiline|SuppressionCommentFilter"/>
+  <suppress files=".*" checks="FileContentsHolder|JavadocType|JavadocStyle"/>
+  <suppress files=".*" checks="ConstantName|LocalFinalVariableName|LocalVariableName|MemberName|MethodName"/>
+  <suppress files=".*" checks="ModifierOrder|EmptyBlock|RightCurly|EmptyStatement|EqualsAvoidNull|EqualsHashCode"/>
+  <suppress files=".*" checks="HiddenField|IllegalInstantiation|IllegalType|InnerAssignment|MissingSwitchDefault|MissingOverride"/>
+  <suppress files=".*" checks="SimplifyBooleanExpression|SimplifyBooleanReturn|StringLiteralEquality"/>
+  <suppress files=".*" checks="FinalClass|HideUtilityClassConstructor|InterfaceIsType|VisibilityModifier"/>
+  <suppress files=".*" checks="ArrayTypeStyle|TodoComment|UpperEll"/>
 </suppressions>

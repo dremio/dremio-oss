@@ -75,7 +75,7 @@ public class TestPromotion extends BaseTestServer {
   @After
   public void deleteSource() throws NamespaceException {
     newNamespaceService()
-        .deleteSource(new NamespaceKey(source.getName()), Long.valueOf(source.getTag()));
+        .deleteSource(new NamespaceKey(source.getName()), source.getTag());
   }
 
   private Dataset createPDS(List<String> path, FileFormat format) {

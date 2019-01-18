@@ -16,6 +16,12 @@
 
 package com.dremio.exec.physical.config;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.rex.RexWindowBound;
+
 import com.dremio.common.expression.ErrorCollector;
 import com.dremio.common.expression.ErrorCollectorImpl;
 import com.dremio.common.expression.FieldReference;
@@ -33,12 +39,6 @@ import com.dremio.sabot.op.windowframe.WindowFunction;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.calcite.rex.RexWindowBound;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @JsonTypeName("window")
 public class WindowPOP extends AbstractSingle {

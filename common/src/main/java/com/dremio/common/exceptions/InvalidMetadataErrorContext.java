@@ -20,13 +20,14 @@ import java.util.List;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Preconditions;
 
 /**
  * Contextual information needed to recover from {@link UserException} of {@link ErrorType#INVALID_DATASET_METADATA}
  * type.
  */
 @JsonTypeName("invalid-metadata")
-public class InvalidMetadataErrorContext implements AdditionalExceptionContext {
+public class InvalidMetadataErrorContext extends JsonAdditionalExceptionContext {
 
   private final List<List<String>> pathsToRefresh;
 
@@ -46,5 +47,16 @@ public class InvalidMetadataErrorContext implements AdditionalExceptionContext {
   @Override
   public ErrorType getErrorType() {
     return ErrorType.INVALID_DATASET_METADATA;
+  }
+
+  /**
+   * Deserialize the rawAdditionalContext from a UserException into a new AdditionalExceptionContext.
+   *
+   * @param ex A UserException containing serialized AdditionalExceptionContext data.
+   * @return A new AdditionalExceptionContext of the serialized type.
+   */
+  public static InvalidMetadataErrorContext fromUserException(UserException ex) {
+    Preconditions.checkState(ex.getErrorType() == ErrorType.INVALID_DATASET_METADATA, "exception type mismatch");
+    return JsonAdditionalExceptionContext.fromUserException(InvalidMetadataErrorContext.class, ex);
   }
 }

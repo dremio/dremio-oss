@@ -64,10 +64,10 @@ import org.joda.time.DateTimeConstants;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.options.OptionManager;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet.columnreaders.DeprecatedParquetVectorizedReader;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -415,14 +415,14 @@ abstract class ParquetGroupConverter extends GroupConverter {
 
   private static class Decimal9Converter extends PrimitiveConverter {
     private DecimalWriter writer;
-    int precision;
-    int scale;
+    private DecimalHolder holder = new DecimalHolder();
     private ArrowBuf buffer;
 
     private Decimal9Converter(DecimalWriter writer, int precision, int scale, ArrowBuf buffer) {
       this.writer = writer;
-      this.scale = scale;
-      this.precision = precision;
+      holder.scale = scale;
+      holder.precision = precision;
+      holder.start = 0;
       this.buffer = buffer.reallocIfNeeded(16);
     }
 
@@ -437,7 +437,8 @@ abstract class ParquetGroupConverter extends GroupConverter {
       } else {
         buffer.setZero(4, 12);
       }
-      writer.writeDecimal(0, buffer);
+      holder.buffer = buffer;
+      writer.write(holder);
     }
   }
 
@@ -542,6 +543,7 @@ abstract class ParquetGroupConverter extends GroupConverter {
       this.writer = writer;
       holder.precision = precision;
       holder.scale = scale;
+      holder.start = 0;
       this.buffer = buffer.reallocIfNeeded(16);
     }
 
@@ -556,7 +558,8 @@ abstract class ParquetGroupConverter extends GroupConverter {
       } else {
         buffer.setZero(8, 8);
       }
-      writer.writeDecimal(0, buffer);
+      holder.buffer = buffer;
+      writer.write(holder);
     }
   }
 

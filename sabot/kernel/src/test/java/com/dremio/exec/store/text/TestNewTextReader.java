@@ -20,12 +20,22 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
 import org.apache.commons.io.ByteOrderMark;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapred.FileSplit;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -33,10 +43,16 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.util.FileUtils;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.SampleMutator;
+import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.easy.text.compliant.CompliantTextRecordReader;
+import com.dremio.exec.store.easy.text.compliant.TextParsingSettings;
+import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.test.UserExceptionMatcher;
 
 public class TestNewTextReader extends BaseTestQuery {
@@ -263,5 +279,33 @@ public class TestNewTextReader extends BaseTestQuery {
       .baselineColumns("y")
       .expectsEmptyResultSet()
       .go();
+  }
+
+  @Test
+  public void testFileNotFound() {
+    FileSplit split = mock(FileSplit.class);
+    when(split.getPath()).thenReturn(new Path("/notExist/notExitFile"));
+    TextParsingSettings settings = mock(TextParsingSettings.class);
+    when(settings.isHeaderExtractionEnabled()).thenReturn(true);
+    SchemaPath column = mock(SchemaPath.class);
+    List<SchemaPath> columns = new ArrayList<>(1);
+    columns.add(column);
+    SabotContext context = mock(SabotContext.class);
+    BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
+    when(context.getAllocator()).thenReturn(allocator);
+    Path path = new Path("/notExist");
+    try (BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
+         OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), sampleAllocator, context.getOptionManager(), 1000);
+         FileSystemWrapper dfs = FileSystemWrapper.get(path, new Configuration());
+         SampleMutator mutator = new SampleMutator(sampleAllocator);
+         CompliantTextRecordReader reader = new CompliantTextRecordReader(split, dfs, operatorContext, settings, columns);
+    ){
+      reader.setup(mutator);
+    } catch (Exception e) {
+      // java.io.FileNotFoundException is expected, but memory leak is not expected.
+      assertTrue(e.getCause() instanceof FileNotFoundException);
+    }
+
+    allocator.close();
   }
 }

@@ -28,12 +28,12 @@
  */
 package io.airlift.tpch;
 
-import com.google.common.collect.ImmutableList;
+import static java.util.Locale.ENGLISH;
 
 import java.math.BigDecimal;
 import java.util.List;
 
-import static java.util.Locale.ENGLISH;
+import com.google.common.collect.ImmutableList;
 
 public final class GenerateUtils {
   //

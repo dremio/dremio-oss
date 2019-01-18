@@ -96,6 +96,8 @@ public class TestTableauMessageBodyGenerator {
     DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
     Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
 
+    assertEquals("", document.getDocumentElement().getAttribute("version"));
+
     NodeList connections = document.getDocumentElement().getElementsByTagName("connection");
 
     assertEquals(1, connections.getLength());

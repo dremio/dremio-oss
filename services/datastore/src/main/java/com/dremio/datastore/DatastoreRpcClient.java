@@ -22,15 +22,8 @@ import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
-
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.KVStore.FindByRange;
-import com.dremio.datastore.RemoteDataStoreProtobuf.CheckAndDeleteRequest;
-import com.dremio.datastore.RemoteDataStoreProtobuf.CheckAndDeleteResponse;
-import com.dremio.datastore.RemoteDataStoreProtobuf.CheckAndPutRequest;
-import com.dremio.datastore.RemoteDataStoreProtobuf.CheckAndPutResponse;
 import com.dremio.datastore.RemoteDataStoreProtobuf.ContainsRequest;
 import com.dremio.datastore.RemoteDataStoreProtobuf.ContainsResponse;
 import com.dremio.datastore.RemoteDataStoreProtobuf.DeleteRequest;
@@ -129,7 +122,7 @@ public class DatastoreRpcClient {
     return toIterator(response.getBody().getKeysList(), response.getBody().getValuesList());
   }
 
-  public Long put(String storeId, ByteString key, ByteString value) throws RpcException {
+  public String put(String storeId, ByteString key, ByteString value) throws RpcException {
     final PutRequest.Builder builder = PutRequest.newBuilder();
     builder.setStoreId(storeId);
     builder.setKey(key);
@@ -144,18 +137,6 @@ public class DatastoreRpcClient {
     return null;
   }
 
-  public Pair<Boolean, Long> checkAndPut(String storeId, ByteString key, ByteString oldValue, ByteString newValue) throws RpcException {
-    final CheckAndPutRequest.Builder builder = CheckAndPutRequest.newBuilder();
-    builder.setStoreId(storeId);
-    builder.setKey(key);
-    if (oldValue != null) {
-      builder.setOldValue(oldValue);
-    }
-    builder.setNewValue(newValue);
-    ReceivedResponseMessage<CheckAndPutResponse> response  = rpcService.getCheckAndPutEndpoint().send(builder.build());
-    return new ImmutablePair<>(response.getBody().getInserted(), response.getBody().hasVersion()? response.getBody().getVersion() : null);
-  }
-
   public void delete(String storeId, ByteString key) throws RpcException {
     final DeleteRequest.Builder builder = DeleteRequest.newBuilder();
     builder.setStoreId(storeId);
@@ -163,7 +144,7 @@ public class DatastoreRpcClient {
     rpcService.getDeleteEndpoint().send(builder.build());
   }
 
-  public void delete(String storeId, ByteString key, long previousVersion) throws RpcException {
+  public void delete(String storeId, ByteString key, String previousVersion) throws RpcException {
     final DeleteRequest.Builder builder = DeleteRequest.newBuilder();
     builder.setStoreId(storeId);
     builder.setKey(key);
@@ -172,15 +153,6 @@ public class DatastoreRpcClient {
     if (response.getBody().hasConcurrentModificationError()) {
       throw new ConcurrentModificationException(response.getBody().getConcurrentModificationError());
     }
-  }
-
-  public boolean checkAndDelete(String storeId, ByteString key, ByteString value) throws RpcException {
-    final CheckAndDeleteRequest.Builder builder = CheckAndDeleteRequest.newBuilder();
-    builder.setStoreId(storeId);
-    builder.setKey(key);
-    builder.setValue(value);
-    ReceivedResponseMessage<CheckAndDeleteResponse> response  = rpcService.getCheckAndDeleteEndpoint().send(builder.build());
-    return response.getBody().getDeleted();
   }
 
   public Iterable<Map.Entry<ByteString, ByteString>>find(String storeId, FindByCondition findByCondition) throws IOException {

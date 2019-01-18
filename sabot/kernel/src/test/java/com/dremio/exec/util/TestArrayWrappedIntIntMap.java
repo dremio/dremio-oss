@@ -15,11 +15,9 @@
  */
 package com.dremio.exec.util;
 
-import org.junit.Test;
-
-import com.dremio.exec.util.ArrayWrappedIntIntMap;
-
 import static org.junit.Assert.assertEquals;
+
+import org.junit.Test;
 
 public class TestArrayWrappedIntIntMap {
   @Test

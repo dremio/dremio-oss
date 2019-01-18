@@ -21,14 +21,15 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FinishedReceiver;
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
+import com.dremio.exec.proto.ExecRPC.OOBMessage;
 import com.dremio.exec.proto.ExecRPC.RpcType;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
@@ -37,6 +38,7 @@ import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.sabot.exec.FragmentExecutors;
+import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.rpc.Protocols;
 import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.PhysicalConnection;
@@ -51,6 +53,9 @@ import io.netty.buffer.ByteBuf;
  */
 public class ExecProtocol implements FabricProtocol {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExecProtocol.class);
+
+  public static final Response OK = new Response(RpcType.ACK, Acks.OK);
+  public static final Response FAIL = new Response(RpcType.ACK, Acks.FAIL);
 
   private final FragmentExecutors fragmentsManager;
   private final BufferAllocator allocator;
@@ -73,20 +78,31 @@ public class ExecProtocol implements FabricProtocol {
     case RpcType.REQ_STREAM_COMPLETE_VALUE: {
       final FragmentStreamComplete completion = RpcBus.get(pBody, FragmentStreamComplete.PARSER);
       handleFragmentStreamCompletion(completion);
-      sender.send(ExecToExecConfig.OK);
+      sender.send(OK);
       return;
     }
 
     case RpcType.REQ_RECEIVER_FINISHED_VALUE: {
       final FinishedReceiver completion = RpcBus.get(pBody, FinishedReceiver.PARSER);
       handleReceiverFinished(completion);
-      sender.send(ExecToExecConfig.OK);
+      sender.send(OK);
+      return;
+    }
+
+    case RpcType.REQ_OOB_MESSAGE_VALUE: {
+      final OOBMessage oobMessage = RpcBus.get(pBody, OOBMessage.PARSER);
+      handleOobMessage(oobMessage);
+      sender.send(OK);
       return;
     }
 
     default:
       throw new UnsupportedOperationException();
     }
+  }
+
+  private void handleOobMessage(final OOBMessage message) {
+    fragmentsManager.handle(new OutOfBandMessage(message));
   }
 
   private void handleReceiverFinished(final FinishedReceiver finishedReceiver) throws RpcException {
@@ -196,6 +212,7 @@ public class ExecProtocol implements FabricProtocol {
         .add(RpcType.REQ_RECORD_BATCH, FragmentRecordBatch.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_STREAM_COMPLETE, FragmentStreamComplete.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_RECEIVER_FINISHED, FinishedReceiver.class, RpcType.ACK, Ack.class)
+        .add(RpcType.REQ_OOB_MESSAGE, OOBMessage.class, RpcType.ACK, Ack.class)
         .build();
   }
 

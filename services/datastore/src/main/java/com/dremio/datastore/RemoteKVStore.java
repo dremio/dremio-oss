@@ -25,8 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.lang3.tuple.Pair;
-
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.dremio.datastore.MetricUtils.CloseableTimer;
@@ -190,29 +188,14 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
   @Override
   public void put(K key, V value) {
     try (CloseableTimer timer = time(Stats.PUT)) {
-      Long version = client.put(storeId, ByteString.copyFrom(keySerializer.serialize(key)), ByteString.copyFrom(valueSerializer.serialize(value)));
+      String version = client.put(storeId, ByteString.copyFrom(keySerializer.serialize(key)), ByteString.copyFrom(valueSerializer.serialize(value)));
       if (versionExtractor != null) {
-        versionExtractor.setVersion(value, version);
+        // the local value has not been modified since this was a remote call, so we have to call preCommit
+        versionExtractor.preCommit(value);
+        versionExtractor.setTag(value, version);
       }
     } catch (RpcException e) {
       throw new DatastoreException(format("Failed to put in store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
-    }
-  }
-
-  @Override
-  public boolean checkAndPut(K key, V oldValue, V newValue) {
-    try (CloseableTimer timer = time(Stats.CHECK_AND_PUT)) {
-      Pair<Boolean, Long> response = client.checkAndPut(storeId,
-        ByteString.copyFrom(keySerializer.serialize(key)),
-        oldValue == null? null : ByteString.copyFrom(valueSerializer.serialize(oldValue)),
-        ByteString.copyFrom(valueSerializer.serialize(newValue)));
-
-      if (versionExtractor != null) {
-        versionExtractor.setVersion(newValue, response.getRight());
-      }
-      return response.getLeft();
-    } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to checkAndPut in store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
     }
   }
 
@@ -231,17 +214,6 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
       client.delete(storeId, ByteString.copyFrom(keySerializer.serialize(key)));
     } catch (RpcException e) {
       throw new DatastoreException(format("Failed to delete from store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
-    }
-  }
-
-  @Override
-  public boolean checkAndDelete(K key, V value) {
-    try (CloseableTimer timer = time(Stats.CHECK_AND_DELETE)) {
-      return client.checkAndDelete(storeId,
-        ByteString.copyFrom(keySerializer.serialize(key)),
-        ByteString.copyFrom(valueSerializer.serialize(value)));
-    } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to checkAndDelete from store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
     }
   }
 
@@ -279,7 +251,7 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
   }
 
   @Override
-  public void delete(K key, long previousVersion) {
+  public void delete(K key, String previousVersion) {
     try (CloseableTimer timer = time(Stats.DELETE_VERSION)) {
       client.delete(storeId, ByteString.copyFrom(keySerializer.serialize(key)), previousVersion);
     } catch (RpcException e) {

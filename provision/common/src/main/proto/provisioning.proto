@@ -29,12 +29,13 @@ message RunId {
 
 message ClusterConfig {
  required ClusterType clusterType = 1;
- optional uint64 version = 2;
+ optional uint64 version = 2 [deprecated = true];
  optional ClusterSpec clusterSpec = 3;
  optional string name = 4;
  repeated Property subProperty = 5;
  optional DistroType distroType = 6 [default = OTHER];
  optional bool isSecure = 7 [default = false];
+ optional string tag = 8;
 }
 
 message ClusterSpec {

@@ -16,8 +16,8 @@
 package com.dremio.exec.work.protector;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.proto.model.attempts.AttemptReason;
 
 /**
  * Encapsulates the re-attempt logic: when re-attempts are possible, and how various re-attempt reasons should be

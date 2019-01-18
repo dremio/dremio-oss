@@ -183,8 +183,11 @@ export class Support extends PureComponent {
 
   render() {
     const advancedForm = <form style={{flex: '0 0 auto'}} onSubmit={this.addAdvanced}>
-      <TextField placeholder={la('Support Key')}/>
-      <SimpleButton buttonStyle='secondary' style={{verticalAlign: 'bottom', width: 'auto'}}>{la('Show')}</SimpleButton>
+      <TextField placeholder={la('Support Key')} data-qa='support-key-search'/>
+      <SimpleButton buttonStyle='secondary' data-qa='support-key-search-btn'
+        style={{verticalAlign: 'bottom', width: 'auto'}}>
+        {la('Show')}
+      </SimpleButton>
     </form>;
 
     return <div className='support-settings'>

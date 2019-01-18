@@ -17,21 +17,36 @@ package com.dremio.dac.cmd.upgrade;
 
 import java.util.Map;
 
+import com.dremio.common.Version;
 import com.dremio.dac.proto.model.dataset.NameDatasetRef;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetVersion;
 import com.dremio.dac.service.datasets.DatasetVersionMutator.VersionDatasetKey;
 import com.dremio.dac.service.datasets.DatasetVersionMutator.VersionStoreCreator;
 import com.dremio.datastore.KVStore;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
 /**
  * Deletes history of renamed datasets by setting the "previous version" link of the latest version of renamed datasets
  * to null.
  */
-public class DeleteHistoryOfRenamedDatasets extends UpgradeTask {
+public class DeleteHistoryOfRenamedDatasets extends UpgradeTask implements  LegacyUpgradeTask {
+
+  //DO NOT MODIFY
+  static final String taskUUID = "149b8d09-9099-4eba-8902-0edf103a441c";
 
   public DeleteHistoryOfRenamedDatasets() {
-    super("Delete history of renamed datasets", VERSION_106, VERSION_210, NORMAL_ORDER + 10);
+    super("Delete history of renamed datasets", ImmutableList.of(CompressHiveTableAttrs.taskUUID));
+  }
+
+  @Override
+  public Version getMaxVersion() {
+    return VERSION_210;
+  }
+
+  @Override
+  public String getTaskUUID() {
+    return taskUUID;
   }
 
   @Override
@@ -54,5 +69,10 @@ public class DeleteHistoryOfRenamedDatasets extends UpgradeTask {
           .setPreviousVersion(null);
       datasetVersions.put(datasetVersion.getKey(), newValue);
     }
+  }
+
+  @Override
+  public String toString() {
+    return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
   }
 }

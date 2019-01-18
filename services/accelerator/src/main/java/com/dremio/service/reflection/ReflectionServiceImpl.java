@@ -48,12 +48,12 @@ import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.acceleration.KryoLogicalPlanSerializers;
+import com.dremio.exec.planner.acceleration.CachedMaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.MaterializationExpander;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
-import com.dremio.exec.planner.sql.CachedMaterializationDescriptor;
-import com.dremio.exec.planner.sql.DremioRelOptMaterialization;
-import com.dremio.exec.planner.sql.MaterializationDescriptor;
-import com.dremio.exec.planner.sql.MaterializationExpander;
+import com.dremio.exec.planner.serialization.kryo.KryoLogicalPlanSerializers;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
@@ -91,6 +91,7 @@ import com.dremio.service.reflection.proto.ReflectionGoalState;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.proto.RefreshRequest;
+import com.dremio.service.reflection.refresh.RefreshHelper;
 import com.dremio.service.reflection.store.DependenciesStore;
 import com.dremio.service.reflection.store.ExternalReflectionStore;
 import com.dremio.service.reflection.store.MaterializationStore;
@@ -158,7 +159,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   private final RefreshRequestsStore requestsStore;
   private final BindingCreator bindingCreator;
   private final boolean isMaster;
-  private final CacheHelper cacheHelper = new CacheHelperImpl();
+  private final CacheHelperImpl cacheHelper = new CacheHelperImpl();
   /** set of all reflections that need to be updated next time the reflection manager wakes up */
   private final Set<ReflectionId> reflectionsToUpdate = Sets.newConcurrentHashSet();
 
@@ -257,6 +258,10 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       }
     }
 
+    // no automatic rePlan allowed after this point. Any failure to expand should cause the corresponding
+    // materialization to be marked as failed
+    cacheHelper.disableReplan();
+
     // only start the managers on the master node
     if (isMaster) {
 
@@ -297,12 +302,24 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     }
     bindingCreator.replace(AccelerationManager.class, new AccelerationManagerImpl(this, namespaceService.get()));
 
-    final long cacheUpdateDelay = getOptionManager().getOption(MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS);
-    schedulerService.get().schedule(scheduleForRunningOnceAt(ofEpochMilli(System.currentTimeMillis() + cacheUpdateDelay)),
-      new CacheRefresher());
+    scheduleNextCacheRefresh(new CacheRefresher());
   }
 
-  RefreshHelper getRefreshHelper() {
+  private void scheduleNextCacheRefresh(CacheRefresher refresher) {
+    long cacheUpdateDelay;
+
+    try {
+      cacheUpdateDelay = getOptionManager().getOption(MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS);
+    } catch (Exception e) {
+      logger.warn("Failed to retrieve materialization cache refresh delay", e);
+      cacheUpdateDelay = MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS.getDefault().getNumVal();
+    }
+
+    schedulerService.get().schedule(scheduleForRunningOnceAt(ofEpochMilli(System.currentTimeMillis() + cacheUpdateDelay)),
+      refresher);
+  }
+
+  public RefreshHelper getRefreshHelper() {
     return new RefreshHelper() {
 
       @Override
@@ -386,7 +403,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   public ReflectionId create(ReflectionGoal goal) {
     try {
       Preconditions.checkArgument(goal.getId() == null, "new reflection shouldn't have an ID");
-      Preconditions.checkState(goal.getVersion() == null, "new reflection shouldn't have a version");
+      Preconditions.checkState(goal.getTag() == null, "new reflection shouldn't have a version");
       validator.validate(goal);
     } catch (Exception e) {
       throw UserException.validationError().message("Invalid reflection: %s", e.getMessage()).build(logger);
@@ -478,7 +495,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     try {
       Preconditions.checkNotNull(goal, "reflection goal required");
       Preconditions.checkNotNull(goal.getId(), "reflection id required");
-      Preconditions.checkNotNull(goal.getVersion(), "reflection version required");
+      Preconditions.checkNotNull(goal.getTag(), "reflection version required");
 
       Optional<ReflectionGoal> currentGoal = getGoal(goal.getId());
       // TODO: if there is no current goal, should we throw?
@@ -645,6 +662,14 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     return materializationStore.find(reflectionId);
   }
 
+  @VisibleForTesting
+  public void remove(ReflectionId id) {
+    Optional<ReflectionGoal> goal = getGoal(id);
+    if(goal.isPresent() && goal.get().getState() != ReflectionGoalState.DELETED) {
+      update(goal.get().setState(ReflectionGoalState.DELETED));
+    }
+  }
+
   @Override
   public void remove(ReflectionGoal goal) {
     update(goal.setState(ReflectionGoalState.DELETED));
@@ -729,7 +754,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
   private MaterializationDescriptor getDescriptor(Materialization materialization) throws CacheException {
     final ReflectionGoal goal = userStore.get(materialization.getReflectionId());
-    if (!goal.getVersion().equals(materialization.getReflectionGoalVersion())) {
+    if (!goal.getTag().equals(materialization.getReflectionGoalVersion())) {
       // reflection goal changed and corresponding materialization is no longer valid
       throw new CacheException("Unable to expand materialization " + materialization.getId().getId() +
         " as it no longer matches its reflection goal");
@@ -782,7 +807,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
                 // their materializations
                 return cacheHelper.expand(m);
               } catch (Exception e) {
-                logger.debug("couldn't expand materialization {}", m.getId().getId(), e);
+                logger.warn("couldn't expand materialization {}", m.getId().getId(), e);
                 return null;
               }
             }
@@ -833,6 +858,12 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   }
 
   private final class CacheHelperImpl implements CacheHelper {
+    private boolean rePlanIfNecessary = true;
+
+    void disableReplan() {
+      rePlanIfNecessary = false;
+    }
+
     @Override
     public Iterable<Materialization> getValidMaterializations() {
       return ReflectionServiceImpl.this.getValidMaterializations();
@@ -855,7 +886,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     @Override
     public CachedMaterializationDescriptor expand(Materialization materialization) throws CacheException {
       final MaterializationDescriptor descriptor = ReflectionServiceImpl.this.getDescriptor(materialization);
-      final DremioRelOptMaterialization expanded = expand(descriptor);
+      final DremioMaterialization expanded = expand(descriptor);
       if (expanded == null) {
         return null;
       }
@@ -863,7 +894,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     }
 
     @Override
-    public DremioRelOptMaterialization expand(MaterializationDescriptor descriptor) {
+    public DremioMaterialization expand(MaterializationDescriptor descriptor) {
       final ReflectionId rId = new ReflectionId(descriptor.getLayoutId());
       if (reflectionsToUpdate.contains(rId)) {
         // reflection already scheduled for update
@@ -883,18 +914,27 @@ public class ReflectionServiceImpl extends BaseReflectionService {
           return null;
         }
 
+        if (!rePlanIfNecessary) {
+          // replan not allowed, just rethrow the exception
+          throw e;
+        }
+
         logger.debug("failed to expand materialization descriptor {}/{}. Associated reflection will be scheduled for update",
           descriptor.getLayoutId(), descriptor.getMaterializationId(), e);
-        reflectionsToUpdate.add(new ReflectionId(descriptor.getLayoutId()));
-        wakeupManager("failed to expand materialization"); // we should wake up the manager to update the reflection
-        return null;
       } catch (MaterializationExpander.ExpansionException e) {
+        if (!rePlanIfNecessary) {
+          // replan not allowed, just rethrow the exception
+          throw e;
+        }
+
         logger.debug("failed to expand materialization descriptor {}/{}. Associated reflection will be scheduled for update",
           descriptor.getLayoutId(), descriptor.getMaterializationId(), e);
-        reflectionsToUpdate.add(new ReflectionId(descriptor.getLayoutId()));
-        wakeupManager("failed to expand materialization"); // we should wake up the manager to update the reflection
-        return null;
       }
+
+      // mark reflection for update
+      reflectionsToUpdate.add(new ReflectionId(descriptor.getLayoutId()));
+      wakeupManager("failed to expand materialization"); // we should wake up the manager to update the reflection
+      return null;
     }
   }
 
@@ -922,8 +962,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       try {
         refreshCache();
       } finally {
-        final long cacheUpdateDelay = getOptionManager().getOption(MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS);
-        schedulerService.get().schedule(scheduleForRunningOnceAt(ofEpochMilli(System.currentTimeMillis() + cacheUpdateDelay)), this);
+        scheduleNextCacheRefresh(this);
       }
     }
   }
@@ -947,7 +986,9 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         context.getSession(),
         AbstractAttemptObserver.NOOP,
         context.getCatalog(),
-        context.getSubstitutionProviderFactory());
+        context.getSubstitutionProviderFactory(),
+        context.getConfig(),
+        context.getScanResult());
     }
 
     public SqlConverter getConverter() {

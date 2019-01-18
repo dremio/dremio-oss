@@ -127,7 +127,7 @@ public class GMathFunctions{
     }
 
     public void eval() {
-      java.math.BigDecimal temp = new java.math.BigDecimal(input1.value);
+      java.math.BigDecimal temp = java.math.BigDecimal.valueOf(input1.value);
       out.value = (${type.castType}) temp.setScale(input2.value, java.math.RoundingMode.${func.mode}).doubleValue();
     }
   }

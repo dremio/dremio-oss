@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.physical.config;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
@@ -27,9 +30,6 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-
-import java.util.ArrayList;
-import java.util.List;
 
 @JsonTypeName("streaming-aggregate")
 public class StreamingAggregate extends AbstractSingle {

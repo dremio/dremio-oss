@@ -18,13 +18,13 @@ package com.dremio.sabot.op.aggregate.vectorized;
 
 import java.util.List;
 
-import com.dremio.common.util.Numbers;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.util.Numbers;
 import com.dremio.exec.expr.TypeHelper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;

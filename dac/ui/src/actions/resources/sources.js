@@ -155,7 +155,7 @@ function fetchRemoveSource(source) {
         }
       ],
       method: 'DELETE',
-      endpoint: makeUncachebleURL(`${API_URL_V2}${source.getIn(['links', 'self'])}?version=${source.get('version')}`)
+      endpoint: makeUncachebleURL(`${API_URL_V2}${source.getIn(['links', 'self'])}?version=${source.get('tag')}`)
     }
   };
 }

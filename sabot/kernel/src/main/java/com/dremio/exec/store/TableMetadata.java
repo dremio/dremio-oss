@@ -82,7 +82,7 @@ public interface TableMetadata {
 
   boolean isPruned() throws NamespaceException;
 
-  long getVersion();
+  String getVersion();
 
   DatasetConfig getDatasetConfig();
 }

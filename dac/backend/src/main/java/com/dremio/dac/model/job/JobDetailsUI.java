@@ -41,6 +41,7 @@ import com.dremio.service.job.proto.MaterializationSummary;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.job.proto.ResourceSchedulingInfo;
+import com.dremio.service.job.proto.SpillJobDetails;
 import com.dremio.service.job.proto.TableDatasetProfile;
 import com.dremio.service.job.proto.TopOperation;
 import com.dremio.service.jobs.Job;
@@ -68,6 +69,7 @@ public class JobDetailsUI {
   private final String attemptsSummary;
   private final String downloadUrl;
   private final JobFailureInfo failureInfo;
+  private final JobCancellationInfo cancellationInfo;
   private final QueryType queryType;
   private final List<String> datasetPathList;
   private final List<ParentDatasetInfo> parentsList;
@@ -86,6 +88,8 @@ public class JobDetailsUI {
   private final MaterializationSummary materializationFor;
   private final AccelerationDetailsUI acceleration;
   private final ResourceSchedulingUI resourceScheduling;
+  private final boolean spilled;
+  private final SpillJobDetailsUI spillDetails;
 
   @JsonCreator
   public JobDetailsUI(
@@ -114,6 +118,7 @@ public class JobDetailsUI {
     @JsonProperty("attemptsSummary") String attemptsSummary,
     @JsonProperty("downloadUrl") String downloadUrl,
     @JsonProperty("failureInfo") JobFailureInfo failureInfo,
+    @JsonProperty("cancellationInfo") JobCancellationInfo cancellationInfo,
     @JsonProperty("sql") String sql,
     @JsonProperty("description") String description,
     @JsonProperty("stats") JobStats stats,
@@ -122,7 +127,9 @@ public class JobDetailsUI {
     @JsonProperty("resultsAvailable") Boolean resultsAvailable,
     @JsonProperty("materializationFor") MaterializationSummary materializationFor,
     @JsonProperty("acceleration") AccelerationDetailsUI acceleration,
-    @JsonProperty("resourceScheduling") ResourceSchedulingUI resourceScheduling) {
+    @JsonProperty("resourceScheduling") ResourceSchedulingUI resourceScheduling,
+    @JsonProperty("spilled") boolean spilled,
+    @JsonProperty("spillDetails") SpillJobDetailsUI spillDetails) {
     this.jobId = jobId;
     this.queryType = queryType;
     this.datasetPathList = datasetPathList;
@@ -148,6 +155,7 @@ public class JobDetailsUI {
     this.attemptsSummary = attemptsSummary;
     this.downloadUrl = downloadUrl;
     this.failureInfo = failureInfo;
+    this.cancellationInfo = cancellationInfo;
     this.description = description;
     this.sql = sql;
     this.stats = stats;
@@ -157,20 +165,27 @@ public class JobDetailsUI {
     this.materializationFor = materializationFor;
     this.acceleration = acceleration;
     this.resourceScheduling = resourceScheduling;
+    this.spilled = spilled;
+    this.spillDetails = spillDetails;
   }
 
   public static JobDetailsUI of(Job job) {
     JobInfo jobInfo = job.getJobAttempt().getInfo();
-    JobFailureInfo jobFailureInfo = toJobFailureInfo(jobInfo);
     List<JobAttempt> attempts = job.getAttempts();
     AccelerationDetails accelerationDetails = deserialize(Util.last(attempts).getAccelerationDetails());
 
     return new JobDetailsUI(
         job.getJobId(),
         job.getJobAttempt().getDetails(),
-        JobResource.getPaginationURL(job.getJobId()), attempts, JobResource.getDownloadURL(job),
-        jobFailureInfo, job.getJobAttempt().getInfo().getDatasetVersion(),
-        job.hasResults(), accelerationDetails);
+        JobResource.getPaginationURL(job.getJobId()),
+        attempts,
+        JobResource.getDownloadURL(job),
+        toJobFailureInfo(jobInfo),
+        toJobCancellationInfo(Util.last(attempts)),
+        job.getJobAttempt().getInfo().getDatasetVersion(),
+        job.hasResults(),
+        accelerationDetails,
+        jobInfo.getSpillJobDetails());
   }
 
   public static JobFailureInfo toJobFailureInfo(JobInfo jobInfo) {
@@ -215,6 +230,18 @@ public class JobDetailsUI {
     return new JobFailureInfo(failureInfo.getMessage(), failureType, errors);
   }
 
+  public static JobCancellationInfo toJobCancellationInfo(JobAttempt jobAttempt) {
+    if (jobAttempt.getState() != JobState.CANCELED) {
+      return null;
+    }
+
+    final com.dremio.service.job.proto.JobCancellationInfo cancellationInfo =
+        jobAttempt.getInfo().getCancellationInfo();
+    return new JobCancellationInfo(cancellationInfo == null ?
+        "Query was cancelled" : // backward compatibility
+        cancellationInfo.getMessage());
+  }
+
   public static boolean wasSnowflakeAccelerated(AccelerationDetails details) {
     if (details == null || details.getReflectionRelationshipsList() == null) {
       return false;
@@ -254,9 +281,11 @@ public class JobDetailsUI {
     List<JobAttempt> attempts,
     String downloadUrl,
     JobFailureInfo failureInfo,
+    JobCancellationInfo cancellationInfo,
     String datasetVersion,
     Boolean resultsAvailable,
-    AccelerationDetails accelerationDetails) {
+    AccelerationDetails accelerationDetails,
+    SpillJobDetails spillDetails) {
     this(
         jobId,
         attempts.get(0).getInfo().getQueryType(),
@@ -279,10 +308,11 @@ public class JobDetailsUI {
         jobDetails.getFsDatasetProfilesList(),
         jobDetails.getTopOperationsList(),
         paginationUrl,
-        AttemptsHelper.fromAttempts(jobId, attempts),
-        AttemptsHelper.constructSummary(attempts),
+        AttemptsUIHelper.fromAttempts(jobId, attempts),
+        AttemptsUIHelper.constructSummary(attempts),
         downloadUrl,
         failureInfo,
+        cancellationInfo,
         attempts.get(0).getInfo().getSql(),
         attempts.get(0).getInfo().getDescription(),
         Util.last(attempts).getStats(),
@@ -291,8 +321,9 @@ public class JobDetailsUI {
         resultsAvailable,
         Util.last(attempts).getInfo().getMaterializationFor(),
         toUI(accelerationDetails),
-        toRUI(attempts.get(0).getInfo().getResourceSchedulingInfo())
-    );
+        toRUI(attempts.get(0).getInfo().getResourceSchedulingInfo()),
+        spillDetails != null,
+        toSpillUI(spillDetails));
   }
 
   public static ResourceSchedulingUI toRUI(ResourceSchedulingInfo resourceSchedulingInfo) {
@@ -305,6 +336,15 @@ public class JobDetailsUI {
       resourceSchedulingInfo.getRuleId(),
       resourceSchedulingInfo.getRuleName(),
       resourceSchedulingInfo.getRuleContent());
+  }
+
+  private static SpillJobDetailsUI toSpillUI(final SpillJobDetails spillJobDetails) {
+    if (spillJobDetails == null) {
+      return null;
+    }
+    return new SpillJobDetailsUI(spillJobDetails.getTotalBytesSpilledByHashAgg() > 0,
+                                 spillJobDetails.getTotalBytesSpilledBySort() > 0,
+                                 spillJobDetails.getTotalBytesSpilledByHashAgg() + spillJobDetails.getTotalBytesSpilledBySort());
   }
 
   public JobId getJobId() {
@@ -365,6 +405,10 @@ public class JobDetailsUI {
 
   public JobFailureInfo getFailureInfo() {
     return failureInfo;
+  }
+
+  public JobCancellationInfo getCancellationInfo() {
+    return cancellationInfo;
   }
 
   public QueryType getQueryType() {
@@ -441,5 +485,13 @@ public class JobDetailsUI {
 
   public ResourceSchedulingUI getResourceScheduling() {
     return resourceScheduling;
+  }
+
+  public SpillJobDetailsUI getSpillDetails() {
+    return spillDetails;
+  }
+
+  public boolean isSpilled() {
+    return spilled;
   }
 }

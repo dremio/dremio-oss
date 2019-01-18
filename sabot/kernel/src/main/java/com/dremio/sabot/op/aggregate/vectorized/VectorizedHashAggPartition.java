@@ -21,13 +21,12 @@ import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
-import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.types.Types;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.dremio.common.AutoCloseables;
 import com.dremio.sabot.op.common.ht2.LBlockHashTable;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import org.apache.arrow.vector.types.Types;
 
 public class VectorizedHashAggPartition implements AutoCloseable {
   boolean spilled;

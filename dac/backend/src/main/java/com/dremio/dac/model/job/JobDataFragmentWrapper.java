@@ -69,7 +69,7 @@ public class JobDataFragmentWrapper implements JobDataFragment {
     this.columns = ImmutableList.copyOf(nameToColumns.values());
   }
 
-  private static ImmutableMap<String, Column> getColumnsFromSchema(BatchSchema schema){
+  public static ImmutableMap<String, Column> getColumnsFromSchema(BatchSchema schema){
     ImmutableMap.Builder<String, Column> columns = ImmutableMap.builder();
     for (int i = 0; i < schema.getFieldCount(); ++i) {
       final Field column = schema.getColumn(i);

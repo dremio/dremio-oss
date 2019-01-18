@@ -41,11 +41,11 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.utils.PathUtils;
+import com.dremio.exec.planner.acceleration.ExternalMaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateSettings;
 import com.dremio.exec.planner.acceleration.JoinDependencyProperties;
-import com.dremio.exec.planner.sql.ExternalMaterializationDescriptor;
-import com.dremio.exec.planner.sql.MaterializationDescriptor;
-import com.dremio.exec.planner.sql.MaterializationDescriptor.ReflectionInfo;
+import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
+import com.dremio.exec.planner.acceleration.MaterializationDescriptor.ReflectionInfo;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
 import com.dremio.exec.store.RecordWriter;
@@ -67,7 +67,6 @@ import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
@@ -146,11 +145,10 @@ public class ReflectionUtils {
       Materialization materialization, String sql, JobStatusListener jobStatusListener) {
     final SqlQuery query = new SqlQuery(sql, SYSTEM_USERNAME);
     NamespaceKey datasetPathList = new NamespaceKey(namespaceService.findDatasetByUUID(entry.getDatasetId()).getFullPathList());
-    DatasetVersion datasetVersion = DatasetVersion.fromExistingVersion(entry.getDatasetVersion());
     MaterializationSummary materializationSummary = new MaterializationSummary()
       .setDatasetId(entry.getDatasetId())
       .setReflectionId(entry.getId().getId())
-      .setLayoutVersion(entry.getVersion().intValue())
+      .setLayoutVersion(entry.getTag())
       .setMaterializationId(materialization.getId().getId())
       .setReflectionName(entry.getName())
       .setReflectionType(entry.getType().toString());
@@ -161,7 +159,6 @@ public class ReflectionUtils {
         .setSqlQuery(query)
         .setQueryType(QueryType.ACCELERATOR_CREATE)
         .setDatasetPath(datasetPathList)
-        .setDatasetVersion(datasetVersion)
         .build(), jobStatusListener);
   }
 
@@ -218,7 +215,7 @@ public class ReflectionUtils {
     return new MaterializationDescriptor(
       toReflectionInfo(reflectionGoal),
       materialization.getId().getId(),
-      materialization.getVersion(),
+      materialization.getTag(),
       materialization.getExpiration(),
       materialization.getLogicalPlan().toByteArray(),
       getMaterializationPath(materialization),
@@ -226,7 +223,8 @@ public class ReflectionUtils {
       materialization.getInitRefreshSubmit(),
       getPartitionNames(materialization.getPartitionList()),
       updateSettings,
-      JoinDependencyProperties.NONE);
+      JoinDependencyProperties.NONE,
+      materialization.getLogicalPlanStrippedHash());
   }
 
   public static List<String> getPartitionNames(List<DataPartition> partitions) {
@@ -292,7 +290,7 @@ public class ReflectionUtils {
         null
       ),
       externalReflection.getId(),
-      Optional.fromNullable(externalReflection.getVersion()).or(Long.valueOf(0)),
+      Optional.fromNullable(externalReflection.getTag()).or(String.valueOf(0)),
       queryDataset.getFullPathList(),
       targetDataset.getFullPathList()
     );
@@ -487,7 +485,7 @@ public class ReflectionUtils {
     return new LogicalProject(node.getCluster(), node.getTraitSet(), node, projects, rowTypeBuilder.build());
   }
 
-  static RelNode removeColumns(RelNode node, Predicate<RelDataTypeField> predicate) {
+  public static RelNode removeColumns(RelNode node, Predicate<RelDataTypeField> predicate) {
     if (node.getTraitSet() == null) {
       // for test purposes.
       return node;

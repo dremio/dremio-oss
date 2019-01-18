@@ -18,15 +18,17 @@ package com.dremio.sabot.exec.rpc;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FinishedReceiver;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
+import com.dremio.exec.proto.ExecRPC.OOBMessage;
 import com.dremio.exec.proto.ExecRPC.RpcType;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.record.FragmentWritableBatch;
 import com.dremio.exec.rpc.ListeningCommand;
 import com.dremio.exec.rpc.RpcOutcomeListener;
+import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricCommandRunner;
-
 import com.google.common.base.Preconditions;
+
 import io.netty.buffer.ByteBuf;
 
 public class ExecTunnel {
@@ -44,6 +46,10 @@ public class ExecTunnel {
 
   public void sendRecordBatch(RpcOutcomeListener<Ack> outcomeListener, FragmentWritableBatch batch) {
     manager.runCommand(new SendBatchAsyncListen(outcomeListener, batch));
+  }
+
+  public void sendOOBMessage(RpcOutcomeListener<Ack> outcomeListener, OutOfBandMessage message) {
+    manager.runCommand(new SendOOBMessage(outcomeListener, message.toProtoMessage()));
   }
 
   private static void checkFragmentHandle(FragmentHandle handle) {
@@ -103,6 +109,27 @@ public class ExecTunnel {
       super.connectionFailed(type, t);
     }
   }
+
+  private class SendOOBMessage extends ListeningCommand<Ack, ProxyConnection> {
+    private final OOBMessage message;
+
+    public SendOOBMessage(RpcOutcomeListener<Ack> listener, OOBMessage message) {
+      super(listener);
+      this.message = message;
+    }
+
+    @Override
+    public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
+      connection.send(outcomeListener, RpcType.REQ_OOB_MESSAGE, message, Ack.class);
+    }
+
+    @Override
+    public String toString() {
+      return "Send OOBMessage [" + message + "]";
+    }
+
+  }
+
 
 
   public static class ReceiverFinished extends ListeningCommand<Ack, ProxyConnection> {

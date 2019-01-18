@@ -252,7 +252,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
       @Override
       public void operationComplete(Future<Void> future) throws Exception {
-        foreman.cancel(null);
+        foreman.cancel("User - Connection closed", false);
       }
     }
 
@@ -291,14 +291,18 @@ public class ForemenWorkManager implements Service, SafeExit {
 
   }
 
-  public boolean cancel(ExternalId externalId) {
-    return cancel(externalId, null);
-  }
-
-  public boolean cancel(ExternalId externalId, String reason) {
+  /**
+   * Cancel the query.
+   *
+   * @param externalId      id of the query
+   * @param reason          description of the cancellation
+   * @param clientCancelled true if the client application explicitly issued a cancellation (via end user action), or
+   *                        false otherwise (i.e. when pushing the cancellation notification to the end user)
+   */
+  public boolean cancel(ExternalId externalId, String reason, boolean clientCancelled) {
     final ManagedForeman managed = externalIdToForeman.get(externalId);
     if (managed != null) {
-      managed.foreman.cancel(reason);
+      managed.foreman.cancel(reason, clientCancelled);
       return true;
     }
 
@@ -449,11 +453,6 @@ public class ForemenWorkManager implements Service, SafeExit {
         throw Throwables.propagate(ex);
       }
     }
-
-    @Override
-    public void cancelLocalQuery(ExternalId query) {
-      cancel(query);
-    }
   }
 
   /**
@@ -485,8 +484,8 @@ public class ForemenWorkManager implements Service, SafeExit {
     }
 
     @Override
-    public Ack cancelQuery(ExternalId query) {
-      cancel(query);
+    public Ack cancelQuery(ExternalId query, String username) {
+      cancel(query, String.format("Query cancelled by user '%s'", username), true);
       return Acks.OK;
     }
 
@@ -507,7 +506,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     @Override
     public boolean cancel(ExternalId id, String reason) {
-      return ForemenWorkManager.this.cancel(id, reason);
+      return ForemenWorkManager.this.cancel(id, reason, false);
     }
 
     @Override
@@ -525,7 +524,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     @Override
     public boolean cancel(ExternalId id, String reason) {
-      return ForemenWorkManager.this.cancel(id, reason);
+      return ForemenWorkManager.this.cancel(id, reason, false);
     }
   }
 }

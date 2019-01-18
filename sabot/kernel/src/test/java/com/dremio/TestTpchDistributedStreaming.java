@@ -23,7 +23,7 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
-@Ignore("DX-3852")
+
 public class TestTpchDistributedStreaming extends BaseTestQuery{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestTpchDistributedStreaming.class);
 
@@ -33,7 +33,7 @@ public class TestTpchDistributedStreaming extends BaseTestQuery{
   private void testDistributed(String fileName) throws Exception{
     String query = getFile(fileName);
     test("alter session set \"planner.slice_target\" = 10; alter session set \"planner.enable_hashjoin\" = false; " +
-            "alter session set \"planner.enable_hashagg\" = false; " + query);
+            "alter session set \"planner.enable_hashagg\" = false; alter session set \"planner.enable_mergejoin\" = true;" + query);
   }
 
   @Test

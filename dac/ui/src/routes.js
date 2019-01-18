@@ -23,6 +23,7 @@ import Roles from 'dyn-load/pages/AdminPage/subpages/Roles';
 import Votes from 'dyn-load/pages/AdminPage/subpages/Votes';
 import Queues from 'dyn-load/pages/AdminPage/subpages/WLM/Queues';
 import QAssignments from 'dyn-load/pages/AdminPage/subpages/WLM/QAssignments';
+import EulaPage from 'dyn-load/pages/EulaPage/EulaPage';
 
 import App from './containers/App';
 
@@ -140,6 +141,7 @@ export default (
       <Route path={LOGIN_PATH} component={AuthenticationPage} />
       <Route path={SIGNUP_PATH} component={SignupPage} />
       <Route path='/status' component={ServerStatusPage} />
+      <Route path='/eula' component={EulaPage} />
     </Route>
     <Route component={UserIsAuthenticated(HomeModals)}>
       <Route component={Page}>

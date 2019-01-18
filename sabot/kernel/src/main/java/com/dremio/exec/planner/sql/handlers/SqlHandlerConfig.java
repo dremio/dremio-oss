@@ -18,11 +18,12 @@ package com.dremio.exec.planner.sql.handlers;
 
 import org.apache.calcite.tools.RuleSet;
 
+import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlannerPhase;
+import com.dremio.exec.planner.acceleration.MaterializationList;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
-import com.dremio.exec.planner.sql.MaterializationList;
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.google.common.base.Optional;
 
@@ -61,6 +62,9 @@ public class SqlHandlerConfig {
         context.getCatalogService().getStorageRules(context, phase));
   }
 
+  public ScanResult getScanResult() {
+    return context.getScanResult();
+  }
 
   public SqlHandlerConfig cloneWithNewObserver(AttemptObserver replacementObserver){
     return new SqlHandlerConfig(this.context, this.converter, replacementObserver, this.materializations);

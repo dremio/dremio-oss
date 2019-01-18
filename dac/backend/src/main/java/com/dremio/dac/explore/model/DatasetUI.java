@@ -60,7 +60,7 @@ public class DatasetUI {
   // to displayed even though the query that was created is actually internally
   // considered an untitled new virtual dataset
   private final List<String> displayFullPath;
-  private final Long version;
+  private final String version;
   private final DatasetVersion datasetVersion;
   private final Integer jobCount;
   private final Integer descendants;
@@ -112,7 +112,7 @@ public class DatasetUI {
       entityId = namespaceService.getEntityIdByPath(new NamespaceKey(displayFullPath));
     }
 
-    return new DatasetUI(vds.getId(), sql, context, fullPath, displayFullPath, vds.getSavedVersion(), vds.getVersion(),
+    return new DatasetUI(vds.getId(), sql, context, fullPath, displayFullPath, vds.getSavedTag(), vds.getVersion(),
         null, null, canReapply, datasetType,
         createLinks(fullPath, displayFullPath, vds.getVersion(), isUnsavedDirectPhysicalDataset),
         createApiLinks(fullPath, displayFullPath, datasetType, vds.getVersion(), isUnsaved, isDerivedDirectly),
@@ -126,7 +126,7 @@ public class DatasetUI {
       @JsonProperty("context") List<String> context,
       @JsonProperty("fullPath") List<String> fullPath,
       @JsonProperty("displayFullPath") List<String> displayFullPath,
-      @JsonProperty("version") Long version,
+      @JsonProperty("version") String version,
       @JsonProperty("datasetVersion") DatasetVersion datasetVersion,
       @JsonProperty("jobCount") Integer jobCount,
       @JsonProperty("descendants") Integer descendants,
@@ -184,7 +184,7 @@ public class DatasetUI {
    * Saved version of the dataset.
    * @return
    */
-  public Long getVersion() {
+  public String getVersion() {
     return version;
   }
 

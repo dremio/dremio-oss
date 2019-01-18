@@ -18,6 +18,7 @@ package com.dremio.exec.planner;
 
 import java.util.List;
 import java.util.Map;
+
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;

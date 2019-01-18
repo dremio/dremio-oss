@@ -19,12 +19,10 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.calcite.plan.RelOptCost;
-
 import com.dremio.common.logical.PlanProperties;
+import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
 import com.dremio.common.logical.PlanProperties.PlanPropertiesBuilder;
 import com.dremio.common.logical.PlanProperties.PlanType;
-import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;

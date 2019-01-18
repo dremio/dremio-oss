@@ -15,16 +15,16 @@
  */
 package com.dremio.exec.store;
 
+import java.io.IOException;
+
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.common.types.Types;
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.types.Types;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-
-import java.io.IOException;
+import com.dremio.exec.record.VectorAccessible;
 
 /**
  * Record writer interface for writing a record batch to persistent storage.

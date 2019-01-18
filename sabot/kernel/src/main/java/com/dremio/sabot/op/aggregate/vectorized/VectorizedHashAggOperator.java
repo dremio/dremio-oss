@@ -20,25 +20,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.options.TypeValidators.PowerOfTwoLongValidator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.SimpleBigIntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.SimpleBigIntVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.google.common.base.Preconditions;
-import com.dremio.sabot.op.common.ht2.BlockChunk;
-import com.dremio.sabot.op.common.ht2.FieldVectorPair;
-import com.dremio.sabot.op.common.ht2.FixedBlockVector;
-import com.dremio.sabot.op.common.ht2.HashComputation;
-import com.dremio.sabot.op.common.ht2.LBlockHashTable;
-import com.dremio.sabot.op.common.ht2.PivotBuilder;
-import com.dremio.sabot.op.common.ht2.PivotDef;
-import com.dremio.sabot.op.common.ht2.VariableBlockVector;
-import com.dremio.sabot.op.common.ht2.BoundedPivots;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -48,19 +37,36 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.physical.config.HashAggregate;
+import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
+import com.dremio.exec.proto.ExecProtos.HashAggSpill;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.DoubleValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import com.dremio.options.TypeValidators.PowerOfTwoLongValidator;
+import com.dremio.options.TypeValidators.RangeDoubleValidator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
-import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartitionSpillHandler.SpilledPartitionIterator;
-import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggDebug.HashAggErrorType;
-import com.dremio.sabot.op.spi.SingleInputOperator;
+import com.dremio.sabot.exec.fragment.OutOfBandMessage;
+import com.dremio.sabot.exec.fragment.OutOfBandMessage.Payload;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggStats.Metric;
+import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggDebug.HashAggErrorType;
+import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartitionSpillHandler.SpilledPartitionIterator;
+import com.dremio.sabot.op.common.ht2.BlockChunk;
+import com.dremio.sabot.op.common.ht2.BoundedPivots;
+import com.dremio.sabot.op.common.ht2.FieldVectorPair;
+import com.dremio.sabot.op.common.ht2.FixedBlockVector;
+import com.dremio.sabot.op.common.ht2.HashComputation;
+import com.dremio.sabot.op.common.ht2.LBlockHashTable;
+import com.dremio.sabot.op.common.ht2.PivotBuilder;
+import com.dremio.sabot.op.common.ht2.PivotDef;
+import com.dremio.sabot.op.common.ht2.VariableBlockVector;
+import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -129,7 +135,7 @@ import io.netty.util.internal.PlatformDependent;
  * (row-wise representation of keys) into corresponding output vector
  * in the outgoing container.
  *
- * NOTES ON INTERNAL STATE MACHINE FOR HANDLING RECURSIVE SPILLING
+ * NOTES ON INTERNAL STATE MACHINE
  *
  * External State of operator: (nothing has changed)
  * DONE,
@@ -138,11 +144,41 @@ import io.netty.util.internal.PlatformDependent;
  * CAN_PRODUCE
  *
  * Internal States:
- * NONE,
- * OUTPUT_INMEMORY_PARTITIONS,
- * PROCESS_SPILLED_PARTITION,
- * TRANSITION_PARTITION_SPILL_STATE,
- * DONE
+ *
+ * NONE -- It could be in any of the external state except DONE
+ *
+ * OUTPUT_INMEMORY_PARTITIONS -- The operator can output data from the partitions
+ * completely resident in memory (the ones that were never spilled)
+ *
+ *
+ * PROCESS_SPILLED_PARTITION -- Take the next input data from a spilled partition
+ * and continue with in-memory aggregation
+ *
+ * TRANSITION_PARTITION_SPILL_STATE -- Before starting an iteration, update
+ * the partition identifiers, move the partitions spilled in previous iteration to
+ * spill queue
+ *
+ * RESUME_CONSUMING -- we don't handle OOM completely at one go. spill a single
+ * batch from the chosen victim partition, change state to SPILL_NEXT_BATCH and
+ * yield. Once the entire partition has been spilled, we come back to this state
+ * and resume inserting data into the partitions from the point we failed earlier
+ * with OOM. So we continue consuming that batch and accordingly move onto next
+ * batch or spill again.
+ *
+ * SPILL_NEXT_BATCH -- spill next batch from an already chosen victim partition
+ * We will be in this state as long as there are batches to spill from the
+ * victim partition.
+ *
+ * FORCE_SPILL_INMEMORY_DATA -- when we finish an iteration and have spilled
+ * some partitions, it is quite possible that some/all of the spilled partitions
+ * have data in memory (the data that was inserted into the inmemory portion
+ * of the spilled partitions after they were spilled). Before we start the next
+ * iteration to process the spilled data, we ensure that all spilled partitions
+ * are entirely on disk and thus a "force-spill" is needed to flush out
+ * in-memory portion of each spilled partition.
+ *
+ *
+ * DONE -- finished processing. at this time external state should also be DONE.
  *
  * When we are done with consuming all the incoming data from source, we
  * are in CAN_PRODUCE state since the source would have invoked
@@ -154,11 +190,14 @@ import io.netty.util.internal.PlatformDependent;
  *        source --------->noMoreToConsume()-----if hash table empty-------->DONE
  *                               |
  *                               |
+ *                    (if some partitions were spilled, make sure
+ *                     they are entirely on disk)
+ *                               |
  *                               |
  *                               |
  *                               |
  *                               V
- *                    OUTPUT_INMEMORY_PARTITIONS
+ *                    FORCE_SPILL_INMEMORY_DATA
  *
  *
  *   noMoreToConsume() above would have set the operator's external state to
@@ -193,7 +232,43 @@ import io.netty.util.internal.PlatformDependent;
  *          V                                       |___________________|
  *        DONE
  *
- *************************************************************************/
+ *        NOTE: state machine has been augmented to support micro spilling. the high level
+ *        idea/algorithm shown in above diagram is still the same. following diagram
+ *        just depicts state transitions as micro spilling comes into action
+ *
+ *        states shown as: (external state, internal state)
+ *
+ *
+ *                                                          keep spilling and yielding
+ *                                                                         +--------+
+ *                                                                         |        |
+ *                                                                         V        |
+ *     |------>(CAN_CONSUME, NONE)---hit oom so-------------->(CAN_PRODUCE, SPILL_NEXT_BATCH)<-+
+ *     |                             spill little and yield         |                 ^        |
+ *     |                                                            |                 |        |
+ *     |                                                            |                 |        |
+ *    finished consuming from                                       |                 |        |
+ *    failure point,                                                |                 |        |
+ *    take next batch from pipeline                             finished spilling     |        |
+ *     |                                                        now resume insertion  |        |
+ *     |                                                        from failure point    |        |
+ *     |                                                             |                |        |
+ *     |                                                             |                |        |
+ *     +------(CAN_PRODUCE, RESUME_CONSUMING)<-----------------------+                |        |
+ *                            |           |                                           |        |
+ *                            |           |                                           |        |
+ *                            |           +--------------hit oom so spill-------------+        |
+ *                            |                          little and yield                      |
+ *                            |                                                                |
+ *             finished consuming from failure point,                                          |
+ *             take next batch from spilled data                                               |
+ *                            |                                                                |
+ *                            +-----(CAN_PRODUCE, PROCESS_SPILLED_PARTITION)----hit oom so-----+
+ *                                                                              spill little
+ *                                                                              and yield
+ *
+ *
+ ************************************************************************************************/
 
 @Options
 public class VectorizedHashAggOperator implements SingleInputOperator {
@@ -212,13 +287,6 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
    */
   public static final BooleanValidator VECTORIZED_HASHAGG_DEBUG_DETAILED_EXCEPTION = new BooleanValidator("exec.operator.aggregate.vectorize.tracedetails_on_exception", false);
   public static final PositiveLongValidator VECTORIZED_HASHAGG_DEBUG_MAX_OOMEVENTS = new PositiveLongValidator("exec.operator.aggregate.vectorize.debug_max_oomevents", 10000, 500);
-  /* options to create a constrained memory setup for testing spill functionality in hashagg */
-  public static final PositiveLongValidator VECTORIZED_HASHAGG_ALLOCATOR_INIT = new PositiveLongValidator("exec.operator.aggregate.vectorize.allocator_init", 1_000_000, 1_000_000);
-  /* default limit has to be Long.MAX_VALUE as rest of the test infrastructure (including perf tests) that have agg queries
-   * that don't spill should still work with the operator as though it has all the memory available.
-   * agg spilling regression tests set this parameter on a query to query basis to vary the memory pressure
-   */
-  public static final PositiveLongValidator VECTORIZED_HASHAGG_ALLOCATOR_LIMIT = new PositiveLongValidator("exec.operator.aggregate.vectorize.allocator_limit", Long.MAX_VALUE, Long.MAX_VALUE);
   public static final BooleanValidator VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS = new BooleanValidator("exec.operator.aggregate.vectorize.minimize_spilled_partitions", true);
   public static final BooleanValidator VECTORIZED_HASHAGG_USE_INSERTION_SORT_FOR_ACCUMULATION = new BooleanValidator("exec.operator.aggregate.vectorize.use_insertion_sort", false);
   public static final BooleanValidator VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR = new BooleanValidator("exec.operator.aggregate.vectorize.use_spilling_operator", false);
@@ -226,6 +294,13 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
   public static final PowerOfTwoLongValidator VECTORIZED_HASHAGG_JOINT_ALLOCATION_MAX = new PowerOfTwoLongValidator("exec.operator.aggregate.vectorize.joint_allocation_max", 1024*1024, 64*1024);
   public static final BooleanValidator VECTORIZED_HASHAGG_USE_MINIMUM_AS_LIMIT = new BooleanValidator("exec.operator.aggregate.vectorize.use_minimum_as_limit", false);
   public static final PositiveLongValidator VARIABLE_FIELD_SIZE_ESTIMATE = new PositiveLongValidator("exec.operator.aggregate.vectorize.variable_width_size_estimate", Integer.MAX_VALUE, 15);
+
+  // how close this allocation has to be to the spilling operator to trigger a spill.
+  public static final DoubleValidator OOB_SPILL_TRIGGER_FACTOR = new RangeDoubleValidator("exec.operator.aggregate.vectorize.oob_trigger_factor", 0.0d, 10.0d, .75d);
+  public static final DoubleValidator OOB_SPILL_TRIGGER_HEADROOM_FACTOR = new RangeDoubleValidator("exec.operator.aggregate.vectorize.oob_trigger_headroom_factor", 0.0d, 10.0d, .2d);
+  public static final BooleanValidator OOB_SPILL_TRIGGER_ENABLED = new BooleanValidator("exec.operator.aggregate.vectorize.oob_trigger_enabled", true);
+  public static final BooleanValidator VECTORIZED_HASHAGG_ENABLE_MICRO_SPILLS = new BooleanValidator("exec.operator.aggregate.vectorize.enable_micro_spills", true);
+
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorizedHashAggOperator.class);
 
   private final OperatorContext context;
@@ -264,6 +339,14 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
   private int outputBatchCount;
   private int iterations;
   private int ooms;
+  private int oobSends;
+  private int oobReceives;
+  private int oobDropLocal;
+  private int oobDropWrongState;
+  private int oobDropUnderThreshold;
+  private int oobDropNoVictim;
+  private int oobSpills;
+  private int oobDropSpill;
   private final BufferAllocator allocator;
   private final VectorizedHashAggDebug debug;
   private boolean closed;
@@ -294,8 +377,17 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
   private final long jointAllocationLimit;
 
   private final boolean setLimitToMinReservation;
+  private VectorizedHashAggPartition ongoingVictimPartition;
+  private final boolean enableSmallSpills;
+  private ResumableInsertState resumableInsertState;
+  private OperatorStateBeforeOOB operatorStateBeforeOOB;
+  private ForceSpillState forceSpillState;
 
   public static final String OUT_OF_MEMORY_MSG = "Vectorized Hash Agg ran out of memory";
+
+  public static final String PREALLOC_FAILURE_PARTITIONS = "Error: Failed to preallocate minimum memory in vectorized hashagg for single batch in all partitions";
+  public static final String PREALLOC_FAILURE_LOADING_PARTITION = "Error: Failed to preallocate minimum memory in vectorized hashagg for extra partition";
+  public static final String PREALLOC_FAILURE_AUX_STRUCTURES = "Error: Failed to preallocate minimum memory in vectorized hashagg for auxiliary structures";
 
   public VectorizedHashAggOperator(HashAggregate popConfig, OperatorContext context) throws ExecutionSetupException {
     final OptionManager options = context.getOptions();
@@ -349,6 +441,11 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     this.jointAllocationMin = options.getOption(VECTORIZED_HASHAGG_JOINT_ALLOCATION_MIN);
     this.jointAllocationLimit = options.getOption(VECTORIZED_HASHAGG_JOINT_ALLOCATION_MAX);
     this.setLimitToMinReservation = options.getOption(VECTORIZED_HASHAGG_USE_MINIMUM_AS_LIMIT);
+    this.ongoingVictimPartition = null;
+    this.enableSmallSpills = options.getOption(VECTORIZED_HASHAGG_ENABLE_MICRO_SPILLS);
+    this.resumableInsertState = null;
+    this.operatorStateBeforeOOB = null;
+    this.forceSpillState = null;
     logger.debug("partitions:{}, min-hashtable-size:{}, variable-width-key-size:{}, max-hashtable-batch-size:{}",
       numPartitions, minHashTableSize, estimatedVariableWidthKeySize, maxHashTableBatchSize);
   }
@@ -475,7 +572,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
       rollbackable.commit();
     } catch (OutOfMemoryException e) {
       ooms++;
-      throw debug.prepareAndThrowException(e, "Error: Failed to preallocate memory for single batch in partitions", HashAggErrorType.OOM);
+      throw debug.prepareAndThrowException(e, PREALLOC_FAILURE_PARTITIONS, HashAggErrorType.OOM);
     }
 
     final long memoryAfterCreatingPartitions = allocator.getAllocatedMemory();
@@ -518,7 +615,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
       partitionToLoadSpilledData = new PartitionToLoadSpilledData(allocator, fixedBlockSize, variableBlockSize, postSpillAccumulatorVectorFields, maxHashTableBatchSize);
     } catch (OutOfMemoryException e) {
       ooms++;
-      throw debug.prepareAndThrowException(e, "Error: Failed to preallocate memory for extra partition used to load spilled batch", HashAggErrorType.OOM);
+      throw debug.prepareAndThrowException(e, PREALLOC_FAILURE_LOADING_PARTITION, HashAggErrorType.OOM);
     }
   }
 
@@ -565,7 +662,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
       fixedBlockVector = null;
       variableBlockVector = null;
       ooms++;
-      throw debug.prepareAndThrowException(e, "Error: Failed to preallocate memory for auxiliary structures", HashAggErrorType.OOM);
+      throw debug.prepareAndThrowException(e, PREALLOC_FAILURE_AUX_STRUCTURES, HashAggErrorType.OOM);
     }
   }
 
@@ -632,12 +729,25 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
   @Override
   public void consumeData(int records) throws Exception {
     state.is(State.CAN_CONSUME);
+    Preconditions.checkState(resumableInsertState == null, "Error: not expecting resumable insert state");
 
     // ensure that none of the variable length vectors are corrupt so we can avoid doing bounds checking later.
     for(FieldVector v : vectorsToValidate){
       VariableLengthValidator.validateVariable(v, records);
     }
 
+    consumeDataHelper(records);
+  }
+
+  /**
+   * Helper function for consuming incoming data from pipeline.
+   * With micro spilling, this function also resumes consuming data
+   * from an earlier failure (OOM) point.
+   *
+   * @param records number of records to consume
+   * @throws Exception
+   */
+  private void consumeDataHelper(final int records) throws Exception {
     final ArrowBuf offsets = this.hashTableOrdinals;
     final SimpleBigIntVector hashValues = this.hashValues;
     final FixedBlockVector fixedBlockVector = this.fixedBlockVector;
@@ -647,6 +757,46 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     final boolean fixedOnly = this.fixedOnly;
 
     int recordsConsumed = 0;
+    int recordsPivoted = 0;
+
+    /* first check if we need to finish consuming some records from previous batch */
+    if (resumableInsertState != null) {
+      recordsPivoted = resumableInsertState.recordsPivoted;
+      recordsConsumed = resumableInsertState.recordsConsumed;
+      final int resumeFromIndex = resumableInsertState.resumeFromIndex;
+      final long partitionsUsedMask = resumableInsertState.partitionUsedMask;
+
+      logger.debug("Resume consuming data from pipeline with state: records:{}, recordsPivoted:{}, recordsConsumed:{}, resumeFromIndex:{}, partitionsUsedMask:{}",
+                   records, recordsPivoted, recordsConsumed, resumeFromIndex, partitionsUsedMask);
+
+      /* we might recurse (again create a resumable state if we hit OOM below in insertIntoPartitions).
+       * since we only need at most one global resumable insert state, we can set the current state to null.
+       */
+      resumableInsertState = null;
+
+      /* attempt to consume remaining (already pivoted) data */
+      long partitionsUsed = insertIntoPartitions(offsets, hashValues, records, recordsPivoted, keyFixedVectorAddr,
+                                                 keyVarVectorAddr, recordsConsumed, resumeFromIndex, partitionsUsedMask, false);
+
+      if (internalStateMachine == InternalState.SPILL_NEXT_BATCH) {
+        /* we hit OOM and it wasn't handled completely (micro spilling)
+         * so we need to stop consuming here.
+         */
+        state.is(State.CAN_PRODUCE);
+        Preconditions.checkState(resumableInsertState != null, "Should have created a valid state to resume insertion");
+        updateStats();
+        return;
+      }
+
+      /* accumulate data for all partitions */
+      accumulateForAllPartitions(offsets, recordsPivoted, partitionsUsed);
+      /* prepare for next iteration */
+      resetHashTableInsertionStructures();
+      /* track the number of records consumed in this batch */
+      recordsConsumed += recordsPivoted;
+    }
+
+    /* continue consuming the subsequent records (if any) from the same batch */
     while (recordsConsumed != records) {
       /*
        * consumption of 4K records will happen in multiple steps and the
@@ -657,7 +807,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
 
       /* STEP 1: first we pivot, this step is unrelated to partitioning */
       pivotWatch.start();
-      final int recordsPivoted = BoundedPivots.pivot(pivot, recordsConsumed, stepSize, fixedBlockVector, variableBlockVector);
+      recordsPivoted = BoundedPivots.pivot(pivot, recordsConsumed, stepSize, fixedBlockVector, variableBlockVector);
       pivotWatch.stop();
 
       /* STEP 2:
@@ -665,13 +815,25 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
        * partitioning. the 64 bit hash is computed for all the keys
        */
       final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, fixedOnly,
-        pivot.getBlockWidth(), recordsPivoted, hashValues.getBufferAddress(), 0);
+                                                   pivot.getBlockWidth(), recordsPivoted, hashValues.getBufferAddress(), 0);
       hashComputationWatch.start();
       HashComputation.computeHash(blockChunk);
       hashComputationWatch.stop();
 
       /* STEP 3: then we hash partition the dataset and add pivoted data to multiple hash tables */
-      long partitionsUsed = insertIntoPartitions(offsets, hashValues, recordsPivoted, keyFixedVectorAddr, keyVarVectorAddr, recordsConsumed);
+      long partitionsUsed = insertIntoPartitions(offsets, hashValues, records, recordsPivoted, keyFixedVectorAddr,
+                                                 keyVarVectorAddr, recordsConsumed, 0, 0, false);
+
+      if (internalStateMachine == InternalState.SPILL_NEXT_BATCH) {
+        /* insertion for this set of pivoted records failed in between.
+         * we will resume later from the failure point for these set of records and any
+         * subsequent records.
+         */
+        state.is(State.CAN_PRODUCE);
+        Preconditions.checkState(resumableInsertState != null, "Should have a valid state to resume insertion");
+        updateStats();
+        return;
+      }
 
       /* STEP 4: then we do accumulators for all partitions in a single pass */
       accumulateForAllPartitions(offsets, recordsPivoted, partitionsUsed);
@@ -694,18 +856,29 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
   }
 
   /**
-   * Insert pivoted GROUP BY key columns data into hash table. We distribute
-   * the data across a fixed number of partitions. The partition index is computed
-   * using higher order 32 bits from 64 bit hashvalue. Subsequently key data is
+   * This function inserts a set of pivoted records into multiple partitions.
+   * The number of such pivoted records is controlled by consumeData() and could
+   * be the total number of records received by the operator in consumeData() or
+   * some contiguous subset of it.
+   *
+   * We distribute the data across a fixed number of partitions. The partition index
+   * is computed using higher order 32 bits from 64 bit hashvalue. Subsequently key data is
    * inserted into the hashtable of corresponding partition.
    *
    * @param offsets buffer to store hashtable ordinal info, partition index and record index
    * @param hashValues vector that has precomputed hashvalues for the entire batch
-   * @param records number of records in the incoming batch
+   * @param records total number of records to consume by the operator
+   * @param recordsPivoted number of records to insert into hashtable
    * @param keyFixedVectorAddr starting address of buffer that stores fixed width pivoted keys
    * @param keyVarVectorAddr starting address of buffer that stores variable width pivoted keys
-   * @param startingRecordIndex absolute starting index of first record in the original
-   *                            batch received by consumeData().
+   * @param recordsConsumed total number of records consumed so far from the incoming batch
+   *                        this is used to track the absolute index of record in incoming
+   *                        batch for accumulation
+   * @param insertStartIndex insertion will begin from this index (relative to the set of pivoted
+   *                         records).
+   * @param partitionsUsedMask bitmap indicating which partitions have been used. used when resuming insertion
+   * @param processingSpilledData true if the incoming is from spilled partition, false if it is from pipeline
+   *
    *
    * @return bitmap to indicate which partitions were used during insertion
    *
@@ -723,7 +896,37 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
    *          but to correctly map each record to its correct column value in input accumulator
    *          vector, we cannot operate on 0 based record indexes when accumulating. In other
    *          words, 6th record in this stage is 517th record in incoming batch and we need
-   *          to pass the latter index to accumulate() method.
+   *          to pass the latter index to accumulate() method. To correctly compute the
+   *          absolute index of 517, we need to know how many records have already been
+   *          consumed (in this case 512) and that's how recordsConsumed argument helps.
+   *
+   *          This is also why the loop below starts inserting from 0th index
+   *          for a given set of pivoted records since the caller follows the
+   *          sequence of  -- pivot, insert, accumulate, clear buffers, repeat.
+   *          recordsConsumed helps us to know the absolute index of a record.
+   *
+   * Now let's take two examples of failure where the insertion within a pivoted
+   * batch may not start from 0th index.
+   *
+   * 1. Say we failed at 300th record in the first pivoted batch [0-511]. We spilled
+   *    a batch and built state to resume insertion later on when victim partition
+   *    has been completely spilled.
+   *    recordsConsumed - 0
+   *    resumeFromIndex - 300 and this is where the loop will start from
+   *    next time. accordingly, we advance the offset buffer that had stored
+   *    the HT ordinal info for previous 300 records [0-299] in this batch
+   *
+   * 2. Say we succeeded in inserting the first pivoted batch [0-511]
+   *    and now start inserting the next set of pivoted records [512-1023]
+   *
+   *    recordsConsumed - 512
+   *    insertStartIndex - 0
+   *
+   *    No we fail at 250th record in this batch of 512 records. Again we build
+   *    state to resume insertion
+   *
+   *    recordsConsumed - 512
+   *    resumeFromIndex - 250
    *
    * We can run out of memory while inserting into the hash table:
    *
@@ -738,34 +941,56 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
    * After spilling, we continue with insertion of record which earlier failed.
    */
   private long insertIntoPartitions(final ArrowBuf offsets, final SimpleBigIntVector hashValues,
-                                    final int records, final long keyFixedVectorAddr,
-                                    final long keyVarVectorAddr, final int startingRecordIndex) {
-    long offsetAddr = offsets.memoryAddress();
-    long partitionsUsed = 0;
+                                    final int records, final int recordsPivoted, final long keyFixedVectorAddr,
+                                    final long keyVarVectorAddr, final int recordsConsumed,
+                                    final int insertStartIndex, final long partitionsUsedMask,
+                                    final boolean processingSpilledData) {
+    /* advance the pointer in offset buffer to the record we need to start insertion from */
+    long offsetAddr = offsets.memoryAddress() + (insertStartIndex * PARTITIONINDEX_HTORDINAL_WIDTH);
+    long partitionsUsed = partitionsUsedMask;
     insertWatch.start();
-    for(int keyIndex = 0; keyIndex < records; keyIndex++, offsetAddr += PARTITIONINDEX_HTORDINAL_WIDTH){
-      final long keyHash = hashValues.get(keyIndex);
-      /* get the partition index from higher order bits in hash */
-      final int hashPartitionIndex = ((int)(keyHash >> 32)) & hashPartitionMask;
-      final LBlockHashTable table = hashAggPartitions[hashPartitionIndex].hashTable;
-      boolean insertSuccessful = false;
-      while (!insertSuccessful) {
-        try {
-          final int ordinal = table.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, (int)keyHash);
-          /* insert successful so store the tuple of <partition index, hash table ordinal, incoming key index> */
-          PlatformDependent.putByte(offsetAddr, (byte)hashPartitionIndex);
-          PlatformDependent.putInt(offsetAddr + HTORDINAL_OFFSET, ordinal);
-          PlatformDependent.putInt(offsetAddr + KEYINDEX_OFFSET, keyIndex + startingRecordIndex);
-          /* set the bit to remember the target partitions, this will be used later during accumulation */
-          partitionsUsed = partitionsUsed | (1 << hashPartitionIndex);
-          hashAggPartitions[hashPartitionIndex].bumpRecords(1);
-          insertSuccessful = true;
-        } catch (OutOfMemoryException e) {
-          ooms++;
-          debug.recordOOMEvent(iterations, ooms, allocator.getAllocatedMemory(), hashAggPartitions, partitionSpillHandler);
-          logger.debug("Error: ran out of memory while inserting in hashtable, records to insert:{}, current record index:{}, absolute record index:{}, error: {}",
-                       records, keyIndex, keyIndex + startingRecordIndex, e);
-          handleOutOfMemory(e, offsets, keyIndex, hashPartitionIndex);
+    insertAllRecords:
+    {
+      for (int keyIndex = insertStartIndex; keyIndex < recordsPivoted; keyIndex++, offsetAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+        final long keyHash = hashValues.get(keyIndex);
+        /* get the partition index from higher order bits in hash */
+        final int hashPartitionIndex = ((int) (keyHash >> 32)) & hashPartitionMask;
+        final LBlockHashTable table = hashAggPartitions[hashPartitionIndex].hashTable;
+        boolean insertSuccessful = false;
+        while (!insertSuccessful) {
+          try {
+            final int ordinal = table.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, (int) keyHash);
+            /* insert successful so store the tuple of <partition index, hash table ordinal, incoming key index> */
+            PlatformDependent.putByte(offsetAddr, (byte) hashPartitionIndex);
+            PlatformDependent.putInt(offsetAddr + HTORDINAL_OFFSET, ordinal);
+            /* store the absolute index of record by considering the number of records already consumed */
+            PlatformDependent.putInt(offsetAddr + KEYINDEX_OFFSET, keyIndex + recordsConsumed);
+            /* set the bit to remember the target partitions, this will be used later during accumulation */
+            partitionsUsed = partitionsUsed | (1 << hashPartitionIndex);
+            hashAggPartitions[hashPartitionIndex].bumpRecords(1);
+            insertSuccessful = true;
+          } catch (OutOfMemoryException e) {
+            ooms++;
+            debug.recordOOMEvent(iterations, ooms, allocator.getAllocatedMemory(), hashAggPartitions, partitionSpillHandler);
+            logger.debug("Error: ran out of memory while inserting in hashtable, records to insert:{}, current record index:{}, absolute record index:{}, error: {}",
+                         recordsPivoted, keyIndex, keyIndex + recordsConsumed, e);
+            /* handle out of memory condition */
+            final boolean oomHandled = handleOutOfMemory(offsets, keyIndex, hashPartitionIndex);
+            if (!oomHandled) {
+              /* If micro spilling is enabled then OOM will not be handled all at once
+               * since after spilling a single batch of the chosen victim partition,
+               * we will yield control and resume spilling (subsequent batches of the victim
+               * partition) later when the pipeline is pumped again.
+               *
+               * Since the OOM is not handled immediately, we can't continue inserting records in
+               * this for loop. So we need to build some state to resume insertion later on when
+               * the OOM has been handled completely -- all batches of the victim partition have
+               * been spilled.
+               */
+              buildResumableInsertState(records, recordsPivoted, recordsConsumed, keyIndex, partitionsUsed, processingSpilledData);
+              break insertAllRecords;
+            }
+          }
         }
       }
     }
@@ -803,15 +1028,15 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
    * have gone to disk and the state would have been re-initialized to start storing
    * data from 0th ordinal (first record) as the memory usage of partition is now 0.
    *
-   * @param oom OutOfMemoryException caught by the caller
    * @param offsets buffer that stores 9 byte tuples as incoming data is inserted into partitions
    *                (partition index (1), ht ordinal (4), record index (4)
    * @param keyIndex number of records inserted successfully before we hit OOM
    * @param failedPartitionIndex partition that we earlier failed to insert into
+   *
+   * @return true if OOM handled completely
+   *         false if OOM not handled completely
    */
-  private void handleOutOfMemory(final OutOfMemoryException oom,
-                                 final ArrowBuf offsets, final int keyIndex,
-                                 final int failedPartitionIndex) {
+  private boolean handleOutOfMemory(final ArrowBuf offsets, final int keyIndex, final int failedPartitionIndex) {
     final long allocatedMemoryBeforeSpilling = allocator.getAllocatedMemory();
     VectorizedHashAggPartition victimPartition = partitionSpillHandler.chooseVictimPartition();
     if (victimPartition == null) {
@@ -821,17 +1046,335 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
        */
       victimPartition = hashAggPartitions[failedPartitionIndex];
     }
+    this.ongoingVictimPartition = victimPartition;
     accumulateBeforeSpill(victimPartition, offsets, keyIndex);
+    boolean done = spill(victimPartition, true);
+    logger.debug("Partition: {} spilled. Memory usage before spilling: {}, memory usage after spilling: {}",
+                 victimPartition.getIdentifier(), allocatedMemoryBeforeSpilling, allocator.getAllocatedMemory());
+
+    if (!done) {
+      /* micro spilling */
+      transitionStateToResumeSpilling();
+    }
+
+    return done;
+  }
+
+  /**
+   * Spill a partition
+   *
+   * @param victimPartition chosen victim partition to spill
+   * @param notify, if true we need to notify other hashagg fragments to spill
+   * @return true if we have finished spilling all batches of this partition
+   *         false if one or more batches from this partition are yet to be spilled
+   */
+  private boolean spill(final VectorizedHashAggPartition victimPartition, final boolean notify) {
+    boolean done;
     spillPartitionWatch.start();
     try {
-      partitionSpillHandler.spillPartition(victimPartition);
+      /* send an out of band message to other fragments */
+      if (notify) {
+        /* if we are about to start spilling this partition, only then we should notify
+         * other agg fragments. no need to notify if we are going to resume spilling
+         * for this partition
+         */
+        notifyOthersOfSpill();
+      }
+      if (enableSmallSpills) {
+        /* micro spilling enabled so use stateful API to spill a single batch from this victim partition */
+        done = partitionSpillHandler.spillSingleBatchFromPartition(victimPartition);
+      } else {
+        /* micro spilling disabled so use stateless API to spill all batches from this victim partition */
+        partitionSpillHandler.spillPartition(victimPartition);
+        done = true;
+      }
     } catch (Exception e) {
       throw debug.prepareAndThrowException(e, "Error: Failed to spill partition", HashAggErrorType.SPILL_WRITE);
     } finally {
       spillPartitionWatch.stop();
     }
-    logger.debug("Partition: {} spilled. Memory usage before spilling: {}, memory usage after spilling: {}",
-                 victimPartition.getIdentifier(), allocatedMemoryBeforeSpilling, allocator.getAllocatedMemory());
+
+    return done;
+  }
+
+  /**
+   * When we have finished spilling all batches from victim partition, we should change
+   * both internal and external states for the operator to resume
+   * inserting/consuming data from the point we failed at earlier with OOM.
+   */
+  private void transitionStateToResumeConsuming() {
+    internalStateMachine = InternalState.RESUME_CONSUMING;
+    state = State.CAN_PRODUCE;
+    logger.debug("Transitioned state to resume consuming");
+  }
+
+  /**
+   * When we hit OOM, handleOutOfMemory() decides if OOM has been handled completely.
+   * If OOM wasn't handled completely, we should change both internal and external
+   * states for the operator to resume spilling.
+   */
+  private void transitionStateToResumeSpilling() {
+    internalStateMachine = InternalState.SPILL_NEXT_BATCH;
+    state = State.CAN_PRODUCE;
+    logger.debug("Transitioned state to resume spilling");
+  }
+
+  /**
+   * After OOB message has been handled to spill a partition, we go back
+   * to the state operator was in when fragment executor invoked workOnOOB()
+   */
+  private void transitionStateToResumeAfterOOB() {
+    Preconditions.checkState(operatorStateBeforeOOB != null, "Error: expecting valid cached operator state before OOB");
+    state = operatorStateBeforeOOB.getStateBeforeOOB();
+    internalStateMachine = operatorStateBeforeOOB.getInternalStateBeforeOOB();
+    operatorStateBeforeOOB = null;
+    logger.debug("Transitioned state to resume after handling OOB message for spilling a partition");
+  }
+
+  /**
+   * Once we have finished "force-spilling" a partition, we need to move onto the next
+   * partition in the queue.
+   */
+  private void transitionStateToForceSpillNextPartition() {
+    Preconditions.checkState(forceSpillState != null, "Error: expecting valid force spill state");
+    /* verify current external and internal states */
+    state.is(State.CAN_PRODUCE);
+    assertInternalState(InternalState.SPILL_NEXT_BATCH);
+    forceSpillState.bumpVictimPartitionIndex();
+    /* external state remains same, change internal state */
+    internalStateMachine = InternalState.FORCE_SPILL_INMEMORY_DATA;
+    logger.debug("Transitioned state to force-spill inmemory portion of next spilled partition");
+  }
+
+  /**
+   * If micro spilling is enabled, this function manages the "in-progress" spill
+   * of a partition. outputData() checks the internal state machine and calls it
+   * appropriately.
+   */
+  private void spillNextBatch() {
+    state.is(State.CAN_PRODUCE);
+    assertInternalState(InternalState.SPILL_NEXT_BATCH);
+    Preconditions.checkState(ongoingVictimPartition != null, "Error: expecting valid victim partition to spill");
+    logger.debug("Resume spilling for victim partition:{}", ongoingVictimPartition.getIdentifier());
+    final boolean done = spill(ongoingVictimPartition, false);
+    if (done) {
+      logger.debug("Finished spilling all batches of victim partition:{}", ongoingVictimPartition.getIdentifier());
+      ongoingVictimPartition = null;
+      if (operatorStateBeforeOOB != null) {
+        Preconditions.checkState(forceSpillState == null && resumableInsertState == null,
+                                 "Error: not expecting any force spill and resumable insert states");
+        transitionStateToResumeAfterOOB();
+      } else if (forceSpillState != null) {
+        Preconditions.checkState(resumableInsertState == null, "Error: not expecting any resumable insert state");
+        transitionStateToForceSpillNextPartition();
+      } else {
+        transitionStateToResumeConsuming();
+      }
+    }
+  }
+
+  private void assertInternalState(InternalState internalState) {
+    Preconditions.checkState(internalStateMachine == internalState,
+                             "Error: detected incorrect internal state, expecting: {}", internalState.toString());
+  }
+
+  /**
+   * If micro spilling is enabled, this function attempts to resume consuming (inserting
+   * into hashtable) data from the point we had failed earlier with OOM.
+   * outputData() checks the internal state machine and calls it
+   * appropriately.
+   *
+   * If no state is available to resume insertion, then it changes the state to consume
+   * the next batch of data (from spilled partition or pipeline)
+   */
+  private void resumeConsuming() throws Exception {
+    state.is(State.CAN_PRODUCE);
+    assertInternalState(InternalState.RESUME_CONSUMING);
+    Preconditions.checkState(ongoingVictimPartition == null, "Error: expecting null victim partition");
+    if (resumableInsertState == null) {
+      /* we had already resumed insertion in the past and that succeeded implying
+       * we have finished consuming that batch and can ask for next batch
+       */
+      if (iterations > 1) {
+        /* if we have already started recursion, we need to take next batch from spilled partition */
+        logger.debug("Resumable insert state no longer available. We have consumed the incoming batch. Now ready to consume next batch from spilled partition");
+        internalStateMachine = InternalState.PROCESS_SPILLED_PARTITION;
+      } else {
+        logger.debug("Resumable insert state no longer available. We have consumed the incoming batch. Now ready to consume next batch from pipeline");
+        state = State.CAN_CONSUME;
+        internalStateMachine = InternalState.NONE;
+      }
+    } else {
+      /* if we are processing the initial incoming, then next batch will come from pipeline */
+      if (resumableInsertState.processingSpilledData) {
+        logger.debug("Resume consuming previous incoming data from spilled partitions");
+        consumeSpilledDataHelper(resumableInsertState.records, partitionToLoadSpilledData.getFixedKeyColPivotedData(),
+                                 partitionToLoadSpilledData.getVariableKeyColPivotedData());
+      } else {
+        logger.debug("Resume consuming previous incoming data from pipeline");
+        consumeDataHelper(resumableInsertState.records);
+      }
+    }
+  }
+
+  /**
+   * Encapsulates all the information we need to resume
+   * consuming data. This is used for micro spilling.
+   */
+  private static class ResumableInsertState {
+    private final int records;
+    private final int recordsPivoted;
+    private final int recordsConsumed;
+    private final int resumeFromIndex;
+    private final long partitionUsedMask;
+    private final boolean processingSpilledData;
+
+    ResumableInsertState(final int records, final int recordsPivoted, final int recordsConsumed,
+                         final int resumeFromIndex, final long partitionUsedMask, final boolean processingSpilledData) {
+      this.records = records;
+      this.recordsPivoted = recordsPivoted;
+      this.recordsConsumed = recordsConsumed;
+      this.resumeFromIndex = resumeFromIndex;
+      this.partitionUsedMask = partitionUsedMask;
+      this.processingSpilledData = processingSpilledData;
+    }
+  }
+
+  /**
+   * Build the state to resume consuming data at a later point
+   *
+   * @param records total number of records to be consumed
+   * @param recordsPivoted records pivoted -- a contiguous subset of the total records we have to consume
+   * @param recordsConsumed number of records already consumed at the time of OOM
+   * @param resumeFromRecordIndex resume insertion from this record index
+   * @param partitionsUsedMask bitmask indicating the partitions holding data at the time of OOM
+   * @param processingSpilledData true if incoming is from spilled data, false if incoming is from upstream
+   */
+  private void buildResumableInsertState(final int records, final int recordsPivoted, final int recordsConsumed,
+                                         final int resumeFromRecordIndex, final long partitionsUsedMask,
+                                         final boolean processingSpilledData) {
+    Preconditions.checkState(resumableInsertState == null, "Error: expecting null resumable insert state");
+    assertInternalState(InternalState.SPILL_NEXT_BATCH);
+    this.resumableInsertState = new ResumableInsertState(records, recordsPivoted, recordsConsumed, resumeFromRecordIndex, partitionsUsedMask, processingSpilledData);
+    logger.debug("Built resumable insert state: records:{}, recordsPivoted:{}, recordsConsumed:{}, resumeFromIndex:{}, partitionsUsedMask:{}, processingSpilledData:{}",
+                 records, recordsPivoted, recordsConsumed, resumeFromRecordIndex, partitionsUsedMask, processingSpilledData);
+  }
+
+  /**
+   * When this operator starts spilling, notify others if the triggering is enabled.
+   */
+  private void notifyOthersOfSpill() {
+    if(!context.getOptions().getOption(OOB_SPILL_TRIGGER_ENABLED)) {
+      return;
+    }
+
+    try {
+      Payload payload = new Payload(HashAggSpill.newBuilder().setMemoryUse(allocator.getAllocatedMemory()).build());
+      for(FragmentAssignment a : context.getAssignments()) {
+        OutOfBandMessage message = new OutOfBandMessage(
+            context.getFragmentHandle().getQueryId(),
+            context.getFragmentHandle().getMajorFragmentId(),
+            a.getMinorFragmentIdList(),
+            popConfig.getOperatorId(),
+            context.getFragmentHandle().getMinorFragmentId(),
+            payload);
+        context.getTunnelProvider().getExecTunnel(a.getAssignment()).sendOOBMessage(message);
+      }
+      oobSends++;
+    } catch(Exception ex) {
+      logger.warn("Failure while attempting to notify others of spilling.", ex);
+    }
+  }
+
+  /**
+   * When a out of band message arrives, spill if we're within a factor of the other operator that is spilling.
+   */
+  @Override
+  public void workOnOOB(OutOfBandMessage message) {
+
+    oobReceives++;
+
+    // don't pay attention to self notification.
+    if(message.getSendingMinorFragmentId() == context.getFragmentHandle().getMinorFragmentId()) {
+      oobDropLocal++;
+      logger.debug("Ignoring the OOB spill trigger self notification");
+      return;
+    }
+
+    if (internalStateMachine == InternalState.SPILL_NEXT_BATCH) {
+      oobDropSpill++;
+      logger.debug("Ignoring OOB spill trigger as fragment is already spilling");
+      return;
+    }
+
+    if(internalStateMachine != InternalState.NONE && internalStateMachine != InternalState.PROCESS_SPILLED_PARTITION) {
+      oobDropWrongState++;
+      logger.debug("Ignoring OOB spill trigger as fragment is either outputting data or transitioning state to process spilled partitions");
+      return;
+    }
+
+    // check to see if we're at the point where we want to spill.
+    final HashAggSpill spill = message.getPayload(HashAggSpill.PARSER);
+    final long allocatedMemoryBeforeSpilling = allocator.getAllocatedMemory();
+    final double triggerFactor = context.getOptions().getOption(OOB_SPILL_TRIGGER_FACTOR);
+    final double headroomRemaining = allocator.getHeadroom() * 1.0d / (allocator.getHeadroom() + allocator.getAllocatedMemory());
+    if(allocatedMemoryBeforeSpilling < (spill.getMemoryUse() * triggerFactor) && headroomRemaining > context.getOptions().getOption(OOB_SPILL_TRIGGER_HEADROOM_FACTOR)) {
+      logger.debug("Skipping OOB spill trigger, current allocation is {}, which is not within the current factor of the spilling operator ({}) which has memory use of {}. Headroom is at {} which is greater than trigger headroom of {}",
+          allocatedMemoryBeforeSpilling, triggerFactor, spill.getMemoryUse(), headroomRemaining, context.getOptions().getOption(OOB_SPILL_TRIGGER_HEADROOM_FACTOR));
+      oobDropUnderThreshold++;
+      return;
+    }
+
+    VectorizedHashAggPartition victimPartition = partitionSpillHandler.chooseVictimPartition();
+    if(victimPartition == null) {
+      ++oobDropNoVictim;
+      logger.debug("Ignoring OOB spill trigger as no victim partitions found.");
+      return;
+    }
+
+    /* remember the victim */
+    this.ongoingVictimPartition = victimPartition;
+    /* spill the victim */
+    boolean done = spill(victimPartition, false);
+    ++oobSpills;
+    if (!done) {
+      /*
+       * the victim partition has more than 1 batch, so the above call
+       * would have spilled only a single batch. we now cache operator state
+       * (as of now), transition external, internal states and yield
+       */
+      cacheOperatorStateBeforeOOB();
+      transitionStateToResumeSpilling();
+    }
+  }
+
+  /**
+   * Holder to cache operator state (external and internal)
+   * to handle OOB message (by spilling a partition) and
+   * when we finish spilling the partition, we can restore
+   * both internal and external states of the operator
+   * as they were before FragmentExecutor asked the
+   * operator to work on OOB message.
+   */
+  private static class OperatorStateBeforeOOB {
+    private final State stateBeforeOOB;
+    private final InternalState internalStateBeforeOOB;
+    OperatorStateBeforeOOB(final State state, final InternalState internalState) {
+      stateBeforeOOB = state;
+      internalStateBeforeOOB = internalState;
+    }
+
+    State getStateBeforeOOB() {
+      return stateBeforeOOB;
+    }
+
+    InternalState getInternalStateBeforeOOB() {
+      return internalStateBeforeOOB;
+    }
+  }
+
+  private void cacheOperatorStateBeforeOOB() {
+    this.operatorStateBeforeOOB = new OperatorStateBeforeOOB(state, internalStateMachine);
   }
 
   /**
@@ -993,17 +1536,18 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
      * outputData() should have set the internal state to PROCESS_SPILLED_PARTITION
      */
     state.is(State.CAN_PRODUCE);
-    Preconditions.checkArgument(internalStateMachine == InternalState.PROCESS_SPILLED_PARTITION,
-      "Error: Invalid internal operator state detected when attempting to process spilled data");
+    assertInternalState(InternalState.PROCESS_SPILLED_PARTITION);
     final PartitionToLoadSpilledData partitionToLoadSpilledData = this.partitionToLoadSpilledData;
     /* Step 1: get disk iterator for the spilled partition to process */
     final SpilledPartitionIterator spilledPartitionIterator = partitionSpillHandler.getNextSpilledPartitionToProcess();
     final String partitionIdentifier = spilledPartitionIterator.getIdentifier();
     logger.debug("Processing disk partition:{}", partitionIdentifier);
-    /* Step 2: read a single batch from the spill file */
+    /* Step 2: prepare the loading partition to read next batch */
+    partitionToLoadSpilledData.reset();
     readSpilledBatchWatch.start();
     int numRecordsInBatch;
     try {
+      /* Step 3: read a single batch from the spill file */
       numRecordsInBatch = spilledPartitionIterator.getNextBatch();
     } catch (Exception e) {
       throw debug.prepareAndThrowException(e, "Error: Failed to read a spilled batch", HashAggErrorType.SPILL_READ);
@@ -1025,7 +1569,6 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
       logger.debug("Successfully finished reading all batches of spilled partition:{}", partitionIdentifier);
       noMoreToConsumeFromSpill();
       partitionSpillHandler.closeSpilledPartitionIterator();
-      partitionToLoadSpilledData.reset();
     } else {
       logger.debug("Read {} records from spilled batch", numRecordsInBatch);
       final ArrowBuf fixedWidthPivotedData = partitionToLoadSpilledData.getFixedKeyColPivotedData();
@@ -1036,10 +1579,8 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
         /* we just read the first batch */
         initStateBeforeProcessingSpilledPartition(accumulatorTypes, accumulatorVectors, partitionIdentifier);
       }
-      /* Step 3: re-partition, insert into hash tables and aggregate */
+      /* Step 4: re-partition, insert into hash tables and aggregate */
       consumeSpilledDataHelper(numRecordsInBatch, fixedWidthPivotedData, variableWidthPivotedData);
-      /* Step 4: prepare the loading partition to read next batch */
-      partitionToLoadSpilledData.reset();
     }
   }
 
@@ -1154,26 +1695,60 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     final ArrowBuf hashTableOrdinals = this.hashTableOrdinals;
     final SimpleBigIntVector hashValues = this.hashValues;
 
-    /* STEP 1:
-     * we do the hash computation on entire batch, this is again independent of
-     * partitioning. the 64 bit hash is computed for all the keys
-     */
-    final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, fixedOnly,
-      pivot.getBlockWidth(), records, hashValues.getBufferAddress(), seed);
-    hashComputationWatch.start();
-    HashComputation.computeHash(blockChunk);
-    hashComputationWatch.stop();
+    if (resumableInsertState != null) {
+      final int recordsPivoted = resumableInsertState.recordsPivoted;
+      final int recordsConsumed = resumableInsertState.recordsConsumed;
+      final int resumeFromIndex = resumableInsertState.resumeFromIndex;
+      final long partitionsUsedMask = resumableInsertState.partitionUsedMask;
 
-    /* STEP 2: then we hash partition the dataset and add pivoted data to multiple hash tables */
-    long partitionsUsed = insertIntoPartitions(hashTableOrdinals, hashValues, records, keyFixedVectorAddr, keyVarVectorAddr, 0);
+      logger.debug("Resume consuming spilled data with state: records:{}, recordsPivoted:{}, recordsConsumed:{}, resumeFromIndex:{}, partitionsUsedMask:{}",
+                   records, recordsPivoted, recordsConsumed, resumeFromIndex, partitionsUsedMask);
 
-    /* STEP 3: then we do accumulators for all partitions in a single pass */
-    accumulateForAllPartitions(hashTableOrdinals, records, partitionsUsed);
+      resumableInsertState = null;
 
-    resetHashTableInsertionStructures();
+      long partitionsUsed = insertIntoPartitions(hashTableOrdinals, hashValues, records, recordsPivoted, keyFixedVectorAddr,
+                                                 keyVarVectorAddr, recordsConsumed, resumeFromIndex, partitionsUsedMask, true);
 
-    /* STEP 4: update hashtable stats */
-    updateStats();
+      if (internalStateMachine == InternalState.SPILL_NEXT_BATCH) {
+        state.is(State.CAN_PRODUCE);
+        Preconditions.checkState(resumableInsertState != null, "Should have a valid state to resume insertion");
+        updateStats();
+        return;
+      }
+
+      accumulateForAllPartitions(hashTableOrdinals, recordsPivoted, partitionsUsed);
+      resetHashTableInsertionStructures();
+      updateStats();
+    } else {
+      /* STEP 1:
+       * we do the hash computation on entire batch, this is again independent of
+       * partitioning. the 64 bit hash is computed for all the keys
+       */
+      final BlockChunk blockChunk = new BlockChunk(keyFixedVectorAddr, keyVarVectorAddr, fixedOnly,
+                                                   pivot.getBlockWidth(), records, hashValues.getBufferAddress(), seed);
+      hashComputationWatch.start();
+      HashComputation.computeHash(blockChunk);
+      hashComputationWatch.stop();
+
+      /* STEP 2: then we hash partition the dataset and add pivoted data to multiple hash tables */
+      long partitionsUsed = insertIntoPartitions(hashTableOrdinals, hashValues, records, records, keyFixedVectorAddr,
+                                                 keyVarVectorAddr, 0, 0, 0, true);
+
+      if (internalStateMachine == InternalState.SPILL_NEXT_BATCH) {
+        state.is(State.CAN_PRODUCE);
+        Preconditions.checkState(resumableInsertState != null, "Should have a valid state to resume insertion");
+        updateStats();
+        return;
+      }
+
+      /* STEP 3: then we do accumulators for all partitions in a single pass */
+      accumulateForAllPartitions(hashTableOrdinals, records, partitionsUsed);
+
+      resetHashTableInsertionStructures();
+
+      /* STEP 4: update hashtable stats */
+      updateStats();
+    }
   }
 
   /**
@@ -1338,6 +1913,15 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     stats.setLongStat(Metric.SORT_ACCUMULATE_TIME, sortPriorToAccumulateWatch.elapsed(TimeUnit.NANOSECONDS));
     stats.setLongStat(Metric.TOTAL_SPILLED_DATA_SIZE, partitionSpillHandler.getTotalSpilledDataSize());
     stats.setLongStat(Metric.MAX_SPILLED_DATA_SIZE, partitionSpillHandler.getMaxSpilledDataSize());
+
+    stats.setLongStat(Metric.OOB_SENDS, oobSends);
+    stats.setLongStat(Metric.OOB_RECEIVES, oobReceives);
+    stats.setLongStat(Metric.OOB_DROP_LOCAL, oobDropLocal);
+    stats.setLongStat(Metric.OOB_DROP_WRONG_STATE, oobDropWrongState);
+    stats.setLongStat(Metric.OOB_DROP_UNDER_THRESHOLD, oobDropUnderThreshold);
+    stats.setLongStat(Metric.OOB_DROP_NO_VICTIM, oobDropNoVictim);
+    stats.setLongStat(Metric.OOB_SPILL, oobSpills);
+    stats.setLongStat(Metric.OOB_DROP_ALREADY_SPILLING, oobDropSpill);
 
     if (iterations == 1) {
       stats.setLongStat(Metric.ALLOCATED_FOR_FIXED_KEYS, statsHolder.allocatedForFixedBlocks);
@@ -1677,7 +2261,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
   @Override
   public int outputData() throws Exception {
     state.is(State.CAN_PRODUCE);
-    Preconditions.checkArgument(internalStateMachine != InternalState.DONE &&
+    Preconditions.checkState(internalStateMachine != InternalState.DONE &&
       internalStateMachine != InternalState.NONE, "Error: detected invalid internal operator state");
 
     int records = 0;
@@ -1695,6 +2279,15 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
         consumeSpilledData();
         records = 0;
         break;
+      case SPILL_NEXT_BATCH:
+        spillNextBatch();
+        break;
+      case RESUME_CONSUMING:
+        resumeConsuming();
+        break;
+      case FORCE_SPILL_INMEMORY_DATA:
+        forceSpillInmemoryData();
+        break;
     }
 
     return records;
@@ -1708,8 +2301,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
    */
   private void transitionPartitionSpillState() {
     state.is(State.CAN_PRODUCE);
-    Preconditions.checkArgument(internalStateMachine == InternalState.TRANSITION_PARTITION_SPILL_STATE,
-      "Error: detected invalid internal operator state");
+    assertInternalState(InternalState.TRANSITION_PARTITION_SPILL_STATE);
     partitionSpillHandler.transitionPartitionState();
     internalStateMachine = InternalState.PROCESS_SPILLED_PARTITION;
   }
@@ -1785,8 +2377,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
        * inside outputData() is terminated. But if spill queue is not empty,
        * then we need to continue with processing spilled partition.
        */
-      state = State.DONE;
-      internalStateMachine = InternalState.DONE;
+      moveToFinalState();
 
       /* propagate some metric back for verification in tests.
        * Note: this is already part of metrics collected here that are
@@ -1823,38 +2414,133 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
    */
   private void noMoreToConsumeFromSpill() throws Exception {
     state.is(State.CAN_PRODUCE);
-    Preconditions.checkArgument(internalStateMachine == InternalState.PROCESS_SPILLED_PARTITION,
-      "Error: detected invalid state machine");
-    if (partitionSpillHandler.getActiveSpilledPartitionCount() > 0) {
-      try {
-        partitionSpillHandler.spillAnyInMemoryDataForSpilledPartitions();
-      } catch (Exception e) {
-        throw debug.prepareAndThrowException(e, "Error: Failed to spill partition", HashAggErrorType.SPILL_WRITE);
-      }
-    }
-    internalStateMachine = InternalState.OUTPUT_INMEMORY_PARTITIONS;
+    assertInternalState(InternalState.PROCESS_SPILLED_PARTITION);
+    checkIfForceSpillIsNeeded();
   }
 
   @Override
   public void noMoreToConsume() throws Exception {
     state.is(State.CAN_CONSUME);
-    Preconditions.checkArgument(internalStateMachine == InternalState.NONE,
-      "Error: detected invalid state machine");
-
-    if(getHashTableSize() == 0){
+    assertInternalState(InternalState.NONE);
+    if (getHashTableSize() == 0) {
       /* nothing to output */
-      state = State.DONE;
-      internalStateMachine = InternalState.DONE;
-    }else {
-      state = State.CAN_PRODUCE;
-      internalStateMachine = InternalState.OUTPUT_INMEMORY_PARTITIONS;
-      if (partitionSpillHandler.getActiveSpilledPartitionCount() > 0) {
-        try {
-          partitionSpillHandler.spillAnyInMemoryDataForSpilledPartitions();
-        } catch (Exception e) {
-          throw debug.prepareAndThrowException(e, "Error: Failed to spill partition", HashAggErrorType.SPILL_WRITE);
-        }
-      }
+      moveToFinalState();
+    } else {
+      checkIfForceSpillIsNeeded();
+    }
+  }
+
+  /**
+   * Check if force spill is needed. During an iteration,
+   * if some partitions were spilled, then at the end of iteration
+   * we need to spill any inmemory-data belonging to those spilled
+   * partitions to ensure that before we start processing spilled
+   * partitions, all of them are entirely on disk
+   */
+  private void checkIfForceSpillIsNeeded() throws Exception {
+    if (partitionSpillHandler.getActiveSpilledPartitionCount() > 0) {
+      buildForceSpillState();
+      /* spill some while we are already on CPU */
+      forceSpillInmemoryData();
+    } else {
+      /* nothing to flush, so output the inmemory partitions before moving
+       * on to next iteration
+       */
+      moveToOutputState();
+    }
+  }
+
+  /**
+   * Operator has finished processing. Both external and internal
+   * states should be set to DONE
+   */
+  private void moveToFinalState() {
+    state = State.DONE;
+    internalStateMachine = InternalState.DONE;
+  }
+
+  /**
+   * Transition both external and internal states for the operator
+   * to start outputting data
+   */
+  private void moveToOutputState() {
+    state = State.CAN_PRODUCE;
+    internalStateMachine = InternalState.OUTPUT_INMEMORY_PARTITIONS;
+  }
+
+  /**
+   * Build force spill state.
+   */
+  private void buildForceSpillState() throws Exception {
+    Preconditions.checkState(forceSpillState == null, "Error: expecting null flush state");
+    forceSpillState = new ForceSpillState();
+    state = State.CAN_PRODUCE;
+    internalStateMachine = InternalState.FORCE_SPILL_INMEMORY_DATA;
+  }
+
+  /**
+   * Holder for force-spill state. Allows us to track which
+   * partition we are currently spilling.
+   */
+  private static class ForceSpillState {
+    private int victimPartitionIndex;
+    ForceSpillState() {
+      this.victimPartitionIndex = 0;
+    }
+
+    int getVictimPartitionIndex() {
+      return victimPartitionIndex;
+    }
+
+    void bumpVictimPartitionIndex() {
+      ++victimPartitionIndex;
+    }
+  }
+
+  /**
+   * Spill the memory portion of each spilled partition. This is done once
+   * a single iteration of hash aggregation algorithm finishes consuming data.
+   * Before we begin the next iteration (needed only if some data was spilled),
+   * we ensure that all spilled partitions are entirely on disk. Therefore, once
+   * the iteration gets over, we spill left-over inmemory data belonging to each
+   * spilled partition.
+   *
+   * The in-memory portion of partition could be empty if after the partition
+   * was spilled, no incoming data ever mapped to that particular partition. We
+   * ignore such spilled partitions.
+   */
+  private void forceSpillInmemoryData() throws Exception {
+    state.is(State.CAN_PRODUCE);
+    assertInternalState(InternalState.FORCE_SPILL_INMEMORY_DATA);
+    Preconditions.checkState(forceSpillState != null, "Error: expecting valid flush state");
+    final int victimPartitionIndex = forceSpillState.getVictimPartitionIndex();
+    if (victimPartitionIndex >= partitionSpillHandler.getActiveSpilledPartitionCount()) {
+      /* we have finished "force-spilling" remaining inmemory data for all spilled partitions.
+       * we can now start outputting data for inmemory partitions
+       */
+      forceSpillState = null;
+      partitionSpillHandler.closeSpillStreams();
+      moveToOutputState();
+      return;
+    }
+    final VectorizedHashAggDiskPartition activeSpilledPartition = partitionSpillHandler.getActiveSpilledPartition(victimPartitionIndex);
+    final VectorizedHashAggPartition inmemoryPartition = activeSpilledPartition.getInmemoryPartitionBackPointer();
+    if (inmemoryPartition.hashTable.size() == 0) {
+      /* inmemory portion of spilled partition is empty, ignore it */
+      forceSpillState.bumpVictimPartitionIndex();
+      return;
+    }
+    /* remember the partition and spill */
+    this.ongoingVictimPartition = inmemoryPartition;
+    final boolean done = spill(inmemoryPartition, false);
+    if (!done) {
+      /* if partition had more than one batch in-memory then we need to continue spilling */
+      transitionStateToResumeSpilling();
+    } else {
+      /* the inmemory portion for this spilled partition fit in one batch
+       * so we are done with this partition. take the next partition in next cycle.
+       */
+      forceSpillState.bumpVictimPartitionIndex();
     }
   }
 
@@ -1863,6 +2549,9 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     OUTPUT_INMEMORY_PARTITIONS,
     PROCESS_SPILLED_PARTITION,
     TRANSITION_PARTITION_SPILL_STATE,
+    SPILL_NEXT_BATCH,
+    RESUME_CONSUMING,
+    FORCE_SPILL_INMEMORY_DATA,
     DONE
   }
 

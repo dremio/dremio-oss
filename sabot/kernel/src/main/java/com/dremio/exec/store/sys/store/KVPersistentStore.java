@@ -92,11 +92,6 @@ public class KVPersistentStore<V> implements PersistentStore<V> {
   }
 
   @Override
-  public boolean putIfAbsent(String key, V value) {
-    return store.checkAndPut(key, null, serialize(value));
-  }
-
-  @Override
   public Iterator<Map.Entry<String, V>> getAll() {
     return Iterables.transform(store.find(), new Function<Map.Entry<String, byte[]>, Map.Entry<String, V>>() {
       @Override

@@ -24,6 +24,7 @@ import static org.junit.Assert.fail;
 
 import java.util.Map;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -189,6 +190,39 @@ public class TestImpersonationQueries extends BaseTestImpersonation {
   }
 
   @Test
+  public void testCreateTableDirectImpersonation_HasUserReadPermissions() throws Exception {
+    // Table lineitem is owned by "user0_1:group0_1" with permissions 750. Try to read the table as "user0_1"
+    // and create a table under its home directory, which should succeed. All the created files should also
+    // belong to user0_1
+    updateClient(org1Users[0]);
+    test(String.format("CREATE TABLE %s AS SELECT * FROM %s ORDER BY l_orderkey LIMIT 1",
+        fullPath(org1Users[0], "copy_lineitem"),
+        fullPath(org1Users[0], "lineitem")));
+
+    final Path target = new Path(getUserHome(org1Users[0]), "copy_lineitem");
+    assertEquals(org1Users[0], fs.getFileStatus(target).getOwner());
+    FileStatus[] statuses = fs.listStatus(target);
+    for(FileStatus status: statuses) {
+      assertEquals(org1Users[0], status.getOwner());
+    }
+  }
+
+  @Test
+  public void testCreateTableDirectImpersonation_NoWritePermission() throws Exception {
+    // Table lineitem is owned by "user0_1:group0_1" with permissions 750. Try to read the table as "user0_1"
+    // and create a table under user2_1, which should fail
+    try {
+      updateClient(org1Users[0]);
+      test(String.format("CREATE TABLE %s AS SELECT * FROM %s ORDER BY l_orderkey LIMIT 1",
+          fullPath(org1Users[2], "copy_lineitem"),
+          fullPath(org1Users[0], "lineitem")));
+      fail("query is expected to fail");
+    } catch(UserRemoteException e) {
+      assertEquals(ErrorType.SYSTEM, e.getErrorType());
+      assertThat(e.getMessage(), containsString("Permission denied"));
+    }
+  }
+  @Test
   public void testDirectImpersonation_HasGroupReadPermissions() throws Exception {
     // Table lineitem is owned by "user0_1:group0_1" with permissions 750. Try to read the table as "user1_1". We
     // shouldn't expect any errors as "user1_1" is part of the "group0_1"
@@ -208,7 +242,6 @@ public class TestImpersonationQueries extends BaseTestImpersonation {
       assertEquals(ErrorType.PERMISSION, e.getErrorType());
       assertThat(e.getMessage(), containsString("PERMISSION ERROR: Access denied reading dataset miniDfsPlugin.\"/user/user0_1/lineitem\""));
     }
-
   }
 
   @Test

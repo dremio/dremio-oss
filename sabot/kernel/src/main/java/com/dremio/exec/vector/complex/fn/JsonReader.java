@@ -23,7 +23,6 @@ import java.util.List;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
-import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;

@@ -31,7 +31,7 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
-import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.FileMaterializationShuttle;
+import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.MaterializationShuttle;
 import com.dremio.service.accelerator.testing.JobStatusLogger;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
@@ -89,7 +89,7 @@ public class TestIncrementalUpdater extends BaseTestServer {
     }
     ex.close();
     long currentTime = System.currentTimeMillis();
-    RelNode newLogicalPlan = logicalPlan.get().accept(new FileMaterializationShuttle(currentTime));
+    RelNode newLogicalPlan = logicalPlan.get().accept(new MaterializationShuttle(IncrementalUpdateUtils.UPDATE_COLUMN, currentTime));
     assertNotNull(newLogicalPlan.getRowType().getField(IncrementalUpdateUtils.UPDATE_COLUMN, false, false));
     job.getData().close();
   }

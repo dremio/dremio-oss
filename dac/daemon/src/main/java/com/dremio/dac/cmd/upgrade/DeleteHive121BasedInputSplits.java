@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
+import com.dremio.common.Version;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -22,6 +23,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.google.common.collect.ImmutableList;
 
 /**
  * In Dremio 2.0.10 and 2.1.0 we upgraded the Hive client version to 2.1.1 from 1.2.1. We store the InputSplits
@@ -29,9 +31,23 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
  * may not be deserializable with Hive 2.1.1 client. This upgrade task is to delete such InputSplits so that we
  * find the splits based on the new Hive client classes when the table is queried or when the metadata refresh happens
  */
-public class DeleteHive121BasedInputSplits extends UpgradeTask {
+public class DeleteHive121BasedInputSplits extends UpgradeTask implements LegacyUpgradeTask {
+
+  //DO NOT MODIFY
+  static final String taskUUID = "a5d23112-f354-42fe-bdeb-b024d8d5fb1b";
+
   public DeleteHive121BasedInputSplits() {
-    super("Deleting Hive 1.2.1 based InputSplits", VERSION_106, VERSION_2010, NORMAL_ORDER + 11);
+    super("Deleting Hive 1.2.1 based InputSplits", ImmutableList.of(DeleteHistoryOfRenamedDatasets.taskUUID));
+  }
+
+  @Override
+  public Version getMaxVersion() {
+    return VERSION_2010;
+  }
+
+  @Override
+  public String getTaskUUID() {
+    return taskUUID;
   }
 
   @Override
@@ -60,5 +76,10 @@ public class DeleteHive121BasedInputSplits extends UpgradeTask {
     } catch (NamespaceException e) {
       throw new RuntimeException("Hive121BasedInputSplits failed", e);
     }
+  }
+
+  @Override
+  public String toString() {
+    return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
   }
 }

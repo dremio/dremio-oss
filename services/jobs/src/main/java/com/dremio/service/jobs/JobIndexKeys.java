@@ -90,22 +90,57 @@ public final class JobIndexKeys {
   // Keep it short 2-3 letters.
   // Reserved keywords: gt, lt, le, ge, eq
   // Set sortable if jobs can sorted by that field. Make sure to add DocValues during indexing.
-  public static final IndexKey JOBID = new IndexKey("job", "JOBID", String.class, SearchFieldSorting.FieldType.STRING, true, true);
-  public static final IndexKey USER = new IndexKey("usr", "USER", String.class, SearchFieldSorting.FieldType.STRING, true, false);
-  public static final IndexKey SPACE = new IndexKey("spc", "SPACE", String.class, null, true, false);
-  public static final IndexKey DATASET = new IndexKey("ds", "DATASET", String.class, SearchFieldSorting.FieldType.STRING, true, false);
-  public static final IndexKey DATASET_VERSION = new IndexKey("dsv", "DATASET_VERSION", String.class, null, true, false);
-  public static final IndexKey START_TIME = new IndexKey("st", "START_TIME", Long.class, SearchFieldSorting.FieldType.LONG, false, false);
-  public static final IndexKey END_TIME = new IndexKey("et", "END_TIME", Long.class, SearchFieldSorting.FieldType.LONG, false, false);
-  public static final IndexKey DURATION = new IndexKey("dur", "DURATION", Long.class, SearchFieldSorting.FieldType.LONG, false, false);
-  public static final IndexKey PARENT_DATASET = new IndexKey("pds", "PARENT_DATASET", String.class, null, true, false);
-  public static final IndexKey JOB_STATE = new IndexKey("jst", "JOB_STATE", String.class, null, true, false);
-  public static final IndexKey SQL = new IndexKey("sql", "SQL", String.class, null, true, false);
-  public static final IndexKey QUERY_TYPE = new IndexKey("qt", "QUERY_TYPE", String.class, null, false, false, QUERY_TYPE_FILTERS);
-  public static final IndexKey QUEUE_NAME = new IndexKey("qn", "QUEUE_NAME", String.class,
-    SearchFieldSorting.FieldType.STRING, true, false);
+  public static final IndexKey JOBID = IndexKey.newBuilder("job", "JOBID", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .setIncludeInSearchAllFields(true)
+    .setStored(true)
+    .build();
+  public static final IndexKey USER = IndexKey.newBuilder("usr", "USER", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .setIncludeInSearchAllFields(true)
+    .build();
+  public static final IndexKey SPACE = IndexKey.newBuilder("spc", "SPACE", String.class)
+    .setIncludeInSearchAllFields(true)
+    .build();
+  public static final IndexKey DATASET = IndexKey.newBuilder("ds", "DATASET", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .setIncludeInSearchAllFields(true)
+    .build();
+  public static final IndexKey DATASET_VERSION = IndexKey.newBuilder("dsv", "DATASET_VERSION", String.class)
+    .setIncludeInSearchAllFields(true)
+    .build();
+  public static final IndexKey START_TIME = IndexKey.newBuilder("st", "START_TIME", Long.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.LONG)
+    .build();
+  public static final IndexKey END_TIME = IndexKey.newBuilder("et", "END_TIME", Long.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.LONG)
+    .build();
+  public static final IndexKey DURATION = IndexKey.newBuilder("dur", "DURATION", Long.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.LONG)
+    .build();
+  public static final IndexKey PARENT_DATASET = IndexKey.newBuilder("pds", "PARENT_DATASET", String.class)
+    .setIncludeInSearchAllFields(true)
+    .setCanContainMultipleValues(true)
+    .build();
+  public static final IndexKey JOB_STATE = IndexKey.newBuilder("jst", "JOB_STATE", String.class)
+    .setIncludeInSearchAllFields(true)
+    .build();
+  public static final IndexKey SQL = IndexKey.newBuilder("sql", "SQL", String.class)
+    .setIncludeInSearchAllFields(true)
+    .build();
+  public static final IndexKey QUERY_TYPE = IndexKey.newBuilder("qt", "QUERY_TYPE", String.class)
+    .setReservedValues(QUERY_TYPE_FILTERS)
+    .setCanContainMultipleValues(false)
+    .build();
+  public static final IndexKey QUEUE_NAME = IndexKey.newBuilder("qn", "QUEUE_NAME", String.class)
+    .setSortedValueType(SearchFieldSorting.FieldType.STRING)
+    .setIncludeInSearchAllFields(true)
+    .build();
   // index all dataset this job accessed.
-  public static final IndexKey ALL_DATASETS = new IndexKey("ads", "ALL_DATASETS", String.class, null, true, false);
+  public static final IndexKey ALL_DATASETS = IndexKey.newBuilder("ads", "ALL_DATASETS", String.class)
+    .setIncludeInSearchAllFields(true)
+    .setCanContainMultipleValues(true)
+    .build();
   public static final FilterIndexMapping MAPPING = new FilterIndexMapping(JOBID, USER, SPACE, DATASET, DATASET_VERSION, START_TIME,
     END_TIME, DURATION, PARENT_DATASET, JOB_STATE, SQL, QUERY_TYPE, QUEUE_NAME, ALL_DATASETS);
 }

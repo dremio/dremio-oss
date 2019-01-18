@@ -327,13 +327,14 @@ describe('SourceFormJsonPolicy', () => {
       expect(SourceFormJsonPolicy.applyJsonPolicyToFormConfig('')).to.equal('');
     });
 
-    it('should add default general and acceleration tabs', () => {
+    it('should add default general, metadata, and acceleration tabs', () => {
       const config = SourceFormJsonPolicy.applyJsonPolicyToFormConfig(uiConfig, {});
       expect(config.form).to.not.be.undefined;
-      const numberOfTabs = (SHARING_TAB_JSON_TEMPLATE.name) ? 3 : 2;
+      const numberOfTabs = (SHARING_TAB_JSON_TEMPLATE.name) ? 4 : 3;
       expect(config.form.getTabs().length).to.equal(numberOfTabs);
       expect(config.form.getTabs()[0].getName()).to.equal('General');
       expect(config.form.getTabs()[1].getName()).to.equal('Reflection Refresh');
+      expect(config.form.getTabs()[2].getName()).to.equal('Metadata');
     });
 
     it('should move loose sections to general tab',  () => {

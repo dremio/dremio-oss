@@ -17,16 +17,25 @@ import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
 
 export const getPathPart = pageType => pageType && pageType !== PageTypes.default ? `/${pageType}` : '';
 
-// query parameters will removed from existing url
-export const changePageTypeInUrl = (currentPagetType, pathname, newPageType) => {
-  const toRemove = getPathPart(currentPagetType);
-  const toAdd = getPathPart(newPageType);
+const countSlashes = str => {
+  if (!str) return 0;
+  const matches = str.match(/\//g);
+  return matches ? matches.length : 0;
+};
+// explore page has the following url pattern (see routes.js):
+// So page type may or may not be presented.
+const patternSlashCount = countSlashes('/resources/resourceId/tableId(/:pageType)');
 
-  if (toRemove) {
-    pathname = pathname.substr(0, pathname.indexOf(toRemove));
+export const excludePageType = pathname => {
+  const slashCount = countSlashes(pathname);
+  let pathWithoutPageType = pathname;
+  if (slashCount === patternSlashCount) { // current path contains pageType. We should exclude it
+    pathWithoutPageType = pathname.substr(0, pathname.lastIndexOf('/'));
   }
-  if (toAdd) {
-    pathname += toAdd;
-  }
-  return pathname;
+  return pathWithoutPageType;
+};
+
+// query parameters will removed from existing url
+export const changePageTypeInUrl = (pathname, newPageType) => {
+  return excludePageType(pathname) + getPathPart(newPageType);
 };

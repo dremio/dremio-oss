@@ -25,8 +25,8 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
-import com.dremio.exec.planner.logical.UnionRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.planner.logical.UnionRel;
 import com.google.common.collect.Lists;
 
 public class UnionDistinctPrule extends Prule {

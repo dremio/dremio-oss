@@ -22,6 +22,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.data.LogicalOperator;
 import com.dremio.exec.catalog.StoragePluginId;

@@ -15,15 +15,22 @@
  */
 package com.dremio.service.accelerator;
 
+import static com.dremio.config.DremioConfig.ENABLE_MASTERLESS_BOOL;
+
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
-import javax.annotation.Nullable;
 import javax.inject.Provider;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.KVStoreProvider;
@@ -39,19 +46,15 @@ import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionStatusService;
 import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.proto.DataPartition;
-import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.collect.FluentIterable;
 
 /**
  * Exposes the acceleration manager interface to the rest of the system (executor side)
  */
 public class AccelerationListManagerImpl implements AccelerationListManager {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AccelerationListManagerImpl.class);
+  private static final Logger logger = LoggerFactory.getLogger(AccelerationListManagerImpl.class);
 
   private final MaterializationStore materializationStore;
   private Provider<SabotContext> contextProvider;
@@ -92,89 +95,62 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
 
   @Override
   public Iterable<ReflectionInfo> getReflections() {
-    if(!contextProvider.get().isCoordinator()) {
-      // need to do RPC call
-      // trying to get master
-      CoordinationProtos.NodeEndpoint master = null;
-      for (CoordinationProtos.NodeEndpoint coordinator : contextProvider.get().getCoordinators()) {
-        if (coordinator.getRoles().getMaster()) {
-          master = coordinator;
-          break;
-        }
-      }
-      if (master == null) {
-        throw UserException.connectionError().message("Unable to get master while trying to get Reflection Information")
-          .build(logger);
-      }
-      final ReflectionTunnel reflectionTunnel = reflectionTunnelCreator.getTunnel(master);
-      try {
-        final ReflectionRPC.ReflectionInfoResp reflectionCombinedStatusResp =
-          reflectionTunnel.requestReflectionStatus().get(15, TimeUnit.SECONDS);
-        FluentIterable<ReflectionInfo> reflections = FluentIterable.from(reflectionCombinedStatusResp
-          .getReflectionInfoList()).transform(new Function<ReflectionRPC.ReflectionInfo, ReflectionInfo>() {
-          @Nullable
-          @Override
-          public ReflectionInfo apply(@Nullable ReflectionRPC.ReflectionInfo reflectionInfo) {
-            return ReflectionInfo.getReflectionInfo(reflectionInfo);
-          }
-        });
-        return reflections;
-      } catch (InterruptedException | ExecutionException | TimeoutException e) {
-        throw UserException.connectionError(e).message("Error while getting Reflection Information")
-          .build(logger);
-      }
-      // in this case at least we will
-    } else {
+    if (contextProvider.get().isMaster() ||
+      (contextProvider.get().isCoordinator() &&
+        contextProvider.get().getDremioConfig().getBoolean(ENABLE_MASTERLESS_BOOL))) {
       return reflectionStatusService.get().getReflections();
     }
-  }
+    // need to do RPC call
+    // trying to get master
+    Optional<CoordinationProtos.NodeEndpoint> master = contextProvider.get().getMaster();
+    if (!master.isPresent()) {
+      throw UserException.connectionError().message("Unable to get master while trying to get Reflection Information")
+        .build(logger);
+    }
+    final ReflectionTunnel reflectionTunnel = reflectionTunnelCreator.getTunnel(master.get());
+    try {
+      final ReflectionRPC.ReflectionInfoResp reflectionCombinedStatusResp =
+        reflectionTunnel.requestReflectionStatus().get(15, TimeUnit.SECONDS);
+      return reflectionCombinedStatusResp.getReflectionInfoList().stream()
+        .map(ReflectionInfo::getReflectionInfo).collect(Collectors.toList());
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      throw UserException.connectionError(e).message("Error while getting Reflection Information")
+        .build(logger);
+    }
+   }
 
   @Override
   public Iterable<DependencyInfo> getReflectionDependencies() {
-    if(!contextProvider.get().isMaster()) {
-      // need to do RPC call
-      // trying to get master
-      CoordinationProtos.NodeEndpoint master = null;
-      for (CoordinationProtos.NodeEndpoint coordinator : contextProvider.get().getCoordinators()) {
-        if (coordinator.getRoles().getMaster()) {
-          master = coordinator;
-          break;
-        }
-      }
-      if (master == null) {
-        throw UserException.connectionError().message("Unable to get master while trying to get Dependency Information")
-          .build(logger);
-      }
-      final ReflectionTunnel reflectionTunnel = reflectionTunnelCreator.getTunnel(master);
-      try {
-        final ReflectionRPC.DependencyInfoResp dependencyInfosResp =
-          reflectionTunnel.requestDependencyInfos().get(15, TimeUnit.SECONDS);
-        FluentIterable<DependencyInfo> dependencyInfos = FluentIterable.from(dependencyInfosResp
-          .getDependencyInfoList()).transform(new Function<ReflectionRPC.DependencyInfo, DependencyInfo>() {
-          @Override
-          public DependencyInfo apply(ReflectionRPC.DependencyInfo dependencyInfo) {
-            return DependencyInfo.getDependencyInfo(dependencyInfo);
-          }
-        });
-        return dependencyInfos;
-      } catch (InterruptedException | ExecutionException | TimeoutException e) {
-        throw UserException.connectionError(e).message("Error while getting Dependency Information")
-          .build(logger);
-      }
-      // in this case at least we will
-    } else {
+    if (contextProvider.get().isMaster() ||
+      (contextProvider.get().isCoordinator() &&
+        contextProvider.get().getDremioConfig().getBoolean(ENABLE_MASTERLESS_BOOL))) {
       return reflectionService.get().getReflectionDependencies();
     }
-  }
+    // need to do RPC call
+    // trying to get master
+    Optional<CoordinationProtos.NodeEndpoint> master = contextProvider.get().getMaster();
+    if (!master.isPresent()) {
+      throw UserException.connectionError().message("Unable to get master while trying to get Reflection Information")
+        .build(logger);
+    }
+    final ReflectionTunnel reflectionTunnel = reflectionTunnelCreator.getTunnel(master.get());
+    try {
+      final ReflectionRPC.DependencyInfoResp dependencyInfosResp =
+        reflectionTunnel.requestDependencyInfos().get(15, TimeUnit.SECONDS);
+      return dependencyInfosResp.getDependencyInfoList().stream()
+        .map(DependencyInfo::getDependencyInfo).collect(Collectors.toList());
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      throw UserException.connectionError(e).message("Error while getting Dependency Information")
+        .build(logger);
+    }
+   }
 
   private static final Serializer<JoinAnalysis> JOIN_ANALYSIS_SERIALIZER = ProtostuffSerializer.of(JoinAnalysis.getSchema());
 
   @Override
   public Iterable<MaterializationInfo> getMaterializations() {
-    return FluentIterable.from(ReflectionUtils.getAllMaterializations(materializationStore))
-      .transform(new Function<Materialization, MaterializationInfo>() {
-        @Override
-        public MaterializationInfo apply(Materialization materialization) {
+    return StreamSupport.stream(ReflectionUtils.getAllMaterializations(materializationStore).spliterator(), false)
+      .map(materialization -> {
           long footPrint = -1L;
           try {
             footPrint = materializationStore.getMetrics(materialization).getFootprint();
@@ -197,19 +173,18 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
             materialization.getReflectionId().getId(),
             materialization.getId().getId(),
             new Timestamp(materialization.getCreatedAt()),
-            new Timestamp(Optional.fromNullable(materialization.getExpiration()).or(0L)),
+            new Timestamp(Optional.ofNullable(materialization.getExpiration()).orElse(0L)),
             footPrint,
             materialization.getSeriesId(),
             materialization.getInitRefreshJobId(),
             materialization.getSeriesOrdinal(),
             joinAnalysisJson,
             materialization.getState().toString(),
-            Optional.fromNullable(failureMsg).or("NONE"),
+            Optional.ofNullable(failureMsg).orElse("NONE"),
             dataPartitionsToString(materialization.getPartitionList()),
-            new Timestamp(Optional.fromNullable(materialization.getLastRefreshFromPds()).or(0L))
+            new Timestamp(Optional.ofNullable(materialization.getLastRefreshFromPds()).orElse(0L))
           );
-        }
-      });
+       }).collect(Collectors.toList());
   }
 
   private String dataPartitionsToString(List<DataPartition> partitions) {
@@ -227,41 +202,25 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
 
   @Override
   public Iterable<RefreshInfo> getRefreshInfos() {
-    if (contextProvider.get().isCoordinator()) {
-      return FluentIterable.from(reflectionStatusService.get().getRefreshInfos()).transform(new Function<ReflectionRPC.RefreshInfo, RefreshInfo>() {
-        @Nullable
-        @Override
-        public RefreshInfo apply(@Nullable ReflectionRPC.RefreshInfo refreshInfo) {
-          return RefreshInfo.fromRefreshInfo(refreshInfo);
-        }
-      });
+    if (contextProvider.get().isMaster() ||
+      (contextProvider.get().isCoordinator() &&
+        contextProvider.get().getDremioConfig().getBoolean(ENABLE_MASTERLESS_BOOL))) {
+      return StreamSupport.stream(reflectionStatusService.get().getRefreshInfos().spliterator(), false)
+        .map(RefreshInfo::fromRefreshInfo).collect(Collectors.toList());
     }
     // need to do RPC call
     // trying to get master
-    CoordinationProtos.NodeEndpoint master = null;
-    for (CoordinationProtos.NodeEndpoint coordinator : contextProvider.get().getCoordinators()) {
-      if (coordinator.getRoles().getMaster()) {
-        master = coordinator;
-        break;
-      }
-    }
-    if (master == null) {
+    Optional<CoordinationProtos.NodeEndpoint> master = contextProvider.get().getMaster();
+    if (!master.isPresent()) {
       throw UserException.connectionError().message("Unable to get master while trying to get Reflection Information")
         .build(logger);
     }
-    final ReflectionTunnel reflectionTunnel = reflectionTunnelCreator.getTunnel(master);
+    final ReflectionTunnel reflectionTunnel = reflectionTunnelCreator.getTunnel(master.get());
     try {
       final ReflectionRPC.RefreshInfoResp refreshInfosResp =
         reflectionTunnel.requestRefreshInfos().get(15, TimeUnit.SECONDS);
-      FluentIterable<RefreshInfo> refreshInfos = FluentIterable.from(refreshInfosResp.getRefreshInfoList())
-        .transform(new Function<ReflectionRPC.RefreshInfo, RefreshInfo>() {
-        @Nullable
-        @Override
-        public RefreshInfo apply(@Nullable ReflectionRPC.RefreshInfo refreshInfo) {
-          return RefreshInfo.fromRefreshInfo(refreshInfo);
-        }
-      });
-      return refreshInfos;
+      return refreshInfosResp.getRefreshInfoList().stream()
+        .map(RefreshInfo::fromRefreshInfo).collect(Collectors.toList());
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
       throw UserException.connectionError(e).message("Error while getting Refresh Information")
         .build(logger);

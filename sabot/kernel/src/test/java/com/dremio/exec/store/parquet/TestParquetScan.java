@@ -15,15 +15,15 @@
  */
 package com.dremio.exec.store.parquet;
 
-import com.dremio.BaseTestQuery;
-import com.google.common.io.Resources;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.dremio.BaseTestQuery;
+import com.google.common.io.Resources;
 
 public class TestParquetScan extends BaseTestQuery {
 

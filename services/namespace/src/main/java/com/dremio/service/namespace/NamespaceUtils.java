@@ -20,6 +20,7 @@ import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.HOME;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
 
+import java.util.Arrays;
 import java.util.List;
 
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -123,7 +124,7 @@ public final class NamespaceUtils {
       return;
     }
     newConfig.setId(oldConfig.getId());
-    newConfig.setVersion(oldConfig.getVersion());
+    newConfig.setTag(oldConfig.getTag());
     newConfig.setCreatedAt(oldConfig.getCreatedAt());
     newConfig.setType(oldConfig.getType());
     newConfig.setFullPathList(oldConfig.getFullPathList());
@@ -134,6 +135,25 @@ public final class NamespaceUtils {
       if (newConfig.getPhysicalDataset() == null) {
         newConfig.setPhysicalDataset(new PhysicalDataset());
       }
+    }
+  }
+
+  public static String getVersion(NamespaceKey namespaceKey, NamespaceService namespaceService) throws NamespaceException {
+    NameSpaceContainer container = namespaceService.getEntities(Arrays.asList(namespaceKey)).get(0);
+
+    switch (container.getType()) {
+      case SOURCE:
+        return container.getSource().getTag();
+      case SPACE:
+        return container.getSpace().getTag();
+      case HOME:
+        return container.getHome().getTag();
+      case FOLDER:
+        return container.getFolder().getTag();
+      case DATASET:
+        return container.getDataset().getTag();
+      default:
+        throw new RuntimeException("Invalid container type");
     }
   }
 }

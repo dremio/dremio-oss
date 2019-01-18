@@ -32,18 +32,16 @@ import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.util.JsonStringArrayList;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.Fixtures.DataRow;
-import com.dremio.sabot.Generator;
 import com.google.common.base.Preconditions;
-import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.arrow.vector.util.JsonStringArrayList;
 
 /**
  * Generates 2 integer fields: ID and VALUE that are randomly set in a way it makes it easy to assert

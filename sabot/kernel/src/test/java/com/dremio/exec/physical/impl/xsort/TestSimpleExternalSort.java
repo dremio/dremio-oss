@@ -35,7 +35,6 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.client.DremioClient;
-import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.server.SabotNode;
 import com.dremio.sabot.rpc.user.QueryDataBatch;

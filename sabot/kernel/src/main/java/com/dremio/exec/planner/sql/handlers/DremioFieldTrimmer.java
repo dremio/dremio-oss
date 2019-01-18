@@ -117,14 +117,8 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
       index++;
     }
 
-    // unfortunately, we can't yet use newCrel as it currently messes with reflections. As such, we'll create a project.
-    // ScanCrel newCrel = crel.cloneWithProject(paths);
-    // return result(newCrel, m);
-
-    builder.push(crel);
-    builder.project(builder.fields(fieldsUsed.asList()));
-    RelNode rel = builder.build();
-    return result(rel, m);
+    ScanCrel newCrel = crel.cloneWithProject(paths);
+    return result(newCrel, m);
   }
 
 

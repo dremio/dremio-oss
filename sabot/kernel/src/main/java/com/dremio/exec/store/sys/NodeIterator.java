@@ -19,7 +19,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Iterator;
 
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.WorkStats;

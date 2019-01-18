@@ -138,7 +138,7 @@ public class TestServer extends BaseTestServer {
     assertErrorMessage(errorDelete2, "Unable to delete source, expected version 1, received version 1234.");
 
     doc("delete");
-    expectSuccess(getBuilder(getAPIv2().path(sourceResource).queryParam("version", putSource2.getVersion())).buildDelete());
+    expectSuccess(getBuilder(getAPIv2().path(sourceResource).queryParam("version", putSource2.getTag())).buildDelete());
   }
 
   @Test // fix for DX-1469

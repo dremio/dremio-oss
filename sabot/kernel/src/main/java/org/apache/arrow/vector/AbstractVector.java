@@ -16,12 +16,14 @@
 
 package org.apache.arrow.vector;
 
-import com.google.common.base.Preconditions;
-import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.memory.BaseAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.util.OversizedAllocationException;
+
+import com.google.common.base.Preconditions;
+
+import io.netty.buffer.ArrowBuf;
 
 /**
  * A minimal stub over ArrowBuf for simple usages of non-nullable scalar vector

@@ -41,7 +41,7 @@ public interface MutablePlugin extends StoragePlugin {
 
   void dropTable(List<String> tableSchemaPath, SchemaConfig schemaConfig);
 
-  boolean createView(NamespaceKey key, View view, SchemaConfig schemaConfig) throws IOException;
+  boolean createOrUpdateView(NamespaceKey key, View view, SchemaConfig schemaConfig) throws IOException;
 
   void dropView(SchemaConfig schemaConfig, List<String> tableSchemaPath) throws IOException;
 }

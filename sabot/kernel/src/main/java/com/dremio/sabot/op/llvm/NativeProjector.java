@@ -19,20 +19,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.gandiva.evaluator.Projector;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
-import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.gandiva.expression.ExpressionTree;
-
-import com.dremio.common.expression.LogicalExpression;
-import com.dremio.exec.record.VectorAccessible;
+import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+
+import com.dremio.common.expression.LogicalExpression;
+import com.dremio.exec.record.VectorAccessible;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
+import io.netty.buffer.ArrowBuf;
 
 public class NativeProjector implements AutoCloseable {
   private final VectorAccessible incoming;

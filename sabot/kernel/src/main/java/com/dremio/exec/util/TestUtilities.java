@@ -168,6 +168,8 @@ public class TestUtilities {
       list.add(CatalogServiceImpl.CATALOG_SOURCE_DATA_NAMESPACE);
       list.add("wlmqueue");
       list.add("rulesmanager");
+      list.add("wlmqueuecontainerversion");
+      list.add("sys.options");
       if(savedStores != null) {
         list.addAll(savedStores);
       }
@@ -197,7 +199,7 @@ public class TestUtilities {
         continue;
       }
 
-      namespace.deleteHome(new NamespaceKey("@" + home.getOwner()), home.getVersion());
+      namespace.deleteHome(new NamespaceKey("@" + home.getOwner()), home.getTag());
     }
 
     for(SpaceConfig space : namespace.getSpaces()) {
@@ -205,7 +207,7 @@ public class TestUtilities {
         continue;
       }
 
-      namespace.deleteSpace(new NamespaceKey(space.getName()), space.getVersion());
+      namespace.deleteSpace(new NamespaceKey(space.getName()), space.getTag());
     }
 
     ((CatalogServiceImpl) catalogService).deleteExcept(rootsToSaveSet);

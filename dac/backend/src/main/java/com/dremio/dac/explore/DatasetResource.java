@@ -208,7 +208,7 @@ public class DatasetResource {
     final AccelerationSettings settings = reflectionSettings.getReflectionSettings(datasetPath.toNamespaceKey());
     final AccelerationSettings descriptorSettings = new AccelerationSettings()
       .setAccelerationTTL(settings.getAccelerationTTL()) // needed to use protobuf equals
-      .setVersion(settings.getVersion()) // needed to use protobuf equals
+      .setTag(settings.getTag()) // needed to use protobuf equals
       .setRefreshPeriod(descriptor.getAccelerationRefreshPeriod())
       .setGracePeriod(descriptor.getAccelerationGracePeriod())
       .setMethod(descriptor.getMethod())
@@ -242,16 +242,16 @@ public class DatasetResource {
 
   @DELETE
   @Produces(APPLICATION_JSON)
-  public DatasetUI deleteDataset(@QueryParam("savedVersion") Long savedVersion)
+  public DatasetUI deleteDataset(@QueryParam("savedTag") String savedTag)
       throws DatasetNotFoundException, UserNotFoundException, NamespaceException {
-    if (savedVersion == null) {
-      throw new ClientErrorException("missing savedVersion parameter");
+    if (savedTag == null) {
+      throw new ClientErrorException("missing savedTag parameter");
     }
     final VirtualDatasetUI virtualDataset = datasetService.get(datasetPath);
 
     DatasetUI datasetUI = newDataset(virtualDataset);
 
-    datasetService.deleteDataset(datasetPath, savedVersion);
+    datasetService.deleteDataset(datasetPath, savedTag);
     reflectionSettings.removeSettings(datasetPath.toNamespaceKey());
     return datasetUI;
   }
@@ -274,7 +274,7 @@ public class DatasetResource {
     ds.setFullPathList(datasetPath.toPathList());
     ds.setVersion(DatasetVersion.newVersion());
     ds.setName(datasetPath.getLeaf().getName());
-    ds.setSavedVersion(null);
+    ds.setSavedTag(null);
     ds.setId(null);
     ds.setPreviousVersion(null);
     ds.setOwner(securityContext.getUserPrincipal().getName());

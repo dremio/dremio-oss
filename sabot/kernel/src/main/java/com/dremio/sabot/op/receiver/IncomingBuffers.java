@@ -23,24 +23,30 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.DeferredException;
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.proto.CoordExecRPC.Collector;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
-import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.testing.ControlsInjector;
+import com.dremio.exec.testing.ControlsInjectorFactory;
+import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
 import com.dremio.sabot.exec.rpc.IncomingDataBatch;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.spi.BatchStreamProvider;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
 import com.dremio.service.spill.SpillService;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -50,6 +56,11 @@ import com.google.common.collect.Maps;
  */
 public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IncomingBuffers.class);
+
+  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(IncomingBuffers.class);
+
+  @VisibleForTesting
+  public static final String INJECTOR_DO_WORK = "injectOOMOnInit";
 
   private volatile boolean closed = false;
   private final Map<Integer, DataCollector> collectorMap;
@@ -76,24 +87,32 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
       PlanFragment fragment,
       BufferAllocator incomingAllocator,
       SabotConfig config,
+      ExecutionControls executionControls,
       SpillService spillService
       ) {
     this.deferredException = exception;
     this.resourceGroup = resourceGroup;
 
     final String allocatorName = String.format("op:%s:incoming",
-        QueryIdHelper.getFragmentId(fragment.getHandle()));
+      QueryIdHelper.getFragmentId(fragment.getHandle()));
     this.allocator = incomingAllocator.newChildAllocator(allocatorName, 0, Long.MAX_VALUE);
 
-
     final Map<Integer, DataCollector> collectors = Maps.newHashMap();
-    for(int i =0; i < fragment.getCollectorCount(); i++){
-      Collector collector = fragment.getCollector(i);
+    try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable(allocator)) {
+      for (int i = 0; i < fragment.getCollectorCount(); i++) {
+        Collector collector = fragment.getCollector(i);
 
-      DataCollector newCollector = collector.getSupportsOutOfOrder() ?
+        DataCollector newCollector = collector.getSupportsOutOfOrder() ?
           new MergingCollector(resourceGroup, collector, allocator, config, fragment.getHandle(), workQueue, tunnelProvider, spillService) :
           new PartitionedCollector(resourceGroup, collector, allocator, config, fragment.getHandle(), workQueue, tunnelProvider, spillService);
-      collectors.put(collector.getOppositeMajorFragmentId(), newCollector);
+        rollbackCloseable.add(newCollector);
+        collectors.put(collector.getOppositeMajorFragmentId(), newCollector);
+      }
+
+      injector.injectChecked(executionControls, INJECTOR_DO_WORK, OutOfMemoryException.class);
+      rollbackCloseable.commit();
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
     }
 
     collectorMap = ImmutableMap.copyOf(collectors);

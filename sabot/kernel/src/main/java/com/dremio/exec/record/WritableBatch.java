@@ -17,8 +17,6 @@ package com.dremio.exec.record;
 
 import static com.dremio.sabot.op.sort.external.DiskRunManager.nextPowerOfTwo;
 
-import io.netty.buffer.ArrowBuf;
-
 import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -30,6 +28,8 @@ import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+
+import io.netty.buffer.ArrowBuf;
 
 /**
  * A specialized version of record batch that can moves out buffers and preps them for writing.

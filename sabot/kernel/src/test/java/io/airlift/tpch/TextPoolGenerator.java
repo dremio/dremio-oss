@@ -28,12 +28,12 @@
  */
 package io.airlift.tpch;
 
-import com.google.common.base.Splitter;
+import static com.google.common.base.CharMatcher.WHITESPACE;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
 
-import static com.google.common.base.CharMatcher.WHITESPACE;
-import static com.google.common.base.Preconditions.checkNotNull;
+import com.google.common.base.Splitter;
 
 public class TextPoolGenerator {
   private static final int MAX_SENTENCE_LENGTH = 256;

@@ -186,6 +186,7 @@ public class TestJoinNullable extends PlanTestBase {
         .go();
   }
 
+  @Ignore("DX-12609: need to update test case")
   @Test
   public void withMixedEqualAndIsNotDistinctHashJoin() throws Exception {
     final String query = "SELECT * FROM " +

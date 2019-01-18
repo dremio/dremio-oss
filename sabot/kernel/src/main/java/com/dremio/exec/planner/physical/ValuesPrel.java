@@ -20,15 +20,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import com.dremio.common.JSONOptions;
-import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.physical.config.Values;
-import com.dremio.exec.planner.fragment.DistributionAffinity;
-import com.dremio.exec.planner.physical.visitor.PrelVisitor;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.AbstractRelNode;
@@ -36,7 +27,13 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.google.common.collect.Iterators;
+import com.dremio.common.JSONOptions;
+import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.config.Values;
+import com.dremio.exec.planner.fragment.DistributionAffinity;
+import com.dremio.exec.planner.physical.visitor.PrelVisitor;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 
 public class ValuesPrel extends AbstractRelNode implements LeafPrel {
 

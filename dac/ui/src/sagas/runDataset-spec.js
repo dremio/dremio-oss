@@ -15,16 +15,18 @@
  */
 import { put, call, select } from 'redux-saga/effects';
 import socket from 'utils/socket';
+import { testWithHooks } from 'testUtil';
 import Immutable from 'immutable';
 
 import { updateViewState } from 'actions/resources';
 import { updateHistoryWithJobState } from 'actions/explore/history';
 import { addNotification } from 'actions/notification';
+import { getViewStateFromAction } from '@app/reducers/resources/view';
+import { getExplorePageLocationChangePredicate } from '@app/sagas/utils';
 
 import {
   waitForRunToComplete,
   handleResumeRunDataset,
-  getLocation,
   getEntities
 } from './runDataset';
 
@@ -62,47 +64,57 @@ describe('runDataset saga', () => {
   const datasetUI = successPayload.getIn(['entities', 'datasetUI', datasetVersion]);
 
   describe('handleResumeRunDataset', () => {
-    let location;
     beforeEach(() => {
-      location = { query: { jobId }};
-      gen = handleResumeRunDataset({ datasetId: datasetVersion });
+      gen = handleResumeRunDataset(datasetVersion);
     });
-    it('should waitForRunToComplete if tableData is empty and paginationUrl exists', () => {
+    const customTest = testWithHooks({
+      afterFn: () => {
+        // check that generator is done and not empty view state is returned
+        expect(next.done).to.be.true;
+        // must be not empty to not break loadTableData saga
+        expect(next.value).exist;
+      }
+    });
+    customTest('should waitForRunToComplete if tableData is empty, paginationUrl and jobId exist', () => {
       next = gen.next();
       expect(next.value).to.eql(select(getEntities));
       next = gen.next(successPayload.get('entities'));
-      expect(next.value).to.eql(select(getLocation));
-      next = gen.next(location);  // waitForRunToComplete
       expect(next.value).to.eql(call(
         waitForRunToComplete,
         datasetUI,
         fullDataset.get('paginationUrl'),
-        location.query.jobId
+        jobId
       ));
       next = gen.next();
-      expect(next.done).to.be.true;
     });
 
-    it('should not waitForRunToComplete if has data', () => {
+    customTest('should waitForRunToComplete if tableData is not empty, but data reload is forced, paginationUrl and jobId exist', () => {
+      gen = handleResumeRunDataset(datasetVersion, true);
       next = gen.next();
-      next = gen.next(successPayload.get('entities').setIn(['tableData', datasetVersion, {data: []}]));
-      next = gen.next(location);
-      expect(next.done).to.be.true;
-    });
-
-    it('should not waitForRunToComplete if no jobId in location', () => {
+      expect(next.value).to.eql(select(getEntities));
+      next = gen.next(successPayload.get('entities').setIn(['tableData', datasetVersion, 'rows'], []));
+      expect(next.value).to.eql(call(
+        waitForRunToComplete,
+        datasetUI,
+        fullDataset.get('paginationUrl'),
+        jobId
+      ));
       next = gen.next();
-      next = gen.next(successPayload.get('entities'));
-      next = gen.next({...location, query: {}});
-      expect(next.done).to.be.true;
     });
 
-    it('should not waitForRunToComplete if no paginationUrl', () => {
+    customTest('should not waitForRunToComplete if has rows', () => {
+      next = gen.next();
+      next = gen.next(successPayload.get('entities').setIn(['tableData', datasetVersion, 'rows'], []));
+    });
+
+    customTest('should not waitForRunToComplete if no jobId in location', () => {
+      next = gen.next();
+      next = gen.next(successPayload.get('entities').deleteIn(['fullDataset', datasetVersion, 'jobId']));
+    });
+
+    customTest('should not waitForRunToComplete if no paginationUrl', () => {
       next = gen.next();
       next = gen.next(successPayload.get('entities').deleteIn(['fullDataset', datasetVersion, 'paginationUrl']));
-      expect(next.value).to.eql(select(getLocation));
-      next = gen.next(location);
-      expect(next.done).to.be.true;
     });
   });
 
@@ -116,15 +128,23 @@ describe('runDataset saga', () => {
       next = gen.next();
       expect(next.value).to.eql(put(addNotification(Immutable.Map({code: 'WS_CLOSED'}), 'error')));
       next = gen.next();
+      expect(next.value).to.be.eql(call(getExplorePageLocationChangePredicate));
+      next = gen.next(() => false);
       expect(typeof next.value.RACE.jobDone).to.not.be.undefined;
       expect(typeof next.value.RACE.locationChange).to.not.be.undefined;
       next = gen.next({jobDone: {payload: {update: {state: true}}}});
       expect(next.value.PUT).to.not.be.undefined; // loadNextRows
       gen.next(); // yield promise of loadNextRows
-      next = gen.next();
+      const lastAction = { payload: { somePayloadField: 'somePayloadField' } };
+      next = gen.next(lastAction);
+      expect(next.value).eql(call(getViewStateFromAction, lastAction));
+      const resultViewState = { someProp: 'someProp' };
+      next = gen.next(resultViewState);
       expect(next.value).to.eql(put(updateHistoryWithJobState(dataset, true)));
       next = gen.next();
       expect(next.value).to.eql(call([socket, socket.stopListenToJobProgress], jobId));
+      next = gen.next();
+      expect(next.value).to.eql(resultViewState);
     });
   });
 });

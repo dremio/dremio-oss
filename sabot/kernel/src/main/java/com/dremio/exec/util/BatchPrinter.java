@@ -17,8 +17,8 @@ package com.dremio.exec.util;
 
 import java.util.List;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.commons.lang3.StringUtils;
 
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;

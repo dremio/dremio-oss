@@ -38,6 +38,14 @@ fi
 bin=`dirname "${BASH_SOURCE-$0}"`
 bin=`cd "$bin">/dev/null; pwd`
 
+if [ -z "$DREMIO_IN_CONTAINER" -a $$ == 1 ]; then
+ DREMIO_IN_CONTAINER=1
+fi
+if [ -z "$DREMIO_LOG_TO_CONSOLE" -a "$DREMIO_IN_CONTAINER" == "1" ]; then
+ DREMIO_LOG_TO_CONSOLE=1
+fi
+export DREMIO_IN_CONTAINER
+export DREMIO_LOG_TO_CONSOLE
 export DREMIO_ENV_SCRIPT="dremio-env"
 . "$bin"/dremio-config
 
@@ -90,7 +98,7 @@ dremio_internal_start() {
     dremio_rotate_log $loggc
 
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS ${SERVER_GC_OPTS}"
-    [ $LOG_TO_CONSOLE == "0" ] &&  DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.log.path=${DREMIO_LOG_DIR}"
+    [ "$DREMIO_LOG_TO_CONSOLE" != "1" ] && DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.log.path=${DREMIO_LOG_DIR}"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB}m"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB}m"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${DREMIO_LOG_DIR}"
@@ -104,12 +112,19 @@ dremio_internal_start() {
     # Add to the command log file vital stats on our environment.
     echo "`date` Starting $command on `hostname`" >> $logout
     echo "`ulimit -a`" >> $logout 2>&1
-    echo $$ > "$pid"
-    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon 
+    # save pid file only when not running as PID 1 - happens in containers
+    if [ "$DREMIO_IN_CONTAINER" != "1" ]; then
+        mkdir -p "$DREMIO_PID_DIR" && echo $$ > "$pid"
+        if [ $? != 0 ]; then
+          echo "$DREMIO_PID_DIR not found or $USER does not have access to it."
+          echo "Please create $DREMIO_PID_DIR and/or give the user $USER ownership to the directory."
+          exit 1
+        fi
+    fi
+    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon
 }
 
 check_before_start() {
-    mkdir -p "$DREMIO_PID_DIR"
     #ckeck if the process is not running
     if [ -f "$pid" ]; then
       if kill -0 `cat "$pid"` > /dev/null 2>&1; then
@@ -185,7 +200,6 @@ case $startStopStatus in
 (start-fg)
     check_before_start
     echo starting $command
-    export LOG_TO_CONSOLE=1
     dremio_internal_start $args
   ;;
 

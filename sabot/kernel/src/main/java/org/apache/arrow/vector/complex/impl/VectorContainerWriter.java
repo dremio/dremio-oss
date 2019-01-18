@@ -19,16 +19,15 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
-import org.apache.arrow.vector.complex.AbstractContainerVector;
 import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.CallBack;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.sabot.op.scan.OutputMutator;

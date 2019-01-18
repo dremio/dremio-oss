@@ -24,6 +24,7 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import com.dremio.common.Version;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
@@ -43,10 +44,23 @@ import com.google.common.collect.ImmutableList;
 /**
  * Converts the deprecated JoinInfo to then new JoinAnalysis
  */
-public class ConvertJoinInfo extends UpgradeTask {
+public class ConvertJoinInfo extends UpgradeTask implements LegacyUpgradeTask {
+
+  //DO NOT MODIFY
+  static final String taskUUID = "518bbc49-37be-474f-938d-c4960dfbdab8";
 
   public ConvertJoinInfo() {
-    super("Convert Join Info", VERSION_106, VERSION_150, NORMAL_ORDER + 8);
+    super("Convert Join Info", ImmutableList.of(MoveFromAccelerationSettingsToReflectionSettings.taskUUID));
+  }
+
+  @Override
+  public Version getMaxVersion() {
+    return VERSION_150;
+  }
+
+  @Override
+  public String getTaskUUID() {
+    return taskUUID;
   }
 
   @Override
@@ -141,5 +155,10 @@ public class ConvertJoinInfo extends UpgradeTask {
       attempt.getInfo().setJoinAnalysis(new JoinAnalysis().setJoinTablesList(joinTables).setJoinStatsList(joinStatsList));
     }
     return jobResult;
+  }
+
+  @Override
+  public String toString() {
+    return String.format("'%s' up to %s)", getDescription(), getMaxVersion());
   }
 }

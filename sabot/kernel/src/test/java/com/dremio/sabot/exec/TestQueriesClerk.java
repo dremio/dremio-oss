@@ -25,9 +25,6 @@ import org.junit.Test;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.sabot.task.AsyncTaskWrapper;
-import com.dremio.sabot.task.TaskManager;
-import com.dremio.sabot.task.single.DedicatedTaskPool;
 
 /**
  * Unit test of QueriesClerk

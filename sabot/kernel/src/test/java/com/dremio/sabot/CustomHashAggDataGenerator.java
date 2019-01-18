@@ -15,28 +15,29 @@
  */
 package com.dremio.sabot;
 
+import static com.dremio.sabot.Fixtures.t;
+import static com.dremio.sabot.Fixtures.th;
+import static com.dremio.sabot.Fixtures.tr;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+
+import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.Float4Vector;
+import org.apache.arrow.vector.Float8Vector;
+import org.apache.arrow.vector.IntVector;
+import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.commons.lang3.RandomStringUtils;
+
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.google.common.base.Preconditions;
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.BigIntVector;
-import org.apache.arrow.vector.Float8Vector;
-import org.apache.arrow.vector.Float4Vector;
-import org.apache.arrow.vector.IntVector;
-import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.commons.lang3.RandomStringUtils;
-
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-
-import static com.dremio.sabot.Fixtures.t;
-import static com.dremio.sabot.Fixtures.th;
-import static com.dremio.sabot.Fixtures.tr;
 
 /**
  * Used to generate data for testing hash agg spilling

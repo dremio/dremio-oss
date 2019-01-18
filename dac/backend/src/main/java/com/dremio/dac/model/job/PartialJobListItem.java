@@ -34,6 +34,7 @@ public class PartialJobListItem {
   private final String id;
   private final JobState state;
   private final JobFailureInfo failureInfo;
+  private final JobCancellationInfo cancellationInfo;
   private final String user;
   private final Long startTime;
   private final Long endTime;
@@ -43,12 +44,14 @@ public class PartialJobListItem {
   private final RequestType requestType;
   private final String datasetVersion;
   private final boolean isComplete;
+  private final boolean spilled;
 
   @JsonCreator
   public PartialJobListItem(
       @JsonProperty("id") String id,
       @JsonProperty("state") JobState state,
       @JsonProperty("failureInfo") JobFailureInfo failureInfo,
+      @JsonProperty("cancellationInfo") JobCancellationInfo cancellationInfo,
       @JsonProperty("user") String user,
       @JsonProperty("startTime") Long startTime,
       @JsonProperty("endTime") Long endTime,
@@ -56,11 +59,13 @@ public class PartialJobListItem {
       @JsonProperty("requestType") RequestType requestType,
       @JsonProperty("accelerated") boolean accelerated,
       @JsonProperty("datasetVersion") String datasetVersion,
-      @JsonProperty("snowflakeAccelerated") boolean snowflakeAccelerated) {
+      @JsonProperty("snowflakeAccelerated") boolean snowflakeAccelerated,
+      @JsonProperty("spilled") boolean spilled) {
     super();
     this.id = id;
     this.state = state;
     this.failureInfo = failureInfo;
+    this.cancellationInfo = cancellationInfo;
     this.user = user;
     this.startTime = startTime;
     this.endTime = endTime;
@@ -70,6 +75,7 @@ public class PartialJobListItem {
     this.datasetVersion = datasetVersion;
     this.isComplete = isComplete(state);
     this.snowflakeAccelerated = snowflakeAccelerated;
+    this.spilled = spilled;
   }
 
   public PartialJobListItem(Job input) {
@@ -79,6 +85,7 @@ public class PartialJobListItem {
     this.id = input.getJobId().getId();
     this.state = lastAttempt.getState();
     this.failureInfo = JobDetailsUI.toJobFailureInfo(input.getJobAttempt().getInfo());
+    this.cancellationInfo = JobDetailsUI.toJobCancellationInfo(input.getJobAttempt());
     this.user = firstAttempt.getInfo().getUser();
     this.startTime = firstAttempt.getInfo().getStartTime();
     this.endTime = lastAttempt.getInfo().getFinishTime();
@@ -89,6 +96,7 @@ public class PartialJobListItem {
     this.isComplete = isComplete(state);
     AccelerationDetails accelerationDetails = deserialize(lastAttempt.getAccelerationDetails());
     this.snowflakeAccelerated = this.accelerated && JobDetailsUI.wasSnowflakeAccelerated(accelerationDetails);
+    this.spilled = lastAttempt.getInfo().getSpillJobDetails() != null;
   }
 
   private boolean isComplete(JobState state){
@@ -119,6 +127,10 @@ public class PartialJobListItem {
 
   public JobFailureInfo getFailureInfo() {
     return failureInfo;
+  }
+
+  public JobCancellationInfo getCancellationInfo() {
+    return cancellationInfo;
   }
 
   public String getUser() {
@@ -156,5 +168,9 @@ public class PartialJobListItem {
 
   public boolean isSnowflakeAccelerated() {
     return snowflakeAccelerated;
+  }
+
+  public boolean isSpilled() {
+    return spilled;
   }
 }

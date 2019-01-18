@@ -15,10 +15,9 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized;
 
-import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
 
-import com.dremio.sabot.op.common.ht2.ResizeListener;
+import io.netty.buffer.ArrowBuf;
 
 /**
  * Interface for implementing a measure. Maintains an array of workspace and/or
@@ -38,20 +37,6 @@ public interface Accumulator extends AutoCloseable {
    * this function works on a per-partition basis.
    */
   void accumulate(long offsetAddr, int count);
-
-  /**
-   * Accumulate the data that is specified at the provided offset vector. The
-   * offset vector describes which local mapping each of the <count> records
-   * should be addressed.
-   *
-   * @param offsetAddr starting address of buffer containing partition and
-   *                   hash table information along with record index
-   * @param count number of records in the partition.
-   *
-   *
-   * this function is used by old (non spilling vectorized hash agg operator).
-   */
-  void accumulateNoSpill(long offsetAddr, int count);
 
   /**
    * Output the data for the provided the batch index to the output vectors.

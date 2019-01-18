@@ -16,11 +16,12 @@
 
 package com.dremio.sabot.op.aggregate.vectorized;
 
+import org.apache.hadoop.fs.FSDataOutputStream;
+
 import com.dremio.common.AutoCloseables;
 import com.dremio.sabot.op.sort.external.SpillManager;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
 import com.google.common.base.Preconditions;
-import org.apache.hadoop.fs.FSDataOutputStream;
 
 /**
  * Disk based version of {@link VectorizedHashAggPartition}.

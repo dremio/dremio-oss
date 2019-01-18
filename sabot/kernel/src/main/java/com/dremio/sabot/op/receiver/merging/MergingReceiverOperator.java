@@ -38,7 +38,6 @@ import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
 import com.dremio.exec.expr.CodeGenerator;
 import com.dremio.exec.expr.fn.FunctionGenerationHelper;
 import com.dremio.exec.physical.config.MergingReceiverPOP;
-import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.exec.record.ArrowRecordBatchLoader;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorAccessible;

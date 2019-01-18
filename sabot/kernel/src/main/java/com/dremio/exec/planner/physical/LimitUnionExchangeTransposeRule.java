@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner.physical;
 
+import java.math.BigDecimal;
+
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
@@ -22,8 +24,6 @@ import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 
 import com.dremio.exec.planner.logical.RelOptHelper;
-
-import java.math.BigDecimal;
 
 public class LimitUnionExchangeTransposeRule extends Prule{
   public static final RelOptRule INSTANCE = new LimitUnionExchangeTransposeRule();

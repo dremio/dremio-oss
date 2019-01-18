@@ -16,6 +16,18 @@
 
 package com.dremio.exec.planner.logical;
 
+import java.util.List;
+
+import org.apache.calcite.linq4j.Ord;
+import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelFieldCollation;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.util.BitSets;
+
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
@@ -24,17 +36,6 @@ import com.dremio.common.logical.data.LogicalOperator;
 import com.dremio.common.logical.data.Order;
 import com.dremio.exec.planner.common.WindowRelBase;
 import com.google.common.collect.Lists;
-import org.apache.calcite.linq4j.Ord;
-import org.apache.calcite.util.BitSets;
-import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.RelFieldCollation;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexLiteral;
-
-import java.util.List;
 
 public class WindowRel extends WindowRelBase implements Rel {
   /**

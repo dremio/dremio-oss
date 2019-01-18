@@ -23,7 +23,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.function.Predicate;
 
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.Convention;
@@ -69,11 +69,10 @@ import com.dremio.common.types.Types;
 import com.dremio.exec.planner.RoutingShuttle;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.resolver.TypeCastRules;
+import com.dremio.exec.store.NamespaceTable;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
-import com.dremio.exec.store.NamespaceTable;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -657,7 +656,7 @@ public final class MoreRelOptUtil {
 
     @Override
     protected RelNode visitChild(RelNode parent, int i, RelNode child) {
-      if(!predicate.apply(parent)){
+      if(!predicate.test(parent)){
         return child.accept(this);
       }
 
@@ -693,7 +692,7 @@ public final class MoreRelOptUtil {
         if (found.value) {
           return other;
         }
-        if (predicate.apply(other)) {
+        if (predicate.test(other)) {
           result.addAll(stack);
           found.value = true;
           return other;

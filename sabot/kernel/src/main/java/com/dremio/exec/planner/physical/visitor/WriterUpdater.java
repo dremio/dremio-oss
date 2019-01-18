@@ -37,13 +37,6 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionType;
-import com.dremio.exec.planner.sql.SqlOperatorImpl;
-import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.dremio.exec.planner.physical.DistributionTraitDef;
 import com.dremio.exec.planner.physical.HashPrelUtil;
 import com.dremio.exec.planner.physical.Prel;
@@ -51,6 +44,13 @@ import com.dremio.exec.planner.physical.ProjectAllowDupPrel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.SortPrel;
 import com.dremio.exec.planner.physical.WriterPrel;
+import com.dremio.exec.planner.sql.SqlOperatorImpl;
+import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 /**
  * Insert additional operators before writing to impose various types of operations including:

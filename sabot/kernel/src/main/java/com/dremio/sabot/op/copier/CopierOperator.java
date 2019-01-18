@@ -19,9 +19,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.util.TransferPair;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -30,10 +30,10 @@ import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.CodeGenerator;
 import com.dremio.exec.physical.config.SelectionVectorRemover;
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.vector.CopyUtil;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.exec.context.OperatorContext;

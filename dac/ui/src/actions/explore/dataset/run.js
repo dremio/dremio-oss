@@ -24,7 +24,6 @@ import exploreUtils from 'utils/explore/exploreUtils';
 export const RUN_DATASET_START = 'RUN_DATASET_START';
 export const RUN_DATASET_SUCCESS = 'RUN_DATASET_SUCCESS';
 export const RUN_DATASET_FAILURE = 'RUN_DATASET_FAILURE';
-export const RESUME_RUN_DATASET = 'RESUME_RUN_DATASET';
 
 function fetchRunDataset(dataset, viewId) {
   const tipVersion = dataset.get('tipVersion');
@@ -49,10 +48,6 @@ function fetchRunDataset(dataset, viewId) {
 
 export const runDataset = (dataset, tipVersion, viewId) =>
   (dispatch) => dispatch(fetchRunDataset(dataset, tipVersion, viewId));
-
-export const resumeRunDataset = (datasetId) => ({ type: RESUME_RUN_DATASET, datasetId });
-
-
 
 export const TRANSFORM_AND_RUN_DATASET_START = 'TRANSFORM_AND_RUN_DATASET_START';
 export const TRANSFORM_AND_RUN_DATASET_SUCCESS = 'TRANSFORM_AND_RUN_DATASET_SUCCESS';

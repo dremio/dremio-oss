@@ -30,6 +30,7 @@ public class ValueVectorWriteExpression implements LogicalExpression {
   private final TypedFieldId fieldId;
   private final LogicalExpression child;
   private final boolean safe;
+  // was pushed in 3.0 have to retain this so that serde does not break.
   private final EvaluationType evaluationType;
 
   public ValueVectorWriteExpression(TypedFieldId fieldId, LogicalExpression child){
@@ -41,26 +42,11 @@ public class ValueVectorWriteExpression implements LogicalExpression {
     this.child = child;
     this.safe = safe;
     this.evaluationType = new EvaluationType();
-    addEvaluationType(EvaluationType.ExecutionType.JAVA);
+    evaluationType.addEvaluationType(EvaluationType.ExecutionType.JAVA);
   }
 
   public TypedFieldId getFieldId() {
     return fieldId;
-  }
-
-  @Override
-  public boolean isEvaluationTypeSupported(EvaluationType.ExecutionType executionType) {
-    return evaluationType.isEvaluationTypeSupported(executionType);
-  }
-
-  @Override
-  public void addEvaluationType(EvaluationType.ExecutionType executionType) {
-    evaluationType.addEvaluationType(executionType);
-  }
-
-  @Override
-  public EvaluationType getEvaluationType() {
-    return evaluationType;
   }
 
   @Override

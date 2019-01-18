@@ -67,10 +67,11 @@ message DownloadInfo {
 message MaterializationSummary {
   optional string datasetId = 1;
   optional string reflectionId = 2;
-  optional int32 layoutVersion = 3;
+  optional int32 legacyLayoutVersion = 3;
   optional string materializationId = 4;
   optional string reflectionName = 5;
   optional string reflectionType = 6;
+  optional string layoutVersion = 7;
 }
 
 message ScanPath {
@@ -98,6 +99,15 @@ message JobFailureInfo {
   optional string message = 1;
   optional Type type = 2;
   repeated Error errors = 3;
+}
+
+message JobCancellationInfo {
+  optional string message = 1;
+}
+
+message SpillJobDetails {
+  optional int64 totalBytesSpilledByHashAgg = 1;
+  optional int64 totalBytesSpilledBySort = 2;
 }
 
 message JobInfo {
@@ -134,6 +144,9 @@ message JobInfo {
   // Schema path to the output table. If not present, should assumed
   // to be <storage-name>.<job-id>
   repeated string output_table = 30;
+  optional JobCancellationInfo cancellationInfo = 31;
+  optional SpillJobDetails spillJobDetails = 32;
+  optional bytes batchSchema = 33;
 }
 
 message ResourceSchedulingInfo {
@@ -144,6 +157,7 @@ message ResourceSchedulingInfo {
   optional string rule_name = 5;
   optional int64 resource_scheduling_start = 6;    // time, in ms, when resource scheduling started
   optional int64 resource_scheduling_end = 7;      // time, in ms, when resource scheduling completed
+  optional double query_cost = 8; // query plan cost used by WLM query_cost() rules function
 }
 
 message JoinTable {

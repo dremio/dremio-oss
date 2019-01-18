@@ -20,6 +20,7 @@ import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.record.FragmentWritableBatch;
 import com.dremio.exec.rpc.RpcOutcomeListener;
+import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.threads.SendingMonitor;
 
 /**
@@ -50,6 +51,11 @@ public class AccountingExecTunnel {
   public void informReceiverFinished(FinishedReceiver finishedReceiver) {
     monitor.increment();
     tunnel.informReceiverFinished(statusHandler, finishedReceiver);
+  }
+
+  public void sendOOBMessage(OutOfBandMessage message) {
+    monitor.increment();
+    tunnel.sendOOBMessage(statusHandler, message);
   }
 
 }

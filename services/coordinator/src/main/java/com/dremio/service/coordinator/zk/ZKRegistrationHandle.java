@@ -41,4 +41,9 @@ class ZKRegistrationHandle implements RegistrationHandle {
     this.zkServiceSet.unregister(this);
   }
 
+  @Override
+  public int instanceCount() {
+    return this.zkServiceSet.getAvailableEndpoints().size();
+  }
+
 }

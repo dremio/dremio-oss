@@ -137,7 +137,7 @@ public class DatasetVersionMutator {
     DatasetConfig datasetConfig = toVirtualDatasetVersion(ds).getDataset();
     namespaceService.addOrUpdateDataset(path.toNamespaceKey(), datasetConfig, attributes);
     ds.setId(datasetConfig.getId().getId());
-    ds.setSavedVersion(datasetConfig.getVersion());
+    ds.setSavedTag(datasetConfig.getTag());
     // Update this version of dataset with new occ version of dataset config from namespace.
     putVersion(ds);
   }
@@ -214,7 +214,7 @@ public class DatasetVersionMutator {
 
       virtualDatasetUI
           .setId(datasetConfig.getId().getId())
-          .setSavedVersion(datasetConfig.getVersion());
+          .setSavedTag(datasetConfig.getTag());
     } catch (final NamespaceException ex) {
       logger.debug("dataset error for {}", path, ex);
     }
@@ -256,7 +256,7 @@ public class DatasetVersionMutator {
       }
       final VirtualDatasetUI virtualDatasetUI = toVirtualDatasetUI(virtualDatasetVersion)
           .setId(datasetConfig.getId().getId())
-          .setSavedVersion(datasetConfig.getVersion());
+          .setSavedTag(datasetConfig.getTag());
       return virtualDatasetUI;
     } catch (NamespaceNotFoundException nsnf) {
       throw new DatasetNotFoundException(path, nsnf);
@@ -272,14 +272,14 @@ public class DatasetVersionMutator {
       }
       final VirtualDatasetUI virtualDatasetUI =  toVirtualDatasetUI(virtualDatasetVersion)
           .setId(datasetConfig.getId().getId())
-          .setSavedVersion(datasetConfig.getVersion());
+          .setSavedTag(datasetConfig.getTag());
       return virtualDatasetUI;
     } catch (NamespaceNotFoundException e) {
       throw new DatasetNotFoundException(path, format("Some path not found while looking for dataset %s, version %s.", path.toPathString(), version.toString()), e);
     }
   }
 
-  public void deleteDataset(DatasetPath datasetPath, long version) throws DatasetNotFoundException, NamespaceException {
+  public void deleteDataset(DatasetPath datasetPath, String version) throws DatasetNotFoundException, NamespaceException {
     try {
       namespaceService.deleteDataset(datasetPath.toNamespaceKey(), version);
     } catch (NamespaceNotFoundException nsnf) {

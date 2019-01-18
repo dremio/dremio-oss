@@ -19,13 +19,12 @@ import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.RepeatedValueVector;
+import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.project.Projector.ComplexWriterCreator;
-
-import org.apache.arrow.vector.util.TransferPair;
 
 public interface Flattener {
   public void setup(

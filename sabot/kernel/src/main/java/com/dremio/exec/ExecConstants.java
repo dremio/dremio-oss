@@ -17,7 +17,7 @@ package com.dremio.exec;
 
 import java.util.concurrent.TimeUnit;
 
-import com.dremio.common.expression.EvaluationType;
+import com.dremio.common.expression.SupportedEngines;
 import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionValidator;
@@ -50,6 +50,7 @@ public interface ExecConstants {
   String BIT_SERVER_RPC_THREADS = "dremio.exec.rpc.bit.server.threads";
   String USER_SERVER_RPC_THREADS = "dremio.exec.rpc.user.server.threads";
   String REGISTRATION_ADDRESS = "dremio.exec.rpc.publishedhost";
+  String MASTERLESS_MODE = "dremio.exec.masterless";
 
   /** incoming buffer size (number of batches) */
   String INCOMING_BUFFER_SIZE = "dremio.exec.buffer.size";
@@ -70,13 +71,12 @@ public interface ExecConstants {
   // Set this value to set the execution preference
   // Default value to use in the operators (for now, only projector and filter use this default)
   String QUERY_EXEC_OPTION_KEY = "exec.preferred.codegenerator";
-  EnumValidator<EvaluationType.CodeGenOption> QUERY_EXEC_OPTION = new EnumValidator<>(
-    QUERY_EXEC_OPTION_KEY, EvaluationType.CodeGenOption.class, EvaluationType.CodeGenOption.DEFAULT);
+  EnumValidator<SupportedEngines.CodeGenOption> QUERY_EXEC_OPTION = new EnumValidator<>(
+    QUERY_EXEC_OPTION_KEY, SupportedEngines.CodeGenOption.class, SupportedEngines.CodeGenOption.DEFAULT);
 
-  // This is the execution preference used internally.
-  // NOTE: This option this cannot be changed from the UI. Instead, the projector and
-  // filter operator set this option to shadow the value for QUERY_EXEC_OPTION
-  String INTERNAL_EXEC_OPTION_KEY = "internal." + QUERY_EXEC_OPTION_KEY;
+  // Configuration option for enabling expression split
+  // Splits are enabled when this is set to true and QUERY_EXEC_OPTION is set to Gandiva
+  BooleanValidator SPLIT_ENABLED = new BooleanValidator("exec.expression.split.enabled", true);
 
   // Whether or not to replace a group of ORs with a set operation.
   BooleanValidator FAST_OR_ENABLE = new BooleanValidator("exec.operator.orfast", true);
@@ -140,7 +140,8 @@ public interface ExecConstants {
   String PARQUET_MEMORY_THRESHOLD = "store.parquet.memory_threshold";
   LongValidator PARQUET_MEMORY_THRESHOLD_VALIDATOR = new LongValidator(PARQUET_MEMORY_THRESHOLD, 512*1024*1024);
 
-  LongValidator PARQUET_MAX_PARTITION_COLUMNS_VALIDATOR = new RangeLongValidator("store.parquet.partition_column_limit", 0, 500, 25);
+  LongValidator PARQUET_MAX_PARTITION_COLUMNS_VALIDATOR = new RangeLongValidator("store.parquet" +
+    ".partition_column_limit", 0, 500, 25);
 
   BooleanValidator PARQUET_ELIMINATE_NULL_PARTITIONS = new BooleanValidator("store.parquet.exclude_null_implicit_partitions", true);
 
@@ -220,12 +221,6 @@ public interface ExecConstants {
 
   BooleanValidator ACCELERATION_VERBOSE_LOGGING = new BooleanValidator("accelerator.system.verbose.logging", true);
   LongValidator ACCELERATION_LIMIT = new LongValidator("accelerator.system.limit", 10);
-  BooleanValidator ACCELERATION_AGGREGATION_ENABLED = new BooleanValidator("accelerator.system.aggretation.enabled", true);
-  BooleanValidator ACCELERATION_RAW_ENABLED = new BooleanValidator("accelerator.system.raw.enabled", false);
-  // DX-6734
-  BooleanValidator ACCELERATION_RAW_REMOVE_PROJECT = new BooleanValidator("accelerator.raw.remove_project", true);
-  BooleanValidator ACCELERATION_ENABLE_AGG_JOIN = new BooleanValidator("accelerator.enable_agg_join", true);
-  BooleanValidator ACCELERATION_ENABLE_MULTIJOIN = new BooleanValidator("accelerator.enable_multijoin", true);
   LongValidator ACCELERATION_ORPHAN_CLEANUP_MILLISECONDS = new LongValidator("acceleration.orphan.cleanup_in_milliseconds", 14400000); //4 hours
 
   String SLICE_TARGET = "planner.slice_target";

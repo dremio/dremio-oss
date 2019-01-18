@@ -144,11 +144,11 @@ final class JobsServiceUtil {
   static JobState queryStatusToJobStatus(QueryState state) {
     switch (state) {
     case STARTING:
-      return JobState.RUNNING;
+      return JobState.STARTING;
     case RUNNING:
       return JobState.RUNNING;
     case ENQUEUED:
-      return JobState.RUNNING;
+      return JobState.ENQUEUED;
     case COMPLETED:
       return JobState.COMPLETED;
     case CANCELED:

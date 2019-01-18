@@ -81,7 +81,7 @@ public class SqlLoadMaterialization extends SqlCall implements SimpleDirectHandl
   @Override
   public SimpleDirectHandler toDirectHandler(QueryContext context) {
     try {
-      final Class<?> cl = Class.forName("com.dremio.service.reflection.LoadMaterializationHandler");
+      final Class<?> cl = Class.forName("com.dremio.service.reflection.load.LoadMaterializationHandler");
       Constructor<?> ctor = cl.getConstructor(QueryContext.class);
       return (SimpleDirectHandler) ctor.newInstance(context);
     } catch (InstantiationException | IllegalAccessException | ClassNotFoundException | NoSuchMethodException | InvocationTargetException e) {

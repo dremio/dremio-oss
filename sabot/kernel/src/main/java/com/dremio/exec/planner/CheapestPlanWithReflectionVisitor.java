@@ -34,7 +34,6 @@ import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.util.Pair;
 
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;

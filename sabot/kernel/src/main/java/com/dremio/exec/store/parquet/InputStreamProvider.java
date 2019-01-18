@@ -23,10 +23,6 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import com.dremio.common.AutoCloseables;
-import com.google.common.base.Preconditions;
-import com.google.common.io.Closeables;
-
 /**
  * Provides input streams with one of two policies: reuse a single stream, or create a new stream each time stream() is called
  * For the case where streams are reused, users must handle the repositioning of the stream
@@ -50,9 +46,8 @@ public class InputStreamProvider implements AutoCloseable {
       if (streams.isEmpty()) {
         FSDataInputStream stream = fs.open(path);
         streams.add(stream);
-      } else {
-        return streams.get(0);
       }
+      return streams.get(0);
     }
 
     FSDataInputStream stream = fs.open(path);

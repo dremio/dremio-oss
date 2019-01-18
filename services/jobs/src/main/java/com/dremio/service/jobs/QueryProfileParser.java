@@ -36,6 +36,8 @@ import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
+import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
+import com.dremio.sabot.op.sort.external.ExternalSortOperator;
 import com.dremio.sabot.op.writer.WriterOperator;
 import com.dremio.service.job.proto.CommonDatasetProfile;
 import com.dremio.service.job.proto.DatasetPathUI;
@@ -44,11 +46,13 @@ import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobStats;
 import com.dremio.service.job.proto.OperationType;
+import com.dremio.service.job.proto.SpillJobDetails;
 import com.dremio.service.job.proto.TableDatasetProfile;
 import com.dremio.service.job.proto.TopOperation;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.CharMatcher;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
@@ -77,6 +81,7 @@ class QueryProfileParser {
   private final QueryProfile queryProfile;
   private final JobId jobId;
   private boolean queryOutputLimited = false;
+  private SpillJobDetails spillJobDetails;
 
   public QueryProfileParser(final JobId jobId, final QueryProfile queryProfile) throws IOException {
     mapper = new ObjectMapper();
@@ -89,6 +94,7 @@ class QueryProfileParser {
     topOperationsMap = Maps.newHashMap();
     this.queryProfile = queryProfile;
     this.jobId = jobId;
+    this.spillJobDetails = null;
     parse();
   }
 
@@ -231,6 +237,52 @@ class QueryProfileParser {
     }
   }
 
+  private void setAggSpillInfo(CoreOperatorType operatorType, OperatorProfile operatorProfile) {
+    initSpillJobDetails();
+    final int operatorNumber = operatorType.getNumber();
+    Preconditions.checkState(operatorNumber == CoreOperatorType.HASH_AGGREGATE_VALUE);
+    final List<UserBitShared.MetricValue> metricValues = operatorProfile.getMetricList();
+    for (UserBitShared.MetricValue metricValue : metricValues) {
+      final int metricId = metricValue.getMetricId();
+      if (metricId == HashAggStats.Metric.TOTAL_SPILLED_DATA_SIZE.ordinal() && metricValue.hasLongValue()) {
+        spillJobDetails.setTotalBytesSpilledByHashAgg(spillJobDetails.getTotalBytesSpilledByHashAgg() + metricValue.getLongValue());
+      }
+    }
+  }
+
+  private void initSpillJobDetails() {
+    if (spillJobDetails == null) {
+      this.spillJobDetails = new SpillJobDetails();
+      spillJobDetails.setTotalBytesSpilledByHashAgg((long)0);
+      spillJobDetails.setTotalBytesSpilledBySort((long)0);
+    }
+  }
+
+  private void setSortSpillInfo(CoreOperatorType operatorType, OperatorProfile operatorProfile) {
+    initSpillJobDetails();
+    final int operatorNumber = operatorType.getNumber();
+    Preconditions.checkState(operatorNumber == CoreOperatorType.EXTERNAL_SORT_VALUE);
+    final List<UserBitShared.MetricValue> metricValues = operatorProfile.getMetricList();
+    for (UserBitShared.MetricValue metricValue : metricValues) {
+      final int metricId = metricValue.getMetricId();
+      if (metricId == ExternalSortOperator.Metric.TOTAL_SPILLED_DATA_SIZE.ordinal() && metricValue.hasLongValue()) {
+        spillJobDetails.setTotalBytesSpilledBySort(spillJobDetails.getTotalBytesSpilledBySort() + metricValue.getLongValue());
+      }
+    }
+  }
+
+  /**
+   * Get the spill info for the the job after parsing the query profile
+   * @return null if the query never spilled, non-null if some operator spilled
+   * as of now, we only consider external sort and hashagg operators.
+   */
+  SpillJobDetails getSpillDetails() {
+    if (spillJobDetails != null && (spillJobDetails.getTotalBytesSpilledByHashAgg() > 0 || spillJobDetails.getTotalBytesSpilledBySort() > 0)) {
+      return spillJobDetails;
+    }
+    return null;
+  }
+
   private void addInputBytesAndRecords(long inputBytes, long inputRecords) {
     if (jobStats.getInputBytes() != null) {
       jobStats.setInputBytes(jobStats.getInputBytes() + inputBytes);
@@ -358,12 +410,19 @@ class QueryProfileParser {
               break;
 
             case EXTERNAL_SORT:
+              setSortSpillInfo(operatorType, operatorProfile);
+              setOperationStats(OperationType.Sort, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              break;
+
             case OLD_SORT:
             case TOP_N_SORT:
               setOperationStats(OperationType.Sort, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
               break;
 
             case HASH_AGGREGATE:
+              setAggSpillInfo(operatorType, operatorProfile);
+              setOperationStats(OperationType.Aggregate, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
+              break;
             case STREAMING_AGGREGATE:
               setOperationStats(OperationType.Aggregate, toMillis(operatorProfile.getProcessNanos() + operatorProfile.getSetupNanos()));
             break;

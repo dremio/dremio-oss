@@ -16,12 +16,13 @@
 package com.dremio.sabot.exec.context;
 
 
-import io.netty.buffer.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 
 import com.carrotsearch.hppc.LongObjectHashMap;
 import com.carrotsearch.hppc.predicates.LongObjectPredicate;
+
+import io.netty.buffer.ArrowBuf;
 
 public class BufferManagerImpl implements BufferManager {
   private LongObjectHashMap<ArrowBuf> managedBuffers = new LongObjectHashMap<>();

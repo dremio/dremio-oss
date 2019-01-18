@@ -17,8 +17,6 @@ package com.dremio.sabot.op.join.vhash;
 
 import java.util.concurrent.TimeUnit;
 
-import io.netty.buffer.ArrowBuf;
-
 public interface JoinTable extends AutoCloseable {
   public void insert(final long outputAddr, final int records);
   public void find(final long outputAddr, final int records);

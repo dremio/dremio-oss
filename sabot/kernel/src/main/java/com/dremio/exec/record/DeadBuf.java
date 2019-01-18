@@ -15,11 +15,6 @@
  */
 package com.dremio.exec.record;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.ArrowBuf;
-import io.netty.util.ByteProcessor;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,6 +24,11 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 import java.nio.charset.Charset;
+
+import io.netty.buffer.ArrowBuf;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.ByteProcessor;
 
 public class DeadBuf extends ByteBuf {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DeadBuf.class);

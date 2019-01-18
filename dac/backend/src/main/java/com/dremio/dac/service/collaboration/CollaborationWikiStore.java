@@ -40,8 +40,11 @@ import com.google.common.base.Suppliers;
 public class CollaborationWikiStore {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CollaborationWikiStore.class);
 
-  public static final IndexKey ENTITY_ID = new IndexKey("id", "ENTITY_ID", String.class, null, false, false);
-  public static final IndexKey CREATED_AT = new IndexKey("createdAt", "CREATED_AT", Long.class, SearchTypes.SearchFieldSorting.FieldType.LONG, false, false);
+  public static final IndexKey ENTITY_ID = IndexKey.newBuilder("id", "ENTITY_ID", String.class)
+    .build();
+  public static final IndexKey CREATED_AT = IndexKey.newBuilder("createdAt", "CREATED_AT", Long.class)
+    .setSortedValueType(SearchTypes.SearchFieldSorting.FieldType.LONG)
+    .build();
 
   private static final long MAX_WIKI_LENGTH = 100_000;
 

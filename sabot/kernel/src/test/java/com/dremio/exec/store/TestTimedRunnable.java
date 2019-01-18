@@ -29,7 +29,6 @@ import org.junit.rules.TestRule;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.TestTools;
-import com.dremio.exec.store.TimedRunnable;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.Lists;
 

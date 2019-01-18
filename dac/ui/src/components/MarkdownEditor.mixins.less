@@ -28,3 +28,11 @@
     background: @background;
   }
 }
+
+.mde-colors-mixin(@background, @color) {
+  .editor-preview,
+  .CodeMirror, .CodeMirror h3 {
+    background: @background;
+    color: @color;
+  }
+}

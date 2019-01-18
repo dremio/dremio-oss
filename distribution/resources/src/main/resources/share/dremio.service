@@ -28,17 +28,9 @@ After=network-online.target
 [Service]
 User=dremio
 Group=dremio
-
 RuntimeDirectory=dremio
-Environment=DREMIO_HOME=/opt/dremio
-Environment=DREMIO_CONF_DIR=/opt/dremio/conf
-Environment=DREMIO_PID_DIR=/opt/dremio/run
-
-PIDFile=${DREMIO_PID_DIR}/dremio.pid
-
 ExecStart=/opt/dremio/bin/dremio start-fg
-ExecStop=/opt/dremio/bin/dremio stop
-RestartForceExitStatus=3
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target

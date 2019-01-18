@@ -47,15 +47,6 @@ public interface PersistentStore<V> extends AutoCloseable {
   void delete(String key);
 
   /**
-   * Stores the (key, value) tuple in the store only if it does not exists.
-   *
-   * @param key  lookup key
-   * @param value  value to store
-   * @return  true if put takes place, false otherwise.
-   */
-  boolean putIfAbsent(String key, V value);
-
-  /**
    * Returns an iterator of entries.
    */
   Iterator<Map.Entry<String, V>> getAll();

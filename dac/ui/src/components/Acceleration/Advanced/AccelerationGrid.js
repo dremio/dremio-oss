@@ -311,7 +311,7 @@ export class AccelerationGrid extends Component {
     return (
       <div
         className='grid-acceleration'
-        style={{ width: '100%' }}
+        style={{ width: '100%', overflow: 'hidden' }}
         ref={(wrap) => this.gridWrapper = wrap}
       >
         <AutoSizer>

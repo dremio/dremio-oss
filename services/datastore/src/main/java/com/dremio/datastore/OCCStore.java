@@ -21,6 +21,11 @@ import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+import com.dremio.common.AutoCloseables.RollbackCloseable;
+import com.google.common.base.Throwables;
 
 /**
  * KVStore implementation that implements optimistic concurrency control.
@@ -64,48 +69,84 @@ class OCCStore<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
 
   @Override
   public KVStoreTuple<VALUE> get(KVStoreTuple<KEY> key) {
-    return store.get(key);
+    KVStoreTuple<VALUE> value = store.get(key);
+    checkAndUpdateToStringVersion(key,value);
+    return value;
   }
 
   @Override
   public Iterable<Map.Entry<KVStoreTuple<KEY>, KVStoreTuple<VALUE>>> find() {
-    return store.find();
+    return () -> StreamSupport.stream(store.find().spliterator(), false)
+      .peek(entry -> checkAndUpdateToStringVersion(entry.getKey(), entry.getValue()))
+      .iterator();
   }
 
   @Override
   public void put(KVStoreTuple<KEY> key, KVStoreTuple<VALUE> newValue) {
-    Long previousVersion = newValue.incrementVersion();
-    Long newVersion = newValue.getVersion();
+    try (RollbackCloseable rollback = new RollbackCloseable()) {
+      // run pre-commit before we increment version
+      rollback.add(newValue.preCommit());
 
-    if (newVersion == null) {
-      throw new IllegalArgumentException("missing version in " + newValue);
-    }
+      final String previousVersion = newValue.incrementVersion();
+      final String newVersion = newValue.getTag();
 
-    if(disableValidation){
-      store.put(key, newValue);
-    } else {
-      final KVStoreTuple<VALUE> previousValue = get(key);
-      if (isValid(previousVersion, previousValue)) {
-        store.checkAndPut(key, previousValue, newValue);
-      } else {
-        final String expectedAction = previousVersion == null ? "create" : "update version " + previousVersion;
-        final String previousValueDesc = previousValue.isNull()? "no previous version" : "previous version " + previousValue.getVersion();
-        throw new ConcurrentModificationException(format("tried to %s, found %s", expectedAction, previousValueDesc));
+      if (newVersion == null) {
+        throw new IllegalArgumentException("missing version in " + newValue);
       }
+
+      rollback.add(() -> {
+        // manually rollback version
+        newValue.setTag(previousVersion);
+      });
+
+      if (disableValidation) {
+        store.put(key, newValue);
+      } else {
+        boolean valid = store.validateAndPut(key, newValue,
+          (KVStoreTuple<VALUE> oldValue) -> {
+            // check if the previous version matches what is currently stored
+            return isValid(previousVersion, oldValue);
+         }
+       );
+
+        if (!valid) {
+          final KVStoreTuple<VALUE> currentValue = store.get(key);
+
+          final String expectedAction = previousVersion == null ? "create" : "update version " + previousVersion;
+          final String previousValueDesc = currentValue.isNull() ? "no previous version" : "previous version " + currentValue.getTag();
+          throw new ConcurrentModificationException(format("tried to %s, found %s", expectedAction, previousValueDesc));
+        }
+      }
+
+      rollback.commit();
+    } catch (Exception e) {
+      Throwables.throwIfUnchecked(e);
+      throw new RuntimeException(e);
     }
   }
 
   @Override
-  public void delete(KVStoreTuple<KEY> key, long previousVersion) {
+  public boolean validateAndPut(KVStoreTuple<KEY> key, KVStoreTuple<VALUE> newValue, ValueValidator<VALUE> validator) {
+    return store.validateAndPut(key, newValue, validator);
+  }
+
+  @Override
+  public void delete(KVStoreTuple<KEY> key, String previousVersion) {
     if (disableValidation) {
       store.delete(key);
     } else {
-      final KVStoreTuple<VALUE> previousValue = get(key);
-      if (isValid(previousVersion, previousValue)) {
-        store.checkAndDelete(key, previousValue);
-      } else {
-        final String previousValueDesc = previousValue.isNull()? "no previous version"
-            : "previous version " + previousValue.getVersion();
+      boolean valid = store.validateAndDelete(key,
+        (KVStoreTuple<VALUE> oldValue) -> {
+          // check if the previous version matches what is currently stored
+          return isValid(previousVersion, oldValue);
+        }
+      );
+
+      if (!valid) {
+        final KVStoreTuple<VALUE> currentValue = store.get(key);
+
+        final String previousValueDesc = currentValue.isNull()? "no previous version"
+            : "previous version " + currentValue.getTag();
         throw new ConcurrentModificationException(
             format("tried to delete version %s, found %s", previousVersion, previousValueDesc));
       }
@@ -113,13 +154,13 @@ class OCCStore<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
   }
 
   @Override
-  public List<KVStoreTuple<VALUE>> get(List<KVStoreTuple<KEY>> keys) {
-    return store.get(keys);
+  public boolean validateAndDelete(KVStoreTuple<KEY> key, ValueValidator<VALUE> validator) {
+    return store.validateAndDelete(key, validator);
   }
 
   @Override
-  public boolean checkAndPut(KVStoreTuple<KEY> key, KVStoreTuple<VALUE> oldValue, KVStoreTuple<VALUE> newValue) {
-    return store.checkAndPut(key, oldValue, newValue);
+  public List<KVStoreTuple<VALUE>> get(List<KVStoreTuple<KEY>> keys) {
+    return keys.stream().map(this::get).collect(Collectors.toList());
   }
 
   @Override
@@ -128,21 +169,25 @@ class OCCStore<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
   }
 
   @Override
-  public boolean checkAndDelete(KVStoreTuple<KEY> key, KVStoreTuple<VALUE> value) {
-    return store.checkAndDelete(key, value);
-  }
-
-  @Override
   public Iterable<Entry<KVStoreTuple<KEY>, KVStoreTuple<VALUE>>> find(FindByRange<KVStoreTuple<KEY>> find) {
-    return store.find(find);
+    return () -> StreamSupport.stream(store.find(find).spliterator(), false)
+      .peek(entry -> checkAndUpdateToStringVersion(entry.getKey(), entry.getValue()))
+      .iterator();
   }
 
-  private boolean isValid(Long version, KVStoreTuple<VALUE> value){
+  private boolean isValid(String version, KVStoreTuple<VALUE> value){
     if (version == null || value.isNull()) {
       return version == null && value.isNull();
     }
-    return version.equals(value.getVersion());
+    return version.equals(value.getTag());
   }
 
+  private void checkAndUpdateToStringVersion(KVStoreTuple<KEY> key, KVStoreTuple<VALUE> value){
+    if(value == null || value.isNull()){
+      return;
+    }
+    // set a string version if it doesn't have one
+    value.inlineUpgradeToStringTag();
+  }
 }
 

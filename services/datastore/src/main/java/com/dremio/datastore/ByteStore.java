@@ -22,4 +22,20 @@ import java.io.IOException;
  */
 interface ByteStore extends KVStore<byte[], byte[]>, AutoCloseable {
   void deleteAllValues() throws IOException;
+
+  /**
+   * Validate the currently stored value before updating the store
+   *
+   * @param key the key
+   * @param newValue the new value
+   * @param validator a ByteValidator that ensures that the current item stored in the store for the key is valid
+   * @return if the validation succeeded or not
+   */
+  boolean validateAndPut(byte[] key, byte[] newValue, ByteValidator validator);
+
+  boolean validateAndDelete(byte[] key, ByteValidator validator);
+
+  interface ByteValidator {
+    boolean validate(byte[] oldValue);
+  }
 }

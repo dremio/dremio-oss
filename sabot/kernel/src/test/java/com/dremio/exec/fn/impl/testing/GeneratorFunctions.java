@@ -17,6 +17,7 @@ package com.dremio.exec.fn.impl.testing;
 
 import java.util.Random;
 
+import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 
@@ -26,8 +27,6 @@ import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
-
-import org.apache.arrow.vector.holders.BigIntHolder;
 
 public class GeneratorFunctions extends ExecTest {
 

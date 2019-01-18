@@ -95,6 +95,9 @@ public class ReflectionSettings {
     // if some settings already exist just override them, otherwise remove the version as the passed settings may be
     // coming from the parent source
     AccelerationSettings previous = store.get(key);
+    settings.setTag(previous != null ? previous.getTag() : null);
+    // version is deprecated but may exist after an upgrade so we need to ensure that it is nulled out when we null out
+    // the tag or else the inline upgrade code for OCC will get confused
     settings.setVersion(previous != null ? previous.getVersion() : null);
     if (settings.getRefreshPeriod() == null) {
       settings.setRefreshPeriod(DEFAULT_REFRESH_PERIOD);

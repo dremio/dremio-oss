@@ -84,7 +84,7 @@ public class PutSourceResource {
         throw new SourceNotFoundException(sourcePath.getSourceName().getName());
       }
       source.setState(sourceState);
-      source.setVersion(sourceConfig.getVersion());
+      source.setTag(sourceConfig.getTag());
       source.setId(sourceConfig.getId().getId());
       return source;
     } catch (ExecutionSetupException e) {

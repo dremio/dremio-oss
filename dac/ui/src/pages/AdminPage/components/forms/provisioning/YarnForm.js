@@ -13,32 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {Component} from 'react';
+import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import HOCON from 'hoconfig-js/lib/parser';
 
-import {applyValidators, isNumber, isRequired} from 'utils/validation';
-import {connectComplexForm} from 'components/Forms/connectComplexForm';
-import {PROVISION_MANAGERS} from 'constants/provisioningPage/provisionManagers';
+import { applyValidators, isNumber, isRequired } from 'utils/validation';
+import { connectComplexForm } from 'components/Forms/connectComplexForm';
+import { PROVISION_MANAGERS } from 'constants/provisioningPage/provisionManagers';
 import * as PROVISION_DISTRIBUTIONS from 'constants/provisioningPage/provisionDistributions';
-import {FormBody, ModalForm, modalFormProps} from 'components/Forms';
+import { FormBody, ModalForm, modalFormProps } from 'components/Forms';
 import NumberFormatUtils from 'utils/numberFormatUtils';
 import YarnProperties from 'components/Forms/YarnProperties';
-import {Checkbox, FieldWithError, Select, TextField} from 'components/Fields';
-import {formRow, label, sectionTitle } from 'uiTheme/radium/forms';
-import {formDefault, formLabel} from 'uiTheme/radium/typography';
+import { Checkbox, FieldWithError, Select, TextField } from 'components/Fields';
+import { formRow, label, sectionTitle } from 'uiTheme/radium/forms';
+import { formDefault, formLabel } from 'uiTheme/radium/typography';
 import TextFieldList from 'components/Forms/TextFieldList';
-import {formatMessage} from 'utils/locale';
+import { formatMessage } from 'utils/locale';
 import config from 'utils/config';
-import { inputSpacing as inputSpacingCssValue} from '@app/uiTheme/less/variables.less';
+import { inputSpacing as inputSpacingCssValue } from '@app/uiTheme/less/variables.less';
 
 const FIELDS = [
   'id', 'clusterType', 'resourceManagerHost', 'namenodeHost', 'queue',
   'memoryMB', 'virtualCoreCount', 'dynamicConfig.containerCount',
   'propertyList[].name', // we map from entity.key -> field.name in mapToFormFields to match what Property input expects.
-  'propertyList[].value', 'propertyList[].type', 'version', 'distroType', 'isSecure',
+  'propertyList[].value', 'propertyList[].type', 'tag', 'distroType', 'isSecure',
   'spillDirectories[]'
 ];
 

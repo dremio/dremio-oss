@@ -59,17 +59,6 @@ public interface KVStore<K, V> {
   void put(K key, V v);
 
   /**
-   * Replace old value with new value atomically. If key is not associated with old value then return false.
-   * @param key key to save the value under.
-   * @param oldValue old value that must match with value associated with key.
-   *                 old value can be null(put if key doesn't exist in key value store).
-   * @param newValue new value to save.
-   * @return true if old value is replaced by new value, false otherwise.
-   * @throws NullPointerException when value is null.
-   */
-  boolean checkAndPut(K key, V oldValue, V newValue);
-
-  /**
    * Indicate if the store contains an entry associated with the key. Return {@code true}
    * if such a key exist, {@code false} otherwise.
    *
@@ -85,15 +74,6 @@ public interface KVStore<K, V> {
    * @param key the key to remove.
    */
   void delete(K key);
-
-
-  /**
-   * Delete the value at the provided key if the current value is equal to the provided value.
-   * @param key The key for deletion
-   * @param value The expected value at that key.
-   * @return Whether or not the delete succeeded.
-   */
-  boolean checkAndDelete(K key, V value);
 
 
   /**
@@ -132,7 +112,7 @@ public interface KVStore<K, V> {
    * @param key Key to delete.
    * @param previousVersion Previous version to be deleted.
    */
-  void delete(K key, long previousVersion);
+  void delete(K key, String previousVersion);
 
   /**
    * To validate that the previous value is the correct version (for example)

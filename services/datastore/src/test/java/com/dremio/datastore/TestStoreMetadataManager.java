@@ -17,6 +17,8 @@ package com.dremio.datastore;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.function.Predicate;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -25,6 +27,10 @@ import org.junit.rules.TemporaryFolder;
  * Test store metadata manager.
  */
 public class TestStoreMetadataManager {
+
+  private static final Predicate<String> TRUE = s -> true;
+
+  private static final Predicate<String> FALSE = s -> false;
 
   @Rule
   public final TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -43,19 +49,21 @@ public class TestStoreMetadataManager {
 
       smm.setLatestTransactionNumber(storeName, 1);
       assertEquals(1, (long) smm.getFromCache(storeName));
-      assertEquals(1, smm.getLowestTransactionNumber());
+      assertEquals(1, smm.getLowestTransactionNumber(TRUE));
 
       smm.setLatestTransactionNumber(storeName, 2);
       assertEquals(2, (long) smm.getFromCache(storeName));
-      assertEquals(1, smm.getLowestTransactionNumber());
+      assertEquals(1, smm.getLowestTransactionNumber(TRUE));
 
       smm.setLatestTransactionNumber(storeName, 3);
       assertEquals(3, (long) smm.getFromCache(storeName));
-      assertEquals(2, smm.getLowestTransactionNumber());
+      assertEquals(2, smm.getLowestTransactionNumber(TRUE));
 
       smm.setLatestTransactionNumber(storeName, 4);
       assertEquals(4, (long) smm.getFromCache(storeName));
-      assertEquals(3, smm.getLowestTransactionNumber());
+      assertEquals(3, smm.getLowestTransactionNumber(TRUE));
+
+      assertEquals(-1, smm.getLowestTransactionNumber(FALSE));
     }
   }
 
@@ -72,21 +80,23 @@ public class TestStoreMetadataManager {
 
       smm.setLatestTransactionNumber(storeName, 1);
       assertEquals(null, smm.getFromCache(storeName));
-      assertEquals(-1L, smm.getLowestTransactionNumber());
+      assertEquals(-1L, smm.getLowestTransactionNumber(TRUE));
 
       smm.setLatestTransactionNumber(storeName, 2);
       assertEquals(null, smm.getFromCache(storeName));
-      assertEquals(-1L, smm.getLowestTransactionNumber());
+      assertEquals(-1L, smm.getLowestTransactionNumber(TRUE));
 
       smm.allowUpdates();
 
       smm.setLatestTransactionNumber(storeName, 3);
       assertEquals(3, (long) smm.getFromCache(storeName));
-      assertEquals(3, smm.getLowestTransactionNumber());
+      assertEquals(3, smm.getLowestTransactionNumber(TRUE));
 
       smm.setLatestTransactionNumber(storeName, 4);
       assertEquals(4, (long) smm.getFromCache(storeName));
-      assertEquals(3, smm.getLowestTransactionNumber());
+      assertEquals(3, smm.getLowestTransactionNumber(TRUE));
+
+      assertEquals(-1, smm.getLowestTransactionNumber(FALSE));
     }
   }
 
@@ -104,31 +114,33 @@ public class TestStoreMetadataManager {
 
       smm.setLatestTransactionNumber(storeName, 1);
       assertEquals(1, (long) smm.getFromCache(storeName));
-      assertEquals(1, smm.getLowestTransactionNumber());
+      assertEquals(1, smm.getLowestTransactionNumber(TRUE));
 
       smm.setLatestTransactionNumber(storeName, 2);
       assertEquals(2, (long) smm.getFromCache(storeName));
-      assertEquals(1, smm.getLowestTransactionNumber());
+      assertEquals(1, smm.getLowestTransactionNumber(TRUE));
 
       smm.blockUpdates();
 
       smm.setLatestTransactionNumber(storeName, 3);
       assertEquals(2, (long) smm.getFromCache(storeName));
-      assertEquals(1, smm.getLowestTransactionNumber());
+      assertEquals(1, smm.getLowestTransactionNumber(TRUE));
 
       smm.setLatestTransactionNumber(storeName, 4);
       assertEquals(2, (long) smm.getFromCache(storeName));
-      assertEquals(1, smm.getLowestTransactionNumber());
+      assertEquals(1, smm.getLowestTransactionNumber(TRUE));
 
       smm.allowUpdates();
 
       smm.setLatestTransactionNumber(storeName, 3);
       assertEquals(3, (long) smm.getFromCache(storeName));
-      assertEquals(2, smm.getLowestTransactionNumber());
+      assertEquals(2, smm.getLowestTransactionNumber(TRUE));
 
       smm.setLatestTransactionNumber(storeName, 4);
       assertEquals(4, (long) smm.getFromCache(storeName));
-      assertEquals(3, smm.getLowestTransactionNumber());
+      assertEquals(3, smm.getLowestTransactionNumber(TRUE));
+
+      assertEquals(-1, smm.getLowestTransactionNumber(FALSE));
     }
   }
 }

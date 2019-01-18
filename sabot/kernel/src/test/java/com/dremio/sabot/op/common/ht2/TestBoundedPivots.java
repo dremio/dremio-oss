@@ -22,17 +22,17 @@ import static org.junit.Assert.assertEquals;
 import java.math.BigDecimal;
 import java.util.Random;
 
-import com.dremio.sabot.BaseTestWithAllocator;
-
-import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DecimalVector;
+import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.commons.io.Charsets;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Test;
+
+import com.dremio.sabot.BaseTestWithAllocator;
 
 import io.netty.buffer.ArrowBuf;
 
@@ -484,5 +484,41 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
     }
     vector.setValueCount(values.length);
     return values;
+  }
+
+  @Test
+  public void boolNullEveryOther() throws Exception {
+    final int count = 1024;
+    try (
+      BitVector in = new BitVector("in", allocator);
+      BitVector out = new BitVector("out", allocator);
+    ) {
+
+      in.allocateNew(count);
+      ArrowBuf tempBuf = allocator.buffer(1024);
+
+      for (int i = 0; i < count; i ++) {
+        if (i % 2 == 0) {
+          in.set(i, 1);
+        }
+      }
+      in.setValueCount(count);
+
+      final PivotDef pivot = PivotBuilder.getBlockDefinition(new FieldVectorPair(in, out));
+      try (
+        final FixedBlockVector fbv = new FixedBlockVector(allocator, pivot.getBlockWidth());
+        final VariableBlockVector vbv = new VariableBlockVector(allocator, pivot.getVariableCount());
+      ) {
+        fbv.ensureAvailableBlocks(count);
+        Pivots.pivot(pivot, count, fbv, vbv);
+
+        Unpivots.unpivot(pivot, fbv, vbv, 0, count);
+
+        for (int i = 0; i < count; i++) {
+          assertEquals(in.getObject(i), out.getObject(i));
+        }
+      }
+      tempBuf.release();
+    }
   }
 }

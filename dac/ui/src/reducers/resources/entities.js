@@ -17,6 +17,7 @@ import Immutable from 'immutable';
 
 import entityTypes from 'dyn-load/reducers/resources/entityTypes';
 import { LOAD_ENTITIES_SUCCESS } from '@app/actions/resources';
+import { CLEAR_ENTITIES } from '@app/actions/resources/entities';
 
 import * as entityReducers from './entityReducers';
 
@@ -26,12 +27,11 @@ export const cacheConfigs = {
   }
 };
 
-const initialState = entityTypes.reduce(
-  (prevMap, entityType) => {
-    return prevMap.set(entityType, cacheConfigs[entityType] ? Immutable.OrderedMap() : Immutable.Map());
-  },
-  Immutable.Map()
-);
+const initEntityTypeState = (state, entityType) => {
+  return state.set(entityType, cacheConfigs[entityType] ? Immutable.OrderedMap() : Immutable.Map());
+};
+
+const initialState = entityTypes.reduce(initEntityTypeState, Immutable.Map());
 
 export function evictOldEntities(entities, max) {
   if (entities.size > max) {
@@ -63,7 +63,7 @@ const clearEntitiesByType = (state, types) => {
 
   if (types) {
     for (const entityType of types) {
-      nextState = nextState.set(entityType, new Immutable.Map());
+      nextState = initEntityTypeState(nextState, entityType);
     }
   }
 
@@ -73,9 +73,17 @@ const clearEntitiesByType = (state, types) => {
 export default function entitiesReducer(state = initialState, action) {
   let nextState = state;
 
+  switch (action.type) {
   // DX-10700 clear data that could be cached for other folders. New data would be applied below
-  if (action.type === LOAD_ENTITIES_SUCCESS) {
+  case LOAD_ENTITIES_SUCCESS:
     nextState = clearEntitiesByType(nextState, ['folder', 'file', 'fileFormat']);
+    break;
+  case CLEAR_ENTITIES:
+    // DX-13506
+    nextState = clearEntitiesByType(state, action.typeList);
+    break;
+  default:
+    //do nothing
   }
 
   if (action.meta) {

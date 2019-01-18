@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.work.protector;
 
-import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.proto.model.attempts.AttemptReason;
 
 /**
  * Re-attempt handler that doesn't support re-attempts

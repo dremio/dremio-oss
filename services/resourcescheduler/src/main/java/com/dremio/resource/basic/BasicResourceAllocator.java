@@ -24,8 +24,6 @@ import javax.annotation.Nullable;
 import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.options.OptionManager;
@@ -37,6 +35,7 @@ import com.dremio.resource.ResourceSchedulingResult;
 import com.dremio.resource.ResourceSet;
 import com.dremio.resource.common.ResourceSchedulingContext;
 import com.dremio.resource.exception.ResourceAllocationException;
+import com.dremio.resource.exception.ResourceUnavailableException;
 import com.dremio.service.Pointer;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.DistributedSemaphore;
@@ -211,21 +210,19 @@ public class BasicResourceAllocator implements ResourceAllocator {
       }
       lease = distributedSemaphore.acquire(queueTimeout, TimeUnit.MILLISECONDS);
     } catch (final Exception e) {
-      throw UserException
-        .resourceError()
-        .message(
-          "Unable to acquire slot for query: %s within queue %s, as maximum concurrent jobs in this queue is: %d",
-          QueryIdHelper.getQueryId(queryContext.getQueryId()), queueName, maxRunningConcurrency)
-        .build(logger);
+      final String message = String.format(
+          "Query cancelled by Workload Manager. Cannot enqueue as the '%s' queue is full. Please try again later",
+          queueName);
+      logger.trace(message, e);
+      throw new ResourceUnavailableException(message);
     }
 
     if (lease == null) {
-      throw UserException
-        .resourceError()
-        .message(
-          "Unable to acquire queue resources for query within timeout.  Timeout for %s queue was set at %d seconds.",
-          queueName, queueTimeout / 1000)
-        .build(logger);
+      final String message = String.format(
+          "Query cancelled by Workload Manager. Queue enqueued time of %.2f seconds exceeded for '%s' queue",
+          queueTimeout / 1000.0, queueName);
+      logger.trace(message);
+      throw new ResourceUnavailableException(message);
     }
     return lease;
   }

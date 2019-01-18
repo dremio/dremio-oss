@@ -18,6 +18,7 @@ class SourcesMapper {
   newSource(sourceType, data) {
     const info = data;
     delete info.credentials;
+    info.config = info.config || {};
     if (info.config.hostList) {
       for (const host of info.config.hostList) {
         delete host.id;

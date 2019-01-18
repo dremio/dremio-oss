@@ -30,6 +30,7 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import javax.inject.Provider;
 
@@ -41,16 +42,21 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.Property;
+import com.dremio.exec.physical.base.WriterOptions;
+import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.DatasetRetrievalOptions;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.plugins.s3.store.copy.S3Constants;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceTableDefinition;
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 
 /**
  * S3 Extension of FileSystemStoragePlugin
@@ -166,5 +172,39 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     ensureDefaultName();
 
     return Collections.emptyList(); // file system does not know about physical datasets
+  }
+
+  @Override
+  public CreateTableEntry createNewTable(
+      SchemaConfig config,
+      NamespaceKey key,
+      WriterOptions writerOptions,
+      Map<String, Object> storageOptions
+  ) {
+    Preconditions.checkArgument(key.size() >= 2, "key must be at least two parts");
+    final String containerName = key.getPathComponents().get(1);
+    if (key.size() == 2) {
+      throw UserException.validationError()
+          .message("Creating buckets is not supported", containerName)
+          .build(logger);
+    }
+
+    final CreateTableEntry entry = super.createNewTable(config, key, writerOptions, storageOptions);
+
+    final S3FileSystem fs = getFS(ImpersonationUtil.getProcessUserName()).unwrap(S3FileSystem.class);
+
+    if (!fs.containerExists(containerName)) {
+      throw UserException.validationError()
+          .message("Cannot create the table because '%s' bucket does not exist", containerName)
+          .build(logger);
+    }
+
+    if (!fs.mayHaveWritePermission(containerName)) {
+      throw UserException.validationError()
+          .message("No write permission to '%s' bucket", containerName)
+          .build(logger);
+    }
+
+    return entry;
   }
 }

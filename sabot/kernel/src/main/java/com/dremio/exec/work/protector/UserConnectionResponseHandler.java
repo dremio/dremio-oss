@@ -16,10 +16,10 @@
 package com.dremio.exec.work.protector;
 
 import com.dremio.common.exceptions.ErrorCompatibility;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.BaseRpcOutcomeListener;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnection;
 
 public class UserConnectionResponseHandler implements UserResponseHandler {

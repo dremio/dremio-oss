@@ -156,49 +156,44 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
   private String[] readFirstLineForColumnNames() throws ExecutionSetupException, SchemaChangeException, IOException {
     // setup Output using OutputMutator
     // we should use a separate output mutator to avoid reshaping query output with header data
-    HeaderOutputMutator hOutputMutator = new HeaderOutputMutator();
-    TextOutput hOutput = new RepeatedVarCharOutput(hOutputMutator, getColumns(), true);
-    this.allocate(hOutputMutator.fieldVectorMap);
+    try (HeaderOutputMutator hOutputMutator = new HeaderOutputMutator();
+         ArrowBuf readBufferInReader = this.context.getAllocator().buffer(READ_BUFFER);
+         ArrowBuf whitespaceBufferInReader = this.context.getAllocator().buffer(WHITE_SPACE_BUFFER)) {
+      TextOutput hOutput = new RepeatedVarCharOutput(hOutputMutator, getColumns(), true);
+      this.allocate(hOutputMutator.fieldVectorMap);
 
-    // setup Input using InputStream
-    // we should read file header irrespective of split given given to this reader
-    InputStream hStream = dfs.openPossiblyCompressedStream(split.getPath());
-    // create read buffer for input
-    ArrowBuf readBufferInReader = this.context.getAllocator().buffer(READ_BUFFER);
-    TextInput hInput = new TextInput(settings, hStream, readBufferInReader, 0, Math.min(READ_BUFFER, split.getLength()));
+      // setup Input using InputStream
+      // we should read file header irrespective of split given given to this reader
+      InputStream hStream = dfs.openPossiblyCompressedStream(split.getPath());
+      TextInput hInput = new TextInput(settings, hStream, readBufferInReader, 0, Math.min(READ_BUFFER, split.getLength()));
+      // setup Reader using Input and Output
+      this.reader = new TextReader(settings, hInput, hOutput, whitespaceBufferInReader);
+      reader.start();
 
-    // create work buffer for reader
-    ArrowBuf whitespaceBufferInReader = this.context.getAllocator().buffer(WHITE_SPACE_BUFFER);
-    // setup Reader using Input and Output
-    this.reader = new TextReader(settings, hInput, hOutput, whitespaceBufferInReader);
-    reader.start();
+      String[] fieldNames;
+      try {
+        // extract first non-empty row
+        do {
+          boolean isAnyData = reader.parseNext();
+          if (!isAnyData) {
+            // end of file most likely
+            throw new IOException(StreamFinishedPseudoException.INSTANCE);
+          }
 
-    String[] fieldNames;
-    try {
-      // extract first non-empty row
-      do {
-        boolean isAnyData = reader.parseNext();
-        if (!isAnyData) {
-          // end of file most likely
-          throw new IOException(StreamFinishedPseudoException.INSTANCE);
+          // grab the field names from output
+          fieldNames = ((RepeatedVarCharOutput) hOutput).getTextOutput();
+        } while (fieldNames == null);
+
+        if (settings.isTrimHeader()) {
+          for (int i = 0; i < fieldNames.length; i++) {
+            fieldNames[i] = fieldNames[i].trim();
+          }
         }
-
-        // grab the field names from output
-        fieldNames = ((RepeatedVarCharOutput) hOutput).getTextOutput();
-      } while (fieldNames == null);
-
-      if (settings.isTrimHeader()) {
-        for (int i = 0; i < fieldNames.length; i++) {
-          fieldNames[i] = fieldNames[i].trim();
-        }
+        return fieldNames;
+      } finally {
+        // cleanup and set to skip the first line next time we read input
+        reader.close();
       }
-      return fieldNames;
-    } finally {
-      // cleanup and set to skip the first line next time we read input
-      reader.close();
-      hOutputMutator.close();
-      readBufferInReader.close();
-      whitespaceBufferInReader.close();
     }
   }
 
@@ -331,7 +326,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
    * OutputMutator to avoid reshaping query output.
    * This class provides OutputMutator for header extraction.
    */
-  private class HeaderOutputMutator implements OutputMutator {
+  private class HeaderOutputMutator implements OutputMutator, AutoCloseable {
     private final Map<String, ValueVector> fieldVectorMap = Maps.newHashMap();
 
     @Override
@@ -385,6 +380,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
      * the mutator might not get cleaned up elsewhere. TextRecordReader will call
      * this method to clear any allocations
      */
+    @Override
     public void close() {
       for (final ValueVector v : fieldVectorMap.values()) {
         v.clear();

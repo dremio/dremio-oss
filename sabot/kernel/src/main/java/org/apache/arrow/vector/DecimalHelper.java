@@ -16,12 +16,13 @@
 
 package org.apache.arrow.vector;
 
-import io.netty.buffer.ArrowBuf;
-import io.netty.buffer.ByteBuf;
-import org.apache.arrow.vector.util.DecimalUtility;
-
 import java.math.BigDecimal;
 import java.math.BigInteger;
+
+import org.apache.arrow.vector.util.DecimalUtility;
+
+import io.netty.buffer.ArrowBuf;
+import io.netty.buffer.ByteBuf;
 
 public class DecimalHelper {
 

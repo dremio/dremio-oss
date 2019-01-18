@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.planner.physical;
 
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
 import com.dremio.exec.planner.logical.FilterRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
-
-import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelTraitSet;
 
 public class FilterPrule extends Prule {
   public static final RelOptRule INSTANCE = new FilterPrule();

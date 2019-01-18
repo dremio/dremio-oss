@@ -15,16 +15,16 @@
  */
 package com.dremio.sabot.exec.rpc;
 
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
-import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.exec.rpc.FutureBitCommand;
 import com.dremio.exec.rpc.ListeningCommand;
+import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 

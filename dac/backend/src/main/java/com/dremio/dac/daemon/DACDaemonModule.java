@@ -45,6 +45,7 @@ import com.dremio.dac.service.datasets.DACViewCreatorFactory;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.exec.MasterElectionService;
 import com.dremio.dac.service.exec.MasterStatusListener;
+import com.dremio.dac.service.exec.MasterlessStatusListener;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.search.SearchServiceImpl;
@@ -52,8 +53,6 @@ import com.dremio.dac.service.search.SearchServiceInvoker;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.support.SupportService;
 import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.datastore.RemoteKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
@@ -143,6 +142,7 @@ public class DACDaemonModule implements DACModule {
   @Override
   public void bootstrap(final Runnable shutdownHook, final SingletonRegistry bootstrapRegistry, ScanResult scanResult, DACConfig dacConfig, boolean isMaster) {
     final DremioConfig config = dacConfig.getConfig();
+    final boolean isMasterless = config.getBoolean(DremioConfig.ENABLE_MASTERLESS_BOOL);
     final boolean embeddedZookeeper = config.getBoolean(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL);
 
     bootstrapRegistry.bindSelf(new BootStrapContext(config, scanResult));
@@ -184,8 +184,15 @@ public class DACDaemonModule implements DACModule {
       bootstrapRegistry.bindSelf(new MasterElectionService(bootstrapRegistry.provider(ClusterCoordinator.class)));
     }
 
+    final MasterStatusListener masterStatusListener;
+    if (!isMasterless) {
+      masterStatusListener = new MasterStatusListener(bootstrapRegistry.provider(ClusterCoordinator.class), isMaster);
+    } else {
+      masterStatusListener =
+        new MasterlessStatusListener(bootstrapRegistry.provider(ClusterCoordinator.class), isMaster);
+    }
     // start master status listener
-    bootstrapRegistry.bindSelf(new MasterStatusListener(bootstrapRegistry.provider(ClusterCoordinator.class), isMaster));
+    bootstrapRegistry.bind(MasterStatusListener.class, masterStatusListener);
   }
 
   @Override
@@ -195,8 +202,10 @@ public class DACDaemonModule implements DACModule {
     final SabotConfig sabotConfig = config.getSabotConfig();
     final BootStrapContext bootstrap = bootstrapRegistry.lookup(BootStrapContext.class);
 
+    final boolean isMasterless = config.getBoolean(DremioConfig.ENABLE_MASTERLESS_BOOL);
     final boolean isCoordinator = config.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL);
     final boolean isExecutor = config.getBoolean(DremioConfig.ENABLE_EXECUTOR_BOOL);
+    final boolean isDistributedCoordinator = isMasterless && isCoordinator;
 
     final Provider<NodeEndpoint> masterEndpoint = new Provider<NodeEndpoint>() {
       private final Provider<MasterStatusListener> masterStatusListener =
@@ -262,37 +271,15 @@ public class DACDaemonModule implements DACModule {
             bootstrap.getExecutor()
         ));
 
-    { // KVStoreProvider
-      final KVStoreProvider provider;
-      if(isMaster){
-        provider =  new LocalKVStoreProvider(
-            bootstrap.getClasspathScan(),
-            registry.provider(FabricService.class),
-            bootstrap.getAllocator(),
-            config.getThisNode(),
-            config.getString(DremioConfig.DB_PATH_STRING),
-            dacConfig.inMemoryStorage,
-            true,
-            true,
-            false);
-
-      } else {
-        final Provider<NodeEndpoint> masterNodeProvider = new Provider<NodeEndpoint>() {
-          private final Provider<MasterStatusListener> masterStatusListener = registry.provider(MasterStatusListener.class);
-          @Override
-          public NodeEndpoint get() {
-            return masterStatusListener.get().getMasterNode();
-          }
-        };
-        provider = new RemoteKVStoreProvider(
-            bootstrap.getClasspathScan(),
-            masterNodeProvider,
-            registry.provider(FabricService.class),
-            bootstrap.getAllocator(),
-            fabricAddress);
-      }
-      registry.bind(KVStoreProvider.class, provider);
-    }
+    registry.bind(
+      KVStoreProvider.class,
+      KVStoreProviderHelper.newKVStoreProvider(
+        dacConfig,
+        bootstrap,
+        registry.provider(FabricService.class),
+        masterEndpoint
+      )
+    );
 
     registry.bind(
       ViewCreatorFactory.class,
@@ -313,11 +300,11 @@ public class DACDaemonModule implements DACModule {
     if (isMaster) {
       // Companion service to clean split orphans
       registry.bind(SplitOrphansCleanerService.class, new SplitOrphansCleanerService(
-          registry.provider(SchedulerService.class),
-          registry.provider(NamespaceService.Factory.class)));
+        registry.provider(SchedulerService.class),
+        registry.provider(NamespaceService.Factory.class)));
     }
     final DatasetListingService localListing;
-    if (isMaster) {
+    if (isMaster || isDistributedCoordinator) {
       localListing = new DatasetListingServiceImpl(registry.provider(NamespaceService.Factory.class));
     } else {
       localListing = DatasetListingService.UNSUPPORTED;
@@ -325,7 +312,7 @@ public class DACDaemonModule implements DACModule {
     // this is the delegate service for localListing (calls start/close internally)
     registry.bind(DatasetListingService.class,
         new DatasetListingInvoker(
-            isMaster,
+            isMaster || isDistributedCoordinator,
             masterEndpoint,
             registry.provider(FabricService.class),
             bootstrap.getAllocator(),
@@ -515,21 +502,20 @@ public class DACDaemonModule implements DACModule {
       };
 
       registry.bind(ProvisioningService.class, new ProvisioningServiceImpl(
+          config,
           registry.provider(KVStoreProvider.class),
           executionNodeProvider,
           bootstrap.getClasspathScan()
           ));
-    }
 
-    registry.bind(SupportService.class, new SupportService(
-      dacConfig,
-      registry.provider(KVStoreProvider.class),
-      registry.provider(JobsService.class),
-      registry.provider(UserService.class),
-      registry.provider(SabotContext.class),
-      registry.provider(CatalogService.class)));
+      registry.bind(SupportService.class, new SupportService(
+        dacConfig,
+        registry.provider(KVStoreProvider.class),
+        registry.provider(JobsService.class),
+        registry.provider(UserService.class),
+        registry.provider(SabotContext.class),
+        registry.provider(CatalogService.class)));
 
-    if(isCoordinator){
       registry.bindSelf(new ServerHealthMonitor(registry.provider(MasterStatusListener.class)));
     }
 
@@ -557,7 +543,7 @@ public class DACDaemonModule implements DACModule {
 
       // search
       final SearchService searchService;
-      if (isMaster) {
+      if (isMaster || isDistributedCoordinator) {
         searchService = new SearchServiceImpl(
           registry.provider(SabotContext.class),
           registry.provider(KVStoreProvider.class),
@@ -569,7 +555,7 @@ public class DACDaemonModule implements DACModule {
       }
 
       registry.bind(SearchService.class, new SearchServiceInvoker(
-        isMaster,
+        isMaster || isDistributedCoordinator,
         masterEndpoint,
         registry.provider(FabricService.class),
         bootstrap.getAllocator(),

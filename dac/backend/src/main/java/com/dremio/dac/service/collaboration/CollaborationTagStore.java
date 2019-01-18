@@ -42,8 +42,10 @@ import com.google.common.base.Suppliers;
 public class CollaborationTagStore {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CollaborationTagStore.class);
 
-  public static final IndexKey ENTITY_ID = new IndexKey("id", "ENTITY_ID", String.class, null, false, false);
-  public static final IndexKey LAST_MODIFIED = new IndexKey("lastModified", "LAST_MODIFIED", Long.class, null, false, false);
+  public static final IndexKey ENTITY_ID = IndexKey.newBuilder("id", "ENTITY_ID", String.class)
+    .build();
+  public static final IndexKey LAST_MODIFIED = IndexKey.newBuilder("lastModified", "LAST_MODIFIED", Long.class)
+    .build();
 
   private static final String TAGS_STORE = "collaboration_tags";
   private final Supplier<IndexedStore<String, CollaborationTag>> tagsStore;
@@ -128,15 +130,18 @@ public class CollaborationTagStore {
     }
 
     @Override
-    public Long incrementVersion(CollaborationTag value) {
-      final Long current = value.getVersion();
-      value.setVersion(Optional.fromNullable(current).or(-1L) + 1);
-      return current;
+    public void setVersion(CollaborationTag value, Long version) {
+      value.setVersion(version == null ? 0 : version);
     }
 
     @Override
-    public void setVersion(CollaborationTag value, Long version) {
-      value.setVersion(version == null ? 0 : version);
+    public String getTag(CollaborationTag value) {
+      return value.getTag();
+    }
+
+    @Override
+    public void setTag(CollaborationTag value, String tag) {
+      value.setTag(tag);
     }
   }
 

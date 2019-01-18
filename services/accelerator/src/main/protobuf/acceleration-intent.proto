@@ -40,7 +40,8 @@ message AccelerationDescriptor {
   // raw layouts
   required LayoutContainerDescriptor rawLayouts = 7;
   // descriptor version for OCC
-  optional uint64 version = 8;
+  optional uint64 version = 8 [deprecated = true];
+  optional string tag = 9;
 }
 
 enum AccelerationStateDescriptor {
@@ -75,9 +76,10 @@ message DatasetConfigDescriptor {
   // dataset path
   repeated string path = 1 [deprecated = true];
   required com.dremio.service.namespace.dataset.proto.DatasetType type = 2;
-  optional uint64 version = 3;
+  optional uint64 version = 3 [deprecated = true];
   optional uint64 createdAt = 4;
   optional VirtualDatasetDescriptor virtualDataset = 5;
+  optional string tag = 6;
 }
 
 // represents a logical aggregation suggested by user

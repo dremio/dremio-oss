@@ -28,7 +28,8 @@ describe('ExploreTable', () => {
   beforeEach(() => {
     commonProps = {
       dragType: 'default',
-      tableData: Immutable.fromJS(json),
+      rows: Immutable.fromJS(json.rows),
+      columns: Immutable.fromJS(json.columns),
       tableViewData: Immutable.Map(),
       paginationUrl: 'paginationUrl',
       exploreViewState: Immutable.fromJS({}),
@@ -73,7 +74,8 @@ describe('ExploreTable', () => {
   it('we should see spinner when we dont have data and when we inProgress state', () => {
     const props = {
       ...commonProps,
-      tableData: Immutable.fromJS({columns: [], rows: {}}),
+      columns: Immutable.fromJS([]),
+      rows: Immutable.fromJS([]),
       exploreViewState: Immutable.fromJS({isInProgress: true})
     };
     wrapper = shallow(<ExploreTable {...props}/>, {context});
@@ -83,7 +85,8 @@ describe('ExploreTable', () => {
   it('we should not see spinner when we have data and when we not have inProgress state', () => {
     const props = {
       ...commonProps,
-      tableData: Immutable.fromJS({columns: [], rows: {}}),
+      columns: Immutable.fromJS([]),
+      rows: Immutable.fromJS([]),
       exploreViewState: Immutable.fromJS({isInProgress: false})
     };
     wrapper = shallow(<ExploreTable {...props}/>, {context});
@@ -93,7 +96,8 @@ describe('ExploreTable', () => {
   it.skip('we should not see spinner when we have data and when we have inProgress state', () => {
     const props = {
       ...commonProps,
-      tableData: Immutable.fromJS({columns: [{name: 'col', index: 0, type: 'TEXT'}], rows: {}}),
+      columns: Immutable.fromJS([{name: 'col', index: 0, type: 'TEXT'}]),
+      rows: Immutable.fromJS([]),
       exploreViewState: Immutable.fromJS({isInProgress: true})
     };
     shallow(<ExploreTable {...props}/>, {context});
@@ -310,24 +314,24 @@ describe('ExploreTable', () => {
 
   describe('needUpdateColumns', () => {
     it('should return false when there are no columns at all', () => {
-      expect(instance.needUpdateColumns({})).to.be.false;
+      expect(instance.needUpdateColumns({ columns: Immutable.fromJS([])})).to.be.false;
     });
     it('should return true when no columns in state and new columns recieved', () => {
       instance.setState({ columns: Immutable.List()});
       expect(instance.needUpdateColumns(commonProps)).to.be.true;
     });
     it('should return false when same columns recieved', () => {
-      instance.setState({ columns: commonProps.tableData.get('columns')});
+      instance.setState({ columns: commonProps.columns});
       expect(instance.needUpdateColumns(commonProps)).to.be.false;
     });
     it('should return true when hidden value changes', () => {
-      instance.setState({ columns: commonProps.tableData.get('columns').setIn([0, 'hidden'], true)});
+      instance.setState({ columns: commonProps.columns.setIn([0, 'hidden'], true)});
       expect(instance.needUpdateColumns(commonProps)).to.be.true;
     });
     it('should return true when different columns recieved', () => {
       const newProps = {
         ...commonProps,
-        tableData: commonProps.tableData.deleteIn(['columns', 0])
+        columns: commonProps.columns.delete(0)
       };
       expect(instance.needUpdateColumns(newProps)).to.be.true;
     });
@@ -348,7 +352,10 @@ describe('ExploreTable', () => {
     });
 
     it('should return true if no rows', () => {
-      wrapper.setProps({tableData: Immutable.fromJS({rows: [], columns: []})});
+      wrapper.setProps({
+        columns: Immutable.fromJS([]),
+        rows: Immutable.fromJS([])
+      });
       expect(instance.shouldShowNoData(Immutable.Map())).to.be.true;
     });
   });

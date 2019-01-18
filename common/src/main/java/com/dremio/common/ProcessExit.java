@@ -33,11 +33,21 @@ public final class ProcessExit {
    * @param code an error code to exit the JVM with.
    */
   public static void exit(String message, int code) {
-    exit(null, message, code);
+    try {
+      exit(null, message, code);
+    } finally {
+      // We tried to exit with a nice error message, but that failed for some reason. Can't let this thread simply exit
+      System.exit(code);
+    }
   }
 
   public static void exitHeap(Throwable t, int code) {
-    exit(t, "There was insufficient heap memory to continue operating.", code);
+    try {
+      exit(t, "There was insufficient heap memory to continue operating.", code);
+    } finally {
+      // We tried to exit with a nice error message, but that failed for some reason. Can't let this thread simply exit
+      System.exit(code);
+    }
   }
 
   /**
@@ -50,19 +60,23 @@ public final class ProcessExit {
    *          An error code to exit the JVM with.
    */
   public static void exit(Throwable t, String message, int code) {
-    logger.error("Dremio is exiting. {}", message, t);
-
-    final PrintStream out = ("true".equals(System.getProperty("dremio.catastrophic_to_standard_out", "true"))) ? System.out
-        : System.err;
-    out.println("Dremio is exiting. " + message);
-    if (t != null) {
-      t.printStackTrace(out);
-    }
-    out.flush();
     try {
-      Thread.sleep(5000);
-    } catch (InterruptedException e) {
+      logger.error("Dremio is exiting. {}", message, t);
+
+      final PrintStream out = ("true".equals(System.getProperty("dremio.catastrophic_to_standard_out", "true"))) ? System.out
+        : System.err;
+      out.println("Dremio is exiting. " + message);
+      if (t != null) {
+        t.printStackTrace(out);
+      }
+      out.flush();
+      try {
+        Thread.sleep(5000);
+      } catch (InterruptedException e) {
+      }
+    } finally {
+      // We tried to exit with a nice error message, but that failed for some reason. Can't let this thread simply exit
+      System.exit(code);
     }
-    System.exit(code);
   }
 }

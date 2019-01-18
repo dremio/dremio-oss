@@ -24,6 +24,7 @@ import java.io.OutputStream;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -52,6 +53,7 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.JobResourceNotFoundException;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
+import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobException;
@@ -104,7 +106,8 @@ public class JobResource {
   @Produces(APPLICATION_JSON)
   public NotificationResponse cancel(@PathParam("jobId") String jobId) throws JobResourceNotFoundException {
     try {
-      jobsService.cancel(securityContext.getUserPrincipal().getName(), new JobId(jobId), "User Request based Job Cancellation");
+      final String username = securityContext.getUserPrincipal().getName();
+      jobsService.cancel(username, new JobId(jobId), String.format("Query cancelled by user '%s'", username));
       return new NotificationResponse(ResponseType.OK, "Job cancellation requested");
     } catch(JobNotFoundException e) {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
@@ -196,7 +199,25 @@ public class JobResource {
     final JobInfo jobInfo = job.getJobAttempt().getInfo();
 
     if (jobInfo.getQueryType() == QueryType.UI_EXPORT) {
-      final DownloadDataResponse downloadDataResponse = datasetService.downloadData(jobInfo.getDownloadInfo(), securityContext.getUserPrincipal().getName());
+      final JobState jobState = job.getJobAttempt().getState();
+
+      // requester should check that job state is COMPLETED before downloading, but return nicely
+      if (jobState != JobState.COMPLETED) {
+        switch (jobState) {
+        case FAILED:
+          throw new ForbiddenException(jobInfo.getFailureInfo());
+        case CANCELED:
+          if (jobInfo.getCancellationInfo() != null) {
+            throw new ForbiddenException(jobInfo.getCancellationInfo().getMessage());
+          }
+          throw new ForbiddenException("Download job was canceled, but further information is unavailable");
+        default:
+          throw new ForbiddenException(format("Could not download results (job: %s, state: %s)", jobId, jobState));
+        }
+      }
+
+      final DownloadDataResponse downloadDataResponse =
+          datasetService.downloadData(jobInfo.getDownloadInfo(), securityContext.getUserPrincipal().getName());
       final StreamingOutput streamingOutput = new StreamingOutput() {
         @Override
         public void write(OutputStream output) throws IOException, WebApplicationException {
@@ -206,7 +227,8 @@ public class JobResource {
       return Response.ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
         .header("Content-Disposition", "attachment; filename=\"" + downloadDataResponse.getFileName() + "\"").build();
     } else {
-      throw new JobResourceNotFoundException(jobId, format("Job %s has no data that can not be downloaded, invalid type %s", jobId, jobInfo.getQueryType()));
+      throw new JobResourceNotFoundException(jobId,
+          format("Job %s has no data that can not be downloaded, invalid type %s", jobId, jobInfo.getQueryType()));
     }
   }
 }

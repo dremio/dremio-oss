@@ -23,9 +23,9 @@ import org.apache.arrow.vector.holders.NullableIntHolder;
 
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
+import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
-import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 
 /**
  * hash32 with seed function definitions for numeric data types. These functions cast the input numeric value to a
