@@ -18,13 +18,17 @@ package com.dremio.exec.catalog;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
+import com.dremio.common.collections.Tuple;
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.concurrent.Runnables;
@@ -357,6 +361,7 @@ class SourceMetadataManager implements AutoCloseable {
       }
 
       final Set<NamespaceKey> knownKeys = new HashSet<>();
+      final List<Tuple<String, String>> failedKeys = new ArrayList<>();
       for(NamespaceKey foundKey : foundKeys) {
         // Refresh might take a long time. Quit if the daemon is closing, to avoid shutdown issues
         if (cancelWork) {
@@ -421,7 +426,8 @@ class SourceMetadataManager implements AutoCloseable {
           // catch DatasetMetadataTooLargeException too avoid saving or logging large metadata
           logger.debug("Did not save '{}' due to a failure", foundKey, ignored);
         } catch(Exception ex) {
-          logger.warn("Failure while attempting to update metadata for table {}.", foundKey, ex);
+          logger.debug("Failure while attempting to update metadata for table {}.", foundKey, ex);
+          failedKeys.add(Tuple.of(foundKey.getSchemaPath(), ex.getMessage()));
         }
         finally {
           stopwatchForDataset.stop();
@@ -429,6 +435,11 @@ class SourceMetadataManager implements AutoCloseable {
             logger.debug("Metadata refresh for dataset : {} took {} milliseconds.", foundKey, stopwatchForDataset.elapsed(TimeUnit.MILLISECONDS));
           }
         }
+      }
+
+      if (!failedKeys.isEmpty()) {
+        logger.warn("Failed to update metadata for tables:\n{}",
+          failedKeys.stream().map(tuple -> "\t" + tuple.first + ": " + tuple.second).collect(Collectors.joining("\n")));
       }
 
       for(SourceTableDefinition accessor : plugin.get().getDatasets(SYSTEM_USERNAME, retrievalOptions)) {

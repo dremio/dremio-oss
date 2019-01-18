@@ -23,6 +23,8 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionHolderExpression;
@@ -47,6 +49,8 @@ import com.sun.codemodel.JVar;
 
 public class HiveFuncHolder extends AbstractFunctionHolder {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionImplementationRegistry.class);
+  static final Logger DEPRECATED_FUNCTION_WARNING_LOGGER =
+    LoggerFactory.getLogger("hive.deprecated.function.warning.logger");
 
   private CompleteType[] argTypes;
   private ObjectInspector returnOI;
@@ -189,6 +193,7 @@ public class HiveFuncHolder extends AbstractFunctionHolder {
 
   @Override
   public FunctionHolderExpression getExpr(String name, List<LogicalExpression> args) {
+    DEPRECATED_FUNCTION_WARNING_LOGGER.warn("Deprecated Hive function used: {}", name);
     return new HiveFuncHolderExpr(name, this, args);
   }
 

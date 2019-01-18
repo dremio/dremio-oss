@@ -36,9 +36,10 @@ if [ -f /etc/sysconfig/dremio ] ; then
     . /etc/sysconfig/dremio
 fi
 
-
 export DREMIO_USER=${DREMIO_USER:-dremio}
 export DREMIO_HOME=${DREMIO_HOME:-/opt/dremio}
 export DREMIO_CONF_DIR=${DREMIO_CONF_DIR:-/etc/dremio}
+export NO_OPEN_FILE_DESCRIPTORS=${NO_OPEN_FILE_DESCRIPTORS:-65536}
+ulimit -n $NO_OPEN_FILE_DESCRIPTORS
 
 runuser -s /bin/bash ${DREMIO_USER} -c "${DREMIO_HOME}/bin/dremio --config ${DREMIO_CONF_DIR} $*"

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>3.1.3-201902130614340856-5cd4808</version>
+    <version>3.1.4-201902210617130445-0d64760</version>
   </parent>
   <artifactId>dremio-services-datastore</artifactId>
   <name>Services - Datastore</name>

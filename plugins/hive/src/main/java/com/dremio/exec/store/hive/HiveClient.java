@@ -33,6 +33,7 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.shims.Utils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.thrift.TException;
+import org.slf4j.helpers.NOPLogger;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.util.ImpersonationUtil;
@@ -216,7 +217,7 @@ public class HiveClient implements AutoCloseable {
             return table;
 
           case VIRTUAL_VIEW:
-            throw UserException.unsupportedError().message("Hive views are not supported").build(logger);
+            throw UserException.unsupportedError().message("Hive views are not supported").build(NOPLogger.NOP_LOGGER);
           case INDEX_TABLE:
           default:
             return null;

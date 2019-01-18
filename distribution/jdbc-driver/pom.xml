@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>3.1.3-201902130614340856-5cd4808</version>
+    <version>3.1.4-201902210617130445-0d64760</version>
   </parent>
 
   <artifactId>dremio-jdbc-driver</artifactId>

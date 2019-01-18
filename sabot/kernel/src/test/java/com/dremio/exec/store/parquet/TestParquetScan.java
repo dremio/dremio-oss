@@ -62,4 +62,17 @@ public class TestParquetScan extends BaseTestQuery {
         .build()
         .run();
   }
+
+  @Test
+  public void testDataPageV2() throws Exception {
+    final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/datapage_v2.parquet\" where extractmonth(Kommtzeit) = 10";
+
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("cnt")
+      .baselineValues(570696L)
+      .build()
+      .run();
+  }
 }

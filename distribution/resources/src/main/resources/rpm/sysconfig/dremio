@@ -38,3 +38,11 @@
 # Defaults to /etc/dremio
 #
 #DREMIO_CONF_DIR=
+
+
+#
+# Set number of open file descriptors
+#
+# Defaults to 65536
+#
+#NO_OPEN_FILE_DESCRIPTORS=

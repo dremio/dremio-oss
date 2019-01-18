@@ -31,6 +31,10 @@ Group=dremio
 RuntimeDirectory=dremio
 ExecStart=/opt/dremio/bin/dremio start-fg
 Restart=on-failure
+# Set maximum number of file descriptors Dremio can open.
+# Dremio requires a large number to work correctly.
+LimitNOFILE=65536
+
 
 [Install]
 WantedBy=multi-user.target

@@ -87,6 +87,24 @@
     </if>
   </logger>
 
+  <logger name="hive.deprecated.function.warning.logger" level="warn">
+    <if condition='isDefined("dremio.log.path")'>
+      <then>
+        <additivity value ="false"/>
+        <appender name="text" class="ch.qos.logback.core.rolling.RollingFileAppender">
+          <file>${dremio.log.path}/hive.deprecated.function.warning.log</file>
+          <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${dremio.log.path}/archive/hive.deprecated.function.warning.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+          </rollingPolicy>
+
+          <encoder>
+            <pattern>%date{ISO8601} [%thread] %-5level %logger{36} - %msg%n</pattern>
+          </encoder>
+        </appender>
+      </then>
+    </if>
+  </logger>
 
   <root>
     <level value="${dremio.log.root.level:-error}"/>
