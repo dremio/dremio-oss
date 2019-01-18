@@ -170,6 +170,7 @@ public class TestUtilities {
       list.add("rulesmanager");
       list.add("wlmqueuecontainerversion");
       list.add("sys.options");
+      list.add("configuration");
       if(savedStores != null) {
         list.addAll(savedStores);
       }

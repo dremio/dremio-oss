@@ -288,8 +288,12 @@ public class BaseTestReflection extends BaseTestServer {
   }
 
   protected static void setManagerRefreshDelay(long delayInSeconds) {
+    setManagerRefreshDelayMs(delayInSeconds*1000);
+  }
+
+  protected static void setManagerRefreshDelayMs(long delayInMillis) {
     l(ContextService.class).get().getOptionManager().setOption(
-      OptionValue.createLong(SYSTEM, REFLECTION_MANAGER_REFRESH_DELAY_MILLIS.getOptionName(), delayInSeconds*1000));
+      OptionValue.createLong(SYSTEM, REFLECTION_MANAGER_REFRESH_DELAY_MILLIS.getOptionName(), delayInMillis));
   }
 
   protected static void setDeletionGracePeriod(long periodInSeconds) {

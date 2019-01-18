@@ -84,6 +84,7 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.ExtendedConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
@@ -244,7 +245,9 @@ public class DatasetsResource {
                                          @QueryParam("order") SortOrder order) throws NamespaceException, DatasetVersionNotFoundException {
     final DatasetSearchUIs datasets = new DatasetSearchUIs();
     for (SearchContainer searchEntity : catalogServiceHelper.searchByQuery(filters)) {
-      datasets.add(new DatasetSearchUI(searchEntity.getNamespaceContainer().getDataset(), searchEntity.getCollaborationTag()));
+      if (searchEntity.getNamespaceContainer().getType().equals(NameSpaceContainer.Type.DATASET)) {
+        datasets.add(new DatasetSearchUI(searchEntity.getNamespaceContainer().getDataset(), searchEntity.getCollaborationTag()));
+      }
     }
     return datasets;
   }

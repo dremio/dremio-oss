@@ -77,6 +77,8 @@ import com.dremio.exec.planner.logical.FilterMergeCrule;
 import com.dremio.exec.planner.logical.FilterRel;
 import com.dremio.exec.planner.logical.FilterRule;
 import com.dremio.exec.planner.logical.FlattenRule;
+import com.dremio.exec.planner.logical.JoinFilterCanonicalizationRule;
+import com.dremio.exec.planner.logical.JoinNormalizationRule;
 import com.dremio.exec.planner.logical.JoinRel;
 import com.dremio.exec.planner.logical.JoinRule;
 import com.dremio.exec.planner.logical.LimitRule;
@@ -85,7 +87,6 @@ import com.dremio.exec.planner.logical.MergeProjectRule;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.ProjectRule;
 import com.dremio.exec.planner.logical.PushFilterPastProjectRule;
-import com.dremio.exec.planner.logical.PushFiltersProjectPastFlattenRule;
 import com.dremio.exec.planner.logical.PushProjectForFlattenIntoScanRule;
 import com.dremio.exec.planner.logical.PushProjectForFlattenPastProjectRule;
 import com.dremio.exec.planner.logical.PushProjectIntoScanRule;
@@ -168,7 +169,6 @@ public enum PlannerPhase {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
       return RuleSets.ofList(
-          PushFiltersProjectPastFlattenRule.INSTANCE,
           PushProjectPastFlattenRule.INSTANCE,
           PushProjectForFlattenIntoScanRule.INSTANCE,
           PushProjectForFlattenPastProjectRule.INSTANCE,
@@ -195,7 +195,7 @@ public enum PlannerPhase {
           JOIN_PUSH_EXPRESSIONS_RULE,
           // End support for WHERE style joins.
 
-          JoinRule.TO_CREL,
+          JoinFilterCanonicalizationRule.INSTANCE,
 
           FILTER_SET_OP_TRANSPOSE_CALCITE_RULE,
           FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE,
@@ -224,6 +224,11 @@ public enum PlannerPhase {
   JOIN_PLANNING_MULTI_JOIN("Multi-Join analysis") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
+      // Check if multi-join optimization has been disabled
+      if (!context.getPlannerSettings().isJoinOptimizationEnabled()) {
+        return RuleSets.ofList();
+      }
+
       return RuleSets.ofList(
           MULTIJOIN_BOTH_PROJECTS_TRANSPOSE_RULE,
           MULTIJOIN_LEFT_PROJECT_TRANSPOSE_RULE,
@@ -244,18 +249,24 @@ public enum PlannerPhase {
   JOIN_PLANNING_OPTIMIZATION("LOPT Join Planning") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
-      // add these rules because the MultiJoin produced in Mult-join analysis phase may have expressions like cast,
+      // add these rules because the MultiJoin produced in Multi-join analysis phase may have expressions like cast,
       // but HashJoinPrule requires simple references
-      ImmutableList.Builder<RelOptRule> builder = ImmutableList.<RelOptRule>builder()
-      .add(JOIN_PUSH_EXPRESSIONS_LOGICAL_RULE)
-      .add(MergeProjectRule.LOGICAL_INSTANCE);
+      ImmutableList.Builder<RelOptRule> builder = ImmutableList.<RelOptRule>builder();
 
-      if (context.getPlannerSettings().isExperimentalBushyJoinOptimizerEnabled()) {
-        builder.add(MULTI_JOIN_OPTIMIZE_BUSHY_RULE);
-      } else {
-        builder.add(LOPT_OPTIMIZE_JOIN_RULE);
+      // Check if multi-join optimization has been enabled
+      if (context.getPlannerSettings().isJoinOptimizationEnabled()) {
+        builder
+          .add(JOIN_PUSH_EXPRESSIONS_LOGICAL_RULE)
+          .add(MergeProjectRule.LOGICAL_INSTANCE);
+
+        if (context.getPlannerSettings().isExperimentalBushyJoinOptimizerEnabled()) {
+          builder.add(MULTI_JOIN_OPTIMIZE_BUSHY_RULE);
+        } else {
+          builder.add(LOPT_OPTIMIZE_JOIN_RULE);
+        }
       }
-      return RuleSets.ofList(builder.add(JoinRule.FROM_DREL).build());
+
+      return RuleSets.ofList(builder.add(JoinNormalizationRule.INSTANCE).build());
     }
   },
 
@@ -586,7 +597,7 @@ public enum PlannerPhase {
       LimitRule.INSTANCE,
       SampleRule.INSTANCE,
       SortRule.INSTANCE,
-      JoinRule.TO_DREL,
+      JoinRule.INSTANCE,
       UnionAllRule.INSTANCE,
       ValuesRule.INSTANCE,
       FlattenRule.INSTANCE

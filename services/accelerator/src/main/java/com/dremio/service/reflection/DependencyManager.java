@@ -178,10 +178,9 @@ public class DependencyManager {
     return !graph.getPredecessors(id).isEmpty();
   }
 
-  boolean shouldRefresh(final ReflectionId id, final long noDependencyRefreshPeriodMs) {
+  boolean shouldRefresh(final ReflectionEntry entry, final long noDependencyRefreshPeriodMs) {
     final long currentTime = System.currentTimeMillis();
-    final ReflectionEntry entry = Preconditions.checkNotNull(entriesStore.get(id),
-      "No reflection entry found for reflection %s", id.getId());
+    final ReflectionId id = entry.getId();
     final long lastSubmitted = Preconditions.checkNotNull(entry.getLastSubmittedRefresh(),
       "trying to check if reflection %s should be refreshed but it has not last_submitted_refresh field", id.getId());
 

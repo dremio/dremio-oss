@@ -159,6 +159,11 @@ public class TestParquetWriter extends BaseTestQuery {
   }
 
   @Test
+  public void testDx14882() throws Exception {
+    runTestAndValidate("*", "*", "cp.\"/store/json/unionlist.json\"", "unionlist_parquet", false);
+  }
+
+  @Test
   public void testLargeFooter() throws Exception {
     StringBuffer sb = new StringBuffer();
     // create a JSON document with a lot of columns

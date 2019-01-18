@@ -40,6 +40,7 @@ import org.apache.arrow.vector.complex.impl.SingleStructReaderImpl;
 import org.apache.arrow.vector.complex.impl.UnionReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.NullableTimeStampMilliHolder;
+import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType.Null;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -90,6 +91,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetRecordWriter.class);
@@ -530,10 +532,49 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
   @Override
   public FieldConverter getNewUnionConverter(int fieldId, String fieldName, FieldReader reader) {
-    UnionReader unionReader = (UnionReader)reader;
-    NonNullableStructVector internalMap = new UnionVectorHelper(unionReader.data).getInternalMap();
-    SingleStructReaderImpl mapReader = new SingleStructReaderImpl(internalMap);
-    return getNewMapConverter(fieldId, fieldName, mapReader);
+    return new UnionParquetConverter(fieldId, fieldName, reader);
+  }
+
+  public class UnionParquetConverter extends ParquetFieldConverter {
+    private UnionReader unionReader = null;
+    Map<String, FieldConverter> converterMap = Maps.newHashMap();
+
+    public UnionParquetConverter(int fieldId, String fieldName, FieldReader reader) {
+      super(fieldId, fieldName, reader);
+      unionReader = (UnionReader) reader;
+      NonNullableStructVector internalMap = new UnionVectorHelper(unionReader.data)
+        .getInternalMap();
+      SingleStructReaderImpl mapReader = new SingleStructReaderImpl(internalMap);
+      int i = 0;
+      for (String name : mapReader) {
+        FieldReader fieldReader = mapReader.reader(name);
+        FieldConverter converter = EventBasedRecordWriter.getFieldConverter(ParquetRecordWriter
+          .this, i, name, fieldReader.getMinorType(), unionReader);
+        if (converter != null) {
+          converterMap.put(name, converter);
+          i++;
+        }
+      }
+    }
+
+    @Override
+    public void writeValue() throws IOException {
+      consumer.startGroup();
+      int type = unionReader.data.getTypeValue(unionReader.getPosition());
+      Types.MinorType minorType = Types.MinorType.values()[type];
+      converterMap.get(minorType.name().toLowerCase()).writeField();
+      consumer.endGroup();
+    }
+
+    @Override
+    public void writeField() throws IOException {
+      if (!reader.isSet()) {
+        return;
+      }
+      consumer.startField(fieldName, fieldId);
+      writeValue();
+      consumer.endField(fieldName, fieldId);
+    }
   }
 
   @Override

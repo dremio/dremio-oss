@@ -176,6 +176,26 @@ public class SupportService implements Service {
   }
 
   /**
+   * Retrieve a config store entry
+   *
+   * @param key
+   * @return
+   */
+  public ConfigurationEntry getConfigurationEntry(String key) {
+    return store.get(key);
+  }
+
+  /**
+   * Sets a config store entry
+   *
+   * @param key
+   * @param entry
+   */
+  public void setConfigurationEntry(String key, ConfigurationEntry entry) {
+    store.put(key, entry);
+  }
+
+  /**
    * tries to store identity in the KVStore, in case another server already stored it, retrieves the stored identity
    * @param identity identity we want to store
    * @return identity stored in the KVStore

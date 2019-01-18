@@ -21,6 +21,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Properties;
 
+import javax.inject.Provider;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -61,18 +62,23 @@ class IndexServlet implements Servlet {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IndexServlet.class);
 
   private final Configuration templateCfg;
-  private final ServerHealthMonitor serverHealthMonitor;
-  private final OptionManager options;
+  private final Provider<ServerHealthMonitor> serverHealthMonitor;
   private final DACConfig config;
-  private final SupportService supportService;
+  private final Provider<OptionManager> optionManager;
+  private final Provider<SupportService> supportService;
 
   private ServletConfig servletConfig;
 
-  public IndexServlet(DACConfig config, ServerHealthMonitor serverHealthMonitor, OptionManager options, SupportService supportService) {
+  public IndexServlet(
+    DACConfig config,
+    Provider<ServerHealthMonitor> serverHealthMonitor,
+    Provider<OptionManager> optionManager,
+    Provider<SupportService> supportService
+  ) {
     this.config = config;
+    this.optionManager = optionManager;
     this.templateCfg = new Configuration(Configuration.VERSION_2_3_23);
     this.serverHealthMonitor = serverHealthMonitor;
-    this.options = options;
     this.supportService = supportService;
   }
 
@@ -104,6 +110,7 @@ class IndexServlet implements Servlet {
 
   @Override
   public void service(ServletRequest servletRequest, ServletResponse response) throws ServletException, IOException {
+    OptionManager options = optionManager.get();
     ClientSettings settings = new ClientSettings(
         options.getOption(SupportService.SUPPORT_EMAIL_ADDR),
         options.getOption(SupportService.SUPPORT_EMAIL_SUBJECT),
@@ -117,7 +124,14 @@ class IndexServlet implements Servlet {
     );
 
     String environment = config.allowTestApis ? "DEVELOPMENT" : "PRODUCTION";
-    final ServerData indexConfig = new ServerData(environment, serverHealthMonitor, config.getConfig(), settings, getVersionInfo(), supportService.getClusterId().getIdentity());
+    final ServerData indexConfig = new ServerData(
+      environment,
+      serverHealthMonitor.get(),
+      config.getConfig(),
+      settings,
+      getVersionInfo(),
+      supportService.get().getClusterId().getIdentity()
+    );
 
     Template tmp = templateCfg.getTemplate("/index.html");
 

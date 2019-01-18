@@ -43,7 +43,6 @@ import com.dremio.dac.daemon.DremioBinder;
 import com.dremio.dac.daemon.ServerHealthMonitor;
 import com.dremio.dac.server.socket.SocketServlet;
 import com.dremio.dac.server.tokens.TokenManager;
-import com.dremio.dac.support.SupportService;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.Service;
@@ -230,10 +229,8 @@ public class WebServer implements Service {
     if (config.serveUI) {
       final String basePath = "rest/dremio_static/";
       final String markerPath = String.format("META-INF/%s.properties", uiType);
-      final SupportService support = registry.lookup(SupportService.class);
 
-      final ServletHolder fallbackServletHolder = new ServletHolder("fallback-servlet",
-          new DremioServlet(config, serverHealthMonitor.get(), context.get().getOptionManager(), support));
+      final ServletHolder fallbackServletHolder = new ServletHolder("fallback-servlet", registry.lookup(DremioServlet.class));
       addStaticPath(fallbackServletHolder, basePath, markerPath);
       servletContextHandler.addServlet(fallbackServletHolder, "/*");
 

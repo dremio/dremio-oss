@@ -35,6 +35,7 @@ import com.dremio.dac.daemon.DACDaemon.ClusterMode;
 import com.dremio.dac.homefiles.HomeFileTool;
 import com.dremio.dac.server.APIServer;
 import com.dremio.dac.server.DACConfig;
+import com.dremio.dac.server.DremioServlet;
 import com.dremio.dac.server.RestServerV2;
 import com.dremio.dac.server.WebServer;
 import com.dremio.dac.server.tokens.TokenManager;
@@ -81,6 +82,7 @@ import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.exec.work.rpc.CoordTunnelCreator;
 import com.dremio.exec.work.user.LocalQueryExecutor;
+import com.dremio.options.OptionManager;
 import com.dremio.provision.service.ProvisioningService;
 import com.dremio.provision.service.ProvisioningServiceImpl;
 import com.dremio.resource.QueryCancelTool;
@@ -564,6 +566,16 @@ public class DACDaemonModule implements DACModule {
 
       registry.bind(RestServerV2.class, new RestServerV2(bootstrap.getClasspathScan()));
       registry.bind(APIServer.class, new APIServer(bootstrap.getClasspathScan()));
+
+      final Provider<SabotContext> sabotContextProvider = registry.provider(SabotContext.class);
+      final Provider<OptionManager> optionsProvider = () -> sabotContextProvider.get().getOptionManager();
+
+      registry.bind(DremioServlet.class, new DremioServlet(
+        dacConfig,
+        registry.provider(ServerHealthMonitor.class),
+        optionsProvider,
+        registry.provider(SupportService.class)
+      ));
 
       // if we have at least one user registered, disable firstTimeApi and checkNoUser
       // but for userGroupService is not started yet so we cannot check for now

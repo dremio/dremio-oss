@@ -228,15 +228,9 @@ public class PrelTransformer {
       }
 
       // Do Join Planning.
-      final RelNode convertedRelNode;
-      if (config.getContext().getPlannerSettings().isJoinOptimizationEnabled()) {
-        final RelNode preConvertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_MULTI_JOIN, intermediateNode, intermediateNode.getTraitSet(), true);
-        convertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_OPTIMIZATION, preConvertedRelNode, preConvertedRelNode.getTraitSet(), true);
-      } else {
-        // If skipping join planning, make sure to at least notify observers
-        convertedRelNode = intermediateNode;
-        config.getObserver().planRelTransform(PlannerPhase.JOIN_PLANNING_MULTI_JOIN, null, intermediateNode, convertedRelNode, 0);
-      }
+      final RelNode preConvertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_MULTI_JOIN, intermediateNode, intermediateNode.getTraitSet(), true);
+      final RelNode convertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_OPTIMIZATION, preConvertedRelNode, preConvertedRelNode.getTraitSet(), true);
+
       FlattenRelFinder flattenFinder = new FlattenRelFinder();
       final RelNode flattendPushed;
       if (flattenFinder.run(convertedRelNode)) {
@@ -371,6 +365,10 @@ public class PrelTransformer {
     final Supplier<RelNode> toPlan;
 
     CALCITE_LOGGER.trace("Starting Planning for phase {} with target traits {}.", phase, targetTraits);
+    if (Iterables.isEmpty(rules)) {
+      CALCITE_LOGGER.trace("Completed Phase: {}. No rules.");
+      return input;
+    }
 
     if(plannerType.isHep()) {
 

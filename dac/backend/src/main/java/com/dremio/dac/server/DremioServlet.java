@@ -17,6 +17,7 @@ package com.dremio.dac.server;
 
 import java.io.IOException;
 
+import javax.inject.Provider;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -41,8 +42,8 @@ public class DremioServlet implements Servlet {
 
   private static final String[] EXTENSIONS = { ".jpg", ".js", ".png", ".woff2", ".ttf", ".svg", ".css", ".ico", ".js.map" };
 
-  public DremioServlet(DACConfig config, ServerHealthMonitor serverHealthMonitor, OptionManager options, SupportService supportService) {
-    this.indexServlet = new IndexServlet(config, serverHealthMonitor, options, supportService);
+  public DremioServlet(DACConfig config, Provider<ServerHealthMonitor> serverHealthMonitor, Provider<OptionManager> optionManager, Provider<SupportService> supportService) {
+    this.indexServlet = new IndexServlet(config, serverHealthMonitor, optionManager, supportService);
   }
 
   @Override
@@ -71,6 +72,11 @@ public class DremioServlet implements Servlet {
         return;
       }
     }
+
+    serveIndex(req, res);
+  }
+
+  protected void serveIndex(ServletRequest req, ServletResponse res) throws ServletException, IOException {
     indexServlet.service(req, res);
   }
 

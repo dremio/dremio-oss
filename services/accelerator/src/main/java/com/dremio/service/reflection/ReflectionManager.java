@@ -295,7 +295,7 @@ public class ReflectionManager implements Runnable {
         startRefresh(entry);
         break;
       case ACTIVE:
-        if (!dependencyManager.shouldRefresh(entry.getId(), noDependencyRefreshPeriodMs)) {
+        if (!dependencyManager.shouldRefresh(entry, noDependencyRefreshPeriodMs)) {
           // only refresh ACTIVE reflections when they are due for refresh
           break;
         }
@@ -529,6 +529,7 @@ public class ReflectionManager implements Runnable {
       deprecateLastMaterialization(materialization);
       materialization.setState(MaterializationState.DONE);
       entry.setState(ACTIVE)
+        .setLastSuccessfulRefresh(System.currentTimeMillis())
         .setNumFailures(0);
     }
   }
@@ -604,11 +605,6 @@ public class ReflectionManager implements Runnable {
           .setFailure(new Failure().setMessage("Successful materialization already expired"));
         logger.warn("Successful materialization {} already expired", ReflectionUtils.getId(materialization));
       } else {
-        // lastSuccessfulRefresh is used to trigger refreshes on dependent reflections.
-        // When an incremental refresh didn't write any data we still want to refresh its dependent reflections
-        // as they may have failed the previous time and will still benefit from this refresh
-        entry.setLastSuccessfulRefresh(System.currentTimeMillis());
-
         // even if the materialization didn't write any data it may still own refreshes if it's a non-initial incremental
         // otherwise we don't want to refresh an empty table as it will just fail
         final List<Refresh> refreshes = materializationStore.getRefreshes(materialization).toList();

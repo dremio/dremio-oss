@@ -147,7 +147,7 @@ public class Unpivots {
       final VariableBlockVector variableVector, final int start, final int count){
     final int blockWidth = pivot.getBlockWidth();
     for(FieldVector v : pivot.getOutputVectors()){
-      AllocationHelper.allocate(v, (count - start), 15);
+      AllocationHelper.allocate(v, count, 15);
     }
     final long fixedAddr = fixedVector.getMemoryAddress();
     final long variableAddr = variableVector.getMemoryAddress();

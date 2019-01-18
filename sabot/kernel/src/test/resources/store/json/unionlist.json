@@ -1,0 +1,427 @@
+[
+  {
+  "_id": "917183",
+  "source": "350931",
+  "type": "dsc_ProcessResult_Brake",
+  "dsc_Result": {
+    "errors": ""
+  },
+  "_seriesValueFragments": [
+    {
+      "name": "TYP 1 - IBN/CMK",
+      "value": 1,
+      "path": "dsc_TypeNumber"
+    },
+    {
+      "value": "9 5 8    1",
+      "path": "dsc_VIN"
+    },
+    {
+      "unit": "s",
+      "value": 2,
+      "path": "dsc_PressureStabilisation.nominal_Time"
+    },
+    {
+      "unit": "s",
+      "value": 2,
+      "path": "dsc_PressureStabilisation.actual_Time"
+    },
+    {
+      "unit": "",
+      "value": 311,
+      "path": "dsc_PressureStabilisation.processStep"
+    },
+    {
+      "unit": "mBar",
+      "value": 4960,
+      "path": "dsc_PressureStabilisation.actual_Pressure"
+    },
+    {
+      "unit": "s",
+      "value": 5,
+      "path": "dsc_PressureLeakTest.nominal_Time"
+    },
+    {
+      "unit": "s",
+      "value": 5,
+      "path": "dsc_PressureLeakTest.actual_Time"
+    },
+    {
+      "unit": "mBar",
+      "value": 100,
+      "path": "dsc_PressureLeakTest.nominal_MaxPressure"
+    },
+    {
+      "unit": "",
+      "value": 320,
+      "path": "dsc_PressureLeakTest.processStep"
+    },
+    {
+      "unit": "mBar",
+      "value": 3,
+      "path": "dsc_PressureLeakTest.actual_Pressure"
+    },
+    {
+      "unit": "s",
+      "value": 10,
+      "path": "dsc_VacuumLeakTest.nominal_Time"
+    },
+    {
+      "unit": "s",
+      "value": 10,
+      "path": "dsc_VacuumLeakTest.actual_Time"
+    },
+    {
+      "unit": "",
+      "value": 420,
+      "path": "dsc_VacuumLeakTest.processStep"
+    },
+    {
+      "unit": "mBar",
+      "value": 3,
+      "path": "dsc_VacuumLeakTest.nominal_Pressure"
+    },
+    {
+      "unit": "mBar",
+      "value": 0,
+      "path": "dsc_VacuumLeakTest.actual_Pressure"
+    },
+    {
+      "unit": "s",
+      "value": 10,
+      "path": "dsc_CoarseVacuum.nominal_Time"
+    },
+    {
+      "unit": "s",
+      "value": 10,
+      "path": "dsc_CoarseVacuum.actual_Time"
+    },
+    {
+      "unit": "",
+      "value": 400,
+      "path": "dsc_CoarseVacuum.processStep"
+    },
+    {
+      "unit": "mBar",
+      "value": 500,
+      "path": "dsc_CoarseVacuum.nominal_Pressure"
+    },
+    {
+      "unit": "mBar",
+      "value": 96,
+      "path": "dsc_CoarseVacuum.actual_Pressure"
+    },
+    {
+      "unit": "s",
+      "value": 8,
+      "path": "dsc_TopOffWithAeration.nominal_Time"
+    },
+    {
+      "unit": "s",
+      "value": 8,
+      "path": "dsc_TopOffWithAeration.actual_Time"
+    },
+    {
+      "unit": "",
+      "value": 610,
+      "path": "dsc_TopOffWithAeration.processStep"
+    },
+    {
+      "unit": "mBar",
+      "value": 2000,
+      "path": "dsc_TopOffWithAeration.nominal_Pressure"
+    },
+    {
+      "unit": "mBar",
+      "value": 1187,
+      "path": "dsc_TopOffWithAeration.actual_Pressure"
+    },
+    {
+      "unit": "s",
+      "value": 20,
+      "path": "dsc_Filling1_SwitchPressure.nominal_Time"
+    },
+    {
+      "unit": "s",
+      "value": 20,
+      "path": "dsc_Filling1_SwitchPressure.actual_Time"
+    },
+    {
+      "unit": "",
+      "value": 520,
+      "path": "dsc_Filling1_SwitchPressure.processStep"
+    },
+    {
+      "unit": "mBar (rel.)",
+      "value": 6000,
+      "path": "dsc_Filling1_SwitchPressure.nominal_Pressure"
+    },
+    {
+      "unit": "mBar (rel.)",
+      "value": 6139,
+      "path": "dsc_Filling1_SwitchPressure.actual_Pressure"
+    },
+    {
+      "unit": "s",
+      "value": 2,
+      "path": "dsc_FillingPressureStabilisation.nominal_Time"
+    },
+    {
+      "unit": "s",
+      "value": 0,
+      "path": "dsc_FillingPressureStabilisation.actual_Time"
+    },
+    {
+      "unit": "",
+      "value": 531,
+      "path": "dsc_FillingPressureStabilisation.processStep"
+    },
+    {
+      "unit": "mBar",
+      "value": 6000,
+      "path": "dsc_FillingPressureStabilisation.nominal_Pressure"
+    },
+    {
+      "unit": "mBar",
+      "value": 0,
+      "path": "dsc_FillingPressureStabilisation.actual_Pressure"
+    },
+    {
+      "unit": "s",
+      "value": 10,
+      "path": "dsc_PressureExhaust.nominal_Time"
+    },
+    {
+      "unit": "s",
+      "value": 2,
+      "path": "dsc_PressureExhaust.actual_Time"
+    },
+    {
+      "unit": "",
+      "value": 330,
+      "path": "dsc_PressureExhaust.processStep"
+    },
+    {
+      "unit": "mBar (rel.)",
+      "value": -127,
+      "path": "dsc_PressureExhaust.actual_Pressure"
+    },
+    {
+      "unit": "s",
+      "value": 5,
+      "path": "dsc_PostVacuum.nominal_Time"
+    },
+    {
+      "unit": "s",
+      "value": 5,
+      "path": "dsc_PostVacuum.actual_Time"
+    },
+    {
+      "unit": "",
+      "value": 430,
+      "path": "dsc_PostVacuum.processStep"
+    },
+    {
+      "unit": "mBar",
+      "value": 30,
+      "path": "dsc_PostVacuum.nominal_Pressure"
+    },
+    {
+      "unit": "mBar",
+      "value": 15,
+      "path": "dsc_PostVacuum.actual_Pressure"
+    },
+    {
+      "unit": "s",
+      "value": 10,
+      "path": "dsc_PressureBuildUp.nominal_Time"
+    },
+    {
+      "unit": "s",
+      "value": 10,
+      "path": "dsc_PressureBuildUp.actual_Time"
+    },
+    {
+      "unit": "",
+      "value": 310,
+      "path": "dsc_PressureBuildUp.processStep"
+    },
+    {
+      "unit": "mBar",
+      "negTol": 500,
+      "posTol": 500,
+      "value": 5000,
+      "path": "dsc_PressureBuildUp.nominal_Pressure"
+    },
+    {
+      "unit": "mBar",
+      "value": 4961,
+      "path": "dsc_PressureBuildUp.actual_Pressure"
+    },
+    {
+      "unit": "s",
+      "value": 10,
+      "path": "dsc_Filling2_FinalPressure.nominal_Time"
+    },
+    {
+      "unit": "ml",
+      "negTol": 100,
+      "posTol": 300,
+      "value": 300,
+      "path": "dsc_Filling2_FinalPressure.nominal_Volume"
+    },
+    {
+      "unit": "s",
+      "value": 0,
+      "path": "dsc_Filling2_FinalPressure.actual_Time"
+    },
+    {
+      "unit": "",
+      "value": 530,
+      "path": "dsc_Filling2_FinalPressure.processStep"
+    },
+    {
+      "unit": "mBar",
+      "negTol": 0,
+      "posTol": 500,
+      "value": 2,
+      "path": "dsc_Filling2_FinalPressure.nominal_Pressure"
+    },
+    {
+      "unit": "ml",
+      "value": 296,
+      "path": "dsc_Filling2_FinalPressure.actual_Volume"
+    },
+    {
+      "unit": "mBar",
+      "value": 6141,
+      "path": "dsc_Filling2_FinalPressure.actual_Pressure"
+    },
+    {
+      "unit": "s",
+      "value": 5,
+      "path": "dsc_FillingPressureLeakTest.nominal_Time"
+    },
+    {
+      "unit": "s",
+      "value": 0,
+      "path": "dsc_FillingPressureLeakTest.actual_Time"
+    },
+    {
+      "unit": "",
+      "value": 540,
+      "path": "dsc_FillingPressureLeakTest.processStep"
+    },
+    {
+      "unit": "mBar",
+      "value": 100,
+      "path": "dsc_FillingPressureLeakTest.nominal_Pressure"
+    },
+    {
+      "unit": "mBar",
+      "value": 0,
+      "path": "dsc_FillingPressureLeakTest.actual_Pressure"
+    },
+    {
+      "unit": "s",
+      "value": 5,
+      "path": "dsc_TopOffWithoutAeration.nominal_Time"
+    },
+    {
+      "unit": "0/1",
+      "value": 0,
+      "path": "dsc_TopOffWithoutAeration.nominal_NozzlePos"
+    },
+    {
+      "unit": "0/1",
+      "value": 0,
+      "path": "dsc_TopOffWithoutAeration.actual_NozzelPos"
+    },
+    {
+      "unit": "s",
+      "value": 0.3,
+      "path": "dsc_TopOffWithoutAeration.actual_Time"
+    },
+    {
+      "unit": "",
+      "value": 600,
+      "path": "dsc_TopOffWithoutAeration.processStep"
+    },
+    {
+      "unit": "mBar",
+      "value": -1,
+      "path": "dsc_TopOffWithoutAeration.nominal_Pressure"
+    },
+    {
+      "unit": "mBar",
+      "value": -1000,
+      "path": "dsc_TopOffWithoutAeration.actual_Pressure"
+    },
+    {
+      "unit": "s",
+      "value": 20,
+      "path": "dsc_FineVaccum.nominal_Time"
+    },
+    {
+      "unit": "s",
+      "value": 20,
+      "path": "dsc_FineVaccum.actual_Time"
+    },
+    {
+      "unit": "",
+      "value": 410,
+      "path": "dsc_FineVaccum.processStep"
+    },
+    {
+      "unit": "mBar",
+      "negTol": 0,
+      "posTol": 0,
+      "value": 30,
+      "path": "dsc_FineVaccum.nominal_Pressure"
+    },
+    {
+      "unit": "mBar",
+      "value": 17,
+      "path": "dsc_FineVaccum.actual_Pressure"
+    },
+    {
+      "unit": "s",
+      "value": 98.4,
+      "path": "dsc_ProcessTime.WithHandling"
+    },
+    {
+      "unit": "s",
+      "value": 95.60000000000001,
+      "path": "dsc_ProcessTime.WithoutHandling"
+    },
+    {
+      "unit": "s",
+      "value": 5,
+      "path": "dsc_PressureEqualisation.nominal_Time"
+    },
+    {
+      "unit": "s",
+      "value": 1.3,
+      "path": "dsc_PressureEqualisation.actual_Time"
+    },
+    {
+      "unit": "",
+      "value": 620,
+      "path": "dsc_PressureEqualisation.processStep"
+    },
+    {
+      "unit": "mBar",
+      "value": 100,
+      "path": "dsc_PressureEqualisation.nominal_Pressure"
+    },
+    {
+      "unit": "mBar",
+      "value": -252,
+      "path": "dsc_PressureEqualisation.actual_Pressure"
+    }
+  ],
+  "dsc_TypeNumber_1": {
+    "name": "TYP 1 - IBN/CMK"
+  }
+}
+]
