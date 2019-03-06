@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-root</artifactId>
-  <version>3.1.4-201902210617130445-0d64760</version>
+  <version>3.1.5-201902280652300425-df3d909</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Root</name>
@@ -124,13 +124,13 @@
       </activation>
       <properties>
         <hive.version>2.1.1-mapr-1803-201811301818250596-387f43d</hive.version>
-        <hbase.version>1.1.8-mapr-1703</hbase.version>
-        <hadoop.version>2.7.0-mapr-1703</hadoop.version>
-        <maprfs.version>5.2.2.201801021050-mapr</maprfs.version>
+        <hbase.version>1.1.8-mapr-1710</hbase.version>
+        <hadoop.version>2.7.0-mapr-1803</hadoop.version>
+        <maprfs.version>6.0.1-mapr-fixup</maprfs.version>
         <!-- This jar is a dependency of com.mapr.hadoop:maprfs jar.
              For some reason it is not packaged by the assembly plugin. Include it explicitly. -->
         <org.json.version>20080701</org.json.version>
-        <zookeeper.version>3.4.5-mapr-1604</zookeeper.version>
+        <zookeeper.version>3.4.5-mapr-1710</zookeeper.version>
         <surefire.extra.argLine>
               -Djava.security.auth.login.config=${WORKSPACE}/common/src/test/resources/maprtest/testconfig/login.conf
               -Dzookeeper.sasl.clientconfig=Client_simple
