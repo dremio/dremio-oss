@@ -55,6 +55,15 @@ shift
 
 command=dremio
 
+print_warn() {
+  echo "#######################################################################"
+  echo "WARNING:"
+  echo ""
+  echo -e "$1"
+  echo ""
+  echo "#######################################################################"
+}
+
 wait_for_process_end() {
   pidKilled=$1
   commandName=$2
@@ -188,13 +197,22 @@ DREMIO_NICENESS="${DREMIO_NICENESS:-0}"
 thiscmd=$0
 args=$@
 
+ULIMIT=65536
+if [ "$(ulimit -n)" -lt "$ULIMIT" ]; then
+  print_warn "\
+Please increase the maximum number of file descriptors to at least $ULIMIT.\n\n\
+Dremio utilizes a large number of file descriptors.\n\
+The maximum number of file descriptors, currently set at $(ulimit -n), is not sufficient."
+fi
+
 case $startStopStatus in
 
 (start)
     check_before_start
-    echo starting $command, logging to $logout
+    echo Starting $command, logging to $logout
     nohup $thiscmd internal_start $args < /dev/null >> ${logout} 2>&1  &
     sleep 1;
+    echo Check the log file to make sure $command started successfully and did not run into any issues.
   ;;
 
 (start-fg)

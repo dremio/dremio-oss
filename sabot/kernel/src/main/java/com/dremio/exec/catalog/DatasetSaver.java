@@ -74,7 +74,7 @@ public class DatasetSaver {
     try {
       DatasetConfig newConfig = accessor.getDataset();
 
-      if (BatchSchema.fromDataset(newConfig).getFieldCount() > maxMetadataLeafColumns) {
+      if (BatchSchema.fromDataset(newConfig).getTotalFieldCount() > maxMetadataLeafColumns) {
         NamespaceUtils.copyFromOldConfig(oldConfig, newConfig);
         newConfig.setRecordSchema(null);
         newConfig.setReadDefinition(null);

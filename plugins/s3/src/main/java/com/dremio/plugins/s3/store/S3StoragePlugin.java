@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.s3.store;
 
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.apache.hadoop.fs.s3a.Constants.ACCESS_KEY;
 import static org.apache.hadoop.fs.s3a.Constants.FAST_UPLOAD;
 import static org.apache.hadoop.fs.s3a.Constants.MAXIMUM_CONNECTIONS;
@@ -49,7 +50,6 @@ import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.plugins.s3.store.copy.S3Constants;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
 import com.dremio.service.namespace.NamespaceKey;
@@ -76,7 +76,7 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
   public static final String NONE_PROVIDER = "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider";
 
   public S3StoragePlugin(S3PluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
-    super(config, context, name, null, idProvider);
+    super(config, context, name, idProvider);
   }
 
   @Override
@@ -137,7 +137,7 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
   public SourceState getState() {
     try {
       ensureDefaultName();
-      S3FileSystem fs = getFS(ImpersonationUtil.getProcessUserName()).unwrap(S3FileSystem.class);
+      S3FileSystem fs = getSystemUserFS().unwrap(S3FileSystem.class);
       fs.refreshFileSystems();
       List<ContainerFailure> failures = fs.getSubFailures();
       if(failures.isEmpty()) {
@@ -161,7 +161,8 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
   private void ensureDefaultName() throws IOException {
     String urlSafeName = URLEncoder.encode(getName(), "UTF-8");
     getFsConf().set(FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3://" + urlSafeName);
-    final FileSystemWrapper fs = getFS(ImpersonationUtil.getProcessUserName());
+    // we create a new fs wrapper since we are calling initialize on it
+    final FileSystemWrapper fs = createFS(SYSTEM_USERNAME);
     // do not use fs.getURI() or fs.getConf() directly as they will produce wrong results
     fs.initialize(URI.create(getFsConf().get(FileSystem.FS_DEFAULT_NAME_KEY)), getFsConf());
   }
@@ -191,7 +192,7 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
 
     final CreateTableEntry entry = super.createNewTable(config, key, writerOptions, storageOptions);
 
-    final S3FileSystem fs = getFS(ImpersonationUtil.getProcessUserName()).unwrap(S3FileSystem.class);
+    final S3FileSystem fs = getSystemUserFS().unwrap(S3FileSystem.class);
 
     if (!fs.containerExists(containerName)) {
       throw UserException.validationError()

@@ -49,7 +49,7 @@ public class TestHDFSStoragePlugin extends DremioTest {
     when(context.getClasspathScan()).thenReturn(DremioTest.CLASSPATH_SCAN_RESULT);
 
     Provider<StoragePluginId> idProvider = () -> { return new StoragePluginId(null, conf, null); };
-    try(HDFSStoragePlugin fileSystemPlugin = new HDFSStoragePlugin(conf, context, "test-plugin", null, idProvider)) {
+    try(HDFSStoragePlugin fileSystemPlugin = new HDFSStoragePlugin(conf, context, "test-plugin", idProvider)) {
       fileSystemPlugin.start();
 
       final Configuration fsConf = fileSystemPlugin.getFsConf();

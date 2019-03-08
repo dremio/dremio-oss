@@ -168,6 +168,8 @@ class VectorizedHashAggDebug {
     this.aggSchema = (detailedEventTracing ? outgoing.toString() : "enable tracing to record schema");
   }
 
+  void setMaxVarBlockLength(final int maxVarLen) { this.maxVarBlockLength = maxVarLen; }
+
   void recordOOMEvent(final int iterations,
                       final int ooms,
                       final long currentAllocatedMemory,

@@ -54,9 +54,18 @@ public class TestXlsxExcelFormatPlugin extends TestExcelFormatPluginBase {
     final String filePath = getExcelDir() + "empty2.xlsx";
     final String query = String.format("SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => true, xls => false))", filePath);
 
-    testAndExpectUserException(query, ErrorType.DATA_READ, "Selected table has no columns.");
+    // There are actual columns in this table, but they contain no value. Hence, show the columns with nulls.
+    test(query);
   }
 
+  @Test
+  public void testInlineString() throws Exception {
+    final String filePath = getExcelDir() + "InlineString.xlsx";
+    final String query = String.format("SELECT * FROM TABLE(dfs.\"%s\" (type => 'excel', extractHeader => true, hasMergedCells => false, xls => false))", filePath);
+
+    // This will fail if the inline string column is ignored, as no columns will be detected.
+    test(query);
+  }
 
   @Test
   public void testHeaderOnly() throws Exception {

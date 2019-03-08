@@ -66,8 +66,8 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
   private final Path stagingDir;
   private final Path uploadsDir;
 
-  public HomeFileSystemStoragePlugin(final HomeFileConf config, final SabotContext context, final String name, FileSystemWrapper fs, Provider<StoragePluginId> idProvider) {
-    super(config, context, name, fs, idProvider);
+  public HomeFileSystemStoragePlugin(final HomeFileConf config, final SabotContext context, final String name, Provider<StoragePluginId> idProvider) {
+    super(config, context, name, idProvider);
     this.stagingDir = new Path(config.getPath(), STAGING + "." + context.getDremioConfig().getThisNode());
     this.uploadsDir = new Path(config.getPath(), UPLOADS);
   }
@@ -80,7 +80,7 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
   @Override
   public void start() throws IOException {
     super.start();
-    FileSystem fs = getFs();
+    FileSystem fs = getSystemUserFS();
     fs.mkdirs(getConfig().getPath(), DEFAULT_PERMISSIONS);
     fs.mkdirs(stagingDir, DEFAULT_PERMISSIONS);
     fs.mkdirs(uploadsDir, DEFAULT_PERMISSIONS);
@@ -96,7 +96,7 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
     PhysicalDataset physicalDataset = oldConfig == null ? null : oldConfig.getPhysicalDataset();
     FormatPluginConfig pluginConfig = null;
     try {
-      final FileSystemWrapper fs = getFs();
+      final FileSystemWrapper fs = getSystemUserFS();
       final FileConfig fileConfig;
 
       if(physicalDataset != null && physicalDataset.getFormatSettings() != null){
@@ -113,7 +113,7 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
       pluginConfig = PhysicalDatasetUtils.toFormatPlugin(fileConfig, Collections.<String>emptyList());
       final FormatPlugin formatPlugin = formatCreator.newFormatPlugin(pluginConfig);
       return getDataset(datasetPath, oldConfig, formatPlugin, fs, fileConfig,
-          retrievalOptions.maxMetadataLeafColumns());
+        retrievalOptions.maxMetadataLeafColumns());
     } catch (NamespaceNotFoundException nfe){
       FormatPluginConfig formatPluginConfig = null;
       if(physicalDataset != null && physicalDataset.getFormatSettings() != null){
@@ -125,9 +125,9 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
 
   @Override
   protected SourceTableDefinition getDatasetWithFormat(NamespaceKey datasetPath, DatasetConfig oldConfig, FormatPluginConfig formatPluginConfig,
-    DatasetRetrievalOptions retrievalOptions, String user) throws Exception {
+                                                       DatasetRetrievalOptions retrievalOptions, String user) throws Exception {
     try{
-      final FileSystemWrapper fs = getFs();
+      final FileSystemWrapper fs = getSystemUserFS();
       final DatasetConfig datasetConfig = getContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getDataset(datasetPath);
 
       if (!(datasetConfig.getType() == DatasetType.PHYSICAL_DATASET_HOME_FILE || datasetConfig.getType() == DatasetType.PHYSICAL_DATASET_HOME_FOLDER)) {
@@ -137,7 +137,7 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
       final FormatPlugin formatPlugin = formatCreator.newFormatPlugin(formatPluginConfig);
 
       return getDataset(datasetPath, oldConfig, formatPlugin, fs,
-          datasetConfig.getPhysicalDataset().getFormatSettings(), retrievalOptions.maxMetadataLeafColumns());
+        datasetConfig.getPhysicalDataset().getFormatSettings(), retrievalOptions.maxMetadataLeafColumns());
     } catch (NamespaceNotFoundException nfe){
       if(formatPluginConfig == null) {
         // a home file can only be read from the namespace or using a format options. Without either, it is invalid, return nothing.
@@ -152,10 +152,10 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
   public boolean containerExists(NamespaceKey key) {
     List<String> folderPath = key.getPathComponents();
     try {
-    return getFS(SystemUser.SYSTEM_USERNAME).exists(PathUtils.toFSPath(
-      ImmutableList.<String>builder()
-        .addAll(folderPath.subList(1, folderPath.size()))
-        .build()));
+      return getSystemUserFS().exists(PathUtils.toFSPath(
+        ImmutableList.<String>builder()
+          .addAll(folderPath.subList(1, folderPath.size()))
+          .build()));
     }catch(IOException e) {
       logger.info("IOException while trying to retrieve home files.", e);
       return false;
@@ -163,12 +163,12 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
   }
 
   private SourceTableDefinition getDataset(
-      NamespaceKey datasetPath,
-      DatasetConfig oldConfig,
-      FormatPlugin formatPlugin,
-      FileSystemWrapper fs,
-      FileConfig fileConfig,
-      int maxLeafColumns
+    NamespaceKey datasetPath,
+    DatasetConfig oldConfig,
+    FormatPlugin formatPlugin,
+    FileSystemWrapper fs,
+    FileConfig fileConfig,
+    int maxLeafColumns
   ) throws IOException {
 
     final List<FileSystemCachedEntity> cachedEntities = Lists.newArrayList();

@@ -97,6 +97,7 @@ public class StAXBasedParser implements ExcelParser {
   private MinorType valueTypeFromStyle;
 
   private Map<String, MinorType> styleToTypeCache = Maps.newHashMap();
+  private Map<Integer, MinorType> indexToLastTypeCache = Maps.newHashMap();
 
   private final OPCPackage pkgInputStream;
 
@@ -202,19 +203,23 @@ public class StAXBasedParser implements ExcelParser {
 
     boolean inValue = false;
     boolean lookupValueInSST = false;
+    boolean inInlineString = false;
     while (xmlStreamReader.hasNext()) {
       xmlStreamReader.next();
       final int event = xmlStreamReader.getEventType();
       switch (event) {
         case START_ELEMENT: {
           final String name = xmlStreamReader.getLocalName();
-          if (ExcelUtil.VALUE.equals(name)) {
+          if (ExcelUtil.VALUE.equals(name) ||
+              (inInlineString && ExcelUtil.INLINE_STRING_TEXT.equals(name))) {
             inValue = true;
           } else if (ExcelUtil.CELL.equals(name)) {
             lookupValueInSST = ExcelUtil.SST_STRING.equals(xmlStreamReader.getAttributeValue(/*namespaceURI=*/null, ExcelUtil.TYPE));
             String cellRef = xmlStreamReader.getAttributeValue(/*namespaceURI=*/null, ExcelUtil.CELL_REF);
             String columnNameFromRef = ExcelUtil.getColumnName(cellRef);
             columnIndex = CellReference.convertColStringToIndex(columnNameFromRef);
+          } else if (ExcelUtil.INLINE_STRING.equals(name)) {
+            inInlineString = true;
           }
           break;
         }
@@ -229,9 +234,12 @@ public class StAXBasedParser implements ExcelParser {
 
         case END_ELEMENT: {
           final String name = xmlStreamReader.getLocalName();
-          if (ExcelUtil.VALUE.equals(name)) {
+          if (ExcelUtil.VALUE.equals(name) ||
+              (inInlineString && ExcelUtil.INLINE_STRING_TEXT.equals(name))) {
             inValue = false;
             lookupValueInSST = false;
+          } else if (ExcelUtil.INLINE_STRING.equals(name)) {
+            inInlineString = false;
           } else if (ExcelUtil.ROW.equals(name)) {
             return;
           }
@@ -292,16 +300,20 @@ public class StAXBasedParser implements ExcelParser {
     writer.start();
     try {
       boolean inValue = false;
+      boolean inInlineString = false;
       while (xmlStreamReader.hasNext()) {
         xmlStreamReader.next();
         final int event = xmlStreamReader.getEventType();
         switch (event) {
           case START_ELEMENT: {
             final String name = xmlStreamReader.getLocalName();
-            if (ExcelUtil.VALUE.equals(name)) {
+            if (ExcelUtil.VALUE.equals(name) ||
+                (inInlineString && ExcelUtil.INLINE_STRING_TEXT.equals(name))) {
               inValue = true;
             } else if (ExcelUtil.CELL.equals(name)) {
               handleCellStart();
+            } else if (ExcelUtil.INLINE_STRING.equals(name)) {
+              inInlineString = true;
             }
             break;
           }
@@ -315,7 +327,17 @@ public class StAXBasedParser implements ExcelParser {
 
           case END_ELEMENT: {
             final String name = xmlStreamReader.getLocalName();
-            if (ExcelUtil.VALUE.equals(name)) {
+            if (ExcelUtil.VALUE.equals(name) ||
+                (inInlineString && ExcelUtil.INLINE_STRING_TEXT.equals(name))) {
+              currentColumnIndex = -1;
+              lookupNextValueInSST = false;
+              valueTypeFromAttribute = null;
+              valueTypeFromStyle = null;
+              inValue = false;
+            } else if (ExcelUtil.INLINE_STRING.equals(name)) {
+              inInlineString = false;
+            } else if (-1 != currentColumnIndex && ExcelUtil.CELL.equals(name)) {
+              ensureNull();
               currentColumnIndex = -1;
               lookupNextValueInSST = false;
               valueTypeFromAttribute = null;
@@ -405,16 +427,17 @@ public class StAXBasedParser implements ExcelParser {
 
       final String finalColumnName = columnNameHandler.getColumnName(currentColumnIndex);
 
-      final boolean isProjected = (columnsToProject == null) || (columnsToProject.contains(finalColumnName));
+      final boolean isProjected = (columnsToProject == null) || columnsToProject.contains(finalColumnName);
 
       final MergeCellRegion mergeCellRegion = mergeCells != null ? mergeCells.get(currentCellRef) : null;
 
       switch (valueTypeFromAttribute) {
         case BIT:
           final int toWrite = "1".equalsIgnoreCase(value) ? 1 : 0;
+          indexToLastTypeCache.put(currentColumnIndex, valueTypeFromAttribute);
           if(isProjected) {
-              writer.bit(finalColumnName).writeBit(toWrite);
-            }
+            writer.bit(finalColumnName).writeBit(toWrite);
+          }
           if (mergeCellRegion != null) {
             mergeCellRegion.setValue(MinorType.BIT, toWrite);
           }
@@ -423,6 +446,7 @@ public class StAXBasedParser implements ExcelParser {
         case FLOAT8:
           double dValue = Double.valueOf(value);
           if (valueTypeFromStyle == MinorType.TIMESTAMP && DateUtil.isValidExcelDate(dValue)) {
+            indexToLastTypeCache.put(currentColumnIndex, MinorType.TIMESTAMP);
             final long dateMillis = DateUtil.getJavaDate(dValue, false, LocaleUtil.TIMEZONE_UTC).getTime();
             if(isProjected){
               writer.timeStampMilli(finalColumnName).writeTimeStampMilli(dateMillis);
@@ -431,6 +455,7 @@ public class StAXBasedParser implements ExcelParser {
               mergeCellRegion.setValue(MinorType.TIMESTAMP, dateMillis);
             }
           } else {
+            indexToLastTypeCache.put(currentColumnIndex, valueTypeFromAttribute);
             if(isProjected) {
               writer.float8(finalColumnName).writeFloat8(dValue);
             }
@@ -441,6 +466,7 @@ public class StAXBasedParser implements ExcelParser {
           break;
 
         case VARCHAR:
+          indexToLastTypeCache.put(currentColumnIndex, valueTypeFromAttribute);
           final byte[] b = value.getBytes(Charsets.UTF_8);
           managedBuf = managedBuf.reallocIfNeeded(b.length);
           managedBuf.setBytes(0, b);
@@ -454,8 +480,51 @@ public class StAXBasedParser implements ExcelParser {
 
         default:
           throw UserException.unsupportedError()
-              .message("Unknown type received %s", valueTypeFromAttribute)
-              .build(logger);
+            .message("Unknown type received %s", valueTypeFromAttribute)
+            .build(logger);
+      }
+    }
+  }
+
+  /**
+   * Ensure a null value is set for the writer by retrieving the writer for the column but not writing a value.
+   */
+  private void ensureNull() {
+    assert currentColumnIndex != -1 : "Invalid currentColumnIndex";
+
+    final String finalColumnName = columnNameHandler.getColumnName(currentColumnIndex);
+
+    if ((columnsToProject == null) || columnsToProject.contains(finalColumnName)) {
+      MinorType type = indexToLastTypeCache.get(currentColumnIndex);
+      if (type == null) {
+        if (valueTypeFromAttribute == MinorType.FLOAT8 && valueTypeFromStyle == MinorType.TIMESTAMP) {
+          type = MinorType.TIMESTAMP;
+        } else {
+          type = valueTypeFromAttribute;
+        }
+      }
+
+      switch (type) {
+        case BIT:
+          writer.bit(finalColumnName);
+          break;
+
+        case FLOAT8:
+          writer.float8(finalColumnName);
+          break;
+
+        case TIMESTAMP:
+          writer.timeMilli(finalColumnName);
+          break;
+
+        case VARCHAR:
+          writer.varChar(finalColumnName);
+          break;
+
+        default:
+          throw UserException.unsupportedError()
+            .message("Unknown type received %s", valueTypeFromAttribute)
+            .build(logger);
       }
     }
   }
@@ -482,20 +551,22 @@ public class StAXBasedParser implements ExcelParser {
    * current row onwards.
    */
   private void handleMergedCells() {
-    Iterator<MergeCellRegion> iter = mergeCellsSortedByRowEnd.iterator();
-    while(iter.hasNext()) {
-      final MergeCellRegion mcr = iter.next();
-      if (mcr.hasValue() && mcr.containsRow(runningRecordCount)) {
-        for(int colIndex = mcr.colStart; colIndex <= mcr.colEnd; colIndex++) {
-          String colName = columnNameHandler.getColumnName(colIndex);
-          if(columnsToProject == null || columnsToProject.contains(colName)) {
-            mcr.write(managedBuf, writer, colName);
+    if (mergeCellsSortedByRowEnd != null) {
+      Iterator<MergeCellRegion> iter = mergeCellsSortedByRowEnd.iterator();
+      while (iter.hasNext()) {
+        final MergeCellRegion mcr = iter.next();
+        if (mcr.hasValue() && mcr.containsRow(runningRecordCount)) {
+          for (int colIndex = mcr.colStart; colIndex <= mcr.colEnd; colIndex++) {
+            String colName = columnNameHandler.getColumnName(colIndex);
+            if (columnsToProject == null || columnsToProject.contains(colName)) {
+              mcr.write(managedBuf, writer, colName);
+            }
           }
         }
-      }
 
-      if (mcr.rowEnd < runningRecordCount) {
-        iter.remove();
+        if (mcr.rowEnd < runningRecordCount) {
+          iter.remove();
+        }
       }
     }
   }

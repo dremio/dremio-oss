@@ -133,7 +133,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   private final Path basePath;
 
   private final Provider<StoragePluginId> idProvider;
-  private FileSystemWrapper fs;
+  private FileSystemWrapper systemUserFS;
   private Configuration fsConf;
   private FormatPluginOptionExtractor optionExtractor;
   protected FormatCreator formatCreator;
@@ -141,11 +141,10 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   private List<FormatMatcher> dropFileMatchers;
   private CompressionCodecFactory codecFactory;
 
-  public FileSystemPlugin(final C config, final SabotContext context, final String name, FileSystemWrapper fs, Provider<StoragePluginId> idProvider) {
+  public FileSystemPlugin(final C config, final SabotContext context, final String name, Provider<StoragePluginId> idProvider) {
     this.name = name;
     this.config = config;
     this.idProvider = idProvider;
-    this.fs = fs;
     this.context = context;
     this.fsConf = getNewFsConf();
     this.lpPersistance = context.getLpPersistence();
@@ -156,6 +155,10 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return config;
   }
 
+  public boolean supportsColocatedReads() {
+    return true;
+  }
+
   @Override
   public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions ignored) throws Exception {
     return Collections.emptyList(); // file system does not know about physical datasets
@@ -163,7 +166,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public SourceCapabilities getSourceCapabilities() {
-    return fs.isPdfs() ? new SourceCapabilities(REQUIRES_HARD_AFFINITY) : SourceCapabilities.NONE;
+    return systemUserFS.isPdfs() ? new SourceCapabilities(REQUIRES_HARD_AFFINITY) : SourceCapabilities.NONE;
   }
 
   public static final Configuration getNewFsConf() {
@@ -178,13 +181,19 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return idProvider.get();
   }
 
-  public FileSystemWrapper getFS(String userName) {
-    return getFs(userName, null);
+  /**
+   * Create a new {@link FileSystemWrapper} for a given user.
+   *
+   * @param userName
+   * @return
+   */
+  public FileSystemWrapper createFS(String userName) {
+    return createFS(userName, null);
   }
 
-  public FileSystemWrapper getFs(String userName, OperatorStats stats) {
+  public FileSystemWrapper createFS(String userName, OperatorStats stats) {
     return ImpersonationUtil.createFileSystem(getUGIForUser(userName), getFsConf(), stats,
-        getConnectionUniqueProperties());
+      getConnectionUniqueProperties());
   }
 
   public UserGroupInformation getUGIForUser(String userName) {
@@ -203,7 +212,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     List<FileStatus> fileStatuses;
     try {
       Path fullPath = PathUtils.toFSPath(resolveTableNameToValidPath(table));
-      fileStatuses = getFS(schemaConfig.getUserName()).list(fullPath, false);
+      fileStatuses = createFS(schemaConfig.getUserName()).list(fullPath, false);
     } catch (IOException e) {
       throw new PartitionNotFoundException("Error finding partitions for table " + table, e);
     }
@@ -217,10 +226,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public SourceState getState() {
-    final FileSystemWrapper fs = getFS(ImpersonationUtil.getProcessUserName());
-    if (!fs.isPdfs()) {
+    if (!systemUserFS.isPdfs()) {
       try {
-        fs.listStatus(config.getPath());
+        systemUserFS.listStatus(config.getPath());
         return SourceState.GOOD;
       } catch (Exception e) {
         return SourceState.badState(e);
@@ -235,7 +243,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     List<DotFile> files = Collections.emptyList();
     try {
       try {
-        files = DotFileUtil.getDotFiles(getFS(schemaConfig.getUserName()), config.getPath(), tableSchemaPath.get(tableSchemaPath.size() - 1), DotFileType.VIEW);
+        files = DotFileUtil.getDotFiles(createFS(schemaConfig.getUserName()), config.getPath(), tableSchemaPath.get(tableSchemaPath.size() - 1), DotFileType.VIEW);
       } catch (AccessControlException e) {
         if (!schemaConfig.getIgnoreAuthErrors()) {
           logger.debug(e.getMessage());
@@ -347,7 +355,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       // TODO: why do we need distinguish between system user and process user?
       final String userName = config.isImpersonationEnabled() ? SystemUser.SYSTEM_USERNAME : ImpersonationUtil.getProcessUserName();
       List<String> parentSchemaPath = new ArrayList<>(fullPath.subList(0, fullPath.size() - 1));
-      FileSystemWrapper fs = getFS((user != null) ? user : userName);
+      FileSystemWrapper fs = createFS((user != null) ? user : userName);
       FileSelection fileSelection = FileSelection.create(fs, fullPath);
       String tableName = datasetPath.getName();
 
@@ -459,11 +467,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     }
 
 //    boolean footerNoSeek = contetMutext.getOptionManager().getOption(ExecConstants.PARQUET_FOOTER_NOSEEK);
-
     // NOTE: Add fallback format matcher if given in the configuration. Make sure fileMatchers is an order-preserving list.
-    if(fs == null) {
-      this.fs = getFS(SYSTEM_USERNAME);
-    }
+    this.systemUserFS = createFS(SYSTEM_USERNAME);
     dropFileMatchers = matchers.subList(0, matchers.size());
 
     createIfNecessary();
@@ -484,10 +489,10 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
     try {
       // no need to exists here as FileSystemWrapper does an exists check and this is a noop if already existing.
-      fs.mkdirs(config.getPath());
+      systemUserFS.mkdirs(config.getPath());
     } catch (IOException ex) {
       try {
-        if(fs.exists(config.getPath())) {
+        if(systemUserFS.exists(config.getPath())) {
           // race creation, ignore.
           return;
         }
@@ -524,7 +529,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   public boolean hasAccessPermission(String user, NamespaceKey key, DatasetConfig datasetConfig) {
     if (config.isImpersonationEnabled()) {
       if (datasetConfig.getReadDefinition() != null) { // allow accessing partial datasets
-        final FileSystemWrapper userFs = getFS(user);
+        final FileSystemWrapper userFs = createFS(user);
         final List<TimedRunnable<Boolean>> permissionCheckTasks = Lists.newArrayList();
 
         permissionCheckTasks.addAll(getUpdateKeyPermissionTasks(datasetConfig, userFs));
@@ -642,8 +647,13 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     }
   }
 
-  public FileSystemWrapper getFs() {
-    return fs;
+  /**
+   * Returns a shared {@link FileSystemWrapper} for the system user.
+   *
+   * @return
+   */
+  public FileSystemWrapper getSystemUserFS() {
+    return systemUserFS;
   }
 
   public String getName() {
@@ -654,7 +664,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   public boolean containerExists(NamespaceKey key) {
     final List<String> folderPath = key.getPathComponents();
     try {
-      return getFS(SYSTEM_USERNAME).isDirectory(PathUtils.toFSPath(resolveTableNameToValidPath(folderPath)));
+      return systemUserFS.isDirectory(PathUtils.toFSPath(resolveTableNameToValidPath(folderPath)));
     } catch (IOException e) {
       logger.debug("Failure reading path.", e);
       return false;
@@ -665,7 +675,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   public boolean datasetExists(NamespaceKey key) {
     final List<String> filePath = key.getPathComponents();
     try {
-      return getFS(SYSTEM_USERNAME).exists(PathUtils.toFSPath(resolveTableNameToValidPath(filePath)));
+      return systemUserFS.exists(PathUtils.toFSPath(resolveTableNameToValidPath(filePath)));
     } catch (IOException e) {
       logger.debug("Failure reading path.", e);
       return false;
@@ -673,7 +683,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   protected boolean fileExists(String username, List<String> filePath) throws IOException {
-    return getFS(username).isFile(PathUtils.toFSPath(resolveTableNameToValidPath(filePath)));
+    return createFS(username).isFile(PathUtils.toFSPath(resolveTableNameToValidPath(filePath)));
   }
 
   @Override
@@ -746,7 +756,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       final Path cachedEntityPath =  new Path(cachedEntity.getPath());
       try {
 
-        final Optional<FileStatus> optionalStatus = fs.getFileStatusSafe(cachedEntityPath);
+        final Optional<FileStatus> optionalStatus = systemUserFS.getFileStatusSafe(cachedEntityPath);
         if(!optionalStatus.isPresent()) {
           // if first entity (root) is missing then table is deleted
           if (i == 0) {
@@ -796,7 +806,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     }
 
     Path viewPath = getViewPath(key.getPathComponents());
-    FileSystemWrapper fs = getFS(schemaConfig.getUserName());
+    FileSystemWrapper fs = createFS(schemaConfig.getUserName());
     boolean replaced = fs.exists(viewPath);
     final FsPermission viewPerms =
             new FsPermission(schemaConfig.getOption(ExecConstants.NEW_VIEW_DEFAULT_PERMS_KEY).getStringVal());
@@ -814,7 +824,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         .build(logger);
     }
 
-    getFS(schemaConfig.getUserName()).delete(getViewPath(tableSchemaPath), false);
+    createFS(schemaConfig.getUserName()).delete(getViewPath(tableSchemaPath), false);
   }
 
   private Path getViewPath(List<String> tableSchemaPath) {
@@ -878,7 +888,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         .build(logger);
     }
 
-    FileSystemWrapper fs = getFS(schemaConfig.getUserName());
+    FileSystemWrapper fs = createFS(schemaConfig.getUserName());
     List<String> fullPath = resolveTableNameToValidPath(tableSchemaPath);
     FileSelection fileSelection;
     try {
@@ -928,7 +938,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
    */
   public SchemaEntity get(List<String> path, String userName) {
     try {
-      final FileStatus status = getFS(userName).getFileStatus(PathUtils.toFSPath(resolveTableNameToValidPath(path)));
+      final FileStatus status = createFS(userName).getFileStatus(PathUtils.toFSPath(resolveTableNameToValidPath(path)));
 
       final Set<List<String>> tableNames = Sets.newHashSet();
       final NamespaceService ns = context.getNamespaceService(userName);
@@ -951,7 +961,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   public List<SchemaEntity> list(List<String> folderPath, String userName) {
     try {
-      final List<FileStatus> files = Lists.newArrayList(getFS(userName).listStatus(PathUtils.toFSPath(resolveTableNameToValidPath(folderPath))));
+      final List<FileStatus> files = Lists.newArrayList(createFS(userName).listStatus(PathUtils.toFSPath(resolveTableNameToValidPath(folderPath))));
       final Set<List<String>> tableNames = Sets.newHashSet();
       final NamespaceService ns = context.getNamespaceService(userName);
       final NamespaceKey folderNSKey = new NamespaceKey(folderPath);
@@ -1011,10 +1021,6 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return optionExtractor.createConfigForTable(tableName, storageOptions);
   }
 
-  public FileSystem getProcessFs() {
-    return fs;
-  }
-
   public List<String> getConnectionUniqueProperties() {
     return config.getConnectionUniqueProperties();
   }
@@ -1057,7 +1063,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     // check that there is no directory at the described path.
     Path path = resolveTablePathToValidPath(tableName);
     try {
-      if(fs.exists(path)) {
+      if(systemUserFS.exists(path)) {
         throw UserException.validationError().message("Folder already exists at path: %s.", key).build(logger);
       }
     } catch (IOException e) {

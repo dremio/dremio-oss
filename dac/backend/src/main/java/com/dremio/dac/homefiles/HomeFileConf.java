@@ -121,7 +121,7 @@ public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemSto
 
   @Override
   public HomeFileSystemStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new HomeFileSystemStoragePlugin(this, context, name, null, pluginIdProvider);
+    return new HomeFileSystemStoragePlugin(this, context, name, pluginIdProvider);
   }
 
   public Path getBaseUploadsPath() {

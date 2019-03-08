@@ -25,6 +25,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.ClassProducerImpl;
@@ -94,7 +95,12 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     this.allocator = allocator;
     this.fragmentOutputAllocator = fragmentOutputAllocator;
     this.popConfig = popConfig;
-    this.manager = new BufferManagerImpl(allocator);
+
+    //some unit test cases pass null optionManager
+    final int bufCapacity = (optionManager != null) ?
+      (int)optionManager.getOption(ExecConstants.BUF_MANAGER_CAPACITY) : (1 << 16);
+    this.manager = new BufferManagerImpl(allocator, bufCapacity);
+
     this.stats = stats;
     this.executionControls = executionControls;
     this.executor = executor;

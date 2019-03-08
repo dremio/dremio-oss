@@ -299,7 +299,7 @@ class DatasetManager {
       final DatasetConfig newDatasetConfig = tableDefinition.getDataset();
       final List<DatasetSplit> splits = tableDefinition.getSplits();
       NamespaceUtils.copyFromOldConfig(datasetConfig, newDatasetConfig);
-      if (BatchSchema.fromDataset(newDatasetConfig).getFieldCount() > maxMetadataColumns) {
+      if (BatchSchema.fromDataset(newDatasetConfig).getTotalFieldCount() > maxMetadataColumns) {
         throw UserException.validationError()
             .message(String.format("Using datasets with more than %d columns is currently disabled.",
                 maxMetadataColumns))

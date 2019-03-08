@@ -175,7 +175,7 @@ public class ParquetFormatDatasetAccessor extends FileSystemDatasetAccessor {
 
           mutator.getContainer().buildSchema(BatchSchema.SelectionVectorMode.NONE);
           final BatchSchema schema = mutator.getContainer().getSchema();
-          if (schema.getFieldCount() > maxLeafColumns) {
+          if (schema.getTotalFieldCount() > maxLeafColumns) {
             throw new ColumnCountTooLargeException(
                 String.format("Using datasets with more than %d columns is currently disabled.", maxLeafColumns));
           }

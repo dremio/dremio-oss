@@ -24,7 +24,6 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 
 /**
  * Storage plugin for Microsoft Azure Data Lake
@@ -41,9 +40,9 @@ public class AzureDataLakeStoragePlugin extends FileSystemPlugin<AzureDataLakeCo
     }
   }
 
-  public AzureDataLakeStoragePlugin(AzureDataLakeConf config, SabotContext context, String name, FileSystemWrapper fs,
+  public AzureDataLakeStoragePlugin(AzureDataLakeConf config, SabotContext context, String name,
       Provider<StoragePluginId> idProvider) {
-    super(config, context, name, fs, idProvider);
+    super(config, context, name, idProvider);
   }
 
   @Override

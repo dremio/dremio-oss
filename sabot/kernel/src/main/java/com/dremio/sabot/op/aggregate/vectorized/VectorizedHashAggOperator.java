@@ -472,6 +472,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
      * the info we need.
      */
     this.maxVariableBlockLength = hashAggPartitions[0].hashTable.getVariableBlockMaxLength();
+    debug.setMaxVarBlockLength(this.maxVariableBlockLength); //for debugging purpose
     this.bitsInChunk = hashAggPartitions[0].hashTable.getBitsInChunk();
     this.chunkOffsetMask = hashAggPartitions[0].hashTable.getChunkOffsetMask();
     /* hashtable should not have changed the configured value of VECTORIZED_HASHAGG_MAXBATCHSIZE */
@@ -790,10 +791,10 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
       recordsPivoted = BoundedPivots.pivot(pivot, recordsConsumed, stepSize, fixedBlockVector, variableBlockVector);
       pivotWatch.stop();
 
+
       /* STEP 2: then we hash partition the dataset and add pivoted data to multiple hash tables */
       long partitionsUsed = insertIntoPartitions(records, recordsPivoted, keyFixedVectorAddr,
                                                  keyVarVectorAddr, recordsConsumed, 0, 0, false, 0);
-
 
       if (internalStateMachine == InternalState.SPILL_NEXT_BATCH) {
         /* insertion for this set of pivoted records failed in between.

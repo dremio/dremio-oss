@@ -65,7 +65,7 @@ public class PDFSConf extends FileSystemConf<PDFSConf, FileSystemPlugin<PDFSConf
 
   @Override
   public FileSystemPlugin<PDFSConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new FileSystemPlugin<>(this, context, name, null, pluginIdProvider);
+    return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
   }
 
 }

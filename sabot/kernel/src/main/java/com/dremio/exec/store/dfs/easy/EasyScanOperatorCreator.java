@@ -89,7 +89,7 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, final OperatorContext context, EasySubScan config) throws ExecutionSetupException {
     final FileSystemPlugin plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
 
-    final FileSystemWrapper fs = plugin.getFs(config.getUserName(), context.getStats());
+    final FileSystemWrapper fs = plugin.createFS(config.getUserName(), context.getStats());
     final FormatPluginConfig formatConfig = PhysicalDatasetUtils.toFormatPlugin(config.getFileConfig(), Collections.<String>emptyList());
     final EasyFormatPlugin<?> formatPlugin = (EasyFormatPlugin<?>) plugin.getFormatPlugin(formatConfig);
 

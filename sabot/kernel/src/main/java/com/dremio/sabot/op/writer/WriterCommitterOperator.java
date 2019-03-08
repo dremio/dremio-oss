@@ -70,7 +70,7 @@ public class WriterCommitterOperator implements SingleInputOperator {
       throw new IllegalStateException(String.format("Incoming record writer schema doesn't match intended. Expected %s, received %s", RecordWriter.SCHEMA, schema));
     }
 
-    fs = config.getPlugin().getFS(config.getUserName());
+    fs = config.getPlugin().createFS(config.getUserName());
 
     // replacement expression.
     LogicalExpression replacement;

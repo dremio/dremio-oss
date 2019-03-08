@@ -36,7 +36,6 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
-import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.Service;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
@@ -75,7 +74,7 @@ public class JobResultsStore implements Service {
   public JobResultsStore(final FileSystemPlugin plugin, final IndexedStore<JobId, JobResult> store,
       final BufferAllocator allocator) throws IOException {
     this.storageName = plugin.getName();
-    this.dfs = plugin.getFS(ImpersonationUtil.getProcessUserName());
+    this.dfs = plugin.getSystemUserFS();
     this.jobStoreLocation = plugin.getConfig().getPath();
     this.dfs.mkdirs(jobStoreLocation);
     this.store = store;

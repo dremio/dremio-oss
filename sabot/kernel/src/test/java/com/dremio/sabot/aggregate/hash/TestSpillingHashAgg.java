@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
@@ -79,6 +80,92 @@ public class TestSpillingHashAgg extends BaseTestOperator {
         assertEquals(1, stats.getIterations());
         assertEquals(0, stats.getRecursionDepth());
       }
+    }
+  }
+
+  /**
+   * Tests with varchar key of length > 32k
+   * @throws Exception
+   */
+  @Test
+  public void testVeryLargeVarcharKey() throws Exception {
+    final HashAggregate agg = getHashAggregate();
+    agg.setInitialAllocation(1_000_000);
+    agg.setMaxAllocation(12_000_000);
+
+    boolean exceptionThrown = false;
+
+
+    final int shortLen = (30 * 1024);
+    final int largeLen = (32 * 1024);
+
+    //30k size must not fail, any subsequent 32k inserts would fail
+    boolean shortLenSucess = false;
+    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
+      try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1000, getTestAllocator(), shortLen)) {
+        try (CustomHashAggDataGenerator generator1 = new CustomHashAggDataGenerator(1000, getTestAllocator(), largeLen)) {
+          Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
+          validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 1000);
+
+          //30k key size should have worked. must reach here!
+          Assert.assertEquals(0, 0);
+
+          shortLenSucess = true;
+          //add some 32k keys
+          Fixtures.Table table1 = generator1.getExpectedGroupsAndAggregations();
+          validateSingle(agg, VectorizedHashAggOperator.class, generator1, table1, 1000);
+
+          //must not reach here
+          Assert.assertEquals(0, 1);
+        }
+      }
+    } catch (StringIndexOutOfBoundsException userExp) {
+      exceptionThrown = true;
+      Assert.assertEquals(true, shortLenSucess);
+    } finally {
+      Assert.assertEquals(true, exceptionThrown);
+    }
+
+    //fails to pivot with 32k key size
+    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
+      try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1000, getTestAllocator(), largeLen)) {
+        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
+        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 1000);
+
+        //must not reach here
+        Assert.assertEquals(0, 1);
+      }
+    } catch (StringIndexOutOfBoundsException userExp) {
+      exceptionThrown = true;
+    } finally {
+      Assert.assertEquals(true, exceptionThrown);
+    }
+
+    //passes 32k key size with increased batch of 2k
+    exceptionThrown = false;
+    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
+        try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1000, getTestAllocator(), largeLen);
+          AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_BATCHSIZE, 2048)) {
+        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
+        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 1000);
+      }
+    } catch (Exception e) {
+      exceptionThrown = true;
+    } finally {
+      Assert.assertEquals(false, exceptionThrown);
+    }
+
+    //should fail with 1MB key size
+    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
+      try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1000, getTestAllocator(), (1024 * 1024));
+           AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_BATCHSIZE, 4096)) {
+        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
+        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 1000);
+      }
+    } catch (StringIndexOutOfBoundsException userExp) {
+      exceptionThrown = true;
+    } finally {
+      Assert.assertEquals(true, exceptionThrown);
     }
   }
 

@@ -118,7 +118,7 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
 
   @Override
   public HDFSStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> idProvider) {
-    return new HDFSStoragePlugin(this, context, name, null, idProvider);
+    return new HDFSStoragePlugin(this, context, name, idProvider);
   }
 
 }

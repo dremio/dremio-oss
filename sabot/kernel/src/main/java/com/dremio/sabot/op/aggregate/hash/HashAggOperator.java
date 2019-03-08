@@ -83,6 +83,9 @@ public class HashAggOperator implements SingleInputOperator {
 
   public static final TypeValidators.PositiveLongValidator HASHAGG_MINMAX_CARDINALITY_LIMIT = new TypeValidators.PositiveLongValidator("exec.operator.aggregate.minmax_cardinality_limit", Long.MAX_VALUE, 10000);
 
+  //this option sets the capacity of an ArrowBuf in BufferManager from which various buffers may be sliced.
+  public static final TypeValidators.PowerOfTwoLongValidator BUF_MANAGER_CAPACITY = new TypeValidators.PowerOfTwoLongValidator("exec.operator.aggregate.bufmgr.capacity", 1 << 24, 1 << 16);
+
   private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(HashAggOperator.class);
 
   @VisibleForTesting

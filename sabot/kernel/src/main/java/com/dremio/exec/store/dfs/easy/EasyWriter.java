@@ -112,6 +112,6 @@ public class EasyWriter extends FileSystemWriter {
   @Override
   @JsonIgnore
   public boolean isPdfs() {
-    return plugin.getFs().isPdfs();
+    return plugin.getSystemUserFS().isPdfs();
   }
 }

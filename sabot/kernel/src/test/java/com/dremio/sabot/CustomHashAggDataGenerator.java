@@ -48,17 +48,17 @@ import com.google.common.base.Preconditions;
 public class CustomHashAggDataGenerator implements Generator {
 
   /* fixed width dimensions */
-  private final static Field FIXKEY1 = CompleteType.INT.toField("FIXKEY1");
-  private final static Field FIXKEY2 = CompleteType.BIGINT.toField("FIXKEY2");
+  private static Field FIXKEY1 = CompleteType.INT.toField("FIXKEY1");
+  private static Field FIXKEY2 = CompleteType.BIGINT.toField("FIXKEY2");
 
   /* variable width dimensions */
-  private final static Field VARKEY1 = CompleteType.VARCHAR.toField("VARKEY1");
+  private static Field VARKEY1 = CompleteType.VARCHAR.toField("VARKEY1");
 
   /* Measures */
-  private final static Field MEASURE1 = CompleteType.INT.toField("MEASURE1");
-  private final static Field MEASURE2 = CompleteType.BIGINT.toField("MEASURE2");
-  private final static Field MEASURE3 = CompleteType.FLOAT.toField("MEASURE3");
-  private final static Field MEASURE4 = CompleteType.DOUBLE.toField("MEASURE4");
+  private static Field MEASURE1 = CompleteType.INT.toField("MEASURE1");
+  private static Field MEASURE2 = CompleteType.BIGINT.toField("MEASURE2");
+  private static Field MEASURE3 = CompleteType.FLOAT.toField("MEASURE3");
+  private static Field MEASURE4 = CompleteType.DOUBLE.toField("MEASURE4");
 
   /* input table */
   private Integer[] fixKeyValues1;
@@ -69,24 +69,24 @@ public class CustomHashAggDataGenerator implements Generator {
   private Float[] measure3;
   private Double[] measure4;
 
-  private final VectorContainer container;
+  private VectorContainer container;
 
   /* fixed width key columns  */
-  private final IntVector fixkey1;
-  private final BigIntVector fixkey2;
+  private IntVector fixkey1;
+  private BigIntVector fixkey2;
 
   /* variable width key columns */
-  private final VarCharVector varkey1;
+  private VarCharVector varkey1;
 
   /* measure columns */
-  private final IntVector m1;
-  private final BigIntVector m2;
-  private final Float4Vector m3;
-  private final Float8Vector m4;
+  private IntVector m1;
+  private BigIntVector m2;
+  private Float4Vector m3;
+  private Float8Vector m4;
 
   private int position;
   private int batches;
-  private final boolean largeVarChars;
+  private boolean largeVarChars;
 
   private static final int GROUP_REPEAT_PER_BATCH = 5;
   /* simplify data generation by using a fixed internal batch size */
@@ -104,13 +104,36 @@ public class CustomHashAggDataGenerator implements Generator {
   private static final String VARCHAR_BASEVALUE = "Dremio-3.0";
   private static final int GROUP_INTERVAL_PER_BATCH = 20;
 
+  private int numRows;
   private final HashMap<Key, Value> aggregatedResults = new HashMap<>();
+
+  private int minLargeVarCharLen = 0;
+
+  private void InternalInit(int numRows, BufferAllocator allocator, final boolean largeVarChars)
+  {
+    this.numRows = numRows;
+    this.batches = numRows/BATCH_SIZE;
+    this.largeVarChars = largeVarChars;
+    createBigSchemaAndInputContainer(allocator);
+  }
 
   public CustomHashAggDataGenerator(int numRows, BufferAllocator allocator,
                                     final boolean largeVarChars) {
     Preconditions.checkState(numRows > 0 && numRows%BATCH_SIZE == 0,
+                             "ERROR: total number of rows should be greater than 0");
+    InternalInit(numRows, allocator, largeVarChars);
+  }
+
+  public CustomHashAggDataGenerator(int numRows, BufferAllocator allocator,
+                                    final int minVarCharLen /*minimum length of long varchar*/) {
+    Preconditions.checkState(numRows > 0 && numRows%BATCH_SIZE == 0,
       "ERROR: total number of rows should be greater than 0");
 
+    this.minLargeVarCharLen = minVarCharLen;
+    InternalInit(numRows, allocator, true);
+  }
+
+  private void createBigSchemaAndInputContainer(final BufferAllocator allocator) {
     BatchSchema schema = BatchSchema.newBuilder()
       .addField(FIXKEY1)
       .addField(FIXKEY2)
@@ -199,7 +222,11 @@ public class CustomHashAggDataGenerator implements Generator {
           /* key columns */
           fixKeyValues1[0] = INT_BASEVALUE;
           fixKeyValues2[0] = BIGINT_BASEVALUE;
-          varKeyValues1[0] = VARCHAR_BASEVALUE;
+          if (largeVarChars && minLargeVarCharLen != 0) {
+            varKeyValues1[0] = RandomStringUtils.randomAlphabetic(minLargeVarCharLen);
+          } else {
+            varKeyValues1[0] = VARCHAR_BASEVALUE;
+          }
 
           /* measure columns */
           measure1[0] = INT_BASEVALUE;

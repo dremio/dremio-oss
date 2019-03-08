@@ -111,7 +111,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
     Preconditions.checkNotNull(accountName, "Account name must be set.");
     Preconditions.checkNotNull(clientId, "Client ID must be set.");
     Preconditions.checkNotNull(mode, "Authentication mode must be set.");
-    return new AzureDataLakeStoragePlugin(this, context, name, null, pluginIdProvider);
+    return new AzureDataLakeStoragePlugin(this, context, name, pluginIdProvider);
   }
 
   @Override

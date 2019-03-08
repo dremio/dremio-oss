@@ -55,7 +55,7 @@ public class HomeFileTool {
     StoragePlugin plugin = catalog.getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
     Preconditions.checkNotNull(plugin, "Plugin [%s] not found.", HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
     HomeFileSystemStoragePlugin homePlugin = (HomeFileSystemStoragePlugin) plugin;
-    this.fs = homePlugin.getProcessFs();
+    this.fs = homePlugin.getSystemUserFS();
     this.config = homePlugin.getConfig();
     this.hostname = context.getDremioConfig().getThisNode();
   }

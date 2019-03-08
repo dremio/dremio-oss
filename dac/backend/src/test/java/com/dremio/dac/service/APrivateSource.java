@@ -73,7 +73,7 @@ public class APrivateSource extends FileSystemConf<APrivateSource, FileSystemPlu
 
   @Override
   public FileSystemPlugin<APrivateSource> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new FileSystemPlugin<>(this, context, name, null, pluginIdProvider);
+    return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
   }
 
 

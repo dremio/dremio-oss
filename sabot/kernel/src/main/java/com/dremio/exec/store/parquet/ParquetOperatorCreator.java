@@ -60,7 +60,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
   @Override
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, final OperatorContext context, final ParquetSubScan config) throws ExecutionSetupException {
     final FileSystemPlugin plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
-    final FileSystemWrapper fs = plugin.getFs(config.getUserName(), context.getStats());
+    final FileSystemWrapper fs = plugin.createFS(config.getUserName(), context.getStats());
 
     final Stopwatch watch = Stopwatch.createStarted();
 

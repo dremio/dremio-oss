@@ -167,7 +167,7 @@ public abstract class FileSystemDatasetAccessor implements SourceTableDefinition
       if (oldConfig != null && DatasetHelper.getSchemaBytes(oldConfig) != null) {
         schema = BatchSchema.fromDataset(oldConfig).merge(newSchema);
       }
-      if (schema.getFieldCount() > maxLeafColumns) {
+      if (schema.getTotalFieldCount() > maxLeafColumns) {
         throw new ColumnCountTooLargeException(
             String.format("Using datasets with more than %d columns is currently disabled.", maxLeafColumns));
       }

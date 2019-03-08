@@ -376,4 +376,7 @@ public interface ExecConstants {
   LongValidator VOTING_SCHEDULE = new PositiveLongValidator("vote.schedule.millis", Long.MAX_VALUE, 0);
   PositiveLongValidator LAST_SEARCH_REINDEX  = new PositiveLongValidator("dac.search.last_reindex",  Long.MAX_VALUE, 0);
   PositiveLongValidator SEARCH_MANAGER_REFRESH_MILLIS  = new PositiveLongValidator("dac.search.refresh",  Long.MAX_VALUE, TimeUnit.MINUTES.toMillis(1));
+
+  //this option sets the capacity of an ArrowBuf in SlicedBufferManager from which various buffers may be sliced.
+  PowerOfTwoLongValidator BUF_MANAGER_CAPACITY = new PowerOfTwoLongValidator("exec.sliced_bufmgr.capacity", 1 << 24, 1 << 16);
 }

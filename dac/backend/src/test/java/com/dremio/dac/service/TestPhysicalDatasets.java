@@ -32,8 +32,11 @@ import javax.ws.rs.client.Invocation;
 import org.apache.hadoop.fs.Path;
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.explore.model.FileFormatUI;
@@ -73,6 +76,8 @@ import com.google.common.base.Charsets;
  * Tests to create, update and execute queries on physical datasets..
  */
 public class TestPhysicalDatasets extends BaseTestServer {
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @Before
   public void setup() throws Exception {
@@ -292,6 +297,30 @@ public class TestPhysicalDatasets extends BaseTestServer {
     JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_preview" + fileUrlPath)).buildPost(Entity.json(jsonFileConfig)), JobDataFragment.class);
     assertEquals(1, data.getReturnedRowCount());
     assertEquals(1, data.getColumns().size());
+  }
+
+  @Test
+  public void testLargeJsonFile() throws Exception {
+    final JobsService jobsService = l(JobsService.class);
+    JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+      .setSqlQuery(createQuery("/datasets/wide_table.json"))
+      .setQueryType(QueryType.UI_RUN)
+      .build(), NoOpJobStatusListener.INSTANCE));
+
+    thrown.expect(UserException.class);
+    job.getData().truncate(500);
+  }
+
+  @Test
+  public void testLargeNestedJsonFile() throws Exception {
+    final JobsService jobsService = l(JobsService.class);
+    JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+      .setSqlQuery(createQuery("/datasets/wide_nested_table.json"))
+      .setQueryType(QueryType.UI_RUN)
+      .build(), NoOpJobStatusListener.INSTANCE));
+
+    thrown.expect(UserException.class);
+    job.getData().truncate(500);
   }
 
   @Test

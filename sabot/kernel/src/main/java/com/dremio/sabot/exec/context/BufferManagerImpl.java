@@ -17,19 +17,39 @@ package com.dremio.sabot.exec.context;
 
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.BufferManager;
 
 import com.carrotsearch.hppc.LongObjectHashMap;
 import com.carrotsearch.hppc.predicates.LongObjectPredicate;
 
 import io.netty.buffer.ArrowBuf;
 
-public class BufferManagerImpl implements BufferManager {
+public class BufferManagerImpl implements SlicedBufferManager {
   private LongObjectHashMap<ArrowBuf> managedBuffers = new LongObjectHashMap<>();
   private final BufferAllocator allocator;
 
+  /**
+   * This class keeps a pre-allocated large buffer & serve any subsequent allocation
+   * requests via slicing from this large buffer.
+   * This helps in reducing the heap allocation overhead as sliced ArrowBuf has smaller footprint.
+   * Also, the allocation of large buffer may be optimized by doing power-of-2 allocations.
+   *
+   * largeBufCapacity: the capacity of the largeBuf
+   * largeBufUsed tracks: how much memory has been sliced away from the largeBuf
+   */
+  private int largeBufCapacity;
+  private int largeBufUsed;
+  private ArrowBuf largeBuf;
+
+
   public BufferManagerImpl(BufferAllocator allocator) {
     this.allocator = allocator;
+  }
+
+  public BufferManagerImpl(BufferAllocator allocator, int largeBufCapacity) {
+    this.allocator = allocator;
+    this.largeBufCapacity = largeBufCapacity;
+    this.largeBuf = null;
+    this.largeBufUsed = 0;
   }
 
   @Override
@@ -60,5 +80,24 @@ public class BufferManagerImpl implements BufferManager {
     ArrowBuf newBuf = allocator.buffer(size, this);
     managedBuffers.put(newBuf.memoryAddress(), newBuf);
     return newBuf;
+  }
+
+  public ArrowBuf getManagedBufferSliced(int size) {
+
+    if (size >= largeBufCapacity) {
+      return getManagedBuffer(size);
+    }
+
+    final int availableSpace = (largeBufCapacity - largeBufUsed);
+
+    if (size > availableSpace || largeBuf == null) {
+      largeBuf = allocator.buffer(largeBufCapacity, this);
+      managedBuffers.put(largeBuf.memoryAddress(), largeBuf);
+      largeBufUsed = 0;
+    }
+
+    final ArrowBuf buf = largeBuf.slice(largeBufUsed, size);
+    largeBufUsed += size;
+    return buf;
   }
 }

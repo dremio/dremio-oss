@@ -35,6 +35,8 @@ public class ExcelUtil {
   public static final String ROW = "row";
   public static final String CELL = "c";
   public static final String VALUE = "v";
+  public static final String INLINE_STRING = "is";
+  public static final String INLINE_STRING_TEXT = "t";
   public static final String SST_STRING = "s";
   public static final String MERGE_CELLS = "mergeCells";
   public static final String MERGE_CELL = "mergeCell";

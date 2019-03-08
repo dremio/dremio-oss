@@ -143,6 +143,11 @@ public class BoundedPivots {
       outputRecordIdx++;
     }
 
+    if (outputRecordIdx == 0) {
+     throw new StringIndexOutOfBoundsException("Not enough space to pivot single record. Allocated capacity for pivot: "
+       + Long.toString(targetVariable.getMaxMemoryAddress() - targetVariable.getMemoryAddress()) + " bytes.");
+    }
+
     return outputRecordIdx;
   }
 

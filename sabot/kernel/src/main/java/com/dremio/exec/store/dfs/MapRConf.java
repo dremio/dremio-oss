@@ -96,7 +96,7 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf
 
   @Override
   public FileSystemPlugin<MapRConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new FileSystemPlugin<>(this, context, name, null, pluginIdProvider);
+    return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
   }
 
 }

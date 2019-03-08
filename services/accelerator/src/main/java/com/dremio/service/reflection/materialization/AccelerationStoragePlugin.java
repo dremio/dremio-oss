@@ -69,7 +69,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
   private ParquetFormatPlugin formatPlugin;
 
   public AccelerationStoragePlugin(AccelerationStoragePluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
-    super(config, context, name, null, idProvider);
+    super(config, context, name, idProvider);
   }
 
   @Override
@@ -166,7 +166,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
       @Override
       public Iterable<FileStatus> apply(Refresh input) {
         try {
-          FileSelection selection = FileSelection.create(getFs(), resolveTablePathToValidPath(input.getPath()));
+          FileSelection selection = FileSelection.create(getSystemUserFS(), resolveTablePathToValidPath(input.getPath()));
           if(selection != null) {
             return selection.minusDirectories().getFileStatuses();
           }
@@ -177,7 +177,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
       }}).toList();
 
     FileSelection selection = FileSelection.createFromExpanded(allStatus, selectionRoot);
-    return new ParquetFormatDatasetAccessor(oldConfig, getFs(), selection, this, datasetPath, EMPTY, formatPlugin,
+    return new ParquetFormatDatasetAccessor(oldConfig, getSystemUserFS(), selection, this, datasetPath, EMPTY, formatPlugin,
         options.maxMetadataLeafColumns());
   }
 

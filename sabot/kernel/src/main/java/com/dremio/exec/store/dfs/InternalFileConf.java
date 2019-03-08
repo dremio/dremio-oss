@@ -84,7 +84,7 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
 
   @Override
   public FileSystemPlugin<InternalFileConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new FileSystemPlugin<>(this, context, name, null, pluginIdProvider);
+    return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
   }
 
   public InternalFileConf() {

@@ -168,7 +168,7 @@ public class FormatTools {
 
   private FileFormat detectFileFormat(NamespaceKey key) {
     final FileSystemPlugin plugin = getPlugin(key);
-    final FileSystemWrapper fs = plugin.getFS(securityContext.getUserPrincipal().getName());
+    final FileSystemWrapper fs = plugin.createFS(securityContext.getUserPrincipal().getName());
     final Path path = FileSelection.getPathBasedOnFullPath(plugin.resolveTableNameToValidPath(key.getPathComponents()));
 
     // for now, existing rudimentary behavior that uses extension detection.
@@ -240,7 +240,7 @@ public class FormatTools {
   public JobDataFragment previewData(FileFormat format, NamespacePath namespacePath, boolean useFormatLocation) {
     final NamespaceKey key = namespacePath.toNamespaceKey();
     final FileSystemPlugin plugin = getPlugin(key);
-    final FileSystemWrapper fs = plugin.getFS(securityContext.getUserPrincipal().getName());
+    final FileSystemWrapper fs = plugin.createFS(securityContext.getUserPrincipal().getName());
     final Path path = FileSelection.getPathBasedOnFullPath(plugin.resolveTableNameToValidPath(key.getPathComponents()));
 
     // for now, existing rudimentary behavior that uses extension detection.
@@ -342,7 +342,7 @@ public class FormatTools {
             if (first) {
               first = false;
               container.buildSchema();
-              if (container.getSchema().getFieldCount() > maxLeafColumns) {
+              if (container.getSchema().getTotalFieldCount() > maxLeafColumns) {
                 throw UserException.validationError()
                     .message("Using datasets with more than %d columns is currently disabled.", maxLeafColumns)
                     .build(logger);
