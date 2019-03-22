@@ -224,19 +224,20 @@ public class VectorizedHashAggPartition implements AutoCloseable {
       final Accumulator partitionAccumulator = partitionAccumulators[i];
       final FieldVector deserializedAccumulator = accumulatorVectors[i];
       final byte accumulatorType = accumulatorTypes[i];
+      final int maxValuesPerBatch = hashTable.getActualValuesPerBatch();
       if (accumulatorType == AccumulatorBuilder.AccumulatorType.COUNT1.ordinal()) {
         /* handle COUNT(1) */
         partitionAccumulators[i] =
           new SumAccumulators.BigIntSumAccumulator((CountOneAccumulator)partitionAccumulator,
                                                    deserializedAccumulator,
-                                                   hashTable.getMaxValuesPerBatch(),
+                                                   hashTable.getActualValuesPerBatch(),
                                                    computationVectorAllocator);
       } else if(accumulatorType == AccumulatorBuilder.AccumulatorType.COUNT.ordinal()) {
         /* handle COUNT() */
         partitionAccumulators[i] =
           new SumAccumulators.BigIntSumAccumulator((CountColumnAccumulator)partitionAccumulator,
                                                    deserializedAccumulator,
-                                                   hashTable.getMaxValuesPerBatch(),
+                                                   hashTable.getActualValuesPerBatch(),
                                                    computationVectorAllocator);
       } else if (accumulatorType == AccumulatorBuilder.AccumulatorType.SUM.ordinal()) {
         /* handle SUM */
@@ -279,7 +280,7 @@ public class VectorizedHashAggPartition implements AutoCloseable {
       partitionAccumulators[index] =
         new MaxAccumulators.DoubleMaxAccumulator((MaxAccumulators.DecimalMaxAccumulator)partitionAccumulator,
                                                  deserializedAccumulator,
-                                                 hashTable.getMaxValuesPerBatch(),
+                                                 hashTable.getActualValuesPerBatch(),
                                                  computationVectorAllocator);
     } else if (partitionAccumulator instanceof MinAccumulators.DecimalMinAccumulator) {
       Preconditions.checkArgument(partitionAccumulator.getInput() instanceof DecimalVector,
@@ -287,7 +288,7 @@ public class VectorizedHashAggPartition implements AutoCloseable {
       partitionAccumulators[index] =
         new MinAccumulators.DoubleMinAccumulator((MinAccumulators.DecimalMinAccumulator)partitionAccumulator,
                                                  deserializedAccumulator,
-                                                 hashTable.getMaxValuesPerBatch(),
+                                                 hashTable.getActualValuesPerBatch(),
                                                  computationVectorAllocator);
     } else {
       partitionAccumulator.setInput(deserializedAccumulator);
@@ -324,7 +325,7 @@ public class VectorizedHashAggPartition implements AutoCloseable {
           partitionAccumulators[index] =
             new SumAccumulators.BigIntSumAccumulator((SumAccumulators.IntSumAccumulator)partitionAccumulator,
                                                      deserializedAccumulator,
-                                                     hashTable.getMaxValuesPerBatch(),
+                                                     hashTable.getActualValuesPerBatch(),
                                                      computationVectorAllocator);
         }
 
@@ -353,7 +354,7 @@ public class VectorizedHashAggPartition implements AutoCloseable {
           partitionAccumulators[index] =
             new SumAccumulators.DoubleSumAccumulator((SumAccumulators.FloatSumAccumulator)partitionAccumulator,
                                                      deserializedAccumulator,
-                                                     hashTable.getMaxValuesPerBatch(),
+                                                     hashTable.getActualValuesPerBatch(),
                                                      computationVectorAllocator);
         } else if (partitionAccumulator.getInput() instanceof DecimalVector) {
            /* We started with DecimalSumAccumulator that has input vector of type DECIMAL
@@ -368,7 +369,7 @@ public class VectorizedHashAggPartition implements AutoCloseable {
           partitionAccumulators[index] =
             new SumAccumulators.DoubleSumAccumulator((SumAccumulators.DecimalSumAccumulator)partitionAccumulator,
                                                      deserializedAccumulator,
-                                                     hashTable.getMaxValuesPerBatch(),
+                                                     hashTable.getActualValuesPerBatch(),
                                                      computationVectorAllocator);
         }
 
@@ -411,7 +412,7 @@ public class VectorizedHashAggPartition implements AutoCloseable {
           partitionAccumulators[index] =
             new SumZeroAccumulators.BigIntSumZeroAccumulator((SumZeroAccumulators.IntSumZeroAccumulator)partitionAccumulator,
                                                              deserializedAccumulator,
-                                                             hashTable.getMaxValuesPerBatch(),
+                                                             hashTable.getActualValuesPerBatch(),
                                                              computationVectorAllocator);
         }
 
@@ -440,7 +441,7 @@ public class VectorizedHashAggPartition implements AutoCloseable {
           partitionAccumulators[index] =
           new SumZeroAccumulators.DoubleSumZeroAccumulator((SumZeroAccumulators.FloatSumZeroAccumulator)partitionAccumulator,
                                                            deserializedAccumulator,
-                                                           hashTable.getMaxValuesPerBatch(),
+                                                           hashTable.getActualValuesPerBatch(),
                                                            computationVectorAllocator);
         } else if (partitionAccumulator.getInput() instanceof DecimalVector) {
            /* We started with DecimalSumZeroAccumulator that has input vector of type DECIMAL
@@ -455,7 +456,7 @@ public class VectorizedHashAggPartition implements AutoCloseable {
           partitionAccumulators[index] =
             new SumZeroAccumulators.DoubleSumZeroAccumulator((SumZeroAccumulators.DecimalSumZeroAccumulator) partitionAccumulator,
                                                              deserializedAccumulator,
-                                                             hashTable.getMaxValuesPerBatch(),
+                                                             hashTable.getActualValuesPerBatch(),
                                                              computationVectorAllocator);
         }
         break;

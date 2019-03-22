@@ -64,6 +64,8 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   private StringBuilder currentRecord; // contains the current record separated by field delimiter
 
   public TextRecordWriter(OperatorContext context, EasyWriter config, TextFormatConfig textConfig) {
+    super(context);
+
     final FragmentHandle handle = context.getFragmentHandle();
     this.conf = new Configuration(config.getFsConf());
     this.stats = context.getStats();

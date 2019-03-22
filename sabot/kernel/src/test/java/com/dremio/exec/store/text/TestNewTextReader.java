@@ -45,6 +45,7 @@ import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.util.FileUtils;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.server.SabotContext;
@@ -52,6 +53,7 @@ import com.dremio.exec.store.SampleMutator;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.easy.text.compliant.CompliantTextRecordReader;
 import com.dremio.exec.store.easy.text.compliant.TextParsingSettings;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.test.UserExceptionMatcher;
 
@@ -293,9 +295,14 @@ public class TestNewTextReader extends BaseTestQuery {
     SabotContext context = mock(SabotContext.class);
     BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
     when(context.getAllocator()).thenReturn(allocator);
+
+    OptionManager optionManager = mock(OptionManager.class);
+    when(optionManager.getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES))
+      .thenReturn(ExecConstants.LIMIT_FIELD_SIZE_BYTES.getDefault().getNumVal());
+
     Path path = new Path("/notExist");
     try (BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
-         OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), sampleAllocator, context.getOptionManager(), 1000);
+         OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), sampleAllocator, optionManager, 1000);
          FileSystemWrapper dfs = FileSystemWrapper.get(path, new Configuration());
          SampleMutator mutator = new SampleMutator(sampleAllocator);
          CompliantTextRecordReader reader = new CompliantTextRecordReader(split, dfs, operatorContext, settings, columns);

@@ -20,7 +20,6 @@ import java.security.PrivilegedAction;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -38,7 +37,6 @@ import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
-import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
@@ -86,7 +84,6 @@ class ScanWithDremioReader {
     try {
       final UserGroupInformation currentUGI = UserGroupInformation.getCurrentUser();
       final List<HiveParquetSplit> sortedSplits = Lists.newArrayList();
-      final SingletonParquetFooterCache footerCache = new SingletonParquetFooterCache();
 
       for (DatasetSplit split : config.getSplits()) {
         sortedSplits.add(new HiveParquetSplit(split));
@@ -112,27 +109,18 @@ class ScanWithDremioReader {
                 jobConf.set(prop.getKey(), prop.getValue());
               }
 
-              // per partition fs is different
-              final FileSystemWrapper fs = ImpersonationUtil.createFileSystem(ImpersonationUtil.getProcessUserName(), jobConf, split.getFileSplit().getPath());
-
-              final RecordReader innerReader;
-              try (FSDataInputStream is = fs.open(split.fileSplit.getPath())) {
-                innerReader = new FileSplitParquetRecordReader(
-                    context,
-                    readerFactory,
-                    config.getSchema(),
-                    compositeReader.getInnerColumns(),
-                    conditions,
-                    split.getFileSplit(),
-                    footerCache.getFooter(is, split.fileSplit.getPath().toString(), -1, fs),
-                    jobConf,
-                    vectorize,
-                    config.getSchema(),
-                    enableDetailedTracing
-                );
-              } catch (IOException e) {
-                throw UserException.dataReadError(e).addContext("split", split.fileSplit.toString()).build(logger);
-              }
+              final RecordReader innerReader = new FileSplitParquetRecordReader(
+                  context,
+                  readerFactory,
+                  config.getSchema(),
+                  compositeReader.getInnerColumns(),
+                  conditions,
+                  split.getFileSplit(),
+                  jobConf,
+                  vectorize,
+                  config.getSchema(),
+                  enableDetailedTracing
+              );
 
               return compositeReader.wrapIfNecessary(context.getAllocator(), innerReader, split.getDatasetSplit());
             }

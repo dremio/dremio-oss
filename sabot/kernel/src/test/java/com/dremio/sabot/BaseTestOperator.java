@@ -126,7 +126,7 @@ import io.airlift.tpch.TpchGenerator;
 
 public class BaseTestOperator extends ExecTest {
 
-  public static int DEFAULT_BATCH = 4095;
+  public static int DEFAULT_BATCH = 3968;
 
   @ClassRule
   public static TemporaryFolder testFolder = new TemporaryFolder();

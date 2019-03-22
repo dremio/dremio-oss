@@ -36,6 +36,7 @@ import com.dremio.dac.homefiles.HomeFileTool;
 import com.dremio.dac.server.APIServer;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.DremioServlet;
+import com.dremio.dac.server.LivenessService;
 import com.dremio.dac.server.RestServerV2;
 import com.dremio.dac.server.WebServer;
 import com.dremio.dac.server.tokens.TokenManager;
@@ -595,6 +596,8 @@ public class DACDaemonModule implements DACModule {
           isMaster,
           dacConfig));
     }
+
+    registry.bind(LivenessService.class, new LivenessService(config));
 
     registry.bindSelf(SourceService.class);
     registry.bindSelf(DatasetVersionMutator.class);

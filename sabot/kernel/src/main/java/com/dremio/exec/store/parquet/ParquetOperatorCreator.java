@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.parquet;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -27,6 +28,7 @@ import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
@@ -48,6 +50,7 @@ import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.google.common.base.Function;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -142,10 +145,18 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
             inputStreamProvider
           );
           return readerConfig.wrapIfNecessary(context.getAllocator(), inner, split.getDatasetSplit());
+        } catch (FileNotFoundException e) {
+          throw UserException.invalidMetadataError(e)
+            .addContext("Parquet file not found")
+            .addContext("File", split.getSplitXAttr().getPath())
+            .setAdditionalExceptionContext(new InvalidMetadataErrorContext(ImmutableList.of(ImmutableList.copyOf(config.getTablePath()))))
+            .build(logger);
         } catch (IOException e) {
-          throw UserException.dataReadError(e).addContext("Failure opening parquet file").addContext("File", split.getSplitXAttr().getPath()).build(logger);
+          throw UserException.dataReadError(e)
+            .addContext("Failure opening parquet file")
+            .addContext("File", split.getSplitXAttr().getPath())
+            .build(logger);
         }
-
       }
     });
 

@@ -44,6 +44,7 @@ public class ParquetSubScan extends SubScanWithProjection {
   private final StoragePluginId pluginId;
   private final FileConfig formatSettings;
   private final List<String> partitionColumns;
+  private final List<String> tablePath;
   private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final ByteString extendedProperty;
 
@@ -63,6 +64,7 @@ public class ParquetSubScan extends SubScanWithProjection {
     super(userName, schema, tablePath, columns);
     this.formatSettings = formatSettings;
     this.splits = splits;
+    this.tablePath = tablePath;
     this.conditions = conditions == null ? null : ImmutableList.copyOf(conditions);
     this.pluginId = pluginId;
     this.partitionColumns = partitionColumns;
@@ -81,6 +83,8 @@ public class ParquetSubScan extends SubScanWithProjection {
   public List<DatasetSplit> getSplits() {
     return splits;
   }
+
+  public List<String> getTablePath() { return tablePath; }
 
   public ByteString getExtendedProperty() {
     return extendedProperty;

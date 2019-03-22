@@ -222,18 +222,21 @@ public class Foreman {
   }
 
   /**
-   * Get the currently active profile. Only returns value iff there is a current attempt and it is either starting or running.
+   * Get the currently active profile. Only returns value iff there is a current attempt and it is not in a terminal
+   * state (COMPLETED or FAILED)
+   *
    * @return QueryProfile.
    */
-  public Optional<QueryProfile> getCurrentProfile(){
-    if(attemptManager == null){
+  public Optional<QueryProfile> getCurrentProfile() {
+    if (attemptManager == null) {
       return Optional.absent();
     }
 
     QueryProfile profile = attemptManager.getQueryProfile();
     QueryState state = attemptManager.getState();
 
-    if (state == QueryState.RUNNING || state == QueryState.STARTING || state == QueryState.ENQUEUED) {
+    if (state == QueryState.RUNNING || state == QueryState.STARTING || state == QueryState.ENQUEUED ||
+        state == QueryState.CANCELED) {
       return Optional.of(profile);
     }
 

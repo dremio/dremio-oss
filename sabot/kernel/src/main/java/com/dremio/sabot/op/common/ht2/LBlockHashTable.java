@@ -67,7 +67,6 @@ public final class LBlockHashTable implements AutoCloseable {
   private final PivotDef pivot;
   private final BufferAllocator allocator;
   private final boolean fixedOnly;
-  private final boolean enforceVarWidthBufferLimit; // may not need this option once HashJoin spilling is implemented.
 
   private int capacity;
   private int maxSize;
@@ -81,6 +80,7 @@ public final class LBlockHashTable implements AutoCloseable {
   private int gaps;
 
   private final int variableBlockMaxLength;
+  private final int ACTUAL_VALUES_PER_BATCH;
   private final int MAX_VALUES_PER_BATCH;
   private final int BITS_IN_CHUNK;
   private final int CHUNK_OFFSET_MASK;
@@ -108,12 +108,15 @@ public final class LBlockHashTable implements AutoCloseable {
   private long unusedForFixedBlocks;
   private long unusedForVarBlocks;
 
+  private final boolean enforceVarWidthBufferLimit;
+  private int maxOrdinalBeforeExpand;
+
   public LBlockHashTable(HashConfig config,
                          PivotDef pivot,
                          BufferAllocator allocator,
                          int initialSize,
                          int defaultVariableLengthSize,
-                         boolean enforceVarWidthBufferLimit,
+                         final boolean enforceVarWidthBufferLimit,
                          ResizeListener listener,
                          final int maxHashTableBatchSize) {
     this.pivot = pivot;
@@ -122,8 +125,10 @@ public final class LBlockHashTable implements AutoCloseable {
     this.fixedOnly = pivot.getVariableCount() == 0;
     this.enforceVarWidthBufferLimit = enforceVarWidthBufferLimit;
     this.listener = listener;
+    // this could be less than MAX_VALUES_PER_BATCH to optimally use direct memory with non power of 2 batch size
+    this.ACTUAL_VALUES_PER_BATCH = maxHashTableBatchSize;
     /* maximum records that can be stored in hashtable block/chunk */
-    this.MAX_VALUES_PER_BATCH = maxHashTableBatchSize;
+    this.MAX_VALUES_PER_BATCH = Numbers.nextPowerOfTwo(maxHashTableBatchSize);
     this.BITS_IN_CHUNK = Long.numberOfTrailingZeros(MAX_VALUES_PER_BATCH);
     this.CHUNK_OFFSET_MASK = 0xFFFFFFFF >>> (32 - BITS_IN_CHUNK);
     this.variableBlockMaxLength = (pivot.getVariableCount() == 0) ? 0 : (MAX_VALUES_PER_BATCH * (((defaultVariableLengthSize + VAR_OFFSET_SIZE) * pivot.getVariableCount()) + VAR_LENGTH_SIZE));
@@ -132,6 +137,7 @@ public final class LBlockHashTable implements AutoCloseable {
     this.allocatedForVarBlocks = 0;
     this.unusedForFixedBlocks = 0;
     this.unusedForVarBlocks = 0;
+    this.maxOrdinalBeforeExpand = 0;
     internalInit(LHashCapacities.capacity(this.config, initialSize, false));
 
     logger.debug("initialized hashtable, maxSize:{}, capacity:{}, batches:{}, maxVariableBlockLength:{}, maxValuesPerBatch:{}", maxSize, capacity, batches, variableBlockMaxLength, MAX_VALUES_PER_BATCH);
@@ -140,6 +146,8 @@ public final class LBlockHashTable implements AutoCloseable {
   public int getMaxValuesPerBatch() {
     return MAX_VALUES_PER_BATCH;
   }
+
+  public int getActualValuesPerBatch() { return ACTUAL_VALUES_PER_BATCH; }
 
   public int getBitsInChunk() {
     return BITS_IN_CHUNK;
@@ -151,10 +159,6 @@ public final class LBlockHashTable implements AutoCloseable {
 
   public int getVariableBlockMaxLength() {
     return variableBlockMaxLength;
-  }
-
-  private boolean addNewBlock() {
-    return (currentOrdinal & CHUNK_OFFSET_MASK) == 0;
   }
 
   /**
@@ -401,40 +405,74 @@ public final class LBlockHashTable implements AutoCloseable {
    * @return True if the table is resized.
    */
   private boolean moveToNextValidOrdinal(int keyVarLen) {
+    // check if we need to resize the hash table
     if (currentOrdinal > maxSize) {
-      // if we reached the capacity, expand it
       tryRehashForExpansion();
       return true;
     }
 
-    /* we preallocate for single batch, so when currentOrdinal is 0
-     * we don't have to add data blocks.
-     */
-    if(addNewBlock()){
-      if (currentOrdinal > 0 || !preallocatedSingleBatch) {
-        addDataBlocks();
-      }
+    // check the value of currentOrdinal and decide if we need to add new block
+    boolean addNewBlocks = false;
+    if(currentOrdinal == maxOrdinalBeforeExpand) {
+      // this condition covers all cases -- preallocated 0th block or not, using power of 2 batchsize or not
+      // new blocks need to be added if currentOrdinal is a multiple of max number of
+      // (ACTUAL_VALUES_PER_BATCH) we can store within a single batch of hash table
+      addNewBlocks = true;
     }
 
-    if (fixedOnly || !enforceVarWidthBufferLimit) {
-      /* Important:
-       * the hash table is used by both hash agg and hash join. for the design
-       * of hash agg spilling, we introduced max limit on var block vector
-       * (skipping ordinals if necessary) and that is not the case with hash join
-       * -- join still continues to expand the variable block vector as and when
-       * data is inserted  into the hash table.
-       * on the other hand, if we are working with fixed width keys only then
-       * there is never a need to skip ordinals and this is true for both agg and join
-       */
+    boolean blocksAdded = false;
+    if (addNewBlocks) {
+      // need to add new blocks
+      if (ACTUAL_VALUES_PER_BATCH < MAX_VALUES_PER_BATCH && currentOrdinal > 0) {
+        // skip ordinals for optimizing the use of direct memory if using a non power of two batchsize
+        // we fit only non power of 2 records within a hashtable block (and accumulator)
+        // to work well with memory allocation strategies that are optimized for both heap and direct
+        // memory but require a non power of 2 value count in vectors
+        final int currentChunkIndex = currentOrdinal >>> BITS_IN_CHUNK;
+        final int newCurrentOrdinal = (currentChunkIndex + 1) * MAX_VALUES_PER_BATCH;
+
+        // since we are moving to first ordinal in next batch, we need to first check for resize
+        // before adding data blocks
+        if (newCurrentOrdinal > maxSize) {
+          tryRehashForExpansion();
+          // don't move the current ordinal now, come back in retry, add data blocks, and move the currentOrdinal
+          return true;
+        }
+
+        // no need to resize, so add new blocks and proceed
+        addDataBlocks();
+        // it is important that currentOrdinal is set only after successful return from addDataBlocks()
+        // as the latter can fail with OOM
+        currentOrdinal = newCurrentOrdinal;
+        blocksAdded = true;
+      } else {
+        // if we are using power of 2 batch size then
+        // no need to skip ordinals; there is no need to check for rehash
+        // as currentOrdinal hasn't moved, just add the data blocks and proceed
+        addDataBlocks();
+        blocksAdded = true;
+      }
+
+      // if we are here, it means we have added a new block
+      // track max ordinal for block addition in future
+      maxOrdinalBeforeExpand = currentOrdinal + ACTUAL_VALUES_PER_BATCH;
+    }
+
+    if (fixedOnly) {
+      // only using fixed width keys so we don't have to check
+      // if ordinals should be skipped due to max limit on var block vector
       return false;
     }
 
-    // Check if we can fit variable component in available space in current chunk.
+    // Check if we can fit variable component in available space in current chunk
+    // if remaining data in variable block vector is not enough for the key
+    // we are trying to insert, we need to skip ordinals and move to the first
+    // ordinal in next block
     final int currentChunkIndex = currentOrdinal >>> BITS_IN_CHUNK;
-    final long tableVarAddr = openVariableAddresses[currentChunkIndex];
+    long tableVarAddr = openVariableAddresses[currentChunkIndex];
     final long tableMaxVarAddr = maxVariableAddresses[currentChunkIndex];
     if (tableMaxVarAddr - tableVarAddr >= keyVarLen + VAR_LENGTH_SIZE) {
-      // there is enough space
+      // there is enough space to insert the next varchar key so don't skip
       return false;
     }
 
@@ -444,26 +482,46 @@ public final class LBlockHashTable implements AutoCloseable {
     unusedForFixedBlocks += fixedBlocks[currentChunkIndex].getCapacity() - curFixedBlockWritePos;
     unusedForVarBlocks += variableBlocks[currentChunkIndex].getCapacity() - curVarBlockWritePos;
 
-    // Not enough space, move to next chunk (may require expanding the hash table)
-    int newOrdinal = (currentChunkIndex + 1) * MAX_VALUES_PER_BATCH;
-    gaps += newOrdinal - currentOrdinal;
-    currentOrdinal = newOrdinal;
+    // skip ordinals to fix this varchar key in next block; move to first ordinal in next batch
+    int newCurrentOrdinal = (currentChunkIndex + 1) * MAX_VALUES_PER_BATCH;
 
-    boolean retryStatus = false;
-    if (currentOrdinal > maxSize) {
+    // since we are moving to first ordinal in next batch, we need to first check for resize
+    if (newCurrentOrdinal > maxSize) {
       tryRehashForExpansion();
-      retryStatus = true;
+      // don't move the current ordinal now, come back in retry, add data blocks, and move the currentOrdinal
+      return true;
     }
 
-    if (!retryStatus) {
+    // do sanity check
+    Preconditions.checkState(!blocksAdded, "Error: detected inconsistent state ");
+    addDataBlocks();
+    gaps += newCurrentOrdinal - currentOrdinal;
+    currentOrdinal = newCurrentOrdinal;
+    maxOrdinalBeforeExpand = currentOrdinal + ACTUAL_VALUES_PER_BATCH;
+    return false;
+  }
+
+  private boolean checkForRehashAndNewBlocks() {
+    if (currentOrdinal > maxSize) {
+      tryRehashForExpansion();
+      return true;
+    }
+
+    if((currentOrdinal & CHUNK_OFFSET_MASK) == 0) {
       addDataBlocks();
     }
 
-    return retryStatus;
+    return false;
   }
 
-  private int insert(final long blockWidth, long tableControlAddr, final int keyHash, final int dataWidth, final long keyFixedAddr, final long keyVarAddr, final int keyVarLen){
-    if (moveToNextValidOrdinal(keyVarLen)) {
+  private int insert(final long blockWidth, long tableControlAddr, final int keyHash, final int dataWidth, final long keyFixedAddr, final long keyVarAddr, final int keyVarLen) {
+    final boolean retry;
+    if (enforceVarWidthBufferLimit) {
+      retry = moveToNextValidOrdinal(keyVarLen);
+    } else {
+      retry = checkForRehashAndNewBlocks();
+    }
+    if (retry) {
       // If the table is resized, we need to start search from beginning as in the new table this entry is mapped to
       // different control address which is determined by the caller of this method.
       return RETRY_RETURN_CODE;
@@ -1076,6 +1134,7 @@ public final class LBlockHashTable implements AutoCloseable {
     fixedBlocks[0].reset();
     variableBlocks[0].reset();
     currentOrdinal = 0;
+    maxOrdinalBeforeExpand = ACTUAL_VALUES_PER_BATCH;
     gaps = 0;
     capacity = MAX_VALUES_PER_BATCH;
     maxSize = !LHashCapacities.isMaxCapacity(capacity, false) ? config.maxSize(capacity) : capacity - 1;
@@ -1103,6 +1162,7 @@ public final class LBlockHashTable implements AutoCloseable {
     Preconditions.checkArgument(variableBlocks.length == 0, "Error: expecting 0 batches in hashtable");
     Preconditions.checkArgument(size() == 0, "Error: Expecting empty hashtable");
     addDataBlocks();
+    maxOrdinalBeforeExpand = ACTUAL_VALUES_PER_BATCH;
     Preconditions.checkArgument(fixedBlocks.length == 1, "Error: expecting space for single batch for fixed block");
     Preconditions.checkArgument(variableBlocks.length == 1, "Error: expecting space for single batch for variable block");
     Preconditions.checkArgument(size() == 0, "Error: Expecting empty hashtable");

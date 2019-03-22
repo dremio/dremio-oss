@@ -26,15 +26,18 @@ import java.lang.UnsupportedOperationException;
 package com.dremio.exec.store;
 
 import com.google.common.collect.Lists;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.TypeHelper;
-import org.apache.arrow.vector.holders.*;
-import org.apache.arrow.memory.BufferAllocator;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
 import com.dremio.exec.store.RecordWriter.OutputEntryListener;
 import com.dremio.exec.vector.*;
+import com.dremio.sabot.exec.context.OperatorContext;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.*;
 
 import java.io.IOException;
 import java.lang.UnsupportedOperationException;
@@ -52,6 +55,12 @@ import java.util.Map;
  * NB: Source code generated using FreeMarker template ${.template_name}
  */
 public abstract class StringOutputRecordWriter extends AbstractRowBasedRecordWriter {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StringOutputRecordWriter.class);
+  private final int maxCellSize;
+
+  protected StringOutputRecordWriter(OperatorContext context) {
+    maxCellSize = (int)context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES);
+  }
 
   @Override
   public void setup() throws IOException {
@@ -132,6 +141,14 @@ public abstract class StringOutputRecordWriter extends AbstractRowBasedRecordWri
     addField(fieldId, reader.readObject().toString());
 
   <#elseif minor.class == "VarChar" || minor.class == "Var16Char" || minor.class == "VarBinary">
+    if (holder.end - holder.start >= maxCellSize) {
+      throw UserException
+        .unsupportedError()
+        .message("Attempting to write a large value for a column.")
+        .addContext("columnIndex", fieldId)
+        .addContext("Limit", maxCellSize)
+        .build(logger);
+    }
     addField(fieldId, reader.readObject().toString());
   <#else>
     throw new UnsupportedOperationException(String.format("Unsupported field type: %s",

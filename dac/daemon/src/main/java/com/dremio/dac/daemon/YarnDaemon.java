@@ -15,6 +15,16 @@
  */
 package com.dremio.dac.daemon;
 
+import static com.dremio.config.DremioConfig.KILL_REATTEMPT_INTERVAL_MS;
+import static com.dremio.config.DremioConfig.MAX_KILL_ATTEMPTS;
+import static com.dremio.config.DremioConfig.MISSED_POLLS_BEFORE_KILL;
+import static com.dremio.config.DremioConfig.POLL_INTERVAL_MS;
+import static com.dremio.config.DremioConfig.POLL_TIMEOUT_MS;
+import static org.apache.twill.internal.Constants.Files.APPLICATION_JAR;
+import static org.apache.twill.internal.Constants.Files.TWILL_JAR;
+
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -23,7 +33,9 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.scanner.ClassPathScanner;
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.server.DACConfig;
+import com.dremio.dac.server.LivenessService;
 import com.dremio.exec.util.GuavaPatcher;
 import com.google.api.client.util.Throwables;
 
@@ -68,10 +80,75 @@ public class YarnDaemon implements Runnable, AutoCloseable {
       final DACDaemon daemon = DACDaemon.newDremioDaemon(config, ClassPathScanner.fromPrescan(sabotConfig), module);
       closeable = daemon;
       daemon.init();
+      // Start yarn watchdog
+      startYarnWatchdog(daemon);
       daemon.closeOnJVMShutDown();
       daemon.awaitClose();
     } catch (Exception e) {
       throw Throwables.propagate(e);
+    }
+  }
+
+  private void startYarnWatchdog(final DACDaemon daemon) {
+    Process yarnWatchdogProcess;
+    final LivenessService livenessService = daemon.getLivenessService();
+    if (!livenessService.isLivenessServiceEnabled()) {
+      // Do not start watchdog since liveness service is disabled.
+      logger.info("Liveness service is disabled, dremio will keep running without yarn watchdog.");
+      return;
+    }
+    final int livenessPort = livenessService.getLivenessPort();
+    if (livenessPort <= 0) {
+      logger.error("Failed to start liveness service, dremio will exit.");
+      System.exit(1);
+    }
+
+    DremioConfig dremioConfig = daemon.getDACConfig().getConfig();
+    final long watchedPID = Integer.parseInt(ManagementFactory.getRuntimeMXBean().getName().split("@")[0]);
+    final long pollTimeoutMs = dremioConfig.getMilliseconds(POLL_TIMEOUT_MS);
+    final long pollIntervalMs = dremioConfig.getMilliseconds(POLL_INTERVAL_MS);
+    final int missedPollsBeforeKill = dremioConfig.getInt(MISSED_POLLS_BEFORE_KILL);
+    final int maxKillAttempts = dremioConfig.getInt(MAX_KILL_ATTEMPTS);
+    final long killReattemptIntervalMs = dremioConfig.getMilliseconds(KILL_REATTEMPT_INTERVAL_MS);
+    final String classpath = APPLICATION_JAR + "/lib/*:" + TWILL_JAR + "/lib/*";
+    final ProcessBuilder yarnWatchdogProcessBuilder = new ProcessBuilder("java",
+      "-cp", classpath, "com.dremio.provision.yarn.YarnWatchdog",
+      Long.toString(watchedPID), Integer.toString(livenessPort), Long.toString(pollTimeoutMs),
+      Long.toString(pollIntervalMs), Integer.toString(missedPollsBeforeKill), Integer.toString(maxKillAttempts),
+      Long.toString(killReattemptIntervalMs))
+      .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+      .redirectError(ProcessBuilder.Redirect.INHERIT);
+    try {
+      yarnWatchdogProcess = yarnWatchdogProcessBuilder.start();
+    } catch (IOException e) {
+      logger.warn("Failed to start yarn watchdog.", e);
+      yarnWatchdogProcess = null;
+    }
+    if (yarnWatchdogProcess != null) {
+      final Process finalYarnWatchdogProcess = yarnWatchdogProcess;
+      Thread yarnWatchdogMonitor = new Thread() {
+
+        @Override
+        public void run() {
+          while (true) {
+            while (finalYarnWatchdogProcess.isAlive()) {
+              try {
+                sleep(1000);
+              } catch (InterruptedException e) {
+                // ignore exception
+              }
+            }
+            if (livenessService.getPollCount() > 0) {
+              logger.error("Yarn watchdog is not alive, dremio will exit.");
+              System.exit(1);
+            } else {
+              logger.warn("Yarn watchdog terminated without any poll, dremio will keep running without yarn watchdog.");
+              return;
+            }
+          }
+        }
+      };
+      yarnWatchdogMonitor.start();
     }
   }
 

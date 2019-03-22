@@ -426,6 +426,15 @@ public class TestHiveStorage extends HiveTestBase {
         .go();
   }
 
+  @Test
+  public void testParquetLearnSchema() throws Exception {
+    testBuilder()
+      .sqlQuery("SELECT * FROM hive.parquetschemalearntest")
+      .unOrdered()
+      .sqlBaselineQuery("select r_regionkey from hive.parquetschemalearntest")
+      .go();
+  }
+
   @Test // DRILL-3739
   public void readingFromStorageHandleBasedTable() throws Exception {
     testBuilder()

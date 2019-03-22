@@ -69,6 +69,7 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "parquet_region")
         .baselineValues("hive.default", "orc_region")
         .baselineValues("hive.default", "parquet_mult_rowgroups")
+        .baselineValues("hive.default", "parquetschemalearntest")
         .go();
 
     testBuilder()

@@ -31,6 +31,7 @@ import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.server.DACConfig;
+import com.dremio.dac.server.LivenessService;
 import com.dremio.dac.server.WebServer;
 import com.dremio.dac.service.exec.MasterStatusListener;
 import com.dremio.exec.ExecConstants;
@@ -252,6 +253,10 @@ public final class DACDaemon implements AutoCloseable {
   @VisibleForTesting
   public WebServer getWebServer() {
     return registry.lookup(WebServer.class);
+  }
+
+  public LivenessService getLivenessService() {
+    return registry.provider(LivenessService.class).get();
   }
 
   public void awaitClose() throws InterruptedException {

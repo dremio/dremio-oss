@@ -19,7 +19,6 @@ package com.dremio.exec.store.easy.text.compliant;
 import org.apache.arrow.flatbuf.RecordBatch;
 
 import com.dremio.exec.exception.SchemaChangeException;
-import com.dremio.sabot.op.scan.OutputMutator;
 
 /**
  * Simple extension of {@link TextOutput}, to just count the number of records in text file. It outputs column called
@@ -30,7 +29,8 @@ public class TextCountOutput extends TextOutput  {
   private int recordCount = 0; /** int should be enough a batch can have {@link RecordBatch#MAX_BATCH_SIZE} */
   private boolean fieldOpen = false;
 
-  public TextCountOutput(final OutputMutator outputMutator) throws SchemaChangeException {
+  public TextCountOutput() throws SchemaChangeException {
+    super(1); // Default cell size, which is ignored for this output so use a dummy value.
   }
 
   @Override

@@ -86,6 +86,10 @@ public final class VM {
     return MAX_DIRECT_MEMORY;
   }
 
+  public static long getMaxHeapMemory() {
+    return Runtime.getRuntime().maxMemory();
+  }
+
   private static final boolean IS_MACOS_HOST = isMacOSHost0();
   private static final boolean IS_WINDOWS_HOST = isWindowsHost0();
 

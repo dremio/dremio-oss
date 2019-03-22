@@ -25,7 +25,6 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -36,10 +35,6 @@ import com.dremio.sabot.op.scan.OutputMutator;
  * values for a given column. Each record is a single value within each vector of the set.
  */
 class FieldVarCharOutput extends TextOutput {
-
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FieldVarCharOutput.class);
-  static final String COL_NAME = "columns";
-
   // array of output vector
   private final VarCharVector[] vectors;
   // boolean array indicating which fields are selected (if star query entire array is set to true)
@@ -56,8 +51,7 @@ class FieldVarCharOutput extends TextOutput {
   private byte[] fieldBytes;
 
   private boolean collect = true;
-  private boolean rowHasData= false;
-  private static final int MAX_FIELD_LENGTH = 1024 * 64;
+  private boolean rowHasData = false;
   private int recordCount = 0;
   private int maxField = 0;
 
@@ -68,9 +62,11 @@ class FieldVarCharOutput extends TextOutput {
    * @param fieldNames Incoming field names
    * @param columns  List of columns selected in the query
    * @param isStarQuery  boolean to indicate if all fields are selected or not
+   * @param sizeLimit Maximum size for an individual field
    * @throws SchemaChangeException
    */
-  public FieldVarCharOutput(OutputMutator outputMutator, String [] fieldNames, Collection<SchemaPath> columns, boolean isStarQuery) throws SchemaChangeException {
+  public FieldVarCharOutput(OutputMutator outputMutator, String[] fieldNames, Collection<SchemaPath> columns, boolean isStarQuery, int sizeLimit) throws SchemaChangeException {
+    super(sizeLimit);
 
     int totalFields = fieldNames.length;
     List<String> outputColumns = new ArrayList<>(Arrays.asList(fieldNames));
@@ -113,7 +109,7 @@ class FieldVarCharOutput extends TextOutput {
       }
     }
 
-    this.fieldBytes = new byte[MAX_FIELD_LENGTH];
+    this.fieldBytes = new byte[sizeLimit];
 
   }
 
@@ -143,15 +139,7 @@ class FieldVarCharOutput extends TextOutput {
       return;
     }
 
-    if (currentDataPointer >= MAX_FIELD_LENGTH -1) {
-      throw UserException
-          .unsupportedError()
-          .message("Trying to write something big in a column")
-          .addContext("columnIndex", currentFieldIndex)
-          .addContext("Limit", MAX_FIELD_LENGTH)
-          .build(logger);
-    }
-
+    checkFieldLimit(currentDataPointer, currentFieldIndex);
     fieldBytes[currentDataPointer++] = data;
   }
 

@@ -102,6 +102,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
+
 import io.protostuff.ByteString;
 
 class DatasetBuilder implements SourceTableDefinition {
@@ -572,7 +573,7 @@ class DatasetBuilder implements SourceTableDefinition {
       // add a single partition from table properties.
       tableExtended.addAllPartitionProperties(Collections.singletonList(getPartitionProperty(tableExtended, fromProperties(tableProperties))));
 
-      if (format instanceof FileInputFormat) {
+      if (format instanceof FileInputFormat || format instanceof OrcInputFormat) {
         final FileSystemPartitionUpdateKey updateKey = getFSBasedUpdateKey(sd.getLocation(), job, isRecursive(tableProperties), 0);
         if (updateKey != null) {
           metadata.setReadSignature(ByteString.copyFrom(
@@ -608,7 +609,7 @@ class DatasetBuilder implements SourceTableDefinition {
         if (inputPathExists(sd, job)) {
           splitsGenerators.add(new HiveSplitsGenerator(format, sd, estimatedRecordSize, totalPartitionStats, partition, partitionId));
         }
-        if (format instanceof FileInputFormat) {
+        if (format instanceof FileInputFormat || format instanceof OrcInputFormat) {
           final FileSystemPartitionUpdateKey updateKey = getFSBasedUpdateKey(sd.getLocation(), job, isRecursive(partitionProperties), partitionId);
           if (updateKey != null) {
             updateKeys.add(updateKey);

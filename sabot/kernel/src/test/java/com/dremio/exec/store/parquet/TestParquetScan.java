@@ -75,4 +75,114 @@ public class TestParquetScan extends BaseTestQuery {
       .build()
       .run();
   }
+
+  @Test
+  public void testRefreshOnFileNotFound() throws Exception {
+    setEnableReAttempts(true);
+    try {
+      // create directory
+      Path dir = new Path("/tmp/parquet_scan_file_refresh");
+      if (fs.exists(dir)) {
+        fs.delete(dir, true);
+      }
+      fs.mkdirs(dir);
+
+      // Create 10 parquet files in the directory.
+      byte[] bytes = Resources.toByteArray(Resources.getResource("tpch/nation.parquet"));
+      for (int i = 0; i < 10; ++i) {
+        FSDataOutputStream os = fs.create(new Path(dir, i + "nation.parquet"));
+        os.write(bytes);
+        os.close();
+      }
+
+      // query on all 10 files.
+      testBuilder()
+          .sqlQuery(
+              "select count(*) c from dfs.tmp.parquet_scan_file_refresh where length(n_comment) > 0")
+          .unOrdered()
+          .baselineColumns("c")
+          .baselineValues(250L)
+          .build()
+          .run();
+
+      // delete every alternate file.
+      for (int i = 0; i < 10; ++i) {
+        if (i % 2 == 0) {
+          fs.delete(new Path(dir, i + "nation.parquet"), false);
+        }
+      }
+
+      // re-run the query. Should trigger a metadata refresh and succeed.
+      testBuilder()
+          .sqlQuery(
+              "select count(*) c from dfs.tmp.parquet_scan_file_refresh where length(n_comment) > 0")
+          .unOrdered()
+          .baselineColumns("c")
+          .baselineValues(125L)
+          .build()
+          .run();
+
+      // cleanup
+      fs.delete(dir, true);
+    } finally {
+      setEnableReAttempts(false);
+    }
+  }
+
+  @Test
+  public void testRefreshOnDirNotFound() throws Exception {
+    setEnableReAttempts(true);
+    try {
+      Path dir = new Path("/tmp/parquet_scan_dir_refresh");
+
+      // create directory
+      if (fs.exists(dir)) {
+        fs.delete(dir, true);
+      }
+      fs.mkdirs(dir);
+
+      // Create 9 parquet files in sub-directories of the main directory.
+      byte[] bytes = Resources.toByteArray(Resources.getResource("tpch/nation.parquet"));
+      for (int i = 0; i < 9; ++i) {
+        Path subdir = new Path(dir, "subdir" + i);
+        fs.mkdirs(subdir);
+
+        FSDataOutputStream os = fs.create(new Path(subdir, "nation.parquet"));
+        os.write(bytes);
+        os.close();
+      }
+
+      // query on all 9 files.
+      testBuilder()
+        .sqlQuery(
+          "select count(*) c from dfs.tmp.parquet_scan_dir_refresh where length(n_comment) > 0")
+        .unOrdered()
+        .baselineColumns("c")
+        .baselineValues(225L)
+        .build()
+        .run();
+
+      // delete every third subdir.
+      for (int i = 0; i < 9; ++i) {
+        if (i % 3 == 0) {
+          fs.delete(new Path(dir, "subdir" + i), true);
+        }
+      }
+
+      // re-run the query. Should trigger a metadata refresh and succeed.
+      testBuilder()
+        .sqlQuery(
+          "select count(*) c from dfs.tmp.parquet_scan_dir_refresh where length(n_comment) > 0")
+        .unOrdered()
+        .baselineColumns("c")
+        .baselineValues(150L)
+        .build()
+        .run();
+
+      // cleanup
+      fs.delete(dir, true);
+    } finally {
+      setEnableReAttempts(false);
+    }
+  }
 }

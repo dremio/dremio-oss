@@ -245,6 +245,10 @@ public class HiveTestDataGenerator {
       "stored as parquet location '" + file.getParent() + "'";
     executeQuery(hiveDriver, parquetUpperSchemaTable);
 
+    final String parquetschemalearntest = "create external table parquetschemalearntest(R_REGIONKEY bigint) " +
+      "stored as parquet location '" + file.getParent() + "'";
+    executeQuery(hiveDriver, parquetschemalearntest);
+
     final String orcRegionTable = "create table orc_region stored as orc as SELECT * FROM parquet_region";
     executeQuery(hiveDriver, orcRegionTable);
 

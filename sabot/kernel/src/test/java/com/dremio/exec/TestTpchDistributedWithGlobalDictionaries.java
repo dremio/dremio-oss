@@ -34,6 +34,7 @@ import com.dremio.exec.util.GlobalDictionaryBuilder;
 /**
  * tpch queries with global dictionaries
  */
+@Ignore("DX-14565")
 public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
 
   @ClassRule

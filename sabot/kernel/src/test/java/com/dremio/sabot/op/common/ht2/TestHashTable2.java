@@ -41,12 +41,16 @@ public class TestHashTable2 {
   private int MAX_VALUES_PER_BATCH = 0;
 
   @Test
-  public void simple() throws Exception {
+  public void testSimple() throws Exception {
     MAX_VALUES_PER_BATCH = 4096;
     simpleHelper();
     MAX_VALUES_PER_BATCH = 2048;
     simpleHelper();
     MAX_VALUES_PER_BATCH = 1024;
+    simpleHelper();
+    MAX_VALUES_PER_BATCH = 990;
+    simpleHelper();
+    MAX_VALUES_PER_BATCH = 976;
     simpleHelper();
   }
 
@@ -107,12 +111,16 @@ public class TestHashTable2 {
   }
 
   @Test
-  public void fixedOnly() throws Exception {
+  public void testFixedOnly() throws Exception {
     MAX_VALUES_PER_BATCH = 4096;
     fixedOnlyHelper();
     MAX_VALUES_PER_BATCH = 2048;
     fixedOnlyHelper();
     MAX_VALUES_PER_BATCH = 1024;
+    fixedOnlyHelper();
+    MAX_VALUES_PER_BATCH = 990;
+    fixedOnlyHelper();
+    MAX_VALUES_PER_BATCH = 976;
     fixedOnlyHelper();
   }
 
@@ -167,12 +175,16 @@ public class TestHashTable2 {
   }
 
   @Test
-  public void emptyValues() throws Exception {
+  public void testEmptyValues() throws Exception {
     MAX_VALUES_PER_BATCH = 4096;
     emptyValuesHelper();
     MAX_VALUES_PER_BATCH = 2048;
     emptyValuesHelper();
     MAX_VALUES_PER_BATCH = 1024;
+    emptyValuesHelper();
+    MAX_VALUES_PER_BATCH = 990;
+    emptyValuesHelper();
+    MAX_VALUES_PER_BATCH = 976;
     emptyValuesHelper();
   }
 
@@ -222,10 +234,14 @@ public class TestHashTable2 {
   }
 
   @Test
-  public void enforceVarWidthBufferLimitsWithGaps() throws Exception {
+  public void testEnforceVarWidthBufferLimitsWithGaps() throws Exception {
     MAX_VALUES_PER_BATCH = 4096;
     testGapsHelper(0);
     MAX_VALUES_PER_BATCH = 1024;
+    testGapsHelper(2012);
+    MAX_VALUES_PER_BATCH = 990;
+    testGapsHelper(2012);
+    MAX_VALUES_PER_BATCH = 976;
     testGapsHelper(2012);
   }
 
@@ -234,12 +250,16 @@ public class TestHashTable2 {
   }
 
   @Test
-  public void enforceVarWidthBufferLimitsWithNoGaps() throws Exception {
+  public void testEnforceVarWidthBufferLimitsWithNoGaps() throws Exception {
     MAX_VALUES_PER_BATCH = 4096;
     testNoGapsHelper();
     MAX_VALUES_PER_BATCH = 2048;
     testNoGapsHelper();
     MAX_VALUES_PER_BATCH = 1024;
+    testNoGapsHelper();
+    MAX_VALUES_PER_BATCH = 990;
+    testNoGapsHelper();
+    MAX_VALUES_PER_BATCH = 976;
     testNoGapsHelper();
   }
 
@@ -249,8 +269,7 @@ public class TestHashTable2 {
   }
 
   private void enforceVarWidthBufferLimitsHelper(int inputLength, int varCharLength,
-                                                 int estimatedVarFieldsLength, int expGaps)
-      throws Exception {
+                                                 int estimatedVarFieldsLength, int expGaps) throws Exception {
     final Random random = new Random();
     final String[] col1Arr = new String[inputLength];
     final String[] col2Arr = new String[col1Arr.length];
@@ -290,7 +309,6 @@ public class TestHashTable2 {
           final VariableBlockVector var = new VariableBlockVector(allocator, pivot.getVariableCount());) {
 
         Pivots.pivot(pivot, records, fbv, var);
-
         try (LBlockHashTable bht = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator,
             200, estimatedVarFieldsLength, true, ResizeListener.NO_OP, MAX_VALUES_PER_BATCH);
              SimpleBigIntVector hashValues = new SimpleBigIntVector("hashvalues", allocator)) {
@@ -304,7 +322,7 @@ public class TestHashTable2 {
           int numChunks = 0;
           int nullOrdinal = -1;
           int numberNulls = 0;
-          int maxVarBufferSize = Numbers.nextPowerOfTwo((((estimatedVarFieldsLength + VAR_OFFSET_SIZE) * 2) + VAR_LENGTH_SIZE) * MAX_VALUES_PER_BATCH);
+          int maxVarBufferSize = Numbers.nextPowerOfTwo((((estimatedVarFieldsLength + VAR_OFFSET_SIZE) * 2) + VAR_LENGTH_SIZE) * Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH));
           for (int i = 0; i < expectedOrdinals.length; i++) {
             int newLen = VAR_OFFSET_SIZE * 2 + VAR_LENGTH_SIZE;
             if (col1Arr[i] != null) {
@@ -322,7 +340,8 @@ public class TestHashTable2 {
             }
 
             if (runningVarBufferLen + newLen > maxVarBufferSize || (i - numberNulls) % MAX_VALUES_PER_BATCH == 0) {
-              currentOrdinal = numChunks * MAX_VALUES_PER_BATCH;
+              //gaps in ordinals since we can't fit the next varchar key in the current block
+              currentOrdinal = numChunks * Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH);
               runningVarBufferLen = newLen; // reset buffer size
               numChunks ++;
             } else {
@@ -334,6 +353,7 @@ public class TestHashTable2 {
               expectedOrdinals[i] = nullOrdinal;
             } else {
               expectedOrdinals[i] = currentOrdinal++;
+
             }
           }
 
@@ -350,11 +370,10 @@ public class TestHashTable2 {
             actualOrdinals[keyIndex] = bht.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash);
           }
           assertArrayEquals("ordinals mismatch", expectedOrdinals, actualOrdinals);
-          assertEquals("Relative size mismatch", inputLength - numberNulls, bht.relativeSize());
           assertEquals("Absolute size mismatch", expectedOrdinals[expectedOrdinals.length -1] + 1, bht.size());
           // we can't match the capacity exactly as the initialization of hash table capacity depends on heuristics
           // in LHashCapacities
-          assertTrue("Unexpected capacity", numChunks * MAX_VALUES_PER_BATCH <= bht.capacity());
+          assertTrue("Unexpected capacity", numChunks * Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH) <= bht.capacity());
           assertEquals("Unexpected number of gaps", expGaps, bht.gaps());
         }
       }
@@ -368,6 +387,10 @@ public class TestHashTable2 {
     MAX_VALUES_PER_BATCH = 2048;
     testResetToMinimumSizeHelper();
     MAX_VALUES_PER_BATCH = 1024;
+    testResetToMinimumSizeHelper();
+    MAX_VALUES_PER_BATCH = 990;
+    testResetToMinimumSizeHelper();
+    MAX_VALUES_PER_BATCH = 976;
     testResetToMinimumSizeHelper();
   }
 
@@ -422,18 +445,18 @@ public class TestHashTable2 {
             bht.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash);
           }
 
-          assertTrue(bht.capacity() > MAX_VALUES_PER_BATCH);
+          assertTrue(bht.capacity() > Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH));
 
           // now reset HashTable to minimum size
           bht.resetToMinimumSize();
-          assertEquals(MAX_VALUES_PER_BATCH, bht.capacity());
+          assertEquals(Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH), bht.capacity());
 
           // insert the same records again and check the hashtable is expanded in capacity
           for (int keyIndex = 20; keyIndex < records; keyIndex++) {
             final int keyHash = (int)hashValues.get(keyIndex);
             bht.add(keyFixedVectorAddr, keyVarVectorAddr, keyIndex, keyHash);
           }
-          assertTrue(bht.capacity() > MAX_VALUES_PER_BATCH);
+          assertTrue(bht.capacity() > Numbers.nextPowerOfTwo(MAX_VALUES_PER_BATCH));
         }
       }
     }

@@ -25,10 +25,12 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.store.SplitWork;
+import com.dremio.service.Pointer;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
@@ -42,7 +44,7 @@ import com.google.common.collect.Multimap;
  * The AssignmentCreator is responsible for assigning a set of work units to the available slices.
  */
 public class AssignmentCreator2<T extends CompleteWork> {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AssignmentCreator2.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AssignmentCreator2.class);
 
   private final List<WorkWrapper> workList;
   private final Map<String,HostFragments> hostFragmentMap;
@@ -63,7 +65,7 @@ public class AssignmentCreator2<T extends CompleteWork> {
   }
 
   private long sumOfFirst(List<T> units, int count) {
-    int sum = 0;
+    long sum = 0;
     for (int i = 0; i < count && i < units.size(); i++) {
       sum += units.get(i).getTotalBytes();
     }
@@ -80,22 +82,36 @@ public class AssignmentCreator2<T extends CompleteWork> {
       }
     }
 
+    int unassignedCount = unassigned.size();
     assignLeftOvers(unassigned);
+    logger.debug("Items assigned. With affinity: {}, Random: {}", workList.size() - unassignedCount, unassignedCount);
 
     ListMultimap<Integer,T> result = ArrayListMultimap.create();
 
-    final AtomicInteger workCount = new AtomicInteger(0);
-
-    for (FragmentWork fragment : getFragments()) {
-      result.putAll(fragment.fragmentId, Lists.transform(fragment.workList, new Function<WorkWrapper, T>() {
-        @Override
-        public T apply(WorkWrapper workWrapper) {
-          workCount.incrementAndGet();
-          return workWrapper.work;
+    if(logger.isDebugEnabled()) {
+      for (FragmentWork fragment : getFragments()) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("FragId: %d, Cost: %d\n", fragment.fragmentId, fragment.totalSize));
+        for(WorkWrapper w : fragment.workList) {
+          sb.append("\t");
+          sb.append(toString(w, true));
+          sb.append("\n");
         }
-      }));
+        logger.debug(sb.toString());
+      }
     }
-    Preconditions.checkState(workCount.get() == workList.size());
+
+    final Pointer<Integer> workCount = new Pointer<>(0);
+    for (FragmentWork fragment : getFragments()) {
+      result.putAll(fragment.fragmentId, fragment.workList.stream()
+          .map(workWrapper -> {
+            workCount.value++;
+            return workWrapper.work;
+          })
+          .collect(Collectors.toList()));
+    }
+
+    Preconditions.checkState(workCount.value == workList.size());
     return result;
   }
 
@@ -116,14 +132,10 @@ public class AssignmentCreator2<T extends CompleteWork> {
   }
 
   private List<FragmentWork> getFragments() {
-    return FluentIterable.from(hostFragmentMap.values())
-      .transformAndConcat(new Function<HostFragments, Iterable<FragmentWork>>() {
-        @Override
-        public Iterable<FragmentWork> apply(HostFragments hostFragments) {
-          return hostFragments.fragmentQueue;
-        }
-      }).toList();
-
+    return hostFragmentMap.values()
+        .stream()
+        .flatMap(t -> t.fragmentQueue.stream())
+        .collect(Collectors.toList());
   }
 
   /**
@@ -135,6 +147,14 @@ public class AssignmentCreator2<T extends CompleteWork> {
    */
   private boolean assignWork(WorkWrapper work) {
     List<HostFragments> hostFragmentsList = new ArrayList<>();
+
+    if(work.hosts.isEmpty()) {
+      if (logger.isDebugEnabled()) {
+        logger.debug("Failed to assign because work has no affinity. Work: {}", toString(work, false));
+      }
+      return false;
+    }
+
     for (String host : work.hosts) {
       HostFragments hostFragments = hostFragmentMap.get(host);
       if (hostFragments != null) {
@@ -142,15 +162,44 @@ public class AssignmentCreator2<T extends CompleteWork> {
       }
     }
     if (hostFragmentsList.size() == 0) {
+      if(logger.isDebugEnabled()) {
+        logger.debug("Failed to assign because the we weren't able to find any scheduleable host that matched those recorded. Work: {}, ", toString(work, false));
+      }
       return false;
     }
     Collections.sort(hostFragmentsList);
     HostFragments hostFragments = hostFragmentsList.get(0);
-    if (hostFragments.peekSize() + work.work.getTotalBytes() > maxSize) {
+    long peekSize = hostFragments.peekSize();
+    long workSize = work.work.getTotalBytes();
+    if (peekSize + workSize > maxSize) {
+      logger.debug("Failed to assign because Fragments size + this work size is greater than max size: {} + {} > {}. Work: {}", peekSize, workSize, maxSize, toString(work, false));
       return false;
     }
     hostFragments.addWork(work);
     return true;
+  }
+
+  private String toString(WorkWrapper w, boolean includeHosts) {
+    StringBuilder sb = new StringBuilder();
+    if (includeHosts) {
+      sb.append("Hosts: ,");
+      sb.append(w.hosts);
+      sb.append(", ");
+    }
+    sb.append("Bytes: ");
+    sb.append(w.work.getTotalBytes());
+    sb.append(", Node affinity: ");
+    for(EndpointAffinity ea : w.work.getAffinity()) {
+      sb.append(ea.getEndpoint().getAddress() + ":" + ea.getEndpoint().getFabricPort() + "=" + ea.getAffinity());
+      sb.append(",");
+    }
+//    sb.append(w.work.getAffinity());
+    if(w.work instanceof SplitWork) {
+      SplitWork sw = (SplitWork) w.work;
+      sb.append(", Split key: ");
+      sb.append(sw.getSplit().getSplitKey());
+    }
+    return sb.toString();
   }
 
   private Map<String,HostFragments> createHostFragmentsMap(List<NodeEndpoint> incomingEndpoints) {

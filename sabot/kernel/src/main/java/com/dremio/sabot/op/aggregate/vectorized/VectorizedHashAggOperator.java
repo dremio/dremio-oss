@@ -32,7 +32,6 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.NamedExpression;
-import com.dremio.common.util.Numbers;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.ValueVectorReadExpression;
@@ -277,7 +276,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
    * inserted into hash table and accumulator. This is used to reduce the pre-allocated memory
    * for all partitions.
    */
-  public static final PositiveLongValidator VECTORIZED_HASHAGG_BATCHSIZE = new PositiveLongValidator("exec.operator.aggregate.vectorize.max_hashtable_batch_size", 4096, 1024);
+  public static final PositiveLongValidator VECTORIZED_HASHAGG_BATCHSIZE = new PositiveLongValidator("exec.operator.aggregate.vectorize.max_hashtable_batch_size", 4096, 990);
 
   /* When running on large datasets with limited amount of memory (and thus excessive spilling), this setting
    * will generate huge amount of debug information potentially resulting in out of heap memory error.
@@ -391,7 +390,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     this.minHashTableSize = (int)options.getOption(ExecConstants.MIN_HASH_TABLE_SIZE);
     this.minHashTableSizePerPartition = (int)Math.ceil((minHashTableSize * 1.0)/numPartitions);
     this.estimatedVariableWidthKeySize = (int)options.getOption(VARIABLE_FIELD_SIZE_ESTIMATE);
-    this.maxHashTableBatchSize = Numbers.nextPowerOfTwo((int) options.getOption(VECTORIZED_HASHAGG_BATCHSIZE));
+    this.maxHashTableBatchSize = (int) options.getOption(VECTORIZED_HASHAGG_BATCHSIZE);
     Preconditions.checkArgument(maxHashTableBatchSize > 0 && maxHashTableBatchSize <= 4096,
       "Error: max hash table batch size should be greater than 0 and not exceed 4096");
     final boolean traceOnException = options.getOption(VECTORIZED_HASHAGG_DEBUG_DETAILED_EXCEPTION);
@@ -475,9 +474,6 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     debug.setMaxVarBlockLength(this.maxVariableBlockLength); //for debugging purpose
     this.bitsInChunk = hashAggPartitions[0].hashTable.getBitsInChunk();
     this.chunkOffsetMask = hashAggPartitions[0].hashTable.getChunkOffsetMask();
-    /* hashtable should not have changed the configured value of VECTORIZED_HASHAGG_MAXBATCHSIZE */
-    Preconditions.checkArgument(maxHashTableBatchSize == hashAggPartitions[0].hashTable.getMaxValuesPerBatch(),
-      "Error: detected inconsistent max batch size");
   }
 
   /**

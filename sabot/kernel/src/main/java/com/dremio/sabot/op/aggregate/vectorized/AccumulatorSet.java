@@ -44,7 +44,7 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
   private final int jointAllocationLimit;
   private final BufferAllocator allocator;
   private final Accumulator[] children;
-  private final int[] cumulativeDataBufferSizes;
+  private final int[] cumulativeBufferSizes;
   private final int[] allocationLevels;
   private final boolean[] visited;
   private final Map<Integer, List<AccumulatorRange>> map;
@@ -58,7 +58,7 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     this.jointAllocationLimit = (int)jointAllocationLimit;
     this.allocator = allocator;
     this.children = children;
-    this.cumulativeDataBufferSizes = new int[children.length];
+    this.cumulativeBufferSizes = new int[children.length];
     this.allocationLevels = new int[children.length];
     this.visited = new boolean[children.length];
     final int numAllocationBuckets = Long.numberOfTrailingZeros(jointAllocationLimit) - Long.numberOfTrailingZeros(jointAllocationMin);
@@ -106,7 +106,7 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
    * @param start starting accumulator index
    */
   private void computeAllocationBoundaries(int start) {
-    int dataBufferSize = 0;
+    int bufferSize = 0;
     int i;
 
     if (start >= children.length) {
@@ -134,8 +134,9 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     for (i = start; i < children.length; ++i) {
       /* compute cumulative actual buffer sizes for accumulators */
       final Accumulator accumulator = children[i];
-      dataBufferSize += accumulator.getDataBufferSize();
-      cumulativeDataBufferSizes[i] = dataBufferSize;
+      bufferSize += (Numbers.nextMultipleOfEight(accumulator.getDataBufferSize()) +
+          Numbers.nextMultipleOfEight(validitySizeForSingleAccumulator));
+      cumulativeBufferSizes[i] = bufferSize;
     }
 
     /* use the cumulative sizes computed above to decide the allocation
@@ -144,8 +145,8 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
      * of accumulators.
      */
     for (i = start; i < children.length; ++i) {
-      final int cumulativeDataSize = cumulativeDataBufferSizes[i];
-      if (cumulativeDataSize > jointAllocationLimit) {
+      final int cumulativeSize = cumulativeBufferSizes[i];
+      if (cumulativeSize > jointAllocationLimit) {
         if (i >= 1 && !visited[i - 1]) {
           final AccumulatorRange range = new AccumulatorRange(start, i - 1);
           addMapping(allocationLevels[i - 1], range);
@@ -158,7 +159,7 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
           singleAccumulatorIndexes.add(i);
         }
       } else {
-        allocationLevels[i] = getAllocationLevelForSize(cumulativeDataSize);
+        allocationLevels[i] = getAllocationLevelForSize(cumulativeSize);
       }
     }
 
@@ -199,31 +200,34 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
       }
     }
     for (int singleAccumulatorIndex : singleAccumulatorIndexes) {
-      allocatePowerOfTwoOrLessAndSlice(children[singleAccumulatorIndex].getDataBufferSize(), singleAccumulatorIndex, singleAccumulatorIndex);
+      Accumulator child = children[singleAccumulatorIndex];
+      int totalSize = Numbers.nextMultipleOfEight(child.getDataBufferSize()) +
+          Numbers.nextMultipleOfEight(child.getValidityBufferSize());
+      allocatePowerOfTwoOrLessAndSlice(totalSize, singleAccumulatorIndex, singleAccumulatorIndex);
     }
   }
 
-  private void allocatePowerOfTwoOrLessAndSlice(final int totalDataSize, final int start, int end) throws Exception {
+  private void allocatePowerOfTwoOrLessAndSlice(final int totalSize, final int start, int end) throws Exception {
     final int validitySize = this.validitySizeForSingleAccumulator;
-    final int totalValiditySize = validitySize * (end -  start + 1);
     try(AutoCloseables.RollbackCloseable rollbackable = new AutoCloseables.RollbackCloseable()) {
-      final ArrowBuf validityBufferForAllAccumulators = allocator.buffer(totalValiditySize);
-      rollbackable.add(validityBufferForAllAccumulators);
-      final ArrowBuf dataBufferForAllAccumulators = allocator.buffer(totalDataSize);
-      rollbackable.add(dataBufferForAllAccumulators);
-      int dataOffset = 0;
-      int validityOffset = 0;
+      final ArrowBuf bufferForAllAccumulators = allocator.buffer(totalSize);
+      rollbackable.add(bufferForAllAccumulators);
+      int offset = 0;
       for(int i = start; i <= end; ++i) {
         final Accumulator accumulator = children[i];
+
+        // slice validity buffer from the combined buffer.
+        final ArrowBuf validityBuffer = bufferForAllAccumulators.slice(offset, validitySize);
+        offset += Numbers.nextMultipleOfEight(validitySize);
+
+        // slice data buffer from the combined buffer.
         final int dataSize = accumulator.getDataBufferSize();
-        final ArrowBuf validityBuffer = validityBufferForAllAccumulators.slice(validityOffset, validitySize);
-        final ArrowBuf dataBuffer = dataBufferForAllAccumulators.slice(dataOffset, dataSize);
-        validityOffset += validitySize;
-        dataOffset += dataSize;
+        final ArrowBuf dataBuffer = bufferForAllAccumulators.slice(offset, dataSize);
+        offset += Numbers.nextMultipleOfEight(dataSize);
+
         accumulator.addBatch(dataBuffer, validityBuffer);
       }
-      dataBufferForAllAccumulators.close();
-      validityBufferForAllAccumulators.close();
+      bufferForAllAccumulators.close();
       rollbackable.commit();
     } // hashtable/operator will handle the exception
   }

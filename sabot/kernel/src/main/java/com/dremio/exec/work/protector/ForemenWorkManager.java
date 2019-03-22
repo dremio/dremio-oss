@@ -277,15 +277,23 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     @Override
     public void nodesUnregistered(Set<NodeEndpoint> unregisteredNodes) {
-      for(ManagedForeman f : externalIdToForeman.values()){
-        f.foreman.nodesUnregistered(unregisteredNodes);
+      for (ManagedForeman f : externalIdToForeman.values()) {
+        try {
+          f.foreman.nodesUnregistered(unregisteredNodes);
+        } catch (Exception e) {
+          logger.warn("Foreman {} failed to handle unregistered nodes {}", ExternalIdHelper.toString(f.foreman.getExternalId()), unregisteredNodes, e);
+        }
       }
     }
 
     @Override
     public void nodesRegistered(Set<NodeEndpoint> registeredNodes) {
-      for(ManagedForeman f : externalIdToForeman.values()){
-        f.foreman.nodesRegistered(registeredNodes);
+      for (ManagedForeman f : externalIdToForeman.values()) {
+        try {
+          f.foreman.nodesRegistered(registeredNodes);
+        } catch (Exception e) {
+          logger.warn("Foreman {} failed to handle registered nodes {}", ExternalIdHelper.toString(f.foreman.getExternalId()), registeredNodes, e);
+        }
       }
     }
 

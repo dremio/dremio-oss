@@ -17,9 +17,14 @@ package org.apache.arrow.memory;
 
 import java.lang.reflect.Field;
 
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.MetricRegistry;
 import com.dremio.common.VM;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.memory.DremioRootAllocator;
+import com.dremio.config.DremioConfig;
+import com.dremio.metrics.Metrics;
+import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.buffer.PooledByteBufAllocator;
 
@@ -42,7 +47,33 @@ public class RootAllocatorFactory {
    *          the SabotConfig
    * @return a new root allocator
    */
+  @VisibleForTesting // for old tests.
   public synchronized static BufferAllocator newRoot(final SabotConfig config) {
+    return newRoot(config.getLong(TOP_LEVEL_MAX_ALLOC), 0, 100);
+  }
+
+  /**
+   * Create a new RootAllocator using a DremioConfig
+   * @param config The config to initialize with
+   * @return a new root allocator
+   */
+  public synchronized static BufferAllocator newRoot(final DremioConfig config) {
+    DremioRootAllocator allocator = newRoot(config.getSabotConfig().getLong(TOP_LEVEL_MAX_ALLOC),
+        config.getLong("debug.alloc.est_heap_buf_size_bytes"),
+        config.getInt("debug.alloc.max_occupancy_percent")
+        );
+
+    Metrics.registerGauge(MetricRegistry.name("dremio.memory.remaining_heap_allocations"), new Gauge<Long>() {
+      @Override
+      public Long getValue() {
+        return allocator.getAvailableBuffers();
+      }
+    });
+
+    return allocator;
+  }
+
+  private synchronized static DremioRootAllocator newRoot(long maxAllocBytes, long estBytesPerBuf, int maxOccupancyPercent) {
     // DX-11065: the Netty 4.1 caching algorithm changes causes more objects to be cached, which in turn causes the
     // DirectMemoryArena(s) to contain a lot of PoolChunk objects that are mostly free, with just a few kilobytes locked
     // in the caches. These chunks then become unavailable to the other arenas, which causes execution to run out of
@@ -50,7 +81,8 @@ public class RootAllocatorFactory {
     final String previousProperty = System.getProperty(IO_NETTY_ALLOCATOR_USE_CACHE_FOR_ALL_THREADS_PROPERTY);
     try {
       System.setProperty(IO_NETTY_ALLOCATOR_USE_CACHE_FOR_ALL_THREADS_PROPERTY, "false");
-      return DremioRootAllocator.create(Math.min(VM.getMaxDirectMemory(), config.getLong(TOP_LEVEL_MAX_ALLOC)));
+      long maxBuffers = estBytesPerBuf > 0 ? (long) (VM.getMaxHeapMemory() * maxOccupancyPercent * 1.0d /estBytesPerBuf): Long.MAX_VALUE;
+      return DremioRootAllocator.create(Math.min(VM.getMaxDirectMemory(), maxAllocBytes), maxBuffers);
     } finally {
       if (previousProperty == null) {
         System.getProperties().remove(IO_NETTY_ALLOCATOR_USE_CACHE_FOR_ALL_THREADS_PROPERTY);

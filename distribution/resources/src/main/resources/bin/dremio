@@ -134,6 +134,14 @@ dremio_internal_start() {
 }
 
 check_before_start() {
+    #check the ulimit -n
+    ULIMIT=65536
+    if [ "$(ulimit -n)" -lt "$ULIMIT" ]; then
+      print_warn "\
+Please increase the maximum number of file descriptors to at least $ULIMIT.\n\n\
+Dremio utilizes a large number of file descriptors.\n\
+The maximum number of file descriptors, currently set at $(ulimit -n), is not sufficient."
+    fi
     #ckeck if the process is not running
     if [ -f "$pid" ]; then
       if kill -0 `cat "$pid"` > /dev/null 2>&1; then
@@ -196,14 +204,6 @@ DREMIO_NICENESS="${DREMIO_NICENESS:-0}"
 
 thiscmd=$0
 args=$@
-
-ULIMIT=65536
-if [ "$(ulimit -n)" -lt "$ULIMIT" ]; then
-  print_warn "\
-Please increase the maximum number of file descriptors to at least $ULIMIT.\n\n\
-Dremio utilizes a large number of file descriptors.\n\
-The maximum number of file descriptors, currently set at $(ulimit -n), is not sufficient."
-fi
 
 case $startStopStatus in
 

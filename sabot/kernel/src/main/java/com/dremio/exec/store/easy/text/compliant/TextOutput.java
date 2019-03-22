@@ -15,11 +15,19 @@
  */
 package com.dremio.exec.store.easy.text.compliant;
 
+import com.dremio.common.exceptions.UserException;
+
 /* Base class for producing output record batches while dealing with
  * Text files.
  */
 abstract class TextOutput {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TextOutput.class);
+
+  private final int maxCellLimit;
+
+  protected TextOutput(int maxCellLimit) {
+    this.maxCellLimit = maxCellLimit;
+  }
 
   /**
    * Start processing a new field within a record.
@@ -44,9 +52,9 @@ abstract class TextOutput {
    * @param data
    */
   public void appendIgnoringWhitespace(byte data){
-    if(TextReader.isWhite(data)){
+    if (TextReader.isWhite(data)){
       // noop
-    }else{
+    } else {
       append(data);
     }
   }
@@ -85,5 +93,16 @@ abstract class TextOutput {
 
   public void close() {
     // no op
+  }
+
+  protected void checkFieldLimit(int currentSize, int columnIndex) {
+    if (currentSize >= maxCellLimit) {
+      throw UserException
+        .unsupportedError()
+        .message("Attempting to write a large value for a column.")
+        .addContext("columnIndex", columnIndex)
+        .addContext("Limit", maxCellLimit)
+        .build(logger);
+    }
   }
 }

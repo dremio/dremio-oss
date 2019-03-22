@@ -15,6 +15,8 @@
  */
 package com.dremio.common.memory;
 
+import static org.junit.Assert.assertEquals;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.junit.After;
@@ -23,6 +25,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.test.UserExceptionMatcher;
@@ -39,7 +42,7 @@ public class TestRootAllocator {
 
   @Before
   public void setup() {
-    rootAllocator = DremioRootAllocator.create(16 * 1024);
+    rootAllocator = DremioRootAllocator.create(16 * 1024, 5);
   }
 
   @After
@@ -71,6 +74,50 @@ public class TestRootAllocator {
          BufferAllocator child2 = rootAllocator.newChildAllocator("child2", 0, 8 * 1024)) {
       allocateHelper(child1, 8 * 1024);
     }
+  }
+
+  @Test
+  public void failOnMax() throws Exception {
+    try(RollbackCloseable closeables = new RollbackCloseable(true)) {
+      BufferAllocator alloc = closeables.add(this.rootAllocator.newChildAllocator("child", 0, Long.MAX_VALUE));
+      closeables.add(alloc.buffer(1));
+
+      // make sure release works
+      alloc.buffer(1).release();
+      closeables.add(alloc.buffer(1));
+      closeables.add(alloc.buffer(1));
+      closeables.add(alloc.buffer(1));
+      closeables.add(alloc.buffer(1));
+
+      // ensure
+      thrownException.expect(OutOfMemoryException.class);
+      closeables.add(alloc.buffer(1));
+    }
+
+    assertEquals(5l, rootAllocator.getAvailableBuffers());
+
+  }
+
+  @Test
+  public void ensureZeroAfterUse() throws Exception {
+    try(RollbackCloseable closeables = new RollbackCloseable(true)) {
+      BufferAllocator alloc = closeables.add(this.rootAllocator.newChildAllocator("child", 0, Long.MAX_VALUE));
+      closeables.add(alloc.buffer(1));
+    }
+    assertEquals(5l, rootAllocator.getAvailableBuffers());
+  }
+
+  @Test
+  public void ensureZeroAfterFailedAlloc() throws Exception {
+    try(RollbackCloseable closeables = new RollbackCloseable(true)) {
+      BufferAllocator alloc = closeables.add(this.rootAllocator.newChildAllocator("child", 0, 1));
+      try {
+        closeables.add(alloc.buffer(2));
+      } catch (OutOfMemoryException ex) {
+        // ignore.
+      }
+    }
+    assertEquals(5l, rootAllocator.getAvailableBuffers());
   }
 
   /**

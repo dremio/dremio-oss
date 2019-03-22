@@ -35,4 +35,13 @@ public class Numbers {
       return highestBit << 1;
     }
   }
+
+  /*
+   * Get the next multiple of 8 at or after the provided value.
+   * @param val The minimum value to use.
+   * @return The first multiple of 8 greater than or equal to the input.
+   */
+  public static int nextMultipleOfEight(int val) {
+    return ((val + 7) / 8) * 8;
+  }
 }

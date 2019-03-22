@@ -137,6 +137,17 @@ public class DremioConfig extends NestedConfig {
   public static final String DATASTORE_TYPE = "services.datastore.type";
   public static final String DATASTORE_CONFIG = "services.datastore.config";
 
+  // liveness
+  public static final String LIVENESS_ENABLED = "services.web-admin.enabled";
+  public static final String LIVENESS_PORT = "services.web-admin.port";
+
+  // yarn watchdog
+  public static final String POLL_TIMEOUT_MS = "provisioning.yarn.watchdog.poll.timeout";
+  public static final String POLL_INTERVAL_MS = "provisioning.yarn.watchdog.poll.interval";
+  public static final String MISSED_POLLS_BEFORE_KILL = "provisioning.yarn.watchdog.missed.polls.before.kill";
+  public static final String MAX_KILL_ATTEMPTS = "provisioning.yarn.watchdog.max.kill.attempts";
+  public static final String KILL_REATTEMPT_INTERVAL_MS = "provisioning.yarn.watchdog.kill.reattempt.interval";
+
   private final Config unresolved;
   private final Config reference;
   private final SabotConfig sabot;

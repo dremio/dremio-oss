@@ -146,6 +146,7 @@ public class PartitionToLoadSpilledData implements AutoCloseable {
      Preconditions.checkArgument(vector instanceof BaseFixedWidthVector, "Error: detected invalid accumulator vector type");
      rollbackCloseable.add(vector);
      ((BaseFixedWidthVector) vector).allocateNew(valueCount);
+
      Preconditions.checkArgument(vector.getValueCapacity() >= valueCount, "Error: failed to correctly pre-allocate accumulator vector in extra partition");
      postSpillAccumulatorVectors[count] = vector;
      count++;

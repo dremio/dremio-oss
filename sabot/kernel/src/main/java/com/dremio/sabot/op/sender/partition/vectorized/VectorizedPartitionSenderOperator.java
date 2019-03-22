@@ -387,7 +387,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     final OptionManager options = context.getOptions();
     final int configuredTargetRecordCount = (int)context.getOptions().getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
     if (!options.getOption(ExecConstants.PARTITION_SENDER_BATCH_ADAPTIVE)) {
-      return configuredTargetRecordCount;
+      return OperatorContext.optimizeBatchSizeForAllocs(configuredTargetRecordCount);
     }
 
     final int listSizeEstimate = (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
@@ -401,8 +401,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
 
     final int newBucketSize = Math.min(configuredTargetRecordCount,
         Math.max(targetOutgoingBatchSize/estimatedRecordSize, minTargetBucketRecordCount));
-
-    return Math.max(1, Numbers.nextPowerOfTwo(newBucketSize) - 1);
+    return OperatorContext.optimizeBatchSizeForAllocs(newBucketSize);
   }
 
   @Override

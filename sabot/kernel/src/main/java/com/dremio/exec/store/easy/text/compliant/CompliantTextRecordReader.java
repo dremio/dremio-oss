@@ -21,8 +21,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.Nullable;
-
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -43,7 +41,6 @@ import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.univocity.parsers.common.TextParsingException;
@@ -53,9 +50,9 @@ import io.netty.buffer.ArrowBuf;
 
 // New text reader, complies with the RFC 4180 standard for text/csv files
 public class CompliantTextRecordReader extends AbstractRecordReader {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CompliantTextRecordReader.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CompliantTextRecordReader.class);
 
-  static final int READ_BUFFER = 1024 * 1024;
+  private static final int READ_BUFFER = 1024 * 1024;
   private static final int WHITE_SPACE_BUFFER = 64 * 1024;
 
   // settings to be used while parsing
@@ -81,12 +78,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
   @Override
   public boolean isStarQuery() {
     if (settings.isUseRepeatedVarChar()) {
-      return super.isStarQuery() || Iterables.tryFind(getColumns(), new Predicate<SchemaPath>() {
-        @Override
-        public boolean apply(@Nullable SchemaPath path) {
-          return path.equals(RepeatedVarCharOutput.COLUMNS);
-        }
-      }).isPresent();
+      return super.isStarQuery() || Iterables.tryFind(getColumns(), path -> path.equals(RepeatedVarCharOutput.COLUMNS)).isPresent();
     }
     return super.isStarQuery();
   }
@@ -103,9 +95,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
   public void setup(OutputMutator outputMutator) throws ExecutionSetupException {
     // setup Output, Input, and Reader
     try {
-      TextOutput output = null;
-      TextInput input = null;
-      InputStream stream = null;
+      final TextOutput output;
 
       if (isSkipQuery()) {
         if (settings.isHeaderExtractionEnabled()) {
@@ -115,19 +105,20 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
         settings.setIgnoreLeadingWhitespaces(false);
         settings.setIgnoreTrailingWhitespaces(false);
         settings.setParseUnescapedQuotes(false);
-        output = new TextCountOutput(outputMutator);
+        output = new TextCountOutput();
       } else {
+        final int sizeLimit = (int)this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES);
         // setup Output using OutputMutator
         if (settings.isHeaderExtractionEnabled()) {
           //extract header and use that to setup a set of VarCharVectors
           String[] fieldNames = extractHeader();
-          output = new FieldVarCharOutput(outputMutator, fieldNames, getColumns(), isStarQuery());
+          output = new FieldVarCharOutput(outputMutator, fieldNames, getColumns(), isStarQuery(), sizeLimit);
         } else if (settings.isAutoGenerateColumnNames()) {
           String[] fieldNames = generateColumnNames();
-          output = new FieldVarCharOutput(outputMutator, fieldNames, getColumns(), isStarQuery());
+          output = new FieldVarCharOutput(outputMutator, fieldNames, getColumns(), isStarQuery(), sizeLimit);
         } else {
           //simply use RepeatedVarCharVector
-          output = new RepeatedVarCharOutput(outputMutator, getColumns(), isStarQuery());
+          output = new RepeatedVarCharOutput(outputMutator, getColumns(), isStarQuery(), sizeLimit);
         }
       }
 
@@ -135,8 +126,8 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
       whitespaceBuffer = this.context.getAllocator().buffer(WHITE_SPACE_BUFFER);
 
       // setup Input using InputStream
-      stream = dfs.openPossiblyCompressedStream(split.getPath());
-      input = new TextInput(settings, stream, readBuffer, split.getStart(), split.getStart() + split.getLength());
+      InputStream stream = dfs.openPossiblyCompressedStream(split.getPath());
+      TextInput input = new TextInput(settings, stream, readBuffer, split.getStart(), split.getStart() + split.getLength());
 
       // setup Reader using Input and Output
       reader = new TextReader(settings, input, output, whitespaceBuffer);
@@ -159,7 +150,8 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
     try (HeaderOutputMutator hOutputMutator = new HeaderOutputMutator();
          ArrowBuf readBufferInReader = this.context.getAllocator().buffer(READ_BUFFER);
          ArrowBuf whitespaceBufferInReader = this.context.getAllocator().buffer(WHITE_SPACE_BUFFER)) {
-      TextOutput hOutput = new RepeatedVarCharOutput(hOutputMutator, getColumns(), true);
+      final int sizeLimit = (int)this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES);
+      final RepeatedVarCharOutput hOutput = new RepeatedVarCharOutput(hOutputMutator, getColumns(), true, sizeLimit);
       this.allocate(hOutputMutator.fieldVectorMap);
 
       // setup Input using InputStream
@@ -181,7 +173,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
           }
 
           // grab the field names from output
-          fieldNames = ((RepeatedVarCharOutput) hOutput).getTextOutput();
+          fieldNames = hOutput.getTextOutput();
         } while (fieldNames == null);
 
         if (settings.isTrimHeader()) {
@@ -214,7 +206,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
     return validateColumnNames(fieldNames);
   }
 
-  public static String[] validateColumnNames(String fieldNames[]) {
+  public static String[] validateColumnNames(String[] fieldNames) {
     final Map<String, Integer> uniqueFieldNames = Maps.newHashMap();
     if (fieldNames != null) {
       for (int i = 0; i < fieldNames.length; ++i) {

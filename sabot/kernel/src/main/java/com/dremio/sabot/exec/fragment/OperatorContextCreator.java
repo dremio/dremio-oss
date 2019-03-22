@@ -29,7 +29,6 @@ import org.apache.arrow.memory.BufferAllocator;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.util.Numbers;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
@@ -152,10 +151,14 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     final int varFieldSizeEstimate = (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
     final int estimatedRecordSize = schema.estimateRecordSize(listSizeEstimate, varFieldSizeEstimate);
 
+    return calculateBatchCountFromRecordSize(options, estimatedRecordSize);
+  }
+
+  static int calculateBatchCountFromRecordSize(OptionManager options, int estimatedRecordSize) {
     if (estimatedRecordSize == 0) {
       // If the estimated row size is zero (possible when schema is not known initially for queries containing
       // convert_from), fall back to max size
-      return (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
+      return OperatorContext.optimizeBatchSizeForAllocs((int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX));
     }
 
     final int minTargetBatchCount = (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MIN);
@@ -166,8 +169,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
     final int targetBatchSize = max(minTargetBatchCount,
       min(maxTargetBatchCount, maxBatchSizeBytes / estimatedRecordSize));
 
-    // TODO: may be we should get the closest 2^x - 1
-    return Math.max(1, Numbers.nextPowerOfTwo(targetBatchSize) - 1);
+    return OperatorContext.optimizeBatchSizeForAllocs(targetBatchSize);
   }
 
 }

@@ -128,6 +128,7 @@ public abstract class PartitionerTemplate implements Partitioner {
     targetOutgoingBatchSize = (int) Math.min(
       options.getOption(ExecConstants.PARTITION_SENDER_MAX_BATCH_SIZE),
       options.getOption(ExecConstants.PARTITION_SENDER_MAX_MEM) / numPartitions);
+    targetOutgoingBatchSize = OperatorContext.optimizeBatchSizeForAllocs(targetOutgoingBatchSize);
 
     int fieldId = 0;
     for (MinorFragmentEndpoint destination : popConfig.getDestinations()) {

@@ -17,12 +17,14 @@ package com.dremio.common.memory;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.AllocationOutcome;
 import org.apache.arrow.memory.BaseAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
+import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.memory.RootAllocator;
 
 import com.dremio.common.exceptions.UserException;
@@ -34,21 +36,30 @@ import io.netty.buffer.ArrowBuf;
  * Tracks all top-level allocators
  */
 public class DremioRootAllocator extends RootAllocator {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioRootAllocator.class);
+
   private final ConcurrentMap<String, BufferAllocator> children;
 
-  public static DremioRootAllocator create(final long limit) {
-    RootAllocatorListener listener = new RootAllocatorListener();
+  public static DremioRootAllocator create(final long limit, long maxBufferCount) {
+    RootAllocatorListener listener = new RootAllocatorListener(maxBufferCount);
     DremioRootAllocator rootAllocator = new DremioRootAllocator(listener, limit);
     listener.setRootAllocator(rootAllocator);
     return rootAllocator;
   }
 
+  public long getAvailableBuffers() {
+    return listener.getAvailableBuffers();
+  }
   /**
    * Constructor, hidden from public use. Use {@link #create(long)} instead
    */
-  private DremioRootAllocator(final AllocationListener listener, final long limit) {
+
+  private RootAllocatorListener listener;
+
+  private DremioRootAllocator(final RootAllocatorListener listener, final long limit) {
     super(listener, limit);
     children = new ConcurrentHashMap<>();
+    this.listener = listener;
   }
 
   /**
@@ -76,14 +87,44 @@ public class DremioRootAllocator extends RootAllocator {
   }
 
   private static class RootAllocatorListener implements AllocationListener {
+
+    /*
+     * Count of available buffers. Since this is optimistically changed, it can go be negative but it would be wrong for it stay negative for an
+     * extended period of time or be hugely negative.
+     */
+    private final AtomicLong availBuffers;
+
     DremioRootAllocator rootAllocator;
+
+    public RootAllocatorListener(long maxCount) {
+      availBuffers = new AtomicLong(maxCount);
+    }
 
     void setRootAllocator(DremioRootAllocator rootAllocator) {
       this.rootAllocator = rootAllocator;
     }
 
+    public long getAvailableBuffers() {
+      return availBuffers.get();
+    }
+
+    @Override
+    public void onPreAllocation(long size) {
+      // We don't decrement here since it means we'll possibly leak a reference.
+      // However, we throw here since we need to throw before any partial-accounting occurs.
+      if(availBuffers.get() < 1) {
+        throw new OutOfMemoryException("Buffer count exceeds maximum.");
+      }
+    }
+
     @Override
     public void onAllocation(long size) {
+      availBuffers.decrementAndGet();
+    }
+
+    @Override
+    public void onRelease(long size) {
+      availBuffers.incrementAndGet();
     }
 
     @Override

@@ -102,6 +102,15 @@ public class TestVectorizedHashAggPartitionSpillHandler {
     MAX_VALUES_PER_BATCH = 1024;
     testPartitionSpillHandlerHelper();
     postSpillAccumulatorVectorFields.clear();
+
+    /* try with HT batch size as non power of 2 */
+    MAX_VALUES_PER_BATCH = 990;
+    testPartitionSpillHandlerHelper();
+    postSpillAccumulatorVectorFields.clear();
+
+    MAX_VALUES_PER_BATCH = 976;
+    testPartitionSpillHandlerHelper();
+    postSpillAccumulatorVectorFields.clear();
   }
 
   private void testPartitionSpillHandlerHelper() throws Exception {

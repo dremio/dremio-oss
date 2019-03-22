@@ -29,15 +29,24 @@ import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.junit.Test;
 
+import com.dremio.common.util.Numbers;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
 import com.dremio.sabot.op.aggregate.vectorized.SumAccumulators;
 
 public class  TestGreedyMemoryAllocation {
 
-  private static final int MAX_VALUES_PER_BATCH = 1024;
+  private static final int MAX_VALUES_PER_BATCH = 990;
   private static final int JOINT_ALLOCATION_MIN = 4*1024;
   private static final int JOINT_ALLOCATION_MAX = 64*1024;
+
+  private static int round8(int val) {
+    return Numbers.nextMultipleOfEight(val);
+  }
+
+  private static int roundPower2(int val) {
+    return Numbers.nextPowerOfTwo(val);
+  }
 
   @Test
   public void testMemoryAllocation() throws Exception {
@@ -69,9 +78,9 @@ public class  TestGreedyMemoryAllocation {
       assertEquals(1, ranges.size());
       assertEquals(0, ranges.get(0).getStart());
       assertEquals(3, ranges.get(0).getEnd());
-      //32KB for data buffers of all accumulators and 128bytes*4 for validity buffer of all accumulators
-      final int allocatedMemory = 8 * MAX_VALUES_PER_BATCH * 4 + getValidityBufferSizeFromCount(MAX_VALUES_PER_BATCH) * 4;
-      assertEquals(allocatedMemory, allocator.getAllocatedMemory());
+      //In each accumulator, 4 bytes for value and 1 bit for validity.
+      final int allocatedMemory = (round8(8 * MAX_VALUES_PER_BATCH) + round8(getValidityBufferSizeFromCount(MAX_VALUES_PER_BATCH))) * 4;
+      assertEquals(roundPower2(allocatedMemory), allocator.getAllocatedMemory());
       accumulatorSet.close();
     }
   }
@@ -147,16 +156,16 @@ public class  TestGreedyMemoryAllocation {
       assertEquals(1, ranges.size());
       assertEquals(0, ranges.get(0).getStart());
       assertEquals(7, ranges.get(0).getEnd());
+      // joint allocation of data buffer for first 8 vectors of size 64KB.
+      final int sizeForOne = round8(8 * MAX_VALUES_PER_BATCH) + round8(getValidityBufferSizeFromCount(MAX_VALUES_PER_BATCH));
+      int allocatedMemory = roundPower2(sizeForOne * 8);
 
       ranges = allocationMapping.get(2);
       assertEquals(1, ranges.size());
       assertEquals(8, ranges.get(0).getStart());
       assertEquals(9, ranges.get(0).getEnd());
-      // joint allocation of data buffer for first 8 vectors of size 64KB +
-      // joint allocation of validity buffer for first 8 vectors of size (128 * 8) +
       // joint allocation of data buffer for last 2 vectors of size 16KB +
-      // joint allocation of validity buffer for last 2 vectors of size (128 * 2)
-      final int allocatedMemory = (8 * MAX_VALUES_PER_BATCH * 8) + (getValidityBufferSizeFromCount(MAX_VALUES_PER_BATCH) * 8) + (8 * MAX_VALUES_PER_BATCH * 2) + (getValidityBufferSizeFromCount(MAX_VALUES_PER_BATCH) * 2);
+      allocatedMemory += roundPower2(sizeForOne * 2);
       assertEquals(allocatedMemory, allocator.getAllocatedMemory());
       accumulatorSet.close();
     }

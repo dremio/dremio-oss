@@ -103,6 +103,14 @@ public class TestVectorizedHashAggPartitionSerializable {
     MAX_VALUES_PER_BATCH = 1024;
     testPartitionRoundTrip1Helper();
     postSpillAccumulatorVectorFields.clear();
+
+    /* try with HT batchsize as non power of 2 */
+    MAX_VALUES_PER_BATCH = 990;
+    testPartitionRoundTrip1Helper();
+    postSpillAccumulatorVectorFields.clear();
+
+    MAX_VALUES_PER_BATCH = 976;
+    testPartitionRoundTrip1Helper();
   }
 
   private void testPartitionRoundTrip1Helper() throws Exception {
@@ -260,6 +268,15 @@ public class TestVectorizedHashAggPartitionSerializable {
 
     MAX_VALUES_PER_BATCH = 1024;
     testPartitionRoundTrip2Helper();
+    postSpillAccumulatorVectorFields.clear();
+
+    /* try with HT batchsize as non power of 2 */
+    MAX_VALUES_PER_BATCH = 990;
+    testPartitionRoundTrip1Helper();
+    postSpillAccumulatorVectorFields.clear();
+
+    MAX_VALUES_PER_BATCH = 976;
+    testPartitionRoundTrip1Helper();
     postSpillAccumulatorVectorFields.clear();
   }
 

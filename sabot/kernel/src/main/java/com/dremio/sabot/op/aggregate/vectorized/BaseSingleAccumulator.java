@@ -412,7 +412,7 @@ abstract class BaseSingleAccumulator implements Accumulator {
   @Override
   public void output(final int batchIndex) {
     final FieldVector accumulationVector = accumulators[batchIndex];
-    final TransferPair transferPair= accumulationVector.makeTransferPair(transferVector);
+    final TransferPair transferPair = accumulationVector.makeTransferPair(transferVector);
     transferPair.transfer();
     if (batchIndex == 0) {
       ((FixedWidthVector) accumulationVector).allocateNew(maxValuesPerBatch);

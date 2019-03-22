@@ -88,6 +88,7 @@ public class UnifiedParquetReader implements RecordReader {
   private final Map<String, ValueVector> vectorizedMap = new HashMap<>();
   private final Map<String, ValueVector> nonVectorizedMap = new HashMap<>();
   private InputStreamProvider inputStreamProvider;
+  private boolean ignoreSchemaLearning;
 
   public UnifiedParquetReader(
       OperatorContext context,
@@ -121,13 +122,14 @@ public class UnifiedParquetReader implements RecordReader {
     this.enableDetailedTracing = enableDetailedTracing;
     this.inputStreamProvider = inputStreamProvider;
     this.schemaHelper = schemaHelper;
+    this.ignoreSchemaLearning = false;
   }
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     computeLocality(footer);
 
-    splitColumns(footer, vectorizableReaderColumns, nonVectorizableReaderColumns);
+    splitColumns(this.realFields, footer, vectorizableReaderColumns, nonVectorizableReaderColumns);
 
 
 
@@ -152,6 +154,10 @@ public class UnifiedParquetReader implements RecordReader {
     context.getStats().setLongStat(Metric.NUM_VECTORIZED_COLUMNS, vectorizableReaderColumns.size());
     context.getStats().setLongStat(Metric.NUM_NON_VECTORIZED_COLUMNS, nonVectorizableReaderColumns.size());
     context.getStats().setLongStat(Metric.FILTER_EXISTS, filterConditions != null && filterConditions.size() > 0 ? 1 : 0);
+  }
+
+  public void setIgnoreSchemaLearning(boolean ignoreSchemaLearning) {
+    this.ignoreSchemaLearning = ignoreSchemaLearning;
   }
 
   // No reason to use delegates since Parquet always uses the default schema change mutator.
@@ -240,7 +246,8 @@ public class UnifiedParquetReader implements RecordReader {
     AutoCloseables.close(inputStreamProvider);
   }
 
-  private void splitColumns(final ParquetMetadata footer,
+  private void splitColumns(final List<SchemaPath> projectedColumns,
+                            final ParquetMetadata footer,
                             List<SchemaPath> vectorizableReaderColumns,
                             List<SchemaPath> nonVectorizableReaderColumns) {
     final BlockMetaData block = footer.getBlocks().get(readEntry.getRowGroupIndex());
@@ -259,6 +266,20 @@ public class UnifiedParquetReader implements RecordReader {
 
     MessageType schema = footer.getFileMetaData().getSchema();
     for (Type parquetField : schema.getFields()) {
+      if (this.ignoreSchemaLearning) {
+        // check if parquet field is in projected columns, if not, then ignore it
+        boolean ignoreThisField = true;
+        for (SchemaPath projectedPath : projectedColumns) {
+          String name = projectedPath.getRootSegment().getNameSegment().getPath();
+          if (parquetField.getName().equalsIgnoreCase(name)) {
+            ignoreThisField = false;
+            break;
+          }
+        }
+        if (ignoreThisField) {
+          continue;
+        }
+      }
       if (fields.containsKey(parquetField.getName()) &&
         (parquetField.asPrimitiveType().getOriginalType() != OriginalType.DECIMAL
         && parquetField.isPrimitive()

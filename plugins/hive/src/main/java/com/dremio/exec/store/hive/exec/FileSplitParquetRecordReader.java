@@ -23,6 +23,7 @@ import java.util.Map;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -35,6 +36,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.parquet.InputStreamProvider;
@@ -62,13 +64,13 @@ public class FileSplitParquetRecordReader implements RecordReader {
   private final List<SchemaPath> columnsToRead;
   private final List<ParquetFilterCondition> conditions;
   private final FileSplit fileSplit;
-  private final ParquetMetadata footer;
   private final JobConf jobConf;
   private final boolean vectorize;
   private final boolean enableDetailedTracing;
   private final BatchSchema outputSchema;
   private final ParquetReaderFactory readerFactory;
 
+  private ParquetMetadata footer;
   private List<UnifiedParquetReader> innerReaders;
   private Iterator<UnifiedParquetReader> innerReadersIter;
   private UnifiedParquetReader currentReader;
@@ -80,7 +82,6 @@ public class FileSplitParquetRecordReader implements RecordReader {
       final List<SchemaPath> columnsToRead,
       final List<ParquetFilterCondition> conditions,
       final FileSplit fileSplit,
-      final ParquetMetadata footer,
       final JobConf jobConf,
       final boolean vectorize,
       final BatchSchema outputSchema,
@@ -91,7 +92,6 @@ public class FileSplitParquetRecordReader implements RecordReader {
     this.columnsToRead = columnsToRead;
     this.conditions = conditions;
     this.fileSplit = fileSplit;
-    this.footer = footer;
     this.jobConf = jobConf;
     this.readerFactory = readerFactory;
     this.vectorize = vectorize;
@@ -102,23 +102,43 @@ public class FileSplitParquetRecordReader implements RecordReader {
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     try {
-      final Path finalPath = fileSplit.getPath();
+      boolean useSingleStream =
+        // option is set for single stream
+        oContext.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM) ||
+          // number of columns is above threshold
+          columnsToRead.size() >= oContext.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD) ||
+          // split size is below multi stream size limit and the limit is enabled
+          (oContext.getOptions().getOption(ExecConstants.PARQUET_MULTI_STREAM_SIZE_LIMIT_ENABLE) &&
+            fileSplit.getLength() < oContext.getOptions().getOption(ExecConstants.PARQUET_MULTI_STREAM_SIZE_LIMIT));
 
+      final Path finalPath = fileSplit.getPath();
+      final String pathString = Path.getPathWithoutSchemeAndAuthority(finalPath).toString();
       final FileSystem fs;
+      InputStreamProvider inputStreamProvider = null;
       try {
         fs = FileSystemWrapper.get(finalPath, jobConf, oContext.getStats());
-      } catch(IOException e) {
-        throw new ExecutionSetupException(String.format("Failed to create FileSystem: %s", e.getMessage()), e);
+        inputStreamProvider = new InputStreamProvider(fs, new Path(pathString), useSingleStream);
+        final SingletonParquetFooterCache footerCache = new SingletonParquetFooterCache();
+        footer = footerCache.getFooter(inputStreamProvider.stream(), pathString, -1, fs);
+      } catch(Exception e) {
+        // Close input stream provider in case of errors
+        if (inputStreamProvider != null) {
+          inputStreamProvider.close();
+        }
+        throw new ExecutionSetupException(String.format("Failed to read parquet footer : %s", e.getMessage()), e);
       }
 
       final List<Integer> rowGroupNums = getRowGroupNumbersFromFileSplit(fileSplit, footer);
-      oContext.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, rowGroupNums.size());
+      if (rowGroupNums.isEmpty()) {
+        inputStreamProvider.close();
+      }
 
+      oContext.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, rowGroupNums.size());
       innerReaders = Lists.newArrayList();
       for (int rowGroupNum : rowGroupNums) {
         ParquetDatasetSplitScanXAttr split = new ParquetDatasetSplitScanXAttr();
         split.setRowGroupIndex(rowGroupNum);
-        split.setPath(Path.getPathWithoutSchemeAndAuthority(finalPath).toString());
+        split.setPath(pathString);
         split.setStart(0l);
         split.setLength((long) Integer.MAX_VALUE);
 
@@ -128,16 +148,10 @@ public class FileSplitParquetRecordReader implements RecordReader {
             .noSchemaLearning(outputSchema)
             .build();
 
-        boolean useSingleStream =
-          // option is set for single stream
-          oContext.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM) ||
-            // number of columns is above threshold
-            columnsToRead.size() >= oContext.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD) ||
-            // split size is below multi stream size limit and the limit is enabled
-            (oContext.getOptions().getOption(ExecConstants.PARQUET_MULTI_STREAM_SIZE_LIMIT_ENABLE) &&
-              fileSplit.getLength() < oContext.getOptions().getOption(ExecConstants.PARQUET_MULTI_STREAM_SIZE_LIMIT));
-
-        InputStreamProvider inputStreamProvider = new InputStreamProvider(fs, new Path(split.getPath()), useSingleStream);
+        // Reuse the stream used for reading footer to read the first row group.
+        if (innerReaders.size() > 0) {
+          inputStreamProvider = new InputStreamProvider(fs, new Path(pathString), useSingleStream);
+        }
 
         final UnifiedParquetReader innerReader = new UnifiedParquetReader(
             oContext,
@@ -156,6 +170,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
             enableDetailedTracing,
           inputStreamProvider
         );
+        innerReader.setIgnoreSchemaLearning(true);
 
         innerReader.setup(output);
 

@@ -263,7 +263,7 @@ public class TestTextReader extends BaseTestQuery {
         fail("Unexpected Error");
       }
       UserRemoteException urex = (UserRemoteException) ex;
-      assertEquals(UserBitShared.DremioPBError.ErrorType.DATA_READ, urex.getErrorType());
+      assertEquals(UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION, urex.getErrorType());
     }
   }
 

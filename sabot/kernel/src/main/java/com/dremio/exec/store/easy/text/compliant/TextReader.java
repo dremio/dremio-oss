@@ -32,7 +32,7 @@ import io.netty.buffer.ArrowBuf;
  * ArrowBuf support.
  */
 final class TextReader implements AutoCloseable {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TextReader.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TextReader.class);
 
   private static final byte NULL_BYTE = (byte) '\0';
 
@@ -88,7 +88,6 @@ final class TextReader implements AutoCloseable {
 
     this.input = input;
     this.output = output;
-
   }
 
   public TextOutput getOutput(){

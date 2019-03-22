@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-root</artifactId>
-    <version>3.1.6-201903070042400578-fdcd3a8</version>
+    <version>3.1.7-201903210426240688-c843b51</version>
   </parent>
 
   <groupId>com.dremio.contrib</groupId>
