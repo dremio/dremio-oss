@@ -35,8 +35,10 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.options.OptionManager;
 import com.dremio.service.BinderImpl.Binding;
 import com.dremio.service.BinderImpl.InstanceBinding;
 import com.dremio.service.BinderImpl.SingletonBinding;
@@ -83,6 +85,7 @@ public class DremioBinder extends AbstractBinder {
     bindToSelf(CatalogServiceHelper.class);
     bindToSelf(CollaborationHelper.class);
     bindToSelf(FormatTools.class);
+    bindFactory(OptionManagerFactory.class).to(OptionManager.class);
     bind(JobsBasedRecommender.class).to(JoinRecommender.class);
     bind(DACSecurityContext.class).in(RequestScoped.class).to(SecurityContext.class);
     bindFactory(CatalogFactory.class).proxy(true).in(RequestScoped.class).to(Catalog.class);
@@ -114,6 +117,28 @@ public class DremioBinder extends AbstractBinder {
 
     @Override
     public void dispose(Catalog catalog) {
+    }
+  }
+
+  /**
+   * A factory for OptionManager to be used for DI
+   * (and avoid passing directly SabotContext...)
+   */
+  public static class OptionManagerFactory implements Factory<OptionManager> {
+    private final SabotContext context;
+
+    @Inject
+    public OptionManagerFactory(SabotContext context) {
+      this.context = context;
+    }
+
+    @Override
+    public OptionManager provide() {
+      return context.getOptionManager();
+    }
+
+    @Override
+    public void dispose(OptionManager instance) {
     }
   }
 }

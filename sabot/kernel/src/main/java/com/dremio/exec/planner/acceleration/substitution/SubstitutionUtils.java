@@ -15,15 +15,18 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.Writer;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.RelVisitor;
 import org.apache.calcite.rel.core.TableScan;
+import org.apache.calcite.rel.externalize.RelWriterImpl;
 import org.apache.calcite.sql.SqlExplainLevel;
 
 import com.dremio.exec.planner.RoutingShuttle;
@@ -66,6 +69,32 @@ public final class SubstitutionUtils {
 
     visitor.go(node);
     return usedTables;
+  }
+
+  public static int hash(RelNode rel) {
+    Hasher hasher = new Hasher();
+    PrintWriter pw = new PrintWriter(hasher, false);
+    rel.explain(new RelWriterImpl(pw, SqlExplainLevel.DIGEST_ATTRIBUTES, false));
+    return hasher.hash;
+  }
+
+  private static class Hasher extends Writer {
+    private int hash = 0;
+
+    @Override
+    public void write(char[] cbuf, int off, int len) throws IOException {
+      int h = hash;
+      for (char aCbuf : cbuf) {
+        h = 31 * h + aCbuf;
+      }
+      hash = h;
+    }
+
+    @Override
+    public void flush() throws IOException { }
+
+    @Override
+    public void close() throws IOException { }
   }
 
   /**
@@ -113,11 +142,11 @@ public final class SubstitutionUtils {
     Preconditions.checkNotNull(query, "query plan required");
     Preconditions.checkNotNull(candidate, "candidate plan required");
 
-    final String queryString = RelOptUtil.toString(query, SqlExplainLevel.DIGEST_ATTRIBUTES);
+    final int queryCode = hash(query);
     final RelNode updatedCandidate = candidate.accept(REMOVE_REPLACEMENT_POINTER);
-    final String candidateString = RelOptUtil.toString(updatedCandidate, SqlExplainLevel.DIGEST_ATTRIBUTES);
+    final int candidateCode = hash(updatedCandidate);
 
-    return queryString.equals(candidateString);
+    return queryCode == candidateCode;
   }
 
 }

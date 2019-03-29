@@ -172,6 +172,24 @@ export class ViewStateWrapper extends Component {
 
 export default connect(null, { dismissViewStateError })(ViewStateWrapper);
 
+/**
+ * Returns a first truthy value from {@see fieldName} field of {@see immutableMaps} list
+ * @param {string} fieldName - a field name to search for a truthy value
+ * @param  {...Immutable.Map} immutableMaps - a list of immutable maps
+ */
+// export for testing
+export const findFirstTruthyValue = (fieldName, ...immutableMaps) => {
+  return immutableMaps.reduce((res, currMap) => {
+    return res || currMap.get(fieldName);
+  }, undefined);
+};
+export const mergeViewStates = (...viewStates) => {
+  return Immutable.fromJS(['isInProgress', 'isFailed', 'isWarning', 'error'].reduce((result, fieldName) => {
+    result[fieldName] = findFirstTruthyValue(fieldName, ...viewStates);
+    return result;
+  }, {}));
+};
+
 const styles = {
   base: {
     height: '100%',

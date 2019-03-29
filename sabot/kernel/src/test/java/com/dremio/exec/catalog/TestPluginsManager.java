@@ -43,6 +43,7 @@ import org.junit.Test;
 
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.KVStore;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
@@ -53,6 +54,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.DatasetRetrievalOptions;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -81,6 +83,7 @@ import io.protostuff.ByteString;
 public class TestPluginsManager {
   private KVStoreProvider storeProvider;
   private PluginsManager plugins;
+  private SabotContext sabotContext;
 
   @Before
   public void setup() throws Exception {
@@ -99,7 +102,7 @@ public class TestPluginsManager {
     final DatasetListingService mockDatasetListingService = mock(DatasetListingService.class);
 
     final SabotConfig sabotConfig = SabotConfig.create();
-    final SabotContext sabotContext = mock(SabotContext.class);
+    sabotContext = mock(SabotContext.class);
     // used in c'tor
     when(sabotContext.getClasspathScan())
       .thenReturn(CLASSPATH_SCAN_RESULT);
@@ -160,6 +163,15 @@ public class TestPluginsManager {
 
   @SourceType(value = INSPECTOR, configurable = false)
   public static class Inspector extends ConnectionConf<Inspector, StoragePlugin> {
+    private final boolean hasAccessPermission;
+
+    Inspector() {
+      this.hasAccessPermission = true;
+    }
+
+    Inspector(boolean hasAccessPermission) {
+      this.hasAccessPermission = hasAccessPermission;
+    }
 
     @Override
     public StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
@@ -215,10 +227,17 @@ public class TestPluginsManager {
         when(mockStoragePlugin.getState())
           .thenReturn(SourceState.GOOD);
 
+        when(mockStoragePlugin.hasAccessPermission(anyString(), any(), any())).thenReturn(hasAccessPermission);
       } catch (Exception ignored) {
         throw new IllegalStateException("will not throw");
       }
       return mockStoragePlugin;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      // this forces the replace call to always do so
+      return false;
     }
   }
 
@@ -553,5 +572,50 @@ public class TestPluginsManager {
 
     // tries to createDataset, should shallowSave since fieldCount > maxMetadataColumns (=1)
     datasetManager.createDataset(key, managedStoragePlugin, null);
+  }
+
+  @Test
+  public void permissionCacheShouldClearOnReplace() throws Exception {
+    final NamespaceKey sourceKey = new NamespaceKey(INSPECTOR);
+    final SourceConfig inspectorConfig = new SourceConfig()
+      .setType(INSPECTOR)
+      .setName(INSPECTOR)
+      .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+      .setConfig(new Inspector(true).toBytesString());
+
+    final KVStore<NamespaceKey, SourceInternalData> kvStore = storeProvider.getStore(CatalogSourceDataCreator.class);
+
+    // create one; lock required
+    final ManagedStoragePlugin plugin;
+    try (AutoCloseable ignored = plugins.writeLock()) {
+      plugin = plugins.create(inspectorConfig);
+      plugin.startAsync().checkedGet();
+    }
+
+    final SchemaConfig schemaConfig = mock(SchemaConfig.class);
+    when(schemaConfig.getUserName()).thenReturn("user");
+    final MetadataRequestOptions metadataRequestOptions = new MetadataRequestOptions(schemaConfig, 1000);
+
+    // force a cache of the permissions
+    plugin.checkAccess(new NamespaceKey("test"), datasetConfig, metadataRequestOptions);
+
+    // create a replacement that will always fail permission checks
+    final SourceConfig newConfig = new SourceConfig()
+      .setType(INSPECTOR)
+      .setName(INSPECTOR)
+      .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
+      .setConfig(new Inspector(false).toBytesString());
+
+    plugin.replacePlugin(newConfig, sabotContext, 1000);
+
+    // will throw if the cache has been cleared
+    boolean threw = false;
+    try {
+      plugin.checkAccess(new NamespaceKey("test"), datasetConfig, metadataRequestOptions);
+    } catch (UserException e) {
+      threw = true;
+    }
+
+    assertTrue(threw);
   }
 }

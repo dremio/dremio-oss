@@ -35,7 +35,7 @@ public class MergeProjectForFlattenRule extends RelOptRule {
     ProjectForFlattenRel top = call.rel(0);
     ProjectForFlattenRel bottom = call.rel(1);
 
-    ProjectRel temporary = new ProjectRel(bottom.getCluster(), bottom.getTraitSet(), bottom.getInput(), bottom.getProjExprs(), bottom.getRowType());
+    ProjectRel temporary = ProjectRel.create(bottom.getCluster(), bottom.getTraitSet(), bottom.getInput(), bottom.getProjExprs(), bottom.getRowType());
     List<RexNode> newProjExprs = RelOptUtil.pushPastProject(top.getProjExprs(), temporary);
     List<RexNode> newItemExprs = new ArrayList<>(top.getItemExprs().size() + bottom.getItemExprs().size());
     newItemExprs.addAll(RelOptUtil.pushPastProject(top.getItemExprs(), temporary));

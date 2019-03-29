@@ -19,9 +19,10 @@ import Immutable from 'immutable';
 import { connect } from 'react-redux';
 import { injectIntl } from 'react-intl';
 
+
+import { getEntity, getViewState } from 'selectors/resources';
 import Modal from 'components/Modals/Modal';
 import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
-import SpaceModalMixin, { mapStateToProps } from 'dyn-load/pages/HomePage/components/modals/SpaceModalMixin';
 
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import { createNewSpace, updateSpace } from 'actions/resources/spaces';
@@ -31,8 +32,15 @@ import './Modal.less';
 
 export const VIEW_ID = 'SpaceModal';
 
+const mapStateToProps = (state, props) => {
+  const entity = getEntity(state, props.entityId, 'space');
+  return {
+    entity,
+    viewState: getViewState(state, VIEW_ID)
+  };
+};
+
 @injectIntl
-@SpaceModalMixin
 export class SpaceModal extends Component {
 
   static propTypes = {
@@ -58,8 +66,6 @@ export class SpaceModal extends Component {
   }
 
   submit = (values) => {
-    this.mutateFormValues(values);
-
     return ApiUtils.attachFormSubmitHandlers(
       this.props.entity ? this.props.updateSpace(values) : this.props.createNewSpace(values)
     ).then(() => this.props.hide(null, true));
@@ -67,23 +73,17 @@ export class SpaceModal extends Component {
 
   renderForm() {
     const { entity, initialFormValues, updateFormDirtyState } = this.props;
-    if (entity) {
-      return <SpaceForm
-        initialValues={{
-          name: entity.get('name'),
-          version: entity.get('version'),
-          id: entity.get('id'),
-          ...initialFormValues
-        }}
-        updateFormDirtyState={updateFormDirtyState}
-        editing={entity !== undefined}
-        onFormSubmit={this.submit}
-        onCancel={this.hide}
-      />;
-    }
+
     return <SpaceForm
-      onFormSubmit={this.submit}
+      initialValues={entity ? {
+        name: entity.get('name'),
+        version: entity.get('version'),
+        id: entity.get('id'),
+        ...initialFormValues
+      } : null}
       updateFormDirtyState={updateFormDirtyState}
+      editing={entity !== undefined}
+      onFormSubmit={this.submit}
       onCancel={this.hide}
     />;
   }

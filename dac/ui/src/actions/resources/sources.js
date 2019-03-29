@@ -217,7 +217,7 @@ export const GET_CREATED_SOURCE_START = 'GET_CREATED_SOURCE_START';
 export const GET_CREATED_SOURCE_SUCCESS = 'GET_CREATED_SOURCE_SUCCESS';
 export const GET_CREATED_SOURCE_FAILURE = 'GET_CREATED_SOURCE_FAILURE';
 
-export function fetchSource(sourceName, viewId) {
+export function loadSource(sourceName, viewId) {
   const meta = {viewId};
   return {
     [CALL_API]: {
@@ -229,11 +229,5 @@ export function fetchSource(sourceName, viewId) {
       method: 'GET',
       endpoint: `${API_URL_V2}/source/${sourceName}?includeContents=false`
     }
-  };
-}
-
-export function loadSource(sourceName, viewId) {
-  return (dispatch) => {
-    return dispatch(fetchSource(sourceName, viewId));
   };
 }

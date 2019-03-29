@@ -53,6 +53,8 @@ public class PlannerSettings implements Context{
   private boolean useDefaultCosting = false; // True: use default Calcite costing, False: use Dremio costing
   private boolean forceSingleMode;
   private long minimumSampleSize = 0;
+  // should distribution traits be pulled off during planning
+  private boolean pullDistributionTrait = true;
 
   public static final int MAX_BROADCAST_THRESHOLD = Integer.MAX_VALUE;
   public static final int DEFAULT_IDENTIFIER_MAX_LENGTH = 1024;
@@ -63,6 +65,7 @@ public class PlannerSettings implements Context{
   private static final long DEFAULT_MAX_OFF_HEAP_ALLOCATION_IN_BYTES = 256 * 1024 * 1024;
   // max off heap memory for planning (16G)
   private static final long MAX_OFF_HEAP_ALLOCATION_IN_BYTES = 16l * 1024 * 1024 * 1024;
+
 
   public static final BooleanValidator FLATTEN_FILTER = new BooleanValidator("planner.enable_filter_flatten_pushdown", false /** disabled until DX-7987 is resolved **/);
   public static final BooleanValidator CONSTANT_FOLDING = new BooleanValidator("planner.enable_constant_folding", true);
@@ -111,6 +114,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator ENABLE_OUTPUT_LIMITS = new BooleanValidator("planner.output_limit_enable", false);
   public static final RangeLongValidator OUTPUT_LIMIT_SIZE  = new RangeLongValidator("planner.output_limit_size", 1, Long.MAX_VALUE, 1_000_000);
 
+  public static final LongValidator MAX_NODES_PER_PLAN = new LongValidator("planner.max_nodes_per_plan", 25_000);
   /**
    * Policy regarding storing query results
    */
@@ -247,6 +251,10 @@ public class PlannerSettings implements Context{
 
   public boolean isLeafLimitsEnabled(){
     return options.getOption(ENABLE_LEAF_LIMITS);
+  }
+
+  public final long getMaxNodesPerPlan() {
+    return options.getOption(MAX_NODES_PER_PLAN);
   }
 
   public long getLeafLimit(){
@@ -469,6 +477,14 @@ public class PlannerSettings implements Context{
 
   public boolean isExperimentalBushyJoinOptimizerEnabled() {
     return options.getOption(ENABLE_EXPERIMENTAL_BUSHY_JOIN_OPTIMIZER);
+  }
+
+  public boolean shouldPullDistributionTrait() {
+    return pullDistributionTrait;
+  }
+
+  public void pullDistributionTrait(boolean pullDistributionTrait) {
+    this.pullDistributionTrait = pullDistributionTrait;
   }
 
   @Override

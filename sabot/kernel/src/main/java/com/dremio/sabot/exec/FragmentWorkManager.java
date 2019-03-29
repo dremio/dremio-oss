@@ -17,6 +17,7 @@ package com.dremio.sabot.exec;
 
 import java.sql.Timestamp;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -60,6 +61,7 @@ import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Sets;
 
 /**
  * Service managing fragment execution.
@@ -288,7 +290,12 @@ public class FragmentWorkManager implements Service, SafeExit {
 
     statusThread = new FragmentStatusThread(fragmentExecutors, clerk, creator);
     statusThread.start();
-    statsCollectorThread = new ThreadsStatsCollector();
+    Iterable<TaskPool.ThreadInfo> slicingThreads = pool.get().getSlicingThreads();
+    Set<Long> slicingThreadIds = Sets.newHashSet();
+    for (TaskPool.ThreadInfo slicingThread : slicingThreads) {
+      slicingThreadIds.add(slicingThread.threadId);
+    }
+    statsCollectorThread = new ThreadsStatsCollector(slicingThreadIds);
     statsCollectorThread.start();
 
     final String prefix = "rpc";

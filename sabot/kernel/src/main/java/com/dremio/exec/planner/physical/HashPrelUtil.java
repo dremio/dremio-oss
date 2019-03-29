@@ -152,7 +152,7 @@ public class HashPrelUtil {
 
     RelDataType rowType = RexUtil.createStructType(input.getCluster().getTypeFactory(), updatedExpr, outputFieldNames);
 
-    ProjectPrel addColumnprojectPrel = new ProjectPrel(input.getCluster(), input.getTraitSet(), input, updatedExpr, rowType);
+    ProjectPrel addColumnprojectPrel = ProjectPrel.create(input.getCluster(), input.getTraitSet(), input, updatedExpr, rowType);
     return addColumnprojectPrel;
   }
 
@@ -173,7 +173,7 @@ public class HashPrelUtil {
       return new FieldReference(HASH_EXPR_NAME);
     }
 
-    final List<LogicalExpression> expressions = new ArrayList<LogicalExpression>(childFields.size());
+    final List<LogicalExpression> expressions = new ArrayList<>(childFields.size());
     for(int i =0; i < fields.size(); i++){
       expressions.add(new FieldReference(childFields.get(fields.get(i).getFieldId())));
     }

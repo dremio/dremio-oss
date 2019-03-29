@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -28,10 +32,13 @@ import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.ColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.DecimalColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.DoubleColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.ListColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.StructColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.TimestampColumnVector;
@@ -73,7 +80,11 @@ public class HiveORCCopiers {
     final ORCCopier[] copiers = new ORCCopier[numColumns];
     final ColumnVector[] cols = isOriginal ? input.cols : ((StructColumnVector) input.cols[HiveORCVectorizedReader.TRANS_ROW_COLUMN_INDEX]).fields;
     for (int i = 0; i < numColumns; i++) {
-      copiers[i] = createCopier(output[i], cols[projectedColOrdinals.get(i)]);
+      if (i < output.length && i < cols.length) {
+        copiers[i] = createCopier(output[i], cols[projectedColOrdinals.get(i)]);
+      } else {
+        copiers[i] = new NoOpCopier(null, null);
+      }
     }
 
     return copiers;
@@ -81,28 +92,98 @@ public class HiveORCCopiers {
 
   private static ORCCopier createCopier(ValueVector output, ColumnVector input) {
     if (output instanceof BaseVariableWidthVector) {
-      return new VarWidthCopier((BytesColumnVector) input, (BaseVariableWidthVector) output);
+      if (input instanceof  BytesColumnVector) {
+        return new BytesToVarWidthCopier((BytesColumnVector) input, (BaseVariableWidthVector) output);
+      } else if (input instanceof  DecimalColumnVector) {
+        return new DecimalToVarWidthCopier((DecimalColumnVector) input, (BaseVariableWidthVector) output);
+      } else if (input instanceof  DoubleColumnVector) {
+        return new DoubleToVarWidthCopier((DoubleColumnVector) input, (BaseVariableWidthVector) output);
+      } else if (input instanceof  LongColumnVector) {
+        return new LongToVarWidthCopier((LongColumnVector) input, (BaseVariableWidthVector) output);
+      } else if (input instanceof TimestampColumnVector) {
+        return new TimestampToVarWidthCopier((TimestampColumnVector) input, (BaseVariableWidthVector) output);
+      } else {
+        return new NoOpCopier(null, null);
+      }
     } else if (output instanceof IntVector) {
-      return new IntCopier((LongColumnVector) input, (IntVector) output);
+      if (input instanceof  LongColumnVector) {
+        return new IntCopier((LongColumnVector) input, (IntVector) output);
+      } else {
+        return new NoOpCopier(null, null);
+      }
     } else if (output instanceof BigIntVector) {
-      return new BigIntCopier((LongColumnVector) input, (BigIntVector) output);
+      if (input instanceof  LongColumnVector) {
+        return new BigIntCopier((LongColumnVector) input, (BigIntVector) output);
+      }
+      else {
+        return new NoOpCopier(null, null);
+      }
     } else if (output instanceof Float4Vector) {
-      return new Float4Copier((DoubleColumnVector) input, (Float4Vector) output);
+      if (input instanceof  DoubleColumnVector) {
+         return new DoubleToFloat4Copier((DoubleColumnVector) input, (Float4Vector) output);
+      } else if (input instanceof  LongColumnVector) {
+        return new LongToFloat4Copier((LongColumnVector) input, (Float4Vector) output);
+      }
+      else {
+        return new NoOpCopier(null, null);
+      }
     } else if (output instanceof Float8Vector) {
-      return new Float8Copier((DoubleColumnVector) input, (Float8Vector) output);
+      if (input instanceof  BytesColumnVector) {
+        return new BytesToFloat8Copier((BytesColumnVector) input, (Float8Vector) output);
+      } else if (input instanceof  DoubleColumnVector) {
+        return new DoubleToFloat8Copier((DoubleColumnVector) input, (Float8Vector) output);
+      } else if (input instanceof  LongColumnVector) {
+        return new LongToFloat8Copier((LongColumnVector) input, (Float8Vector) output);
+      } else {
+        return new NoOpCopier(null, null);
+      }
     } else if (output instanceof DateMilliVector) {
-      return new DateMilliCopier((LongColumnVector) input, (DateMilliVector) output);
+      if (input instanceof  LongColumnVector) {
+        return new DateMilliCopier((LongColumnVector) input, (DateMilliVector) output);
+      }
+      else {
+        return new NoOpCopier(null, null);
+      }
     } else if (output instanceof TimeStampMilliVector) {
-      return new TimeStampMilliCopier((TimestampColumnVector) input, (TimeStampMilliVector) output);
+      if (input instanceof  TimestampColumnVector) {
+        return new TimeStampMilliCopier((TimestampColumnVector) input, (TimeStampMilliVector) output);
+      }
+      else {
+        return new NoOpCopier(null, null);
+      }
     } else if (output instanceof DecimalVector) {
-      return new DecimalCopier((DecimalColumnVector) input, (DecimalVector) output);
+      if (input instanceof  BytesColumnVector) {
+        return new BytesToDecimalCopier((BytesColumnVector) input, (DecimalVector) output);
+      } else if (input instanceof  DecimalColumnVector) {
+        return new DecimalCopier((DecimalColumnVector) input, (DecimalVector) output);
+      } else if (input instanceof  DoubleColumnVector) {
+        return new DoubleToDecimalCopier((DoubleColumnVector) input, (DecimalVector) output);
+      } else if (input instanceof  LongColumnVector) {
+        return new LongToDecimalCopier((LongColumnVector) input, (DecimalVector) output);
+      } else {
+        return new NoOpCopier(null, null);
+      }
     } else if (output instanceof BitVector) {
-      return new BitCopier((LongColumnVector) input, (BitVector) output);
+      if (input instanceof  LongColumnVector) {
+        return new BitCopier((LongColumnVector) input, (BitVector) output);
+      }
+      else {
+        return new NoOpCopier(null, null);
+      }
     }
 
     throw UserException.unsupportedError()
         .message("Received unsupported type '%s' in Hive vectorized ORC reader", output.getField())
         .build(logger);
+  }
+
+  private static class NoOpCopier implements ORCCopier{
+
+    NoOpCopier(ColumnVector inputVector, ValueVector outputVector) {
+    }
+
+    public void copy(int inputIdx, int count, int outputIdx) {
+    }
   }
 
   /**
@@ -144,7 +225,7 @@ public class HiveORCCopiers {
           outputVector.set(outputIdx, (int) input[inputIdx]);
         }
       } else {
-        final boolean isNull[] = inputVector.isNull;
+        final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
             outputVector.set(outputIdx, (int) input[inputIdx]);
@@ -179,7 +260,7 @@ public class HiveORCCopiers {
           outputVector.set(outputIdx, input[inputIdx]);
         }
       } else {
-        final boolean isNull[] = inputVector.isNull;
+        final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
             outputVector.set(outputIdx, input[inputIdx]);
@@ -217,7 +298,7 @@ public class HiveORCCopiers {
           outputVector.set(outputIdx, input[inputIdx] * MILLIS_PER_DAY);
         }
       } else {
-        final boolean isNull[] = inputVector.isNull;
+        final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
             outputVector.set(outputIdx, input[inputIdx] * MILLIS_PER_DAY);
@@ -248,17 +329,230 @@ public class HiveORCCopiers {
         for (int i = 0; i < count; i++, outputIdx++) {
           outputVector.set(outputIdx, value);
         }
-   // We can't rely noNulls flag due to the bug/hive shenanigans here (they set the noNulls flag wrong):
-   // https://github.com/apache/hive/blob/master/ql/src/java/org/apache/hadoop/hive/ql/io/orc/RecordReaderImpl.java#L681
-   // } else if (inputVector.noNulls) {
-   //   for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
-   //     outputVector.set(outputIdx, input[inputIdx]);
-   //   }
+      } else if (inputVector.noNulls) {
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          outputVector.set(outputIdx, input[inputIdx]);
+        }
       } else {
-        final boolean isNull[] = inputVector.isNull;
+        final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
             outputVector.set(outputIdx, input[inputIdx]);
+          }
+        }
+      }
+    }
+  }
+
+  private static class LongToDecimalCopier implements ORCCopier  {
+    private LongColumnVector inputVector;
+    private DecimalVector outputVector;
+
+    LongToDecimalCopier(LongColumnVector inputVector, DecimalVector outputVector) {
+      this.inputVector = inputVector;
+      this.outputVector = outputVector;
+    }
+
+    @Override
+    public void copy(int inputIdx, int count, int outputIdx) {
+      final long[] input = inputVector.vector;
+      final int outputPrecision = ((ArrowType.Decimal)outputVector.getField().getType()).getPrecision();
+      final int outputScale = outputVector.getScale();
+      if (inputVector.isRepeating) {
+        if (inputVector.isNull[0]) {
+          return; // If all repeating values are null, then there is no need to write anything to vector
+        }
+        long value = input[0];
+        HiveDecimal hiveDecimal = HiveDecimal.enforcePrecisionScale(
+          HiveDecimal.create(
+            BigDecimal.valueOf(value).setScale(outputVector.getScale(), RoundingMode.HALF_UP)),
+          outputPrecision, outputScale);
+        if (hiveDecimal != null) {
+          final byte[] decimalValue = hiveDecimal.bigDecimalValue().movePointRight(outputScale).unscaledValue().toByteArray();
+          for (int i = 0; i < count; i++, outputIdx++) {
+            outputVector.setBigEndian(outputIdx, decimalValue);
+          }
+        }
+      } else if (inputVector.noNulls) {
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          try {
+            final byte[] decimalValue = HiveDecimal.enforcePrecisionScale(
+              HiveDecimal.create(
+                BigDecimal.valueOf(input[inputIdx]).setScale(outputVector.getScale(), RoundingMode.HALF_UP)),
+              outputPrecision, outputScale)
+              .bigDecimalValue()
+              .movePointRight(outputScale)
+              .unscaledValue()
+              .toByteArray();
+            outputVector.setBigEndian(outputIdx, decimalValue);
+          }
+          catch (Exception e) {
+            // ignoring exception creates null entry
+          }
+        }
+      } else {
+        final boolean[] isNull = inputVector.isNull;
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          if (!isNull[inputIdx]) {
+            try {
+              final byte[] decimalValue = HiveDecimal.enforcePrecisionScale(
+                HiveDecimal.create(
+                  BigDecimal.valueOf(input[inputIdx]).setScale(outputVector.getScale(), RoundingMode.HALF_UP)),
+                outputPrecision, outputScale)
+                .bigDecimalValue()
+                .movePointRight(outputScale)
+                .unscaledValue()
+                .toByteArray();
+              outputVector.setBigEndian(outputIdx, decimalValue);
+            }
+            catch (Exception e) {
+              // ignoring exception creates null entry
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private static class DoubleToDecimalCopier implements ORCCopier  {
+    private DoubleColumnVector inputVector;
+    private DecimalVector outputVector;
+
+    DoubleToDecimalCopier(DoubleColumnVector inputVector, DecimalVector outputVector) {
+      this.inputVector = inputVector;
+      this.outputVector = outputVector;
+    }
+
+    @Override
+    public void copy(int inputIdx, int count, int outputIdx) {
+      final double[] input = inputVector.vector;
+      final int outputPrecision = ((ArrowType.Decimal)outputVector.getField().getType()).getPrecision();
+      final int outputScale = outputVector.getScale();
+      if (inputVector.isRepeating) {
+        if (inputVector.isNull[0]) {
+          return; // If all repeating values are null, then there is no need to write anything to vector
+        }
+        double value = input[0];
+        HiveDecimal hiveDecimal = HiveDecimal.enforcePrecisionScale(
+          HiveDecimal.create(
+            BigDecimal.valueOf(value).setScale(outputVector.getScale(), RoundingMode.HALF_UP)),
+          outputPrecision, outputScale);
+        if (hiveDecimal != null) {
+          final byte[] decimalValue = hiveDecimal.bigDecimalValue().movePointRight(outputScale).unscaledValue().toByteArray();
+          for (int i = 0; i < count; i++, outputIdx++) {
+            outputVector.setBigEndian(outputIdx, decimalValue);
+          }
+        }
+      } else if (inputVector.noNulls) {
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          try {
+            final byte[] decimalValue = HiveDecimal.enforcePrecisionScale(
+              HiveDecimal.create(
+                BigDecimal.valueOf(input[inputIdx]).setScale(outputVector.getScale(), RoundingMode.HALF_UP)),
+              outputPrecision, outputScale)
+              .bigDecimalValue()
+              .movePointRight(outputScale)
+              .unscaledValue()
+              .toByteArray();
+            outputVector.setBigEndian(outputIdx, decimalValue);
+          }
+          catch (Exception e) {
+            // ignoring exception creates null entry
+          }
+        }
+      } else {
+        final boolean[] isNull = inputVector.isNull;
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          if (!isNull[inputIdx]) {
+            try {
+              final byte[] decimalValue = HiveDecimal.enforcePrecisionScale(
+                HiveDecimal.create(
+                  BigDecimal.valueOf(input[inputIdx]).setScale(outputVector.getScale(), RoundingMode.HALF_UP)),
+                outputPrecision, outputScale)
+                .bigDecimalValue()
+                .movePointRight(outputScale)
+                .unscaledValue()
+                .toByteArray();
+              outputVector.setBigEndian(outputIdx, decimalValue);
+            }
+            catch (Exception e) {
+              // ignoring exception creates null entry
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private static class BytesToDecimalCopier implements ORCCopier {
+    private BytesColumnVector inputVector;
+    private DecimalVector outputVector;
+
+    BytesToDecimalCopier(BytesColumnVector inputVector, DecimalVector outputVector) {
+      this.inputVector = inputVector;
+      this.outputVector = outputVector;
+    }
+
+    @Override
+    public void copy(int inputIdx, int count, int outputIdx) {
+      final byte[][] vector = inputVector.vector;
+      final int[] start = inputVector.start;
+      final int[] length = inputVector.length;
+      final int outputPrecision = ((ArrowType.Decimal)outputVector.getField().getType()).getPrecision();
+      final int outputScale = outputVector.getScale();
+      if (inputVector.isRepeating) {
+        if (inputVector.isNull[0]) {
+          return; // If all repeating values are null, then there is no need to write anything to vector
+        }
+        try {
+          String strValue = new String(vector[0], start[0], length[0], StandardCharsets.UTF_8);
+          HiveDecimal hiveDecimal = HiveDecimal.enforcePrecisionScale(
+            HiveDecimal.create(
+              new BigDecimal(strValue).setScale(outputVector.getScale(), RoundingMode.HALF_UP)),
+            outputPrecision, outputScale);
+          if (hiveDecimal != null) {
+            final byte[] decimalValue = hiveDecimal.bigDecimalValue().movePointRight(outputScale).unscaledValue().toByteArray();
+            outputVector.setBigEndian(outputIdx, decimalValue);
+          }
+        } catch (Exception e) {
+
+        }
+      } else if (inputVector.noNulls) {
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          try {
+            String strValue = new String(vector[inputIdx], start[inputIdx], length[inputIdx], StandardCharsets.UTF_8);
+            final byte[] decimalValue = HiveDecimal.enforcePrecisionScale(
+              HiveDecimal.create(
+                new BigDecimal(strValue).setScale(outputVector.getScale(), RoundingMode.HALF_UP)),
+              outputPrecision, outputScale)
+              .bigDecimalValue()
+              .movePointRight(outputScale)
+              .unscaledValue()
+              .toByteArray();;
+            outputVector.setBigEndian(outputIdx, decimalValue);
+          }
+          catch (Exception e) {
+
+          }
+        }
+      } else {
+        final boolean[] isNull = inputVector.isNull;
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          if (!isNull[inputIdx]) {
+            try {
+              String strValue = new String(vector[inputIdx], start[inputIdx], length[inputIdx], StandardCharsets.UTF_8);
+              final byte[] decimalValue = HiveDecimal.enforcePrecisionScale(
+                HiveDecimal.create(
+                  new BigDecimal(strValue).setScale(outputVector.getScale(), RoundingMode.HALF_UP)),
+                outputPrecision, outputScale)
+                .bigDecimalValue()
+                .movePointRight(outputScale)
+                .unscaledValue()
+                .toByteArray();;
+              outputVector.setBigEndian(outputIdx, decimalValue);
+            } catch (Exception e) {
+
+            }
           }
         }
       }
@@ -279,27 +573,44 @@ public class HiveORCCopiers {
       // TODO: Decimal is not handled in an optimal way. Avoid creating byte arrays
       final HiveDecimalWritable[] input = inputVector.vector;
       final int scale = inputVector.scale;
+      final int outputPrecision = ((ArrowType.Decimal)outputVector.getField().getType()).getPrecision();
+      final int outputScale = outputVector.getScale();
       if (inputVector.isRepeating) {
         if (inputVector.isNull[0]) {
           return; // If all repeating values are null, then there is no need to write anything to vector
         }
         // we can't just use unscaledValue() since BigDecimal doesn't store trailing zeroes
         // and we need to ensure decoding includes the correct scale.
-        final byte[] value = input[0].getHiveDecimal().bigDecimalValue().movePointRight(scale).unscaledValue().toByteArray();
-        for (int i = 0; i < count; i++, outputIdx++) {
-          outputVector.setBigEndian(outputIdx, value);
+        HiveDecimal hiveDecimal = HiveDecimal.enforcePrecisionScale(input[0].getHiveDecimal(), outputPrecision, outputScale);
+        if (hiveDecimal != null) {
+          final byte[] value = hiveDecimal.bigDecimalValue().movePointRight(outputScale).unscaledValue().toByteArray();
+          for (int i = 0; i < count; i++, outputIdx++) {
+            outputVector.setBigEndian(outputIdx, value);
+          }
         }
       } else if (inputVector.noNulls) {
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
-          final byte[] value = input[inputIdx].getHiveDecimal().bigDecimalValue().movePointRight(scale).unscaledValue().toByteArray();
-          outputVector.setBigEndian(outputIdx, value);
+          try {
+            final byte[] value = HiveDecimal.enforcePrecisionScale(input[inputIdx].getHiveDecimal(), outputPrecision, outputScale).bigDecimalValue().movePointRight(outputScale).unscaledValue().toByteArray();
+            outputVector.setBigEndian(outputIdx, value);
+          }
+          catch (Exception e) {
+            // ignoring exception sets null.
+            // enforcePrecisionScale returns null when it cannot enforce
+          }
         }
       } else {
-        final boolean isNull[] = inputVector.isNull;
+        final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
-            byte[] v = input[inputIdx].getHiveDecimal().bigDecimalValue().movePointRight(scale).unscaledValue().toByteArray();
-            outputVector.setBigEndian(outputIdx, v);
+            try {
+              byte[] v = HiveDecimal.enforcePrecisionScale(input[inputIdx].getHiveDecimal(), outputPrecision, outputScale).bigDecimalValue().movePointRight(outputScale).unscaledValue().toByteArray();
+              outputVector.setBigEndian(outputIdx, v);
+            }
+            catch (Exception e) {
+              // ignoring exception sets null.
+              // enforcePrecisionScale returns null when it cannot enforce
+            }
           }
         }
       }
@@ -331,7 +642,7 @@ public class HiveORCCopiers {
           outputVector.setSafe(outputIdx, (int) input[inputIdx]);
         }
       } else {
-        final boolean isNull[] = inputVector.isNull;
+        final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
             outputVector.setSafe(outputIdx, (int) input[inputIdx]);
@@ -341,11 +652,46 @@ public class HiveORCCopiers {
     }
   }
 
-  private static class Float4Copier implements ORCCopier {
+  private static class LongToFloat4Copier implements ORCCopier  {
+    private LongColumnVector inputVector;
+    private Float4Vector outputVector;
+
+    LongToFloat4Copier(LongColumnVector inputVector, Float4Vector outputVector) {
+      this.inputVector = inputVector;
+      this.outputVector = outputVector;
+    }
+
+    @Override
+    public void copy(int inputIdx, int count, int outputIdx) {
+      final long[] input = inputVector.vector;
+      if (inputVector.isRepeating) {
+        if (inputVector.isNull[0]) {
+          return; // If all repeating values are null, then there is no need to write anything to vector
+        }
+        final float value = (float)input[0];
+        for (int i = 0; i < count; i++, outputIdx++) {
+          outputVector.set(outputIdx, value);
+        }
+      } else if (inputVector.noNulls) {
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          outputVector.set(outputIdx, (float)input[inputIdx]);
+        }
+      } else {
+        final boolean[] isNull = inputVector.isNull;
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          if (!isNull[inputIdx]) {
+            outputVector.set(outputIdx, (float) input[inputIdx]);
+          }
+        }
+      }
+    }
+  }
+
+  private static class DoubleToFloat4Copier implements ORCCopier {
     private DoubleColumnVector inputVector;
     private Float4Vector outputVector;
 
-    Float4Copier(DoubleColumnVector inputVector, Float4Vector outputVector) {
+    DoubleToFloat4Copier(DoubleColumnVector inputVector, Float4Vector outputVector) {
       this.inputVector = inputVector;
       this.outputVector = outputVector;
     }
@@ -361,14 +707,12 @@ public class HiveORCCopiers {
         for (int i = 0; i < count; i++, outputIdx++) {
           outputVector.set(outputIdx, value);
         }
-   // We can't rely noNulls flag due to the bug/hive shenanigans here (they set the noNulls flag wrong):
-   // https://github.com/apache/hive/blob/master/ql/src/java/org/apache/hadoop/hive/ql/io/orc/RecordReaderImpl.java#L656
-   // } else if (inputVector.noNulls) {
-   //   for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
-   //     outputVector.set(outputIdx, input[inputIdx]);
-   //   }
+      } else if (inputVector.noNulls) {
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          outputVector.set(outputIdx, (float)input[inputIdx]);
+        }
       } else {
-        final boolean isNull[] = inputVector.isNull;
+        final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
             outputVector.set(outputIdx, (float) input[inputIdx]);
@@ -378,11 +722,91 @@ public class HiveORCCopiers {
     }
   }
 
-  private static class Float8Copier implements ORCCopier {
+  private static class BytesToFloat8Copier implements ORCCopier {
+    private BytesColumnVector inputVector;
+    private Float8Vector outputVector;
+
+    BytesToFloat8Copier(BytesColumnVector inputVector, Float8Vector outputVector) {
+      this.inputVector = inputVector;
+      this.outputVector = outputVector;
+    }
+
+    @Override
+    public void copy(int inputIdx, int count, int outputIdx) {
+      final byte[][] vector = inputVector.vector;
+      final int[] start = inputVector.start;
+      final int[] length = inputVector.length;
+      if (inputVector.isRepeating) {
+        if (inputVector.isNull[0]) {
+          return; // If all repeating values are null, then there is no need to write anything to vector
+        }
+        try {
+          String strValue = new String(vector[0], start[0], length[0], StandardCharsets.UTF_8);
+          double doubleValue = Double.parseDouble(strValue);
+          for (int i = 0; i < count; i++, outputIdx++) {
+            outputVector.set(outputIdx, doubleValue);
+          }
+        } catch (Exception e) {
+          return;
+        }
+      } else {
+        final boolean[] isNull = inputVector.isNull;
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          if (inputVector.noNulls || !isNull[inputIdx]) {
+            try {
+              String strValue = new String(vector[inputIdx], start[inputIdx], length[inputIdx], StandardCharsets.UTF_8);
+              double doubleValue = Double.parseDouble(strValue);
+              outputVector.set(outputIdx, doubleValue);
+            }
+            catch (Exception e) {
+
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private static class LongToFloat8Copier implements ORCCopier {
+    private LongColumnVector inputVector;
+    private Float8Vector outputVector;
+
+    LongToFloat8Copier(LongColumnVector inputVector, Float8Vector outputVector) {
+      this.inputVector = inputVector;
+      this.outputVector = outputVector;
+    }
+
+    @Override
+    public void copy(int inputIdx, int count, int outputIdx) {
+      final long[] input = inputVector.vector;
+      if (inputVector.isRepeating) {
+        if (inputVector.isNull[0]) {
+          return; // If all repeating values are null, then there is no need to write anything to vector
+        }
+        final double value = (double)input[0];
+        for (int i = 0; i < count; i++, outputIdx++) {
+          outputVector.set(outputIdx, value);
+        }
+      } else if (inputVector.noNulls) {
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          outputVector.set(outputIdx, (double)input[inputIdx]);
+        }
+      } else {
+        final boolean[] isNull = inputVector.isNull;
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          if (!isNull[inputIdx]) {
+            outputVector.set(outputIdx, (double)input[inputIdx]);
+          }
+        }
+      }
+    }
+  }
+
+  private static class DoubleToFloat8Copier implements ORCCopier {
     private DoubleColumnVector inputVector;
     private Float8Vector outputVector;
 
-    Float8Copier(DoubleColumnVector inputVector, Float8Vector outputVector) {
+    DoubleToFloat8Copier(DoubleColumnVector inputVector, Float8Vector outputVector) {
       this.inputVector = inputVector;
       this.outputVector = outputVector;
     }
@@ -398,14 +822,12 @@ public class HiveORCCopiers {
         for (int i = 0; i < count; i++, outputIdx++) {
           outputVector.set(outputIdx, value);
         }
-   // We can't rely noNulls flag due to the bug/hive shenanigans here (they set the noNulls flag wrong):
-   // https://github.com/apache/hive/blob/master/ql/src/java/org/apache/hadoop/hive/ql/io/orc/RecordReaderImpl.java#L656
-   // } else if (inputVector.noNulls) {
-   //   for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
-   //     outputVector.set(outputIdx, input[inputIdx]);
-   //   }
+      } else if (inputVector.noNulls) {
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          outputVector.set(outputIdx, input[inputIdx]);
+        }
       } else {
-        final boolean isNull[] = inputVector.isNull;
+        final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
             outputVector.set(outputIdx, input[inputIdx]);
@@ -415,11 +837,169 @@ public class HiveORCCopiers {
     }
   }
 
-  private static class VarWidthCopier implements ORCCopier {
+  private static class LongToVarWidthCopier implements ORCCopier {
+    private LongColumnVector inputVector;
+    private BaseVariableWidthVector outputVector;
+
+    LongToVarWidthCopier (LongColumnVector inputVector, BaseVariableWidthVector outputVector) {
+      this.inputVector = inputVector;
+      this.outputVector = outputVector;
+    }
+
+    @Override
+    public void copy(int inputIdx, int count, int outputIdx) {
+      // We can hit this path if input is Date type in hive
+      // For now, not converting date into human readable date format.
+      // Will need to revisit if output for Date to String conversion is not what users want
+      final long[] input = inputVector.vector;
+      if (inputVector.isRepeating) {
+        if (inputVector.isNull[0]) {
+          return; // If all repeating values are null, then there is no need to write anything to vector
+        }
+        final long value = input[0];
+        byte[] valuebytes = Long.toString(value).getBytes();
+
+        for (int i = 0; i < count; i++, outputIdx++) {
+          outputVector.setSafe(outputIdx, valuebytes);
+        }
+      } else if (inputVector.noNulls) {
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          final long value = input[inputIdx];
+          outputVector.setSafe(outputIdx, Long.toString(value).getBytes());
+        }
+      } else {
+        final boolean[] isNull = inputVector.isNull;
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          if (!isNull[inputIdx]) {
+            final long value = input[inputIdx];
+            outputVector.setSafe(outputIdx, Long.toString(value).getBytes());
+          }
+        }
+      }
+    }
+  }
+
+  private static class TimestampToVarWidthCopier implements ORCCopier {
+    private TimestampColumnVector inputVector;
+    private BaseVariableWidthVector outputVector;
+
+    TimestampToVarWidthCopier(TimestampColumnVector inputVector, BaseVariableWidthVector outputVector) {
+      this.inputVector = inputVector;
+      this.outputVector = outputVector;
+    }
+
+    @Override
+    public void copy(int inputIdx, int count, int outputIdx) {
+      // For now, not converting timestamp to human readable date form
+      // will need to revisit if output is not what users want
+      final long[] input = inputVector.time;
+      if (inputVector.isRepeating) {
+        if (inputVector.isNull[0]) {
+          return; // If all repeating values are null, then there is no need to write anything to vector
+        }
+        final byte[] value = Long.toString(input[0]).getBytes();
+        for (int i = 0; i < count; i++, outputIdx++) {
+          outputVector.setSafe(outputIdx, value);
+        }
+      } else if (inputVector.noNulls) {
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          final byte[] value = Long.toString(input[inputIdx]).getBytes();
+          outputVector.set(outputIdx, value);
+        }
+      } else {
+        final boolean[] isNull = inputVector.isNull;
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          if (!isNull[inputIdx]) {
+            final byte[] value = Long.toString(input[inputIdx]).getBytes();
+            outputVector.set(outputIdx, value);
+          }
+        }
+      }
+    }
+  }
+
+  private static class DoubleToVarWidthCopier implements ORCCopier {
+    private DoubleColumnVector inputVector;
+    private BaseVariableWidthVector outputVector;
+
+    DoubleToVarWidthCopier(DoubleColumnVector inputVector, BaseVariableWidthVector outputVector) {
+      this.inputVector = inputVector;
+      this.outputVector = outputVector;
+    }
+
+    @Override
+    public void copy(int inputIdx, int count, int outputIdx) {
+      final double[] input = inputVector.vector;
+      if (inputVector.isRepeating) {
+        if (inputVector.isNull[0]) {
+          return; // If all repeating values are null, then there is no need to write anything to vector
+        }
+        final byte[] value = Double.toString(input[0]).getBytes();
+        for (int i = 0; i < count; i++, outputIdx++) {
+          outputVector.setSafe(outputIdx, value);
+        }
+      } else if (inputVector.noNulls) {
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          final byte[] value = Double.toString(input[inputIdx]).getBytes();
+          outputVector.set(outputIdx, value);
+        }
+      } else {
+        final boolean[] isNull = inputVector.isNull;
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          if (!isNull[inputIdx]) {
+            final byte[] value = Double.toString(input[inputIdx]).getBytes();
+            outputVector.set(outputIdx, value);
+          }
+        }
+      }
+    }
+  }
+
+  private static class DecimalToVarWidthCopier implements ORCCopier {
+    private DecimalColumnVector inputVector;
+    private BaseVariableWidthVector outputVector;
+
+    DecimalToVarWidthCopier(DecimalColumnVector inputVector, BaseVariableWidthVector outputVector) {
+      this.inputVector = inputVector;
+      this.outputVector = outputVector;
+    }
+
+    @Override
+    public void copy(int inputIdx, int count, int outputIdx) {
+      final HiveDecimalWritable[] input = inputVector.vector;
+      final int scale = inputVector.scale;
+      if (inputVector.isRepeating) {
+        if (inputVector.isNull[0]) {
+          return; // If all repeating values are null, then there is no need to write anything to vector
+        }
+        // we can't just use unscaledValue() since BigDecimal doesn't store trailing zeroes
+        // and we need to ensure decoding includes the correct scale.
+        final byte[] value = input[0].getHiveDecimal().bigDecimalValue().toString().getBytes();
+        for (int i = 0; i < count; i++, outputIdx++) {
+          outputVector.setSafe(outputIdx, value);
+        }
+      } else if (inputVector.noNulls) {
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          final byte[] value = input[inputIdx].getHiveDecimal().bigDecimalValue().toString().getBytes();
+          outputVector.setSafe(outputIdx, value);
+        }
+      } else {
+        final boolean[] isNull = inputVector.isNull;
+        for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
+          if (!isNull[inputIdx]) {
+            byte[] v = input[inputIdx].getHiveDecimal().bigDecimalValue().toString().getBytes();
+            outputVector.setSafe(outputIdx, v);
+          }
+        }
+      }
+    }
+  }
+
+  private static class BytesToVarWidthCopier implements ORCCopier {
     private BytesColumnVector inputVector;
     private BaseVariableWidthVector outputVector;
 
-    VarWidthCopier(BytesColumnVector inputVector, BaseVariableWidthVector outputVector) {
+    BytesToVarWidthCopier(BytesColumnVector inputVector, BaseVariableWidthVector outputVector) {
       this.inputVector = inputVector;
       this.outputVector = outputVector;
     }
@@ -444,7 +1024,7 @@ public class HiveORCCopiers {
           outputVector.setSafe(outputIdx, vector[inputIdx], start[inputIdx], length[inputIdx]);
         }
       } else {
-        final boolean isNull[] = inputVector.isNull;
+        final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
             outputVector.setSafe(outputIdx, vector[inputIdx], start[inputIdx], length[inputIdx]);

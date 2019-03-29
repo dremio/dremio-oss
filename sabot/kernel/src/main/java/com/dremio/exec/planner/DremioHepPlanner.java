@@ -35,6 +35,7 @@ import com.dremio.exec.planner.logical.CancelFlag;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DistributionTraitDef;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 
 public class DremioHepPlanner extends HepPlanner {
@@ -42,19 +43,32 @@ public class DremioHepPlanner extends HepPlanner {
 
   private final CancelFlag cancelFlag;
   private final PlannerPhase phase;
+  private final MaxNodesListener listener;
 
   public DremioHepPlanner(final HepProgram program, final Context context, final RelOptCostFactory costFactory, PlannerPhase phase) {
     super(program, context, false, null, costFactory);
     this.cancelFlag = new CancelFlag(context.unwrap(PlannerSettings.class).getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
     this.phase = phase;
+    this.listener = new MaxNodesListener(context.unwrap(PlannerSettings.class).getMaxNodesPerPlan());
+    addListener(listener);
   }
 
   @Override
   public RelNode findBestExp() {
-    cancelFlag.reset();
-    return super.findBestExp();
+    try {
+      cancelFlag.reset();
+      listener.reset();
+      return super.findBestExp();
+    } catch(RuntimeException ex) {
+      // if the planner is hiding a UserException, bubble its message to the top.
+      Throwable t = Throwables.getRootCause(ex);
+      if(t instanceof UserException) {
+        throw UserException.parseError(ex).message(t.getMessage()).build(logger);
+      } else {
+        throw ex;
+      }
+    }
   }
-
 
   @Override
   public RelTraitSet emptyTraitSet() {

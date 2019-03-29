@@ -215,7 +215,7 @@ public class ConvertCountToDirectScan extends Prule {
       List<RexNode> exprs = Lists.newArrayList();
       exprs.add(RexInputRef.of(0, scanRowType));
 
-      final ProjectPrel newProj = new ProjectPrel(agg.getCluster(), agg.getTraitSet().plus(Prel.PHYSICAL)
+      final ProjectPrel newProj = ProjectPrel.create(agg.getCluster(), agg.getTraitSet().plus(Prel.PHYSICAL)
           .plus(DistributionTrait.SINGLETON), values, exprs, agg.getRowType());
       call.transformTo(newProj);
     }

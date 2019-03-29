@@ -15,7 +15,7 @@
  */
 import { combineReducers } from 'redux';
 
-import entities from './entities';
+import entities from 'dyn-load/reducers/resources/entities';
 import tree from './tree';
 import view from './view';
 import sourceList from './sourceList';

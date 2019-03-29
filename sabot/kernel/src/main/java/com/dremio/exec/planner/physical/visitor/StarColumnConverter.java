@@ -79,7 +79,7 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
         return insertProjUnderScreenOrWriter(prel, prel.getInput().getRowType(), child);
       } else {
         // Prefix is added under CTAS Writer. We need create a new Screen with the converted child.
-        return (Prel) prel.copy(prel.getTraitSet(), Collections.<RelNode>singletonList(child));
+        return prel.copy(prel.getTraitSet(), Collections.<RelNode>singletonList(child));
       }
     } else {
       // No prefix is
@@ -95,7 +95,7 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
     if (prefixedForStar) {
       prefixedForWriter = true;
       // return insertProjUnderScreenOrWriter(prel, prel.getInput().getRowType(), child);
-      return (Prel) prel.copy(prel.getTraitSet(), Collections.singletonList(child));
+      return prel.copy(prel.getTraitSet(), Collections.singletonList(child));
     } else {
       return prel;
     }
@@ -119,9 +119,9 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
 
     // Insert PUS/PUW : remove the prefix and keep the original field name.
     if (fieldCount > 1) { // // no point in allowing duplicates if we only have one column
-      proj = new ProjectAllowDupPrel(child.getCluster(), child.getTraitSet(), child, exprs, newRowType);
+      proj = ProjectAllowDupPrel.create(child.getCluster(), child.getTraitSet(), child, exprs, newRowType);
     } else {
-      proj = new ProjectPrel(child.getCluster(), child.getTraitSet(), child, exprs, newRowType);
+      proj = ProjectPrel.create(child.getCluster(), child.getTraitSet(), child, exprs, newRowType);
     }
 
     children.add(proj);
@@ -129,7 +129,7 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
   }
       @Override
   public Prel visitProject(ProjectPrel prel, Void value) throws RuntimeException {
-    ProjectPrel proj = (ProjectPrel) prel;
+    ProjectPrel proj = prel;
 
     // Require prefix rename : there exists other expression, in addition to a star column.
     if (!prefixedForStar  // not set yet.
@@ -212,7 +212,7 @@ public class StarColumnConverter extends BasePrelVisitor<Prel, Void, RuntimeExce
       RelDataType rowType = RexUtil.createStructType(scanPrel.getCluster().getTypeFactory(), exprs, fieldNames);
 
       // insert a PAS.
-      ProjectPrel proj = new ProjectPrel(scanPrel.getCluster(), scanPrel.getTraitSet(), scanPrel, exprs, rowType);
+      ProjectPrel proj = ProjectPrel.create(scanPrel.getCluster(), scanPrel.getTraitSet(), scanPrel, exprs, rowType);
 
       return proj;
     } else {

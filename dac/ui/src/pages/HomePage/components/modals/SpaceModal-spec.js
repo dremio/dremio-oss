@@ -38,7 +38,7 @@ describe('SpaceModal', () => {
   it('renders <SpaceForm> with no initialValues when no entity', () => {
     const wrapper = shallow(<SpaceModal {...commonProps}/>);
     const formProps = wrapper.find(SpaceForm).props();
-    expect(formProps.editing).to.be.undefined;
+    expect(formProps.editing).to.be.false;
   });
 
   it('renders <SpaceForm> with initialValues when entity exists', () => {
@@ -52,9 +52,7 @@ describe('SpaceModal', () => {
   describe('#submit', () => {
     it('should call mutateFormValues and updateSpace if entity', () => {
       const instance = shallow(<SpaceModal {...commonProps} entity={entity}/>).instance();
-      sinon.spy(instance, 'mutateFormValues');
       instance.submit({name: 'foo'});
-      expect(instance.mutateFormValues).to.be.called;
       expect(commonProps.updateSpace).to.be.calledOnce;
       expect(commonProps.createNewSpace).to.not.be.called;
     });

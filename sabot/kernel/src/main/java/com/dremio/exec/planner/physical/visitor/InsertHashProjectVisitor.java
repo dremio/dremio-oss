@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -92,7 +91,7 @@ public class InsertHashProjectVisitor extends BasePrelVisitor<Prel, Void, Runtim
 
     // remove earlier inserted Project SqlOperatorImpl - since it creates issues down the road in HashJoin
     RelDataType removeRowType = RexUtil.createStructType(newPrel.getCluster().getTypeFactory(), keptExprs, childFields);
-    return new ProjectPrel(newPrel.getCluster(), newPrel.getTraitSet(), newPrel, keptExprs, removeRowType);
+    return ProjectPrel.create(newPrel.getCluster(), newPrel.getTraitSet(), newPrel, keptExprs, removeRowType);
   }
 
   @Override

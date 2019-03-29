@@ -34,7 +34,6 @@ import com.dremio.dac.proto.model.collaboration.CollaborationWiki;
 import com.dremio.dac.service.search.SearchService;
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.server.SabotContext;
@@ -224,17 +223,20 @@ public class CollaborationHelper {
     }
   }
 
-  public static int pruneOrphans(LocalKVStoreProvider kvStoreProvider) {
-    AtomicInteger results = new AtomicInteger();
+  public static int pruneOrphans(KVStoreProvider kvStoreProvider) {
+    final AtomicInteger results = new AtomicInteger();
     final NamespaceServiceImpl namespaceService = new NamespaceServiceImpl(kvStoreProvider);
 
     // check tags for orphans
     final CollaborationTagStore tagsStore = new CollaborationTagStore(kvStoreProvider);
     StreamSupport.stream(tagsStore.find().spliterator(), false)
       .filter(entry -> {
-        // if item is not in the namespace, delete the entry
-        final String entityId = entry.getValue().getEntityId();
-        return namespaceService.findDatasetByUUID(entityId) == null;
+        try {
+          final NameSpaceContainer container = namespaceService.getEntityById(entry.getValue().getEntityId());
+          return container == null;
+        } catch (NamespaceException e) {
+          return false;
+        }
       })
       .forEach(entry -> {
         results.getAndIncrement();
@@ -245,9 +247,12 @@ public class CollaborationHelper {
     final CollaborationWikiStore wikiStore = new CollaborationWikiStore(kvStoreProvider);
     StreamSupport.stream(wikiStore.find().spliterator(), false)
       .filter(entry -> {
-        // if item is not in the namespace, delete the entry
-        final String entityId = entry.getValue().getEntityId();
-        return namespaceService.findDatasetByUUID(entityId) == null;
+        try {
+          final NameSpaceContainer container = namespaceService.getEntityById(entry.getValue().getEntityId());
+          return container == null;
+        } catch (NamespaceException e) {
+          return false;
+        }
       })
       .forEach(entry -> {
         results.getAndIncrement();

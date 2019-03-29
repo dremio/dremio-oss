@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
+import Immutable from 'immutable';
 
-import { ViewStateWrapper } from './ViewStateWrapper';
+import { ViewStateWrapper, findFirstTruthyValue, mergeViewStates } from './ViewStateWrapper';
 
 describe('ViewStateWrapper', () => {
 
@@ -164,5 +165,46 @@ describe('ViewStateWrapper', () => {
       <button/>
     </ViewStateWrapper>);
     expect(wrapper2.find('Message')).to.have.length(0);
+  });
+});
+
+describe('findFirstTruthyValue', () => {
+  const fieldName = 'testField';
+  const generateList = (...list) => list.map(v => (Immutable.fromJS({ [fieldName]: v })));
+
+  it('returns undefined if map list is empty', () => {
+    expect(findFirstTruthyValue(fieldName)).to.be.undefined;
+  });
+
+  it('returns a only truthy value', () => {
+    expect(findFirstTruthyValue(fieldName, ...generateList(0, '', 'testValue', false))).to.be.equal('testValue');
+  });
+
+  it('returns a first truthy value', () => {
+    expect(findFirstTruthyValue(fieldName, ...generateList(0, '', true, 'testValue', false))).to.be.true;
+  });
+});
+
+it('mergeViewStates merges view state correctly', () => {
+  const result = mergeViewStates(
+    Immutable.fromJS({
+      isInProgress: false,
+      isFailed: true,
+      isWarning: false,
+      error: 'test error message'
+    }),
+    Immutable.fromJS({
+      isInProgress: true,
+      isFailed: false,
+      isWarning: true,
+      error: null
+    })
+  );
+
+  expect(result.toJS()).to.be.eql({
+    isInProgress: true,
+    isFailed: true,
+    isWarning: true,
+    error: 'test error message'
   });
 });

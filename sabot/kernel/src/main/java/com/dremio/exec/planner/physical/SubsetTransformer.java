@@ -67,9 +67,4 @@ public abstract class SubsetTransformer<T extends RelNode, E extends Exception> 
   private boolean isPhysical(RelNode n){
     return n.getTraitSet().getTrait(ConventionTraitDef.INSTANCE).equals(Prel.PHYSICAL);
   }
-
-  private boolean isDefaultDist(RelNode n) {
-    return n.getTraitSet().getTrait(DistributionTraitDef.INSTANCE).equals(DistributionTrait.DEFAULT);
-  }
-
 }

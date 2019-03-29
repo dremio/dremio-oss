@@ -41,7 +41,7 @@ import resources from './resources';
 import notification from './notification';
 import confirmation from './confirmation';
 import prodError from './prodError';
-import modulesState, { getData } from './modulesState';
+import modulesState, { getData, isInitialized } from './modulesState';
 
 const appReducers = combineReducers({
   resources,
@@ -100,4 +100,5 @@ export const getIsExplorePreviewMode = state => {
   return exloreState ? exloreState.view.get('isPreviewMode') : false;
 };
 export const getUser = state => state.account.get('user');
+export const isModuleInitialized = (state, moduleKey) => isInitialized(state.modulesState, moduleKey);
 export const getModuleState = (state, moduleKey) => getData(state.modulesState, moduleKey);

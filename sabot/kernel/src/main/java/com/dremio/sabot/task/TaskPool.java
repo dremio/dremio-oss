@@ -41,9 +41,12 @@ public interface TaskPool extends AutoCloseable {
     public final int numStagedTasks;
     public final int numRequestedWork;
 
+    /** Java thread id**/
+    public final long threadId;
+
 
     public ThreadInfo(String threadName, int slicingThreadId, int osThreadId, int cpuId, int numTasks, int numStagedTasks,
-               int numRequestedWork) {
+               int numRequestedWork, long threadId) {
       this.threadName = threadName;
       this.slicingThreadId = slicingThreadId;
       this.osThreadId = osThreadId;
@@ -51,6 +54,7 @@ public interface TaskPool extends AutoCloseable {
       this.numTasks = numTasks;
       this.numStagedTasks = numStagedTasks;
       this.numRequestedWork = numRequestedWork;
+      this.threadId = threadId;
     }
 
   }}

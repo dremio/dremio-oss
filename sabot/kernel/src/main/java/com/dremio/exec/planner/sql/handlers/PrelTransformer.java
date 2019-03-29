@@ -515,6 +515,14 @@ public class PrelTransformer {
     QueryContext context = config.getContext();
     OptionManager queryOptions = context.getOptions();
 
+    /* Disable distribution trait pulling
+     *
+     * Some of the following operations might rewrite the tree but would not
+     * keep distribution traits consistent anymore (like ExcessiveExchangeIdentifier
+     * which would remove hash distribution exchanges if no parallelization will occur).
+     */
+    context.getPlannerSettings().pullDistributionTrait(false);
+
     /* The order of the following transformations is important */
     final Stopwatch finalPrelTimer = Stopwatch.createStarted();
 

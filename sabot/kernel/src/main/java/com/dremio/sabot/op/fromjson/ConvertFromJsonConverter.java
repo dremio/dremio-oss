@@ -157,7 +157,7 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
       }});
 
     final RelDataType bottomType = factory.createStructType(bottomProjectType, topRel.getRowType().getFieldNames());
-    final ProjectPrel newBottomProject = new ProjectPrel(topRel.getCluster(), topRel.getTraitSet(), inputRel, bottomExprs, bottomType);
+    final ProjectPrel newBottomProject = ProjectPrel.create(topRel.getCluster(), topRel.getTraitSet(), inputRel, bottomExprs, bottomType);
 
     return new ConvertFromJsonPrel(topRel.getCluster(), topRel.getTraitSet(), topRel.getRowType(), newBottomProject, conversions);
   }

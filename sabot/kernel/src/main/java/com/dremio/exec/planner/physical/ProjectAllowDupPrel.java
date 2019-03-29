@@ -37,14 +37,14 @@ import com.google.common.collect.Lists;
 
 public class ProjectAllowDupPrel extends ProjectPrel {
 
-  public ProjectAllowDupPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<RexNode> exps,
+  private ProjectAllowDupPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<RexNode> exps,
       RelDataType rowType) {
     super(cluster, traits, child, exps, rowType);
   }
 
   @Override
   public ProjectAllowDupPrel copy(RelTraitSet traitSet, RelNode input, List<RexNode> exps, RelDataType rowType) {
-    return new ProjectAllowDupPrel(getCluster(), traitSet, input, exps, rowType);
+    return ProjectAllowDupPrel.create(getCluster(), traitSet, input, exps, rowType);
   }
 
   @Override
@@ -67,4 +67,19 @@ public class ProjectAllowDupPrel extends ProjectPrel {
     return expressions;
   }
 
+  /**
+   * Creates an instance of ProjectAllowDupPrel.
+   *
+   * @param cluster
+   * @param traits
+   * @param child
+   * @param exps
+   * @param rowType
+   * @return new instance of ProjectAllowDupPrel
+   */
+  public static ProjectAllowDupPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<RexNode> exps,
+                                           RelDataType rowType) {
+    final RelTraitSet trimmedTraits = trimTraits(cluster, child, exps, traits);
+    return new ProjectAllowDupPrel(cluster, trimmedTraits, child, exps, rowType);
+  }
 }

@@ -15,7 +15,8 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
-import java.util.List;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -39,7 +40,37 @@ public interface SubstitutionProvider {
    * @param query  query to rewrite in terms of materialized view definitions.
    * @return  set of substitutions.
    */
-  List<Substitution> findSubstitutions(final RelNode query);
+  default SubstitutionStream findSubstitutions(final RelNode query) {
+    return SubstitutionStream.empty();
+  }
+
+  class SubstitutionStream {
+    private final Stream<Substitution> substitutionStream;
+    private final Runnable onSuccess;
+    private final Consumer<Throwable> onFailure;
+
+    public SubstitutionStream(Stream<Substitution> substitutionStream, Runnable onSuccess, Consumer<Throwable> onFailure) {
+      this.substitutionStream = substitutionStream;
+      this.onSuccess = onSuccess;
+      this.onFailure = onFailure;
+    }
+
+    public Stream<Substitution> stream() {
+      return substitutionStream;
+    }
+
+    public void success() {
+      onSuccess.run();
+    }
+
+    public void failure(Throwable t) {
+      onFailure.accept(t);
+    }
+
+    public static SubstitutionStream empty() {
+      return new SubstitutionStream(Stream.empty(), () -> { }, t -> { });
+    }
+  }
 
   void setPostSubstitutionTransformer(RelTransformer transformer);
 

@@ -138,6 +138,13 @@ class PermissionCheckCache {
     }
   }
 
+  /**
+   * Clears the permission cache
+   */
+  void clear() {
+    getPermissionsCache().invalidateAll();
+  }
+
   @VisibleForTesting
   static final class Key {
     final String username;

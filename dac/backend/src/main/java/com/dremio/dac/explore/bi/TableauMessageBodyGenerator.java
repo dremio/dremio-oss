@@ -26,6 +26,7 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 
+import javax.inject.Inject;
 import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Configuration;
@@ -47,6 +48,9 @@ import com.dremio.dac.server.WebServer;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
+import com.dremio.options.OptionManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.StringValidator;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Joiner;
@@ -57,6 +61,7 @@ import com.google.common.collect.ImmutableMap;
  * A Dataset serializer to generate Tableau TDS files
  */
 @Produces({APPLICATION_TDS, APPLICATION_TDS_DRILL})
+@Options
 public class TableauMessageBodyGenerator implements MessageBodyWriter<DatasetConfig> {
   public static final String CUSTOMIZATION_ENABLED = "dremio.tableau.customization.enabled";
 
@@ -123,15 +128,25 @@ public class TableauMessageBodyGenerator implements MessageBodyWriter<DatasetCon
       .put("SQL_TIMEDATE_FUNCTIONS", "25155")
       .build();
 
+  /**
+   * Option to add extra connection properties to ODBC string. Should follow ODBC connection
+   * string format.
+   */
+  public static final StringValidator EXTRA_CONNECTION_PROPERTIES = new StringValidator(
+      "export.tableau.extra-odbc-connection-properties", "");
+
   private final XMLOutputFactory xmlOutputFactory = XMLOutputFactory.newInstance();
   private final NodeEndpoint endpoint;
   private final String masterNode;
   private final boolean customizationEnabled;
+  private final OptionManager optionManager;
 
-  public TableauMessageBodyGenerator(@Context Configuration configuration, NodeEndpoint endpoint) {
+  @Inject
+  public TableauMessageBodyGenerator(@Context Configuration configuration, NodeEndpoint endpoint, OptionManager optionManager) {
     this.endpoint = endpoint;
     this.masterNode = MoreObjects.firstNonNull(endpoint.getAddress(), "localhost");
     this.customizationEnabled = MoreObjects.firstNonNull((Boolean) configuration.getProperty(CUSTOMIZATION_ENABLED), false);
+    this.optionManager = optionManager;
   }
 
   @Override
@@ -200,7 +215,18 @@ public class TableauMessageBodyGenerator implements MessageBodyWriter<DatasetCon
 
     xmlStreamWriter.writeAttribute("class", "genericodbc");
     xmlStreamWriter.writeAttribute("dbname", InfoSchemaConstants.IS_CATALOG_NAME);
-    xmlStreamWriter.writeAttribute("odbc-connect-string-extras", format("AUTHENTICATIONTYPE=Basic Authentication;CONNECTIONTYPE=Direct;HOST=%s", hostname));
+
+    // Create advanced properties string
+    final StringBuilder extraProperties = new StringBuilder();
+    final String customExtraProperties = optionManager.getOption(EXTRA_CONNECTION_PROPERTIES);
+    // Writing custom extra properties first as they will take precedence over default ones
+    if (!customExtraProperties.isEmpty()) {
+      extraProperties.append(customExtraProperties).append(";");
+    }
+    extraProperties.append("AUTHENTICATIONTYPE=Basic Authentication;CONNECTIONTYPE=Direct;HOST=");
+    extraProperties.append(hostname);
+    xmlStreamWriter.writeAttribute("odbc-connect-string-extras", extraProperties.toString());
+
     // It has to match what is returned by the driver/Tableau
     xmlStreamWriter.writeAttribute("odbc-dbms-name", "Dremio");
     xmlStreamWriter.writeAttribute("odbc-driver", "Dremio Connector");

@@ -31,7 +31,7 @@ const initEntityTypeState = (state, entityType) => {
   return state.set(entityType, cacheConfigs[entityType] ? Immutable.OrderedMap() : Immutable.Map());
 };
 
-const initialState = entityTypes.reduce(initEntityTypeState, Immutable.Map());
+export const initialState = entityTypes.reduce(initEntityTypeState, Immutable.Map());
 
 export function evictOldEntities(entities, max) {
   if (entities.size > max) {
@@ -40,7 +40,7 @@ export function evictOldEntities(entities, max) {
   return entities;
 }
 
-const applyEntitiesToState = (state, action) => {
+export const applyEntitiesToState = (state, action) => {
   let result = state;
   const applyMethod = action.meta && action.meta.mergeEntities ? 'mergeIn' : 'setIn';
   action.payload.get('entities').forEach((entitiesToAdd, entityType) => {

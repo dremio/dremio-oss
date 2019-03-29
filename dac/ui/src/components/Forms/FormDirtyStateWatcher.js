@@ -16,6 +16,7 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
+import { get } from 'lodash';
 
 
 export default function FormDirtyStateWatcher(Form) {
@@ -32,15 +33,8 @@ export default function FormDirtyStateWatcher(Form) {
     };
 
     state = {
-      dirty: false,
-      initialValues: {}
+      dirty: false
     };
-
-    componentWillMount() {
-      // redux-form doesn't provide initialValues when tearing down,
-      // so store off the initial #initialValues so we can keep comparing
-      this.setState({initialValues: this.props.initialValuesForDirtyStateWatcher});
-    }
 
     //Jackson serialization: when value does not exist, it is processed as undefined
     //We want to remove these undefined values to make check for deep equality
@@ -79,7 +73,7 @@ export default function FormDirtyStateWatcher(Form) {
         if (!Array.isArray(nextProps.values[field])) return false;
 
         const currentValue = nextProps.values[field];
-        const initialValue = this.state.initialValues[field] || []; // fallback for creation forms
+        const initialValue = get(nextProps.initialValuesForDirtyStateWatcher, field, []); // fallback for creation forms
         return !areFieldsEqual(this._removeKeysWithUndefinedValue(currentValue),
                                this._removeKeysWithUndefinedValue(initialValue));
       });

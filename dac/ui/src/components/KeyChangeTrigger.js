@@ -13,27 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 
-export default function wrapSubmitValueMutator(mutateSubmitValues, Form) {
-  const Wrapper = class extends Component {
-    static propTypes = {
-      handleSubmit: PropTypes.func.isRequired // from redux-form
-    }
-
-    handleSubmit = (onSubmit) => {
-      return this.props.handleSubmit((values) => {
-        mutateSubmitValues(values, this.props);
-        return onSubmit(values);
-      });
-    }
-
-    render() {
-      return <Form {...this.props} handleSubmit={this.handleSubmit} />;
-    }
+/**
+ * A utility class, that monitors {@see #keyValue} property change and triggers {#onChange} if key value
+ * was changed. Also it triggers onChange on component mount.
+ */
+export class KeyChangeTrigger extends PureComponent {
+  static propTypes = {
+    keyValue: PropTypes.string,
+    onChange: PropTypes.func.isRequired
   };
 
-  return Wrapper;
+  onChange() {
+    this.props.onChange(this.props.keyValue);
+  }
+
+  componentDidMount() {
+    this.onChange();
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.keyValue !== this.props.keyValue) {
+      this.onChange();
+    }
+  }
+
+  render() {
+    return null;
+  }
 }

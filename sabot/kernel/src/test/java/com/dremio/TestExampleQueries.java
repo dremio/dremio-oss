@@ -227,6 +227,18 @@ public class TestExampleQueries extends PlanTestBase {
       .go();
   }
 
+  /**
+   * See DX-14959, when uint16/int16 et. al data types in a parquet file
+   * are considered as partition columns ,the datasource can't be added.
+   * @throws Exception
+   */
+  @Test
+  public void testParquetWithInt16ParitionedColumn() throws Exception {
+    String query = "select * from cp.\"/parquet/intTypes/DX_14959.parquet\" LIMIT 10";
+    test(query);
+  }
+
+
   @Test
   public void testSelectWithOptionsDataset() throws Exception {
     test("select * from table(cp.\"line.tbl\"(type => 'text', fieldDelimiter => '|', autoGenerateColumnNames => true))");

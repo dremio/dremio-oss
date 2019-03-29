@@ -117,6 +117,7 @@ class ScanWithDremioReader {
                   conditions,
                   split.getFileSplit(),
                   jobConf,
+                  config.getReferencedTables(),
                   vectorize,
                   config.getSchema(),
                   enableDetailedTracing

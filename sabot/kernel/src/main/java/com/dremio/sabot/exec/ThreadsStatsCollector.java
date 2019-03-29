@@ -21,6 +21,7 @@ import java.util.AbstractMap.SimpleEntry;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 import com.carrotsearch.hppc.LongObjectHashMap;
@@ -33,25 +34,33 @@ public class ThreadsStatsCollector extends Thread implements AutoCloseable {
 
   private static final long ONE_BILLION = 1000000000;
   private static final long RETAIN_INTERVAL = 5 * ONE_BILLION; // in nanoseconds
-  private static final int COLLECTION_INTERVAL = 1; // in seconds
+  private final long collectionIntervalInMillseconds; // in milli-seconds
+  // collect every second
+  private static final long DEFAULT_COLLECTION_INTERVAL_IN_MILLIS = 1000l;
+  private static ThreadMXBean mxBean = ManagementFactory.getThreadMXBean();
+  private final CPUStat cpuStat;
+  private final UserStat userStat;
 
-  private ThreadMXBean mxBean = ManagementFactory.getThreadMXBean();
-  private ThreadStat cpuStat = new ThreadStat();
-  private ThreadStat userStat = new ThreadStat();
+  public ThreadsStatsCollector(Set<Long> slicingThreadIds) {
+    this(DEFAULT_COLLECTION_INTERVAL_IN_MILLIS, slicingThreadIds);
+  }
 
-
-  public ThreadsStatsCollector() {
+  // Since fragment executor catches all exceptions, the thread id for slicing threads
+  // should not change during the life time of JVM.
+  public ThreadsStatsCollector(long collectionIntervalInMilliSeconds, Set<Long> slicingThreadIds) {
     super("thread-stats-collector");
+    this.collectionIntervalInMillseconds = collectionIntervalInMilliSeconds;
+    cpuStat = new CPUStat(slicingThreadIds);
+    userStat = new UserStat(slicingThreadIds);
   }
 
   @Override
   public void run() {
-    Thread.currentThread().setName("thread-stats-collector");
     while (true) {
       try {
-        Thread.sleep(COLLECTION_INTERVAL * 1000);
-        addCpuTime();
-        addUserTime();
+        Thread.sleep(collectionIntervalInMillseconds);
+        cpuStat.addCpuTime();
+        userStat.addUserTime();
       } catch (InterruptedException e) {
         return;
       }
@@ -66,24 +75,47 @@ public class ThreadsStatsCollector extends Thread implements AutoCloseable {
     return userStat.getTrailingAverage(id, seconds);
   }
 
-  private void addCpuTime() {
-    for (long id : mxBean.getAllThreadIds()) {
-      cpuStat.add(id, System.nanoTime(), mxBean.getThreadCpuTime(id));
+  private static class CPUStat extends ThreadStat {
+    private CPUStat(Set<Long> slicingThreadIds) {
+      super(slicingThreadIds);
+    }
+
+    private void addCpuTime() {
+      long timestamp = System.nanoTime();
+      LongObjectHashMap<Deque<Entry<Long,Long>>> newHolder = new LongObjectHashMap<>();
+      for (long id : slicingThreadIds) {
+        add(id, timestamp, mxBean.getThreadCpuTime(id), newHolder);
+      }
+      this.data = newHolder;
     }
   }
 
-  private void addUserTime() {
-    for (long id : mxBean.getAllThreadIds()) {
-      userStat.add(id, System.nanoTime(), mxBean.getThreadUserTime(id));
+  private static class UserStat extends ThreadStat {
+    private UserStat(Set<Long> slicingThreadIds) {
+      super(slicingThreadIds);
+    }
+
+    private void addUserTime() {
+      long timestamp = System.nanoTime();
+      LongObjectHashMap<Deque<Entry<Long,Long>>> newHolder = new LongObjectHashMap<>();
+      for (long id : slicingThreadIds) {
+        add(id, timestamp, mxBean.getThreadUserTime(id), newHolder);
+      }
+      this.data = newHolder;
     }
   }
 
   private static class ThreadStat {
+    protected final Set<Long> slicingThreadIds;
     volatile LongObjectHashMap<Deque<Entry<Long,Long>>> data = new LongObjectHashMap<>();
 
-    public void add(long id, long ts, long value) {
+    private ThreadStat(Set<Long> slicingThreadIds) {
+      this.slicingThreadIds = slicingThreadIds;
+    }
+
+    public void add(long id, long ts, long value, LongObjectHashMap<Deque<Entry<Long, Long>>> newHolder) {
       Entry<Long,Long> entry = new SimpleEntry<>(ts, value);
-      Deque<Entry<Long,Long>> list = data.get(id);
+      Deque<Entry<Long,Long>> list = this.data.get(id);
       if (list == null) {
         list = new ConcurrentLinkedDeque<>();
       }
@@ -91,7 +123,7 @@ public class ThreadsStatsCollector extends Thread implements AutoCloseable {
       while (ts - list.peekFirst().getKey() > RETAIN_INTERVAL) {
         list.removeFirst();
       }
-      data.put(id, list);
+      newHolder.put(id, list);
     }
 
     public Integer getTrailingAverage(long id, int seconds) {

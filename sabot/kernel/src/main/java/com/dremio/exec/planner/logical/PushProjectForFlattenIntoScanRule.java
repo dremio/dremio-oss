@@ -64,7 +64,7 @@ public class PushProjectForFlattenIntoScanRule extends RelOptRule{
       }
 
       final ProjectRel newProj =
-              new ProjectRel(proj.getCluster(),
+              ProjectRel.create(proj.getCluster(),
                       proj.getTraitSet().plus(Rel.LOGICAL),
                       newScan,
                       newProjects,

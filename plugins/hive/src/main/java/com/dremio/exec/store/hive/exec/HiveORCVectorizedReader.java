@@ -123,7 +123,7 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     }
 
     hiveOrcReader = hiveReader.rowsOptions(options);
-    hiveBatch = createVectorizedRowBatch(partitionOI, fSplit.isOriginal());
+    hiveBatch = createVectorizedRowBatch((StructObjectInspector) hiveReader.getObjectInspector(), fSplit.isOriginal());
 
     final List<Integer> projectedColOrdinals = ColumnProjectionUtils.getReadColumnIDs(jobConf);
     copiers = HiveORCCopiers.createCopiers(projectedColOrdinals, vectors, hiveBatch, fSplit.isOriginal());
@@ -146,9 +146,8 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
         offset += toRead;
       }
 
-      while (outputIdx < numRowsPerBatch && hiveOrcReader.hasNext()) {
+      while (outputIdx < numRowsPerBatch && hiveOrcReader.nextBatch(hiveBatch)) {
         offset = 0;
-        hiveOrcReader.nextBatch(hiveBatch);
         int toRead = Math.min(hiveBatch.size, numRowsPerBatch - outputIdx);
         copy(offset, toRead, outputIdx);
         outputIdx += toRead;

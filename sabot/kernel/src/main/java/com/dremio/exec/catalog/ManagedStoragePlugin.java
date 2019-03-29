@@ -546,6 +546,9 @@ public class ManagedStoragePlugin implements AutoCloseable {
           logger.warn("Failure while retiring old plugin [{}].", sourceKey, ex);
         }
 
+        // if we replaced the plugin successfully, clear the permission cache
+        permissionsCache.clear();
+
         return existingConnectionConf.equalsIgnoringNotMetadataImpacting(newConnectionConf);
       } catch(Exception ex) {
         // the update failed, go back to previous state.

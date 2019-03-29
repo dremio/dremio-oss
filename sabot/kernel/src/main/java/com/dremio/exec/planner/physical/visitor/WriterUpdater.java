@@ -78,7 +78,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
       for(int i = 0; i < expectedRowType.getFieldCount(); i++) {
         refs.add(rb.makeInputRef(fields.get(i).getType(), i));
       }
-      return new ProjectPrel(initialInput.getCluster(), initialInput.getTraitSet(), initialInput, refs, expectedRowType);
+      return ProjectPrel.create(initialInput.getCluster(), initialInput.getTraitSet(), initialInput, refs, expectedRowType);
     } else {
       return initialInput;
     }
@@ -90,7 +90,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
     final Prel initialInput = ((Prel) initialPrel.getInput()).accept(this, null);
 
     final Prel input = renameAsNecessary(initialPrel.getExpectedInboundRowType(), initialInput);
-    final WriterPrel prel = (WriterPrel) initialPrel.copy(initialPrel.getTraitSet(), ImmutableList.<RelNode>of(input));
+    final WriterPrel prel = initialPrel.copy(initialPrel.getTraitSet(), ImmutableList.<RelNode>of(input));
 
     if(options.hasDistributions()){
 
@@ -270,7 +270,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
     exprs.add(partionColComp);
     final RelDataType rowTypeWithPCComp = RexUtil.createStructType(cluster.getTypeFactory(), exprs, fieldNames);
 
-    final ProjectPrel projectUnderWriter = new ProjectAllowDupPrel(cluster, cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL), input, exprs, rowTypeWithPCComp);
+    final ProjectPrel projectUnderWriter = ProjectAllowDupPrel.create(cluster, cluster.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL), input, exprs, rowTypeWithPCComp);
     return projectUnderWriter;
   }
 

@@ -226,17 +226,17 @@ public class ParquetGroupScanUtils {
         case UTF8:
           return Types.optional(MinorType.VARCHAR);
         case UINT_8:
-          return Types.optional(MinorType.UINT1);
+          return Types.optional(MinorType.INT);
         case UINT_16:
-          return Types.optional(MinorType.UINT2);
+          return Types.optional(MinorType.INT);
         case UINT_32:
-          return Types.optional(MinorType.UINT4);
+          return Types.optional(MinorType.BIGINT);
         case UINT_64:
-          return Types.optional(MinorType.UINT8);
+          return Types.optional(MinorType.BIGINT);
         case INT_8:
-          return Types.optional(MinorType.TINYINT);
+          return Types.optional(MinorType.INT);
         case INT_16:
-          return Types.optional(MinorType.SMALLINT);
+          return Types.optional(MinorType.INT);
       }
     }
 

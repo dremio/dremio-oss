@@ -457,7 +457,9 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     if(plan == null) {
       return "";
     }
-    return RelOptUtil.dumpPlan("", plan, SqlExplainFormat.TEXT, SqlExplainLevel.ALL_ATTRIBUTES);
+
+    return RelOptUtil.dumpPlan("", plan, SqlExplainFormat.TEXT,
+      verbose ? SqlExplainLevel.ALL_ATTRIBUTES : SqlExplainLevel.EXPPLAN_ATTRIBUTES);
   }
 
 }

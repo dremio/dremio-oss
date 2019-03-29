@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.plan.Context;
@@ -28,12 +27,14 @@ import org.apache.calcite.rex.RexExecutor;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
-import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider.Substitution;
+import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider.SubstitutionStream;
 import com.dremio.exec.planner.logical.CancelFlag;
 import com.dremio.exec.planner.logical.ConstExecutor;
 import com.dremio.exec.planner.physical.DistributionTraitDef;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.SqlConverter;
+import com.dremio.service.Pointer;
+import com.google.common.base.Throwables;
 
 public class DremioVolcanoPlanner extends VolcanoPlanner {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioVolcanoPlanner.class);
@@ -42,12 +43,15 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
 
   private final CancelFlag cancelFlag;
   private PlannerPhase phase;
+  private MaxNodesListener listener;
 
   private DremioVolcanoPlanner(RelOptCostFactory costFactory, Context context, SubstitutionProvider substitutionProvider) {
     super(costFactory, context);
     this.substitutionProvider = substitutionProvider;
     this.cancelFlag = new CancelFlag(context.unwrap(PlannerSettings.class).getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
     this.phase = null;
+    this.listener = new MaxNodesListener(context.unwrap(PlannerSettings.class).getMaxNodesPerPlan());
+    addListener(listener);
   }
 
   public static DremioVolcanoPlanner of(final SqlConverter converter) {
@@ -58,7 +62,6 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
 
   public static DremioVolcanoPlanner of(RelOptCostFactory costFactory, Context context, SubstitutionProvider substitutionProvider, RexExecutor executor) {
     DremioVolcanoPlanner volcanoPlanner = new DremioVolcanoPlanner(costFactory, context, substitutionProvider);
-
     volcanoPlanner.setExecutor(executor);
     volcanoPlanner.clearRelTraitDefs();
     volcanoPlanner.addRelTraitDef(ConventionTraitDef.INSTANCE);
@@ -70,8 +73,19 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
 
   @Override
   public RelNode findBestExp() {
-    cancelFlag.reset();
-    return super.findBestExp();
+    try {
+      cancelFlag.reset();
+      listener.reset();
+      return super.findBestExp();
+    } catch(RuntimeException ex) {
+      // if the planner is hiding a UserException, bubble it's message to the top.
+      Throwable t = Throwables.getRootCause(ex);
+      if(t instanceof UserException) {
+        throw UserException.parseError(ex).message(t.getMessage()).build(logger);
+      } else {
+        throw ex;
+      }
+    }
   }
 
   public void setPlannerPhase(PlannerPhase phase) {
@@ -80,14 +94,23 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
 
   @Override
   protected void registerMaterializations() {
-    final List<Substitution> substitutions = substitutionProvider.findSubstitutions(getOriginalRoot());
-    LOGGER.debug("found {} substitutions", substitutions.size());
-    for (final Substitution substitution : substitutions) {
-      if (!isRegistered(substitution.getReplacement())) {
-        RelNode equiv = substitution.considerThisRootEquivalent() ? getRoot() : substitution.getEquivalent();
-        register(substitution.getReplacement(), ensureRegistered(equiv, null));
-      }
+    final SubstitutionStream result = substitutionProvider.findSubstitutions(getOriginalRoot());
+    Pointer<Integer> count = new Pointer<>(0);
+    try {
+      result.stream().forEach(substitution -> {
+        count.value++;
+          if (!isRegistered(substitution.getReplacement())) {
+            RelNode equiv = substitution.considerThisRootEquivalent() ? getRoot() : substitution.getEquivalent();
+            register(substitution.getReplacement(), ensureRegistered(equiv, null));
+          }
+      });
+    } catch (Exception | AssertionError e) {
+      result.failure(e);
+      logger.debug("found {} substitutions", count.value);
+      return;
     }
+    result.success();
+    logger.debug("found {} substitutions", count.value);
   }
 
   @Override

@@ -18,12 +18,17 @@ package com.dremio.exec.planner.physical;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
+import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelCollations;
+import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
@@ -52,6 +57,20 @@ public class StreamAggPrel extends AggPrelBase implements Prel{
                        List<AggregateCall> aggCalls,
                        OperatorPhase phase) throws InvalidRelException {
     super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls, phase);
+  }
+
+  /**
+   * Creates collation based on streaming agg groupset
+   *
+   * @param groupSet
+   * @return
+   */
+  public static RelCollation collation(ImmutableBitSet groupSet) {
+    // The collation of a streaming agg is based on its groups
+    List<RelFieldCollation> fields = IntStream.range(0, groupSet.cardinality())
+        .mapToObj(RelFieldCollation::new)
+        .collect(Collectors.toList());
+    return RelCollations.of(fields);
   }
 
   @Override

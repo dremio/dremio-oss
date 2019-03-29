@@ -358,8 +358,8 @@ public class ConstExecutor implements RexExecutor {
   }
 
   @Override
-  public boolean implies(RexBuilder rexBuilder, RelDataType rowType, RexNode first, RexNode second) {
-    return calciteExecutor.implies(rexBuilder, rowType, first, second);
+  public Object[] execute(RexBuilder rexBuilder, List<RexNode> exps, RelDataType rowType,  DataContext dataValues) {
+    return calciteExecutor.execute(rexBuilder, exps, rowType, dataValues);
   }
 
   private static DateString toDateString(long epoch) {

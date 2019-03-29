@@ -48,7 +48,8 @@ export class SpaceForm extends Component {
             showAccelerationSection={false}
             fields={fields}
             editing={editing}
-            sectionDescription={description}/>
+            sectionDescription={description}
+          />
         </FormBody>
       </ModalForm>
     );

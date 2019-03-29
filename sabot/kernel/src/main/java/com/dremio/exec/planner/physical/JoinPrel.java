@@ -99,7 +99,7 @@ public abstract class JoinPrel extends JoinRelBase implements Prel{
 
     RelDataType rowType = RexUtil.createStructType(input.getCluster().getTypeFactory(), exprs, outputFieldNames);
 
-    ProjectPrel proj = new ProjectPrel(input.getCluster(), input.getTraitSet(), input, exprs, rowType);
+    ProjectPrel proj = ProjectPrel.create(input.getCluster(), input.getTraitSet(), input, exprs, rowType);
 
     return proj;
   }

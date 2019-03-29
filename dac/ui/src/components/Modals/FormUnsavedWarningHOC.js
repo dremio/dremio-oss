@@ -31,6 +31,7 @@ export function wrapUnsavedChangesWarningWithModal(Modal) {
   return class extends Component {
     static propTypes = {
       hide: PropTypes.func,
+      //connected
       showUnsavedChangesConfirmDialog: PropTypes.func
     }
 

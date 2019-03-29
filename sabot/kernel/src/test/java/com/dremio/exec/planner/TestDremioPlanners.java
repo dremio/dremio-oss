@@ -18,8 +18,6 @@ package com.dremio.exec.planner;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.plan.Convention;
@@ -36,16 +34,13 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexBuilder;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.acceleration.substitution.SubstitutionProvider;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
@@ -97,19 +92,15 @@ public class TestDremioPlanners {
     }
   }
 
-  private OptionManager optionManager;
-  private PlannerSettings settings;
-
-
   @Rule
   public final ExpectedException expectedException = ExpectedException.none();
 
-  @Before
-  public void setUp() {
-    optionManager = mock(OptionManager.class);
-    when(optionManager.getOption("planner.timeout_per_phase_ms")).thenReturn(OptionValue.createLong(OptionType.QUERY, "planner.timeout_per_phase_ms", 100));
+  public PlannerSettings getSettings(long timeoutMillis, int maxNodes) {
+    OptionManager optionManager = mock(OptionManager.class);
+    when(optionManager.getOption("planner.timeout_per_phase_ms")).thenReturn(OptionValue.createLong(OptionType.QUERY, "planner.timeout_per_phase_ms", timeoutMillis));
+    when(optionManager.getOption("planner.max_nodes_per_plan")).thenReturn(OptionValue.createLong(OptionType.QUERY, "planner.max_nodes_per_plan", maxNodes));
 
-    settings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, null);
+    return new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, null);
   }
 
   @Test
@@ -117,25 +108,29 @@ public class TestDremioPlanners {
 
     HepProgramBuilder builder = new HepProgramBuilder();
     builder.addRuleInstance(new LoopRule());
-    DremioHepPlanner planner = new DremioHepPlanner(builder.build(), settings, new DremioCost.Factory(), PlannerPhase.LOGICAL);
+    DremioHepPlanner planner = new DremioHepPlanner(builder.build(), getSettings(100, 25_000), new DremioCost.Factory(), PlannerPhase.LOGICAL);
 
     checkCancelFlag(planner);
+  }
+
+
+  @Test
+  public void checkThrowOnMaxNodes() throws Exception {
+
+    DremioVolcanoPlanner planner = DremioVolcanoPlanner.of(new DremioCost.Factory(), getSettings(60_000, 10), a -> {}, null);
+    planner.setPlannerPhase(PlannerPhase.LOGICAL);
+    planner.addRule(new LoopRule());
+    RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(SqlTypeFactoryImpl.INSTANCE));
+    RelNode root = new NoneRel(cluster);
+    expectedException.expectMessage("Planner exceeded maximum memory allowed for planning.");
+    planner.setRoot(root);
+    planner.findBestExp();
   }
 
   @Test
   public void testVolcanoPlannerCancelFlag() {
 
-    DremioVolcanoPlanner planner = DremioVolcanoPlanner.of(new DremioCost.Factory(), settings, new SubstitutionProvider() {
-      @Override
-      public List<Substitution> findSubstitutions(RelNode query) {
-        return Collections.emptyList();
-      }
-
-      @Override
-      public void setPostSubstitutionTransformer(RelTransformer transformer) {
-
-      }
-    }, null);
+    DremioVolcanoPlanner planner = DremioVolcanoPlanner.of(new DremioCost.Factory(), getSettings(100, 25_000), a -> {}, null);
     planner.setPlannerPhase(PlannerPhase.LOGICAL);
     planner.addRule(new LoopRule());
 
@@ -144,6 +139,7 @@ public class TestDremioPlanners {
 
   private void checkCancelFlag(RelOptPlanner planner) {
     expectedException.expect(UserException.class);
+    expectedException.expectMessage("Query was cancelled because planning time exceeded");
     RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(SqlTypeFactoryImpl.INSTANCE));
     RelNode root = new NoneRel(cluster);
     planner.setRoot(root);

@@ -15,7 +15,9 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +25,6 @@ import java.util.Map;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -33,6 +34,9 @@ import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.InvalidMetadataErrorContext;
+import com.dremio.common.exceptions.UserException;
+import com.google.common.collect.ImmutableList;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
@@ -59,12 +63,14 @@ import com.google.common.collect.Lists;
  */
 public class FileSplitParquetRecordReader implements RecordReader {
 
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FileSplitParquetRecordReader.class);
   private final OperatorContext oContext;
   private final BatchSchema tableSchema;
   private final List<SchemaPath> columnsToRead;
   private final List<ParquetFilterCondition> conditions;
   private final FileSplit fileSplit;
   private final JobConf jobConf;
+  final Collection<List<String>> referencedTables;
   private final boolean vectorize;
   private final boolean enableDetailedTracing;
   private final BatchSchema outputSchema;
@@ -83,6 +89,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
       final List<ParquetFilterCondition> conditions,
       final FileSplit fileSplit,
       final JobConf jobConf,
+      final Collection<List<String>> referencedTables,
       final boolean vectorize,
       final BatchSchema outputSchema,
       final boolean enableDetailedTracing
@@ -93,6 +100,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
     this.conditions = conditions;
     this.fileSplit = fileSplit;
     this.jobConf = jobConf;
+    this.referencedTables = referencedTables;
     this.readerFactory = readerFactory;
     this.vectorize = vectorize;
     this.enableDetailedTracing = enableDetailedTracing;
@@ -125,7 +133,13 @@ public class FileSplitParquetRecordReader implements RecordReader {
         if (inputStreamProvider != null) {
           inputStreamProvider.close();
         }
-        throw new ExecutionSetupException(String.format("Failed to read parquet footer : %s", e.getMessage()), e);
+        if (e instanceof FileNotFoundException) {
+          // the outer try-catch handles this.
+          throw e;
+        } else {
+          throw new ExecutionSetupException(
+              String.format("Failed to create FileSystem: %s", e.getMessage()), e);
+        }
       }
 
       final List<Integer> rowGroupNums = getRowGroupNumbersFromFileSplit(fileSplit, footer);
@@ -177,6 +191,12 @@ public class FileSplitParquetRecordReader implements RecordReader {
         innerReaders.add(innerReader);
       }
       innerReadersIter = innerReaders.iterator();
+    } catch (FileNotFoundException e) {
+      throw UserException.invalidMetadataError(e)
+        .addContext("Parquet file not found")
+        .addContext("File", fileSplit.getPath())
+        .setAdditionalExceptionContext(new InvalidMetadataErrorContext(ImmutableList.copyOf(referencedTables)))
+        .build(logger);
     } catch (IOException e) {
       throw new ExecutionSetupException("Failure during setup", e);
     }

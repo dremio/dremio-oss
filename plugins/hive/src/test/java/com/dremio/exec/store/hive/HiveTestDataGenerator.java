@@ -249,8 +249,108 @@ public class HiveTestDataGenerator {
       "stored as parquet location '" + file.getParent() + "'";
     executeQuery(hiveDriver, parquetschemalearntest);
 
+    // create Parquet format based table, with two files.
+    final File regionWithTwoDir = new File(getWhDir(), "parquet_with_two_files");
+    regionWithTwoDir.mkdirs();
+    final File file1Of2 = new File(regionWithTwoDir, "region1.parquet");
+    file1Of2.deleteOnExit();
+    Files.write(Paths.get(file1Of2.toURI()), Resources.toByteArray(url));
+    final File file2Of2 = new File(regionWithTwoDir, "region2.parquet");
+    file2Of2.deleteOnExit();
+    Files.write(Paths.get(file2Of2.toURI()), Resources.toByteArray(url));
+    regionWithTwoDir.deleteOnExit();
+    final String parquetWithTwoFilesTable = "create external table parquet_with_two_files(R_REGIONKEY bigint, R_NAME string, R_COMMENT string) " +
+      "stored as parquet location '" + file1Of2.getParent() + "'";
+    executeQuery(hiveDriver, parquetWithTwoFilesTable);
+
+
     final String orcRegionTable = "create table orc_region stored as orc as SELECT * FROM parquet_region";
     executeQuery(hiveDriver, orcRegionTable);
+
+    final String[][] typeconversinoTables = {
+      {"tinyint", "", "90"},
+      {"smallint", "", "90"},
+      {"int", "", "90"},
+      {"bigint", "", "90"},
+      {"float", "", "90.0"},
+      {"double", "", "90.0"},
+      {"decimal", "", "90"},
+      {"string", "", "90"},
+      {"varchar", "(1024)", "90"},
+      {"timestamp", "", "'2019-03-14 11:17:31.119021'"},
+      {"date", "", "'2019-03-14'"}
+    };
+    for (int i=0; i<typeconversinoTables.length; ++i) {
+      createTypeConversionSourceTable(hiveDriver, typeconversinoTables[i][0],
+        typeconversinoTables[i][1], typeconversinoTables[i][2]);
+    }
+    final String[][] typeconversinoDestTables = {
+      //tinyint
+      {"tinyint", "", "smallint", ""},
+      {"tinyint", "", "int", ""},
+      {"tinyint", "", "bigint", ""},
+      {"tinyint", "", "float", ""},
+      {"tinyint", "", "double", ""},
+      {"tinyint", "", "decimal", ""},
+      {"tinyint", "", "string", ""},
+      {"tinyint", "", "varchar", "(1024)"},
+      //smallint
+      {"smallint", "", "int", ""},
+      {"smallint", "", "bigint", ""},
+      {"smallint", "", "float", ""},
+      {"smallint", "", "double", ""},
+      {"smallint", "", "decimal", ""},
+      {"smallint", "", "string", ""},
+      {"smallint", "", "varchar", "(1024)"},
+      //int
+      {"int", "", "bigint", ""},
+      {"int", "", "float", ""},
+      {"int", "", "double", ""},
+      {"int", "", "decimal", ""},
+      {"int", "", "string", ""},
+      {"int", "", "varchar", "(1024)"},
+      //bigint
+      {"bigint", "", "float", ""},
+      {"bigint", "", "double", ""},
+      {"bigint", "", "decimal", ""},
+      {"bigint", "", "string", ""},
+      {"bigint", "", "varchar", "(1024)"},
+      //float
+      {"float", "", "double", ""},
+      {"float", "", "decimal", ""},
+      {"float", "", "string", ""},
+      {"float", "", "varchar", "(1024)"},
+      //double
+      {"double", "", "decimal", ""},
+      {"double", "", "string", ""},
+      {"double", "", "varchar", "(1024)"},
+      //decimal
+      {"decimal", "", "string", ""},
+      {"decimal", "", "varchar", "(1024)"},
+      //string
+      {"string", "", "double", ""},
+      {"string", "", "decimal", ""},
+      {"string", "", "varchar", "(1024)"},
+      //varchar
+      {"varchar", "", "double", ""},
+      {"varchar", "", "decimal", ""},
+      {"varchar", "", "string", ""},
+      //timestamp
+      {"timestamp", "", "string", ""},
+      {"timestamp", "", "varchar", "(1024)"},
+      //date
+      {"date", "", "string", ""},
+      {"date", "", "varchar", "(1024)"}
+    };
+    for (int i=0; i<typeconversinoDestTables.length; ++i) {
+      createTypeConversionDestinationTable(hiveDriver,
+        typeconversinoDestTables[i][0],
+        typeconversinoDestTables[i][1],
+        typeconversinoDestTables[i][2],
+        typeconversinoDestTables[i][3]);
+    }
+
+    createDecimalConversionTable(hiveDriver, "decimal_conversion_test_orc");
 
     // create a Hive table that has columns with data types which are supported for reading in Dremio.
     createAllTypesTextTable(hiveDriver, "readtest");
@@ -450,6 +550,23 @@ public class HiveTestDataGenerator {
 
     return file.getPath();
   }
+  private void createTypeConversionSourceTable(final Driver hiveDriver, final String source, final String sourcetypeargs, final String value) throws Exception {
+    String table = source + "_orc";
+    String datatable = "CREATE TABLE IF NOT EXISTS " + table + " (col1 " + source + sourcetypeargs + ") STORED AS ORC";
+    executeQuery(hiveDriver, datatable);
+    String intsert_datatable = "INSERT INTO " + table + " VALUES (" + value + ")";
+    executeQuery(hiveDriver, intsert_datatable);
+  }
+  private void createTypeConversionDestinationTable(final Driver hiveDriver, final String source,
+                                                    final String sourcetypeargs,
+                                                    final String destination,
+                                                    final String desttypeargs) throws Exception {
+    String table = source + "_to_" + destination + "_orc_ext";
+    String sourcetable = source + "_orc";
+    String ext_table = "CREATE EXTERNAL TABLE IF NOT EXISTS " + table +
+      " (col1 "+ destination + desttypeargs +") STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + sourcetable + "'";
+    executeQuery(hiveDriver, ext_table);
+  }
 
   private void createAllTypesTextTable(final Driver hiveDriver, final String table) throws Exception {
     String testDataFile = generateAllTypesDataFile();
@@ -571,6 +688,31 @@ public class HiveTestDataGenerator {
             ")", testDataFile));
   }
 
+  private void createDecimalConversionTable(Driver hiveDriver, String table) throws Exception {
+    String datatable = "CREATE TABLE IF NOT EXISTS " + table + " (col1 decimal(30, 9), col2 decimal(23, 6), col3 decimal(16, 2)) STORED AS ORC";
+    executeQuery(hiveDriver, datatable);
+    String intsert_datatable = "INSERT INTO " + table + " VALUES (111111111111111111111.111111111, 22222222222222222.222222, 333.0)";
+    executeQuery(hiveDriver, intsert_datatable);
+    String exttable = table + "_ext";
+    String ext_table = "CREATE EXTERNAL TABLE IF NOT EXISTS " + exttable +
+      " (col1 decimal(25,2), col2 string, col3 varchar(32))" + "STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + table + "'";
+    executeQuery(hiveDriver, ext_table);
+    String exttable2 = table + "_ext_2";
+    String ext_table2 = "CREATE EXTERNAL TABLE IF NOT EXISTS " + exttable2 +
+      " (col1 decimal(2,2), col2 decimal(16,7), col3 decimal(4,1))" + "STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + table + "'";
+    executeQuery(hiveDriver, ext_table2);
+
+    String tablerev = table + "_rev";
+    String datatablerev = "CREATE TABLE IF NOT EXISTS " + tablerev + " (col1 int, col2 string, col3 double) STORED AS ORC";
+    executeQuery(hiveDriver, datatablerev);
+    String intsert_datatable_rev = "INSERT INTO " + tablerev + " VALUES (1234, 1234567, 1234567.123)";
+    executeQuery(hiveDriver, intsert_datatable_rev);
+    String exttable_rev = tablerev + "_ext";
+    String ext_table_rev = "CREATE EXTERNAL TABLE IF NOT EXISTS " + exttable_rev +
+      " (col1 decimal(3,2), col2 decimal(5,2), col3 decimal(5,2))" + "STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + tablerev + "'";
+    executeQuery(hiveDriver, ext_table_rev);
+
+  }
   private void createAllTypesTable(Driver hiveDriver, String format, String source) throws Exception {
     executeQuery(hiveDriver,
         "CREATE TABLE readtest_" + format + "(" +

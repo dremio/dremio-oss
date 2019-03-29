@@ -30,7 +30,6 @@ import static org.junit.Assert.fail;
 import java.util.Collections;
 import java.util.List;
 
-
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;

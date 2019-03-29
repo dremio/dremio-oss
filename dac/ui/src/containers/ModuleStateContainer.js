@@ -16,13 +16,13 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
-import { getModuleState } from '@app/reducers';
+import { isModuleInitialized } from '@app/reducers';
 import { initModuleState, resetModuleState } from '@app/actions/modulesState';
 
 const mapStateToProps = (state, /* ownProps */ {
   moduleKey
 }) => ({
-  isStateInitialized: !!getModuleState(state, moduleKey)
+  isStateInitialized: isModuleInitialized(state, moduleKey)
 });
 
 const mapDispatchToProps = {

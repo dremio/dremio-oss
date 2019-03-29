@@ -64,4 +64,5 @@ const modulesStateReducer = (state = {}, action) => {
 export default modulesStateReducer;
 
 // selectors
+export const isInitialized = (state, moduleKey) => !!state[moduleKey];
 export const getData = (state, moduleKey) => get(state[moduleKey], 'data', null);

@@ -227,7 +227,7 @@ public class ElasticsearchIntermediatePrel extends SinglePrel implements PrelFin
 
     // if project was popped, apply outside limit.
     if(poppedProject != null){
-      output = new ProjectPrel(output.getCluster(), poppedProject.getTraitSet(), output, poppedProject.getChildExps(), poppedProject.getRowType());
+      output = ProjectPrel.create(output.getCluster(), poppedProject.getTraitSet(), output, poppedProject.getChildExps(), poppedProject.getRowType());
     }
 
     return output;

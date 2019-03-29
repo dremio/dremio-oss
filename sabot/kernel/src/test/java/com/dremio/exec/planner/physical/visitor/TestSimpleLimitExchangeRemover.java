@@ -249,7 +249,7 @@ public class TestSimpleLimitExchangeRemover {
   }
 
   private Prel newProject(List<RexNode> exprs, RelDataType rowType, Prel child) {
-    return new ProjectPrel(cluster, traits, child, exprs, rowType);
+    return ProjectPrel.create(cluster, traits, child, exprs, rowType);
   }
 
   private Prel newHardScan(RelDataType rowType) {

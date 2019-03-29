@@ -46,11 +46,7 @@ public class ProjectRel extends ProjectRelBase implements Rel {
   private final boolean hasFlattenFields;
   private final boolean canPushPastFlatten;
 
-  protected ProjectRel(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<? extends RexNode> exps, RelDataType rowType) {
-    this(cluster, traits, child, exps, rowType, true);
-  }
-
-  protected ProjectRel(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<? extends RexNode> exps, RelDataType rowType, boolean canPushPastFlatten) {
+  private ProjectRel(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<? extends RexNode> exps, RelDataType rowType, boolean canPushPastFlatten) {
     super(LOGICAL, cluster, traits, child, exps, rowType);
     this.canPushPastFlatten = canPushPastFlatten;
     this.hasFlattenFields = FlattenVisitors.hasFlatten(this);
@@ -71,7 +67,7 @@ public class ProjectRel extends ProjectRelBase implements Rel {
 
   @Override
   public org.apache.calcite.rel.core.Project copy(RelTraitSet traitSet, RelNode input, List<RexNode> exps, RelDataType rowType) {
-    return new ProjectRel(this.getCluster(), traitSet, input, exps, rowType, this.canPushPastFlatten());
+    return ProjectRel.create(this.getCluster(), traitSet, input, exps, rowType, this.canPushPastFlatten());
   }
 
   @Override
@@ -93,10 +89,11 @@ public class ProjectRel extends ProjectRelBase implements Rel {
       fields.add(new RelDataTypeFieldImpl(expr.getRef().getRootSegment().getPath(), fields.size(), context.getTypeFactory().createSqlType(SqlTypeName.ANY) ));
       exps.add(context.toRex(expr.getExpr()));
     }
-    return new ProjectRel(context.getCluster(), context.getLogicalTraits(), input, exps, new RelRecordType(fields));
+    return ProjectRel.create(context.getCluster(), context.getLogicalTraits(), input, exps, new RelRecordType(fields));
   }
 
-  /** provide a public method to create an instance of ProjectRel.
+  /**
+   * Creates an instance of ProjectRel.
    *
    * @param cluster
    * @param traits
@@ -106,8 +103,23 @@ public class ProjectRel extends ProjectRelBase implements Rel {
    * @return new instance of ProjectRel
    */
   public static ProjectRel create(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<? extends RexNode> exps,
-                                       RelDataType rowType) {
-    return new ProjectRel(cluster, traits, child, exps, rowType);
+                                  RelDataType rowType) {
+    return ProjectRel.create(cluster, traits, child, exps, rowType, true);
   }
 
+  /**
+   * Creates an instance of ProjectRel.
+   *
+   * @param cluster
+   * @param traits
+   * @param child
+   * @param exps
+   * @param rowType
+   * @return new instance of ProjectRel
+   */
+  public static ProjectRel create(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<? extends RexNode> exps,
+                                  RelDataType rowType, boolean canPushPastFlatten) {
+    final RelTraitSet trimmedTraits = trimTraits(cluster, child, exps, traits);
+    return new ProjectRel(cluster, trimmedTraits, child, exps, rowType, canPushPastFlatten);
+  }
 }

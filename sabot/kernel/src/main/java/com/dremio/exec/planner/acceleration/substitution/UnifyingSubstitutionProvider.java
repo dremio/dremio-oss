@@ -46,7 +46,8 @@ public class UnifyingSubstitutionProvider extends AbstractSubstitutionProvider {
     super(provider);
   }
 
-  @Override public List<Substitution> findSubstitutions(final RelNode query) {
+  @Override
+  public SubstitutionStream findSubstitutions(final RelNode query) {
     final List<DremioMaterialization> materializations =
       SubstitutionUtils.findApplicableMaterializations(query, getMaterializations());
 
@@ -63,7 +64,7 @@ public class UnifyingSubstitutionProvider extends AbstractSubstitutionProvider {
     }
 
     // discard the original query
-    return substitutions.subList(1, substitutions.size());
+    return new SubstitutionStream(substitutions.subList(1, substitutions.size()).stream(), () -> { }, t ->  { });
   }
 
   protected HepProgramBuilder getProgramBuilder() {

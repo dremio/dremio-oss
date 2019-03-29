@@ -21,23 +21,32 @@ import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import javax.ws.rs.client.Entity;
 
 import org.junit.Test;
 
+import com.dremio.common.util.TestTools;
+import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.collaboration.Tags;
 import com.dremio.dac.service.collaboration.Wiki;
+import com.dremio.datastore.KVStoreProvider;
+import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceUtils;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
+import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Strings;
@@ -237,14 +246,95 @@ public class TestCollaborationResource extends BaseTestServer {
     newNamespaceService().deleteSpace(spacePath, NamespaceUtils.getVersion(spacePath, newNamespaceService()));
   }
 
+  @Test
+  public void testOrphanPruning() throws Exception {
+    // do a quick prune to clear the wiki/tags store
+    final DACDaemon daemon = isMultinode() ? getMasterDremioDaemon() : getCurrentDremioDaemon();
+    CollaborationHelper.pruneOrphans(daemon.getBindingProvider().lookup(KVStoreProvider.class));
+
+    // create a source
+    final NASConf nasConf = new NASConf();
+    nasConf.path = TestTools.getWorkingPath() + "/src/test/resources";
+
+    final NamespaceKey sourceKey = new NamespaceKey("mysource");
+    final SourceConfig sourceConfig = new SourceConfig();
+    sourceConfig.setName(sourceKey.getRoot());
+    sourceConfig.setConfig(nasConf.toBytesString());
+    sourceConfig.setType("NAS");
+    newNamespaceService().addOrUpdateSource(sourceKey, sourceConfig);
+
+    // create space
+    final NamespaceKey spacePath = new NamespaceKey("testspace");
+    final List<String> vdsPath = Arrays.asList(spacePath.getRoot(), "testVDS");
+    createSpaceAndVDS(spacePath, vdsPath);
+
+    // create folder in space
+    createFolder(spacePath.getPathComponents(), "folder1");
+
+    final List<String> vdsPath2 = Arrays.asList(spacePath.getRoot(), "testVDS2");
+    createVDS(vdsPath2);
+
+    addWiki(spacePath.getPathComponents(), "text");
+    addWiki(vdsPath, "text");
+    addWiki(vdsPath2, "text");
+    addTags(vdsPath, Collections.singletonList("tag"));
+    addWiki(Arrays.asList(spacePath.getRoot(), "folder1"), "text");
+
+    // add wiki to the source
+    addWiki(sourceKey.getPathComponents(), "text");
+
+    // nothing deleted so no pruned items
+    int pruneCount = CollaborationHelper.pruneOrphans(daemon.getBindingProvider().lookup(KVStoreProvider.class));
+    assertEquals(0, pruneCount);
+
+    // delete the space and children
+    newNamespaceService().deleteSpace(spacePath, "0");
+    pruneCount = CollaborationHelper.pruneOrphans(daemon.getBindingProvider().lookup(KVStoreProvider.class));
+    assertEquals(5, pruneCount);
+
+    // delete the source
+    newNamespaceService().deleteSource(sourceKey, "0");
+    pruneCount = CollaborationHelper.pruneOrphans(daemon.getBindingProvider().lookup(KVStoreProvider.class));
+    assertEquals(1, pruneCount);
+  }
+
+  private void createFolder(List<String> path, String folderName) throws NamespaceException {
+    final List<String> folderPath = new ArrayList<>(path);
+    folderPath.add(folderName);
+
+    final FolderConfig config = new FolderConfig();
+    config.setName(folderName);
+    config.setFullPathList(folderPath);
+
+    newNamespaceService().addOrUpdateFolder(new NamespaceKey(folderPath), config);
+  }
+
+  private void addWiki(List<String> path, String text) throws Exception {
+    final NameSpaceContainer container = newNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
+    final CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
+
+    collaborationHelper.setWiki(NamespaceUtils.getId(container), new Wiki(text, null));
+  }
+
+  private void addTags(List<String> path, List<String> tags) throws Exception {
+    final NameSpaceContainer container = newNamespaceService().getEntities(Collections.singletonList(new NamespaceKey(path))).get(0);
+    final CollaborationHelper collaborationHelper = l(CollaborationHelper.class);
+
+    collaborationHelper.setTags(NamespaceUtils.getId(container), new Tags(tags, null));
+  }
+
   private void createSpaceAndVDS(NamespaceKey spacePath, List<String> vdsPath) throws NamespaceException {
     // create space
-    SpaceConfig spaceConfig = new SpaceConfig();
+    final SpaceConfig spaceConfig = new SpaceConfig();
     spaceConfig.setName(spacePath.getRoot());
     newNamespaceService().addOrUpdateSpace(spacePath, spaceConfig);
 
+    createVDS(vdsPath);
+  }
+
+  private void createVDS(List<String> vdsPath) {
     // create vds
-    VirtualDataset virtualDataset = new VirtualDataset();
+    final VirtualDataset virtualDataset = new VirtualDataset();
     virtualDataset.setSql("select * from sys.version");
 
     DatasetConfig datasetConfig = new DatasetConfig();

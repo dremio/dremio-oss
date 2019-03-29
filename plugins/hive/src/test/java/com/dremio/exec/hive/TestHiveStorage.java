@@ -155,6 +155,126 @@ public class TestHiveStorage extends HiveTestBase {
   }
 
   @Test
+  public void orcTestTinyIntToString() throws Exception {
+    testBuilder().sqlQuery("SELECT * FROM hive.tinyint_to_string_orc_ext")
+      .ordered()
+      .baselineColumns("col1")
+      .baselineValues(new StringBuilder().append("90").toString())
+      .go();
+  }
+
+  @Test
+  public void orcTestTinyIntToBigInt() throws Exception {
+    testBuilder().sqlQuery("SELECT * FROM hive.tinyint_to_bigint_orc_ext")
+      .ordered()
+      .baselineColumns("col1")
+      .baselineValues(new Long(90))
+      .go();
+  }
+
+  @Test
+  public void orcTestDecimalConversion() throws Exception {
+
+    String query = "SELECT * FROM hive.decimal_conversion_test_orc";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1", "col2", "col3")
+      .baselineValues(new BigDecimal("111111111111111111111.111111111"), new BigDecimal("22222222222222222.222222"), new BigDecimal("333.00"))
+      .go();
+
+    query = "SELECT * FROM hive.decimal_conversion_test_orc_ext";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1", "col2", "col3")
+      .baselineValues(new BigDecimal("111111111111111111111.11"), "22222222222222222.222222", "333")
+      .go();
+
+    query = "SELECT * FROM hive.decimal_conversion_test_orc_ext_2";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1", "col2", "col3")
+      .baselineValues(null, null, new BigDecimal("333.0"))
+      .go();
+
+    query = "SELECT * FROM hive.decimal_conversion_test_orc_rev_ext";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1", "col2", "col3")
+      .baselineValues(null, null, null)
+      .go();
+  }
+
+  @Test
+  public void orcTestTypeConversions() throws Exception {
+    Object[][] testcases = {
+      //tinyint
+      {"tinyint", "smallint", new Integer(90)},
+      {"tinyint", "int", new Integer(90)},
+      {"tinyint", "bigint", new Long(90)},
+      {"tinyint", "float", new Float(90)},
+      {"tinyint", "double", new Double(90)},
+      {"tinyint", "decimal", new BigDecimal(90)},
+      {"tinyint", "string", "90"},
+      {"tinyint", "varchar", "90"},
+      //smallint
+      {"smallint", "int", new Integer(90)},
+      {"smallint", "bigint", new Long(90)},
+      {"smallint", "float", new Float(90)},
+      {"smallint", "double", new Double(90)},
+      {"smallint", "decimal", new BigDecimal(90)},
+      {"smallint", "string", "90"},
+      {"smallint", "varchar", "90"},
+      //int
+      {"int", "bigint", new Long(90)},
+      {"int", "float", new Float(90)},
+      {"int", "double", new Double(90)},
+      {"int", "decimal", new BigDecimal(90)},
+      {"int", "string", "90"},
+      {"int", "varchar", "90"},
+      //bigint
+      {"bigint", "float", new Float(90)},
+      {"bigint", "double", new Double(90)},
+      {"bigint", "decimal", new BigDecimal(90)},
+      {"bigint", "string", "90"},
+      {"bigint", "varchar", "90"},
+      //float
+      {"float", "double", new Double(90)},
+      {"float", "decimal", new BigDecimal(90)},
+      {"float", "string", "90.0"},
+      {"float", "varchar", "90.0"},
+      //double
+      {"double", "decimal", new BigDecimal(90)},
+      {"double", "string", "90.0"},
+      {"double", "varchar", "90.0"},
+      //decimal
+      {"decimal", "string", "90"},
+      {"decimal", "varchar", "90"},
+      //string
+      {"string", "double", new Double(90)},
+      {"string", "decimal", new BigDecimal(90)},
+      {"string", "varchar", "90"},
+      //varchar
+      {"varchar", "double", new Double(90)},
+      {"varchar", "decimal", new BigDecimal(90)},
+      {"varchar", "string", "90"},
+      //timestamp
+      {"timestamp", "string", "1552562251000"},
+      {"timestamp", "varchar", "1552562251000"},
+      //date
+      {"date", "string", "17969"},
+      {"date", "varchar", "17969"}
+    };
+    for (int i=0; i<testcases.length; ++i) {
+      String query = "SELECT * FROM hive." + (String)(testcases[i][0]) + "_to_" + (String)(testcases[i][1]) + "_orc_ext";
+      testBuilder().sqlQuery(query)
+        .ordered()
+        .baselineColumns("col1")
+        .baselineValues(testcases[i][2])
+        .go();
+    }
+  }
+
+  @Test
   public void readAllSupportedHiveDataTypesParquet() throws Exception {
     readAllSupportedHiveDataTypes("readtest_parquet");
   }
@@ -308,6 +428,39 @@ public class TestHiveStorage extends HiveTestBase {
           "uickly special accou"
         ).go();
     } finally {
+      test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+    }
+  }
+
+  @Test
+  public void testHiveParquetRefreshOnMissingFile() throws Exception {
+    setEnableReAttempts(true);
+    test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+    try {
+      final String query = "SELECT count(r_regionkey) c FROM hive.parquet_with_two_files";
+
+      // Make sure the plan has Hive scan with native parquet reader
+      testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
+
+      // With two files, the expected count is 10 (i.e 2 * 5).
+      testBuilder().sqlQuery(query)
+        .ordered()
+        .baselineColumns("c")
+        .baselineValues(10L)
+        .go();
+
+      // Delete one file and run again, the expected count is 5 now.
+      File secondFile = new File(hiveTest.getWhDir() + "/parquet_with_two_files/", "region2.parquet");
+      secondFile.delete();
+
+      testBuilder().sqlQuery(query)
+        .ordered()
+        .baselineColumns("c")
+        .baselineValues(5L)
+        .go();
+
+    } finally {
+      setEnableReAttempts(false);
       test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
     }
   }

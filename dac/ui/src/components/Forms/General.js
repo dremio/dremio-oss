@@ -31,7 +31,6 @@ export default class General extends Component {
   static propTypes = {
     fields: PropTypes.object,
     editing: PropTypes.bool,
-    sectionDescription: PropTypes.string,
     children: PropTypes.node,
     showAccelerationSection: PropTypes.bool
   };

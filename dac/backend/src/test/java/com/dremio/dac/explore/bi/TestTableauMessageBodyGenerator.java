@@ -17,7 +17,7 @@ package com.dremio.dac.explore.bi;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -38,10 +38,13 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.glassfish.jersey.media.multipart.ContentDisposition;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -52,6 +55,7 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.WebServer;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 
@@ -60,33 +64,48 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
  */
 @RunWith(Parameterized.class)
 public class TestTableauMessageBodyGenerator {
-  private final DatasetPath path;
-  private final String tableName;
-
   @Parameters(name="{0}")
   public static final Object[] getTestCases() {
     return new Object[] {
-      new String[] { "basic", "UNTITLED.tmp", "[UNTITLED].[tmp]" },
-      new String[] { "subfolder", "spaceA.foo.tmp", "[spaceA.foo].[tmp]" },
-      new String[] { "dot-in-name", "spaceA.\"tmp.json\"", "[spaceA].[tmp.json]" },
-      new String[] { "home-dataset", "@dremio.tmp", "[@dremio].[tmp]" },
-      new String[] { "weird-name", "spaceA.[foo][bar]", "[spaceA].[[foo]][bar]]]" },
-      new String[] { "weird-schema", "spaceA.[whynot].tmp", "[spaceA.[whynot]]].[tmp]" }
+      new String[] { "basic", "UNTITLED.tmp", "[UNTITLED].[tmp]", ""},
+      new String[] { "basic-with-custom-properties", "UNTITLED.tmp", "[UNTITLED].[tmp]", "FOO=BAR"},
+      new String[] { "subfolder", "spaceA.foo.tmp", "[spaceA.foo].[tmp]", "" },
+      new String[] { "dot-in-name", "spaceA.\"tmp.json\"", "[spaceA].[tmp.json]", "" },
+      new String[] { "home-dataset", "@dremio.tmp", "[@dremio].[tmp]", "" },
+      new String[] { "weird-name", "spaceA.[foo][bar]", "[spaceA].[[foo]][bar]]]", "" },
+      new String[] { "weird-schema", "spaceA.[whynot].tmp", "[spaceA.[whynot]]].[tmp]", "" }
     };
   }
 
-  public TestTableauMessageBodyGenerator(String testName, String path, String tableName) {
+  private static NodeEndpoint ENDPOINT = NodeEndpoint.newBuilder().setAddress("foo").setUserPort(12345).build();
+
+  private final DatasetPath path;
+  private final String tableName;
+  private final String customProperties;
+
+  @Mock
+  private Configuration configuration;
+  @Mock
+  private OptionManager optionManager;
+
+  public TestTableauMessageBodyGenerator(String testName, String path, String tableName, String customProperties) {
     this.path = new DatasetPath(path);
     this.tableName = tableName;
+    this.customProperties = customProperties;
+  }
+
+  @Before
+  public void setUp() {
+    MockitoAnnotations.initMocks(this);
+    when(optionManager.getOption(TableauMessageBodyGenerator.EXTRA_CONNECTION_PROPERTIES)).thenReturn(customProperties);
   }
 
   @Test
   public void verifyOutput()
       throws IOException, SAXException, ParserConfigurationException, ParseException {
-    Configuration configuration = mock(Configuration.class);
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setFullPathList(path.toPathList());
-    TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, NodeEndpoint.newBuilder().setAddress("foo").setUserPort(12345).build());
+    TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager);
     MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
@@ -104,6 +123,11 @@ public class TestTableauMessageBodyGenerator {
     Element connection = (Element) connections.item(0);
     assertEquals("genericodbc", connection.getAttribute("class"));
     assertEquals("Dremio Connector", connection.getAttribute("odbc-driver"));
+    if (customProperties.isEmpty()) {
+      assertEquals("AUTHENTICATIONTYPE=Basic Authentication;CONNECTIONTYPE=Direct;HOST=foo", connection.getAttribute("odbc-connect-string-extras"));
+    } else {
+      assertEquals(customProperties + ";AUTHENTICATIONTYPE=Basic Authentication;CONNECTIONTYPE=Direct;HOST=foo", connection.getAttribute("odbc-connect-string-extras"));
+    }
     assertEquals("DREMIO", connection.getAttribute("dbname"));
     assertEquals(path.toParentPath(), connection.getAttribute("schema"));
 
@@ -121,7 +145,6 @@ public class TestTableauMessageBodyGenerator {
   @Test
   public void verifyNativeOutput()
       throws IOException, SAXException, ParserConfigurationException, ParseException {
-    Configuration configuration = mock(Configuration.class);
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setFullPathList(path.toPathList());
 
@@ -137,7 +160,7 @@ public class TestTableauMessageBodyGenerator {
       .build();
     datasetConfig.setRecordSchema(schema.toByteString());
 
-    TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, NodeEndpoint.newBuilder().setAddress("foo").setUserPort(12345).build());
+    TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager);
     MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_DRILL_TYPE));

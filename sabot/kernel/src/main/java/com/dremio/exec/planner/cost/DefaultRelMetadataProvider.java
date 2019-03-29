@@ -30,6 +30,7 @@ public class DefaultRelMetadataProvider extends ChainedRelMetadataProvider {
         RelMdRowCount.SOURCE,
         RelMdDistinctRowCount.SOURCE,
         RelMdColumnOrigins.SOURCE,
+        RelMdCollation.SOURCE,
         // Calcite catch-all
         org.apache.calcite.rel.metadata.DefaultRelMetadataProvider.INSTANCE));
   }
