@@ -24,6 +24,7 @@ import org.apache.hadoop.fs.ReadOption;
 import org.apache.hadoop.io.ByteBufferPool;
 
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.exec.context.OperatorStats.WaitRecorder;
 
 
 /**
@@ -39,62 +40,58 @@ class FSDataInputStreamWithStatsWrapper extends FSDataInputStreamWrapper {
 
   @Override
   public int read(long position, byte[] buffer, int offset, int length) throws IOException {
-    operatorStats.startWait();
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return super.read(position, buffer, offset, length);
-    } finally {
-      operatorStats.stopWait();
     }
   }
 
   @Override
   public void readFully(long position, byte[] buffer, int offset, int length) throws IOException {
-    operatorStats.startWait();
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       super.readFully(position, buffer, offset, length);
-    } finally {
-      operatorStats.stopWait();
     }
   }
 
   @Override
   public void readFully(long position, byte[] buffer) throws IOException {
-    operatorStats.startWait();
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       super.readFully(position, buffer);
-    } finally {
-      operatorStats.stopWait();
     }
   }
 
 
   @Override
   public ByteBuffer read(ByteBufferPool bufferPool, int maxLength, EnumSet<ReadOption> opts) throws IOException, UnsupportedOperationException {
-    operatorStats.startWait();
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return super.read(bufferPool, maxLength, opts);
-    } finally {
-      operatorStats.stopWait();
+    }
+  }
+
+  @Override
+  public int read(ByteBuffer buf) throws IOException {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+      return super.read(buf);
     }
   }
 
   @Override
   public synchronized void seek(long desired) throws IOException {
-    operatorStats.startWait();
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       super.seek(desired);
-    } finally {
-      operatorStats.stopWait();
+    }
+  }
+
+  @Override
+  public boolean seekToNewSource(long targetPos) throws IOException {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+      return super.seekToNewSource(targetPos);
     }
   }
 
   @Override
   public long skip(long n) throws IOException {
-    operatorStats.startWait();
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return super.skip(n);
-    } finally {
-      operatorStats.stopWait();
     }
   }
 
@@ -122,21 +119,43 @@ class FSDataInputStreamWithStatsWrapper extends FSDataInputStreamWrapper {
 
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
-      operatorStats.startWait();
-      try {
+      try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
         return super.read(b, off, len);
-      } finally {
-        operatorStats.stopWait();
       }
     }
 
     @Override
     public int read(byte[] b) throws IOException {
-      operatorStats.startWait();
-      try {
+      try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
         return super.read(b);
-      } finally {
-        operatorStats.stopWait();
+      }
+    }
+
+    @Override
+    public int read(long position, byte[] buffer, int offset, int length) throws IOException {
+      try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        return super.read(position, buffer, offset, length);
+      }
+    }
+
+    @Override
+    public void readFully(long position, byte[] buffer, int offset, int length) throws IOException {
+      try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        super.readFully(position, buffer, offset, length);
+      }
+    }
+
+    @Override
+    public void readFully(long position, byte[] buffer) throws IOException {
+      try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        super.readFully(position, buffer);
+      }
+    }
+
+    @Override
+    public boolean seekToNewSource(long targetPos) throws IOException {
+      try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        return super.seekToNewSource(targetPos);
       }
     }
   }

@@ -67,8 +67,20 @@ public class OperatorStats {
   private long[] stateNanos = new long[State.Size];
   private long[] stateMark = new long[State.Size];
 
-  private long schemas;
   private int inputCount;
+
+  // Need this wrapper so that the caller don't have to handle exception from close().
+  public interface WaitRecorder extends AutoCloseable {
+    @Override
+    void close();
+  }
+
+  // No-op implementation of WaitRecorder.
+  static final WaitRecorder NO_OP_RECORDER = () -> {};
+
+  // Recorder that does a stopWait() on close. This can be used in try-with-resources context.
+  // Note that the close for this not idempotent.
+  private WaitRecorder recorder = () -> { stopWait(); };
 
   public OperatorStats(OpProfileDef def, BufferAllocator allocator){
     this(def.getOperatorId(), def.getOperatorType(), def.getIncomingCount(), allocator);
@@ -200,6 +212,21 @@ public class OperatorStats {
     // revert to the saved state
     startState(savedState);
     savedState = State.NONE;
+  }
+
+  /*
+   * starts wait only if it's not already in the wait mode.
+   *
+   * Returns true if this call started the wait mode. In that case, the caller should do a
+   * stopWait() too.
+   */
+  public boolean checkAndStartWait() {
+    if (currentState == State.WAIT) {
+      return false;
+    } else {
+      startWait();
+      return true;
+    }
   }
 
   public void batchReceived(int inputIndex, long records, long size) {
@@ -378,6 +405,17 @@ public class OperatorStats {
     sb.append("\n");
 
     return sb.toString();
+  }
+
+
+
+  public static WaitRecorder getWaitRecorder(OperatorStats operatorStats) {
+    if (operatorStats == null || !operatorStats.checkAndStartWait()) {
+      // If the operatorStats is missing, or if already in wait recording mode, return NO_OP.
+      return NO_OP_RECORDER;
+    } else {
+      return operatorStats.recorder;
+    }
   }
 
 }

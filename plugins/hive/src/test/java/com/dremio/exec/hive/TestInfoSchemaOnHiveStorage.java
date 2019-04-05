@@ -132,6 +132,8 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "decimal_conversion_test_orc_ext_2")
         .baselineValues("hive.default", "decimal_conversion_test_orc_rev")
         .baselineValues("hive.default", "decimal_conversion_test_orc_rev_ext")
+        .baselineValues("hive.default", "orc_more_columns")
+        .baselineValues("hive.default", "orc_more_columns_ext")
         .go();
 
     testBuilder()

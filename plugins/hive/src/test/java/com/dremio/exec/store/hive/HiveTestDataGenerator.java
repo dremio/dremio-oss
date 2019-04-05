@@ -351,6 +351,7 @@ public class HiveTestDataGenerator {
     }
 
     createDecimalConversionTable(hiveDriver, "decimal_conversion_test_orc");
+    createExtTableWithMoreColumnsThanOriginal(hiveDriver, "orc_more_columns");
 
     // create a Hive table that has columns with data types which are supported for reading in Dremio.
     createAllTypesTextTable(hiveDriver, "readtest");
@@ -713,6 +714,18 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, ext_table_rev);
 
   }
+
+  private void createExtTableWithMoreColumnsThanOriginal(Driver hiveDriver, String table) throws Exception {
+    String datatable = "CREATE TABLE IF NOT EXISTS " + table + " (col1 int, col2 int) STORED AS ORC";
+    executeQuery(hiveDriver, datatable);
+    String insert_datatable = "INSERT INTO " + table + " VALUES (1,2)";
+    executeQuery(hiveDriver, insert_datatable);
+    String exttable = table + "_ext";
+    String ext_table = "CREATE EXTERNAL TABLE IF NOT EXISTS " + exttable +
+      " (col1 int, col2 int, col3 int)" + "STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + table + "'";
+    executeQuery(hiveDriver, ext_table);
+  }
+
   private void createAllTypesTable(Driver hiveDriver, String format, String source) throws Exception {
     executeQuery(hiveDriver,
         "CREATE TABLE readtest_" + format + "(" +

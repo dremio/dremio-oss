@@ -60,6 +60,7 @@ import org.apache.hadoop.util.Progressable;
 
 import com.dremio.exec.util.AssertionUtil;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.exec.context.OperatorStats.WaitRecorder;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
@@ -169,7 +170,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
    */
   @Override
   public FSDataInputStream open(Path f, int bufferSize) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataInputStreamWrapper(f, underlyingFs.open(f, bufferSize));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -181,7 +182,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
    */
   @Override
   public FSDataInputStream open(Path f) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataInputStreamWrapper(f, underlyingFs.open(f));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -190,7 +191,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void initialize(URI name, Configuration conf) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.initialize(name, conf);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -204,7 +205,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FSDataOutputStream create(Path f) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.create(f));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -213,7 +214,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FSDataOutputStream create(Path f, boolean overwrite) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.create(f, overwrite));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -222,7 +223,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FSDataOutputStream create(Path f, Progressable progress) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.create(f, progress));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -231,7 +232,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FSDataOutputStream create(Path f, short replication) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.create(f, replication));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -240,7 +241,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FSDataOutputStream create(Path f, short replication, Progressable progress) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.create(f, replication, progress));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -249,7 +250,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FSDataOutputStream create(Path f, boolean overwrite, int bufferSize) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.create(f, overwrite, bufferSize));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -258,7 +259,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FSDataOutputStream create(Path f, boolean overwrite, int bufferSize, Progressable progress) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.create(f, overwrite, bufferSize, progress));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -268,7 +269,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Override
   public FSDataOutputStream create(Path f, boolean overwrite, int bufferSize, short replication,
       long blockSize) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.create(f, overwrite, bufferSize, replication, blockSize));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -277,7 +278,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FSDataOutputStream create(Path f, boolean overwrite, int bufferSize, short replication, long blockSize, Progressable progress) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.create(f, overwrite, bufferSize, replication, blockSize, progress));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -286,7 +287,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FileStatus getFileStatus(Path f) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getFileStatus(f);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -300,7 +301,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
    * @throws IOException
    */
   public Optional<FileStatus> getFileStatusSafe(Path f) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return Optional.fromNullable(underlyingFs.getFileStatus(f));
     } catch(FileNotFoundException e) {
       return Optional.<FileStatus>absent();
@@ -311,7 +312,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void createSymlink(Path target, Path link, boolean createParent) throws AccessControlException, FileAlreadyExistsException, FileNotFoundException, ParentNotDirectoryException, UnsupportedFileSystemException, IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.createSymlink(target, link, createParent);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -321,7 +322,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Override
   public FileStatus getFileLinkStatus(Path f) throws AccessControlException, FileNotFoundException,
       UnsupportedFileSystemException, IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getFileLinkStatus(f);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -335,7 +336,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public Path getLinkTarget(Path f) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getLinkTarget(f);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -344,7 +345,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FileChecksum getFileChecksum(Path f) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getFileChecksum(f);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -363,7 +364,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FsStatus getStatus() throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getStatus();
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -372,7 +373,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FsStatus getStatus(Path p) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getStatus(p);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -381,7 +382,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void setPermission(Path p, FsPermission permission) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.setPermission(p, permission);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -390,7 +391,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void setOwner(Path p, String username, String groupname) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.setOwner(p, username, groupname);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -399,7 +400,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void setTimes(Path p, long mtime, long atime) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.setTimes(p, mtime, atime);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -408,7 +409,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public Path createSnapshot(Path path, String snapshotName) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.createSnapshot(path, snapshotName);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -417,7 +418,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void renameSnapshot(Path path, String snapshotOldName, String snapshotNewName) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.renameSnapshot(path, snapshotOldName, snapshotNewName);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -426,7 +427,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void deleteSnapshot(Path path, String snapshotName) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.deleteSnapshot(path, snapshotName);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -435,7 +436,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void modifyAclEntries(Path path, List<AclEntry> aclSpec) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.modifyAclEntries(path, aclSpec);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -444,7 +445,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void removeAclEntries(Path path, List<AclEntry> aclSpec) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.removeAclEntries(path, aclSpec);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -453,7 +454,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void removeDefaultAcl(Path path) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.removeDefaultAcl(path);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -462,7 +463,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void removeAcl(Path path) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.removeAcl(path);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -471,7 +472,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void setAcl(Path path, List<AclEntry> aclSpec) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.setAcl(path, aclSpec);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -480,7 +481,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public AclStatus getAclStatus(Path path) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getAclStatus(path);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -489,12 +490,14 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public Path getWorkingDirectory() {
-    return underlyingFs.getWorkingDirectory();
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+      return underlyingFs.getWorkingDirectory();
+    }
   }
 
   @Override
   public FSDataOutputStream append(Path f, int bufferSize, Progressable progress) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.append(f, bufferSize, progress));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -503,7 +506,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void concat(Path trg, Path[] psrcs) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.concat(trg, psrcs);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -513,7 +516,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Override
   @Deprecated
   public short getReplication(Path src) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getReplication(src);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -522,7 +525,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public boolean setReplication(Path src, short replication) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.setReplication(src, replication);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -540,7 +543,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public boolean mkdirs(Path f, FsPermission permission) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.mkdirs(f, permission);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -549,7 +552,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void copyFromLocalFile(Path src, Path dst) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.copyFromLocalFile(src, dst);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -558,7 +561,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void moveFromLocalFile(Path[] srcs, Path dst) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.moveFromLocalFile(srcs, dst);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -567,7 +570,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void moveFromLocalFile(Path src, Path dst) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.moveFromLocalFile(src, dst);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -576,7 +579,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void copyFromLocalFile(boolean delSrc, Path src, Path dst) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.copyFromLocalFile(delSrc, src, dst);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -585,7 +588,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void copyFromLocalFile(boolean delSrc, boolean overwrite, Path[] srcs, Path dst) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.copyFromLocalFile(delSrc, overwrite, srcs, dst);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -594,7 +597,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void copyFromLocalFile(boolean delSrc, boolean overwrite, Path src, Path dst) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.copyFromLocalFile(delSrc, overwrite, src, dst);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -603,7 +606,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void copyToLocalFile(Path src, Path dst) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.copyToLocalFile(src, dst);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -612,7 +615,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void moveToLocalFile(Path src, Path dst) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.moveToLocalFile(src, dst);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -621,7 +624,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void copyToLocalFile(boolean delSrc, Path src, Path dst) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.copyToLocalFile(delSrc, src, dst);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -630,7 +633,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void copyToLocalFile(boolean delSrc, Path src, Path dst, boolean useRawLocalFileSystem) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.copyToLocalFile(delSrc, src, dst, useRawLocalFileSystem);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -639,7 +642,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public Path startLocalOutput(Path fsOutputFile, Path tmpLocalFile) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.startLocalOutput(fsOutputFile, tmpLocalFile);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -648,7 +651,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void completeLocalOutput(Path fsOutputFile, Path tmpLocalFile) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.completeLocalOutput(fsOutputFile, tmpLocalFile);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -677,7 +680,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public long getUsed() throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getUsed();
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -719,7 +722,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public boolean mkdirs(Path folderPath) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       if (!underlyingFs.exists(folderPath)) {
         return underlyingFs.mkdirs(folderPath);
       } else if (!underlyingFs.getFileStatus(folderPath).isDirectory()) {
@@ -734,7 +737,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Override
   public FSDataOutputStream create(Path f, FsPermission permission, EnumSet<CreateFlag> flags, int bufferSize,
       short replication, long blockSize, Progressable progress, ChecksumOpt checksumOpt) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.create(f, permission, flags, bufferSize, replication,
           blockSize, progress, checksumOpt));
     } catch(FSError e) {
@@ -746,7 +749,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Deprecated
   public FSDataOutputStream createNonRecursive(Path f, boolean overwrite, int bufferSize, short replication,
       long blockSize, Progressable progress) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.createNonRecursive(f, overwrite, bufferSize, replication,
           blockSize, progress));
     } catch(FSError e) {
@@ -758,7 +761,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Deprecated
   public FSDataOutputStream createNonRecursive(Path f, FsPermission permission, boolean overwrite, int bufferSize,
       short replication, long blockSize, Progressable progress) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.createNonRecursive(f, permission, overwrite, bufferSize, replication,
           blockSize, progress));
     } catch(FSError e) {
@@ -769,7 +772,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Override
   @Deprecated
   public FSDataOutputStream createNonRecursive(Path f, FsPermission permission, EnumSet<CreateFlag> flags, int bufferSize, short replication, long blockSize, Progressable progress) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.createNonRecursive(f, permission, flags, bufferSize, replication, blockSize, progress));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -778,7 +781,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public boolean createNewFile(Path f) throws IOException {
-    try {
+   try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.createNewFile(f);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -787,7 +790,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FSDataOutputStream append(Path f) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.append(f));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -796,7 +799,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FSDataOutputStream append(Path f, int bufferSize) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.append(f, bufferSize));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -806,7 +809,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Override
   public FSDataOutputStream create(Path f, FsPermission permission, boolean overwrite, int bufferSize, short
       replication, long blockSize, Progressable progress) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.create(f, permission, overwrite, bufferSize, replication, blockSize, progress));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -816,7 +819,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Override
   public FSDataOutputStream create(Path f, FsPermission permission, EnumSet<CreateFlag> flags, int bufferSize,
       short replication, long blockSize, Progressable progress) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return newFSDataOutputStreamWrapper(underlyingFs.create(f, permission, flags, bufferSize, replication, blockSize, progress));
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -825,7 +828,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FileStatus[] listStatus(Path f) throws FileNotFoundException, IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.listStatus(f);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -834,7 +837,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public RemoteIterator<Path> listCorruptFileBlocks(Path path) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.listCorruptFileBlocks(path);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -843,7 +846,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FileStatus[] listStatus(Path f, PathFilter filter) throws FileNotFoundException, IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.listStatus(f, filter);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -852,7 +855,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FileStatus[] listStatus(Path[] files) throws FileNotFoundException, IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.listStatus(files);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -861,7 +864,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FileStatus[] listStatus(Path[] files, PathFilter filter) throws FileNotFoundException, IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.listStatus(files, filter);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -870,7 +873,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FileStatus[] globStatus(Path pathPattern) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.globStatus(pathPattern);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -879,7 +882,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FileStatus[] globStatus(Path pathPattern, PathFilter filter) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.globStatus(pathPattern, filter);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -888,7 +891,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public RemoteIterator<LocatedFileStatus> listLocatedStatus(Path f) throws FileNotFoundException, IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.listLocatedStatus(f);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -897,7 +900,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public RemoteIterator<LocatedFileStatus> listFiles(Path f, boolean recursive) throws FileNotFoundException, IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.listFiles(f, recursive);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -916,7 +919,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public boolean rename(Path src, Path dst) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.rename(src, dst);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -926,7 +929,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Override
   @Deprecated
   public boolean delete(Path f) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.delete(f);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -935,7 +938,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public boolean delete(Path f, boolean recursive) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.delete(f, recursive);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -944,7 +947,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public boolean deleteOnExit(Path f) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.deleteOnExit(f);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -953,12 +956,14 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public boolean cancelDeleteOnExit(Path f) {
-    return underlyingFs.cancelDeleteOnExit(f);
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+      return underlyingFs.cancelDeleteOnExit(f);
+    }
   }
 
   @Override
   public boolean exists(Path f) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.exists(f);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -967,7 +972,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public boolean isDirectory(Path f) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.isDirectory(f);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -976,7 +981,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public boolean isFile(Path f) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.isFile(f);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -986,7 +991,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Override
   @Deprecated
   public long getLength(Path f) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getLength(f);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -995,7 +1000,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public ContentSummary getContentSummary(Path f) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getContentSummary(f);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1027,7 +1032,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Override
   @Private
   public Token<?> getDelegationToken(String renewer) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getDelegationToken(renewer);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1037,7 +1042,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Override
   @LimitedPrivate({"HDFS", "MapReduce"})
   public Token<?>[] addDelegationTokens(String renewer, Credentials credentials) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.addDelegationTokens(renewer, credentials);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1053,7 +1058,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getFileBlockLocations(file, start, len);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1062,7 +1067,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public BlockLocation[] getFileBlockLocations(Path p, long start, long len) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getFileBlockLocations(p, start, len);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1090,7 +1095,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public Path resolvePath(Path p) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.resolvePath(p);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1099,7 +1104,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public boolean truncate(final Path f, final long newLength) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.truncate(f, newLength);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1108,7 +1113,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public RemoteIterator<FileStatus> listStatusIterator(final Path p) throws FileNotFoundException, IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.listStatusIterator(p);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1117,7 +1122,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void access(final Path path, final FsAction mode) throws AccessControlException, FileNotFoundException, IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.access(path, mode);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1126,7 +1131,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public FileChecksum getFileChecksum(final Path f, final long length) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getFileChecksum(f, length);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1135,7 +1140,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void setXAttr(final Path path, final String name, final byte[] value) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.setXAttr(path, name, value);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1144,7 +1149,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void setXAttr(final Path path, final String name, final byte[] value, final EnumSet<XAttrSetFlag> flag) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.setXAttr(path, name, value, flag);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1153,7 +1158,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public byte[] getXAttr(final Path path, final String name) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getXAttr(path, name);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1162,7 +1167,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public Map<String, byte[]> getXAttrs(final Path path) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getXAttrs(path);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1171,7 +1176,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public Map<String, byte[]> getXAttrs(final Path path, final List<String> names) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.getXAttrs(path, names);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1180,7 +1185,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public List<String> listXAttrs(final Path path) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       return underlyingFs.listXAttrs(path);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1189,7 +1194,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public void removeXAttr(final Path path, final String name) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       underlyingFs.removeXAttr(path, name);
     } catch(FSError e) {
       throw propagateFSError(e);
@@ -1242,7 +1247,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   }
 
   public ImmutableList<FileStatus> listRecursive(Path path, boolean includeHiddenFiles) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       final ImmutableList.Builder<FileStatus> files = ImmutableList.builder();
       final FileStatus[] inputStatuses;
       if(includeHiddenFiles) {
@@ -1258,7 +1263,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   }
 
   public ImmutableList<FileStatus> list(Path path, boolean includeHiddenFiles) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       final ImmutableList.Builder<FileStatus> files = ImmutableList.builder();
       final FileStatus[] statuses = includeHiddenFiles ? underlyingFs.listStatus(path) :  underlyingFs.listStatus(path, DefaultPathFilter.INSTANCE);
       files.add(statuses);
@@ -1288,7 +1293,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   }
 
   public InputStream openPossiblyCompressedStream(Path path) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       CompressionCodec codec = codecFactory.getCodec(path); // infers from file ext.
       if (codec != null) {
         return codec.createInputStream(open(path));
@@ -1322,7 +1327,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public Path canonicalizePath(Path p) throws IOException {
-    try {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       Path cp = canonicalizePath(underlyingFs, p);
       return new PathWrapperWithFileSystem(cp, this);
     } catch(FSError e) {

@@ -80,13 +80,18 @@ public class HiveORCCopiers {
     final ORCCopier[] copiers = new ORCCopier[numColumns];
     final ColumnVector[] cols = isOriginal ? input.cols : ((StructColumnVector) input.cols[HiveORCVectorizedReader.TRANS_ROW_COLUMN_INDEX]).fields;
     for (int i = 0; i < numColumns; i++) {
-      if (i < output.length && i < cols.length) {
-        copiers[i] = createCopier(output[i], cols[projectedColOrdinals.get(i)]);
-      } else {
+      boolean copierCreated = false;
+      if (i < projectedColOrdinals.size()) {
+        int projectedColOrdinal = projectedColOrdinals.get(i);
+        if (projectedColOrdinal < cols.length) {
+          copiers[i] = createCopier(output[i], cols[projectedColOrdinal]);
+          copierCreated = true;
+        }
+      }
+      if (!copierCreated) {
         copiers[i] = new NoOpCopier(null, null);
       }
     }
-
     return copiers;
   }
 

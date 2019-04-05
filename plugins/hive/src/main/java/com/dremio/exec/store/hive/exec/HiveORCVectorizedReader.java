@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.ValueVector;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.ColumnVector;
@@ -49,6 +50,7 @@ import org.apache.orc.OrcProto;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.hive.ORCScanFilter;
 import com.dremio.exec.store.hive.exec.HiveORCCopiers.ORCCopier;
@@ -92,6 +94,8 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     final Path path = fSplit.getPath();
 
     final OrcFile.ReaderOptions opts = OrcFile.readerOptions(jobConf);
+    final FileSystem fs = FileSystemWrapper.get(path, jobConf);
+    opts.filesystem(fs);
     final Reader hiveReader = OrcFile.createReader(path, opts);
 
     final List<OrcProto.Type> types = hiveReader.getTypes();

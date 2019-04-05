@@ -173,6 +173,22 @@ public class TestHiveStorage extends HiveTestBase {
   }
 
   @Test
+  public void orcTestMoreColumnsInExtTable() throws Exception {
+    String query = "SELECT col2, col3 FROM hive.orc_more_columns_ext";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col2", "col3")
+      .baselineValues(new Integer(2), null)
+      .go();
+    String query2 = "SELECT col3, col2 FROM hive.orc_more_columns_ext";
+    testBuilder().sqlQuery(query2)
+      .ordered()
+      .baselineColumns("col3", "col2")
+      .baselineValues(null, new Integer(2))
+      .go();
+  }
+
+  @Test
   public void orcTestDecimalConversion() throws Exception {
 
     String query = "SELECT * FROM hive.decimal_conversion_test_orc";

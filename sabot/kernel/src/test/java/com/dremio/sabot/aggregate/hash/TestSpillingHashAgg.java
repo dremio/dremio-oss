@@ -150,6 +150,8 @@ public class TestSpillingHashAgg extends BaseTestOperator {
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 1000);
       }
     } catch (Exception e) {
+      System.err.println("Exception message: " + e.getMessage());
+      e.printStackTrace();
       exceptionThrown = true;
     } finally {
       Assert.assertEquals(false, exceptionThrown);

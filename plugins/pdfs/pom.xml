@@ -25,7 +25,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugin</groupId>
-    <version>3.1.8-201903290151120189-36bb2bf</version>
+    <version>3.1.9-201904051346520183-a35b753</version>
   </parent>
 
   <artifactId>dremio-pdfs-plugin</artifactId>
