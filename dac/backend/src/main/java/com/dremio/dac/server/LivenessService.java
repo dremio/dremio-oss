@@ -29,6 +29,7 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 
 import com.dremio.config.DremioConfig;
+import com.dremio.sabot.exec.TaskPoolInitializer;
 import com.dremio.service.Service;
 
 /**
@@ -50,10 +51,12 @@ public class LivenessService implements Service {
   private final Server embeddedLivenessJetty = new Server(new QueuedThreadPool(NUM_ACCEPTORS + NUM_SELECTORS + NUM_REQUEST_THREADS));
   private int livenessPort;
   private long pollCount;
+  private final TaskPoolInitializer taskPoolInitializer;
 
-  public LivenessService(DremioConfig config) {
+  public LivenessService(DremioConfig config, TaskPoolInitializer taskPoolInitializer) {
     this.config = config;
     this.livenessEnabled = config.getBoolean(DremioConfig.LIVENESS_ENABLED);
+    this.taskPoolInitializer = taskPoolInitializer;
     pollCount = 0;
   }
 
@@ -108,6 +111,13 @@ public class LivenessService implements Service {
                          HttpServletResponse response ) throws ServletException, IOException
     {
       pollCount++;
+      if ((taskPoolInitializer != null) && !taskPoolInitializer.isTaskPoolHealthy()) {
+        // return error code 500
+        logger.info("One of the slicing threads is dead, returning an error");
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        return;
+      }
+
       response.setStatus(HttpServletResponse.SC_OK);
     }
   }

@@ -236,9 +236,8 @@ public class Hash64Functions {
       if (in.isSet == 0) {
         out.value = 0;
       } else {
-        in.start = (in.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
-        java.math.BigDecimal decimal = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, in.start, in.scale);
-        out.value = decimal.hashCode();
+        out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash64(in.start, in.start + 16, in
+          .buffer, 0);
       }
     }
   }

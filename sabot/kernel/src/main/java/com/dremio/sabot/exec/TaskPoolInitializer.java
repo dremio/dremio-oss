@@ -50,6 +50,14 @@ public class TaskPoolInitializer implements Service {
     bindingCreator.bind(TaskPool.class, pool);
   }
 
+  public boolean isTaskPoolHealthy() {
+    if (pool == null) {
+      return true;
+    }
+
+    return pool.areAllThreadsAlive();
+  }
+
   @Override
   public void close() throws Exception {
     AutoCloseables.close(pool);

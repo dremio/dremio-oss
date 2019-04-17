@@ -351,9 +351,7 @@ public class ForemenWorkManager implements Service, SafeExit {
       ExternalId id = ExternalIdHelper.toExternal(status.getHandle().getQueryId());
       ManagedForeman managed = externalIdToForeman.get(id);
       if (managed == null) {
-        // TODO(DX-7242): this is a little chatty since a failed query will often log a bunch of fragments
-        // We need a better mechanism to debug this.
-        logger.info("A fragment status message arrived post query termination, dropping. Fragment [{}] reported a state of {}.", QueryIdHelper.getFragmentId(status.getHandle()), status.getProfile().getState());
+        logger.debug("A fragment status message arrived post query termination, dropping. Fragment [{}] reported a state of {}.", QueryIdHelper.getFragmentId(status.getHandle()), status.getProfile().getState());
       } else {
         managed.foreman.updateStatus(status);
       }
@@ -365,7 +363,7 @@ public class ForemenWorkManager implements Service, SafeExit {
       ExternalId id = ExternalIdHelper.toExternal(header.getQueryId());
       ManagedForeman managed = externalIdToForeman.get(id);
       if (managed == null) {
-        logger.info("User data arrived post query termination, dropping. Data was from QueryId: {}.", QueryIdHelper.getQueryId(header.getQueryId()));
+        logger.debug("User data arrived post query termination, dropping. Data was from QueryId: {}.", QueryIdHelper.getQueryId(header.getQueryId()));
       } else {
         managed.foreman.dataFromScreenArrived(header, data, sender);
       }
@@ -376,9 +374,7 @@ public class ForemenWorkManager implements Service, SafeExit {
       ExternalId id = ExternalIdHelper.toExternal(status.getId());
       ManagedForeman managed = externalIdToForeman.get(id);
       if (managed == null) {
-        // TODO(DX-7242): this is a little chatty since a failed query will often log a bunch of fragments
-        // We need a better mechanism to debug this.
-        logger.info("A node query status message arrived post query termination, dropping. Query [{}] from node {}.",
+        logger.debug("A node query status message arrived post query termination, dropping. Query [{}] from node {}.",
           QueryIdHelper.getQueryId(status.getId()), status.getEndpoint());
       } else {
         managed.foreman.updateNodeQueryStatus(status);

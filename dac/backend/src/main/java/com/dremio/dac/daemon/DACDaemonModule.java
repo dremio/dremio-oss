@@ -440,9 +440,11 @@ public class DACDaemonModule implements DACModule {
       registry.bind(RunningQueryProvider.class, RunningQueryProvider.EMPTY);
     }
 
+    TaskPoolInitializer taskPoolInitializer = null;
     if(isExecutor){
       registry.bindSelf(new ContextInformationFactory());
-      registry.bindSelf(new TaskPoolInitializer(registry.provider(SabotContext.class), registry.getBindingCreator()));
+      taskPoolInitializer = new TaskPoolInitializer(registry.provider(SabotContext.class), registry.getBindingCreator());
+      registry.bindSelf(taskPoolInitializer);
       registry.bindSelf(
           new WorkloadTicketDepotService(bootstrap,
               registry.getBindingCreator(),
@@ -597,7 +599,7 @@ public class DACDaemonModule implements DACModule {
           dacConfig));
     }
 
-    registry.bind(LivenessService.class, new LivenessService(config));
+    registry.bind(LivenessService.class, new LivenessService(config, taskPoolInitializer));
 
     registry.bindSelf(SourceService.class);
     registry.bindSelf(DatasetVersionMutator.class);

@@ -745,22 +745,39 @@ public class UserException extends RuntimeException {
 
       final UserException newException = new UserException(this);
 
-      // since we just created a new exception, we should log it for later reference. If this is a system error, this is
-      // an issue that the system admin should pay attention to and we should log as ERROR. However, if this is a user
-      // mistake or data read issue, the system admin should not be concerned about these and thus we'll log this
-      // as an INFO message.
-      switch(errorType) {
-      case SYSTEM:
-        logger.error(newException.getMessage(), newException);
-        break;
-      case OUT_OF_MEMORY:
-        logger.error(newException.getMessage(), newException);
-        break;
-      case IO_EXCEPTION:
-        logger.debug(newException.getMessage(), newException);
-        break;
-      default:
-        logger.info("User Error Occurred [" + newException.getErrorIdWithIdentity() + "]", newException);
+      if (logger != null) {
+        // since we just created a new exception, we should log it for later reference. If this is a
+        // system error, this is
+        // an issue that the system admin should pay attention to and we should log as ERROR.
+        // However, if this is a user
+        // mistake or data read issue, the system admin should not be concerned about these and thus
+        // we'll log this
+        // as an INFO message.
+        try {
+          switch (errorType) {
+            case SYSTEM:
+              logger.error(newException.getMessage(), newException);
+              break;
+            case OUT_OF_MEMORY:
+              logger.error(newException.getMessage(), newException);
+              break;
+            case IO_EXCEPTION:
+              logger.debug(newException.getMessage(), newException);
+              break;
+            default:
+              logger.info(
+                  "User Error Occurred [" + newException.getErrorIdWithIdentity() + "]",
+                  newException);
+          }
+        } catch (Throwable ignore) {
+          // logback can cause stack overflow exceptions.
+          // see https://dremio.atlassian.net/browse/DX-15825
+          Exception e = new Exception("Failure while logging", ignore.getCause());
+          e.addSuppressed(newException);
+          e.printStackTrace();
+
+          newException.addSuppressed(ignore);
+        }
       }
 
       return newException;

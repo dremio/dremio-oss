@@ -555,7 +555,7 @@ class QueryManager {
         break;
 
       case FAILED:
-        logger.info("Fragment {} failed, cancelling remaining fragments.", QueryIdHelper.getQueryIdentifier(status.getHandle()));
+        logger.debug("Fragment {} failed, cancelling remaining fragments.", QueryIdHelper.getQueryIdentifier(status.getHandle()));
         completionListener.failed(UserRemoteException.create(status.getProfile().getError()));
         fragmentDone(status);
         break;

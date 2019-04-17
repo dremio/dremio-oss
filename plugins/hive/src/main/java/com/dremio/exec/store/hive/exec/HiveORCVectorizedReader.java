@@ -94,7 +94,7 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     final Path path = fSplit.getPath();
 
     final OrcFile.ReaderOptions opts = OrcFile.readerOptions(jobConf);
-    final FileSystem fs = FileSystemWrapper.get(path, jobConf);
+    final FileSystem fs = FileSystemWrapper.get(path, jobConf, this.context.getStats());
     opts.filesystem(fs);
     final Reader hiveReader = OrcFile.createReader(path, opts);
 
@@ -127,7 +127,11 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     }
 
     hiveOrcReader = hiveReader.rowsOptions(options);
-    hiveBatch = createVectorizedRowBatch((StructObjectInspector) hiveReader.getObjectInspector(), fSplit.isOriginal());
+    StructObjectInspector orcFileRootOI = (StructObjectInspector) hiveReader.getObjectInspector();
+    if (!fSplit.isOriginal()) {
+      orcFileRootOI = (StructObjectInspector)orcFileRootOI.getAllStructFieldRefs().get(TRANS_ROW_COLUMN_INDEX).getFieldObjectInspector();
+    }
+    hiveBatch = createVectorizedRowBatch(orcFileRootOI, fSplit.isOriginal());
 
     final List<Integer> projectedColOrdinals = ColumnProjectionUtils.getReadColumnIDs(jobConf);
     copiers = HiveORCCopiers.createCopiers(projectedColOrdinals, vectors, hiveBatch, fSplit.isOriginal());

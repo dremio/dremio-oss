@@ -39,6 +39,18 @@
         </encoder>
       </appender>
 
+      <appender name="metadata_refresh" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${dremio.log.path}/metadata_refresh.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+          <fileNamePattern>${dremio.log.path}/archive/metadata_refresh.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+          <maxHistory>30</maxHistory>
+        </rollingPolicy>
+
+        <encoder>
+          <pattern>%date{ISO8601} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+      </appender>
+
       <appender name="json" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${dremio.log.path}/json/server.json</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -83,6 +95,24 @@
     <if condition='isDefined("dremio.log.path")'>
       <then>
         <appender-ref ref="query"/>
+      </then>
+    </if>
+  </logger>
+
+  <logger name="com.dremio.exec.catalog.SourceMetadataManager" additivity="false">
+    <level value="${dremio.log.level:-info}"/>
+    <if condition='isDefined("dremio.log.path")'>
+      <then>
+        <appender-ref ref="metadata_refresh"/>
+      </then>
+    </if>
+  </logger>
+
+  <logger name="com.dremio.exec.store.hive.HiveClient" additivity="false">
+    <level value="${dremio.log.level:-info}"/>
+    <if condition='isDefined("dremio.log.path")'>
+      <then>
+        <appender-ref ref="metadata_refresh"/>
       </then>
     </if>
   </logger>

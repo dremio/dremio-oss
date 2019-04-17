@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -33,9 +34,7 @@ import org.apache.arrow.vector.SchemaChangeCallBack;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.RemoteIterator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
@@ -60,7 +59,6 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
-import com.dremio.exec.util.RemoteIterators;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
@@ -188,9 +186,9 @@ public class FormatTools {
 
     // was something other than file.
     try {
-      RemoteIterator<LocatedFileStatus> iter = excludeHidden(fs.listFiles(path, true));
+      Iterator<FileStatus> iter = getFilesForFormatting(fs, path);
       while(iter.hasNext()) {
-        LocatedFileStatus child = iter.next();
+        FileStatus child = iter.next();
         if(!child.isFile()) {
           continue;
         }
@@ -210,11 +208,8 @@ public class FormatTools {
     }
   }
 
-  private static RemoteIterator<LocatedFileStatus> excludeHidden(RemoteIterator<LocatedFileStatus> delegate) {
-    return RemoteIterators.filter(delegate, t -> (
-        !t.getPath().getName().startsWith(".") &&
-        !t.getPath().getName().startsWith("_")
-        ));
+  private static Iterator<FileStatus> getFilesForFormatting(FileSystemWrapper fs, Path path) throws IOException{
+    return fs.listRecursive(path, false).iterator();
   }
 
   private static FileFormat asFormat(NamespaceKey key, Path path, boolean isFolder) {
@@ -258,7 +253,7 @@ public class FormatTools {
         return getData(format, plugin, fs, new NextableSingleton<>(status));
       }
 
-      RemoteIterator<LocatedFileStatus> iter = excludeHidden(fs.listFiles(path, true));
+      Iterator<FileStatus> iter = getFilesForFormatting(fs, path);
       return getData(
           format,
           plugin,

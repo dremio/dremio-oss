@@ -16,11 +16,19 @@
 package com.dremio.provision.yarn;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Date;
+import java.util.logging.Formatter;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 /**
  * Watches another process (PID passed in as an argument), and if this process stops responding to
@@ -36,7 +44,8 @@ import java.net.URL;
  * causing the polling loop thread to exit; or the parent process exited, causing the parent watcher thread to exit)
  */
 public class YarnWatchdog {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(YarnWatchdog.class);
+  private static final Logger logger = Logger.getLogger(YarnWatchdog.class.getName());
+  public static final String YARN_WATCHDOG_LOG_LEVEL = "log.level";
 
   private final PollingLoop pollingLoop;
   private final ParentWatcher parentWatcher;
@@ -128,32 +137,32 @@ public class YarnWatchdog {
      * - the loop is interrupted by a call to {@link #stopWatching()}
      */
     public void doWatch() {
-      logger.info("Started watchdog");
+      logger.log(Level.INFO,"Started watchdog");
 
       long lastPollSucceedTime = System.currentTimeMillis();
       while (running) {
         if (watchdogAction.doPoll()) {
-          logger.debug("Watchdog poll succeed.");
+          logger.log(Level.FINE,"Watchdog poll succeed.");
           numFailedPolls = 0;
           lastPollSucceedTime = System.currentTimeMillis();
         } else {
           ++numFailedPolls;
           if (numFailedPolls < missedPollsBeforeKill) {
-            logger.info("Watchdog poll failed. Number failed polls currently at {}", numFailedPolls);
+            logger.log(Level.INFO,"Watchdog poll failed. Number failed polls currently at %d", numFailedPolls);
             long elapsedTime = System.currentTimeMillis() - lastPollSucceedTime;
             if (elapsedTime > (pollIntervalMs + pollTimeoutMs) * missedPollsBeforeKill) {
               /* Watchdog is expected to complete missedPollsBeforeKill polls, but actually it's not, because it might be
                  slow down for the whole system is unhealthy. We should kill watched process, otherwise watchdog might not
                  be able to get a chance to do next poll if the system become totally unhealthy.
                */
-              logger.error("Watchdog is unhealthy, elapsedTime is {}ms, numFailedPolls is {}, pollIntervalMs is {}, pollTimeoutMs is {}, missedPollsBeforeKill is {}. Issuing process kill",
-                elapsedTime, numFailedPolls, pollIntervalMs, pollTimeoutMs, missedPollsBeforeKill);
+              logger.log(Level.SEVERE, "Watchdog is unhealthy, elapsedTime is %dms, numFailedPolls is %d, pollIntervalMs is %d, pollTimeoutMs is %d, missedPollsBeforeKill is %d. Issuing process kill",
+                new Object[] {elapsedTime, numFailedPolls, pollIntervalMs, pollTimeoutMs, missedPollsBeforeKill});
               watchdogAction.doKill();
               running = false;
               break;
             }
           } else {
-            logger.error("Watchdog detected {} failed polls. Issuing process kill", numFailedPolls);
+            logger.log(Level.SEVERE,"Watchdog detected %d failed polls. Issuing process kill", numFailedPolls);
             watchdogAction.doKill();
             running = false;
             break;
@@ -174,9 +183,9 @@ public class YarnWatchdog {
       try {
         watchdogAction.close();
       } catch (Exception e) {
-        logger.error("Closing the watchdog failed", e);
+        logger.log(Level.SEVERE,"Closing the watchdog failed %s", exceptionStacktraceToString(e));
       }
-      logger.info("Watchdog exiting normally");
+      logger.log(Level.INFO,"Watchdog exiting normally");
     }
 
     /**
@@ -201,7 +210,7 @@ public class YarnWatchdog {
     @Override
     public void run() {
       pollingLoop.doWatch();
-      logger.info("Watchdog thread exited");
+      logger.log(Level.INFO,"Watchdog thread exited");
     }
   }
 
@@ -230,11 +239,11 @@ public class YarnWatchdog {
         int val;
         while ((val = inputStream.read()) != -1) {
           // NB: no-op, but checkstyle requires at least one statement. Hence, debug message
-          logger.debug("Received {} at input", val);
+          logger.log(Level.FINE,"Received %d at input", val);
         }
-        logger.info("EOF on watchdog input. Quitting");
+        logger.log(Level.INFO,"EOF on watchdog input. Quitting");
       } catch (IOException e) {
-        logger.info("I/O exception on watchdog input. Quitting", e);
+        logger.log(Level.INFO,"I/O exception on watchdog input. Quitting %s", exceptionStacktraceToString(e));
       } finally {
         running = false;
       }
@@ -300,7 +309,7 @@ public class YarnWatchdog {
             return;
           }
         } catch (IOException e) {
-          logger.warn(String.format("Failed to kill parent process (pid: %d) for attempt %d.", watchedPid, retryCount));
+          logger.log(Level.WARNING, "Failed to kill parent process (pid: %d) for attempt %d.", new Object[]{watchedPid, retryCount});
         }
         try {
           Thread.sleep(killReattemptIntervalMs);
@@ -313,7 +322,7 @@ public class YarnWatchdog {
 
     private boolean isProcessRunning(final long pid) {
       final String command = "ps -p " + pid;
-      logger.debug("Check process command [{}]", command);
+      logger.log(Level.FINE,"Check process command [%s]", command);
       try {
         final Process process = Runtime.getRuntime().exec(command);
         final InputStreamReader inputStreamReader = new InputStreamReader(process.getInputStream());
@@ -321,14 +330,14 @@ public class YarnWatchdog {
         String strLine;
         while ((strLine = bufferedReader.readLine()) != null) {
           if (strLine.contains(" " + pid + " ") || strLine.startsWith(pid + " ")) {
-            logger.debug("Process {} is still running.", pid);
+            logger.log(Level.FINE,"Process %d is still running.", pid);
             return true;
           }
         }
-        logger.debug("Process {} is not running.", pid);
+        logger.log(Level.FINE,"Process %d is not running.", pid);
         return false;
       } catch (Exception e) {
-        logger.warn("Got exception using system command [{}].", command, e);
+        logger.log(Level.WARNING, "Got exception using system command [%s]. %s", new Object[]{command, exceptionStacktraceToString(e)});
         return true;
       }
     }
@@ -340,8 +349,8 @@ public class YarnWatchdog {
   }
 
   private static void dumpUsage(String errorMessage) {
-    logger.error(errorMessage);
-    logger.error("Usage: YarnWatchdog <watchedPID> <livenessPort> <pollTimeoutMs> <pollIntervalMs> <missedPollsBeforeKill> <maxKillAttempts> <killReattemptIntervalMs>");
+    logger.log(Level.SEVERE, errorMessage);
+    logger.log(Level.SEVERE, "Usage: YarnWatchdog <watchedPID> <livenessPort> <pollTimeoutMs> <pollIntervalMs> <missedPollsBeforeKill> <maxKillAttempts> <killReattemptIntervalMs>");
   }
 
 
@@ -359,7 +368,8 @@ public class YarnWatchdog {
    *   [6] - kill reattempt interval, in milliseconds
    */
   public static void main(final String[] args) throws Exception {
-    logger.info("YarnWatchdog invoked: {}", String.join(", ", args));
+    setLogLevel();
+    logger.log(Level.INFO, "YarnWatchdog invoked: %s", String.join(", ", args));
     if (args.length != 7) {
       dumpUsage("Incorrect number of arguments");
       System.exit(1);
@@ -385,8 +395,8 @@ public class YarnWatchdog {
       System.exit(3);
     }
 
-    logger.info("YarnWatchdog, watchedPID={}, livenessPort={}, pollTimeoutMs={}, pollIntervalMs={}, missedPollsBeforeKill={}, maxKillAttempts={}, killReattemptIntervalMs={}",
-      watchedPID, livenessPort, pollTimeoutMs, pollIntervalMs, missedPollsBeforeKill, maxKillAttempts, killReattemptIntervalMs);
+    logger.log(Level.INFO, "YarnWatchdog, watchedPID=%d, livenessPort=%d, pollTimeoutMs=%d, pollIntervalMs=%d, missedPollsBeforeKill=%d, maxKillAttempts=%d, killReattemptIntervalMs=%d",
+      new Object[]{watchedPID, livenessPort, pollTimeoutMs, pollIntervalMs, missedPollsBeforeKill, maxKillAttempts, killReattemptIntervalMs});
 
     YarnWatchdog yarnWatchdog = new YarnWatchdog(watchedPID, System.in, livenessPort, pollTimeoutMs, pollIntervalMs, missedPollsBeforeKill, maxKillAttempts, killReattemptIntervalMs);
     // start polling loop thread
@@ -406,5 +416,57 @@ public class YarnWatchdog {
     // wait until polling loop thread exit
     pollingLoopThread.join();
     System.exit(0);
+  }
+
+  public static String exceptionStacktraceToString(Exception e)
+  {
+    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+    PrintStream printStream = new PrintStream(byteArrayOutputStream);
+    e.printStackTrace(printStream);
+    printStream.close();
+    return byteArrayOutputStream.toString();
+  }
+
+  private static class YarnWatchdogFormatter extends Formatter {
+
+    @Override
+    public String format(LogRecord record) {
+      return String.format("%1$tF %1$tT,%1$tL [%2$s] %3$-7s %4$s - %5$s %n", new Object[]{new Date(record.getMillis()),
+        Thread.currentThread().getName(), record.getLevel(), record.getSourceClassName(),
+        String.format(record.getMessage(), record.getParameters())});
+    }
+  }
+
+  private static void setLogLevel() {
+    final String levelString = System.getProperty(YARN_WATCHDOG_LOG_LEVEL, "");
+    Level level;
+    switch (levelString) {
+      case "ERROR":
+        level = Level.SEVERE;
+        break;
+      case "WARN":
+        level = Level.WARNING;
+        break;
+      case "INFO":
+        level = Level.INFO;
+        break;
+      case "DEBUG":
+        level = Level.FINE;
+        break;
+      case "TRACE":
+        level = Level.FINEST;
+        break;
+      default:
+        logger.log(Level.WARNING, "log level [{0}] is unrecognized", levelString);
+        level = Level.INFO;
+        break;
+    }
+    final Logger root = Logger.getLogger("");
+    final YarnWatchdogFormatter yarnWatchdogFormatter = new YarnWatchdogFormatter();
+    root.setLevel(level);
+    for (Handler handler : root.getHandlers()) {
+      handler.setLevel(level);
+      handler.setFormatter(yarnWatchdogFormatter);
+    }
   }
 }

@@ -20,6 +20,7 @@ import static com.dremio.config.DremioConfig.MAX_KILL_ATTEMPTS;
 import static com.dremio.config.DremioConfig.MISSED_POLLS_BEFORE_KILL;
 import static com.dremio.config.DremioConfig.POLL_INTERVAL_MS;
 import static com.dremio.config.DremioConfig.POLL_TIMEOUT_MS;
+import static com.dremio.provision.yarn.YarnWatchdog.YARN_WATCHDOG_LOG_LEVEL;
 import static org.apache.twill.internal.Constants.Files.APPLICATION_JAR;
 import static org.apache.twill.internal.Constants.Files.TWILL_JAR;
 
@@ -37,6 +38,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.LivenessService;
 import com.dremio.exec.util.GuavaPatcher;
+import com.dremio.provision.yarn.YarnWatchdog;
 import com.google.api.client.util.Throwables;
 
 
@@ -89,6 +91,26 @@ public class YarnDaemon implements Runnable, AutoCloseable {
     }
   }
 
+  private String getYarnWatchdogLogLevel() {
+    final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(YarnWatchdog.class);
+    if (logger.isTraceEnabled()) {
+      return "TRACE";
+    }
+    if (logger.isDebugEnabled()) {
+      return "DEBUG";
+    }
+    if (logger.isInfoEnabled()) {
+      return "INFO";
+    }
+    if (logger.isWarnEnabled()) {
+      return "WARN";
+    }
+    if (logger.isErrorEnabled()) {
+      return "ERROR";
+    }
+    return "INFO";
+  }
+
   private void startYarnWatchdog(final DACDaemon daemon) {
     Process yarnWatchdogProcess;
     final LivenessService livenessService = daemon.getLivenessService();
@@ -112,7 +134,8 @@ public class YarnDaemon implements Runnable, AutoCloseable {
     final long killReattemptIntervalMs = dremioConfig.getMilliseconds(KILL_REATTEMPT_INTERVAL_MS);
     final String classpath = APPLICATION_JAR + "/lib/*:" + TWILL_JAR + "/lib/*";
     final ProcessBuilder yarnWatchdogProcessBuilder = new ProcessBuilder("java",
-      "-cp", classpath, "com.dremio.provision.yarn.YarnWatchdog",
+      "-D" + YARN_WATCHDOG_LOG_LEVEL + "=" + getYarnWatchdogLogLevel(),
+      "-cp", classpath, YarnWatchdog.class.getName(),
       Long.toString(watchedPID), Integer.toString(livenessPort), Long.toString(pollTimeoutMs),
       Long.toString(pollIntervalMs), Integer.toString(missedPollsBeforeKill), Integer.toString(maxKillAttempts),
       Long.toString(killReattemptIntervalMs))

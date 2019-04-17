@@ -29,7 +29,7 @@ public final class ProcessExit {
 
   /**
    * Exit the VM as we hit a catastrophic failure.
-   * @param name a descriptive message
+   * @param message a descriptive message
    * @param code an error code to exit the JVM with.
    */
   public static void exit(String message, int code) {
@@ -37,7 +37,7 @@ public final class ProcessExit {
       exit(null, message, code);
     } finally {
       // We tried to exit with a nice error message, but that failed for some reason. Can't let this thread simply exit
-      System.exit(code);
+      Runtime.getRuntime().halt(code);
     }
   }
 
@@ -46,15 +46,15 @@ public final class ProcessExit {
       exit(t, "There was insufficient heap memory to continue operating.", code);
     } finally {
       // We tried to exit with a nice error message, but that failed for some reason. Can't let this thread simply exit
-      System.exit(code);
+      Runtime.getRuntime().halt(code);
     }
   }
 
   /**
    * Exit the VM as we hit a catastrophic failure.
-   * @param e
+   * @param t
    *          The Throwable that occurred
-   * @param name
+   * @param message
    *          A descriptive message
    * @param code
    *          An error code to exit the JVM with.
@@ -72,11 +72,10 @@ public final class ProcessExit {
       out.flush();
       try {
         Thread.sleep(5000);
-      } catch (InterruptedException e) {
-      }
+      } catch (InterruptedException e) {}
     } finally {
       // We tried to exit with a nice error message, but that failed for some reason. Can't let this thread simply exit
-      System.exit(code);
+      Runtime.getRuntime().halt(code);
     }
   }
 }

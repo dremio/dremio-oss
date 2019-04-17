@@ -175,7 +175,7 @@ public class TestNativeFunctions extends BaseTestFunction {
   public void testHash32() throws Exception {
     testFunctions(new Object[][]{
       {"hash32(c0)", NULL_INT, 0},
-      {"hash32(c0)", 10, -561650695},
+      {"hash32(c0)", 10, 918068555},
     });
   }
 

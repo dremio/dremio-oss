@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-root</artifactId>
-  <version>3.1.9-201904051346520183-a35b753</version>
+  <version>3.1.10-201904162146020182-adf690d</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Root</name>
@@ -38,7 +38,7 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.13.0-20190316131810-b689b9cc78-dremio</arrow.version>
+    <arrow.version>0.13.0-20190415141600-7833cd13b9-dremio</arrow.version>
     <avatica.version>1.11.0</avatica.version>
     <calcite.version>1.16.0-201903092216140708-286e252</calcite.version>
     <db2jcc.version>4.23.42</db2jcc.version>

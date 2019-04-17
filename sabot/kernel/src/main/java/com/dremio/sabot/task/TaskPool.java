@@ -25,6 +25,12 @@ public interface TaskPool extends AutoCloseable {
     return Collections.emptyList();
   }
 
+  /**
+   * Determines if all threads created by the taskpool are alive
+   * @return true, if all threads are alive; false otherwise
+   */
+  default boolean areAllThreadsAlive() { return true; }
+
   GroupManager<AsyncTaskWrapper> getGroupManager();
 
   class ThreadInfo {

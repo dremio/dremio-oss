@@ -34,7 +34,7 @@ import com.google.common.collect.Sets;
  */
 public class ShortenJdbcColumnAliases extends StatelessRelShuttleImpl {
 
-  private static final SqlValidatorUtil.Suggester SHORT_ALIAS_SUGGESTER = (original, attempt, size)
+  public static final SqlValidatorUtil.Suggester SHORT_ALIAS_SUGGESTER = (original, attempt, size)
     -> "$SA" + attempt;
 
   private Set<String> usedAliases = Sets.newHashSet();
