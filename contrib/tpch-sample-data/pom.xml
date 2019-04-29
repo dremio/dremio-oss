@@ -21,7 +21,7 @@
   <parent>
     <artifactId>dremio-contrib-parent</artifactId>
     <groupId>com.dremio.contrib</groupId>
-    <version>3.1.10-201904162146020182-adf690d</version>
+    <version>3.1.11-201904261857420193-c674472</version>
   </parent>
 
   <artifactId>dremio-tpch-sample-data</artifactId>

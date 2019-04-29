@@ -19,8 +19,11 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
@@ -58,6 +61,7 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.Progressable;
 
+import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.exec.util.AssertionUtil;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.context.OperatorStats.WaitRecorder;
@@ -82,6 +86,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   public static final String HIDDEN_FILE_PREFIX = "_";
   public static final String DOT_FILE_PREFIX = ".";
   public static final String MAPRFS_SCHEME = "maprfs";
+  public static final String NAS_SCHEME = "file";
 
   private final ConcurrentMap<FSDataInputStream, DebugStackTrace> openedFiles = Maps.newConcurrentMap();
 
@@ -90,6 +95,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   private final CompressionCodecFactory codecFactory;
   private final boolean isPdfs;
   private final boolean isMapRfs;
+  private final boolean isNAS;
 
   public FileSystemWrapper(Configuration fsConf) throws IOException {
     this(fsConf, (OperatorStats) null, null);
@@ -109,11 +115,20 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
     this.operatorStats = operatorStats;
     this.isPdfs = (underlyingFs instanceof PathCanonicalizer); // only pdfs implements PathCanonicalizer
     this.isMapRfs = isMapRfs(underlyingFs);
+    this.isNAS = isNAS(underlyingFs);
   }
 
   private static boolean isMapRfs(FileSystem fs) {
     try {
       return MAPRFS_SCHEME.equals(fs.getScheme().toLowerCase());
+    } catch (UnsupportedOperationException e) {
+    }
+    return false;
+  }
+
+  private static boolean isNAS(FileSystem fs) {
+    try {
+      return fs instanceof LocalSyncableFileSystem || NAS_SCHEME.equals(fs.getScheme().toLowerCase(Locale.ROOT));
     } catch (UnsupportedOperationException e) {
     }
     return false;
@@ -963,29 +978,47 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
   @Override
   public boolean exists(Path f) throws IOException {
+    boolean exists = false;
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return underlyingFs.exists(f);
+      exists = underlyingFs.exists(f);
+      if (!exists && isNAS) {
+        forceRefresh(f);
+        exists = underlyingFs.exists(f);
+      }
     } catch(FSError e) {
       throw propagateFSError(e);
     }
+    return exists;
   }
 
   @Override
   public boolean isDirectory(Path f) throws IOException {
+    boolean exists = false;
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return underlyingFs.isDirectory(f);
+      exists = underlyingFs.isDirectory(f);
+      if (!exists && isNAS) {
+        forceRefresh(f);
+        exists = underlyingFs.isDirectory(f);
+      }
     } catch(FSError e) {
       throw propagateFSError(e);
     }
+    return exists;
   }
 
   @Override
   public boolean isFile(Path f) throws IOException {
+    boolean exists = false;
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return underlyingFs.isFile(f);
+      exists = underlyingFs.isFile(f);
+      if (!exists && isNAS) {
+        forceRefresh(f);
+        exists = underlyingFs.isFile(f);
+      }
     } catch(FSError e) {
       throw propagateFSError(e);
     }
+    return exists;
   }
 
   @Override
@@ -1198,6 +1231,23 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
       underlyingFs.removeXAttr(path, name);
     } catch(FSError e) {
       throw propagateFSError(e);
+    }
+  }
+
+  private void forceRefresh(Path f) {
+    /*
+      In some cases, especially for NFS, the directory lookup is from the cache. So, a
+      new file/directory created in another client may not be seen by this client.
+      Now, NFS must adhere to close-to-open consistency.  Hence opening is a way to force
+      a refresh of the attribute cache.
+
+      This uses Java File APIs directly.
+     */
+    try {
+      logger.trace("Attempting to refresh {}", f);
+      Files.newDirectoryStream(Paths.get(f.getParent().toString())).close();
+    } catch (IOException e) {
+      logger.trace("Refresh generated exception: {}", e);
     }
   }
 

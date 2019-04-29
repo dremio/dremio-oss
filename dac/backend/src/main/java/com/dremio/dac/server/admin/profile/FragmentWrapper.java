@@ -180,9 +180,6 @@ public class FragmentWrapper {
     "Blocked On Downstream", "Blocked On Upstream", "Blocked On other",
     "Diff w OPs", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "State"};
 
-  // Not including minor fragment ID
-  private static final int NUM_NULLABLE_FRAGMENTS_COLUMNS = FRAGMENT_COLUMNS.length - 1;
-
   public String getContent() {
     boolean withBlockedSplits = false;
 
@@ -294,8 +291,9 @@ public class FragmentWrapper {
     }
 
     for (final MinorFragmentProfile m : incomplete) {
-      builder.appendCell(major.getMajorFragmentId() + "-" + m.getMinorFragmentId(), null);
-      builder.appendRepeated(m.getState().toString(), null, NUM_NULLABLE_FRAGMENTS_COLUMNS);
+      builder.appendCell(major.getMajorFragmentId() + "-" + m.getMinorFragmentId(), null); // Thread ID
+      builder.appendCell(m.getEndpoint().getAddress(), null); // Host name
+      builder.appendRepeated(m.getState().toString(), null, columnHeaders.length - 2);
     }
     return builder.build();
   }

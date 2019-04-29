@@ -81,7 +81,7 @@ public class RootAllocatorFactory {
     final String previousProperty = System.getProperty(IO_NETTY_ALLOCATOR_USE_CACHE_FOR_ALL_THREADS_PROPERTY);
     try {
       System.setProperty(IO_NETTY_ALLOCATOR_USE_CACHE_FOR_ALL_THREADS_PROPERTY, "false");
-      long maxBuffers = estBytesPerBuf > 0 ? (long) (VM.getMaxHeapMemory() * maxOccupancyPercent * 1.0d /estBytesPerBuf): Long.MAX_VALUE;
+      long maxBuffers = estBytesPerBuf > 0 ? (long) (VM.getMaxHeapMemory() * maxOccupancyPercent * 0.01d /estBytesPerBuf): Long.MAX_VALUE;
       return DremioRootAllocator.create(Math.min(VM.getMaxDirectMemory(), maxAllocBytes), maxBuffers);
     } finally {
       if (previousProperty == null) {
