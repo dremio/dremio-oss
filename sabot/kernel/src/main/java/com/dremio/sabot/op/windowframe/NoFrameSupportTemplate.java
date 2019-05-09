@@ -158,7 +158,7 @@ public abstract class NoFrameSupportTemplate implements WindowFramer {
 
       processRow(row);
 
-      if (row < outputCount - 1 && !partition.isDone()) {
+      if (row < outputCount - 1) {
         copyNext(row + 1, row);
       }
 
