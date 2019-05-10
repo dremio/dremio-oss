@@ -71,7 +71,7 @@ public class TestSchemaChange extends BaseTestQuery {
       } catch (Exception e) {
         // first attempt may fail as a batch may have been sent to the user, so if it does, this must be the message ..
         assertTrue(e.getMessage()
-          .contains("New schema found and recorded. Please reattempt the query."));
+          .contains("New schema found. Please reattempt the query."));
       }
       // .. but the second attempt must not fail, full schema must have been learnt at this point
       testBuilder()

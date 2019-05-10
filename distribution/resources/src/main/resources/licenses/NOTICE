@@ -15,6 +15,8 @@ AWS SDK for AWS S3 Copyright 2010-2014 Amazon.com, Inc. or its affiliates. All R
 
 AWS SDK for Java - Core Copyright 2010-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.  This product includes software developed by Amazon Technologies, Inc (http://www.amazon.com/).
 
+AWS SDK for Java 2.0 Copyright 2010-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.  This product includes software developed by Amazon Technologies, Inc (http://www.amazon.com/).  ********************** THIRD PARTY COMPONENTS ********************** This software includes third party software subject to the following copyrights: - XML parsing and utility functions from JetS3t - Copyright 2006-2009 James Murty. - PKCS#1 PEM encoded private key parsing and utility functions from oauth.googlecode.com - Copyright 1998-2010 AOL Inc.  The licenses for these third party components are included in LICENSE.txt
+
 AWS SDK for Java Copyright 2010-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.  This product includes software developed by Amazon Technologies, Inc (http://www.amazon.com/).
 
 Adam Stawicki Alaa Nassef Andrey Derevyanko Andrey Rodionov Benson Margulies Brent Douglas Carlos Vara Dag Hovland Davide Marchignoli Carlo de Wolf Chris Beckey Christian Ivan Denis Tiago Doug Lea Emmanuel Bernard Efthymis Sarbanis Federico Federico Mancini Gavin King George Gastaldi Gerhard Petracek Guillaume Husta Guillaume Smet Gunnar Morling Hardy Ferentschik Henno Vermeulen Jan-Willem Willebrands Jason T. Greene Julien May Julien Furgerot Juraci Krohling Justin Nauman Kathryn Killebrew Kevin Pollet Khalid Alqinyah Lee KyoungIl Leonardo Loch Zanivan Lucas Pouzac Lukas Niemeier Mark Hobson Marko Bekhta Mert C?alis?kan Paolo Perrotta Pete Muir Sanne Grinovero Sebastian Bayerl Shane Bryzak Shelly McGowan Steve Ebersole Strong Liu Victor Rezende dos Santos Willi Schönborn Yoann Rodière
@@ -40,8 +42,6 @@ Apache Commons Math Copyright 2001-2016 The Apache Software Foundation
 Apache Commons Pool Copyright 2001-2016 The Apache Software Foundation
 
 Apache Curator Copyright 2013-2014 The Apache Software Foundation
-
-Apache Derby Copyright 2004-2015 The Apache Software Foundation  This product includes software developed by The Apache Software Foundation (http://www.apache.org/).   =========================================================================  Portions of Derby were originally developed by International Business Machines Corporation and are licensed to the Apache Software Foundation under the Software Grant and Corporate Contribution License Agreement, informally known as the Derby CLA. The following copyright notice(s) were affixed to portions of the code with which this file is now or was at one time distributed and are placed here unaltered.  (C) Copyright 1997,2004 International Business Machines Corporation.  All rights reserved.  (C) Copyright IBM Corp. 2003.    =========================================================================   The portion of the functionTests under 'nist' was originally developed by the National Institute of Standards and Technology (NIST), an agency of the United States Department of Commerce, and adapted by International Business Machines Corporation in accordance with the NIST Software Acknowledgment and Redistribution document at http://www.itl.nist.gov/div897/ctg/sql_form.htm
 
 Apache Directory Studio Copyright 2007-2016 The Apache Software Foundation
 
@@ -73,6 +73,8 @@ Apache Thrift Copyright 2006-2010 The Apache Software Foundation.
 
 Apache Twill Copyright 2013-2017 The Apache Software Foundation
 
+Apache Yetus Copyright 2008-2019 The Apache Software Foundation  This product includes software developed at The Apache Software Foundation (http://www.apache.org/).  --- Additional licenses for the Apache Yetus Source/Website: ---   See LICENSE for terms.
+
 Apache ZooKeeper Copyright 2009-2014 The Apache Software Foundation
 
 ApacheDS Copyright 2003-2017 The Apache Software Foundation
@@ -81,11 +83,17 @@ Azure Data Lake Store Java SDK        Copyright (c) Microsoft Corporation All ri
 
 Copyright (C) 2004 Sam Hocevar <sam@hocevar.net>
 
+Copyright (C) 2011 by Roly Fentanes
+
+Copyright (C) 2013 Jordan Harband
+
+Copyright (C) 2015 Jordan Harband
+
 Copyright (C) 2017 by Marijn Haverbeke <marijnh@gmail.com> and others
 
 Copyright (c) 1997, PostgreSQL Global Development Group
 
-Copyright (c) 2000 - 2017 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org)  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+Copyright (c) 2000 - 2019 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org)  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Copyright (c) 2000-2011 INRIA, France Telecom
 
@@ -129,6 +137,8 @@ Copyright (c) 2011 FuseSource Corp. All rights reserved.
 
 Copyright (c) 2011 Oracle and/or its affiliates. All rights reserved.
 
+Copyright (c) 2011 TJ Holowaychuk <tj@vision-media.ca>
+
 Copyright (c) 2011, Christopher Finke All rights reserved.
 
 Copyright (c) 2011-2013 Phillip Clark
@@ -143,6 +153,8 @@ Copyright (c) 2012 Barnesandnoble.com, llc, Donavon West, and Domenic Denicola
 
 Copyright (c) 2012 Einar Otto Stangvik &lt;einaros@gmail.com&gt;
 
+Copyright (c) 2012 Nicholas Fisher
+
 Copyright (c) 2012, Javolution (http://javolution.org/) All rights reserved.  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met: 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer. 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Copyright (c) 2012-2014 Andris Reinman
@@ -153,15 +165,23 @@ Copyright (c) 2012-2017 The ANTLR Project. All rights reserved.
 
 Copyright (c) 2013 Braveg1rl
 
+Copyright (c) 2013 Manuel Stofer
+
 Copyright (c) 2013 Masayuki Tanaka
 
 Copyright (c) 2013 Meryn Stol
 
 Copyright (c) 2013 Mikola Lysenko
 
+Copyright (c) 2013 Raynos.
+
+Copyright (c) 2013 Thiago de Arruda
+
 Copyright (c) 2013-2015 Oracle and/or its affiliates. All rights reserved.
 
 Copyright (c) 2013-2015, Facebook, Inc. All rights reserved.
+
+Copyright (c) 2013-2016 Ivan Nikulin (ifaaan@gmail.com, https://github.com/inikulin)
 
 Copyright (c) 2013-2017 James Coglan
 
@@ -175,13 +195,19 @@ Copyright (c) 2014 Call-Em-All
 
 Copyright (c) 2014 Dan Abramov
 
+Copyright (c) 2014 David Tudury
+
 Copyright (c) 2014 Forbes Lindesay
+
+Copyright (c) 2014 Jordan Harband
+
+Copyright (c) 2014 Nathan Rajlich <nathan@tootallnate.net>
 
 Copyright (c) 2014 Param Aggarwal
 
-Copyright (c) 2014 Ryan Florence
+Copyright (c) 2014 The cheeriojs contributors
 
-Copyright (c) 2014 Tim Oxley
+Copyright (c) 2014, 2015, 2016, 2017 Hardmath123
 
 Copyright (c) 2014, 2015, 2016, 2017 Simon Lydell
 
@@ -189,7 +215,7 @@ Copyright (c) 2014, Facebook, Inc. All rights reserved.
 
 Copyright (c) 2014-2015 Sebastian McKenzie <sebmck@gmail.com>
 
-Copyright (c) 2014-2015 Zilverline B.V.
+Copyright (c) 2014-2015, Felix Boehm <me@feedic.com>
 
 Copyright (c) 2014-2016 GitHub, Inc.
 
@@ -197,13 +223,15 @@ Copyright (c) 2014-2017 Denis Pushkarev
 
 Copyright (c) 2014-2017 Sebastian McKenzie <sebmck@gmail.com>
 
-Copyright (c) 2014-present Stephen J. Collings, Matthew Honnibal, Pieter Vanderwerff
+Copyright (c) 2014-2017, Jon Schlinkert.
+
+Copyright (c) 2014-present Sebastian McKenzie and other contributors
 
 Copyright (c) 2014-present, Facebook, Inc.
 
-Copyright (c) 2015 Alberto Garcia-Raboso
+Copyright (c) 2015 Airbnb, Inc.
 
-Copyright (c) 2015 Alberto Leal <mailforalberto@gmail.com> (github.com/dashed)
+Copyright (c) 2015 Alberto Garcia-Raboso
 
 Copyright (c) 2015 Alexander Karlsson
 
@@ -235,6 +263,8 @@ Copyright (c) 2015 James Burnett
 
 Copyright (c) 2015 Jason Quense
 
+Copyright (c) 2015 Jordan Harband
+
 Copyright (c) 2015 KNOWLEDGECODE
 
 Copyright (c) 2015 Matt Andrews
@@ -263,17 +293,15 @@ Copyright (c) 2015, Espen Hovlandsdal All rights reserved.
 
 Copyright (c) 2015, Yahoo! Inc. All rights reserved.
 
-Copyright (c) 2015-2016 Andrew Clark
-
 Copyright (c) 2015-2016 Michael Jackson
 
 Copyright (c) 2015-2016 Reselect Contributors
 
+Copyright (c) 2015-2018 Andrew Clark
+
 Copyright (c) 2015-present Dan Abramov
 
 Copyright (c) 2015-present James Long
-
-Copyright (c) 2015-present React-Bootstrap
 
 Copyright (c) 2015-present, Ryan Florence, Michael Jackson
 
@@ -289,6 +317,10 @@ Copyright (c) 2016 Jed Watson
 
 Copyright (c) 2016 Jerry Bendy
 
+Copyright (c) 2016 Jordan Harband
+
+Copyright (c) 2016 Matt Mueller
+
 Copyright (c) 2016 Matthew Russell
 
 Copyright (c) 2016 Microsoft Corporation
@@ -301,19 +333,45 @@ Copyright (c) 2016, Claudéric Demers
 
 Copyright (c) 2016, James Salter All rights reserved.
 
-Copyright (c) 2016, React Community Forked from React (https://github.com/facebook/react) Copyright 2013-present, Facebook, Inc. All rights reserved.
-
 Copyright (c) 2016, Schrodinger, Inc. All rights reserved.
 
 Copyright (c) 2016-present Leon Shi
 
 Copyright (c) 2017 Alberto Leal <mailforalberto@gmail.com> (github.com/dashed)
 
+Copyright (c) 2017 Ali Taheri Moghaddar, ali.taheri.m@gmail.com
+
+Copyright (c) 2017 Artur Kenzhaev
+
+Copyright (c) 2017 ECMAScript Shims
+
+Copyright (c) 2017 Jed Watson
+
+Copyright (c) 2017 Ryan Florence
+
+Copyright (c) 2017, Gajus Kuizinas (http://gajus.com/) All rights reserved.
+
+Copyright (c) 2017, Tim Radvan (tjvr) All rights reserved.
+
+Copyright (c) 2017-2018 Fredrik Nicol
+
+Copyright (c) 2017-present Alessandro Arnodo
+
+Copyright (c) 2017-present James Kyle <me@thejameskyle.com>
+
+Copyright (c) 2018 4Catalyzer
+
+Copyright (c) 2018 Jordan Harband
+
+Copyright (c) 2018 React Popper authors
+
 Copyright (c) 2018 Sentry (https://sentry.io) and individual contributors. All rights reserved.
 
-Copyright (c) JS Foundation and other contributors
+Copyright (c) 2018, React Community Forked from React (https://github.com/facebook/react) Copyright 2013-present, Facebook, Inc. All rights reserved.
 
-Copyright (c) Microsoft Open Technologies, Inc.  All rights reserved. Microsoft Open Technologies would like to thank its contributors, a list of whom are at http://rx.codeplex.com/wikipage?title=Contributors.
+Copyright (c) Felix Böhm All rights reserved.
+
+Copyright (c) JS Foundation and other contributors
 
 Copyright 1999-2005 The Apache Software Foundation
 
@@ -330,6 +388,8 @@ Copyright 2009 Stefan Groschupf
 Copyright 2009–2014 Contributors. All rights reserved.
 
 Copyright 2010 Cedric Beust cedric@beust.com
+
+Copyright 2010, 2011, Chris Winberry <chris@winberry.net>. All rights reserved. Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
 Copyright 2010-2013 Coda Hale and Yammer, Inc.
 
@@ -351,6 +411,8 @@ Copyright 2014 Yahoo! Inc. All rights reserved.
 
 Copyright 2014, Google Inc. All rights reserved.  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:            * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.            * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.            * Neither the name of Google Inc. nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+Copyright 2014-2016 AsyncHttpClient Project  Licensed under the Apache License, Version 2.0 (the License); you may not use this file except in compliance with the License. You may obtain a copy of the License at      http://www.apache.org/licenses/LICENSE-2.0  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an AS IS BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
 Copyright 2014-2016 Benjamin Tan <https://demoneaux.github.io/> Copyright 2011-2013 John-David Dalton <http://allyoucanleet.com/>
 
 Copyright 2014-2018 Chronicle Software Ltd
@@ -358,8 +420,6 @@ Copyright 2014-2018 Chronicle Software Ltd
 Copyright 2015, Dustin Diaz (the Original Author) All rights reserved.
 
 Copyright 2016, Google Inc. All rights reserved. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:     * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.     * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the  distribution.     * Neither the name of Google Inc. nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-Copyright 2017-2018 Dremio Corporation
 
 Copyright JS Foundation and other contributors <https://js.foundation/>
 
@@ -377,11 +437,17 @@ Copyright © 2011-2016. All rights reserved
 
 Copyright © 2012-2016 Faisal Salman <<fyzlman@gmail.com>>
 
+Copyright © 2015 Studio B12 GmbH
+
+Copyright © 2016 Federico Zivolo and contributors
+
 Copyright © 2016 [Eli Grey][1].
 
 Copyright © 2017 The Netty project
 
 Copyright ©2009-2011 FasterXML, LLC. All rights reserved unless otherwise indicated.
+
+Copyright(c) 2018 Microsoft Corporation All rights reserved.
 
 Elasticsearch Copyright 2009-2017 Elasticsearch
 
@@ -397,9 +463,15 @@ Logback: the reliable, generic, fast and flexible logging framework. Copyright (
 
 Nimbus JOSE + JWT  Copyright 2012 - 2018, Connect2id Ltd.
 
+The MIT License (MIT)  Copyright (c) 2016 Microsoft Azure  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+The MIT License (MIT) Copyright (c) 2014-present Oleg Slobodskoi
+
 The MIT License (MIT) Copyright (c) 2015-2016 Adphorus
 
-The Xerces-J 2.11.0 release is available in source code and precompiled  binary (JAR files) form. Both Xerces-J packages are made available under  the Apache Software License.
+The MIT License (MIT) Copyright (c) 2016 - present Oleg Slobodskoi
+
+The Xerces-J 2.12.0 release is available in source code and precompiled  binary (JAR files) form. Both Xerces-J packages are made available under  the Apache Software License.
 
 The code for the t-digest was originally authored by Ted Dunning  A number of small but very helpful changes have been contributed by Adrien Grand (https://github.com/jpountz)
 

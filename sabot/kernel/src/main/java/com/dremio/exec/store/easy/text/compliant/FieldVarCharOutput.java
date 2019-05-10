@@ -25,6 +25,7 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.Field;
 
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -35,6 +36,8 @@ import com.dremio.sabot.op.scan.OutputMutator;
  * values for a given column. Each record is a single value within each vector of the set.
  */
 class FieldVarCharOutput extends TextOutput {
+  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FieldVarCharOutput.class);
+
   // array of output vector
   private final VarCharVector[] vectors;
   // boolean array indicating which fields are selected (if star query entire array is set to true)
@@ -49,6 +52,7 @@ class FieldVarCharOutput extends TextOutput {
   private boolean fieldOpen = true;
   // holds chars for a field
   private byte[] fieldBytes;
+  private static final int MAX_FIELD_LENGTH = 1024 * 64;
 
   private boolean collect = true;
   private boolean rowHasData = false;
@@ -109,7 +113,7 @@ class FieldVarCharOutput extends TextOutput {
       }
     }
 
-    this.fieldBytes = new byte[sizeLimit];
+    this.fieldBytes = new byte[MAX_FIELD_LENGTH];
 
   }
 
@@ -139,13 +143,17 @@ class FieldVarCharOutput extends TextOutput {
       return;
     }
 
-    checkFieldLimit(currentDataPointer, currentFieldIndex);
+    if (currentDataPointer >= MAX_FIELD_LENGTH ) {
+      throw FieldSizeLimitExceptionHelper.createWriteFieldSizeLimitException(currentDataPointer, MAX_FIELD_LENGTH, currentFieldIndex, logger);
+    }
+
     fieldBytes[currentDataPointer++] = data;
   }
 
   @Override
   public boolean endField() {
     fieldOpen = false;
+    FieldSizeLimitExceptionHelper.checkWriteSizeLimit(currentDataPointer, maxCellLimit, currentFieldIndex, logger);
 
     if(collect) {
       assert currentVector != null;

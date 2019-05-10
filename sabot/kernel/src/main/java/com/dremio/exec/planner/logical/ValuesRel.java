@@ -43,8 +43,6 @@ import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
 
 import com.dremio.common.JSONOptions;
-import com.dremio.common.logical.data.LogicalOperator;
-import com.dremio.common.logical.data.Values;
 import com.dremio.exec.vector.complex.fn.ExtendedJsonOutput;
 import com.dremio.exec.vector.complex.fn.JsonOutput;
 import com.fasterxml.jackson.core.JsonLocation;
@@ -182,13 +180,6 @@ public class ValuesRel extends AbstractRelNode implements Rel {
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     assert inputs.isEmpty();
     return new ValuesRel(getCluster(), rowType, traitSet, options, rowCount);
-  }
-
-  @Override
-  public LogicalOperator implement(LogicalPlanImplementor implementor) {
-      return Values.builder()
-          .content(options.asNode())
-          .build();
   }
 
   public JSONOptions getTuplesAsJsonOptions() throws IOException {

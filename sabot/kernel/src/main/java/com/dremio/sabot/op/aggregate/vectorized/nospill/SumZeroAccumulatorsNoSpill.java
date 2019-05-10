@@ -15,9 +15,12 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
+import java.math.BigDecimal;
+
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 
+import com.dremio.exec.util.DecimalUtils;
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
 
 import io.netty.util.internal.PlatformDependent;
@@ -150,6 +153,43 @@ public class SumZeroAccumulatorsNoSpill {
         final int tableIndex = PlatformDependent.getInt(ordinalAddr);
         final long sumAddr = valueAddresses[tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK] + (tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK) * WIDTH_ACCUMULATOR;
         PlatformDependent.putLong(sumAddr, Double.doubleToLongBits(Double.longBitsToDouble(PlatformDependent.getLong(sumAddr)) + newVal.doubleValue() * bitVal));
+      }
+    }
+  }
+
+  public static class DecimalSumZeroAccumulatorNoSpillV2 extends
+    BaseSingleAccumulatorNoSpill {
+    private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
+    private static final int WIDTH_INPUT = 16;      // decimal inputs
+    private static final int WIDTH_ACCUMULATOR = 16; // decimal accumulators
+    byte[] valBuf = new byte[WIDTH_INPUT];
+
+    public DecimalSumZeroAccumulatorNoSpillV2(FieldVector input, FieldVector output) {
+      super(input, output);
+    }
+
+    public void accumulate(final long memoryAddr, final int count) {
+      final long maxAddr = memoryAddr + count * WIDTH_ORDINAL;
+      FieldVector inputVector = getInput();
+      final long incomingBit = inputVector.getValidityBufferAddress();
+      final long incomingValue = inputVector.getDataBufferAddress();
+      final long[] valueAddresses = this.valueAddresses;
+      final int scale = ((DecimalVector)inputVector).getScale();
+
+      int incomingIndex = 0;
+      for(long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += WIDTH_ORDINAL, incomingIndex++) {
+        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+        // without if we would need to do a multiply which is slow.
+        if (bitVal == 0) {
+          continue;
+        }
+        java.math.BigDecimal newVal = DecimalAccumulatorUtilsNoSpill.getBigDecimal(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
+        final int tableIndex = PlatformDependent.getInt(ordinalAddr);
+        final long sumAddr = valueAddresses[tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK] + (tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK) * WIDTH_ACCUMULATOR;
+        BigDecimal curVal = DecimalUtils.getBigDecimalFromLEBytes(sumAddr, valBuf, scale);
+        BigDecimal runningVal = curVal.add(newVal, DecimalUtils.MATH);
+        byte [] valueInArrowBytes = DecimalUtils.convertBigDecimalToArrowByteArray(runningVal);
+        PlatformDependent.copyMemory(valueInArrowBytes, 0, sumAddr, WIDTH_INPUT);
       }
     }
   }

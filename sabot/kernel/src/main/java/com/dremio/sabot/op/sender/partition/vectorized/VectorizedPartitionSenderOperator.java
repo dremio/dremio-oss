@@ -19,7 +19,6 @@ import static com.dremio.sabot.op.sender.partition.PartitionSenderOperator.Metri
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
@@ -33,16 +32,14 @@ import com.carrotsearch.hppc.IntArrayList;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.util.Numbers;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.physical.config.HashPartitionSender;
+import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.ExecRPC;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.rpc.AccountingExecTunnel;
@@ -167,7 +164,7 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     checkSchema(incoming.getSchema());
 
     // how many records we can keep in memory before we are forced to flush the outgoing batch
-    numRecordsBeforeFlush = calculateBucketSize(incoming);
+    numRecordsBeforeFlush = config.getProps().getTargetBatchSize();
     stats.setLongStat(Metric.BUCKET_SIZE, numRecordsBeforeFlush);
 
     //
@@ -211,15 +208,15 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
    */
   private void initBatchesAndLookup(VectorAccessible incoming) {
     final BufferAllocator allocator = context.getAllocator();
-    final List<MinorFragmentEndpoint> destinations = config.getDestinations();
+    final List<MinorFragmentEndpoint> destinations = config.getDestinations(context.getEndpointsIndex());
     for (int p = 0; p < numReceivers; p++) {
       final int batchB = numReceivers + p;
 
       final MinorFragmentEndpoint destination = destinations.get(p);
       final AccountingExecTunnel tunnel = tunnelProvider.getExecTunnel(destination.getEndpoint());
 
-      batches[p] = new OutgoingBatch(p, batchB, numRecordsBeforeFlush, incoming, allocator, tunnel, config, context, destination.getId(), stats);
-      batches[batchB] = new OutgoingBatch(batchB, p, numRecordsBeforeFlush, incoming, allocator, tunnel, config, context, destination.getId(), stats);
+      batches[p] = new OutgoingBatch(p, batchB, numRecordsBeforeFlush, incoming, allocator, tunnel, config, context, destination.getMinorFragmentId(), stats);
+      batches[batchB] = new OutgoingBatch(batchB, p, numRecordsBeforeFlush, incoming, allocator, tunnel, config, context, destination.getMinorFragmentId(), stats);
 
       // Only allocate the primary batch. Backup batch is allocated when it is needed.
       batches[p].allocateNew();
@@ -325,15 +322,15 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     final ExecProtos.FragmentHandle handle = context.getFragmentHandle();
 
     stats.startWait();
-    for (MinorFragmentEndpoint destination : config.getDestinations()) {
+    for (MinorFragmentEndpoint destination : config.getDestinations(context.getEndpointsIndex())) {
       // don't send termination message if the receiver fragment is already terminated.
-      if (remainingReceivers.get(destination.getId()) == 0) {
+      if (remainingReceivers.get(destination.getMinorFragmentId()) == 0) {
         ExecRPC.FragmentStreamComplete completion = ExecRPC.FragmentStreamComplete.newBuilder()
             .setQueryId(handle.getQueryId())
             .setSendingMajorFragmentId(handle.getMajorFragmentId())
             .setSendingMinorFragmentId(handle.getMinorFragmentId())
-            .setReceivingMajorFragmentId(config.getOppositeMajorFragmentId())
-            .addReceivingMinorFragmentId(destination.getId())
+            .setReceivingMajorFragmentId(config.getReceiverMajorFragmentId())
+            .addReceivingMinorFragmentId(destination.getMinorFragmentId())
             .build();
         tunnelProvider.getExecTunnel(destination.getEndpoint()).sendStreamComplete(completion);
       }
@@ -377,36 +374,9 @@ public class VectorizedPartitionSenderOperator extends BaseSender {
     }
   }
 
-  /**
-   * Calculate the target bucket size. If option <i>exec.partitioner.batch.adaptive</i> is set we take a fixed value set
-   * in option (<i>exec.partitioner.batch.records</i>). Otherwise we calculate the batch size based on record size.
-   * @param incoming
-   * @return
-   */
-  private int calculateBucketSize(VectorAccessible incoming) {
-    final OptionManager options = context.getOptions();
-    final int configuredTargetRecordCount = (int)context.getOptions().getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
-    if (!options.getOption(ExecConstants.PARTITION_SENDER_BATCH_ADAPTIVE)) {
-      return OperatorContext.optimizeBatchSizeForAllocs(configuredTargetRecordCount);
-    }
-
-    final int listSizeEstimate = (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
-    final int varFieldSizeEstimate = (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
-    final int estimatedRecordSize = incoming.getSchema().estimateRecordSize(listSizeEstimate, varFieldSizeEstimate);
-
-    final int minTargetBucketRecordCount = (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MIN);
-    final int targetOutgoingBatchSize = (int) Math.min(
-        options.getOption(ExecConstants.PARTITION_SENDER_MAX_BATCH_SIZE),
-        options.getOption(ExecConstants.PARTITION_SENDER_MAX_MEM) / numReceivers);
-
-    final int newBucketSize = Math.min(configuredTargetRecordCount,
-        Math.max(targetOutgoingBatchSize/estimatedRecordSize, minTargetBucketRecordCount));
-    return OperatorContext.optimizeBatchSizeForAllocs(newBucketSize);
-  }
-
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(Arrays.asList(batches), Collections.singletonList(copyIndices));
+    AutoCloseables.close(Arrays.asList(batches), Arrays.asList(copyIndices, partitionIndices));
   }
 
   @Override

@@ -44,6 +44,7 @@ import com.dremio.options.TypeValidators.QueryLevelOptionValidation;
 import com.dremio.options.TypeValidators.RangeDoubleValidator;
 import com.dremio.options.TypeValidators.RangeLongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 
 @Options
@@ -59,12 +60,12 @@ public class PlannerSettings implements Context{
   public static final int MAX_BROADCAST_THRESHOLD = Integer.MAX_VALUE;
   public static final int DEFAULT_IDENTIFIER_MAX_LENGTH = 1024;
 
-  // initial off heap memory allocation (1M)
-  private static final long INITIAL_OFF_HEAP_ALLOCATION_IN_BYTES = 1024 * 1024;
   // default off heap memory for planning (256M)
   private static final long DEFAULT_MAX_OFF_HEAP_ALLOCATION_IN_BYTES = 256 * 1024 * 1024;
-  // max off heap memory for planning (16G)
-  private static final long MAX_OFF_HEAP_ALLOCATION_IN_BYTES = 16l * 1024 * 1024 * 1024;
+  public static final LongValidator PLANNER_MEMORY_RESERVATION = new RangeLongValidator("planner.reservation_bytes",
+    0L, Long.MAX_VALUE, 0L);
+  public static final LongValidator PLANNER_MEMORY_LIMIT = new RangeLongValidator("planner.memory_limit",
+    0L, Long.MAX_VALUE, DEFAULT_MAX_OFF_HEAP_ALLOCATION_IN_BYTES);
 
 
   public static final BooleanValidator FLATTEN_FILTER = new BooleanValidator("planner.enable_filter_flatten_pushdown", false /** disabled until DX-7987 is resolved **/);
@@ -101,8 +102,6 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator ENABLE_DECIMAL_DATA_TYPE = new BooleanValidator(ENABLE_DECIMAL_DATA_TYPE_KEY, false);
   public static final BooleanValidator HEP_OPT = new BooleanValidator("planner.enable_hep_opt", true);
   public static final BooleanValidator ENABLE_PARTITION_PRUNING = new BooleanValidator("planner.enable_partition_pruning", true);
-  public static final LongValidator PLANNER_MEMORY_LIMIT = new RangeLongValidator("planner.memory_limit",
-      INITIAL_OFF_HEAP_ALLOCATION_IN_BYTES, MAX_OFF_HEAP_ALLOCATION_IN_BYTES, DEFAULT_MAX_OFF_HEAP_ALLOCATION_IN_BYTES);
   public static final String UNIONALL_DISTRIBUTE_KEY = "planner.enable_unionall_distribute";
   public static final BooleanValidator UNIONALL_DISTRIBUTE = new BooleanValidator(UNIONALL_DISTRIBUTE_KEY, true);
   public static final LongValidator PLANNING_MAX_MILLIS = new LongValidator("planner.timeout_per_phase_ms", 60_000);
@@ -113,6 +112,14 @@ public class PlannerSettings implements Context{
 
   public static final BooleanValidator ENABLE_OUTPUT_LIMITS = new BooleanValidator("planner.output_limit_enable", false);
   public static final RangeLongValidator OUTPUT_LIMIT_SIZE  = new RangeLongValidator("planner.output_limit_size", 1, Long.MAX_VALUE, 1_000_000);
+
+  public static final String ENABLE_DECIMAL_V2_KEY = "planner" +
+    ".enable_decimal_v2";
+  public static final String ENABLE_VECTORIZED_PARQUET_DECIMAL_KEY = "planner" +
+    ".enable_vectorized_parquet_decimal";
+  public static final BooleanValidator ENABLE_DECIMAL_V2 = new BooleanValidator(ENABLE_DECIMAL_V2_KEY, false);
+  public static final BooleanValidator ENABLE_VECTORIZED_PARQUET_DECIMAL = new BooleanValidator
+    (ENABLE_VECTORIZED_PARQUET_DECIMAL_KEY, true);
 
   public static final LongValidator MAX_NODES_PER_PLAN = new LongValidator("planner.max_nodes_per_plan", 25_000);
   /**
@@ -224,6 +231,12 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator JDBC_PUSH_DOWN_PLUS =
       new BooleanValidator("planner.jdbc.experimental.enable_additional_pushdowns", false);
 
+  /**
+   * Options to reject queries which will attempt to process more than this many splits: per dataset, and per query
+   */
+  public static final PositiveLongValidator QUERY_MAX_SPLIT_LIMIT = new PositiveLongValidator("planner.query_max_split_limit", Integer.MAX_VALUE, 250_000);
+  public static final PositiveLongValidator DATASET_MAX_SPLIT_LIMIT = new PositiveLongValidator("planner.dataset_max_split_limit", Integer.MAX_VALUE, 50_000);
+
   private final SabotConfig sabotConfig;
   public final OptionManager options;
   private final ClusterResourceInformation clusterInfo;
@@ -321,12 +334,15 @@ public class PlannerSettings implements Context{
     this.useDefaultCosting = defcost;
   }
 
-  public long getNumCoresPerExecutor() {
-    if (clusterInfo != null) {
-      return clusterInfo.getAverageExecutorCores(options);
-    } else {
-      throw new UnsupportedOperationException("Cluster Resource Information is needed to get average number of cores in executor");
-    }
+  /**
+   * Get the configured value of max parallelization width per
+   * executor node. This is internally computed using average number
+   * of cores across all executor nodes
+   * @return max width per node
+   */
+  long getMaxWidthPerNode() {
+    Preconditions.checkState(clusterInfo != null, "Need a valid reference for Cluster Resource Information");
+    return clusterInfo.getAverageExecutorCores(options);
   }
 
   public boolean isHashAggEnabled() {
@@ -434,11 +450,11 @@ public class PlannerSettings implements Context{
   }
 
   public long getPlanningMemoryLimit() {
-    return options.getOption(PLANNER_MEMORY_LIMIT.getOptionName()).getNumVal();
+    return options.getOption(PLANNER_MEMORY_LIMIT);
   }
 
-  public static long getInitialPlanningMemorySize() {
-    return INITIAL_OFF_HEAP_ALLOCATION_IN_BYTES;
+  public long getInitialPlanningMemorySize() {
+    return options.getOption(PLANNER_MEMORY_RESERVATION);
   }
 
   public boolean isUnionAllDistributeEnabled() {
@@ -467,6 +483,10 @@ public class PlannerSettings implements Context{
     return options.getOption(ENABLE_SCAN_MIN_COST);
   }
 
+  /**
+   * Get the number of executor nodes
+   * @return number of executor nodes
+   */
   public int getExecutorCount() {
     return clusterInfo.getExecutorNodeCount();
   }
@@ -479,8 +499,16 @@ public class PlannerSettings implements Context{
     return options.getOption(ENABLE_EXPERIMENTAL_BUSHY_JOIN_OPTIMIZER);
   }
 
-  public boolean shouldPullDistributionTrait() {
+  boolean shouldPullDistributionTrait() {
     return pullDistributionTrait;
+  }
+
+  public int getQueryMaxSplitLimit() {
+    return (int) options.getOption(QUERY_MAX_SPLIT_LIMIT);
+  }
+
+  public int getDatasetMaxSplitLimit() {
+    return (int) options.getOption(DATASET_MAX_SPLIT_LIMIT);
   }
 
   public void pullDistributionTrait(boolean pullDistributionTrait) {

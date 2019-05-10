@@ -27,6 +27,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.JULBridge;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -44,6 +45,7 @@ import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.metrics.Metrics;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnection;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.test.DremioTest;
@@ -58,13 +60,24 @@ public class ExecTest extends DremioTest {
   protected BufferAllocator allocator;
 
   private static volatile FunctionImplementationRegistry FUNCTION_REGISTRY;
+  private static volatile FunctionImplementationRegistry FUNCTION_REGISTRY_DECIMAL;
+  private static final OptionManager OPTION_MANAGER = Mockito.mock(OptionManager.class);
 
   protected static FunctionImplementationRegistry FUNCTIONS( ){
     // initialize once so avoid having to regenerate functions repetitvely in tests. So so lazily so tests that don't need, don't do.
     if(FUNCTION_REGISTRY == null){
-      FUNCTION_REGISTRY = new FunctionImplementationRegistry(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
+      FUNCTION_REGISTRY = new FunctionImplementationRegistry(DEFAULT_SABOT_CONFIG,
+        CLASSPATH_SCAN_RESULT, OPTION_MANAGER);
     }
     return FUNCTION_REGISTRY;
+  }
+
+  protected static FunctionImplementationRegistry DECIMAL_FUNCTIONS( ){
+    if(FUNCTION_REGISTRY_DECIMAL == null){
+      FUNCTION_REGISTRY_DECIMAL = new DecimalFunctionImplementationRegistry(DEFAULT_SABOT_CONFIG,
+        CLASSPATH_SCAN_RESULT, OPTION_MANAGER);
+    }
+    return FUNCTION_REGISTRY_DECIMAL;
   }
 
   static {
@@ -95,7 +108,9 @@ public class ExecTest extends DremioTest {
     final SessionOptionManager sessionOptions = (SessionOptionManager) userSession.getOptions();
     final QueryOptionManager queryOptions = new QueryOptionManager(sessionOptions);
     final ExecutionControls executionControls = new ExecutionControls(queryOptions, NodeEndpoint.getDefaultInstance());
-    final OperatorTable table = new OperatorTable(FUNCTIONS());
+    FunctionImplementationRegistry functions = queryOptions.getOption(PlannerSettings
+      .ENABLE_DECIMAL_V2) ? DECIMAL_FUNCTIONS() : FUNCTIONS();
+    final OperatorTable table = new OperatorTable(functions);
     final LogicalPlanPersistence lp = dbContext.getLpPersistence();
     final CatalogService registry = dbContext.getCatalogService();
 
@@ -103,7 +118,7 @@ public class ExecTest extends DremioTest {
     when(context.getSession()).thenReturn(userSession);
     when(context.getLpPersistence()).thenReturn(lp);
     when(context.getCatalogService()).thenReturn(registry);
-    when(context.getFunctionRegistry()).thenReturn(FUNCTIONS());
+    when(context.getFunctionRegistry()).thenReturn(functions);
     when(context.getSession()).thenReturn(UserSession.Builder.newBuilder().setSupportComplexTypes(true).build());
     when(context.getCurrentEndpoint()).thenReturn(NodeEndpoint.getDefaultInstance());
     when(context.getActiveEndpoints()).thenReturn(ImmutableList.of(NodeEndpoint.getDefaultInstance()));

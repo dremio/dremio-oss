@@ -21,7 +21,6 @@ import org.apache.hadoop.fs.Path;
 
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.Property;
-import com.google.common.collect.ImmutableList;
 
 public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends FileSystemPlugin<C>> extends ConnectionConf<C, P>{
   public abstract Path getPath();
@@ -35,6 +34,13 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
   public abstract SchemaMutability getSchemaMutability();
 
   /**
+   * List of properties that are unique to the {@link FileSystem} objects. This are in addition to the URI and user.
+   * Examples include ADLS password, S3 access key and secret etc.
+   * @return
+   */
+  public abstract List<String> getConnectionUniqueProperties();
+
+  /**
    * Whether the plugin should automatically create the requested path if it doesn't already exist.
    * @return {@code true} if a missing path should be created.
    */
@@ -43,11 +49,11 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
   }
 
   /**
-   * List of properties that are unique to the {@link FileSystem} objects. This are in addition to the URI and user.
-   * Examples include ADLS password, S3 access key and secret etc.
-   * @return
+   * Indicates that the plugin should use asynchronous reads when possible.
+   * (This means the user has enabled async for the source and the underlying FileSystem supports
+   * asynchronous reads).
    */
-  public List<String> getConnectionUniqueProperties() {
-    return ImmutableList.of();
+  public boolean isAsyncEnabled() {
+    return false;
   }
 }

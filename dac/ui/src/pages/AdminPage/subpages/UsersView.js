@@ -20,6 +20,7 @@ import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 import Radium from 'radium';
+import { createSelector } from 'reselect';
 
 import LinkButton from 'components/Buttons/LinkButton';
 import FontIcon from 'components/Icon/FontIcon';
@@ -27,6 +28,19 @@ import FontIcon from 'components/Icon/FontIcon';
 import StatefulTableViewer from 'components/StatefulTableViewer';
 
 import { pageContent, page } from 'uiTheme/radium/general';
+
+const getPathname = (location) => location.pathname;
+const getHash = (location) => location.hash;
+const getSearch = (location) => location.search;
+
+const userLinkToSelector = createSelector(
+  [getPathname, getHash, getSearch],
+  (pathname, hash, search) => ({
+    pathname,
+    hash,
+    search,
+    state: {modal: 'AddUserModal'}
+  }));
 
 @Radium
 @pureRender
@@ -117,12 +131,13 @@ export default class UsersView extends Component {
     const { viewState } = this.props;
     const columns = this.getTableColumns();
     const tableData = this.getTableData();
+    const addUserLinkTo = userLinkToSelector(this.context.location);
     return (
       <div id='admin-user' style={page}>
         <div className='admin-header' style={styles.adminHeader}>
           <h3>{la('Users')}</h3>
           <LinkButton
-            to={{...this.context.location, state: {modal: 'AddUserModal'}}}
+            to={addUserLinkTo}
             buttonStyle='primary'
             data-qa='add-user'
             style={styles.addUserBtn}>

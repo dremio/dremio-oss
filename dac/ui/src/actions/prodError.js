@@ -16,13 +16,18 @@
 export const SHOW_PROD_ERROR = 'SHOW_PROD_ERROR';
 export const HIDE_PROD_ERROR = 'HIDE_PROD_ERROR';
 
-export function showProdError(error) {
+const e2eTestErrorMessage = 'JS_ERROR_OCCURRED';
+
+export function showAppError(error, errorId) {
+  // a signal for e2e tests
+  console.error(e2eTestErrorMessage);
   return {
     type: SHOW_PROD_ERROR,
-    error
+    error,
+    errorId
   };
 }
 
-export function hideProdError(error) {
+export function hideAppError() {
   return { type: HIDE_PROD_ERROR };
 }

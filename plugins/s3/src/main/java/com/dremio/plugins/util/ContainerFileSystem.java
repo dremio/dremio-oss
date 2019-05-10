@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -87,15 +88,15 @@ public abstract class ContainerFileSystem extends FileSystem {
 
     synchronized(refreshLock) {
       final Map<String, ContainerHolder> oldMap = new HashMap<>(containerMap);
-      ImmutableList.Builder<ContainerFailure> failures = ImmutableList.builder();
-      ImmutableMap.Builder<String, ContainerHolder> newMap = ImmutableMap.builder();
-      for(ContainerCreator creator : getContainerCreators()) {
+      final ImmutableList.Builder<ContainerFailure> failures = ImmutableList.builder();
+      final ImmutableMap.Builder<String, ContainerHolder> newMap = ImmutableMap.builder();
+      getContainerCreators().forEach((creator) -> {
 
         // avoid recreating filesystem if it already exists.
         final ContainerHolder fs = oldMap.remove(creator.getName());
         if(fs != null) {
           newMap.put(creator.getName(), fs);
-          continue;
+          return;
         }
 
         // new file system.
@@ -105,7 +106,7 @@ public abstract class ContainerFileSystem extends FileSystem {
           logger.warn("Failure while attempting to connect to {} named [{}].", containerName, creator.getName(), ex);
           failures.add(new ContainerFailure(creator.getName(), ex));
         }
-      }
+      });
 
       containerMap = newMap.build();
 
@@ -217,7 +218,7 @@ public abstract class ContainerFileSystem extends FileSystem {
   /**
    * A custom memoizing supplier-like interface that also supports throwing an IOException.
    */
-  public abstract class FileSystemSupplier implements AutoCloseable {
+  public abstract static class FileSystemSupplier implements AutoCloseable {
 
     private volatile FileSystem fs;
     public final FileSystem get() throws IOException{
@@ -265,7 +266,7 @@ public abstract class ContainerFileSystem extends FileSystem {
    * @return A list of container creators that can be used for generating container filesystems.
    * @throws IOException
    */
-  protected abstract Iterable<ContainerCreator> getContainerCreators() throws IOException;
+  protected abstract Stream<ContainerCreator> getContainerCreators() throws IOException;
 
   /**
    * Attempt to retrieve a container FileSystem that wasn't previously known.
@@ -287,7 +288,7 @@ public abstract class ContainerFileSystem extends FileSystem {
    * @param path path
    * @return container name
    */
-  private static String getContainerName(Path path) {
+  public static String getContainerName(Path path) {
     final List<String> pathComponents = Arrays.asList(
         removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString())
             .split(Path.SEPARATOR)
@@ -295,7 +296,7 @@ public abstract class ContainerFileSystem extends FileSystem {
     return pathComponents.get(0);
   }
 
-  private Path pathWithoutContainer(Path path) {
+  public static Path pathWithoutContainer(Path path) {
     List<String> pathComponents = Arrays.asList(removeLeadingSlash(Path.getPathWithoutSchemeAndAuthority(path).toString()).split(Path.SEPARATOR));
     return new Path("/" + Joiner.on(Path.SEPARATOR).join(pathComponents.subList(1, pathComponents.size())));
   }
@@ -489,7 +490,7 @@ public abstract class ContainerFileSystem extends FileSystem {
 
   @Override
   public boolean mkdirs(Path f, FsPermission permission) throws IOException {
-    return getFileSystemForPath(f).fs().mkdirs(f, permission);
+    return getFileSystemForPath(f).fs().mkdirs(pathWithoutContainer(f), permission);
   }
 
   @Override

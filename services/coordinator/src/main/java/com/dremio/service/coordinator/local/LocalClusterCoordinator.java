@@ -33,8 +33,9 @@ import com.dremio.service.coordinator.AbstractServiceSet;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.DistributedSemaphore;
 import com.dremio.service.coordinator.ElectionListener;
+import com.dremio.service.coordinator.ElectionRegistrationHandle;
+import com.dremio.service.coordinator.RegistrationHandle;
 import com.dremio.service.coordinator.ServiceSet;
-import com.dremio.service.coordinator.ServiceSet.RegistrationHandle;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
@@ -55,7 +56,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
 
   private final ConcurrentMap<String, Election> elections = Maps.newConcurrentMap();
 
-  private final ConcurrentMap<String, LocalServiceSet> serviceSets = new ConcurrentHashMap<>();
+  private final ConcurrentMap<String, LocalServiceSet> serviceSets = Maps.newConcurrentMap();
 
   /**
    * Returns a new local cluster coordinator, already started
@@ -98,6 +99,11 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     return serviceSets.computeIfAbsent(name, s -> new LocalServiceSet(s));
   }
 
+  @Override
+  public Iterable<String> getServiceNames() {
+    return serviceSets.keySet();
+  }
+
   private final class LocalServiceSet extends AbstractServiceSet implements AutoCloseable {
     private final Map<RegistrationHandle, NodeEndpoint> endpoints = new ConcurrentHashMap<>();
 
@@ -134,11 +140,6 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
       public void close() {
         // do not clear listeners, as they are global
         endpoints.remove(this);
-      }
-
-      @Override
-      public int instanceCount() {
-        return endpoints.size();
       }
     }
 
@@ -184,7 +185,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
   }
 
   @Override
-  public RegistrationHandle joinElection(String name, ElectionListener listener) {
+  public ElectionRegistrationHandle joinElection(String name, ElectionListener listener) {
     if (!elections.containsKey(name)) {
       elections.putIfAbsent(name, new Election());
     }
@@ -237,7 +238,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     private final Queue<Candidate> waiting = new LinkedBlockingQueue<>();
     private volatile Candidate currentLeader = null;
 
-    public RegistrationHandle joinElection(final ElectionListener listener) {
+    public ElectionRegistrationHandle joinElection(final ElectionListener listener) {
       final Candidate candidate = new Candidate(listener);
       synchronized(this) {
         if (currentLeader == null) {
@@ -249,7 +250,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
       }
 
 
-      return new RegistrationHandle() {
+      return new ElectionRegistrationHandle() {
         @Override
         public void close() {
           leaveElection(candidate);

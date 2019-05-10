@@ -53,5 +53,9 @@ enum RequestType {
 }
 
 message HashAggSpill {
-  optional int64 memoryUse = 1;
+  optional int64 memory_use = 1;
+}
+
+message ExtSortSpillNotificationMessage {
+  optional int64 memory_use = 1;
 }

@@ -26,6 +26,13 @@ function exit_with_usage {
   RC=$1
   echo "Usage: dremio-admin [--config <conf-dir>]\
  (backup|clean|restore|set-password|upgrade) [args...]" >&2
+  echo -e "backup: Backs up Dremio metadata and user-uploaded files."
+  echo -e "clean: Cleans Dremio metadata."
+  echo -e "restore: Restores Dremio metadata and user-uploaded files."
+  echo -e "set-password: Sets passwords for Dremio users (non-LDAP)."
+  echo -e "upgrade: Upgrades KV store version."
+  echo -e "Run export DREMIO_ADMIN_LOG_DIR=<path> to set log directory."
+  echo -e "Run export DREMIO_ADMIN_LOG_VERBOSITY=<value> to set verbosity. Default is INFO if DREMIO_ADMIN_LOG_DIR is set."
   exit $RC
 }
 
@@ -51,29 +58,48 @@ shift
 case "$action" in
     backup)
         DREMIO_MAINCLASS=com.dremio.dac.cmd.Backup
+        Command="Backup"
         ;;
 
     clean)
         DREMIO_MAINCLASS=com.dremio.dac.cmd.Clean
+        Command="Clean"
         ;;
 
     restore)
         DREMIO_MAINCLASS=com.dremio.dac.cmd.Restore
+        Command="Restore"
         ;;
 
     set-password)
         DREMIO_MAINCLASS=com.dremio.dac.cmd.SetPassword
+        Command="SetPassword"
         ;;
 
     upgrade)
         DREMIO_MAINCLASS=com.dremio.dac.cmd.upgrade.Upgrade
+        Command="Upgrade"
         ;;
 
+    -h|--help)
+        exit_with_usage 1
+        ;;
     *)
         echo "Unknown action $action." >&2
         exit_with_usage 1
         ;;
 esac
 
+if [ -n "$DREMIO_ADMIN_LOG_DIR" ]; then
+      DateTime=$(date '+%Y-%m-%d_%H:%M:%S')
+      LOG_PARAM="-Ddremio.admin.log.path=${DREMIO_ADMIN_LOG_DIR}/${Command}_${DateTime}.log"
+      if [ -z "$DREMIO_ADMIN_LOG_VERBOSITY" ]; then
+          DREMIO_ADMIN_LOG_VERBOSITY=INFO
+      fi
+fi
 
-exec "$JAVA" $DREMIO_JAVA_OPTS -cp $DREMIO_CLASSPATH ${DREMIO_MAINCLASS} $@
+if [ -n "$DREMIO_ADMIN_LOG_VERBOSITY" ]; then
+      LOG_PARAM="$LOG_PARAM -Ddremio.admin.log.verbosity=${DREMIO_ADMIN_LOG_VERBOSITY}"
+fi
+
+exec "$JAVA" $DREMIO_JAVA_OPTS $LOG_PARAM -Dlogback.configurationFile=logback-admin.xml -cp $DREMIO_CLASSPATH ${DREMIO_MAINCLASS} $@

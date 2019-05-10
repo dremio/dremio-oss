@@ -19,17 +19,14 @@ import { KeyChangeTrigger } from './KeyChangeTrigger';
 describe('KeyChangeTrigger', () => {
   let stub;
   let wrapper;
-  const originalProps = {
-    keyValue: '1'
-  };
   beforeEach(() => {
     stub = sinon.stub();
-
-    wrapper = shallow(<KeyChangeTrigger {...originalProps} onChange={stub} />);
+    wrapper = shallow(<KeyChangeTrigger keyValue='1' onChange={stub} />, {
+      disableLifecycleMethods: false
+    });
   });
 
   it('calls onChange on mount', () => {
-    wrapper.instance().componentDidMount();
     expect(stub).to.be.calledWith('1');
   });
 
@@ -38,7 +35,6 @@ describe('KeyChangeTrigger', () => {
     wrapper.setProps({
       keyValue: '2'
     });
-    wrapper.instance().componentDidUpdate(originalProps);
     expect(stub).to.be.calledWith('2');
   });
 

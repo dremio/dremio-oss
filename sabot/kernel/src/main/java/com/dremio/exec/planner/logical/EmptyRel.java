@@ -27,7 +27,6 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.common.logical.data.LogicalOperator;
 import com.dremio.exec.record.BatchSchema;
 
 public class EmptyRel extends AbstractRelNode implements Rel, CopyToCluster {
@@ -53,11 +52,6 @@ public class EmptyRel extends AbstractRelNode implements Rel, CopyToCluster {
 
   public BatchSchema getSchema() {
     return schema;
-  }
-
-  @Override
-  public LogicalOperator implement(LogicalPlanImplementor implementor) {
-    throw new UnsupportedOperationException();
   }
 
   @Override

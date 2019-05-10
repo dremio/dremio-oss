@@ -19,11 +19,14 @@ import java.util.List;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScanWithProjection;
+import com.dremio.exec.planner.fragment.MinorDataReader;
+import com.dremio.exec.planner.fragment.MinorDataWriter;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -38,30 +41,33 @@ import io.protostuff.ByteString;
  */
 @JsonTypeName("parquet-scan")
 public class ParquetSubScan extends SubScanWithProjection {
+  private static final String SPLITS_ATTRIBUTE_KEY = "parquet-scan-splits";
 
-  private final List<DatasetSplit> splits;
   private final List<ParquetFilterCondition> conditions;
   private final StoragePluginId pluginId;
   private final FileConfig formatSettings;
   private final List<String> partitionColumns;
-  private final List<String> tablePath;
+  private final List<List<String>> tablePath;
   private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final ByteString extendedProperty;
 
-  @JsonCreator
+  @JsonIgnore
+  private List<SplitInfo> splits;
+
   public ParquetSubScan(
-    @JsonProperty("formatSettings") FileConfig formatSettings,
-    @JsonProperty("splits") List<DatasetSplit> splits,
-    @JsonProperty("userName") String userName,
-    @JsonProperty("schema") BatchSchema schema,
-    @JsonProperty("tableSchemaPath") List<String> tablePath,
-    @JsonProperty("conditions") List<ParquetFilterCondition> conditions,
-    @JsonProperty("pluginId") StoragePluginId pluginId,
-    @JsonProperty("columns") List<SchemaPath> columns,
-    @JsonProperty("partitionColumns") List<String> partitionColumns,
-    @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-    @JsonProperty("extendedProperty") ByteString extendedProperty) {
-    super(userName, schema, tablePath, columns);
+    OpProps props,
+    FileConfig formatSettings,
+    List<SplitInfo> splits,
+    BatchSchema fullSchema,
+    List<List<String>> tablePath,
+    List<ParquetFilterCondition> conditions,
+    StoragePluginId pluginId,
+    List<SchemaPath> columns,
+    List<String> partitionColumns,
+    List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
+    ByteString extendedProperty
+  ) {
+    super(props, fullSchema, tablePath, columns);
     this.formatSettings = formatSettings;
     this.splits = splits;
     this.tablePath = tablePath;
@@ -72,6 +78,23 @@ public class ParquetSubScan extends SubScanWithProjection {
     this.extendedProperty = extendedProperty;
   }
 
+  @JsonCreator
+  public ParquetSubScan(
+    @JsonProperty("props") OpProps props,
+    @JsonProperty("formatSettings") FileConfig formatSettings,
+    @JsonProperty("schema") BatchSchema fullSchema,
+    @JsonProperty("referencedTables") List<List<String>> tablePath,
+    @JsonProperty("conditions") List<ParquetFilterCondition> conditions,
+    @JsonProperty("pluginId") StoragePluginId pluginId,
+    @JsonProperty("columns") List<SchemaPath> columns,
+    @JsonProperty("partitionColumns") List<String> partitionColumns,
+    @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
+    @JsonProperty("extendedProperty") ByteString extendedProperty) {
+
+    this(props, formatSettings, null, fullSchema, tablePath, conditions, pluginId, columns, partitionColumns,
+      globalDictionaryEncodedColumns, extendedProperty);
+  }
+
   public FileConfig getFormatSettings(){
     return formatSettings;
   }
@@ -80,11 +103,13 @@ public class ParquetSubScan extends SubScanWithProjection {
     return partitionColumns;
   }
 
-  public List<DatasetSplit> getSplits() {
+  public List<SplitInfo> getSplits() {
     return splits;
   }
 
-  public List<String> getTablePath() { return tablePath; }
+  public List<List<String>> getTablePath() {
+    return tablePath;
+  }
 
   public ByteString getExtendedProperty() {
     return extendedProperty;
@@ -106,5 +131,15 @@ public class ParquetSubScan extends SubScanWithProjection {
   @Override
   public int getOperatorType() {
     return UserBitShared.CoreOperatorType.PARQUET_ROW_GROUP_SCAN_VALUE;
+  }
+
+  @Override
+  public void collectMinorSpecificAttrs(MinorDataWriter writer) {
+    writer.writeSplits(this, SPLITS_ATTRIBUTE_KEY, splits);
+  }
+
+  @Override
+  public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
+    this.splits = reader.readSplits(this, SPLITS_ATTRIBUTE_KEY);
   }
 }

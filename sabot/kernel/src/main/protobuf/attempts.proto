@@ -26,4 +26,5 @@ enum AttemptReason {
   OUT_OF_MEMORY = 2;
   SCHEMA_CHANGE = 3;
   INVALID_DATASET_METADATA = 4;
+  JSON_FIELD_CHANGE = 5;
 }

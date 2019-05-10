@@ -13,50 +13,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component, createRef } from 'react';
 import PropTypes from 'prop-types';
-import Tooltip from 'components/Tooltip';
-
-import { NAVY } from 'uiTheme/radium/colors';
-
-export const ARROW_OFFSET = 90;
+import { Tooltip } from 'components/Tooltip';
 
 export default class ChartTooltip extends Component {
   static propTypes = {
     position: PropTypes.object,
+    /** If anchorEl is not provided, then position property is used to display a tooltip */
+    anchorEl: PropTypes.object,
     content: PropTypes.node
   }
+
+  ref = createRef();
+
   render() {
-    const { content, position } = this.props;
+    const { content, position, anchorEl } = this.props;
     return (
-      <div style={{ position: 'absolute', ...position }}>
+      <div style={{ position: 'absolute', ...position }} ref={this.ref}>
         <Tooltip
+          target={() => anchorEl || this.ref.current}
           id='tooltip'
-          type='info'
+          type='status'
           placement='top'
-          style={styles.tooltip}
           tooltipInnerStyle={styles.tooltipInner}
-          tooltipArrowStyle={styles.tooltipArrowStyle}
-          content={content}
-          arrowOffsetLeft={ARROW_OFFSET}
-        />
+        >
+          {content}
+        </Tooltip>
       </div>
     );
   }
 }
 
 const styles = {
-  tooltip: {
-    pointerEvents: 'none',
-    transform: 'translate(-50%, -100%)' // to align tooltip bottom center with provided position
-  },
   tooltipInner: {
-    background: NAVY,
-    color: '#fff',
-    boxShadow: '2px 2px 5px 0px rgba(0,0,0,0.05)',
-    borderRadius: '2px'
-  },
-  tooltipArrowStyle: {
-    borderTopColor: NAVY
+    textAlign: 'center'
   }
 };

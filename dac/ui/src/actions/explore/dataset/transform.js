@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import exploreUtils from 'utils/explore/exploreUtils';
-import fullDatasetSchema from 'schemas/v2/fullDataset';
+import { datasetWithoutData } from 'schemas/v2/fullDataset';
 
 import { postDatasetOperation } from './common';
 
@@ -25,7 +25,7 @@ export const runTableTransform = (dataset, transformData, viewId, tableData) =>
     const nextTable = tableData && tableData.set('version', newVersion);
 
     return dispatch(postDatasetOperation({
-      href, dataset, schema: fullDatasetSchema, viewId, nextTable, body: transformData
+      href, dataset, schema: datasetWithoutData, viewId, nextTable, body: transformData
     }));
   };
 

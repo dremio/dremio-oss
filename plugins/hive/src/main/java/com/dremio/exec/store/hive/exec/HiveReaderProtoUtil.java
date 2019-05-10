@@ -276,21 +276,21 @@ public final class HiveReaderProtoUtil {
   }
 
   /**
-   * Get the list of properties for the given partition id.
+   * Get the list of properties for the given partition index.
    *
    * @param tableXattr  hive table extended attribute
-   * @param partitionId partition id
+   * @param partitionIndex partition index
    * @return list of properties
    */
-  public static List<Prop> getPartitionProperties(final HiveTableXattr tableXattr, int partitionId) {
-    Preconditions.checkArgument(partitionId >= 0 && partitionId < tableXattr.getPartitionPropertiesList().size());
+  public static List<Prop> getPartitionProperties(final HiveTableXattr tableXattr, int partitionIndex) {
+    Preconditions.checkArgument(partitionIndex >= 0 && partitionIndex < tableXattr.getPartitionPropertiesList().size());
 
     if (tableXattr.getPropertyCollectionType() == PropertyCollectionType.LIST) { // backward compatibility
-      return tableXattr.getPartitionProperties(partitionId)
+      return tableXattr.getPartitionProperties(partitionIndex)
           .getPartitionPropertyList();
     }
 
-    return FluentIterable.from(tableXattr.getPartitionProperties(partitionId)
+    return FluentIterable.from(tableXattr.getPartitionProperties(partitionIndex)
         .getPropertySubscriptList())
         .transform(new Function<Integer, Prop>() {
           @Override

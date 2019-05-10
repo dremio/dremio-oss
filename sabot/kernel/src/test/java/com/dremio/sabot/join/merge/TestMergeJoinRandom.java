@@ -59,11 +59,11 @@ public class TestMergeJoinRandom extends BaseTestOperator {
 
   @Before
   public void beforeTest() {
-    leftRowCount = new HashMap<Integer, Pair<Integer, Integer>>();
-    rightRowCount = new HashMap<Integer, Pair<Integer, Integer>>();
+    leftRowCount = new HashMap<>();
+    rightRowCount = new HashMap<>();
 
-    rowsLeft = new ArrayList<DataRow>();
-    rowsRight = new ArrayList<DataRow>();
+    rowsLeft = new ArrayList<>();
+    rowsRight = new ArrayList<>();
 
     for (int i = 0; i < NUM_GROUPS; i++) {
       int numOfFalse = rand.nextBoolean() ? 0 : rand.nextInt(MAX_GROUP_SIZE);
@@ -107,7 +107,7 @@ public class TestMergeJoinRandom extends BaseTestOperator {
   }
 
   protected JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type) {
-    return new JoinInfo(MergeJoinOperator.class, new MergeJoinPOP(null, null, conditions, type));
+    return new JoinInfo(MergeJoinOperator.class, new MergeJoinPOP(PROPS, null, null, conditions, type));
   }
 
   private void noNullMultipleRowsData(JoinInfo info, Table expected) throws Exception {
@@ -128,7 +128,7 @@ public class TestMergeJoinRandom extends BaseTestOperator {
   public void noNullEquivalenceInnerSingleCondition() throws Exception{
     JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))),
         JoinRelType.INNER);
-    ArrayList<DataRow> rows = new ArrayList<DataRow>();
+    ArrayList<DataRow> rows = new ArrayList<>();
 
     for (int i = 0; i < NUM_GROUPS; i++) {
       final int leftFalse = leftRowCount.get(i).getLeft();
@@ -166,7 +166,7 @@ public class TestMergeJoinRandom extends BaseTestOperator {
   public void noNullEquivalenceLeftSingleCondition() throws Exception{
     JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))),
         JoinRelType.LEFT);
-    ArrayList<DataRow> rows = new ArrayList<DataRow>();
+    ArrayList<DataRow> rows = new ArrayList<>();
 
     for (int i = 0; i < NUM_GROUPS; i++) {
       final int leftFalse = leftRowCount.get(i).getLeft();
@@ -212,7 +212,7 @@ public class TestMergeJoinRandom extends BaseTestOperator {
   public void noNullEquivalenceRightSingleCondition() throws Exception{
     JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))),
         JoinRelType.RIGHT);
-    ArrayList<DataRow> rows = new ArrayList<DataRow>();
+    ArrayList<DataRow> rows = new ArrayList<>();
 
     for (int i = 0; i < NUM_GROUPS; i++) {
       final int leftFalse = leftRowCount.get(i).getLeft();
@@ -260,7 +260,7 @@ public class TestMergeJoinRandom extends BaseTestOperator {
   public void noNullEquivalenceFullSingleCondition() throws Exception{
     JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))),
         JoinRelType.FULL);
-    ArrayList<DataRow> rows = new ArrayList<DataRow>();
+    ArrayList<DataRow> rows = new ArrayList<>();
 
     for (int i = 0; i < NUM_GROUPS; i++) {
       final int leftFalse = leftRowCount.get(i).getLeft();

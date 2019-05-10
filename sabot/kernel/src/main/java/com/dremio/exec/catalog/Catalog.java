@@ -19,9 +19,11 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
@@ -119,7 +121,7 @@ public interface Catalog extends SimpleCatalog<Catalog> {
    */
   void createDataset(NamespaceKey key, com.google.common.base.Function<DatasetConfig, DatasetConfig> datasetMutator);
 
-  StoragePlugin.UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions);
+  UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions);
 
   SourceState refreshSourceStatus(NamespaceKey key) throws Exception;
 
@@ -127,6 +129,7 @@ public interface Catalog extends SimpleCatalog<Catalog> {
 
   /**
    * Create or update a physical dataset along with its read definitions and splits.
+   *
    * @param userNamespaceService namespace service for a user who is adding or modifying a dataset.
    * @param source source where dataset is to be created/updated
    * @param datasetPath dataset full path
@@ -136,6 +139,21 @@ public interface Catalog extends SimpleCatalog<Catalog> {
    * @throws NamespaceException
    */
   boolean createOrUpdateDataset(NamespaceService userNamespaceService, NamespaceKey source, NamespaceKey datasetPath, DatasetConfig datasetConfig, NamespaceAttribute... attributes) throws NamespaceException;
+
+  /**
+   * Update a dataset configuration with a newly detected schema.
+   * @param datasetKey the dataset NamespaceKey
+   * @param newSchema the detected schema from the executor
+   */
+  void updateDatasetSchema(NamespaceKey datasetKey, BatchSchema newSchema);
+
+  /**
+   * Update a dataset configuration with a newly detected schema.
+   * @param datasetKey the dataset NamespaceKey
+   * @param originField the original field
+   * @param fieldSchema the new schema
+   */
+  void updateDatasetField(NamespaceKey datasetKey, String originField, CompleteType fieldSchema);
 
   /**
    * Get a source based on the provided name. If the source doesn't exist, synchronize with the
@@ -191,4 +209,22 @@ public interface Catalog extends SimpleCatalog<Catalog> {
    * @return Last refreshed source state. Null if source is not found.
    */
   SourceState getSourceState(String name);
+
+  enum UpdateStatus {
+    /**
+     * Metadata hasn't changed.
+     */
+    UNCHANGED,
+
+
+    /**
+     * Metadata has changed.
+     */
+    CHANGED,
+
+    /**
+     * Dataset has been deleted.
+     */
+    DELETED
+  }
 }

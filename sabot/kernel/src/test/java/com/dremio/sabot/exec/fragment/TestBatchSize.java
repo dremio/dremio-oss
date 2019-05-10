@@ -30,6 +30,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.options.OptionManager;
 
 public class TestBatchSize {
@@ -41,8 +42,8 @@ public class TestBatchSize {
     when(options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX)).thenReturn(4095L);
     when(options.getOption(ExecConstants.TARGET_BATCH_SIZE_BYTES)).thenReturn(1024 * 1024L);
 
-    int batchSize = OperatorContextCreator.calculateBatchCountFromRecordSize(options, 0);
-    Assert.assertTrue(batchSize >= 0.95 * 4096);
+    int batchSize = PhysicalPlanCreator.calculateBatchCountFromRecordSize(options, 0);
+    Assert.assertTrue(batchSize >= (int)(0.95 * 4096));
 
     try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
       final ValueVector bitV = new BitVector("bits", allocator);

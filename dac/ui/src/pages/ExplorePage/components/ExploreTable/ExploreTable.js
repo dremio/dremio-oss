@@ -21,7 +21,7 @@ import shallowEqual from 'shallowequal';
 import $ from 'jquery';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
-import { getIsExplorePreviewMode } from 'reducers';
+import { getIsExplorePreviewMode, getIsDatasetMetadataLoaded } from 'reducers';
 import { Column, Table } from 'fixed-data-table-2';
 import { AutoSizer } from 'react-virtualized';
 import { injectIntl } from 'react-intl';
@@ -33,6 +33,7 @@ import ViewCheckContent from 'components/ViewCheckContent';
 import { withLocation } from 'containers/dremioLocation';
 import { getViewState } from 'selectors/resources';
 import { EXPLORE_TABLE_ID } from 'reducers/explore/view';
+import { loadNextRows } from 'actions/explore/dataset/data';
 import ExploreTableCell from './ExploreTableCell';
 import ColumnHeader from './ColumnHeader';
 
@@ -42,13 +43,15 @@ const TIME_BEFORE_SPINNER = 1500;
 export const RIGHT_TREE_OFFSET = 251;
 const SCROLL_BAR_WIDTH = 16;
 
-const mapStateToProps = (state, { tableData }) => ({
+const mapStateToProps = (state) => ({
   isPreviewMode: getIsExplorePreviewMode(state),
   tableViewState: getViewState(state, EXPLORE_TABLE_ID),
-  // it is not related to redux but it is easier to do destricturing here
-  columns: tableData.get('columns'),
-  rows: tableData.get('rows')
+  isDatasetMetadataLoaded: getIsDatasetMetadataLoaded(state)
 });
+
+const mapDispatchToProps = {
+  loadNextRows
+};
 
 @injectIntl
 @Radium
@@ -75,7 +78,6 @@ export class ExploreTableView extends PureComponent {
     onCellTextSelect: PropTypes.func,
     onCellShowMore: PropTypes.func,
     selectAll: PropTypes.func,
-    loadNextRows: PropTypes.func,
     selectItemsOfList: PropTypes.func,
     isDumbTable: PropTypes.bool,
     getTableHeight: PropTypes.func,
@@ -88,7 +90,9 @@ export class ExploreTableView extends PureComponent {
     location: PropTypes.object,
 
     // connect properties
-    isPreviewMode: PropTypes.bool
+    isPreviewMode: PropTypes.bool,
+    isDatasetMetadataLoaded: PropTypes.bool,
+    loadNextRows: PropTypes.func.isRequired
   };
 
   static defaultProps = {
@@ -220,7 +224,7 @@ export class ExploreTableView extends PureComponent {
     const { rows, dataset } = this.props;
     return !viewState.get('isInProgress') &&
       !viewState.get('isFailed') &&
-      Boolean(dataset.get('datasetVersion')) &&
+      Boolean(dataset.get('datasetVersion') || dataset.get('isNewQuery')) &&
       !rows.size;
   }
 
@@ -394,9 +398,14 @@ export class ExploreTableView extends PureComponent {
   render() {
     const columns = this.state.columns;
     const height = this.state.size.get('height');
-    const { pageType, intl, isPreviewMode } = this.props;
+    const { pageType, intl, isPreviewMode, dataset, isDatasetMetadataLoaded } = this.props;
     const showMessage = pageType === 'default';
     const viewState = this.getViewState();
+    const noDataMessageId = isPreviewMode ? 'Dataset.NoPreviewData' : 'Dataset.NoData';
+    const messageId = dataset.get('isNewQuery') ? 'Dataset.NewQueryNoData' : noDataMessageId;
+
+    // we should not block header if it is presented and actual metadata is loaded
+    const maskStyle = isDatasetMetadataLoaded && columns.size ? { top: DEFAULT_ROW_HEIGHT } : null;
 
     return (
       <div className='fixed-data-table' style={{ width: '100%' }}>
@@ -406,11 +415,12 @@ export class ExploreTableView extends PureComponent {
           viewState={viewState}
           showMessage={showMessage}
           hideChildrenWhenFailed={false}
+          overlayStyle={maskStyle}
           >
-          {this.props.isGrayed && <div data-qa='table-grayed-out' style={styles.grayed}/>}
+          {this.props.isGrayed && <div data-qa='table-grayed-out' style={{...styles.grayed, ...maskStyle}}/>}
           {this.renderTable()}
           <ViewCheckContent
-            message={intl.formatMessage({ id: isPreviewMode ? 'Dataset.NoPreviewData' : 'Dataset.NoData' })}
+            message={intl.formatMessage({ id: messageId })}
             viewState={viewState}
             dataIsNotAvailable={this.shouldShowNoData(viewState)}
             customStyle={{
@@ -425,7 +435,7 @@ export class ExploreTableView extends PureComponent {
   }
 }
 
-export default connect(mapStateToProps)(withLocation(ExploreTableView));
+export default connect(mapStateToProps, mapDispatchToProps)(withLocation(ExploreTableView));
 
 const styles = {
   grayed: {

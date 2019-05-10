@@ -24,7 +24,9 @@ public class ProjectorStats {
     JAVA_EVALUATE_TIME,
     GANDIVA_EXPRESSIONS,
     GANDIVA_BUILD_TIME,
-    GANDIVA_EVALUATE_TIME;
+    GANDIVA_EVALUATE_TIME,
+    MIXED_EXPRESSIONS,
+    MIXED_SPLITS;
 
     @Override
     public int metricId() {

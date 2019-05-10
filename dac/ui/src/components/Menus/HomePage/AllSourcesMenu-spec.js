@@ -15,6 +15,8 @@
  */
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
+import { findMenuItemLinkByText, findMenuItemByText } from 'testUtil';
+import { RestrictedArea } from '@app/components/Auth/RestrictedArea';
 import { AllSourcesMenu } from './AllSourcesMenu';
 
 describe('AllSourcesMenu', () => {
@@ -23,12 +25,12 @@ describe('AllSourcesMenu', () => {
   let contextTypes;
   beforeEach(() => {
     minimalProps = {
-      source: Immutable.fromJS({
+      item: Immutable.fromJS({
         links: {
           self: ''
         }
       }),
-      removeSource: sinon.spy(),
+      removeItem: sinon.spy(),
       showConfirmationDialog: sinon.spy(),
       closeMenu: sinon.spy()
     };
@@ -45,13 +47,26 @@ describe('AllSourcesMenu', () => {
     expect(wrapper).to.have.length(1);
   });
 
+  it('renders edit and remove buttons in restricted area for admins', () => {
+    const restrictedAreaWrapper = shallow(<AllSourcesMenu {...minimalProps}/>, {context: contextTypes}).find(RestrictedArea);
+    expect(restrictedAreaWrapper).to.have.length(1, 'RestrictedArea must be rendered');
+    expect(restrictedAreaWrapper.prop('rule')).to.be.eql({
+      isAdmin: true
+    }, 'We should allow access for a restricted area only for admins');
+
+    expect(findMenuItemByText(restrictedAreaWrapper, 'Remove Source')).to.have.length(1,
+      'Remove menu is rendered in a restricted area');
+    expect(findMenuItemLinkByText(restrictedAreaWrapper, 'Edit Details')).to.have.length(1,
+      'Edit menu is rendered in a restricted area');
+  });
+
   describe('#handleRemoveSource', () => {
     it('should show confirmation dialog before removing', () => {
       const wrapper = shallow(<AllSourcesMenu {...commonProps} />, {context: contextTypes});
       const instance = wrapper.instance();
       instance.handleRemoveSource();
       expect(commonProps.showConfirmationDialog).to.be.called;
-      expect(commonProps.removeSource).to.not.be.called;
+      expect(commonProps.removeItem).to.not.be.called;
     });
 
     it('should call remove source when confirmed', () => {
@@ -62,7 +77,7 @@ describe('AllSourcesMenu', () => {
       const wrapper = shallow(<AllSourcesMenu {...props}/>, {context: contextTypes});
       const instance = wrapper.instance();
       instance.handleRemoveSource();
-      expect(props.removeSource).to.be.called;
+      expect(props.removeItem).to.be.called;
     });
   });
 });

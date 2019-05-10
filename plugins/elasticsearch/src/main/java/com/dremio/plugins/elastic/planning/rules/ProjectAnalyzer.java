@@ -62,7 +62,8 @@ public class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
       boolean supportsV5Features,
       boolean scriptsEnabled,
       boolean isAggregationContext,
-      boolean allowPushdownAnalyzedNormalizedFields){
+      boolean allowPushdownAnalyzedNormalizedFields,
+      boolean variationDetected){
     ProjectAnalyzer analyzer = new ProjectAnalyzer(isAggregationContext, allowPushdownAnalyzedNormalizedFields);
     RenderMode mode = painlessAllowed && supportsV5Features ? RenderMode.PAINLESS : RenderMode.GROOVY;
     FunctionRenderer r = new FunctionRenderer(supportsV5Features, scriptsEnabled, mode, analyzer);
@@ -74,9 +75,9 @@ public class ProjectAnalyzer extends RexVisitorImpl<FunctionRender> {
 
     String nullGuardedScript;
     if (isAggregationContext) {
-      nullGuardedScript = render.getNullGuardedScript();
+      nullGuardedScript = render.getNullGuardedScript(variationDetected);
     } else {
-      nullGuardedScript = render.getNullGuardedScript("false");
+      nullGuardedScript = render.getNullGuardedScript("false", variationDetected);
     }
 
     if (mode == RenderMode.PAINLESS) {

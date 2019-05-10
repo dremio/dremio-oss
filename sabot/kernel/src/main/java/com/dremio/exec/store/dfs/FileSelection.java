@@ -65,7 +65,6 @@ public class FileSelection {
    * Creates a {@link FileSelection selection} out of given file statuses/files and selection root.
    *
    * @param statuses  list of file statuses
-   * @param files  list of files
    * @param selectionRoot  root path for selections
    */
   private FileSelection(StatusType status, final ImmutableList<FileStatus> statuses, final String selectionRoot) {
@@ -247,7 +246,13 @@ public class FileSelection {
   public static FileSelection create(final FileSystemWrapper fs, Path combined) throws IOException {
     Stopwatch timer = Stopwatch.createStarted();
 
+    // NFS filesystems has delay before files written by executor shows up in the coordinator.
+    // For NFS, fs.exists() will force a refresh if the directory is not found
+    // No action is taken if it returns false as the code path already handles the Exception case
+    fs.exists(combined);
+
     final ImmutableList<FileStatus> statuses = fs.listRecursive(combined, false);
+    logger.trace("Returned statuses are: {}", statuses);
     if (statuses == null || statuses.isEmpty()) {
       return null;
     }

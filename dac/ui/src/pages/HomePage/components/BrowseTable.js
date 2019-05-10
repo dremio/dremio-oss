@@ -21,22 +21,25 @@ import Mousetrap from 'mousetrap';
 import invariant from 'invariant';
 import { injectIntl } from 'react-intl';
 
-import * as allSpacesStyles from 'uiTheme/radium/allSpacesAndAllSources';
 import EllipsedText from 'components/EllipsedText';
 
 import { SearchField } from 'components/Fields';
 import StatefulTableViewer from 'components/StatefulTableViewer';
 import {SortDirection} from 'components/VirtualizedTableViewer';
+import { WikiButton } from '@app/pages/HomePage/components/WikiButton';
+import { BrowseTableResizer } from '@app/pages/HomePage/components/BrowseTableResizer';
+import { Row, GridColumn, SidebarColumn } from '@app/pages/HomePage/components/Columns';
 
 import { constructFullPath } from 'utils/pathUtils';
 import { tableStyles } from '../tableStyles';
-import './BrowseTable.less';
+import { wikiCollapsed } from './BrowseTable.less';
 
 @injectIntl
 export default class BrowseTable extends Component {
   static propTypes = {
     rightSidebar: PropTypes.node,
     rightSidebarExpanded: PropTypes.bool,
+    toggleSidebar: PropTypes.func,
     tableData: PropTypes.instanceOf(Immutable.List),
     columns: PropTypes.array,
     title: PropTypes.node,
@@ -58,6 +61,8 @@ export default class BrowseTable extends Component {
   state = {
     filter: ''
   };
+
+  mainContainerNode = null;
 
   constructor(props) {
     super(props);
@@ -91,8 +96,23 @@ export default class BrowseTable extends Component {
     });
   };
 
+  onMainContainerRef = mainEl => {
+    this.mainContainerNode = mainEl;
+  };
+
+  getMainContainer = () => this.mainContainerNode;
+
   render() {
-    const { title, buttons, tableData, rightSidebar, rightSidebarExpanded, intl, ...passAlongProps } = this.props; // eslint-disable-line no-unused-vars
+    const {
+      title,
+      buttons,
+      tableData,
+      rightSidebar,
+      rightSidebarExpanded,
+      intl,
+      toggleSidebar,
+      ...passAlongProps
+    } = this.props; // eslint-disable-line no-unused-vars
     invariant(
       !title || typeof title === 'string' || title.props.fullPath,
       'BrowseTable title must be string or BreadCrumbs.'
@@ -108,59 +128,77 @@ export default class BrowseTable extends Component {
     }
 
     return (
-      <div className='main-info'>
+      <div className='main-info' ref={this.onMainContainerRef}>
         {this.props.children}
-        <div className='list-content' style={allSpacesStyles.main}>
+        <div className='list-content'>
           <div className='row'>
-            <div style={allSpacesStyles.header} className='browse-table-viewer-header'>
-              <h3 style={styles.heading}>
-                <EllipsedText text={
-                  !title || typeof title === 'string'
-                    ? title
-                    : title && title.props && LRE + constructFullPath(title.props.fullPath.toJS(), true)
-                }>
-                  {LRE}{title}
-                </EllipsedText>
-              </h3>
-              <div style={{display: 'flex', alignItems: 'center'}}>
-                <SearchField
-                  value={this.state.filter}
-                  ref={searchField => this.searchField = searchField}
-                  onChange={this.handleFilterChange}
-                  style={tableStyles.searchField}
-                  placeholder={intl.formatMessage({ id: 'Dataset.SearchEllipsis' })}
-                  showCloseIcon
-                  inputClassName='mousetrap'
-                  dataQa='browse-table-search'
-                />
-                {buttons}
-              </div>
-            </div>
-            {/* minHeight is needed to not allow children flow over browser edge */}
-            <div style={{ display: 'flex', flex: 1, minHeight: 0}}>
-              <div className='move-info-wrap' style={{
-                ...allSpacesStyles.height,
-                overflow: 'hidden' // for FF (no worries, subsection will scroll)
-              }}>
-                <div className='table-wrap' style={allSpacesStyles.listContent}>
-                  <StatefulTableViewer
-                    virtualized
-                    className='table'
-                    tableData={this.filteredTableData()}
-                    resetScrollTop={resetScrollTop}
-                    {...passAlongProps}
+            <div>
+              <Row className='browse-table-viewer-header'>
+                <GridColumn style={{
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <h3 style={styles.heading}>
+                    <EllipsedText text={
+                      !title || typeof title === 'string'
+                        ? title
+                        : title && title.props && LRE + constructFullPath(title.props.fullPath.toJS(), true)
+                    }>
+                      {LRE}{title}
+                    </EllipsedText>
+                  </h3>
+                  <div style={{display: 'flex', alignItems: 'center'}}>
+                    <SearchField
+                      value={this.state.filter}
+                      ref={searchField => this.searchField = searchField}
+                      onChange={this.handleFilterChange}
+                      style={tableStyles.searchField}
+                      placeholder={intl.formatMessage({ id: 'Dataset.SearchEllipsis' })}
+                      showCloseIcon
+                      inputClassName='mousetrap'
+                      dataQa='browse-table-search'
+                    />
+                    {buttons}
+                    {!rightSidebarExpanded && rightSidebar && <WikiButton
+                      isSelected={rightSidebarExpanded}
+                      onClick={toggleSidebar}
+                      className={wikiCollapsed}
+                    />}
+                  </div>
+                </GridColumn>
+                {rightSidebarExpanded && rightSidebar && <SidebarColumn style={{
+                  display: 'flex',
+                  alignItems: 'center'
+                }}>
+                  <WikiButton
+                    isSelected={rightSidebarExpanded}
+                    onClick={toggleSidebar}
                   />
-                </div>
-              </div>
-              {rightSidebarExpanded && rightSidebar}
+                </SidebarColumn>}
+              </Row>
             </div>
+            <Row>
+              <GridColumn className='table-wrap'>
+                <StatefulTableViewer
+                  virtualized
+                  className='table'
+                  tableData={this.filteredTableData()}
+                  resetScrollTop={resetScrollTop}
+                  style={{width:'100%'}}
+                  {...passAlongProps}
+                />
+              </GridColumn>
+              {rightSidebarExpanded && rightSidebar && <SidebarColumn style={{ position: 'relative' }}>
+                <BrowseTableResizer anchorElementGetter={this.getMainContainer} />
+                {rightSidebar}
+              </SidebarColumn>}
+            </Row>
           </div>
         </div>
       </div>
     );
   }
 }
-
 
 const styles = { // todo: RTL support
   heading: {

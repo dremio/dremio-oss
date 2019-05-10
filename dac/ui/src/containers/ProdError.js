@@ -19,26 +19,28 @@ import PropTypes from 'prop-types';
 
 import { connect } from 'react-redux';
 
-import { hideProdError } from 'actions/prodError';
+import { hideAppError } from 'actions/prodError';
 import ProdErrorModal from 'components/Modals/ProdErrorModal';
 import config from 'utils/config';
+import { getAppError, getAppErrorId } from '@app/reducers';
 
 export const SHOW_GO_HOME_AFTER_PERIOD = 5000;
 
 export class ProdErrorContainer extends Component {
   static propTypes = {
     error: PropTypes.object,
-    hideProdError: PropTypes.func
+    errorId: PropTypes.string,
+    hideAppError: PropTypes.func
   }
 
   initTime = Date.now();
 
   handleHide = () => {
-    this.props.hideProdError();
+    this.props.hideAppError();
   }
 
   render() {
-    const { error } = this.props;
+    const { error, errorId } = this.props;
     if (!error) {
       return null;
     }
@@ -46,6 +48,7 @@ export class ProdErrorContainer extends Component {
     return (
       <ProdErrorModal
         error={error}
+        eventId={errorId}
         onHide={this.handleHide}
         showGoHome={showGoHome}
         showFileABug={config.shouldEnableBugFiling}
@@ -56,10 +59,11 @@ export class ProdErrorContainer extends Component {
 
 function mapStateToProps(state) {
   return {
-    error: state.prodError.error
+    error: getAppError(state),
+    errorId: getAppErrorId(state)
   };
 }
 
 export default connect(mapStateToProps, {
-  hideProdError
+  hideAppError
 })(ProdErrorContainer);

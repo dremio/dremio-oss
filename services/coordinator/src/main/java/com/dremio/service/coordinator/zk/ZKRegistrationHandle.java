@@ -18,7 +18,7 @@ package com.dremio.service.coordinator.zk;
 import org.apache.curator.x.discovery.ServiceInstance;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.service.coordinator.ServiceSet.RegistrationHandle;
+import com.dremio.service.coordinator.RegistrationHandle;
 
 class ZKRegistrationHandle implements RegistrationHandle {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ZKRegistrationHandle.class);
@@ -40,10 +40,4 @@ class ZKRegistrationHandle implements RegistrationHandle {
   public void close() {
     this.zkServiceSet.unregister(this);
   }
-
-  @Override
-  public int instanceCount() {
-    return this.zkServiceSet.getAvailableEndpoints().size();
-  }
-
 }

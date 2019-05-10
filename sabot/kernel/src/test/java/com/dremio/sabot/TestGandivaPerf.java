@@ -124,12 +124,12 @@ public class TestGandivaPerf extends BaseTestOperator {
   }
 
   private int compareProject(TpchTable table, double scale, String expr) throws Exception {
-    Project project = new Project(Arrays.asList(n(expr, "res")), null);
+    Project project = new Project(PROPS, null, Arrays.asList(n(expr, "res")));
     return runBoth(expr, table, scale, project, ProjectOperator.class);
   }
 
   private int compareFilter(TpchTable table, double scale, String expr) throws Exception {
-    Filter filter = new Filter(null, parseExpr(expr), 1f);
+    Filter filter = new Filter(PROPS, null, parseExpr(expr), 1f);
     return runBoth(expr, table, scale, filter, FilterOperator.class);
   }
 
@@ -157,10 +157,15 @@ public class TestGandivaPerf extends BaseTestOperator {
     Assert.assertTrue(delta > 0);
   }
 
-
   @Test
   public void testProjectCastDate() throws Exception {
     int delta = compareProject(TpchTable.CUSTOMER, 6, "castDATE(c_date)");
+    Assert.assertTrue(delta > 0);
+  }
+
+  @Test
+  public void testProjectCastTimestamp() throws Exception {
+    int delta = compareProject(TpchTable.CUSTOMER, 6, "castTIMESTAMP(c_time)");
     Assert.assertTrue(delta > 0);
   }
 

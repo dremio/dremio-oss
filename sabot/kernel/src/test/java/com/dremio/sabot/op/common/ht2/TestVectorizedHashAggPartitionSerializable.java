@@ -454,7 +454,8 @@ public class TestVectorizedHashAggPartitionSerializable {
         }).when(spillService).getSpillSubdir(any(String.class));
 
         LBlockHashTable sourceHashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000, 10, true, accumulator, MAX_VALUES_PER_BATCH);
-        VectorizedHashAggPartition hashAggPartition =  new VectorizedHashAggPartition(accumulator, sourceHashTable, pivot.getBlockWidth(), "P0", offsets);
+        VectorizedHashAggPartition hashAggPartition =  new VectorizedHashAggPartition
+          (accumulator, sourceHashTable, pivot.getBlockWidth(), "P0", offsets, false);
         final VectorizedHashAggPartitionSpillHandler partitionSpillHandler = new VectorizedHashAggPartitionSpillHandler(hashAggPartitions, fragmentHandle, null, sabotConfig, 1, partitionToLoadSpilledData, spillService, true);
         hashAggPartitions[0] = hashAggPartition;
 

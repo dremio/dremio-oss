@@ -34,7 +34,9 @@ describe('App-spec', () => {
       location: {},
       params: {},
       dispatch: sinon.spy(),
-      serverStatus: Immutable.Map()
+      serverStatus: Immutable.Map(),
+      children: 'test app content',
+      shouldEnableRSOD: false
     };
 
     wrapper = shallow(<App {...commonProps}/>);

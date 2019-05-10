@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableList;
 
 public class DefaultRelMetadataProvider extends ChainedRelMetadataProvider {
   public static final RelMetadataProvider INSTANCE = new DefaultRelMetadataProvider();
+
   private DefaultRelMetadataProvider() {
     super(ImmutableList.of(
         // MetadataProvider for Projectable aggregates. Should be before default ones
@@ -30,7 +31,10 @@ public class DefaultRelMetadataProvider extends ChainedRelMetadataProvider {
         RelMdRowCount.SOURCE,
         RelMdDistinctRowCount.SOURCE,
         RelMdColumnOrigins.SOURCE,
+        RelMdPredicates.SOURCE,
+        RelMdCost.SOURCE,
         RelMdCollation.SOURCE,
+        RelMdSelectivity.SOURCE,
         // Calcite catch-all
         org.apache.calcite.rel.metadata.DefaultRelMetadataProvider.INSTANCE));
   }

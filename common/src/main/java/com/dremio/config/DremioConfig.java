@@ -57,7 +57,6 @@ public class DremioConfig extends NestedConfig {
   public static final String EMBEDDED_MASTER_ZK_ENABLED_BOOL = "services.coordinator.master.embedded-zookeeper.enabled";
   public static final String EMBEDDED_MASTER_ZK_ENABLED_PORT_INT = "services.coordinator.master.embedded-zookeeper.port";
   public static final String EMBEDDED_MASTER_ZK_ENABLED_PATH_STRING = "services.coordinator.master.embedded-zookeeper.path";
-  public static final String ENABLE_MASTERLESS_BOOL = "services.masterless";
   public static final String WEB_ENABLED_BOOL = "services.coordinator.web.enabled";
   public static final String WEB_AUTH_TYPE = "services.coordinator.web.auth.type"; // Possible values are "internal", "ldap"
   public static final String WEB_AUTH_LDAP_CONFIG_FILE = "services.coordinator.web.auth.ldap_config";
@@ -92,7 +91,6 @@ public class DremioConfig extends NestedConfig {
   public static final String ZOOKEEPER_QUORUM = "zookeeper";
   public static final String ZK_CLIENT_SESSION_TIMEOUT = "zk.client.session.timeout";
 
-
   // Provisioning options
   public static final String YARN_JVM_OPTIONS = "provisioning.yarn.jvmoptions";
   public static final String YARN_CLASSPATH = "provisioning.yarn.classpath";
@@ -116,6 +114,14 @@ public class DremioConfig extends NestedConfig {
   public static final String DEBUG_ADD_DEFAULT_USER = "debug.addDefaultUser";
   public static final String DEBUG_ALLOW_NEWER_KVSTORE = "debug.allowNewerKVStore";
   public static final String DEBUG_DISABLE_MASTER_ELECTION_SERVICE_BOOL = "debug.master.election.disabled";
+
+  public static final String DEBUG_DIST_ASYNC_ENABLED = "debug.dist.async.enabled";
+  public static final String DEBUG_UPLOADS_ASYNC_ENABLED = "debug.uploads.async.enabled";
+  public static final String DEBUG_SUPPORT_ASYNC_ENABLED = "debug.support.async.enabled";
+  public static final String DEBUG_JOBS_ASYNC_ENABLED = "debug.results.async.enabled";
+  public static final String DEBUG_SCRATCH_ASYNC_ENABLED = "debug.scratch.async.enabled";
+  public static final String DEBUG_DOWNLOAD_ASYNC_ENABLED = "debug.download.async.enabled";
+  public static final String DEBUG_LOGS_ASYNC_ENABLED = "debug.logs.async.enabled";
 
   public static final String FABRIC_MEMORY_RESERVATION = "services.fabric.memory.reservation";
 
@@ -152,6 +158,7 @@ public class DremioConfig extends NestedConfig {
   private final Config reference;
   private final SabotConfig sabot;
   private final String thisNode;
+  private final boolean isMasterlessEnabled;
 
   /**
    * We maintain both the reference and the unresolved data so any withValue layering can be done against unresolved values.
@@ -164,6 +171,7 @@ public class DremioConfig extends NestedConfig {
     this.reference = reference;
     this.sabot = sabot;
     this.thisNode = thisNode;
+    this.isMasterlessEnabled = Boolean.getBoolean("dremio_masterless");
     check();
   }
 
@@ -219,6 +227,10 @@ public class DremioConfig extends NestedConfig {
 
   public SabotConfig getSabotConfig(){
     return sabot;
+  }
+
+  public boolean isMasterlessEnabled() {
+    return isMasterlessEnabled;
   }
 
   private static Config inverseMerge(Config userConfig, Config fallback){

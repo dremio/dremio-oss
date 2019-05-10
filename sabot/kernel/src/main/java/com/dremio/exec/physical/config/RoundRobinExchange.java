@@ -15,41 +15,40 @@
  */
 package com.dremio.exec.physical.config;
 
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.physical.base.AbstractExchange;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalOperatorUtil;
 import com.dremio.exec.physical.base.Receiver;
 import com.dremio.exec.physical.base.Sender;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
+import com.dremio.exec.record.BatchSchema;
 
-@JsonTypeName("round-robin-exchange")
 public class RoundRobinExchange extends AbstractExchange {
 
-  @JsonCreator
-  public RoundRobinExchange(@JsonProperty("child") PhysicalOperator child) {
-    super(child);
+  public RoundRobinExchange(
+      OpProps props,
+      OpProps senderProps,
+      OpProps receiverProps,
+      BatchSchema schema,
+      PhysicalOperator child) {
+    super(props, senderProps, receiverProps, schema, child);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new RoundRobinExchange(child);
+    return new RoundRobinExchange(props, senderProps, receiverProps, schema, child);
   }
 
   @Override
-  public Sender getSender(int minorFragmentId, PhysicalOperator child, FunctionLookupContext context) throws PhysicalOperatorSetupException {
-    return new RoundRobinSender(receiverMajorFragmentId, child,
-      PhysicalOperatorUtil.getIndexOrderedEndpoints(receiverLocations), getSchema(context));
+  public Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder indexBuilder) throws PhysicalOperatorSetupException {
+    return new RoundRobinSender(senderProps, schema, child, receiverMajorFragmentId, PhysicalOperatorUtil.getIndexOrderedEndpoints(receiverLocations, indexBuilder));
   }
 
   @Override
-  public Receiver getReceiver(int minorFragmentId, FunctionLookupContext context) {
-    return new UnorderedReceiver(senderMajorFragmentId, PhysicalOperatorUtil.getIndexOrderedEndpoints(senderLocations), false, getSchema(context));
+  public Receiver getReceiver(int minorFragmentId, EndpointsIndex.Builder indexBuilder) {
+    return new UnorderedReceiver(receiverProps, schema, senderMajorFragmentId, PhysicalOperatorUtil.getIndexOrderedEndpoints(senderLocations, indexBuilder), false);
   }
-
-
 
 }

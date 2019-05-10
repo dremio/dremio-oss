@@ -64,4 +64,5 @@ message OOBMessage {
   repeated int32 receiving_minor_fragment_id = 5;
   optional int32 receiving_operator_id = 6;
   optional int32 sending_minor_fragment_id = 7;
+  optional bool isOptional = 8 [default = true]; //whether this message may be ignored by the receiver
 }

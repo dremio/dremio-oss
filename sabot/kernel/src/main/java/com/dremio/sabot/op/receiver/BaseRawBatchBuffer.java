@@ -38,6 +38,7 @@ public abstract class BaseRawBatchBuffer<T> implements RawBatchBuffer {
     public int size();
     public boolean isEmpty();
     public void add(T obj);
+    public void clear();
   }
 
   private AtomicLong queueMonitor = new AtomicLong(0);

@@ -22,11 +22,14 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Window;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexLiteral;
+
+import com.google.common.collect.ImmutableList;
 
 public class WindowRelBase extends Window {
 
@@ -43,6 +46,11 @@ public class WindowRelBase extends Window {
       RelDataType rowType,
       List<Group> windows) {
     super(cluster, traits, child, constants, MoreRelOptUtil.uniqifyFieldName(rowType, cluster.getTypeFactory()), windows);
+  }
+
+  protected static RelTraitSet adjustTraits(RelOptCluster cluster, RelNode input, List<Group> groups, RelTraitSet traits) {
+    // At first glance, Dremio window operator does not preserve collation
+    return traits.replaceIfs(RelCollationTraitDef.INSTANCE, ImmutableList::of);
   }
 
   @Override public RelOptCost computeSelfCost(RelOptPlanner planner,

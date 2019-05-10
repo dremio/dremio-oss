@@ -15,7 +15,9 @@
  */
 import { Component } from 'react';
 import PropTypes from 'prop-types';
+import classNames from 'classnames';
 import { FormattedMessage, injectIntl } from 'react-intl';
+import Immutable from 'immutable';
 
 import Button from 'components/Buttons/Button';
 import ModalFooter from 'components/Modals/components/ModalFooter';
@@ -27,11 +29,21 @@ import { FieldWithError, TextField } from 'components/Fields';
 import DependantDatasetsWarning from 'components/Modals/components/DependantDatasetsWarning';
 import { applyValidators, isRequired } from 'utils/validation';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
-// TODO: Use Radium
+import { ModalSize } from 'components/Modals/Modal';
+
 import './UpdateDataset.less';
 
+export const UpdateMode = {
+  rename: 'rename',
+  move: 'move',
+  remove: 'remove',
+  removeFormat: 'removeFormat'
+};
+
 function validate(values, props) {
-  return applyValidators(values, [isRequired('datasetName', 'Dataset name')]);
+  if (props.mode !== UpdateMode.remove && props.mode !== UpdateMode.removeFormat) {
+    return applyValidators(values, [isRequired('datasetName', 'Dataset name')]);
+  }
 }
 
 @injectIntl
@@ -46,6 +58,7 @@ export class UpdateDatasetView extends Component {
       })
     ),
     dependentDatasets: PropTypes.array,
+    item: PropTypes.instanceOf(Immutable.Map),
     hidePath: PropTypes.bool.isRequired,
     name: PropTypes.string.isRequired,
     handleSubmit: PropTypes.func,
@@ -53,6 +66,9 @@ export class UpdateDatasetView extends Component {
     submit: PropTypes.func,
     error: PropTypes.object,
     hide: PropTypes.func,
+    mode: PropTypes.oneOf(Object.values(UpdateMode)).isRequired,
+    size: PropTypes.oneOf([ModalSize.small, ModalSize.smallest]).isRequired,
+    getGraphLink: PropTypes.func,
     intl: PropTypes.object.isRequired
   };
 
@@ -70,21 +86,36 @@ export class UpdateDatasetView extends Component {
     e.stopPropagation();
   }
 
+  getWarningTextId = (mode, count) => {
+    // pluralization does not work well with formatMessage. Hence doing it manually
+    switch (mode) {
+    case UpdateMode.remove:
+      return (count === 1) ? 'Dataset.DependantDatasetsRemoveSingleWarning' : 'Dataset.DependantDatasetsRemoveWarning';
+    case UpdateMode.rename:
+      return (count === 1) ? 'Dataset.DependantDatasetsRenameSingleWarning' : 'Dataset.DependantDatasetsRenameWarning';
+    case UpdateMode.removeFormat:
+      return (count === 1) ? 'Dataset.DependantDatasetsRemoveFormatSingleWarning' : 'Dataset.DependantDatasetsRemoveFormatWarning';
+    case UpdateMode.move:
+    default:
+      return (count === 1) ? 'Dataset.DependantDatasetsMoveSingleWarning' : 'Dataset.DependantDatasetsMoveWarning';
+    }
+  };
+
   renderWarning() {
-    const { dependentDatasets, intl } = this.props;
+    const { dependentDatasets, mode, getGraphLink, intl } = this.props;
 
     if (dependentDatasets && dependentDatasets.length > 0) {
-      return ( // todo: loc
+      return (
         <DependantDatasetsWarning
           text={intl.formatMessage(
-            { id: 'Dataset.DependantDatasetsWarning' },
-            { dependentDatasets: dependentDatasets.length }
+            { id: this.getWarningTextId(mode) },
+            { dependentDatasetCount: dependentDatasets.length }
           )}
           dependantDatasets={dependentDatasets}
+          getGraphLink={getGraphLink}
         />
       );
     }
-
     return null;
   }
 
@@ -100,23 +131,56 @@ export class UpdateDatasetView extends Component {
     );
   }
 
-  render() {
-    const { hidePath, fields, initialPath, handleSubmit, submit, intl } = this.props;
-    const locationBlock = hidePath
-      ? null
-      : <div className='property location'>
+  renderFormBody() {
+    const { mode, item, fields, intl } = this.props;
+    if (mode === UpdateMode.remove) {
+      return <div className='remove-question'>{la(`Are you sure you want to remove "${item.get('name')}"?`)}</div>;
+    }
+    if (mode === UpdateMode.removeFormat) {
+      return <div className='remove-question'>{la(`Are you sure you want to remove format for "${item.get('name')}"?`)}</div>;
+    }
+    return (
+      <div style={formRow}>
+        <FieldWithError {...fields.datasetName} touched label='Name' errorPlacement='right'>
+          <TextField
+            {...fields.datasetName}
+            name='name'
+            touched
+            initialFocus
+            placeholder={intl.formatMessage({ id: 'Dataset.Name' })}/>
+        </FieldWithError>
+      </div>
+    );
+  }
+
+  renderLocationBlock() {
+    const { hidePath, initialPath, fields, dependentDatasets } = this.props;
+
+    if (hidePath) return null;
+
+    //setting the height of scrollable space selector (location) block
+    const style = (dependentDatasets && dependentDatasets.length) ? {maxHeight: 232, minHeight: 232} : {maxHeight: 298};
+
+    return (
+      <div className='property location'>
         <label style={formLabel}>
           <FormattedMessage id = 'Common.Location' />
         </label>
         <ResourceTreeController
           preselectedNodeId={initialPath}
+          style={style}
           hideSources
           hideDatasets
           onChange={fields.selectedEntity.onChange}
-          />
-      </div>;
-    const buttons = this.props.buttons.map((button, index) => {
-      const onClick = button.key === 'cancel' ? this.props.hide : handleSubmit(submit.bind(this, button.key));
+        />
+      </div>
+    );
+  }
+
+  renderButtons() {
+    const { handleSubmit, submit, buttons, hide } = this.props;
+    return buttons.map((button, index) => {
+      const onClick = button.key === 'cancel' ? hide : handleSubmit(submit.bind(this, button.key));
       return <Button
         style={{marginLeft: 5}}
         className={button.className}
@@ -125,24 +189,25 @@ export class UpdateDatasetView extends Component {
         type={button.type}
         key={`${index}_button`}/>;
     });
+  }
+
+  render() {
+    const { size } = this.props;
+    const updateDatasetClass = classNames(
+      'update-dataset',
+      {'update-dataset-small': size === ModalSize.small},
+      {'update-dataset-smallest': size === ModalSize.smallest});
     return (
-      <div className='update-dataset' onClick={this.clickHandler} style={{display: 'flex', flexDirection: 'column'}}>
+      <div className={updateDatasetClass} onClick={this.clickHandler}>
         {this.renderErrorMessage()}
         {this.renderWarning()}
         <div className='update-dataset-content'>
-          <div style={formRow}>
-            <FieldWithError {...fields.datasetName} touched label='Name' errorPlacement='right'>
-              <TextField
-                {...fields.datasetName}
-                name='name'
-                touched
-                initialFocus
-                placeholder={intl.formatMessage({ id: 'Dataset.Name' })}/>
-            </FieldWithError>
-          </div>
-          {locationBlock}
+          {this.renderFormBody()}
+          {this.renderLocationBlock()}
         </div>
-        <ModalFooter styles={style.footerStyle}>{buttons}</ModalFooter>
+        <ModalFooter styles={style.footerStyle}>
+          {this.renderButtons()}
+        </ModalFooter>
       </div>
     );
   }

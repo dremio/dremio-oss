@@ -113,7 +113,7 @@ export default class JobTr extends Component {
               {job.get('spilled') &&
               <Art src='DiskSpill.svg' alt={formatMessage('Job.SpilledHover')} style={styles.smallIcon} title/>}
             </div>
-            <div className='endTime'>{jobFinishTime}</div>
+            <div style={styles.dateTimeStyle} className='endTime'>{jobFinishTime}</div>
           </div>
         </div>
         {this.renderSqlBlock(job.get('queryType'))}
@@ -166,7 +166,11 @@ const styles = {
   },
   durationStyle: {
     display: 'flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    minWidth: 65
+  },
+  dateTimeStyle: {
+    minWidth: 113
   },
   smallIcon: {
     paddingLeft: 5,

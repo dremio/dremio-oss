@@ -189,8 +189,9 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
 
   @Override
   public Void visitDecimalConstant(DecimalExpression decExpr, StringBuilder sb) throws RuntimeException {
-    BigDecimal value = new BigDecimal(decExpr.getIntFromDecimal());
-    sb.append((value.setScale(decExpr.getScale())).toString());
+    BigDecimal value = decExpr.getDecimal();
+    sb.append(value.toString());
+    sb.append('m');
     return null;
   }
 

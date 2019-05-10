@@ -15,11 +15,10 @@
  */
 import Immutable from 'immutable';
 import { RUN_TABLE_TRANSFORM_START } from 'actions/explore/dataset/common';
-import { LOAD_NEXT_ROWS_SUCCESS, DELETE_TABLE_DATA } from 'actions/explore/dataset/data';
+import { LOAD_NEXT_ROWS_SUCCESS } from 'actions/explore/dataset/data';
 
 import {
-  UPDATE_HISTORY_STATE,
-  UPDATE_COLUMNS
+  UPDATE_COLUMN_FILTER
 } from 'actions/explore/view';
 
 export default function table(state, action) {
@@ -41,14 +40,8 @@ export default function table(state, action) {
       }
     );
   }
-  case DELETE_TABLE_DATA:
-    return state.deleteIn(['tableData', action.meta.datasetVersion]);
-  case UPDATE_HISTORY_STATE:
-    return state.setIn(['fullDataset', action.version, 'history', 'items'], action.history);
-  case UPDATE_COLUMNS: {
-    return state.setIn(['tableData', action.version, 'columns'], action.columns);
-  }
-
+  case UPDATE_COLUMN_FILTER:
+    return state.setIn(['tableData', 'columnFilter'], action.columnFilter);
   default:
     return state;
   }

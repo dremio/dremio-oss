@@ -29,6 +29,7 @@ describe('SaveAsDatasetModal', () => {
     minimalProps = {
       viewState: Immutable.Map(),
       saveAsDataset: sinon.spy(),
+      loadDependentDatasets: sinon.spy(),
       submitReapplyAndSaveAsDataset: sinon.stub().returns(Promise.resolve({payload: Immutable.Map()})),
       submitSaveAsDataset: sinon.stub().returns(Promise.resolve({payload: Immutable.Map()})),
       navigateToNextDataset: sinon.stub().returns(Promise.resolve('navigateToNextDataset')),

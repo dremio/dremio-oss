@@ -25,9 +25,7 @@ import {
 const getLocation = state => state.routing.locationBeforeTransitions;
 
 export default function* signup() {
-  yield [
-    takeEvery(ADD_NEW_USER_SUCCESS, handleSignup)
-  ];
+  yield takeEvery(ADD_NEW_USER_SUCCESS, handleSignup);
 }
 
 export function* handleSignup({ meta }) {

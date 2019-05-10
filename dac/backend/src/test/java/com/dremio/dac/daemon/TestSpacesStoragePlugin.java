@@ -24,7 +24,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.Before;
@@ -138,9 +138,9 @@ public class TestSpacesStoragePlugin extends BaseTestServer {
   }
 
   private JobData runExternalQuery(String sql) {
-    return new JobUI(jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(sql, Arrays.asList("@" + DEFAULT_USER_NAME), DEFAULT_USER_NAME))
-        .build(), NoOpJobStatusListener.INSTANCE)).getData();
+    return JobUI.getJobData(jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(sql, Collections.singletonList("@" + DEFAULT_USER_NAME), DEFAULT_USER_NAME))
+        .build(), NoOpJobStatusListener.INSTANCE));
   }
 
   private JobsService jobsService;

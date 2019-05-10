@@ -210,9 +210,13 @@ public class ElasticConnectionPool implements AutoCloseable {
     client.register(DeflateEncoder.class);
     client.register(EncodingFilter.class);
 
-    if(REQUEST_LOGGER.isInfoEnabled()){
+    if (REQUEST_LOGGER.isDebugEnabled()) {
       java.util.logging.Logger julLogger = java.util.logging.Logger.getLogger(REQUEST_LOGGER_NAME);
-      client.register(new LoggingFeature(julLogger, Level.INFO, LoggingFeature.Verbosity.PAYLOAD_TEXT, 65536));
+      client.register(new LoggingFeature(
+          julLogger,
+          Level.FINE,
+          REQUEST_LOGGER.isTraceEnabled() ? LoggingFeature.Verbosity.PAYLOAD_TEXT : LoggingFeature.Verbosity.HEADERS_ONLY,
+          65536));
     }
 
     final JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();

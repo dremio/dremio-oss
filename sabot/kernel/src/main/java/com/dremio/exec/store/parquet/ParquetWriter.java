@@ -23,6 +23,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
@@ -46,14 +47,13 @@ public class ParquetWriter extends FileSystemWriter {
 
   @JsonCreator
   public ParquetWriter(
-          @JsonProperty("child") PhysicalOperator child,
-          @JsonProperty("userName") String userName,
-          @JsonProperty("location") String location,
-          @JsonProperty("options") WriterOptions options,
-          @JsonProperty("pluginId") StoragePluginId pluginId,
-          @JacksonInject CatalogService catalogService) throws IOException, ExecutionSetupException {
-
-    super(child, userName, options);
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("child") PhysicalOperator child,
+      @JsonProperty("location") String location,
+      @JsonProperty("options") WriterOptions options,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JacksonInject CatalogService catalogService) throws IOException, ExecutionSetupException {
+    super(props, child, options);
     this.plugin = catalogService.getSource(pluginId);
     this.formatPlugin = (ParquetFormatPlugin) plugin.getFormatPlugin(new ParquetFormatConfig());
     Preconditions.checkNotNull(formatPlugin, "Unable to load format plugin for provided format config.");
@@ -61,11 +61,13 @@ public class ParquetWriter extends FileSystemWriter {
   }
 
   public ParquetWriter(
+      OpProps props,
       PhysicalOperator child,
-      String userName, String location,
+      String location,
       WriterOptions options,
-      FileSystemPlugin plugin, ParquetFormatPlugin formatPlugin) {
-    super(child, userName, options);
+      FileSystemPlugin plugin,
+      ParquetFormatPlugin formatPlugin) {
+    super(props, child, options);
     this.plugin = plugin;
     this.formatPlugin = formatPlugin;
     this.location = location;
@@ -97,7 +99,7 @@ public class ParquetWriter extends FileSystemWriter {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new ParquetWriter(child, getUserName(), location, getOptions(), plugin, formatPlugin);
+    return new ParquetWriter(props, child, location, getOptions(), plugin, formatPlugin);
   }
 
   @Override
@@ -113,6 +115,6 @@ public class ParquetWriter extends FileSystemWriter {
 
   @JsonIgnore
   public UserGroupInformation getUGI() {
-    return formatPlugin.getFsPlugin().getUGIForUser(getUserName());
+    return formatPlugin.getFsPlugin().getUGIForUser(props.getUserName());
   }
 }

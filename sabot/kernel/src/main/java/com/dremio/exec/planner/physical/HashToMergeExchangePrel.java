@@ -18,7 +18,6 @@ package com.dremio.exec.planner.physical;
 import java.io.IOException;
 import java.util.List;
 
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -27,14 +26,25 @@ import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.config.HashSenderCalculator;
 import com.dremio.exec.physical.config.HashToMergeExchange;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 
+@Options
 public class HashToMergeExchangePrel extends ExchangePrel {
+
+  public static final LongValidator SENDER_RESERVE = new PositiveLongValidator("planner.op.hashmerge.sender.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator SENDER_LIMIT = new PositiveLongValidator("planner.op.hashmerge.sender.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RECEIVER_RESERVE = new PositiveLongValidator("planner.op.hashmerge.receiver.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator RECEIVER_LIMIT = new PositiveLongValidator("planner.op.hashmerge.receiver.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   private final List<DistributionField> distFields;
   private int numEndPoints = 0;
@@ -79,11 +89,20 @@ public class HashToMergeExchangePrel extends ExchangePrel {
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
-    HashToMergeExchange g = new HashToMergeExchange(childPOP,
+    final OpProps props = creator.props(this, null, childPOP.getProps().getSchema());
+    final int senderOperatorId = OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
+    final OpProps senderProps = creator.props(senderOperatorId, this, null, props.getSchema(), SENDER_RESERVE, SENDER_LIMIT, props.getCost() * 0.5);
+    final OpProps receiverProps = creator.props(this, null, props.getSchema(), RECEIVER_RESERVE, RECEIVER_LIMIT, props.getCost() * 0.5);
+
+    return new HashToMergeExchange(
+        props,
+        senderProps,
+        receiverProps,
+        HashSenderCalculator.captureBucketOptions(creator.getOptionManager(), SENDER_RESERVE, props.getSchema()),
+        props.getSchema(),
+        childPOP,
         HashPrelUtil.getHashExpression(this.distFields, getInput().getRowType()),
         PrelUtil.getOrdering(this.collation, getInput().getRowType()));
-    return creator.addMetadata(this, g);
-
   }
 
   public List<DistributionField> getDistFields() {

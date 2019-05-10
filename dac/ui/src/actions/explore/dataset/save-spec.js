@@ -31,8 +31,8 @@ describe('Dataset save actions', () => {
       );
       const result = saveActions.deleteOldDatasetVersions(currentVersion, historyItems);
       expect(result.meta.entityRemovePaths).to.eql([
-        ['datasetUI', '456'], ['tableData', '456'],
-        ['datasetUI', '789'], ['tableData', '789']
+        ['datasetUI', '456'], ['tableData', '456'], ['fullDataset', '456'], ['history', '456'],
+        ['datasetUI', '789'], ['tableData', '789'], ['fullDataset', '789'], ['history', '789']
       ]);
     });
   });

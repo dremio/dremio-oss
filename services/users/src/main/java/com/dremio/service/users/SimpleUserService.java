@@ -157,7 +157,7 @@ public class SimpleUserService implements UserService {
     final String userName = userConfig.getUserName();
     if (findUserByUserName(userName) != null) {
       throw UserException.validationError()
-        .message("User [%s] already exists", userName)
+        .message("User '%s' already exists.", userName)
         .build(logger);
     }
     validatePassword(authKey);
@@ -237,7 +237,7 @@ public class SimpleUserService implements UserService {
     }
     if (findUserByUserName(newUserName) != null) {
       throw UserException.validationError()
-        .message("User [%s] already exists", newUserName)
+        .message("User '%s' already exists.", newUserName)
         .build(logger);
     }
     UserConfig userConfig = toUserConfig(userGroup);
@@ -311,10 +311,10 @@ public class SimpleUserService implements UserService {
     }
 
     final SearchQuery query = SearchQueryUtils.or(
-        SearchQueryUtils.newTermQuery(UserIndexKeys.NAME, searchTerm),
-        SearchQueryUtils.newTermQuery(UserIndexKeys.FIRST_NAME, searchTerm),
-        SearchQueryUtils.newTermQuery(UserIndexKeys.LAST_NAME, searchTerm),
-        SearchQueryUtils.newTermQuery(UserIndexKeys.EMAIL, searchTerm));
+        SearchQueryUtils.newContainsTerm(UserIndexKeys.NAME, searchTerm),
+        SearchQueryUtils.newContainsTerm(UserIndexKeys.FIRST_NAME, searchTerm),
+        SearchQueryUtils.newContainsTerm(UserIndexKeys.LAST_NAME, searchTerm),
+        SearchQueryUtils.newContainsTerm(UserIndexKeys.EMAIL, searchTerm));
 
     final FindByCondition conditon = new FindByCondition()
         .setCondition(query)

@@ -28,6 +28,7 @@ import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
+import com.google.common.collect.ImmutableList;
 
 import io.protostuff.Tag;
 
@@ -106,6 +107,11 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   @Override
   public SchemaMutability getSchemaMutability() {
     return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
+  }
+
+  @Override
+  public List<String> getConnectionUniqueProperties() {
+    return ImmutableList.of();
   }
 
   public ShortCircuitFlag getShortCircuitFlag() {

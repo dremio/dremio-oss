@@ -19,6 +19,7 @@ import java.util.List;
 
 import org.apache.hadoop.hbase.TableName;
 
+import com.dremio.connector.metadata.EntityPath;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
@@ -28,17 +29,22 @@ public final class TableNameGetter {
 
   private TableNameGetter() {}
 
-  public static TableName getTableName(NamespaceKey key) {
-    switch(key.size()) {
+  public static TableName getTableName(NamespaceKey namespaceKey) {
+    return getTableName(namespaceKey.getPathComponents());
+  }
+
+  public static TableName getTableName(EntityPath datasetPath) {
+    return getTableName(datasetPath.getComponents());
+  }
+
+  private static TableName getTableName(List<String> components) {
+    switch(components.size()) {
     case 2:
-      return TableName.valueOf(key.getName());
-
+      return TableName.valueOf(components.get(1));
     case 3:
-      final List<String> paths = key.getPathComponents();
-      return TableName.valueOf(paths.get(1), paths.get(2));
-
+      return TableName.valueOf(components.get(1), components.get(2));
     default:
-      throw new IllegalStateException("Unexpected key length: " + key);
+      throw new IllegalStateException("Unexpected key length for: " + components);
     }
   }
 }

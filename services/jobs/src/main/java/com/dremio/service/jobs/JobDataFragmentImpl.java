@@ -22,6 +22,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.util.DremioGetObject;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.dremio.service.job.proto.JobId;
@@ -68,7 +69,7 @@ public class JobDataFragmentImpl implements JobDataFragment {
   public Object extractValue(String column, int index){
     Pair<RecordBatchData, Integer> dataBatch = find(index);
     Integer columnIndex = nameToColumnIndex.get(column);
-    return dataBatch.getKey().getVectors().get(columnIndex).getObject(dataBatch.getValue());
+    return DremioGetObject.getObject(dataBatch.getKey().getVectors().get(columnIndex), dataBatch.getValue());
   }
 
   private Pair<RecordBatchData, Integer> find(int index) {

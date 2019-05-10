@@ -15,11 +15,8 @@
  */
 package com.dremio.service.accelerator;
 
-import static com.dremio.config.DremioConfig.ENABLE_MASTERLESS_BOOL;
+import static com.dremio.service.reflection.ReflectionServiceImpl.LOCAL_TASK_LEADER_NAME;
 
-import java.io.IOException;
-import java.sql.Timestamp;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -34,18 +31,13 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.ProtostuffSerializer;
-import com.dremio.datastore.Serializer;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ReflectionRPC;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.service.BindingCreator;
-import com.dremio.service.job.proto.JoinAnalysis;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionStatusService;
-import com.dremio.service.reflection.ReflectionUtils;
-import com.dremio.service.reflection.proto.DataPartition;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
@@ -82,7 +74,8 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
   @Override
   public void start() {
     final FabricRunnerFactory reflectionTunnelFactory = fabric.get().registerProtocol(new ReflectionProtocol
-      (contextProvider.get().getAllocator(), reflectionStatusService.get(), reflectionService.get(), contextProvider.get().getConfig()));
+      (contextProvider.get().getAllocator(), reflectionStatusService.get(), reflectionService.get(),
+        materializationStore, contextProvider.get().getConfig()));
 
     reflectionTunnelCreator = new ReflectionTunnelCreator(reflectionTunnelFactory);
     bindingCreator.bindSelf(reflectionTunnelCreator);
@@ -97,14 +90,14 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
   public Iterable<ReflectionInfo> getReflections() {
     if (contextProvider.get().isMaster() ||
       (contextProvider.get().isCoordinator() &&
-        contextProvider.get().getDremioConfig().getBoolean(ENABLE_MASTERLESS_BOOL))) {
+        contextProvider.get().getDremioConfig().isMasterlessEnabled())) {
       return reflectionStatusService.get().getReflections();
     }
     // need to do RPC call
     // trying to get master
-    Optional<CoordinationProtos.NodeEndpoint> master = contextProvider.get().getMaster();
+    Optional<CoordinationProtos.NodeEndpoint> master = contextProvider.get().getServiceLeader(LOCAL_TASK_LEADER_NAME);
     if (!master.isPresent()) {
-      throw UserException.connectionError().message("Unable to get master while trying to get Reflection Information")
+      throw UserException.connectionError().message("Unable to get task leader while trying to get Reflection Information")
         .build(logger);
     }
     final ReflectionTunnel reflectionTunnel = reflectionTunnelCreator.getTunnel(master.get());
@@ -123,14 +116,14 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
   public Iterable<DependencyInfo> getReflectionDependencies() {
     if (contextProvider.get().isMaster() ||
       (contextProvider.get().isCoordinator() &&
-        contextProvider.get().getDremioConfig().getBoolean(ENABLE_MASTERLESS_BOOL))) {
+        contextProvider.get().getDremioConfig().isMasterlessEnabled())) {
       return reflectionService.get().getReflectionDependencies();
     }
     // need to do RPC call
     // trying to get master
-    Optional<CoordinationProtos.NodeEndpoint> master = contextProvider.get().getMaster();
+    Optional<CoordinationProtos.NodeEndpoint> master = contextProvider.get().getServiceLeader(LOCAL_TASK_LEADER_NAME);
     if (!master.isPresent()) {
-      throw UserException.connectionError().message("Unable to get master while trying to get Reflection Information")
+      throw UserException.connectionError().message("Unable to get task leader while trying to get Reflection Information")
         .build(logger);
     }
     final ReflectionTunnel reflectionTunnel = reflectionTunnelCreator.getTunnel(master.get());
@@ -145,74 +138,45 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
     }
    }
 
-  private static final Serializer<JoinAnalysis> JOIN_ANALYSIS_SERIALIZER = ProtostuffSerializer.of(JoinAnalysis.getSchema());
-
   @Override
   public Iterable<MaterializationInfo> getMaterializations() {
-    return StreamSupport.stream(ReflectionUtils.getAllMaterializations(materializationStore).spliterator(), false)
-      .map(materialization -> {
-          long footPrint = -1L;
-          try {
-            footPrint = materializationStore.getMetrics(materialization).getFootprint();
-          } catch (Exception e) {
-            // let's not fail the query if we can't retrieve the footprint for one materialization
-          }
-
-          String joinAnalysisJson = null;
-          try {
-            if (materialization.getJoinAnalysis() != null) {
-              joinAnalysisJson = JOIN_ANALYSIS_SERIALIZER.toJson(materialization.getJoinAnalysis());
-            }
-          } catch (IOException e) {
-            logger.debug("Failed to serialize join analysis", e);
-          }
-
-          final String failureMsg = materialization.getFailure() != null ? materialization.getFailure().getMessage() : null;
-
-          return new MaterializationInfo(
-            materialization.getReflectionId().getId(),
-            materialization.getId().getId(),
-            new Timestamp(materialization.getCreatedAt()),
-            new Timestamp(Optional.ofNullable(materialization.getExpiration()).orElse(0L)),
-            footPrint,
-            materialization.getSeriesId(),
-            materialization.getInitRefreshJobId(),
-            materialization.getSeriesOrdinal(),
-            joinAnalysisJson,
-            materialization.getState().toString(),
-            Optional.ofNullable(failureMsg).orElse("NONE"),
-            dataPartitionsToString(materialization.getPartitionList()),
-            new Timestamp(Optional.ofNullable(materialization.getLastRefreshFromPds()).orElse(0L))
-          );
-       }).collect(Collectors.toList());
-  }
-
-  private String dataPartitionsToString(List<DataPartition> partitions) {
-    if (partitions == null || partitions.isEmpty()) {
-      return "";
+    if (contextProvider.get().isMaster() ||
+      (contextProvider.get().isCoordinator() &&
+        contextProvider.get().getDremioConfig().isMasterlessEnabled())) {
+      return AccelerationMaterializationUtils.getMaterializationsFromStore(materializationStore);
     }
-
-    final StringBuilder dataPartitions = new StringBuilder();
-    for (int i = 0; i < partitions.size() - 1; i++) {
-      dataPartitions.append(partitions.get(i).getAddress()).append(", ");
+    // need to do RPC call
+    // trying to get task leader
+    Optional<CoordinationProtos.NodeEndpoint> taskLeader = contextProvider.get().getServiceLeader(LOCAL_TASK_LEADER_NAME);
+    if (!taskLeader.isPresent()) {
+      throw UserException.connectionError().message("Unable to get task leader while trying to get Reflection Information")
+        .build(logger);
     }
-    dataPartitions.append(partitions.get(partitions.size() - 1).getAddress());
-    return dataPartitions.toString();
+    final ReflectionTunnel reflectionTunnel = reflectionTunnelCreator.getTunnel(taskLeader.get());
+    try {
+      final ReflectionRPC.MaterializationInfoResp materializationInfosResp =
+        reflectionTunnel.requestMaterializationInfos().get(15, TimeUnit.SECONDS);
+      return materializationInfosResp.getMaterializationInfoList().stream()
+        .map(MaterializationInfo::fromMaterializationInfo).collect(Collectors.toList());
+    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      throw UserException.connectionError(e).message("Error while getting Materialization Information")
+        .build(logger);
+    }
   }
 
   @Override
   public Iterable<RefreshInfo> getRefreshInfos() {
     if (contextProvider.get().isMaster() ||
       (contextProvider.get().isCoordinator() &&
-        contextProvider.get().getDremioConfig().getBoolean(ENABLE_MASTERLESS_BOOL))) {
+        contextProvider.get().getDremioConfig().isMasterlessEnabled())) {
       return StreamSupport.stream(reflectionStatusService.get().getRefreshInfos().spliterator(), false)
         .map(RefreshInfo::fromRefreshInfo).collect(Collectors.toList());
     }
     // need to do RPC call
     // trying to get master
-    Optional<CoordinationProtos.NodeEndpoint> master = contextProvider.get().getMaster();
+    Optional<CoordinationProtos.NodeEndpoint> master = contextProvider.get().getServiceLeader(LOCAL_TASK_LEADER_NAME);
     if (!master.isPresent()) {
-      throw UserException.connectionError().message("Unable to get master while trying to get Reflection Information")
+      throw UserException.connectionError().message("Unable to get task leader while trying to get Reflection Information")
         .build(logger);
     }
     final ReflectionTunnel reflectionTunnel = reflectionTunnelCreator.getTunnel(master.get());

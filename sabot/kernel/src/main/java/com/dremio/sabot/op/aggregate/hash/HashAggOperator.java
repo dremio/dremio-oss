@@ -48,6 +48,7 @@ import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
+import com.dremio.exec.testing.InjectedOutOfMemoryError;
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
@@ -79,7 +80,7 @@ import com.sun.codemodel.JVar;
  */
 @Options
 public class HashAggOperator implements SingleInputOperator {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashAggOperator.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashAggOperator.class);
 
   public static final TypeValidators.PositiveLongValidator HASHAGG_MINMAX_CARDINALITY_LIMIT = new TypeValidators.PositiveLongValidator("exec.operator.aggregate.minmax_cardinality_limit", Long.MAX_VALUE, 10000);
 
@@ -89,7 +90,9 @@ public class HashAggOperator implements SingleInputOperator {
   private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(HashAggOperator.class);
 
   @VisibleForTesting
-  public static final String INJECTOR_DO_WORK = "doWork";
+  public static final String INJECTOR_DO_WORK_OOM = "doWork";
+  @VisibleForTesting
+  public static final String INJECTOR_DO_WORK_OOM_ERROR = "doWork-error";
 
   private final OperatorContext context;
   private final OperatorStats stats;
@@ -164,7 +167,8 @@ public class HashAggOperator implements SingleInputOperator {
 
   @Override
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
-    injector.injectChecked(context.getExecutionControls(), INJECTOR_DO_WORK, OutOfMemoryException.class);
+    injector.injectChecked(context.getExecutionControls(), INJECTOR_DO_WORK_OOM, OutOfMemoryException.class);
+    injector.injectChecked(context.getExecutionControls(), INJECTOR_DO_WORK_OOM_ERROR, InjectedOutOfMemoryError.class);
     this.incoming = accessible;
     this.aggregator = createAggregatorInternal();
     state = State.CAN_CONSUME;
@@ -254,7 +258,9 @@ public class HashAggOperator implements SingleInputOperator {
         aggrExprs,
         cgInner.getWorkspaceTypes(),
         groupByOutFieldIds,
-        outgoing);
+        outgoing,
+        context.getOptions()
+      );
 
     return agg;
   }
@@ -325,7 +331,8 @@ public class HashAggOperator implements SingleInputOperator {
     @Override
     public SingleInputOperator create(OperatorContext context, HashAggregate operator) throws ExecutionSetupException {
       if(operator.isVectorize()) {
-        if (context.getOptions().getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR)) {
+        boolean useSpill = operator.isUseSpill();
+        if (context.getOptions().getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR) && useSpill) {
           return new VectorizedHashAggOperator(operator, context);
         } else {
           return new VectorizedHashAggOperatorNoSpill(operator, context);
@@ -333,7 +340,7 @@ public class HashAggOperator implements SingleInputOperator {
       } else {
         return new HashAggOperator(operator, context);
       }
-    }
+    } //create
 
   }
 

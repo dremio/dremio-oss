@@ -96,7 +96,7 @@ public class WriterPrule extends Prule {
       .plus(DistributionTrait.SINGLETON)
       .plus(Prel.PHYSICAL);
 
-    final FileSystemPlugin plugin = fileEntry.getPlugin();
+    final FileSystemPlugin<?> plugin = fileEntry.getPlugin();
 
     if (PrelUtil.getPlannerSettings(rel.getCluster()).options.getOption(PlannerSettings.WRITER_TEMP_FILE)) {
 

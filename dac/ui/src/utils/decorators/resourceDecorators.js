@@ -15,6 +15,7 @@
  */
 import Immutable from 'immutable';
 import { splitFullPath } from 'utils/pathUtils';
+import { ENTITY_TYPES } from '@app/constants/Constants';
 
 export function decorateSource(source) {
   const uiProperties = Immutable.Map({
@@ -29,7 +30,7 @@ export function decorateSpace(space) {
   const uiProperties = Immutable.Map({
     iconClass: 'Space',
     isFile: false,
-    entityType: 'space'
+    entityType: ENTITY_TYPES.space
   });
   return space.merge(uiProperties);
 }

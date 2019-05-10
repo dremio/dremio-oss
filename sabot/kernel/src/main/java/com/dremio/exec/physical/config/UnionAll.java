@@ -17,26 +17,24 @@ package com.dremio.exec.physical.config;
 
 import java.util.List;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractMultiple;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 @JsonTypeName("union-all")
-
 public class UnionAll extends AbstractMultiple {
 
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Filter.class);
-
   @JsonCreator
-  public UnionAll(@JsonProperty("children") List<PhysicalOperator> children) {
-    super(children);
+  public UnionAll(
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("children") List<PhysicalOperator> children
+      ) {
+    super(props, children);
   }
 
   @Override
@@ -46,20 +44,7 @@ public class UnionAll extends AbstractMultiple {
 
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
-    return new UnionAll(children);
-  }
-
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    List<PhysicalOperator> children = getChildren();
-    BatchSchema left = children.get(0).getSchema(context);
-    BatchSchema right = children.get(1).getSchema(context);
-    if(!right.equalsTypesAndPositions(left)){
-      throw UserException.dataReadError()
-      .message("Unable to complete query, attempting to union two datasets that have different underlying schemas. Left: %s, Right: %s", left, right)
-      .build(logger);
-    }
-    return left;
+    return new UnionAll(props, children);
   }
 
   @Override

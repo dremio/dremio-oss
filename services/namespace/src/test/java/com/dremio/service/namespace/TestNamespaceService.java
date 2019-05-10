@@ -16,8 +16,10 @@
 package com.dremio.service.namespace;
 
 import static com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DATASET;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -27,6 +29,7 @@ import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -48,12 +51,12 @@ import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
-import com.dremio.service.namespace.dataset.proto.Affinity;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.service.namespace.dataset.proto.PartitionValue;
-import com.dremio.service.namespace.dataset.proto.PartitionValueType;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.Affinity;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValueType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
@@ -67,11 +70,11 @@ import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.flatbuffers.FlatBufferBuilder;
-
-import io.protostuff.ByteString;
+import com.google.protobuf.ByteString;
 
 /**
  * Test driver for spaces service.
@@ -807,85 +810,106 @@ public class TestNamespaceService {
       datasetConfig.setOwner("dremio");
       datasetConfig.setReadDefinition(readDefinition);
 
-      List<DatasetSplit> splits = Lists.newArrayList();
+      List<PartitionChunk> partitionChunks = Lists.newArrayList();
 
       for (int i = 0; i < 10; i++) {
-        splits.add(new DatasetSplit()
-          .setRowCount((long) i)
-          .setTag("0")
-          .setSize((long) i)
-          .setAffinitiesList(Lists.<Affinity>newArrayList(new Affinity().setHost("node" + i)))
-          .setPartitionValuesList(Lists.newArrayList(new PartitionValue().setColumn("column" + i).setIntValue(i).setType(PartitionValueType.IMPLICIT)))
-          .setExtendedProperty(ByteString.copyFrom(String.valueOf(i).getBytes()))
+        partitionChunks.add(PartitionChunk.newBuilder()
+          .setRowCount(i)
+          .setSize(i)
+          .addAffinities(Affinity.newBuilder().setHost("node" + i))
+          .addPartitionValues(PartitionValue.newBuilder().setColumn("column" + i).setIntValue(i).setType(PartitionValueType.IMPLICIT))
+          .setPartitionExtendedProperty(ByteString.copyFromUtf8(String.valueOf(i)))
           .setSplitKey(String.valueOf(i))
-          .setSplitVersion(1L));
+          .build());
       }
 
       addSource(ns, "test");
-      ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, splits);
+      ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, partitionChunks);
 
-      assertEquals(10, ns.getSplitCount(new IndexedStore.FindByCondition().setCondition(DatasetSplitId.getSplitsQuery(datasetConfig))));
-      assertTrue(!NamespaceServiceImpl.compareSplits(datasetConfig, splits,
-        ns.findSplits(new IndexedStore.FindByCondition().setCondition(DatasetSplitId.getSplitsQuery(datasetConfig)))));
+      assertEquals(10, ns.getPartitionChunkCount(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
+      expectSplits(partitionChunks, ns, datasetConfig);
       Long newSplitVersion = datasetConfig.getReadDefinition().getSplitVersion();
       assertTrue(newSplitVersion > lastSplitVersion);
       lastSplitVersion = newSplitVersion;
 
       // insert same splits again and make sure version does't change
-      ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, splits);
-      assertEquals(10, ns.getSplitCount(new IndexedStore.FindByCondition().setCondition(DatasetSplitId.getSplitsQuery(datasetConfig))));
-      assertTrue(!NamespaceServiceImpl.compareSplits(datasetConfig, splits,
-        ns.findSplits(new IndexedStore.FindByCondition().setCondition(DatasetSplitId.getSplitsQuery(datasetConfig)))));
+      ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, partitionChunks);
+      assertEquals(10, ns.getPartitionChunkCount(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
+      expectSplits(partitionChunks, ns, datasetConfig);
       assertEquals(newSplitVersion, datasetConfig.getReadDefinition().getSplitVersion());
 
       // change row count for the first split
-      splits.get(0).setRowCount(11L);
-      ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, splits);
-      assertEquals(10, ns.getSplitCount(new IndexedStore.FindByCondition().setCondition(DatasetSplitId.getSplitsQuery(datasetConfig))));
-      assertTrue(!NamespaceServiceImpl.compareSplits(datasetConfig, splits,
-        ns.findSplits(new IndexedStore.FindByCondition().setCondition(DatasetSplitId.getSplitsQuery(datasetConfig)))));
+      partitionChunks.set(0, partitionChunks.get(0).toBuilder().setRowCount(11L).build());
+      ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, partitionChunks);
+      assertEquals(10, ns.getPartitionChunkCount(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
+      expectSplits(partitionChunks, ns, datasetConfig);
       newSplitVersion = datasetConfig.getReadDefinition().getSplitVersion();
       assertTrue(newSplitVersion > lastSplitVersion);
       lastSplitVersion = newSplitVersion;
 
       // remove 8th split
-      splits.remove(8);
-      ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, splits);
-      assertEquals(9, ns.getSplitCount(new IndexedStore.FindByCondition().setCondition(DatasetSplitId.getSplitsQuery(datasetConfig))));
-      assertTrue(!NamespaceServiceImpl.compareSplits(datasetConfig, splits,
-        ns.findSplits(new IndexedStore.FindByCondition().setCondition(DatasetSplitId.getSplitsQuery(datasetConfig)))));
+      partitionChunks.remove(8);
+      ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, partitionChunks);
+      assertEquals(9, ns.getPartitionChunkCount(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
+      expectSplits(partitionChunks, ns, datasetConfig);
       newSplitVersion = datasetConfig.getReadDefinition().getSplitVersion();
       assertTrue(newSplitVersion > lastSplitVersion);
       lastSplitVersion = newSplitVersion;
 
       // add another split
-      splits.add(new DatasetSplit()
+      partitionChunks.add(PartitionChunk.newBuilder()
         .setRowCount(11L)
-        .setTag("0")
         .setSize(11L)
-        .setAffinitiesList(Lists.<Affinity>newArrayList(new Affinity().setHost("node" + 11)))
-        .setPartitionValuesList(Lists.newArrayList(new PartitionValue().setColumn("column" + 11).setIntValue(11).setType(PartitionValueType.IMPLICIT)))
-        .setExtendedProperty(ByteString.copyFrom(String.valueOf(11).getBytes()))
+        .addAffinities(Affinity.newBuilder().setHost("node" + 11))
+        .addPartitionValues(PartitionValue.newBuilder().setColumn("column" + 11).setIntValue(11).setType(PartitionValueType.IMPLICIT))
+        .setPartitionExtendedProperty(com.google.protobuf.ByteString.copyFrom(String.valueOf(11).getBytes(UTF_8)))
         .setSplitKey(String.valueOf(11))
-        .setSplitVersion(lastSplitVersion));
+        .build());
 
-      ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, splits);
-      assertEquals(10, ns.getSplitCount(new IndexedStore.FindByCondition().setCondition(DatasetSplitId.getSplitsQuery(datasetConfig))));
-      assertTrue(!NamespaceServiceImpl.compareSplits(datasetConfig, splits,
-        ns.findSplits(new IndexedStore.FindByCondition().setCondition(DatasetSplitId.getSplitsQuery(datasetConfig)))));
+      ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, partitionChunks);
+      assertEquals(10, ns.getPartitionChunkCount(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
+      expectSplits(partitionChunks, ns, datasetConfig);
       newSplitVersion = datasetConfig.getReadDefinition().getSplitVersion();
       assertTrue(newSplitVersion > lastSplitVersion);
 
       // Checking that orphan splits get cleaned
       SearchQuery searchQuery = SearchQueryUtils.newTermQuery(DatasetSplitIndexKeys.DATASET_ID, datasetConfig.getId().getId());
-      int count = ns.getSplitCount(new IndexedStore.FindByCondition().setCondition(searchQuery));
-      int deleted = ns.deleteSplitOrphans(DatasetSplitId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY);
-      int newCount = ns.getSplitCount(new IndexedStore.FindByCondition().setCondition(searchQuery));
+      int count = ns.getPartitionChunkCount(new IndexedStore.FindByCondition().setCondition(searchQuery));
+      int deleted = ns.deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY);
+      int newCount = ns.getPartitionChunkCount(new IndexedStore.FindByCondition().setCondition(searchQuery));
 
       // Only 10 splits should be left in the kvstore for that dataset
       assertEquals(10, newCount);
       assertEquals(count, deleted + newCount);
     }
+  }
+
+  private void expectSplits(List<PartitionChunk> expectedSplits, NamespaceService ns, DatasetConfig datasetConfig) {
+    Iterable<PartitionChunkMetadata> nsSplits = ns.findSplits(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig)));
+
+    final ImmutableMap.Builder<PartitionChunkId, PartitionChunkMetadata> builder = ImmutableMap.builder();
+    for (PartitionChunkMetadata nsSplit: nsSplits) {
+      final PartitionChunkId splitId = PartitionChunkId.of(datasetConfig, nsSplit, datasetConfig.getReadDefinition().getSplitVersion());
+      builder.put(splitId, nsSplit);
+    }
+    final ImmutableMap<PartitionChunkId, PartitionChunkMetadata> newSplitsMap = builder.build();
+    assert(newSplitsMap.size() == expectedSplits.size());
+
+    for (PartitionChunk partitionChunk : expectedSplits) {
+      final PartitionChunkId splitId = PartitionChunkId.of(datasetConfig, partitionChunk, datasetConfig.getReadDefinition().getSplitVersion());
+      final PartitionChunkMetadata newSplit = newSplitsMap.get(splitId);
+      assertNotNull(newSplit);
+      assertTrue(comparePartitionChunk(partitionChunk, newSplit, datasetConfig.getReadDefinition().getSplitVersion()));
+    }
+  }
+
+  boolean comparePartitionChunk(PartitionChunk partitionChunkProto, PartitionChunkMetadata partitionChunkMetadata, long splitVersion) {
+    return partitionChunkProto.getSize() == partitionChunkMetadata.getSize()
+      && partitionChunkProto.getRowCount() == partitionChunkMetadata.getRowCount()
+      && Objects.equals(partitionChunkProto.getAffinitiesList(), ImmutableList.copyOf(partitionChunkMetadata.getAffinities()))
+      && Objects.equals(partitionChunkProto.getPartitionValuesList(), ImmutableList.copyOf(partitionChunkMetadata.getPartitionValues()))
+      && partitionChunkProto.getSplitKey().equals(partitionChunkMetadata.getSplitKey())
+      && Objects.equals(partitionChunkProto.getPartitionExtendedProperty(), partitionChunkMetadata.getPartitionExtendedProperty());
   }
 
   @Test

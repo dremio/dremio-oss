@@ -17,7 +17,6 @@ package com.dremio.dac.server;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Properties;
 
@@ -90,7 +89,7 @@ class IndexServlet implements Servlet {
     Resource baseResource;
     try {
       baseResource = Resource.newResource(servletConfig.getInitParameter("resourceBase"));
-    } catch (MalformedURLException e) {
+    } catch (IOException e) {
       throw new ServletException(e);
     }
     templateCfg.setTemplateLoader(new ResourceTemplateLoader(baseResource));

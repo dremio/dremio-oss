@@ -21,7 +21,6 @@ import static com.dremio.sabot.exec.fragment.FragmentExecutorBuilder.WORK_QUEUE_
 import java.io.IOException;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedExceptionAction;
-import java.util.List;
 import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -36,11 +35,12 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.planner.PhysicalPlanReader;
-import com.dremio.exec.planner.fragment.SharedDataMap;
+import com.dremio.exec.planner.fragment.CachedFragmentReader;
+import com.dremio.exec.planner.fragment.PlanFragmentFull;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
-import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
-import com.dremio.exec.proto.CoordExecRPC.SharedData;
+import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
+import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMinor;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
@@ -53,7 +53,6 @@ import com.dremio.sabot.driver.OperatorCreator;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.driver.Pipeline;
 import com.dremio.sabot.driver.PipelineCreator;
-import com.dremio.sabot.driver.SchemaChangeListener;
 import com.dremio.sabot.driver.UserDelegatingOperatorCreator;
 import com.dremio.sabot.exec.EventProvider;
 import com.dremio.sabot.exec.QueriesClerk.FragmentTicket;
@@ -104,18 +103,17 @@ public class FragmentExecutor {
   private final FragmentStatusReporter statusReporter;
   private final DeferredException deferredException;
 
-  private final PlanFragment fragment;
+  private final PlanFragmentFull fragment;
   private final UserGroupInformation queryUserUgi;
   private final ClusterCoordinator clusterCoordinator;
-  private final PhysicalPlanReader reader;
+  private final CachedFragmentReader reader;
   private final SharedResourceManager sharedResources;
   private final OperatorCreatorRegistry opCreator;
   private final BufferAllocator allocator;
-  private final SchemaChangeListener updater;
   private final ContextInformation contextInfo;
   private final OperatorContextCreator contextCreator;
-  private final List<SharedData> sharedData;
   private final FunctionLookupContext functionLookupContext;
+  private final FunctionLookupContext decimalFunctionLookupContext;
   private final TunnelProvider tunnelProvider;
   private final FlushableSendingAccountor flushable;
   private final OptionManager fragmentOptions;
@@ -148,17 +146,16 @@ public class FragmentExecutor {
       FragmentStatusReporter statusReporter,
       SabotConfig config,
       ExecutionControls executionControls,
-      PlanFragment fragment,
+      PlanFragmentFull fragment,
       ClusterCoordinator clusterCoordinator,
-      PhysicalPlanReader reader,
+      CachedFragmentReader reader,
       SharedResourceManager sharedResources,
       OperatorCreatorRegistry opCreator,
       BufferAllocator allocator,
-      SchemaChangeListener updater,
       ContextInformation contextInfo,
       OperatorContextCreator contextCreator,
-      List<SharedData> sharedData,
       FunctionLookupContext functionLookupContext,
+      FunctionLookupContext decimalFunctionLookupContext,
       TunnelProvider tunnelProvider,
       FlushableSendingAccountor flushable,
       OptionManager fragmentOptions,
@@ -170,7 +167,7 @@ public class FragmentExecutor {
       SpillService spillService) {
     super();
     this.name = QueryIdHelper.getExecutorThreadName(fragment.getHandle());
-    this.queryUserUgi = ImpersonationUtil.createProxyUgi(fragment.getCredentials().getUserName());
+    this.queryUserUgi = ImpersonationUtil.createProxyUgi(fragment.getMajor().getCredentials().getUserName());
     this.statusReporter = statusReporter;
     this.fragment = fragment;
     this.clusterCoordinator = clusterCoordinator;
@@ -178,11 +175,10 @@ public class FragmentExecutor {
     this.sharedResources = sharedResources;
     this.opCreator = opCreator;
     this.functionLookupContext = functionLookupContext;
+    this.decimalFunctionLookupContext = decimalFunctionLookupContext;
     this.allocator = allocator;
-    this.updater = updater;
     this.contextInfo = contextInfo;
     this.contextCreator = contextCreator;
-    this.sharedData = sharedData;
     this.tunnelProvider = tunnelProvider;
     this.flushable = flushable;
     this.fragmentOptions = fragmentOptions;
@@ -193,7 +189,7 @@ public class FragmentExecutor {
     this.workQueue = new FragmentWorkQueue(sharedResources.getGroup(WORK_QUEUE_RES_GRP));
     this.buffers = new IncomingBuffers(
       deferredException, sharedResources.getGroup(PIPELINE_RES_GRP), workQueue, tunnelProvider,
-      fragment, allocator, config, executionControls, spillService);
+      fragment, allocator, config, executionControls, spillService, reader.getPlanFragmentsIndex());
     this.eventProvider = eventProvider;
     this.cancelled = SettableFuture.create();
   }
@@ -271,10 +267,10 @@ public class FragmentExecutor {
     } catch (OutOfMemoryError e) {
       // handle out of memory errors differently from other error types.
       if (e instanceof OutOfDirectMemoryError || "Direct buffer memory".equals(e.getMessage())) {
-        transitionToFailed(e);
+        transitionToFailed(UserException.memoryError(e).build(logger));
       } else {
         // we have a heap out of memory error. The JVM in unstable, exit.
-        ProcessExit.exitHeap(e, 2);
+        ProcessExit.exitHeap(e);
       }
     } catch (Throwable e) {
       transitionToFailed(e);
@@ -335,21 +331,27 @@ public class FragmentExecutor {
   }
 
   private void setupExecution() throws Exception{
-    logger.debug("Starting fragment {}:{} on {}:{}", fragment.getHandle().getMajorFragmentId(), fragment.getHandle().getMinorFragmentId(), fragment.getAssignment().getAddress(), fragment.getAssignment().getUserPort());
-    outputAllocator = ticket.newChildAllocator("output-frag:" + QueryIdHelper.getFragmentId(fragment.getHandle()),
+    final PlanFragmentMajor major = fragment.getMajor();
+    final PlanFragmentMinor minor = fragment.getMinor();
+
+    logger.debug("Starting fragment {}:{} on {}:{}", major.getHandle().getMajorFragmentId(), getHandle().getMinorFragmentId(), minor.getAssignment().getAddress(), minor.getAssignment().getUserPort());
+    outputAllocator = ticket.newChildAllocator("output-frag:" + QueryIdHelper.getFragmentId(getHandle()),
       fragmentOptions.getOption(ExecConstants.OUTPUT_ALLOCATOR_RESERVATION),
       Long.MAX_VALUE);
     contextCreator.setFragmentOutputAllocator(outputAllocator);
 
-    final PhysicalOperator rootOperator = reader.readFragmentOperator(fragment.getFragmentJson(), fragment.getFragmentCodec(), SharedDataMap.create(sharedData, fragment.getHandle()));
-
+    final PhysicalOperator rootOperator = reader.readFragment(fragment);
     final OperatorCreator operatorCreator = new UserDelegatingOperatorCreator(contextInfo.getQueryUser(), opCreator);
+    FunctionLookupContext functionLookupContextToUse = functionLookupContext;
+    if (fragmentOptions.getOption(PlannerSettings.ENABLE_DECIMAL_V2)) {
+      functionLookupContextToUse = decimalFunctionLookupContext;
+    }
     pipeline = PipelineCreator.get(
-        new FragmentExecutionContext(fragment.getForeman(), updater, sources, cancelled),
+        new FragmentExecutionContext(major.getForeman(), sources, cancelled),
         buffers,
         operatorCreator,
         contextCreator,
-        functionLookupContext,
+        functionLookupContextToUse,
         rootOperator,
         tunnelProvider,
         new SharedResourcesContextImpl(sharedResources)
@@ -433,12 +435,12 @@ public class FragmentExecutor {
 
     // send the final state of the fragment. only the main execution thread can send the final state and it can
     // only be sent once.
+    final FragmentHandle handle = fragment.getMajor().getHandle();
     if (state == FragmentState.FAILED) {
-      final FragmentHandle handle = fragment.getHandle();
 
       @SuppressWarnings("deprecation")
       final UserException uex = UserException.systemError(deferredException.getAndClear())
-          .addIdentity(fragment.getAssignment())
+          .addIdentity(fragment.getMinor().getAssignment())
           .addContext("Fragment", handle.getMajorFragmentId() + ":" + handle.getMinorFragmentId())
           .build(logger);
       statusReporter.fail(uex);
@@ -524,7 +526,7 @@ public class FragmentExecutor {
 
     @Override
     public void nodesUnregistered(final Set<NodeEndpoint> unregistereds) {
-      final NodeEndpoint foremanEndpoint = fragment.getForeman();
+      final NodeEndpoint foremanEndpoint = fragment.getMajor().getForeman();
       if (unregistereds.contains(foremanEndpoint)) {
         logger.warn("AttemptManager {} no longer active.  Cancelling fragment {}.",
                     foremanEndpoint.getAddress(),
@@ -561,7 +563,7 @@ public class FragmentExecutor {
   }
 
   public NodeEndpoint getForeman(){
-    return fragment.getForeman();
+    return fragment.getMajor().getForeman();
   }
 
   public String getBlockingStatus(){
@@ -589,7 +591,18 @@ public class FragmentExecutor {
       workQueue.put(() -> {
         queryUserUgi.doAs((PrivilegedAction<Void>) () -> {
           try {
-            pipeline.workOnOOB(message);
+            if (!isSetup) {
+              if (message.getIsOptional()) {
+                logger.warn("Fragment {} received optional OOB message in state {} for operatorId {}. Fragment is not yet set up. Ignoring message.",
+                  this.getHandle().toString(), state.toString(), message.getOperatorId());
+              } else {
+                logger.error("Fragment {} received OOB message in state {} for operatorId {}. Fragment is not yet set up.",
+                  this.getHandle().toString(), state.toString(), message.getOperatorId());
+                throw new IllegalStateException("Unable to handle OOB message");
+              }
+            } else {
+              pipeline.workOnOOB(message);
+            }
           } catch(Exception e) {
             logger.warn("Failure while handling OOB message. {}", message, e);
           }

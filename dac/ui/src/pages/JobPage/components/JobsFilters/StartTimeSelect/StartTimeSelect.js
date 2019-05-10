@@ -16,14 +16,12 @@
 import { Component } from 'react';
 import Immutable from 'immutable';
 import moment from 'moment';
-import Radium from 'radium';
 import PropTypes from 'prop-types';
+import { SelectView } from '@app/components/Fields/SelectView';
 import * as IntervalTypes from './IntervalTypes';
 import LeftPanel from './LeftPanel';
 import RightPanel from './RightPanel';
-import SelectView from './../SelectView';
 
-@Radium
 export default class StartTimeSelect extends Component {
   static propTypes = {
     id: PropTypes.string.isRequired,
@@ -33,7 +31,7 @@ export default class StartTimeSelect extends Component {
     onChange: PropTypes.func.isRequired
   };
 
-  getLabel() {
+  getLabel = () => {
     const selectedInterval = this.getSelectedInterval();
     const selectedType = this.getActiveTimeType(selectedInterval);
     const options = this.getOptions(selectedInterval);
@@ -98,7 +96,7 @@ export default class StartTimeSelect extends Component {
     const options = this.getOptions(selectedInterval);
 
     return (
-      <div style={[style.dropDown]} >
+      <div style={style.dropDown} >
         <LeftPanel
           filterType={this.props.defaultType}
           activeType={selectedType}
@@ -115,10 +113,11 @@ export default class StartTimeSelect extends Component {
     return (
       <SelectView
         ref='selectView'
-        getDropDown={this.renderDropdown}
-        id={this.props.id}
-        label={this.getLabel()}
-      />
+        className={this.props.id}
+        content={this.getLabel}
+      >
+        {this.renderDropdown}
+      </SelectView>
     );
   }
 }
@@ -135,3 +134,4 @@ const style = {
     flexWrap: 'nowrap'
   }
 };
+

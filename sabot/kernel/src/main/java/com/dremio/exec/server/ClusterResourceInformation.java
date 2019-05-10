@@ -24,7 +24,6 @@ import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.coordinator.ServiceSet;
-import com.google.common.base.Preconditions;
 
 public class ClusterResourceInformation {
 
@@ -88,7 +87,6 @@ public class ClusterResourceInformation {
    * @return average maximum direct memory of executors
    */
   public long getAverageExecutorMemory() {
-    Preconditions.checkState(averageExecutorMemory > 0, "No executors are available");
     return averageExecutorMemory;
   }
 
@@ -97,7 +95,6 @@ public class ClusterResourceInformation {
    * @return Number of registered executors.
    */
   public int getExecutorNodeCount() {
-    Preconditions.checkState(executorCount > 0, "No executors are available");
     return executorCount;
   }
 
@@ -110,7 +107,6 @@ public class ClusterResourceInformation {
   public long getAverageExecutorCores(final OptionManager optionManager) {
     long configuredMaxWidthPerNode = optionManager.getOption(ExecConstants.MAX_WIDTH_PER_NODE_KEY).getNumVal();
     if (configuredMaxWidthPerNode == 0) {
-      Preconditions.checkState(averageExecutorCores > 0, "No executors are available");
       /* user has not overridden the default, use the default MAX_WIDTH_PER_NODE which is average
        * number of cores as computed by ClusterResourceInformation.
        */

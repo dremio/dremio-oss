@@ -64,10 +64,12 @@ public class WindowPrule extends Prule {
     // The start index of the constant fields (internal)/aggregate calls (external) of WindowRel
     final int startConstantsIndex = input.getRowType().getFieldCount();
 
+    final RelTraitSet initialTraits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL);
+
     int constantShiftIndex = 0;
     for (final Ord<Window.Group> w : Ord.zip(window.groups)) {
       Window.Group windowBase = w.getValue();
-      RelTraitSet traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL);
+      RelTraitSet traits = initialTraits;
 
       boolean partitionby = false;
       boolean addMerge = false;
@@ -160,9 +162,9 @@ public class WindowPrule extends Prule {
           newWinAggCalls
       );
 
-      currentInput = new WindowPrel(
+      currentInput = WindowPrel.create(
           window.getCluster(),
-          window.getTraitSet().merge(traits),
+          initialTraits,
           convertedInput,
           window.getConstants(),
           rowType,

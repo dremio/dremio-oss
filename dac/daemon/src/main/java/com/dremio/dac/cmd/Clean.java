@@ -15,13 +15,13 @@
  */
 package com.dremio.dac.cmd;
 
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
-import com.dremio.common.config.SabotConfig;
-import com.dremio.common.scanner.ClassPathScanner;
-import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.config.DremioConfig;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
@@ -29,14 +29,15 @@ import com.dremio.datastore.KVAdmin;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.service.jobs.LocalJobsService;
 import com.dremio.service.jobs.LocalJobsService.DeleteResult;
-import com.dremio.service.namespace.DatasetSplitId;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.PartitionChunkId;
 
 
 /**
  * Backup command line.
  */
-public class Clean {
+public class Clean{
+
   /**
    * Command line options for db stats reporting and cleaning
    */
@@ -45,7 +46,7 @@ public class Clean {
     @Parameter(names={"-h", "--help"}, description="show usage", help=true)
     private boolean help = false;
 
-    @Parameter(names= {"-j", "--max-job-days"}, description="delete jobs older than provided number of days", required=false)
+    @Parameter(names= {"-j", "--max-job-days"}, description="delete jobs older than provided number of days", required=false, validateWith=PositiveInteger.class)
     private int maxJobDays = Integer.MAX_VALUE;
 
     @Parameter(names= {"-o", "--delete-orphans"}, description="delete orphans records in kvstore (e.g. old splits)", required=false)
@@ -56,6 +57,29 @@ public class Clean {
 
     @Parameter(names= {"-c", "--compact"}, description="compact kvstore", required=false)
     private boolean compactKvStore = false;
+
+    /**
+     * Validates that value passed for --max-job-days(-j)
+     * is positive
+     */
+    public static class PositiveInteger extends com.beust.jcommander.validators.PositiveInteger {
+
+      /**
+       * Validates parameter and throws exception if incorrect value or type for param.
+       * Parameter value should be a positive integer
+       * @param name Name of parameter
+       * @param value Value of parameter
+       * @throws ParameterException
+       */
+      public void validate(String name, String value) throws ParameterException {
+
+        try {
+          super.validate(name, value);
+        } catch (NumberFormatException | ParameterException e) {
+          throw new ParameterException("Parameter " + name + " should be a positive integer (found " + value +")");
+        }
+      }
+    }
 
     public boolean hasActiveOperation() {
       return maxJobDays != Integer.MAX_VALUE || deleteOrphans || reindexData || compactKvStore;
@@ -86,9 +110,17 @@ public class Clean {
       JCommander jc = JCommander.newBuilder()
         .addObject(args)
         .build();
-      jc.parse(cliArgs);
+      jc.setProgramName("dremio-admin clean");
+
+      try {
+        jc.parse(cliArgs);
+      } catch (ParameterException p) {
+        AdminLogger.log(p.getMessage());
+        jc.usage();
+        System.exit(1);
+      }
+
       if(args.help){
-        jc.setProgramName("dremio-admin clean");
         jc.usage();
       }
       return args;
@@ -112,22 +144,26 @@ public class Clean {
       throw new UnsupportedOperationException("Cleanup should be run on master node");
     }
 
-    final String dbDir = dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING);
-    final SabotConfig sabotConfig = dacConfig.getConfig().getSabotConfig();
-    final ScanResult classpathScan = ClassPathScanner.fromPrescan(sabotConfig);
-    try (final LocalKVStoreProvider provider = new LocalKVStoreProvider(classpathScan, dbDir, false, true, false, true)) {
+    Optional<LocalKVStoreProvider> providerOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig());
+    if (!providerOptional.isPresent()) {
+      AdminLogger.log("No KVStore detected.");
+      return;
+    }
+
+    try (LocalKVStoreProvider provider = providerOptional.get()) {
       provider.start();
 
 
       if(options.hasActiveOperation()) {
-        System.out.println("Initial Store Status.");
+        AdminLogger.log("Initial Store Status.");
+
       } else {
-        System.out.println("No operation requested, printing store Stats.");
+        AdminLogger.log("No operation requested, printing store Stats.");
       }
 
       for(StoreWithId id : provider) {
         KVAdmin admin = id.getStore().getAdmin();
-        System.out.println(admin.getStats());
+        AdminLogger.log(admin.getStats());
       }
 
       if(options.deleteOrphans) {
@@ -148,10 +184,10 @@ public class Clean {
       }
 
       if(options.hasActiveOperation()) {
-        System.out.println("\n\nFinal Store Status.");
+        AdminLogger.log("\n\nFinal Store Status.");
         for(StoreWithId id : provider) {
           KVAdmin admin = id.getStore().getAdmin();
-          System.out.println(admin.getStats());
+          AdminLogger.log(admin.getStats());
         }
       }
 
@@ -163,49 +199,44 @@ public class Clean {
     try {
       go(args);
     } catch (Exception e) {
-      System.err.println("Failed to complete cleanup.");
-      e.printStackTrace(System.err);
+      AdminLogger.log("Failed to complete cleanup.", e);
       System.exit(1);
     }
   }
 
 
   private static void deleteOldJobs(LocalKVStoreProvider provider, int maxDays) {
-    System.out.print(String.format("Deleting jobs details & profiles older %d days... ", maxDays));
-    DeleteResult result = LocalJobsService.deleteOldJobs(provider, maxDays);
-    System.out.println(String.format("Completed. Deleted %d jobs and %d profiles.", result.getJobsDeleted(), result.getProfilesDeleted()));
+    AdminLogger.log("Deleting jobs details & profiles older {} days... ", maxDays);
+    DeleteResult result = LocalJobsService.deleteOldJobs(provider, TimeUnit.DAYS.toMillis(maxDays));
+    AdminLogger.log("Completed. Deleted {} jobs and {} profiles.", result.getJobsDeleted(), result.getProfilesDeleted());
+
   }
 
   private static void deleteSplitOrphans(LocalKVStoreProvider provider) {
-    System.out.print("Deleting split orphans... ");
+    AdminLogger.log("Deleting split orphans... ");
     NamespaceServiceImpl service = new NamespaceServiceImpl(provider);
-    // Since the system is offline, it is okay to delete split orphans to only keep current versions.
-    System.out.println(String.format("Completed. Deleted %d orphans.",
-        service.deleteSplitOrphans(DatasetSplitId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY)));
+    AdminLogger.log("Completed. Deleted {} orphans.",
+      service.deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY));
   }
 
   private static void deleteCollaborationOrphans(LocalKVStoreProvider provider) {
-    System.out.print("Deleting collaboration orphans... ");
-    System.out.println(String.format("Completed. Deleted %d orphans.", CollaborationHelper.pruneOrphans(provider)));
+    AdminLogger.log("Deleting collaboration orphans... ");
+    AdminLogger.log("Completed. Deleted {} orphans.", CollaborationHelper.pruneOrphans(provider));
   }
 
   private static void reindexData(LocalKVStoreProvider provider) throws Exception {
     for(StoreWithId s : provider) {
-      System.out.print("Reindexing ");
-      System.out.print(s.getId());
-      System.out.print("... ");
+      AdminLogger.log("Reindexing {}... ", s.getId());
       s.getStore().getAdmin().reindex();
-      System.out.println("Completed.");
+      AdminLogger.log("Completed.");
     }
   }
 
   private static void compactStore(LocalKVStoreProvider provider) throws Exception {
     for(StoreWithId s : provider) {
-      System.out.print("Compacting ");
-      System.out.print(s.getId());
-      System.out.print("... ");
+      AdminLogger.log("Compacting {}... ", s.getId());
       s.getStore().getAdmin().compactKeyValues();
-      System.out.println("Completed.");
+      AdminLogger.log("Completed.");
     }
   }
 

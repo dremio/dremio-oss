@@ -66,12 +66,12 @@ export class AccountMenu extends Component {
           <span style={styles.menuInformation}>{intl.formatMessage({ id: 'HeaderMenu.InternalBuild' })}</span>
         </MenuItem>}
       {config.shouldEnableBugFiling
-        && <MenuItem onTouchTap={this.onFileABug}>{intl.formatMessage({ id: 'HeaderMenu.FileABug' })}</MenuItem>}
+        && <MenuItem onClick={this.onFileABug}>{intl.formatMessage({ id: 'HeaderMenu.FileABug' })}</MenuItem>}
       {config.shouldEnableBugFiling && <DividerHr/>}
-      <MenuItem onTouchTap={this.onAccountSettings}>
+      <MenuItem onClick={this.onAccountSettings}>
         {intl.formatMessage({ id: 'HeaderMenu.AccountSettings' })}
       </MenuItem>
-      <MenuItem onTouchTap={this.onLogOut}>
+      <MenuItem onClick={this.onLogOut}>
         {intl.formatMessage({ id: 'HeaderMenu.LogOut' })}
       </MenuItem>
     </Menu>;

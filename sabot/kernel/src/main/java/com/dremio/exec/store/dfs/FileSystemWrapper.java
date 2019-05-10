@@ -19,6 +19,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.EnumSet;
@@ -62,6 +63,7 @@ import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.Progressable;
 
 import com.dremio.exec.store.LocalSyncableFileSystem;
+import com.dremio.exec.store.dfs.async.AsyncByteReader;
 import com.dremio.exec.util.AssertionUtil;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.context.OperatorStats.WaitRecorder;
@@ -77,16 +79,23 @@ import com.google.common.collect.Maps;
  * If {@link com.dremio.sabot.exec.context.OperatorStats} are provided it returns an instrumented FSDataInputStream to
  * measure IO wait time and tracking file open/close operations.
  */
-public class FileSystemWrapper extends FileSystem implements OpenFileTracker, PathCanonicalizer {
+public class FileSystemWrapper extends FileSystem
+  implements OpenFileTracker, PathCanonicalizer, AsyncByteReader.MayProvideAsyncStream {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FileSystemWrapper.class);
   private final static boolean TRACKING_ENABLED = AssertionUtil.isAssertionsEnabled();
 
   private final static DremioFileSystemCache DREMIO_FS_CACHE = new DremioFileSystemCache();
 
+  private static final String FORCE_REFRESH_LEVELS = "dremio.fs.force_refresh_levels";
+  private static int FORCE_REFRESH_LEVELS_VALUE = Integer.getInteger(FORCE_REFRESH_LEVELS, 2);
+
   public static final String HIDDEN_FILE_PREFIX = "_";
   public static final String DOT_FILE_PREFIX = ".";
   public static final String MAPRFS_SCHEME = "maprfs";
   public static final String NAS_SCHEME = "file";
+
+  private static final String NON_EXISTENT_FILE_SUFFIX = ".___NoFile___._";
+  private static long NON_EXISTENT_FILE_COUNTER = 1;
 
   private final ConcurrentMap<FSDataInputStream, DebugStackTrace> openedFiles = Maps.newConcurrentMap();
 
@@ -96,26 +105,42 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   private final boolean isPdfs;
   private final boolean isMapRfs;
   private final boolean isNAS;
+  private final boolean enableAsync;
 
   public FileSystemWrapper(Configuration fsConf) throws IOException {
-    this(fsConf, (OperatorStats) null, null);
+    this(fsConf, (OperatorStats) null, null, false);
   }
 
   public FileSystemWrapper(Configuration fsConf, OperatorStats operatorStats, List<String> connectionUniqueProps) throws IOException {
-    this(fsConf, DREMIO_FS_CACHE.get(FileSystem.getDefaultUri(fsConf), fsConf, connectionUniqueProps), operatorStats);
+    this(fsConf, operatorStats, connectionUniqueProps, false);
   }
 
-  public FileSystemWrapper(Configuration fsConf, FileSystem fs) throws IOException {
-    this(fsConf, fs, null);
+  public FileSystemWrapper(Configuration fsConf, OperatorStats operatorStats, List<String> connectionUniqueProps, boolean enableAsync) throws IOException {
+    this(fsConf, DREMIO_FS_CACHE.get(FileSystem.getDefaultUri(fsConf),
+      fsConf, connectionUniqueProps), operatorStats, enableAsync);
+
+  }
+
+  public FileSystemWrapper(Configuration fsConf, FileSystem fs)  {
+    this(fsConf, fs, null, false);
+  }
+
+  public FileSystemWrapper(Configuration fsConf, FileSystem fs, boolean enableAsync) {
+    this(fsConf, fs, null, enableAsync);
   }
 
   public FileSystemWrapper(Configuration fsConf, FileSystem fs, OperatorStats operatorStats) {
+    this(fsConf, fs, operatorStats, false);
+  }
+
+  public FileSystemWrapper(Configuration fsConf, FileSystem fs, OperatorStats operatorStats, boolean enableAsync) {
     this.underlyingFs = fs;
     this.codecFactory = new CompressionCodecFactory(fsConf);
     this.operatorStats = operatorStats;
     this.isPdfs = (underlyingFs instanceof PathCanonicalizer); // only pdfs implements PathCanonicalizer
     this.isMapRfs = isMapRfs(underlyingFs);
     this.isNAS = isNAS(underlyingFs);
+    this.enableAsync = enableAsync;
   }
 
   private static boolean isMapRfs(FileSystem fs) {
@@ -138,9 +163,9 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
     return new FileSystemWrapper(fsConf);
   }
 
-  public static FileSystemWrapper get(URI uri, Configuration fsConf) throws IOException {
+  public static FileSystemWrapper get(URI uri, Configuration fsConf, boolean enableAsync) throws IOException {
     FileSystem fs = FileSystem.get(uri, fsConf);
-    return new FileSystemWrapper(fsConf, fs);
+    return new FileSystemWrapper(fsConf, fs, enableAsync);
   }
 
   public static FileSystemWrapper get(Path path, Configuration fsConf) throws IOException {
@@ -148,21 +173,29 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
     return new FileSystemWrapper(fsConf, fs);
   }
 
+  public static FileSystemWrapper get(Configuration fsConf, OperatorStats stats, boolean enableAsync) throws IOException {
+    return new FileSystemWrapper(fsConf, stats, null, enableAsync);
+  }
+
   public static FileSystemWrapper get(Configuration fsConf, OperatorStats stats) throws IOException {
-    return new FileSystemWrapper(fsConf, stats, null);
+    return get(fsConf, stats, false);
   }
 
   public static FileSystemWrapper get(Path path, Configuration fsConf, OperatorStats stats) throws IOException {
+    return get(path, fsConf, stats, false);
+  }
+
+  public static FileSystemWrapper get(Path path, Configuration fsConf, OperatorStats stats, boolean enableAsync) throws IOException {
     FileSystem fs = path.getFileSystem(fsConf);
-    return new FileSystemWrapper(fsConf, fs, stats);
+    return new FileSystemWrapper(fsConf, fs, stats, enableAsync);
   }
 
   public static FileSystemWrapper get(URI uri, Configuration fsConf, OperatorStats stats) throws IOException {
     FileSystem fs = FileSystem.get(uri, fsConf);
-    return new FileSystemWrapper(fsConf, fs, stats);
+    return new FileSystemWrapper(fsConf, fs, stats, false);
   }
 
-  OperatorStats getOperatorStats() {
+  public OperatorStats getOperatorStats() {
     return operatorStats;
   }
 
@@ -180,13 +213,58 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
     return underlyingFs.getConf();
   }
 
+  // See DX-15492
+  private void openNonExistentFileInPath(Path f) throws IOException {
+    Path nonExistentFile = f.suffix(NON_EXISTENT_FILE_SUFFIX + NON_EXISTENT_FILE_COUNTER++);
+
+    try (FSDataInputStream is = underlyingFs.open(nonExistentFile)) {
+    } catch (FileNotFoundException fileNotFoundException) {
+      return;
+    } catch (AccessControlException accessControlException) {
+      String errMsg = "Open failed for file: " + f.toString() + " error: Permission denied (13)";
+      throw new AccessControlException(errMsg);
+    } catch (Exception e) {
+      // Re-throw exception
+      throw e;
+    }
+  }
+
+  private void checkAccessAllowedOnPathIfMaprfs(Path f) throws IOException {
+    if (!isMapRfs) {
+      return;
+    }
+
+    openNonExistentFileInPath(f);
+  }
+
+  private FSDataInputStream openFile(Path f, int bufferSize) throws IOException {
+    checkAccessAllowedOnPathIfMaprfs(f);
+    return underlyingFs.open(f, bufferSize);
+  }
+
+  private FSDataInputStream openFile(Path f) throws IOException {
+    checkAccessAllowedOnPathIfMaprfs(f);
+    return underlyingFs.open(f);
+  }
+
+  // See DX-15492
+  private void checkAccessAllowed(Path f, FsAction mode) throws IOException {
+    if (!isMapRfs) {
+      underlyingFs.access(f, mode);
+      return;
+    }
+
+    openNonExistentFileInPath(f);
+    underlyingFs.access(f, mode);
+  }
+
   /**
    * If OperatorStats are provided return a instrumented {@link org.apache.hadoop.fs.FSDataInputStream}.
    */
   @Override
   public FSDataInputStream open(Path f, int bufferSize) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return newFSDataInputStreamWrapper(f, underlyingFs.open(f, bufferSize));
+      return newFSDataInputStreamWrapper(f, openFile(f, bufferSize));
     } catch(FSError e) {
       throw propagateFSError(e);
     }
@@ -198,7 +276,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Override
   public FSDataInputStream open(Path f) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return newFSDataInputStreamWrapper(f, underlyingFs.open(f));
+      return newFSDataInputStreamWrapper(f, openFile(f));
     } catch(FSError e) {
       throw propagateFSError(e);
     }
@@ -1156,7 +1234,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
   @Override
   public void access(final Path path, final FsAction mode) throws AccessControlException, FileNotFoundException, IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      underlyingFs.access(path, mode);
+      checkAccessAllowed(path, mode);
     } catch(FSError e) {
       throw propagateFSError(e);
     }
@@ -1243,11 +1321,29 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
 
       This uses Java File APIs directly.
      */
-    try {
-      logger.trace("Attempting to refresh {}", f);
-      Files.newDirectoryStream(Paths.get(f.getParent().toString())).close();
-    } catch (IOException e) {
-      logger.trace("Refresh generated exception: {}", e);
+    java.nio.file.Path p = Paths.get(f.toString());
+
+    /*
+      n level of directories may be created in the executor. To refresh, the base directory
+      the coordinator is aware of needs to be refreshed. The default level is 2.
+     */
+    for (int i = 0; i < FORCE_REFRESH_LEVELS_VALUE; i++) {
+      p = p.getParent();
+      if (p == null) {
+        return;
+      }
+      /*
+        Need to use a call that would cause the trigger of a directory refresh.
+        Checking isFile() or isDirectory() does not refresh the NFS directory cache.
+        Opening the file/directory also does not also refresh the NFS diretory cache.
+        Parent of a file or directory is always a directory. Attempting to open  a directory
+        already known to the client refreshes the directory tree.
+      */
+      try (DirectoryStream ignore = Files.newDirectoryStream(p)) {
+        return; //return if there is no exception, i.e. it was found
+      } catch (IOException e) {
+        logger.trace("Refresh generated exception: {}", e);
+      }
     }
   }
 
@@ -1395,6 +1491,18 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
     openedFiles.remove(fsDataInputStream);
   }
 
+  @Override
+  public boolean supportsAsync() {
+    return enableAsync &&
+      (underlyingFs instanceof AsyncByteReader.MayProvideAsyncStream) &&
+      ((AsyncByteReader.MayProvideAsyncStream) underlyingFs).supportsAsync();
+  }
+
+  @Override
+  public AsyncByteReader getAsyncByteReader(Path path) throws IOException {
+    return ((AsyncByteReader.MayProvideAsyncStream) underlyingFs).getAsyncByteReader(path);
+  }
+
   public static class DebugStackTrace {
     final private StackTraceElement[] elements;
     final private Path path;
@@ -1446,7 +1554,7 @@ public class FileSystemWrapper extends FileSystem implements OpenFileTracker, Pa
     }
   }
 
-  static IOException propagateFSError(FSError e) throws IOException {
+  public static IOException propagateFSError(FSError e) throws IOException {
     Throwables.propagateIfPossible(e.getCause(), IOException.class);
     return new IOException("Unexpected FSError", e);
   }

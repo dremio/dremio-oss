@@ -33,7 +33,6 @@ export default class HistoryLine extends Component {
     historyItems: PropTypes.instanceOf(Immutable.List),
     tipVersion: PropTypes.string,
     activeVersion: PropTypes.string,
-    datasetPathname: PropTypes.string,
     location: PropTypes.object
   };
 
@@ -42,7 +41,7 @@ export default class HistoryLine extends Component {
   }
 
   render() {
-    const { historyItems, tipVersion, activeVersion, location, datasetPathname } = this.props;
+    const { historyItems, tipVersion, activeVersion, location } = this.props;
     return (
       <div className='history-line' style={[styles.base]}>
         { historyItems.map((item, index, arr) =>
@@ -53,7 +52,6 @@ export default class HistoryLine extends Component {
             isLast={index === arr.size - 1}
             tipVersion={tipVersion}
             activeVersion={activeVersion}
-            datasetPathname={datasetPathname}
           />
         )
         }

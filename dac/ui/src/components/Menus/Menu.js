@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import React, { Component } from 'react';
-import MenuMaterial from 'material-ui/Menu';
+import MenuList from '@material-ui/core/MenuList';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import DividerHr from './DividerHr';
@@ -22,10 +22,8 @@ import DividerHr from './DividerHr';
 @pureRender
 export default class Menu extends Component {
   static propTypes = {
-    onEscKeyDown: PropTypes.func,
     children: PropTypes.node,
-    style: PropTypes.object,
-    listStyle: PropTypes.object
+    style: PropTypes.object
   }
 
   getItems() {
@@ -47,17 +45,15 @@ export default class Menu extends Component {
   }
 
   render() {
-    const { style, listStyle, onEscKeyDown } = this.props;
+    const { style } = this.props;
 
     return (
-      <MenuMaterial
+      <MenuList
         data-qa='popover-menu'
-        onEscKeyDown={onEscKeyDown}
         style={style ? style : styles.menuStyle}
-        listStyle={listStyle ? listStyle : styles.listStyle}
-        desktop>
+      >
         {this.getItems()}
-      </MenuMaterial>
+      </MenuList>
     );
   }
 }
@@ -67,12 +63,8 @@ const styles = {
     float: 'left',
     position: 'relative',
     zIndex: 1,
-    padding: 0,
-    overflow: 'hidden'
-  },
-  listStyle: {
-    paddingTop: 5,
-    paddingBottom: 5,
+    padding: '5px 0',
+    overflow: 'hidden',
     width: 192
   }
 };

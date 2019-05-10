@@ -251,4 +251,47 @@ public interface OutputDerivation {
       return CompleteType.fromDecimalPrecisionScale(precision, 0);
     }
   };
+
+  /**
+   * Used to derive the output precision and scale for sum and sum0 aggregations.
+   * Rules follow T-SQL derivation rules.
+   */
+  public static class DecimalAggSum implements OutputDerivation {
+
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DecimalCast.class);
+
+    @Override
+    public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
+      if (args.size() != 1) {
+        throw UserException.functionError().message("Attempted to sum a decimal column with " +
+          "inccorect number of arguments. Expected one but received %d arguments.", args.size()).build(logger);
+      }
+
+      LogicalExpression aggColumn = args.get(0);
+
+      return CompleteType.fromDecimalPrecisionScale(38, aggColumn.getCompleteType().getScale());
+    }
+  };
+
+  /**
+   * Used to derive the output precision and scale for min and max aggregations.
+   * Rules follow T-SQL derivation rules.
+   */
+  public static class DecimalAggMinMax implements OutputDerivation {
+
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DecimalCast.class);
+
+    @Override
+    public CompleteType getOutputType(CompleteType baseReturn, List<LogicalExpression> args) {
+      if (args.size() != 1) {
+        throw UserException.functionError().message("Attempted to min/max a decimal column with " +
+          "inccorect number of arguments. Expected one but received %d arguments.", args.size()).build(logger);
+      }
+
+      LogicalExpression aggColumn = args.get(0);
+
+      return CompleteType.fromDecimalPrecisionScale(aggColumn.getCompleteType().getPrecision(), aggColumn
+        .getCompleteType().getScale());
+    }
+  };
 }

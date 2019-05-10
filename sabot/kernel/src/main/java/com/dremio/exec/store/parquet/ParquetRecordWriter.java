@@ -39,6 +39,7 @@ import org.apache.arrow.vector.complex.UnionVectorHelper;
 import org.apache.arrow.vector.complex.impl.SingleStructReaderImpl;
 import org.apache.arrow.vector.complex.impl.UnionReader;
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.NullableDateMilliHolder;
 import org.apache.arrow.vector.holders.NullableTimeStampMilliHolder;
 import org.apache.arrow.vector.types.Types;
 import org.apache.arrow.vector.types.pojo.ArrowType.Null;
@@ -53,6 +54,7 @@ import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.ParquetProperties.WriterVersion;
 import org.apache.parquet.column.impl.ColumnWriteStoreV1;
 import org.apache.parquet.column.page.PageWriteStore;
+import org.apache.parquet.column.values.factory.DefaultV1ValuesWriterFactory;
 import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.ColumnChunkPageWriteStoreExposer;
 import org.apache.parquet.hadoop.ParquetFileWriter;
@@ -76,6 +78,7 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
+import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
 import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.record.BatchSchema;
@@ -83,6 +86,7 @@ import com.dremio.exec.store.EventBasedRecordWriter;
 import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
 import com.dremio.exec.store.ParquetOutputRecordWriter;
 import com.dremio.exec.store.WritePartition;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.MetricDef;
@@ -123,6 +127,8 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
   private final BufferAllocator codecAllocator;
   private final BufferAllocator columnEncoderAllocator;
+
+  private final FileSystemPlugin<?> plugin;
 
   private ParquetFileWriter parquetFileWriter;
   private MessageType schema;
@@ -176,6 +182,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     this.extraMetaData.put(IS_DATE_CORRECT_PROPERTY, "true");
 
     this.proxyUserUGI = writer.getUGI();
+    this.plugin = writer.getFormatPlugin().getFsPlugin();
 
     FragmentHandle handle = context.getFragmentHandle();
     String fragmentId = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
@@ -214,7 +221,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
   @Override
   public void setup() throws IOException {
-    this.fs = FileSystemWrapper.get(conf, context.getStats());
+    this.fs = plugin.getFileSystem(conf, context);
     this.batchSchema = incoming.getSchema();
     newSchema();
 
@@ -268,10 +275,19 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     schema = new MessageType("root", types);
 
     int dictionarySize = (int)context.getOptions().getOption(ExecConstants.PARQUET_DICT_PAGE_SIZE_VALIDATOR);
-    final ParquetProperties parquetProperties = new ParquetProperties(dictionarySize, writerVersion, enableDictionary,
-      new ParquetDirectByteBufferAllocator(columnEncoderAllocator), pageSize, true, enableDictionaryForBinary);
+    final ParquetProperties parquetProperties = ParquetProperties.builder()
+      .withDictionaryPageSize(dictionarySize)
+      .withWriterVersion(writerVersion)
+      .withValuesWriterFactory(new DefaultV1ValuesWriterFactory())
+      .withDictionaryEncoding(enableDictionary)
+      .withAllocator(new ParquetDirectByteBufferAllocator(columnEncoderAllocator))
+      .withPageSize(pageSize)
+      .withAddPageHeadersToMetadata(true)
+      .withEnableDictionarForBinaryType(enableDictionaryForBinary)
+      .withPageRowCountLimit(Integer.MAX_VALUE) // Bug 16118
+      .build();
     pageStore = ColumnChunkPageWriteStoreExposer.newColumnChunkPageWriteStore(codecFactory.getCompressor(codec), schema, parquetProperties);
-    store = new ColumnWriteStoreV1(pageStore, pageSize, parquetProperties);
+    store = new ColumnWriteStoreV1(pageStore, parquetProperties);
     MessageColumnIO columnIO = new ColumnIOFactory(false).getColumnIO(this.schema);
     consumer = columnIO.getRecordWriter(store);
     setUp(schema, consumer);
@@ -408,12 +424,15 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     public byte[] getMetadata();
   }
 
-  private static class UpdateBigIntTrackingConverter extends FieldConverter implements UpdateTrackingConverter {
+  private static class UpdateIdTrackingConverter extends FieldConverter implements UpdateTrackingConverter {
 
-    private Long max;
+    private UpdateIdWrapper updateIdWrapper;
+    private final NullableTimeStampMilliHolder timeStampHolder = new NullableTimeStampMilliHolder();
+    private final NullableDateMilliHolder dateHolder = new NullableDateMilliHolder();
 
-    public UpdateBigIntTrackingConverter(int fieldId, String fieldName, FieldReader reader) {
+    public UpdateIdTrackingConverter(int fieldId, String fieldName, FieldReader reader, com.dremio.common.types.MinorType type) {
       super(fieldId, fieldName, reader);
+      this.updateIdWrapper = new UpdateIdWrapper(type);
     }
 
     @Override
@@ -421,60 +440,51 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       if (!reader.isSet()) {
         return;
       }
-      if(max == null){
-        max = reader.readLong();
-      }else {
-        max = Math.max(max,  reader.readLong());
+      switch(updateIdWrapper.getType()) {
+        case FLOAT4:
+          updateIdWrapper.update(reader.readFloat());
+          break;
+        case FLOAT8:
+          updateIdWrapper.update(reader.readDouble());
+          break;
+        case VARCHAR:
+          updateIdWrapper.update(reader.readText().toString());
+          break;
+        case TIMESTAMP:
+          reader.read(timeStampHolder);
+          updateIdWrapper.update(timeStampHolder.value, com.dremio.common.types.MinorType.TIMESTAMP);
+          break;
+        case DECIMAL:
+          updateIdWrapper.update(reader.readBigDecimal());
+          break;
+        case INT:
+          updateIdWrapper.update(reader.readInteger(), com.dremio.common.types.MinorType.INT);
+          break;
+        case BIGINT:
+          updateIdWrapper.update(reader.readLong(), com.dremio.common.types.MinorType.BIGINT);
+          break;
+        case DATE:
+          reader.read(dateHolder);
+          int daysFromEpoch = (int) (dateHolder.value / 1000 / 60 / 60 / 24);
+          updateIdWrapper.update(daysFromEpoch, com.dremio.common.types.MinorType.DATE);
+          break;
+        default:
       }
     }
 
     @Override
     public byte[] getMetadata() {
-      if(max != null){
-        // TODO replace with better serialization
-        return Long.toString(max).getBytes();
+      if(updateIdWrapper.getUpdateId() != null) {
+        return updateIdWrapper.serialize();
       }
       return null;
     }
-  }
-
-  private static class UpdateTimestampTrackingConverter extends FieldConverter implements UpdateTrackingConverter {
-
-    private Long max;
-    private final NullableTimeStampMilliHolder holder = new NullableTimeStampMilliHolder();
-
-    public UpdateTimestampTrackingConverter(int fieldId, String fieldName, FieldReader reader) {
-      super(fieldId, fieldName, reader);
-    }
-
-    @Override
-    public void writeField() throws IOException {
-      if (!reader.isSet()) {
-        return;
-      }
-      if(max == null){
-        reader.read(holder);
-        max = holder.value;
-      }else {
-        max = Math.max(max,  reader.readLong());
-      }
-    }
-
-    @Override
-    public byte[] getMetadata() {
-      if(max != null){
-        // TODO replace with better serialization
-        return Long.toString(max).getBytes();
-      }
-      return null;
-    }
-
   }
 
   @Override
-  public FieldConverter getNewNullableBigIntConverter(int fieldId, String fieldName, FieldReader reader) {
+  public FieldConverter getNewNullableBigIntConverter(int fieldId, String fieldName, FieldReader reader) { // bigint
     if(IncrementalUpdateUtils.UPDATE_COLUMN.equals(fieldName)){
-      UpdateBigIntTrackingConverter c = new UpdateBigIntTrackingConverter(fieldId, fieldName, reader);
+      UpdateIdTrackingConverter c = new UpdateIdTrackingConverter(fieldId, fieldName, reader, com.dremio.common.types.MinorType.BIGINT);
       Preconditions.checkArgument(this.trackingConverter == null, "More than one update field found.");
       this.trackingConverter = c;
       return c;
@@ -483,14 +493,80 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   }
 
   @Override
-  public FieldConverter getNewNullableTimeStampMilliConverter(int fieldId, String fieldName, FieldReader reader) {
+  public FieldConverter getNewNullableTimeStampMilliConverter(int fieldId, String fieldName, FieldReader reader) { // timstamp
     if(IncrementalUpdateUtils.UPDATE_COLUMN.equals(fieldName)){
-      UpdateTimestampTrackingConverter c = new UpdateTimestampTrackingConverter(fieldId, fieldName, reader);
+      UpdateIdTrackingConverter c = new UpdateIdTrackingConverter(fieldId, fieldName, reader, com.dremio.common.types.MinorType.TIMESTAMP);
       Preconditions.checkArgument(this.trackingConverter == null, "More than one update field found.");
       this.trackingConverter = c;
       return c;
     }
     return super.getNewNullableTimeStampMilliConverter(fieldId, fieldName, reader);
+  }
+
+  @Override
+  public FieldConverter getNewNullableIntConverter(int fieldId, String fieldName, FieldReader reader) { // int
+    if (IncrementalUpdateUtils.UPDATE_COLUMN.equals(fieldName)) {
+      UpdateIdTrackingConverter c = new UpdateIdTrackingConverter(fieldId, fieldName, reader, com.dremio.common.types.MinorType.INT);
+      Preconditions.checkArgument(this.trackingConverter == null, "More than one update field found.");
+      this.trackingConverter = c;
+      return c;
+    }
+    return super.getNewNullableIntConverter(fieldId, fieldName, reader);
+  }
+
+  @Override
+  public FieldConverter getNewNullableFloat4Converter(int fieldId, String fieldName, FieldReader reader) { // float
+    if (IncrementalUpdateUtils.UPDATE_COLUMN.equals(fieldName)) {
+      UpdateIdTrackingConverter c = new UpdateIdTrackingConverter(fieldId, fieldName, reader, com.dremio.common.types.MinorType.FLOAT4);
+      Preconditions.checkArgument(this.trackingConverter == null, "More than one update field found.");
+      this.trackingConverter = c;
+      return c;
+    }
+    return super.getNewNullableFloat4Converter(fieldId, fieldName, reader);
+  }
+
+  @Override
+  public FieldConverter getNewNullableFloat8Converter(int fieldId, String fieldName, FieldReader reader) { // double
+    if (IncrementalUpdateUtils.UPDATE_COLUMN.equals(fieldName)) {
+      UpdateIdTrackingConverter c = new UpdateIdTrackingConverter(fieldId, fieldName, reader, com.dremio.common.types.MinorType.FLOAT8);
+      Preconditions.checkArgument(this.trackingConverter == null, "More than one update field found.");
+      this.trackingConverter = c;
+      return c;
+    }
+    return super.getNewNullableFloat8Converter(fieldId, fieldName, reader);
+  }
+
+  @Override
+  public FieldConverter getNewNullableDecimalConverter(int fieldId, String fieldName, FieldReader reader) { // decimal
+    if (IncrementalUpdateUtils.UPDATE_COLUMN.equals(fieldName)) {
+      UpdateIdTrackingConverter c = new UpdateIdTrackingConverter(fieldId, fieldName, reader, com.dremio.common.types.MinorType.DECIMAL);
+      Preconditions.checkArgument(this.trackingConverter == null, "More than one update field found.");
+      this.trackingConverter = c;
+      return c;
+    }
+    return super.getNewNullableDecimalConverter(fieldId, fieldName, reader);
+  }
+
+  @Override
+  public FieldConverter getNewNullableVarCharConverter(int fieldId, String fieldName, FieldReader reader) { // varchar
+    if (IncrementalUpdateUtils.UPDATE_COLUMN.equals(fieldName)) {
+      UpdateIdTrackingConverter c = new UpdateIdTrackingConverter(fieldId, fieldName, reader, com.dremio.common.types.MinorType.VARCHAR);
+      Preconditions.checkArgument(this.trackingConverter == null, "More than one update field found.");
+      this.trackingConverter = c;
+      return c;
+    }
+    return super.getNewNullableVarCharConverter(fieldId, fieldName, reader);
+  }
+
+  @Override
+  public FieldConverter getNewNullableDateMilliConverter(int fieldId, String fieldName, FieldReader reader) { // date
+    if (IncrementalUpdateUtils.UPDATE_COLUMN.equals(fieldName)) {
+      UpdateIdTrackingConverter c = new UpdateIdTrackingConverter(fieldId, fieldName, reader, com.dremio.common.types.MinorType.DATE);
+      Preconditions.checkArgument(this.trackingConverter == null, "More than one update field found.");
+      this.trackingConverter = c;
+      return c;
+    }
+    return super.getNewNullableDateMilliConverter(fieldId, fieldName, reader);
   }
 
   @Override

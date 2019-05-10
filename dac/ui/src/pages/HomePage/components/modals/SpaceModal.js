@@ -15,7 +15,6 @@
  */
 import { Component } from 'react';
 import PropTypes from 'prop-types';
-import Immutable from 'immutable';
 import { connect } from 'react-redux';
 import { injectIntl } from 'react-intl';
 
@@ -23,6 +22,7 @@ import { injectIntl } from 'react-intl';
 import { getEntity, getViewState } from 'selectors/resources';
 import Modal from 'components/Modals/Modal';
 import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
+import { ENTITY_TYPES } from '@app/constants/Constants';
 
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import { createNewSpace, updateSpace } from 'actions/resources/spaces';
@@ -33,9 +33,10 @@ import './Modal.less';
 export const VIEW_ID = 'SpaceModal';
 
 const mapStateToProps = (state, props) => {
-  const entity = getEntity(state, props.entityId, 'space');
+  const entity = getEntity(state, props.entityId, ENTITY_TYPES.space);
   return {
-    entity,
+    spaceName: entity ? entity.get('name') : null,
+    spaceVersion: entity ? entity.get('version') : null,
     viewState: getViewState(state, VIEW_ID)
   };
 };
@@ -49,7 +50,8 @@ export class SpaceModal extends Component {
     entityId: PropTypes.string,
 
     //connected
-    entity: PropTypes.instanceOf(Immutable.Map),
+    spaceName: PropTypes.string,
+    spaceVersion: PropTypes.string,
     createNewSpace: PropTypes.func,
     updateSpace: PropTypes.func,
     initialFormValues: PropTypes.object,
@@ -67,33 +69,33 @@ export class SpaceModal extends Component {
 
   submit = (values) => {
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.entity ? this.props.updateSpace(values) : this.props.createNewSpace(values)
+      this.props.entityId ? this.props.updateSpace(values) : this.props.createNewSpace(values)
     ).then(() => this.props.hide(null, true));
   }
 
   renderForm() {
-    const { entity, initialFormValues, updateFormDirtyState } = this.props;
+    const { entityId, spaceName, spaceVersion, initialFormValues, updateFormDirtyState } = this.props;
 
     return <SpaceForm
-      initialValues={entity ? {
-        name: entity.get('name'),
-        version: entity.get('version'),
-        id: entity.get('id'),
+      initialValues={entityId ? {
+        name: spaceName,
+        version: spaceVersion,
+        id: entityId,
         ...initialFormValues
       } : null}
       updateFormDirtyState={updateFormDirtyState}
-      editing={entity !== undefined}
+      editing={entityId !== undefined}
       onFormSubmit={this.submit}
       onCancel={this.hide}
     />;
   }
 
   render() {
-    const { isOpen, entity, intl } = this.props;
+    const { isOpen, entityId, intl } = this.props;
     return (
       <Modal
         size='small'
-        title={entity ? intl.formatMessage({ id: 'Space.EditSpace' }) : intl.formatMessage({ id: 'Space.AddSpace' })}
+        title={entityId ? intl.formatMessage({ id: 'Space.EditSpace' }) : intl.formatMessage({ id: 'Space.AddSpace' })}
         isOpen={isOpen}
         hide={this.hide}>
         {this.renderForm()}

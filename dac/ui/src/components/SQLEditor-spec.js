@@ -16,7 +16,7 @@
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 
-import SQLEditor from './SQLEditor';
+import { SQLEditor } from './SQLEditor';
 
 describe('SQLEditor', () => {
 

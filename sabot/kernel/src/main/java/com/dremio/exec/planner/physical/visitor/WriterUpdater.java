@@ -134,7 +134,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
 
       final RelCollation collation = getCollation(prel.getTraitSet(), sortKeys);
 
-      final Prel sort = new SortPrel(project.getCluster(), project.getTraitSet().plus(collation), project, collation);
+      final Prel sort = SortPrel.create(project.getCluster(), project.getTraitSet().plus(collation), project, collation);
 
       List<Integer> fieldIndices = new ArrayList<>();
       // add bucket field.
@@ -170,7 +170,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
       }
 
       final RelCollation collation = getCollation(prel.getTraitSet(), sortKeys);
-      final Prel sort = new SortPrel(input.getCluster(), input.getTraitSet().plus(collation), input, collation);
+      final Prel sort = SortPrel.create(input.getCluster(), input.getTraitSet().plus(collation), input, collation);
 
       // we need to sort by the partitions.
       final Prel changeDetectionPrel = addChangeDetectionProject(sort, getFieldIndices(options.getPartitionColumns(), input.getRowType()));
@@ -181,7 +181,7 @@ public class WriterUpdater extends BasePrelVisitor<Prel, Void, RuntimeException>
       // no partitions or distributions.
       // insert a sort on sort fields.
       final RelCollation collation = getCollation(prel.getTraitSet(), getFieldIndices(options.getSortColumns(), input.getRowType()));
-      final Prel sort = new SortPrel(input.getCluster(), input.getTraitSet().plus(collation), input, collation);
+      final Prel sort = SortPrel.create(input.getCluster(), input.getTraitSet().plus(collation), input, collation);
       final WriterPrel writer = new WriterPrel(prel.getCluster(), prel.getTraitSet(), sort, prel.getCreateTableEntry(), prel.getExpectedInboundRowType());
       return writer;
 

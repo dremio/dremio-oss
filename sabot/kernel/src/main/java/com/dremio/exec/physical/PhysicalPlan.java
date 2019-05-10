@@ -68,7 +68,7 @@ public class PhysicalPlan {
   public double getCost(){
     double totalCost = 0;
     for (final PhysicalOperator ops : getSortedOperators()) {
-      totalCost += ops.getCost();
+      totalCost += ops.getProps().getCost();
     }
     return totalCost;
   }

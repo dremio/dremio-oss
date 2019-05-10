@@ -13,67 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import { connect }   from 'react-redux';
-import Immutable from 'immutable';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
+
 import PropTypes from 'prop-types';
 import DocumentTitle from 'react-document-title';
 import { injectIntl } from 'react-intl';
 
 import HomePage from 'pages/HomePage/HomePage';
-import { loadSpaceListData, setSpacePin } from 'actions/resources/spaces';
-import { getSpaces } from 'selectors/resources';
 
 import AllSpacesView from './AllSpacesView.js';
 
-@pureRender
 @injectIntl
-export class AllSpaces extends Component {
+export class AllSpaces extends PureComponent {
   static propTypes = {
     location: PropTypes.object.isRequired,
-    setSpacePin: PropTypes.func,
-    loadSpaceListData: PropTypes.func,
-    spaces: PropTypes.instanceOf(Immutable.List),
     intl: PropTypes.object.isRequired
   };
 
-  componentWillMount() {
-    this.props.loadSpaceListData();
-  }
-
-  componentWillReceiveProps(nextProps) {
-    if (this.props.location.pathname !== nextProps.location.pathname) {
-      this.props.loadSpaceListData();
-    }
-  }
-
-  toggleActivePin = (name, pinState) => {
-    this.props.setSpacePin(name, !pinState);
-  }
-
   render() {
-    const { location, spaces, intl } = this.props;
+    const { location, intl } = this.props;
     return (
       <HomePage location={location}>
         <DocumentTitle title={intl.formatMessage({ id: 'Space.AllSpaces' })} />
-        <AllSpacesView
-          filters={this.filters}
-          spaces={spaces}
-          toggleActivePin={this.toggleActivePin}
-        />
+        <AllSpacesView />
       </HomePage>
     );
   }
 }
-
-function mapStateToProps(state) {
-  return {
-    spaces: getSpaces(state)
-  };
-}
-
-export default connect(mapStateToProps, {
-  loadSpaceListData,
-  setSpacePin
-})(AllSpaces);

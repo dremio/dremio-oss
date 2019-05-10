@@ -30,8 +30,11 @@
       <appender name="text" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${dremio.log.path}/server.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-          <fileNamePattern>${dremio.log.path}/archive/server.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+          <fileNamePattern>${dremio.log.path}/archive/server.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
           <maxHistory>30</maxHistory>
+          <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+            <maxFileSize>100MB</maxFileSize>
+          </timeBasedFileNamingAndTriggeringPolicy>
         </rollingPolicy>
 
         <encoder>
@@ -54,8 +57,11 @@
       <appender name="json" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${dremio.log.path}/json/server.json</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-          <fileNamePattern>${dremio.log.path}/json/archive/server.%d{yyyy-MM-dd}.json.gz</fileNamePattern>
+          <fileNamePattern>${dremio.log.path}/json/archive/server.%d{yyyy-MM-dd}.%i.json.gz</fileNamePattern>
           <maxHistory>30</maxHistory>
+          <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+            <maxFileSize>100MB</maxFileSize>
+          </timeBasedFileNamingAndTriggeringPolicy>
         </rollingPolicy>
 
         <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
@@ -68,15 +74,18 @@
             <message><fieldName>message</fieldName></message>
             <arguments />
             <stackTrace />
-           </providers>
+          </providers>
         </encoder>
       </appender>
 
       <appender name="query" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${dremio.log.path}/queries.json</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-          <fileNamePattern>${dremio.log.path}/archive/queries.%d{yyyy-MM-dd}.json.gz</fileNamePattern>
+          <fileNamePattern>${dremio.log.path}/archive/queries.%d{yyyy-MM-dd}.%i.json.gz</fileNamePattern>
           <maxHistory>30</maxHistory>
+          <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+            <maxFileSize>100MB</maxFileSize>
+          </timeBasedFileNamingAndTriggeringPolicy>
         </rollingPolicy>
 
         <encoder>
@@ -124,8 +133,11 @@
         <appender name="text" class="ch.qos.logback.core.rolling.RollingFileAppender">
           <file>${dremio.log.path}/hive.deprecated.function.warning.log</file>
           <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>${dremio.log.path}/archive/hive.deprecated.function.warning.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <fileNamePattern>${dremio.log.path}/archive/hive.deprecated.function.warning.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
             <maxHistory>30</maxHistory>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+              <maxFileSize>100MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
           </rollingPolicy>
 
           <encoder>

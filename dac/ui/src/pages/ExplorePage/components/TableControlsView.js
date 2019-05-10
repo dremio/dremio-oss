@@ -13,15 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
-import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
 import { injectIntl } from 'react-intl';
 
-import TableControlsMenu from 'components/Menus/ExplorePage/TableControlsMenu';
+import ExploreTableColumnFilter from 'pages/ExplorePage/components/ExploreTable/ExploreTableColumnFilter';
 
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
 import Button from 'components/Buttons/Button';
@@ -34,23 +32,17 @@ import SqlToggle from './SqlEditor/SqlToggle';
 import SampleDataMessage from './SampleDataMessage';
 
 @injectIntl
-@pureRender
 @Radium
-class TableControls extends Component {
+class TableControls extends PureComponent {
 
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
     exploreViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
 
-    closeDropdown: PropTypes.func.isRequired,
-    toogleDropdown: PropTypes.func.isRequired,
     groupBy: PropTypes.func.isRequired,
     addField: PropTypes.func,
-    handleRequestClose: PropTypes.func.isRequired,
     join: PropTypes.func.isRequired,
     sqlState: PropTypes.bool.isRequired,
-    dropdownState: PropTypes.bool.isRequired,
-    anchorEl: PropTypes.object,
     rightTreeVisible: PropTypes.bool,
     approximate: PropTypes.bool,
     intl: PropTypes.object.isRequired
@@ -106,10 +98,7 @@ class TableControls extends Component {
       groupBy,
       join,
       exploreViewState,
-      sqlState,
-      dropdownState,
-      handleRequestClose,
-      anchorEl
+      sqlState
     } = this.props;
 
     const disable = exploreViewState.get('isInProgress');
@@ -144,22 +133,14 @@ class TableControls extends Component {
                 onClick: join
               })
             }
-            {this.renderPreviewWarning()}
+            <ExploreTableColumnFilter
+              dataset={dataset}
+            />
           </div>
         </div>
-        <Popover
-          useLayerForClickAway={false}
-          open={dropdownState}
-          canAutoPosition
-          anchorEl={anchorEl}
-          anchorOrigin={this.state.anchorOrigin}
-          targetOrigin={this.state.targetOrigin}
-          onRequestClose={handleRequestClose}
-          animation={PopoverAnimationVertical}>
-          <div style={styles.popover}>
-            <TableControlsMenu />
-          </div>
-        </Popover>
+        <div className='right-controls'>
+          {this.renderPreviewWarning()}
+        </div>
       </div>
     );
   }

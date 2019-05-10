@@ -23,6 +23,7 @@ import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.CorrelationId;
@@ -122,7 +123,13 @@ public class DremioRelFactories {
     public RelNode createAggregate(final RelNode child, final boolean indicator, final ImmutableBitSet groupSet, final ImmutableList<ImmutableBitSet> groupSets, final List<AggregateCall> aggCalls) {
       final RelOptCluster cluster = child.getCluster();
       final RelTraitSet traitSet = child.getTraitSet().plus(Rel.LOGICAL);
-      return new AggregateRel(cluster, traitSet, child, indicator, groupSet, groupSets, aggCalls);
+      try {
+        return AggregateRel.create(cluster, traitSet, child, indicator, groupSet, groupSets, aggCalls);
+      } catch (InvalidRelException e) {
+        // Semantic error not possible. Must be a bug. Convert to
+        // internal error.
+        throw new AssertionError(e);
+      }
     }
   }
 
@@ -161,14 +168,14 @@ public class DremioRelFactories {
                               RexNode condition,
                               Set<CorrelationId> variablesSet,
                               JoinRelType joinType, boolean semiJoinDone) {
-      return new JoinRel(left.getCluster(), left.getTraitSet(), left, right, condition, joinType);
+      return JoinRel.create(left.getCluster(), left.getTraitSet(), left, right, condition, joinType);
     }
 
     @Override
     public RelNode createJoin(RelNode left, RelNode right,
                               RexNode condition, JoinRelType joinType,
                               Set<String> variablesStopped, boolean semiJoinDone) {
-      return new JoinRel(left.getCluster(), left.getTraitSet(), left, right, condition, joinType);
+      return JoinRel.create(left.getCluster(), left.getTraitSet(), left, right, condition, joinType);
     }
   }
 
@@ -182,7 +189,7 @@ public class DremioRelFactories {
                               RexNode condition,
                               Set<CorrelationId> variablesSet,
                               JoinRelType joinType, boolean semiJoinDone) {
-      return new JoinRel(
+      return JoinRel.create(
           left.getCluster(),
           left.getTraitSet().plus(Rel.LOGICAL),
           RelOptRule.convert(left, left.getTraitSet().plus(Rel.LOGICAL).simplify()),
@@ -195,7 +202,7 @@ public class DremioRelFactories {
     public RelNode createJoin(RelNode left, RelNode right,
                               RexNode condition, JoinRelType joinType,
                               Set<String> variablesStopped, boolean semiJoinDone) {
-      return new JoinRel(
+      return JoinRel.create(
           left.getCluster(),
           left.getTraitSet().plus(Rel.LOGICAL),
           RelOptRule.convert(left, left.getTraitSet().plus(Rel.LOGICAL).simplify()),

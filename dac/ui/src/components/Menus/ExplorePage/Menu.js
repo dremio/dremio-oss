@@ -19,7 +19,7 @@ import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
-import Menu from 'material-ui/Menu';
+import MenuList from '@material-ui/core/MenuList';
 
 @Radium
 @pureRender
@@ -30,11 +30,10 @@ class ExploreMenu extends Component {
 
   render() {
     return (
-      <Menu
-        style={styles.base}
-        listStyle={styles.padding}>
+      <MenuList
+        style={styles.base}>
         {this.props.children}
-      </Menu>
+      </MenuList>
     );
   }
 }
@@ -42,9 +41,7 @@ class ExploreMenu extends Component {
 const styles = {
   base: {
     position: 'relative',
-    minWidth: 110
-  },
-  padding: {
+    minWidth: 110,
     paddingTop: 5,
     paddingBottom: 5
   }

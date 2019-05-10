@@ -41,6 +41,7 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FirstKeyOnlyFilter;
 
 import com.dremio.common.AutoCloseables;
@@ -50,6 +51,7 @@ import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.PathSegment.NameSegment;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.exec.proto.CoordExecRPC.HBaseSubScanSpec;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -89,12 +91,15 @@ public class HBaseRecordReader extends AbstractRecordReader implements HBaseCons
         Preconditions.checkNotNull(subScanSpec, "HBase reader needs a sub-scan spec").getNamespace(),
         Preconditions.checkNotNull(subScanSpec, "HBase reader needs a sub-scan spec").getTableName());
     hbaseScan = new Scan(
-        subScanSpec.getStartRow() == null ? HConstants.EMPTY_START_ROW : subScanSpec.getStartRow(),
-        subScanSpec.getStopRow() == null ? HConstants.EMPTY_END_ROW : subScanSpec.getStopRow());
+        subScanSpec.hasStartRow() ? subScanSpec.getStartRow().toByteArray() : HConstants.EMPTY_START_ROW,
+        subScanSpec.hasStopRow() ? subScanSpec.getStopRow().toByteArray() : HConstants.EMPTY_END_ROW);
     this.context = context;
     this.sample = sample;
+    Filter filter =
+      subScanSpec.hasSerializedFilter() ?
+        HBaseUtils.deserializeFilter(subScanSpec.getSerializedFilter().toByteArray()) : null;
     hbaseScan
-        .setFilter(subScanSpec.asScanFilter())
+        .setFilter(filter)
         .setCaching((int) numRowsPerBatch);
 
     if (!isStarQuery()) {

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.testing;
 
+import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.PARQUET_SCHEMA_FALLBACK_DISABLED;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
@@ -72,6 +73,7 @@ public class TestResourceLeak extends DremioTest {
   private static final Properties TEST_CONFIGURATIONS = new Properties() {
     {
       put(ExecConstants.HTTP_ENABLE, "false");
+      put(PARQUET_SCHEMA_FALLBACK_DISABLED, "true");
     }
   };
 

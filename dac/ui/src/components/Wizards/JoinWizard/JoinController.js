@@ -30,7 +30,6 @@ import Message from 'components/Message';
 
 import { loadExploreEntities } from 'actions/explore/dataset/get';
 import { loadJoinDataset, setJoinTab, resetJoins, setJoinStep } from 'actions/explore/join';
-import { runTableTransform } from 'actions/explore/dataset/transform';
 import { loadRecommendedJoin } from 'actions/explore/join';
 
 import { getTableColumns, getJoinTable, getExploreState } from 'selectors/explore';
@@ -76,7 +75,6 @@ export class JoinController extends Component {
 
     // actions
     loadExploreEntities: PropTypes.func,
-    runTableTransform: PropTypes.func,
     loadJoinDataset: PropTypes.func,
     loadRecommendedJoin: PropTypes.func,
     setJoinTab: PropTypes.func,
@@ -328,7 +326,6 @@ export default connectComplexForm({
   overwriteOnInitialValuesChange: false
 }, [], mapStateToProps, {
   loadExploreEntities,
-  runTableTransform,
   loadRecommendedJoin,
   loadJoinDataset,
   setJoinTab,

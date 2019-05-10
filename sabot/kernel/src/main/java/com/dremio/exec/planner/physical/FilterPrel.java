@@ -30,9 +30,16 @@ import com.dremio.exec.planner.common.FilterRelBase;
 import com.dremio.exec.planner.logical.ParseContext;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 
-
+@Options
 public class FilterPrel extends FilterRelBase implements Prel {
+
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.filter.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.filter.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+
   protected FilterPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, RexNode condition) {
     super(Prel.PHYSICAL, cluster, traits, child, condition);
   }
@@ -49,8 +56,12 @@ public class FilterPrel extends FilterRelBase implements Prel {
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
-    Filter p = new Filter(childPOP, getFilterExpression(new ParseContext(PrelUtil.getSettings(getCluster()))), 1.0f);
-    return creator.addMetadata(this, p);
+    return new Filter(
+        creator.props(this, null, childPOP.getProps().getSchema().clone(SelectionVectorMode.TWO_BYTE), RESERVE, LIMIT),
+        childPOP,
+        getFilterExpression(new ParseContext(PrelUtil.getSettings(getCluster()))),
+        1.0f
+        );
   }
 
   @Override

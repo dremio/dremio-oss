@@ -60,7 +60,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.coordinator.DistributedSemaphore;
 import com.dremio.service.coordinator.ElectionListener;
-import com.dremio.service.coordinator.ServiceSet.RegistrationHandle;
+import com.dremio.service.coordinator.ElectionRegistrationHandle;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.FutureCallback;
@@ -178,10 +178,14 @@ class ZKClusterClient implements com.dremio.service.Service {
   }
 
   public DistributedSemaphore getSemaphore(String name, int maximumLeases) {
-    return new ZkDistributedSemaphore(curator, "/semaphore/" + name, maximumLeases);
+    return new ZkDistributedSemaphore(curator, "/" + clusterId + "/semaphore/" + name, maximumLeases);
   }
 
-  public RegistrationHandle joinElection(final String name, final ElectionListener listener) {
+  public Iterable<String> getServiceNames() throws Exception {
+    return curator.getChildren().forPath("/" + clusterId);
+  }
+
+  public ElectionRegistrationHandle joinElection(final String name, final ElectionListener listener) {
     final String id = UUID.randomUUID().toString();
     // In case of multicluster Dremio env. that use the same zookeeper
     // we need a root per Dremio clusterId
@@ -301,7 +305,7 @@ class ZKClusterClient implements com.dremio.service.Service {
       throw Throwables.propagate(e);
     }
 
-    return new RegistrationHandle() {
+    return new ElectionRegistrationHandle() {
 
       @Override
       public void close() {

@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { get } from 'lodash/object';
+
 export function getVersion(state) {
-  return state.routing.locationBeforeTransitions.query.version;
+  return get(getLocation(state), 'query.version', null);
 }
 
 export function getLocation(state) {
-  return state.routing.locationBeforeTransitions;
+  return get(state, 'routing.locationBeforeTransitions', null);
 }

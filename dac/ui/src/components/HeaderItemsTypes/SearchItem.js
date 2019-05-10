@@ -18,7 +18,7 @@ import { connect }   from 'react-redux';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
+import { Popover } from '@app/components/Popover';
 
 import FontIcon from 'components/Icon/FontIcon';
 import DatasetsSearch from 'components/DatasetsSearch';
@@ -115,19 +115,27 @@ export class SearchItem extends Component {
   }
 
   render() {
-    const {searchVisible, inputText} = this.state;
+    const { searchVisible, inputText, anchorEl } = this.state;
     const {search, searchViewState} = this.props;
+
+    let popoverStyle = styles.searchStyle;
+    if (searchVisible && anchorEl) {
+      popoverStyle = {
+        ...popoverStyle,
+        width: document.getElementsByTagName('body')[0].clientWidth - anchorEl.getBoundingClientRect().left - 50
+      };
+    }
+
     return (
       <div style={[styles.table]}>
         <div style={[styles.row]}>
           <div style={[styles.col1]}>{this.getInputText()}</div>
         </div>
         <Popover
-          anchorEl={this.state.anchorEl}
-          open={searchVisible}
-          style={styles.searchStyle}
-          onRequestClose={this.handleSearchHide}
-          animation={PopoverAnimationVertical}>
+          anchorEl={searchVisible ? anchorEl : null}
+          style={popoverStyle}
+          onClose={this.handleSearchHide}
+        >
           <DatasetsSearch
             globalSearch
             searchData={search}
@@ -153,8 +161,7 @@ export default connect(mapStateToProps, {loadSearchData})(SearchItem);
 
 const styles = {
   searchStyle: {
-    margin: '9px 0 0 -18px',
-    right: 50 // not quite the to comp (0) - but avoids a Popover layout bug
+    margin: '9px 0 0 -18px'
   },
   searchItem: {
     display: 'flex'

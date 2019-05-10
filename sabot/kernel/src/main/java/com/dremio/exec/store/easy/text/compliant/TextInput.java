@@ -71,9 +71,6 @@ final class TextInput {
   private final long startPos;
   private final long endPos;
 
-  private int bufferMark;
-  private long streamMark;
-
   private long streamPos;
 
   private final Seekable seekable;
@@ -168,7 +165,7 @@ final class TextInput {
           skipLines(1);
         } catch (StreamFinishedPseudoException sfpe) {
           // just stop parsing - as end of the input reached
-          throw new IllegalArgumentException("Only one data line detected. Please consider changing line delimter.");
+          throw new IllegalArgumentException("Only one data line detected. Please consider changing line delimiter.");
         }
       }
     }
@@ -187,11 +184,6 @@ final class TextInput {
 
   long getPos(){
     return streamPos + bufferPtr;
-  }
-
-  public void mark(){
-    streamMark = streamPos;
-    bufferMark = bufferPtr;
   }
 
   /**
@@ -233,7 +225,7 @@ final class TextInput {
     streamPos = seekable.getPos();
     underlyingBuffer.clear();
 
-    if(endFound){
+    if(endFound || streamPos > endPos){
       length = -1;
       return;
     }

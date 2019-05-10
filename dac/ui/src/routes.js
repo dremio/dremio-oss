@@ -18,12 +18,16 @@ import React from 'react';
 
 import { UserIsAuthenticated, UserIsAdmin } from 'utils/authWrappers';
 
+import { ENTITY_TYPES } from '@app/constants/Constants';
+import { startExplorePageListener, explorePageLocationChanged, explorePageExit } from '@app/actions/explore/dataset/data';
 import Acceleration from 'dyn-load/pages/AdminPage/subpages/acceleration/Acceleration';
 import Roles from 'dyn-load/pages/AdminPage/subpages/Roles';
 import Votes from 'dyn-load/pages/AdminPage/subpages/Votes';
 import Queues from 'dyn-load/pages/AdminPage/subpages/WLM/Queues';
 import QAssignments from 'dyn-load/pages/AdminPage/subpages/WLM/QAssignments';
 import EulaPage from 'dyn-load/pages/EulaPage/EulaPage';
+import { resetModuleState } from '@app/actions/modulesState';
+import { exploreStateKey } from '@app/selectors/explore';
 
 import App from './containers/App';
 
@@ -32,7 +36,7 @@ import ReloadPage from './pages/ReloadPage';
 import HomePage from './pages/HomePage/HomePage';
 import HomeModals from './pages/HomePage/HomeModals';
 import Home from './pages/HomePage/subpages/Home';
-import AllSpaces from './pages/HomePage/subpages/AllSpaces/AllSpaces';
+import { AllSpaces } from './pages/HomePage/subpages/AllSpaces/AllSpaces';
 import AllSources from './pages/HomePage/subpages/AllSources/AllSources';
 
 import ExploreModals from './pages/ExplorePage/ExploreModals';
@@ -74,8 +78,8 @@ import Page from './components/Page';
 window.React = React;
 
 export const SIGNUP_PATH = '/signup';
-
 export const LOGIN_PATH = '/login';
+
 export function getLoginUrl() {
   return `${LOGIN_PATH}?redirect=${encodeURIComponent(window.location.href.slice(window.location.origin.length))}`;
 }
@@ -90,7 +94,33 @@ export const getSourceRoute = (rootType, component) => {
   );
 };
 
-export default (
+const getExploreRoute = (routeProps, dispatch) => {
+
+  const onEnter = () => {
+    dispatch(startExplorePageListener(true));
+  };
+
+  const onLeave = () => {
+    // kill explore state to make sure that explore page would not be rendered with invalid state
+    // DX-16117
+    dispatch(resetModuleState(exploreStateKey));
+    dispatch(explorePageExit());
+  };
+
+  const onChange = (prevState, newState) => {
+    dispatch(explorePageLocationChanged(newState));
+  };
+
+  return (
+    <Route {...routeProps}
+      onEnter={onEnter}
+      onLeave={onLeave}
+      onChange={onChange}
+    />
+  );
+};
+
+export default dispatch => (
   <Route path='/' component={App}>
     {/* TODO conflict with (/:resources), need to change resources for all components */}
     <Redirect from='/home' to='/'/>
@@ -148,8 +178,8 @@ export default (
         <IndexRoute component={Home} /> {/* todo: is this valid?*/}
         {/* a complicate route structure below is needed for correct work of Link component
         from router package for case of onlyActiveOnIndex=false */}
-        {getSourceRoute('source', Home)}
-        {getSourceRoute('space', Home)}
+        {getSourceRoute(ENTITY_TYPES.source, Home)}
+        {getSourceRoute(ENTITY_TYPES.space, Home)}
         <Route path='/home' component={Home}>
           <Route path={`/home/:${resourceKeyName}/folder/**`} />
         </Route>
@@ -158,10 +188,15 @@ export default (
       </Route>
     </Route>
     <Route component={UserIsAuthenticated(ExploreModals)}>
-      <Route component={Page}>
-        <Route path='/new_query' component={ExplorePage} />
-        <Route path='/:resources(/:resourceId)/:tableId(/:pageType)' component={ExplorePage} />
-      </Route>
+      {
+        getExploreRoute({
+          component: Page,
+          children: [
+            <Route key='new_query' path='/new_query' component={ExplorePage} />,
+            <Route key='existing_dataset' path='/:resources(/:resourceId)/:tableId(/:pageType)' component={ExplorePage} />
+          ]
+        }, dispatch)
+      }
     </Route>
   </Route>
 );

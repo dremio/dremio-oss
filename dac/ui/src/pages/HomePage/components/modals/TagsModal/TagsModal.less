@@ -26,15 +26,21 @@
   overflow-y: auto;
 }
 
+
+@_triangleHeight: 6px;
 //Move triangle to more appropriate less file
 .triangle {
-  @triangleHeight: 6px;
   width: 0;
   height: 0;
   border-style: solid;
-  border-width: 0 4px @triangleHeight 4px;
+  border-width: 0 4px @_triangleHeight 4px;
   border-color: transparent transparent rgba(0,0,0,0.05) transparent;
   position: absolute;
-  top: -@triangleHeight;
+  top: -@_triangleHeight;
   right: 11px;
+}
+
+// export for js
+:export {
+  triangleHeight: @_triangleHeight;
 }

@@ -15,14 +15,11 @@
  */
 import { Component } from 'react';
 import PropTypes from 'prop-types';
-import ReactDOM from 'react-dom';
-import Paper from 'material-ui/Paper';
-import Menu from 'material-ui/Menu';
-import MenuItem from 'material-ui/MenuItem';
+import { Popover } from '@app/components/Popover';
+import MenuItem from '@material-ui/core/MenuItem';
 import { get } from 'lodash/object';
 import { formLabel } from 'uiTheme/radium/typography';
 import { ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
-import { Overlay } from 'react-overlays';
 import DragTarget from 'components/DragComponents/DragTarget';
 import DragSource from 'components/DragComponents/DragSource';
 import { Checkbox } from 'components/Fields';
@@ -33,9 +30,73 @@ import {
   granularityValue} from 'constants/AccelerationConstants';
 
 import { checkboxStandalone } from '@app/components/Fields/Checkbox.less';
+import { menuSelected as menuSelectedCls } from './CellPopover.less';
 
-const WIDTH_MENU = 170;
-const WIDTH_MENU_MEASURE = 190;
+
+/**
+ * Exported for tests only
+ */
+export class ColumnReorder extends Component {
+  static propTypes = {
+    columns: PropTypes.arrayOf(PropTypes.shape({
+      name: PropTypes.string
+    })),
+    fieldName: PropTypes.string,
+    indexes: PropTypes.object,
+    hoverIndex: PropTypes.number,
+    //handlers
+    handleDragStart: PropTypes.func.isRequired,
+    handleDragEnd: PropTypes.func.isRequired,
+    handleMoveColumn: PropTypes.func.isRequired
+  };
+  render() {
+    const {
+    columns,
+    fieldName,
+    indexes,
+    hoverIndex,
+    //handlers
+    handleDragStart,
+    handleDragEnd,
+    handleMoveColumn
+  } = this.props;
+
+    return (
+      <div>
+        {
+        columns.map((column, index) => {
+          const columnName = column.name;
+          const dragSourceStyle = hoverIndex === index ? styles.columnDragHover : { cursor: 'ns-resize' };
+          return (
+            <div style={styles.columnWrap} key={columnName}>
+              <DragTarget
+                dragType='sortColumns'
+                moveColumn={(dragIndex, currentHoverIndex) => handleMoveColumn(fieldName, dragIndex, currentHoverIndex)}
+                index={index}
+              >
+                <div style={dragSourceStyle}>
+                  <DragSource
+                    dragType='sortColumns'
+                    index={index}
+                    onDragStart={handleDragStart}
+                    onDragEnd={() => handleDragEnd(fieldName, column)}
+                    isFromAnother
+                    id={columnName}>
+                    <div style={styles.column}>
+                      <div style={styles.columnIndex}>{indexes[columnName] + 1}</div>
+                      <span style={{ marginLeft: 10 }}>{columnName}</span>
+                    </div>
+                  </DragSource>
+                </div>
+              </DragTarget>
+            </div>
+          );
+        })
+      }
+      </div>
+    );
+  }
+}
 
 export default class CellPopover extends Component {
   static propTypes = {
@@ -152,46 +213,23 @@ export default class CellPopover extends Component {
       indexes[column.name.value] = i;
     }
 
-    return (
-      <div style={styles.columnList}>
-        {
-          columns.map((column, index) => {
-            const columnName = column.name;
-            const dragSourceStyle = this.state.hoverIndex === index ? styles.columnDragHover : { cursor: 'ns-resize' };
-            return (
-              <div style={styles.columnWrap} key={columnName}>
-                <DragTarget
-                  dragType='sortColumns'
-                  moveColumn={(dragIndex, hoverIndex) => this.handleMoveColumn(fieldName, dragIndex, hoverIndex)}
-                  index={index}
-                >
-                  <div style={dragSourceStyle}>
-                    <DragSource
-                      dragType='sortColumns'
-                      index={index}
-                      onDragStart={this.handleDragStart}
-                      onDragEnd={() => this.handleDragEnd(fieldName, column)}
-                      isFromAnother
-                      id={columnName}>
-                      <div style={styles.column}>
-                        <div style={styles.columnIndex}>{indexes[columnName] + 1}</div>
-                        <span style={{ marginLeft: 10 }}>{columnName}</span>
-                      </div>
-                    </DragSource>
-                  </div>
-                </DragTarget>
-              </div>
-            );
-          })
-        }
-      </div>
-    );
+    const props = {
+      columns,
+      fieldName,
+      indexes,
+      hoverIndex: this.state.hoverIndex,
+      handleDragEnd: this.handleDragEnd,
+      handleDragStart: this.handleDragStart,
+      handleMoveColumn: this.handleMoveColumn
+    };
+
+    return (<ColumnReorder {...props} />);
   };
 
   renderSortMenu = () => {
     const { sortFields } = this.props;
     return (
-      <div style={{ width: WIDTH_MENU }}>
+      <div>
         { sortFields.length > 0 &&
           <div>
             <span style={styles.menuHeader}>
@@ -208,21 +246,27 @@ export default class CellPopover extends Component {
     const { currentCell } = this.props;
     // our material-ui is old, and MenuItem does not support selected property, thus messing with styles here
     return (
-      <div style={{ width: WIDTH_MENU }}>
+      <div>
         <span style={styles.menuHeader}>
           {la('Date Granularity:')}
         </span>
         <div style={{marginTop: 5}}>
           <MenuItem
+            classes={menuItemClasses}
             onClick={() => this.props.onSelectMenuItem(cellType.dimension, granularityValue.normal)}
-            primaryText={la('Original')}
-            style={currentCell.value === granularityValue.normal ? styles.menuItemSelected : styles.menuItem}
-          />
+            selected={currentCell.value === granularityValue.normal}
+            style={styles.menuItem}
+          >
+            {la('Original')}
+          </MenuItem>
           <MenuItem
+            classes={menuItemClasses}
             onClick={() => this.props.onSelectMenuItem(cellType.dimension, granularityValue.date)}
-            primaryText={la('Date')}
-            style={currentCell.value === granularityValue.date ? styles.menuItemSelected : styles.menuItem}
-          />
+            selected={currentCell.value === granularityValue.date}
+            style={styles.menuItem}
+          >
+            {la('Date')}
+          </MenuItem>
         </div>
       </div>
     );
@@ -246,7 +290,7 @@ export default class CellPopover extends Component {
   renderMeasureMenu = () => {
     const typesToDisplay = get(this.props, 'currentCell.measureTypeAll', []);
     return (
-      <div style={styles.measureMenu}>
+      <div>
         <span style={styles.measureMenuHeader}>
           {la('Selected Measures:')}
         </span>
@@ -282,38 +326,29 @@ export default class CellPopover extends Component {
   };
 
   render() {
-    const showOverlay = !!(get(this.props, 'currentCell.labelCell'));
-    const menuWidth = (this.state.isMeasureCell) ? WIDTH_MENU_MEASURE : WIDTH_MENU;
+    const {
+      anchorEl,
+      currentCell
+    } = this.props;
+
+    const showOverlay = !!get(currentCell, 'labelCell');
     return (
-      <Overlay
-        show={showOverlay}
-        container={this}
-        target={() => ReactDOM.findDOMNode(this.props.anchorEl)}
-        placement='bottom'
-        onHide={this.handleHide}
-        rootClose
+      <Popover
+        listStyle={styles.base}
+        open={showOverlay}
+        anchorEl={showOverlay ? anchorEl : null}
+        onClose={this.handleHide}
       >
-        <div style={{...styles.base, width: menuWidth}}>
-          <Paper>
-            <Menu width={menuWidth}>
-              {this.makeContent()}
-            </Menu>
-          </Paper>
-        </div>
-      </Overlay>
+        {this.makeContent()}
+      </Popover>
     );
   }
 }
 
+const menuPadding = 10;
 const styles = {
   base: {
-    width: WIDTH_MENU,
-    position: 'absolute',
-    zIndex: 30000,
-    marginLeft: 80
-  },
-  columnList: {
-    padding: '0 10px 10px 10px'
+    padding: menuPadding
   },
   columnWrap: {
     marginTop: 10
@@ -340,17 +375,18 @@ const styles = {
     height: '100%'
   },
   menuHeader: {
-    margin: '5px 5px 0 10px',
+    marginBottom: 10,
     ...formLabel
   },
   menuItem: {
     lineHeight: '25px',
     minHeight: '25px',
-    fontSize: 12
-  },
-  measureMenu: {
-    width: WIDTH_MENU_MEASURE,
-    padding: '0 10px'
+    fontSize: 12,
+    paddingTop: 0,
+    paddingBottom: 0,
+    // to force menu item take whole the width
+    marginLeft: -menuPadding,
+    marginRight: -menuPadding
   },
   measureMenuHeader: {
     ...formLabel
@@ -360,7 +396,6 @@ const styles = {
   }
 };
 
-styles.menuItemSelected = {
-  ...styles.menuItem,
-  backgroundColor: '#ebf9f6'
+const menuItemClasses = {
+  selected: menuSelectedCls
 };

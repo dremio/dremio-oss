@@ -28,11 +28,6 @@ public interface LegacyUpgradeTask {
 
   // List of Dremio version requiring upgrade tasks
   Version VERSION_106 = new Version("1.0.6", 1, 0, 6, 0, "");
-  Version VERSION_109 = new Version("1.0.9", 1, 0, 9, 0, "");
-  Version VERSION_111 = new Version("1.1.1", 1, 1, 1, 0, "");
-  Version VERSION_120 = new Version("1.2.0", 1, 2, 0, 0, "");
-  Version VERSION_130 = new Version("1.3.0", 1, 3, 0, 0, "");
-  Version VERSION_150 = new Version("1.5.0", 1, 5, 0, 0, "");
   Version VERSION_203 = new Version("2.0.3", 2, 0, 3, 0, "");
   Version VERSION_205 = new Version("2.0.5", 2, 0, 5, 0, "");
   Version VERSION_2010 = new Version("2.0.10", 2, 0, 10, 0, "");

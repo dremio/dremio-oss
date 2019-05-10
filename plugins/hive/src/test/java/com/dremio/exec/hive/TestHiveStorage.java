@@ -26,30 +26,43 @@ import java.io.File;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import com.dremio.common.exceptions.UserException;
+import org.apache.arrow.vector.util.JsonStringArrayList;
+import org.apache.arrow.vector.util.JsonStringHashMap;
+import org.apache.arrow.vector.util.Text;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.joda.time.DateTime;
 import org.joda.time.LocalDateTime;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.connector.metadata.BytesOutput;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.extensions.SupportsReadSignature;
+import com.dremio.exec.catalog.DatasetMetadataAdapter;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.CatalogService.UpdateType;
-import com.dremio.exec.store.DatasetRetrievalOptions;
-import com.dremio.exec.store.StoragePlugin.UpdateStatus;
 import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
@@ -63,6 +76,7 @@ import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.dremio.service.users.SystemUser;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
@@ -221,6 +235,16 @@ public class TestHiveStorage extends HiveTestBase {
   }
 
   @Test
+  public void orcTestTimestampMilli() throws Exception {
+    String query = "SELECT col1 FROM hive." + "timestamp" + "_orc";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1")
+      .baselineValues(new LocalDateTime(Timestamp.valueOf("2019-03-14 11:17:31.119021").getTime(), UTC))
+      .go();
+  }
+
+  @Test
   public void orcTestTypeConversions() throws Exception {
     Object[][] testcases = {
       //tinyint
@@ -274,8 +298,8 @@ public class TestHiveStorage extends HiveTestBase {
       {"varchar", "decimal", new BigDecimal(90)},
       {"varchar", "string", "90"},
       //timestamp
-      {"timestamp", "string", "1552562251000"},
-      {"timestamp", "varchar", "1552562251000"},
+      {"timestamp", "string", Long.toString(new DateTime(Timestamp.valueOf("2019-03-14 11:17:31.119021").getTime(), UTC).getMillis())},
+      {"timestamp", "varchar", Long.toString(new DateTime(Timestamp.valueOf("2019-03-14 11:17:31.119021").getTime(), UTC).getMillis())},
       //date
       {"date", "string", "17969"},
       {"date", "varchar", "17969"}
@@ -290,9 +314,305 @@ public class TestHiveStorage extends HiveTestBase {
     }
   }
 
+  @Rule
+  public ExpectedException exception = ExpectedException.none();
+
+  @Test
+  public void readStringFieldSizeLimitText()  throws Exception {
+    String exceptionMessage = "Attempting to read a too large value";
+    exception.expect(java.lang.Exception.class);
+    exception.expectMessage(exceptionMessage);
+    String query = "SELECT col1 FROM hive.field_size_limit_test";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1")
+      .baselineValues("")
+      .go();
+  }
+  @Test
+  public void readStringFieldSizeLimitORC()  throws Exception {
+    String exceptionMessage = "Attempting to read a too large value";
+    exception.expect(java.lang.Exception.class);
+    exception.expectMessage(exceptionMessage);
+    String query = "SELECT col1 FROM hive.field_size_limit_test_orc";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1")
+      .baselineValues("")
+      .go();
+  }
+  @Test
+  public void readVarcharFieldSizeLimitText()  throws Exception {
+    String exceptionMessage = "Attempting to read a too large value";
+    exception.expect(java.lang.Exception.class);
+    exception.expectMessage(exceptionMessage);
+    String query = "SELECT col2 FROM hive.field_size_limit_test";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col2")
+      .baselineValues("")
+      .go();
+  }
+  @Test
+  public void readVarcharFieldSizeLimitORC()  throws Exception {
+    String exceptionMessage = "Attempting to read a too large value";
+    exception.expect(java.lang.Exception.class);
+    exception.expectMessage(exceptionMessage);
+    String query = "SELECT col2 FROM hive.field_size_limit_test_orc";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col2")
+      .baselineValues("")
+      .go();
+  }
+  @Test
+  public void readBinaryFieldSizeLimitText()  throws Exception {
+    String exceptionMessage = "Attempting to read a too large value";
+    exception.expect(java.lang.Exception.class);
+    exception.expectMessage(exceptionMessage);
+    String query = "SELECT col3 FROM hive.field_size_limit_test";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col3")
+      .baselineValues("")
+      .go();
+  }
+  @Test
+  public void readBinaryFieldSizeLimitORC()  throws Exception {
+    String exceptionMessage = "Attempting to read a too large value";
+    exception.expect(java.lang.Exception.class);
+    exception.expectMessage(exceptionMessage);
+    String query = "SELECT col3 FROM hive.field_size_limit_test_orc";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col3")
+      .baselineValues("")
+      .go();
+  }
+  @Test
+  public void readComplexHiveDataTypesORC() throws Exception {
+    readComplexHiveDataTypes("orccomplexorc");
+  }
+
+  @Test
+  public void readMapValuesTest() throws Exception {
+    readMapValues("orcmaporc");
+  }
+
+  @Test
+  public void readListHiveDataTypesORC() throws Exception {
+    readListHiveDataTypes("orclistorc");
+  }
+
+  @Test
+  public void readStructHiveDataTypesORC() throws Exception {
+    readStructHiveDataTypes("orcstructorc");
+  }
+
+  @Test
+  public void readUnionHiveDataTypesORC() throws Exception {
+    readUnionHiveDataTypes("orcunionorc");
+  }
+
   @Test
   public void readAllSupportedHiveDataTypesParquet() throws Exception {
     readAllSupportedHiveDataTypes("readtest_parquet");
+  }
+
+  /**
+   * Test to ensure Dremio reads union data from hive
+   * @throws Exception
+   */
+  private void readUnionHiveDataTypes(String table) throws Exception {
+    int[] testrows = {0, 500, 1022, 1023, 1024, 4094, 4095, 4096, 4999};
+    for (int testcase = 0; testcase < testrows.length; ++testcase) {
+      Integer row = new Integer(testrows[testcase]);
+      Object expected = null;
+      String rowStr = row.toString();
+
+      if ( row % 3 == 0 ) {
+        expected = new Integer(row);
+      } else if ( row % 3 == 1 ) {
+        expected = Double.parseDouble(rowStr + "." + rowStr);
+      } else {
+        expected = rowStr + "." + rowStr;
+      }
+      testBuilder().sqlQuery("SELECT * FROM hive." + table +
+        " order by rownum limit 1 offset " + row.toString())
+        .ordered()
+        .baselineColumns("rownum", "union_field")
+        .baselineValues(new Integer(row), expected)
+        .go();
+    }
+  }
+
+  /**
+   * Test to ensure Dremio reads list of primitive data types
+   * @throws Exception
+   */
+  private void readStructHiveDataTypes(String table) throws Exception {
+    int[] testrows = {0, 500, 1022, 1023, 1024, 4094, 4095, 4096, 4999};
+    for (int i = 0; i < testrows.length; ++i) {
+      Integer index = new Integer(testrows[i]);
+      JsonStringHashMap<String, Object> structrow1 = new JsonStringHashMap<String, Object>();
+      structrow1.put("tinyint_field", new Integer(1));
+      structrow1.put("smallint_field", new Integer(1024));
+      structrow1.put("int_field", new Integer(testrows[i]));
+      structrow1.put("bigint_field", new Long(90000000000L));
+      structrow1.put("float_field", new Float(testrows[i]));
+      structrow1.put("double_field", new Double(testrows[i]));
+      structrow1.put("string_field", new Text(Integer.toString(testrows[i])));
+
+
+      testBuilder().sqlQuery("SELECT * FROM hive." + table +
+        " order by rownum limit 1 offset " + index.toString())
+        .ordered()
+        .baselineColumns("rownum", "struct_field")
+        .baselineValues(new Integer(index), structrow1)
+        .go();
+
+      testBuilder().sqlQuery("SELECT rownum, struct_field['string_field'] AS string_field, struct_field['int_field'] AS int_field FROM hive." + table +
+        " order by rownum limit 1 offset " + index.toString())
+        .ordered()
+        .baselineColumns("rownum", "string_field", "int_field")
+        .baselineValues(new Integer(index), Integer.toString(testrows[i]), new Integer(index))
+        .go();
+    }
+  }
+
+  /**
+   * Test to ensure Dremio reads list of primitive data types
+   * @throws Exception
+   */
+  private void readListHiveDataTypes(String table) throws Exception {
+    int[] testrows = {0, 500, 1022, 1023, 1024, 4094, 4095, 4096, 4999};
+    for (int i = 0; i < testrows.length; ++i) {
+      if ( testrows[i] % 7 == 0 ) {
+        Integer index = new Integer(testrows[i]);
+        testBuilder().sqlQuery("SELECT rownum,double_field,string_field FROM hive." + table +
+          " order by rownum limit 1 offset " + index.toString())
+          .ordered()
+          .baselineColumns("rownum", "double_field", "string_field")
+          .baselineValues(new Integer(index), null,
+            null)
+          .go();
+      } else {
+        Integer index = new Integer(testrows[i]);
+        JsonStringArrayList<Text> string_field = new JsonStringArrayList<>();
+        string_field.add(new Text(Integer.toString(index)));
+        string_field.add(new Text(Integer.toString(index + 1)));
+        string_field.add(new Text(Integer.toString(index + 2)));
+        string_field.add(new Text(Integer.toString(index + 3)));
+        string_field.add(new Text(Integer.toString(index + 4)));
+
+
+        testBuilder().sqlQuery("SELECT rownum,double_field,string_field FROM hive." + table +
+          " order by rownum limit 1 offset " + index.toString())
+          .ordered()
+          .baselineColumns("rownum", "double_field", "string_field")
+          .baselineValues(new Integer(index), new ArrayList<Double>(Arrays.asList(new Double(index),
+            new Double(index + 1), new Double(index + 2),
+            new Double(index + 3), new Double(index + 4))),
+            string_field)
+          .go();
+      }
+    }
+  }
+
+  /**
+   * Test to ensure Dremio reads the all ORC complex types correctly
+   * @throws Exception
+   */
+  private void readComplexHiveDataTypes(String table) throws Exception {
+    int[] testrows = {0, 500, 1022, 1023, 1024, 4094, 4095, 4096, 4999};
+    for(int i=0; i < testrows.length; ++i) {
+      Integer index = new Integer(testrows[i]);
+      JsonStringHashMap<String, Object> structrow1 = new JsonStringHashMap<String, Object>();
+      structrow1.put("name", new Text("name" + index.toString()));
+      structrow1.put("age", new Integer(index));
+
+      JsonStringHashMap<String, Object> structlistrow1 = new JsonStringHashMap<String, Object>();
+      structlistrow1.put("type", new Text("type" + index.toString()));
+      structlistrow1.put("value", new ArrayList<Text>(Arrays.asList(new Text("elem" + index.toString()))));
+
+      JsonStringHashMap<String, Object> liststruct1 = new JsonStringHashMap<String, Object>();
+      liststruct1.put("name", new Text("name" + Integer.toString(index)));
+      liststruct1.put("age", new Integer(index));
+      JsonStringHashMap<String, Object> liststruct2 = new JsonStringHashMap<String, Object>();
+      liststruct2.put("name", new Text("name" + Integer.toString(index+1)));
+      liststruct2.put("age", new Integer(index+1));
+
+      JsonStringHashMap<String, Object> map1 = new JsonStringHashMap<String, Object>();
+      map1.put("key", new Text("name" + Integer.toString(index)));
+      map1.put("value", new Integer(index));
+      JsonStringHashMap<String, Object> map2 = new JsonStringHashMap<String, Object>();
+      map2.put("key", new Text("name" + Integer.toString(index+1)));
+      map2.put("value", new Integer(index+1));
+      JsonStringHashMap<String, Object> map3 = new JsonStringHashMap<String, Object>();
+      map3.put("key", new Text("name" + Integer.toString(index+2)));
+      map3.put("value", new Integer(index+2));
+
+      JsonStringArrayList<JsonStringHashMap> mapValue = new JsonStringArrayList<>();
+      mapValue.add(map1);
+      mapValue.add(map2);
+      if(index % 2 == 0) {
+        mapValue.add(map3);
+      }
+
+      JsonStringHashMap<String, Object> mapstruct = new JsonStringHashMap<String, Object>();
+      mapstruct.put("key", new Text("key" + Integer.toString(index)));
+
+      JsonStringHashMap<String, Object> mapstructrow1 = new JsonStringHashMap<String, Object>();
+      mapstructrow1.put("type", new Text("struct" + index.toString()));
+
+      mapstruct.put("value", mapstructrow1);
+      JsonStringArrayList<JsonStringHashMap> mapStructValue = new JsonStringArrayList<>();
+      mapStructValue.add(mapstruct);
+
+
+      testBuilder().sqlQuery("SELECT * FROM hive." + table +
+        " order by rownum limit 1 offset " + index.toString())
+        .ordered()
+        .baselineColumns("rownum", "list_field",
+          "struct_field",
+          "struct_list_field",
+          "list_struct_field",
+          "map_field",
+          "map_struct_field")
+        .baselineValues(new Integer(index), new ArrayList<Integer>(
+          Arrays.asList(new Integer(index), new Integer(index + 1),
+            new Integer(index + 2), new Integer(index + 3),
+            new Integer(index + 4))),
+          structrow1, structlistrow1,
+          Arrays.asList(liststruct1, liststruct2),
+          mapValue,
+          mapStructValue)
+        .go();
+    }
+  }
+
+  private void readMapValues(String table) throws Exception {
+    int[] testrows = {0, 500, 1022, 1023, 1024, 4094, 4095, 4096, 4999};
+    for(int i=0; i < testrows.length; ++i) {
+      Integer index = new Integer(testrows[i]);
+      String mapquery = "WITH flatten_" + table + " AS (SELECT flatten(map_field) AS flatten_map_field from hive." + table + " ) " +
+        " select flatten_map_field['key'] as key_field from flatten_" + table + " order by flatten_map_field['key'] limit 1 offset " + index.toString();
+
+      testBuilder().sqlQuery(mapquery)
+        .ordered()
+        .baselineColumns("key_field")
+        .baselineValues(index)
+        .go();
+
+      mapquery = "WITH flatten" + table + " AS (SELECT flatten(map_field) AS flatten_map_field from hive." + table + " ) " +
+        " select flatten_map_field['value'] as value_field from flatten" + table + " order by flatten_map_field['value'] limit 1 offset " + index.toString();
+
+      testBuilder().sqlQuery(mapquery)
+        .ordered()
+        .baselineColumns("value_field")
+        .baselineValues(index)
+        .go();
+    }
   }
 
   /**
@@ -357,7 +677,7 @@ public class TestHiveStorage extends HiveTestBase {
             3455,
             "stringfield",
             "varcharfield",
-            new LocalDateTime(Timestamp.valueOf("2013-07-05 17:01:00").getTime()),
+            new LocalDateTime(Timestamp.valueOf("2013-07-05 17:01:00").getTime(), UTC),
             new LocalDateTime(Date.valueOf("2013-07-05").getTime()),
             "charfield",
             // There is a regression in Hive 1.2.1 in binary type partition columns. Disable for now.
@@ -451,7 +771,7 @@ public class TestHiveStorage extends HiveTestBase {
   @Test
   public void testHiveParquetRefreshOnMissingFile() throws Exception {
     setEnableReAttempts(true);
-    test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+    setSessionOption(HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS, "true");
     try {
       final String query = "SELECT count(r_regionkey) c FROM hive.parquet_with_two_files";
 
@@ -459,25 +779,53 @@ public class TestHiveStorage extends HiveTestBase {
       testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
 
       // With two files, the expected count is 10 (i.e 2 * 5).
-      testBuilder().sqlQuery(query)
-        .ordered()
-        .baselineColumns("c")
-        .baselineValues(10L)
-        .go();
+      testBuilder().sqlQuery(query).ordered().baselineColumns("c").baselineValues(10L).go();
 
-      // Delete one file and run again, the expected count is 5 now.
-      File secondFile = new File(hiveTest.getWhDir() + "/parquet_with_two_files/", "region2.parquet");
-      secondFile.delete();
+      // Move one file out of the dir and run again, the expected count is 5 now.
+      File secondFile =
+          new File(hiveTest.getWhDir() + "/parquet_with_two_files/", "region2.parquet");
+      File tmpPath = new File(hiveTest.getWhDir(), "region2.parquet.tmp");
+      secondFile.renameTo(tmpPath);
 
-      testBuilder().sqlQuery(query)
-        .ordered()
-        .baselineColumns("c")
-        .baselineValues(5L)
-        .go();
+      try {
+        testBuilder().sqlQuery(query).ordered().baselineColumns("c").baselineValues(5L).go();
+      } finally{
+        // Restore the file back to it's original place.
+        tmpPath.renameTo(secondFile);
+      }
 
     } finally {
       setEnableReAttempts(false);
-      test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+      setSessionOption(HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS, "false");
+    }
+  }
+
+  @Test
+  public void testHiveOrcRefreshOnMissingFile() throws Exception {
+    setEnableReAttempts(true);
+    setSessionOption(HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS, "true");
+    try {
+      final String query = "SELECT count(r_regionkey) c FROM hive.orc_with_two_files";
+
+      // With two files, the expected count is 10 (i.e 2 * 5).
+      testBuilder().sqlQuery(query).ordered().baselineColumns("c").baselineValues(10L).go();
+
+      // Move one file out of the dir and run again, the expected count is 5 now.
+      File secondFile =
+        new File(hiveTest.getWhDir() + "/orc_with_two_files/", "region2.orc");
+      File tmpPath = new File(hiveTest.getWhDir(), "region2.orc.tmp");
+      secondFile.renameTo(tmpPath);
+
+      try {
+        testBuilder().sqlQuery(query).ordered().baselineColumns("c").baselineValues(5L).go();
+      } finally{
+        // Restore the file back to it's original place.
+        tmpPath.renameTo(secondFile);
+      }
+
+    } finally {
+      setEnableReAttempts(false);
+      setSessionOption(HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS, "false");
     }
   }
 
@@ -596,12 +944,42 @@ public class TestHiveStorage extends HiveTestBase {
   }
 
   @Test
+  public void testParquetLearnSchema2() throws Exception {
+    String exceptionMessage = "Schema change detected but unable to learn schema";
+    exception.expect(java.lang.Exception.class);
+    exception.expectMessage(exceptionMessage);
+    String query = "SELECT col1 FROM hive.parqschematest_table";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1")
+      .baselineValues(new Double(1))
+      .go();
+  }
+
+  @Test
+  public void testParquetComplexUnsupported() throws Exception {
+    // Hive parquet table has complex column but Dremio should drop that column
+    testBuilder()
+      .sqlQuery("SELECT * FROM hive.parqcomplex")
+      .unOrdered()
+      .sqlBaselineQuery("select col1 from hive.parqcomplex")
+      .go();
+  }
+
+  @Test
   public void testParquetLearnSchema() throws Exception {
     testBuilder()
       .sqlQuery("SELECT * FROM hive.parquetschemalearntest")
       .unOrdered()
       .sqlBaselineQuery("select r_regionkey from hive.parquetschemalearntest")
       .go();
+
+    testBuilder()
+      .sqlQuery("SELECT * FROM hive.parqcomplex_ext")
+      .unOrdered()
+      .sqlBaselineQuery("select col1 from hive.parqcomplex_ext")
+      .go();
+
   }
 
   @Test // DRILL-3739
@@ -746,32 +1124,37 @@ public class TestHiveStorage extends HiveTestBase {
     assertEquals(56, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".partition_pruning_test")))).size());
   }
 
-  @Test
-  public void testCheckReadSignature() throws Exception {
-    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
+  private void testCheckReadSignature(EntityPath datasetPath, SupportsReadSignature.MetadataValidity expectedResult) throws Exception {
     NamespaceService ns = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
 
-    DatasetConfig datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.db1.kv_db1")));
-    assertEquals(UpdateStatus.UNCHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
-        datasetConfig.getReadDefinition().getReadSignature(), datasetConfig, DatasetRetrievalOptions.DEFAULT).getStatus());
+    DatasetConfig datasetConfig = ns.getDataset(new NamespaceKey(datasetPath.getComponents()));
 
-    datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".partition_with_few_schemas")));
-    assertEquals(UpdateStatus.UNCHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
-      datasetConfig.getReadDefinition().getReadSignature(), datasetConfig, DatasetRetrievalOptions.DEFAULT).getStatus());
+    BytesOutput signature = os -> os.write(datasetConfig.getReadDefinition().getReadSignature().toByteArray());
+    DatasetHandle datasetHandle = (getSabotContext().getCatalogService().getSource("hive")).getDatasetHandle(datasetPath).get();
+    DatasetMetadata metadata = new DatasetMetadataAdapter(datasetConfig);
 
+    assertEquals(expectedResult, ((SupportsReadSignature) getSabotContext().getCatalogService().getSource("hive")).validateMetadata(
+      signature, datasetHandle, metadata));
+  }
+
+  @Test
+  public void testCheckReadSignatureValid() throws Exception {
+    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
+    testCheckReadSignature(new EntityPath(ImmutableList.of("hive", "db1", "kv_db1")), SupportsReadSignature.MetadataValidity.VALID);
+    testCheckReadSignature(new EntityPath(ImmutableList.of("hive", "default", "partition_with_few_schemas")), SupportsReadSignature.MetadataValidity.VALID);
+  }
+
+  @Test
+  public void testCheckReadSignatureInvalid() throws Exception {
+    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
     new File(hiveTest.getWhDir() + "/db1.db/kv_db1", "000000_0").setLastModified(System.currentTimeMillis());
 
     File newFile = new File(hiveTest.getWhDir() + "/partition_with_few_schemas/c=1/d=1/e=1/", "empty_file");
     try {
       newFile.createNewFile();
 
-      datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.db1.kv_db1")));
-      assertEquals(UpdateStatus.CHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
-        datasetConfig.getReadDefinition().getReadSignature(), datasetConfig, DatasetRetrievalOptions.DEFAULT).getStatus());
-
-      datasetConfig = ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.\"default\".partition_with_few_schemas")));
-      assertEquals(UpdateStatus.CHANGED, getSabotContext().getCatalogService().getSource("hive").checkReadSignature(
-        datasetConfig.getReadDefinition().getReadSignature(), datasetConfig, DatasetRetrievalOptions.DEFAULT).getStatus());
+      testCheckReadSignature(new EntityPath(ImmutableList.of("hive", "db1", "kv_db1")), SupportsReadSignature.MetadataValidity.INVALID);
+      testCheckReadSignature(new EntityPath(ImmutableList.of("hive", "default", "partition_with_few_schemas")), SupportsReadSignature.MetadataValidity.INVALID);
     } finally {
       newFile.delete();
     }

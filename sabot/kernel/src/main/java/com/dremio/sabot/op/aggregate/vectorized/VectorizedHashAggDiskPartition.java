@@ -70,21 +70,21 @@ import com.google.common.base.Preconditions;
  */
 public class VectorizedHashAggDiskPartition implements AutoCloseable {
 
-  private int numberOfBatches;
+  private long numberOfBatches;
   private final SpillFile spillFile;
   private final String identifier;
   private VectorizedHashAggPartition inmemoryPartitionBackPointer;
   private FSDataOutputStream outputStream;
 
-  public void addNewSpilledBatches(int newBatches) {
+  public void addNewSpilledBatches(final long newBatches) {
     this.numberOfBatches += newBatches;
   }
 
-  public int getNumberOfBatches() {
+  public long getNumberOfBatches() {
     return numberOfBatches;
   }
 
-  VectorizedHashAggDiskPartition(final int numberOfBatches, final SpillManager.SpillFile partitionSpillFile,
+  VectorizedHashAggDiskPartition(final long numberOfBatches, final SpillManager.SpillFile partitionSpillFile,
                                  final VectorizedHashAggPartition inmemoryPartitionBackPointer,
                                  final FSDataOutputStream outputStream) {
     Preconditions.checkArgument(partitionSpillFile != null && numberOfBatches > 0, "Error: must provide valid spill info for creating a disk partition.");

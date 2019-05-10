@@ -17,10 +17,13 @@ package com.dremio.exec.store.hive.exec;
 
 import static com.dremio.exec.store.hive.HiveUtilities.throwUnsupportedHiveDataTypeError;
 
+import java.lang.reflect.InvocationTargetException;
 import java.math.RoundingMode;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
+import com.dremio.exec.store.hive.exec.HiveAbstractReader.HiveOperatorContextOptions;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateMilliVector;
@@ -59,11 +62,19 @@ import org.apache.hadoop.io.Text;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.collect.Maps;
 
-public abstract class HiveFieldConverter {
 
+public abstract class HiveFieldConverter {
+  protected static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveFieldConverter.class);
   public abstract void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex);
 
   private static Map<PrimitiveCategory, Class< ? extends HiveFieldConverter>> primMap = Maps.newHashMap();
+  private HiveOperatorContextOptions contextOptions;
+  public HiveFieldConverter(HiveOperatorContextOptions options) {
+    this.contextOptions = options;
+  }
+  protected void checkReadSizeLimit(int size) {
+    FieldSizeLimitExceptionHelper.checkReadSizeLimit(size, contextOptions.getMaxCellSize(), "", logger);
+  }
 
   // TODO (DRILL-2470)
   // Byte and short (tinyint and smallint in SQL types) are currently read as integers
@@ -88,47 +99,120 @@ public abstract class HiveFieldConverter {
   }
 
 
-  public static HiveFieldConverter create(TypeInfo typeInfo, OperatorContext context)
-      throws IllegalAccessException, InstantiationException {
+  public static HiveFieldConverter create(TypeInfo typeInfo, OperatorContext context, HiveOperatorContextOptions options)
+      throws IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
     switch (typeInfo.getCategory()) {
       case PRIMITIVE:
         final PrimitiveCategory pCat = ((PrimitiveTypeInfo) typeInfo).getPrimitiveCategory();
         if (pCat != PrimitiveCategory.DECIMAL) {
           Class<? extends HiveFieldConverter> clazz = primMap.get(pCat);
           if (clazz != null) {
-            return clazz.newInstance();
+            return clazz.getConstructor(HiveOperatorContextOptions.class).newInstance(options);
           }
         } else {
           // For decimal, based on precision return appropriate converter.
           DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) typeInfo;
           int precision = decimalTypeInfo.precision();
           int scale = decimalTypeInfo.scale();
-          return new Decimal(precision, scale, context);
+          return new Decimal(precision, scale, context, options);
         }
 
         throwUnsupportedHiveDataTypeError(pCat.toString());
         break;
 
-      case LIST:
-      case MAP:
-      case STRUCT:
-      case UNION:
+      case LIST: {
+        Class<? extends HiveFieldConverter> clazz = List.class;
+        if (clazz != null) {
+          return clazz.getConstructor(HiveOperatorContextOptions.class).newInstance(options);
+        }
+      }
+      break;
+      case STRUCT: {
+        Class<? extends HiveFieldConverter> clazz = Struct.class;
+        if (clazz != null) {
+          return clazz.getConstructor(HiveOperatorContextOptions.class).newInstance(options);
+        }
+      }
+      break;
+      case MAP: {
+        Class<? extends HiveFieldConverter> clazz = HiveMap.class;
+        if (clazz != null) {
+          return clazz.getConstructor(HiveOperatorContextOptions.class).newInstance(options);
+        }
+      }
+      break;
+      case UNION: {
+        Class<? extends HiveFieldConverter> clazz = Union.class;
+        if (clazz != null) {
+          return clazz.getConstructor(HiveOperatorContextOptions.class).newInstance(options);
+        }
+      }
       default:
         throwUnsupportedHiveDataTypeError(typeInfo.getCategory().toString());
     }
 
     return null;
   }
-
+  public static class Union extends HiveFieldConverter {
+    public Union(HiveOperatorContextOptions options) {
+      super(options);
+    }
+    @Override
+    public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
+      // In ORC vectorized file reader path these functions are not called.
+      // Currently we support complex types in ORC format only
+      return;
+    }
+  }
+  public static class HiveMap extends HiveFieldConverter {
+    public HiveMap(HiveOperatorContextOptions options) {
+      super(options);
+    }
+    @Override
+    public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
+      // In ORC vectorized file reader path these functions are not called.
+      // Currently we support complex types in ORC format only
+      return;
+    }
+  }
+  public static class List extends HiveFieldConverter {
+    public List(HiveOperatorContextOptions options) {
+      super(options);
+    }
+    @Override
+    public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
+      // In ORC vectorized file reader path these functions are not called.
+      // Currently we support complex types in ORC format only
+      return;
+    }
+  }
+  public static class Struct extends HiveFieldConverter {
+    public Struct(HiveOperatorContextOptions options) {
+      super(options);
+    }
+    @Override
+    public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
+      // In ORC vectorized file reader path these functions are not called.
+      // Currently we support complex types in ORC format only
+      return;
+    }
+  }
   public static class Binary extends HiveFieldConverter {
+    public Binary(HiveOperatorContextOptions options) {
+      super(options);
+    }
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final byte[] value = ((BinaryObjectInspector)oi).getPrimitiveJavaObject(hiveFieldValue);
+      checkReadSizeLimit(value.length);
       ((VarBinaryVector) outputVV).setSafe(outputIndex, value, 0, value.length);
     }
   }
 
   public static class Boolean extends HiveFieldConverter {
+    public Boolean(HiveOperatorContextOptions options) {
+      super(options);
+    }
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final boolean value = (boolean) ((BooleanObjectInspector)oi).getPrimitiveJavaObject(hiveFieldValue);
@@ -139,7 +223,9 @@ public abstract class HiveFieldConverter {
   public static class Decimal extends HiveFieldConverter {
     private final DecimalHolder holder = new DecimalHolder();
 
-    public Decimal(int precision, int scale, OperatorContext context) {
+
+    public Decimal(int precision, int scale, OperatorContext context, HiveOperatorContextOptions options) {
+      super(options);
       holder.scale = scale;
       holder.precision = precision;
       holder.buffer = context.getManagedBuffer(16);
@@ -154,6 +240,9 @@ public abstract class HiveFieldConverter {
   }
 
   public static class Double extends HiveFieldConverter {
+    public Double(HiveOperatorContextOptions options) {
+      super(options);
+    }
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final double value = (double) ((DoubleObjectInspector)oi).getPrimitiveJavaObject(hiveFieldValue);
@@ -162,6 +251,9 @@ public abstract class HiveFieldConverter {
   }
 
   public static class Float extends HiveFieldConverter {
+    public Float(HiveOperatorContextOptions options) {
+      super(options);
+    }
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final float value = (float) ((FloatObjectInspector)oi).getPrimitiveJavaObject(hiveFieldValue);
@@ -170,6 +262,9 @@ public abstract class HiveFieldConverter {
   }
 
   public static class Int extends HiveFieldConverter {
+    public Int(HiveOperatorContextOptions options) {
+      super(options);
+    }
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final int value = (int) ((IntObjectInspector)oi).getPrimitiveJavaObject(hiveFieldValue);
@@ -181,6 +276,9 @@ public abstract class HiveFieldConverter {
   // Byte and short (tinyint and smallint in SQL types) are currently read as integers
   // as these smaller integer types are not fully supported in Dremio today.
   public static class Short extends HiveFieldConverter {
+    public Short(HiveOperatorContextOptions options) {
+      super(options);
+    }
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final int value = (short) ((ShortObjectInspector)oi).getPrimitiveJavaObject(hiveFieldValue);
@@ -189,6 +287,9 @@ public abstract class HiveFieldConverter {
   }
 
   public static class Byte extends HiveFieldConverter {
+    public Byte(HiveOperatorContextOptions options) {
+      super(options);
+    }
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final int value = (byte)((ByteObjectInspector)oi).getPrimitiveJavaObject(hiveFieldValue);
@@ -197,6 +298,9 @@ public abstract class HiveFieldConverter {
   }
 
   public static class Long extends HiveFieldConverter {
+    public Long(HiveOperatorContextOptions options) {
+      super(options);
+    }
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final long value = (long) ((LongObjectInspector)oi).getPrimitiveJavaObject(hiveFieldValue);
@@ -205,26 +309,37 @@ public abstract class HiveFieldConverter {
   }
 
   public static class String extends HiveFieldConverter {
+    public String(HiveOperatorContextOptions options) {
+      super(options);
+    }
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final Text value = ((StringObjectInspector)oi).getPrimitiveWritableObject(hiveFieldValue);
-      final byte[] valueBytes = value.getBytes();
       final int len = value.getLength();
+      checkReadSizeLimit(len);
+      final byte[] valueBytes = value.getBytes();
       ((VarCharVector) outputVV).setSafe(outputIndex, valueBytes, 0, len);
     }
   }
 
   public static class VarChar extends HiveFieldConverter {
+    public VarChar(HiveOperatorContextOptions options) {
+      super(options);
+    }
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final Text value = ((HiveVarcharObjectInspector)oi).getPrimitiveWritableObject(hiveFieldValue).getTextValue();
-      final byte[] valueBytes = value.getBytes();
       final int valueLen = value.getLength();
+      checkReadSizeLimit(valueLen);
+      final byte[] valueBytes = value.getBytes();
       ((VarCharVector) outputVV).setSafe(outputIndex, valueBytes, 0, valueLen);
     }
   }
 
   public static class Timestamp extends HiveFieldConverter {
+    public Timestamp(HiveOperatorContextOptions options) {
+      super(options);
+    }
 
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
@@ -237,7 +352,9 @@ public abstract class HiveFieldConverter {
   }
 
   public static class Date extends HiveFieldConverter {
-
+    public Date(HiveOperatorContextOptions options) {
+      super(options);
+    }
     private static final long MILLIS_PER_DAY = TimeUnit.DAYS.toMillis(1L);
 
     @Override
@@ -248,11 +365,15 @@ public abstract class HiveFieldConverter {
   }
 
   public static class Char extends HiveFieldConverter {
+    public Char(HiveOperatorContextOptions options) {
+      super(options);
+    }
     @Override
     public void setSafeValue(ObjectInspector oi, Object hiveFieldValue, ValueVector outputVV, int outputIndex) {
       final Text value = ((HiveCharObjectInspector)oi).getPrimitiveWritableObject(hiveFieldValue).getStrippedValue();
-      final byte[] valueBytes = value.getBytes();
       final int valueLen = value.getLength();
+      checkReadSizeLimit(valueLen);
+      final byte[] valueBytes = value.getBytes();
       ((VarCharVector) outputVV).setSafe(outputIndex, valueBytes, 0, valueLen);
     }
   }

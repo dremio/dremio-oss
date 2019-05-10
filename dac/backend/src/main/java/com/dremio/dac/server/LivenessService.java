@@ -44,11 +44,13 @@ public class LivenessService implements Service {
   private static final int NUM_ACCEPTORS = 1;
   private static final int NUM_SELECTORS = 1;
   private static final int NUM_REQUEST_THREADS = 1;
+  private static final int NUM_USER_THREADS = 1;
+  private static final int MAX_THREADS = NUM_ACCEPTORS + NUM_SELECTORS + NUM_REQUEST_THREADS + NUM_USER_THREADS;
 
   private final DremioConfig config;
   private final boolean livenessEnabled;
 
-  private final Server embeddedLivenessJetty = new Server(new QueuedThreadPool(NUM_ACCEPTORS + NUM_SELECTORS + NUM_REQUEST_THREADS));
+  private final Server embeddedLivenessJetty = new Server(new QueuedThreadPool(MAX_THREADS));
   private int livenessPort;
   private long pollCount;
   private final TaskPoolInitializer taskPoolInitializer;
@@ -113,7 +115,7 @@ public class LivenessService implements Service {
       pollCount++;
       if ((taskPoolInitializer != null) && !taskPoolInitializer.isTaskPoolHealthy()) {
         // return error code 500
-        logger.info("One of the slicing threads is dead, returning an error");
+        logger.error("One of the slicing threads is dead, returning an error");
         response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         return;
       }

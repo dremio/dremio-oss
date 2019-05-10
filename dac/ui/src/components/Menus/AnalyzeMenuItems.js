@@ -31,9 +31,9 @@ export default class AnalyzeMenuItems extends Component {
   render() {
     return (
       <div>
-        <MenuItem onTouchTap={this.props.openTableau}><FormattedMessage id='Dataset.Tableau'/></MenuItem>
-        <MenuItem onTouchTap={this.props.openPowerBI}><FormattedMessage id='Dataset.PowerBI'/></MenuItem>
-        <MenuItem onTouchTap={this.props.openQlikSense}><FormattedMessage id='Dataset.QlikSense'/></MenuItem>
+        <MenuItem onClick={this.props.openTableau}><FormattedMessage id='Dataset.Tableau'/></MenuItem>
+        <MenuItem onClick={this.props.openPowerBI}><FormattedMessage id='Dataset.PowerBI'/></MenuItem>
+        <MenuItem onClick={this.props.openQlikSense}><FormattedMessage id='Dataset.QlikSense'/></MenuItem>
         <DividerHr />
         <MenuItem isInformational> {/* todo: loc safety (string concat) */}
           <span>

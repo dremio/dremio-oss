@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { fork } from 'redux-saga/effects';
+import { all, fork } from 'redux-saga/effects';
 
 import wsEvents from './wsEvents';
 import qlik from './qlik';
@@ -26,10 +26,9 @@ import performTransform from './performTransform';
 import performLoadDataset from './performLoadDataset';
 import transformHistoryCheck from './transformHistoryCheck';
 import transformCardPreview from './transformCardPreview';
-import focusSagas from './editorFocus';
 
 export default function* rootSaga() {
-  yield [
+  yield all([
     fork(wsEvents),
     fork(qlik),
     fork(serverStatus),
@@ -40,7 +39,6 @@ export default function* rootSaga() {
     fork(performTransform),
     fork(performLoadDataset),
     fork(transformHistoryCheck),
-    fork(transformCardPreview),
-    fork(focusSagas)
-  ];
+    fork(transformCardPreview)
+  ]);
 }

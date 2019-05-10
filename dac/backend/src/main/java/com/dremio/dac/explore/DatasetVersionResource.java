@@ -267,7 +267,7 @@ public class DatasetVersionResource {
     // otherwise assume the current version is at the tip of the history
     VirtualDatasetUI dataset = getDatasetConfig();
     tipVersion = tipVersion != null ? tipVersion : dataset.getVersion();
-    return tool.createPreviewResponseForExistingDataset(datasetPath, dataset, tipVersion, limit);
+    return tool.createPreviewResponseForExistingDataset(dataset, new DatasetVersionResourcePath(datasetPath, tipVersion), limit);
   }
 
   @GET @Path("review")
@@ -303,8 +303,7 @@ public class DatasetVersionResource {
       throw new ClientErrorException("Query parameter 'newVersion' should not be null");
     }
 
-    final DatasetVersionResourcePath resourcePath = resourcePath();
-    final DatasetAndJob datasetAndJob = transformer.transformWithExecute(newVersion, resourcePath.getDataset(), getDatasetConfig(), transform, QueryType.UI_PREVIEW);
+    final DatasetAndJob datasetAndJob = transformer.transformWithExecute(newVersion, datasetPath, getDatasetConfig(), transform, QueryType.UI_PREVIEW);
     return tool.createPreviewResponse(datasetPath, datasetAndJob, limit, false);
   }
 
@@ -364,6 +363,13 @@ public class DatasetVersionResource {
     // otherwise assume the current version is at the tip of the history
     tipVersion = tipVersion != null ? tipVersion : virtualDatasetUI.getVersion();
     final History history = tool.getHistory(datasetPath, virtualDatasetUI.getVersion(), tipVersion);
+    // VBesschetnov 2019-01-08
+    // this is requires as BE generates apiLinks, that is used by UI to send requests for preview/run. In case, when history
+    // of a dataset reference on a version for other dataset. And a user navigate to that version and tries to preview it,
+    // we would not be resolve a tip version and preview will fail. We should always send requests to original dataset
+    // path (tip version path) to be able to get a preview/run data
+    // TODO(DX-14701) move links from BE to UI
+    virtualDatasetUI.setFullPathList(datasetPath.toPathList());
     return InitialRunResponse.of(newDataset(virtualDatasetUI, tipVersion), job.getJobId(), history);
   }
 
@@ -593,6 +599,7 @@ public class DatasetVersionResource {
     return new DatasetUIWithHistory(savedDataset, tool.getHistory(asDatasetPath, datasetAndJob.getDataset().getVersion()));
   }
 
+  // a partial duplicate of gethistory
   private List<VirtualDatasetUI> getPreviousDatasetVersions(VirtualDatasetUI dataset)
       throws DatasetVersionNotFoundException {
     List<VirtualDatasetUI> items = new ArrayList<>();

@@ -19,10 +19,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlOperatorBinding;
-import org.apache.calcite.sql.type.SqlReturnTypeInference;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.hadoop.hive.ql.exec.Description;
 import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.hive.ql.udf.UDFType;
@@ -31,17 +27,15 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.types.TypeProtos.DataMode;
-import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.fn.impl.hive.ObjectInspectorHelper;
 import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.HiveUDFOperator;
-import com.dremio.exec.planner.sql.TypeInferenceUtils;
+import com.dremio.options.OptionManager;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Sets;
 
@@ -92,10 +86,10 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry{
   }
 
   @Override
-  public void register(OperatorTable operatorTable) {
+  public void register(OperatorTable operatorTable, boolean isDecimalV2Enabled) {
     for (String name : Sets.union(methodsGenericUDF.asMap().keySet(), methodsUDF.asMap().keySet())) {
       operatorTable.add(name, new HiveUDFOperator(name.toUpperCase(), new
-        PlugginRepositorySqlReturnTypeInference(this)));
+        PlugginRepositorySqlReturnTypeInference(this, isDecimalV2Enabled)));
     }
   }
 
@@ -129,7 +123,7 @@ public class HiveFunctionRegistry implements PluggableFunctionRegistry{
    * @return
    */
   @Override
-  public HiveFuncHolder getFunction(FunctionCall call) {
+  public HiveFuncHolder getFunction(FunctionCall call, boolean isDecimalV2Enabled) {
     HiveFuncHolder h;
 
     h = resolveFunction(call, false);

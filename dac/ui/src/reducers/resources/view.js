@@ -20,6 +20,7 @@ import { RequestError, ApiError, InternalError } from 'redux-api-middleware';
 import { RESET_VIEW_STATE, UPDATE_VIEW_STATE, DISMISS_VIEW_STATE_ERROR } from 'actions/resources';
 import { CANCEL_TRANSFORM } from 'actions/explore/dataset/transform';
 import { RESET_NEW_QUERY } from 'actions/explore/view';
+import { CLEAR_ENTITIES } from 'actions/resources/entities';
 
 export const NO_INTERNET_MESSAGE = 'Could not connect to the Dremio server.'; // todo: loc
 
@@ -173,6 +174,10 @@ export default function view(state = Immutable.Map(), action) {
 
   if (action.type === DISMISS_VIEW_STATE_ERROR) {
     return state.mergeIn([meta.viewId, 'error'], { dismissed: true });
+  }
+
+  if (action.type === CLEAR_ENTITIES) {
+    return Immutable.Map();
   }
 
   if (!meta) {

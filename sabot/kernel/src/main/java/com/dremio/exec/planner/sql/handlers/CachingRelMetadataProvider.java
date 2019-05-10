@@ -26,6 +26,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.Metadata;
 import org.apache.calcite.rel.metadata.MetadataDef;
@@ -35,6 +36,7 @@ import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.metadata.UnboundMetadata;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.util.BuiltInMethod;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -156,6 +158,17 @@ public class CachingRelMetadataProvider implements RelMetadataProvider {
     @Override
     public Object invoke(Object proxy, Method method, Object[] args)
         throws Throwable {
+      // Skip cycle check/caching for metadata.rel() and metadata.toString()
+      if (BuiltInMethod.METADATA_REL.method.equals(method)
+          || BuiltInMethod.OBJECT_TO_STRING.method.equals(method)) {
+        return method.invoke(metadata, args);
+      }
+
+      if (metadata.rel() instanceof RelSubset) {
+        // Do not cache RelSubset
+        return method.invoke(metadata, args);
+      }
+
       // Compute hash key.
       final ImmutableList.Builder<Object> builder = ImmutableList.builder();
       builder.add(method);

@@ -29,7 +29,7 @@ public class TestVHashJoin extends BaseTestJoin {
 
   @Override
   protected JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type) {
-    return new JoinInfo(VectorizedHashJoinOperator.class, new HashJoinPOP(null, null, conditions, type, true));
+    return new JoinInfo(VectorizedHashJoinOperator.class, new HashJoinPOP(PROPS, null, null, conditions, type, true));
   }
 
   @Test

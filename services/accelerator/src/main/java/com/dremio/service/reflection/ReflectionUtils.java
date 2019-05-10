@@ -50,6 +50,7 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.work.user.SubstitutionSettings;
+import com.dremio.proto.model.UpdateId;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
@@ -101,6 +102,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Futures;
 
 /**
  * Helper functions for Reflection management
@@ -153,13 +155,15 @@ public class ReflectionUtils {
       .setReflectionName(entry.getName())
       .setReflectionType(entry.getType().toString());
 
-    return jobsService.submitJob(
-      JobRequest.newMaterializationJobBuilder(materializationSummary,
-        new SubstitutionSettings(ImmutableList.of()))
-        .setSqlQuery(query)
-        .setQueryType(QueryType.ACCELERATOR_CREATE)
-        .setDatasetPath(datasetPathList)
-        .build(), jobStatusListener);
+    return Futures.getUnchecked(
+      jobsService.submitJob(
+        JobRequest.newMaterializationJobBuilder(materializationSummary, new SubstitutionSettings(ImmutableList.of()))
+          .setSqlQuery(query)
+          .setQueryType(QueryType.ACCELERATOR_CREATE)
+          .setDatasetPath(datasetPathList)
+          .build(),
+        jobStatusListener)
+    );
   }
 
   public static List<String> getMaterializationPath(Materialization materialization) {
@@ -520,7 +524,7 @@ public class ReflectionUtils {
   }
 
   public static Refresh createRefresh(ReflectionId reflectionId, List<String> refreshPath, final long seriesId, final int seriesOrdinal,
-      final long updateId, JobDetails details, MaterializationMetrics metrics, List<DataPartition> dataPartitions) {
+                                      final UpdateId updateId, JobDetails details, MaterializationMetrics metrics, List<DataPartition> dataPartitions) {
     final String path = PathUtils.getPathJoiner().join(Iterables.skip(refreshPath, 1));
 
     return new Refresh()

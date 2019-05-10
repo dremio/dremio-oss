@@ -414,7 +414,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
     BigDecimal values[] = new BigDecimal[size];
     for(int i =0; i < values.length; i++){
       if (RAND.nextBoolean()) {
-        values[i] = new BigDecimal(RAND.nextLong());
+        values[i] = BigDecimal.valueOf(RAND.nextLong());
         vector.setSafe(i, values[i]);
       }
     }
@@ -426,7 +426,7 @@ public class TestBoundedPivots extends BaseTestWithAllocator {
     vector.allocateNew();
     BigDecimal values[] = new BigDecimal[size];
     for(int i =0; i < values.length; i++){
-      values[i] = new BigDecimal(RAND.nextLong());
+      values[i] = BigDecimal.valueOf(RAND.nextLong());
       vector.setSafe(i, values[i]);
     }
     vector.setValueCount(values.length);

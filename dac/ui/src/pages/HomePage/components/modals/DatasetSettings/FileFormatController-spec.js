@@ -92,6 +92,19 @@ describe('FileFormatController', () => {
       expect(props.onDone).to.be.called;
     });
 
+    it('should call saveFileFormat with links.self if entity fileFormat is not defined', () => {
+      const id = '/source/s3/file/test.json';
+      const fileFormatLink = '/source/s3/file_format/test.json';
+      wrapper.setProps({
+        entity: Immutable.fromJS({ id })
+      });
+
+      instance.onSubmitFormat({type: 'JSON', version: 1});
+      expect(ApiUtils.attachFormSubmitHandlers).to.be.called;
+      expect(props.saveFileFormat).to.be.calledWith(Immutable.fromJS({links: {self: fileFormatLink}}), {type: 'JSON', version: 1});
+      expect(props.onDone).to.be.called;
+    });
+
     it('should redirect to links.query from entity when query.then is "query" from props', () => {
       wrapper.setProps({
         query: { then: 'query'}
@@ -103,5 +116,6 @@ describe('FileFormatController', () => {
       expect(context.router.replace).to.be.calledWith('/query/link');
       expect(props.onDone).to.be.not.called;
     });
+
   });
 });

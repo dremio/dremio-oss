@@ -44,7 +44,6 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.exec.store.RecordReader;
-import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.copier.Copier;
 import com.dremio.sabot.op.copier.CopierOperator;
@@ -137,11 +136,6 @@ public class CopyingFilteringReader implements RecordReader {
       final Field field = wrapper.getField();
       copierToOutputTransfers.add(wrapper.getValueVector().makeTransferPair(output.getVector(field.getName())));
     }
-  }
-
-  @Override
-  public SchemaChangeMutator getSchemaChangeMutator() {
-    return delegate.getSchemaChangeMutator();
   }
 
   @Override

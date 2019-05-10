@@ -15,12 +15,19 @@
  */
 package com.dremio.exec.store.ischema.tables;
 
+import java.util.Iterator;
 import java.util.List;
-import java.util.UUID;
 
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.DatasetSplit;
+import com.dremio.connector.metadata.DatasetStats;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.PartitionChunk;
+import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
@@ -30,33 +37,29 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.pojo.PojoDataType;
 import com.dremio.exec.store.pojo.PojoRecordReader;
 import com.dremio.service.listing.DatasetListingService;
-import com.dremio.service.namespace.DatasetHelper;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.SourceTableDefinition;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
-import com.dremio.service.namespace.dataset.proto.ReadDefinition;
-import com.dremio.service.namespace.dataset.proto.ScanStats;
-import com.dremio.service.namespace.proto.EntityId;
-import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableList;
 
-@SuppressWarnings({ "unchecked", "rawtypes" })
-public enum InfoSchemaTable {
+@SuppressWarnings({"unchecked", "rawtypes"})
+public enum InfoSchemaTable implements DatasetHandle, DatasetMetadata, PartitionChunkListing {
   CATALOGS(CatalogsTable.DEFINITION),
   SCHEMATA(SchemataTable.DEFINITION),
   TABLES(TablesTable.DEFINITION),
   VIEWS(ViewsTable.DEFINITION),
   COLUMNS(ColumnsTable.DEFINITION);
 
+  private static final long RECORD_COUNT = 100L;
+  private static final long SIZE_IN_BYTES = 1000L;
+
+  private static final DatasetStats DATASET_STATS = DatasetStats.of(RECORD_COUNT, ScanCostFactor.OTHER.getFactor());
+  private static final ImmutableList<PartitionChunk> PARTITION_CHUNKS =
+      ImmutableList.of(PartitionChunk.of(DatasetSplit.of(SIZE_IN_BYTES, RECORD_COUNT)));
+
   private final BaseInfoSchemaTable<?> definition;
-  private final NamespaceKey key;
+  private final EntityPath entityPath;
 
   private InfoSchemaTable(BaseInfoSchemaTable<?> definition) {
     this.definition = definition;
-    this.key = new NamespaceKey(ImmutableList.of("INFORMATION_SCHEMA", name()));
+    this.entityPath = new EntityPath(ImmutableList.of("INFORMATION_SCHEMA", name()));
   }
 
   public <T> Iterable<T> asIterable(
@@ -80,63 +83,25 @@ public enum InfoSchemaTable {
         columns);
   }
 
-  public BatchSchema getSchema() {
+  @Override
+  public EntityPath getDatasetPath() {
+    return entityPath;
+  }
+
+  @Override
+  public DatasetStats getDatasetStats() {
+    return DATASET_STATS;
+  }
+
+  @Override
+  public BatchSchema getRecordSchema() {
     RecordDataType dataType = new PojoDataType(definition.getRecordClass());
     RelDataType type = dataType.getRowType(JavaTypeFactoryImpl.INSTANCE);
     return BatchSchema.fromCalciteRowType(type);
   }
 
-  public SourceTableDefinition asTableDefinition(final DatasetConfig oldDataset) {
-    return new SourceTableDefinition() {
-
-      @Override
-      public NamespaceKey getName() {
-        return key;
-      }
-
-      @Override
-      public DatasetConfig getDataset() throws Exception {
-        final DatasetConfig dataset;
-        if(oldDataset == null) {
-          dataset = new DatasetConfig()
-           .setFullPathList(key.getPathComponents())
-          .setId(new EntityId(UUID.randomUUID().toString()))
-          .setType(DatasetType.PHYSICAL_DATASET);
-
-        } else {
-          dataset = oldDataset;
-        }
-
-        return dataset
-            .setName(key.getName())
-            .setReadDefinition(new ReadDefinition()
-                .setScanStats(new ScanStats().setRecordCount(100l)
-                    .setScanFactor(ScanCostFactor.OTHER.getFactor())))
-            .setOwner(SystemUser.SYSTEM_USERNAME)
-            .setPhysicalDataset(new PhysicalDataset())
-            .setRecordSchema(getSchema().toByteString())
-            .setSchemaVersion(DatasetHelper.CURRENT_VERSION);
-      }
-
-
-      @Override
-      public List<DatasetSplit> getSplits() throws Exception {
-        // Always a single split.
-        DatasetSplit split = new DatasetSplit();
-        split.setSize(1l);
-        split.setSplitKey("1");
-        return ImmutableList.of(split);
-      }
-
-      @Override
-      public boolean isSaveable() {
-        return true;
-      }
-
-      @Override
-      public DatasetType getType() {
-        return DatasetType.PHYSICAL_DATASET;
-      }};
-
+  @Override
+  public Iterator<? extends PartitionChunk> iterator() {
+    return PARTITION_CHUNKS.iterator();
   }
 }

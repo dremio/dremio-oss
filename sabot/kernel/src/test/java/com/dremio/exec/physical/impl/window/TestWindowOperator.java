@@ -60,7 +60,7 @@ public class TestWindowOperator extends BaseTestOperator {
       :
       Arrays.asList(n("sum(salary)", "sum"), n("count(position_id)", "count"));
     List<Order.Ordering> orderings = withOrderBy ? singletonList(ordering("sub", DESCENDING, FIRST)) : Collections.<Order.Ordering>emptyList();
-    return new WindowPOP(null, withins, aggregations, orderings, false, new Bound(true, Long.MIN_VALUE), new Bound(false, 0));
+    return new WindowPOP(PROPS, null, withins, aggregations, orderings, false, new Bound(true, Long.MIN_VALUE), new Bound(false, 0));
   }
 
   private void validateWindow(DataPar[] dataDef, boolean withPartitionBy, boolean withOrderBy) throws Exception {
@@ -109,7 +109,7 @@ public class TestWindowOperator extends BaseTestOperator {
   @Test // DRILL-4657
   public void test4657() throws Exception {
     // SELECT row_number() OVER(ORDER BY position_id) rn, rank() OVER(ORDER BY position_id) rnk FROM dfs.\"%s/window/b3.p2\"
-    final WindowPOP window = new WindowPOP(null,
+    final WindowPOP window = new WindowPOP(PROPS, null,
       Collections.<NamedExpression>emptyList(), // withins
       Arrays.asList(n("row_number()", "rn"), n("rank()", "rnk")), // aggregations
       singletonList(ordering("position_id", DESCENDING, FIRST)), // ordering

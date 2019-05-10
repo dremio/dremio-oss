@@ -30,7 +30,7 @@ import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.physical.base.AbstractSingle;
-import com.dremio.exec.physical.base.MemoryCalcConsidered;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.physical.config.EmptyValues;
@@ -39,12 +39,13 @@ import com.dremio.exec.physical.config.SingleSender;
 import com.dremio.exec.physical.config.UnorderedReceiver;
 import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.planner.fragment.Wrapper;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
-import com.dremio.options.OptionManager;
+import com.dremio.options.TypeValidators;
 import com.dremio.service.DirectProvider;
 import com.dremio.test.UserExceptionMatcher;
 import com.google.common.collect.ImmutableMap;
@@ -52,9 +53,10 @@ import com.google.common.collect.ImmutableMap;
 public class TestMemoryAllocationUtilities extends ExecTest {
 
   private static final EmptyValues ARBTRIARY_LEAF;
+  private static final TypeValidators.DoubleValidator SORT_FACTOR = new TypeValidators.RangeDoubleValidator("planner.op.sort.factor", 0.0, 1000.0, 1.0d);
+  private static final TypeValidators.BooleanValidator SORT_BOUNDED = new TypeValidators.BooleanValidator("planner.op.sort.bounded", true);
   static {
-    ARBTRIARY_LEAF = new EmptyValues(BatchSchema.SCHEMA_UNKNOWN_NO_DATA);
-    ARBTRIARY_LEAF.setInitialAllocation(1);
+    ARBTRIARY_LEAF = new EmptyValues(OpProps.prototype(1, Long.MAX_VALUE), BatchSchema.SCHEMA_UNKNOWN_NO_DATA);
   }
 
   private static final NodeEndpoint N1 = NodeEndpoint.newBuilder().setAddress("n1").build();
@@ -84,49 +86,42 @@ public class TestMemoryAllocationUtilities extends ExecTest {
    */
   @Test
   public void syntheticSimple() {
-    ConfigurableOperator cnb = new ConfigurableOperator(ARBTRIARY_LEAF, 2.0d, false);
-    cnb.setInitialAllocation(1l);
-    ConfigurableOperator cb = new ConfigurableOperator(cnb, 1.0d, true);
-    cb.setInitialAllocation(1l);
+    ConfigurableOperator cnb = new ConfigurableOperator(OpProps.prototype(1, Long.MAX_VALUE).cloneWithMemoryExpensive(true).cloneWithBound(false).cloneWithMemoryFactor(2.0d), ARBTRIARY_LEAF);
+    ConfigurableOperator cb = new ConfigurableOperator(OpProps.prototype(1, Long.MAX_VALUE).cloneWithMemoryExpensive(true).cloneWithBound(true).cloneWithMemoryFactor(1.0d), cnb);
     Fragment f1 = new Fragment();
     f1.addOperator(cb);
     Wrapper w1 = new Wrapper(f1, 0);
     w1.overrideEndpoints(Collections.singletonList(N1));
     MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, w1), 10);
-    assertEquals(Long.MAX_VALUE, cnb.getMaxAllocation());
-    assertEquals(3, cb.getMaxAllocation());
+    assertEquals(Long.MAX_VALUE, cnb.getProps().getMemLimit());
+    assertEquals(3, cb.getProps().getMemLimit());
   }
 
   @Test
   public void doubleSort() {
-    ExternalSort es1 = new ExternalSort(ARBTRIARY_LEAF, Collections.emptyList(), false);
-    es1.setInitialAllocation(0);
-    ExternalSort es2 = new ExternalSort(es1, Collections.emptyList(), false);
-    es2.setInitialAllocation(0);
+    ExternalSort es1 = new ExternalSort(OpProps.prototype().cloneWithNewReserve(0).cloneWithMemoryExpensive(true).cloneWithMemoryFactor(options.getOption(SORT_FACTOR)).cloneWithBound(options.getOption(SORT_BOUNDED)), ARBTRIARY_LEAF, Collections.emptyList(), false);
+    ExternalSort es2 = new ExternalSort(OpProps.prototype().cloneWithNewReserve(0).cloneWithMemoryExpensive(true).cloneWithMemoryFactor(options.getOption(SORT_FACTOR)).cloneWithBound(options.getOption(SORT_BOUNDED)), es1, Collections.emptyList(), false);
     Fragment f1 = new Fragment();
     f1.addOperator(es2);
     Wrapper wrapper = new Wrapper(f1, 0);
     wrapper.overrideEndpoints(Collections.singletonList(N1));
     MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, wrapper), 10);
-    assertEquals(4l, es1.getMaxAllocation());
-    assertEquals(4l, es2.getMaxAllocation());
+    assertEquals(4l, es1.getProps().getMemLimit());
+    assertEquals(4l, es2.getProps().getMemLimit());
   }
 
   @Test
   public void doubleSortWithExchange() {
-    ExternalSort es1 = new ExternalSort(ARBTRIARY_LEAF, Collections.emptyList(), false);
-    es1.setInitialAllocation(0);
-    SingleSender ss = new SingleSender(0, es1, N1, Mockito.mock(BatchSchema.class));
-    ss.setInitialAllocation(1);
+    ExternalSort es1 = new ExternalSort(OpProps.prototype(0, Long.MAX_VALUE).cloneWithMemoryExpensive(true).cloneWithMemoryFactor(options.getOption(SORT_FACTOR)).cloneWithBound(options.getOption(SORT_BOUNDED)), ARBTRIARY_LEAF, Collections.emptyList(), false);
+    SingleSender ss = new SingleSender(OpProps.prototype(1, Long.MAX_VALUE).cloneWithMemoryFactor(options.getOption(SORT_FACTOR)).cloneWithBound(options.getOption(SORT_BOUNDED)), Mockito.mock(BatchSchema.class), es1, 0,
+      MinorFragmentIndexEndpoint.newBuilder().setMinorFragmentId(0).build());
     Fragment f1 = new Fragment();
     f1.addOperator(ss);
     Wrapper w1 = new Wrapper(f1, 0);
     w1.overrideEndpoints(Collections.singletonList(N1));
 
-    UnorderedReceiver or = new UnorderedReceiver(0, Collections.emptyList(), false, Mockito.mock(BatchSchema.class));
-    or.setInitialAllocation(1);
-    ExternalSort es2 = new ExternalSort(or, Collections.emptyList(), false);
-    es2.setInitialAllocation(0);
+    UnorderedReceiver or = new UnorderedReceiver(OpProps.prototype(1, Long.MAX_VALUE), Mockito.mock(BatchSchema.class), 0, Collections.emptyList(), false);
+    ExternalSort es2 = new ExternalSort(OpProps.prototype(0, Long.MAX_VALUE).cloneWithMemoryExpensive(true).cloneWithMemoryFactor(options.getOption(SORT_FACTOR)).cloneWithBound(options.getOption(SORT_BOUNDED)), or, Collections.emptyList(), false);
     Fragment f2 = new Fragment();
     f2.addOperator(es2);
     Wrapper w2 = new Wrapper(f2, 0);
@@ -134,8 +129,8 @@ public class TestMemoryAllocationUtilities extends ExecTest {
 
 
     MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, w1, f2, w2), 10);
-    assertEquals(3l, es1.getMaxAllocation());
-    assertEquals(3l, es2.getMaxAllocation());
+    assertEquals(3l, es1.getProps().getMemLimit());
+    assertEquals(3l, es2.getProps().getMemLimit());
   }
 
   /**
@@ -143,19 +138,16 @@ public class TestMemoryAllocationUtilities extends ExecTest {
    */
   @Test
   public void doubleSortWithExchangeUnbalancedNodes() {
-    ExternalSort es1 = new ExternalSort(ARBTRIARY_LEAF, Collections.emptyList(), false);
-    es1.setInitialAllocation(0);
-    SingleSender ss = new SingleSender(0, es1, N1, Mockito.mock(BatchSchema.class));
-    ss.setInitialAllocation(1);
+    ExternalSort es1 = new ExternalSort(OpProps.prototype(0,  Long.MAX_VALUE).cloneWithMemoryExpensive(true).cloneWithMemoryFactor(options.getOption(SORT_FACTOR)).cloneWithBound(options.getOption(SORT_BOUNDED)), ARBTRIARY_LEAF, Collections.emptyList(), false);
+    SingleSender ss = new SingleSender(OpProps.prototype(1,  Long.MAX_VALUE).cloneWithMemoryFactor(options.getOption(SORT_FACTOR)).cloneWithBound(options.getOption(SORT_BOUNDED)), Mockito.mock(BatchSchema.class), es1, 0,
+      MinorFragmentIndexEndpoint.newBuilder().setMinorFragmentId(0).build());
     Fragment f1 = new Fragment();
     f1.addOperator(ss);
     Wrapper w1 = new Wrapper(f1, 0);
     w1.overrideEndpoints(Arrays.asList(N1, N2));
 
-    UnorderedReceiver or = new UnorderedReceiver(0, Collections.emptyList(), false, Mockito.mock(BatchSchema.class));
-    or.setInitialAllocation(1);
-    ExternalSort es2 = new ExternalSort(or, Collections.emptyList(), false);
-    es2.setInitialAllocation(0);
+    UnorderedReceiver or = new UnorderedReceiver(OpProps.prototype(1,  Long.MAX_VALUE), Mockito.mock(BatchSchema.class), 0, Collections.emptyList(), false);
+    ExternalSort es2 = new ExternalSort(OpProps.prototype(0,  Long.MAX_VALUE).cloneWithMemoryExpensive(true).cloneWithMemoryFactor(options.getOption(SORT_FACTOR)).cloneWithBound(options.getOption(SORT_BOUNDED)), or, Collections.emptyList(), false);
     Fragment f2 = new Fragment();
     f2.addOperator(es2);
     Wrapper w2 = new Wrapper(f2, 0);
@@ -163,16 +155,14 @@ public class TestMemoryAllocationUtilities extends ExecTest {
 
 
     MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, w1, f2, w2), 10);
-    assertEquals(3l, es1.getMaxAllocation());
-    assertEquals(3l, es2.getMaxAllocation());
+    assertEquals(3l, es1.getProps().getMemLimit());
+    assertEquals(3l, es2.getProps().getMemLimit());
   }
 
   @Test
   public void initialMemoryTooHigh() {
-    ConfigurableOperator cnb = new ConfigurableOperator(ARBTRIARY_LEAF, 2.0d, false);
-    cnb.setInitialAllocation(2_000_000l);
-    ConfigurableOperator cb = new ConfigurableOperator(cnb, 1.0d, true);
-    cb.setInitialAllocation(3_000_000l);
+    ConfigurableOperator cnb = new ConfigurableOperator(OpProps.prototype(2_000_000l, Long.MAX_VALUE).cloneWithMemoryExpensive(true).cloneWithBound(false).cloneWithMemoryFactor(2.0d), ARBTRIARY_LEAF);
+    ConfigurableOperator cb = new ConfigurableOperator(OpProps.prototype(3_000_000l, Long.MAX_VALUE).cloneWithMemoryExpensive(true).cloneWithBound(true).cloneWithMemoryFactor(1.0d), cnb);
     Fragment f1 = new Fragment();
     f1.addOperator(cb);
     Wrapper w1 = new Wrapper(f1, 0);
@@ -183,15 +173,10 @@ public class TestMemoryAllocationUtilities extends ExecTest {
     MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, w1), 10_000_000l);
   }
 
-  private static class ConfigurableOperator extends AbstractSingle implements MemoryCalcConsidered {
+  private static class ConfigurableOperator extends AbstractSingle {
 
-    private final double memoryFactor;
-    private final boolean isBounded;
-
-    public ConfigurableOperator(PhysicalOperator child, double memoryFactor, boolean isBounded) {
-      super(child);
-      this.memoryFactor = memoryFactor;
-      this.isBounded = isBounded;
+    public ConfigurableOperator(OpProps props, PhysicalOperator child) {
+      super(props, child);
     }
 
     @Override
@@ -200,23 +185,13 @@ public class TestMemoryAllocationUtilities extends ExecTest {
     }
 
     @Override
-    public double getMemoryFactor(OptionManager options) {
-      return memoryFactor;
-    }
-
-    @Override
     public int getOperatorType() {
       return 0;
     }
 
     @Override
-    public boolean shouldBeMemoryBounded(OptionManager options) {
-      return isBounded;
-    }
-
-    @Override
     protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-      return new ConfigurableOperator(child, memoryFactor, isBounded);
+      return new ConfigurableOperator(props, child);
     }
 
   }

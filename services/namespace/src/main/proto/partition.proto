@@ -1,0 +1,136 @@
+/*
+ * Copyright (C) 2017-2018 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax="proto2";
+package com.dremio.service.namespace.dataset.proto;
+
+option java_package = "com.dremio.service.namespace.dataset.proto";
+option optimize_for = SPEED;
+option java_generate_equals_and_hash = true;
+
+option java_outer_classname = "PartitionProtobuf";
+
+message Affinity {
+  optional string host = 1;
+  optional double factor = 2;
+}
+
+enum PartitionValueType {
+  UNKNOWN = 0;
+  
+  // always present
+  VISIBLE = 1;
+  
+  // implicit columns dir0, part of the table
+  IMPLICIT = 2;
+  
+  // invisible columns such as mod time (enabled only when added to projection list)
+  INVISIBLE = 3;
+}
+
+message PartitionValue {
+  optional PartitionValueType type = 1;
+  
+  // The column name.
+  optional string column = 2;
+  optional bool bit_value = 3;
+  optional int32 int_value = 4;
+  optional int64 long_value = 5;
+  optional float float_value = 6;
+  optional double double_value = 7;
+  optional bytes binary_value = 8;
+  optional string string_value = 9;
+}
+
+// Represents a piece of a partition of a dataset, or perhaps the whole partition
+// Note on usage of PartitionChunk
+// There are three flavors of a partition chunk in use in the code
+// 1. Original Dataset Split
+//      Characteristics:
+//      - affinities & extendedProperty fields set
+//      - splitCount not set
+//      - datasetSplit not set
+//      Usage:
+//      - saved in the KV store from before software update to the code that supports multi-level PartitionChunk(s)
+// 2. Single Split Partition
+//      Characteristics:
+//      - affinities & extendedProperty fields not set
+//      - splitCount set to 1
+//      - datasetSplit set, and contains the affinity and extendedProperty
+//      Usage:
+//      - datasets that have a single split in a given partition chunk
+// 3. Multi-Split Partition
+//      Characteristics:
+//      - affinities & extendedProperty fields not set
+//      - splitCount set, and is > 1
+//      - datasetSplit not set
+//      - A single MultiSplit entry exists for this PartitionChunk, and it contains the details of all the splits within
+//        that PartitionChunk
+//      Usage:
+//      - datasets that have more than one split in a given partition chunk
+message PartitionChunk {
+  // reserved 1, 8, 9
+  // optional int64 version = 1 [deprecated = true]; // occ version
+  optional int64 size = 2; // size in bytes
+  optional int64 row_count = 3; // number of rows
+  repeated PartitionValue partition_values = 5;
+  optional string split_key = 6; // unique key provided by storage plugin which is indexed along with dataset id
+  optional bytes partition_extended_property = 7; // source specific information about this partition chunk
+
+  optional int64 split_count = 10;          // number of splits in this PartitionChunk
+  optional DatasetSplit dataset_split = 11; // set only if splitCount == 1
+
+  // Fields obsoleted by the move from a single-level DatasetSplit to a two-level PartitionChunk + MultiSplit
+  repeated Affinity affinities = 4     [deprecated = true]; // locality for this split
+  // optional int64 split_version = 8; // increasing number assigned to map read definition to its latest splits
+  // optional string tag = 9;
+}
+
+// Information on single split
+message DatasetSplit {
+  repeated Affinity affinities = 1;     // locality for this split
+  optional int64 size = 2;              // size in bytes
+  optional bytes split_extended_property = 3; // source specific information about this split
+}
+
+// Represents the multiple splits for a single partition, for the cases where that partition has more than one split
+message MultiSplit {
+  // reserved 3  -- used for a very short time, in development-only builds, to store a decompressed_size
+  enum Codec {
+    UNKNOWN = 0;
+    UNCOMPRESSED = 1;
+    SNAPPY = 2;
+  }
+  optional string multi_split_key = 1;  // unique key provided by storage plugin which is indexed along with PartitionChunk.splitKey
+  optional Codec codec = 2;             // describes the encoding of 'splitData'
+  optional int64 split_count = 4;       // number of splits in 'splitData'
+  optional bytes split_data = 5;        // a serialized sequence of DatasetSplit(s).
+}
+
+// Message sent to the executors when creating operators that need partition and-or split information
+message SplitInfo {
+  optional string split_key = 1;                   // Provided by the storage plugin. Used in exception messages
+  optional int64 size = 2;                         // size in bytes
+  repeated Affinity affinities = 3;                // locality for this split
+  repeated PartitionValue partition_values = 4;    // partition(s) covered by this request
+  optional bytes split_extended_property = 5;      // source specific information about this split
+  optional bytes partition_extended_property = 6;  // source specific information about the partition chunk this split belong to
+}
+
+// List of SplitInfos.
+message SplitInfoList {
+  repeated SplitInfo splits = 1;
+}
+

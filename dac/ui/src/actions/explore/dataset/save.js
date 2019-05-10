@@ -19,8 +19,8 @@ import invariant from 'invariant';
 
 import exploreUtils from 'utils/explore/exploreUtils';
 
-import fullDatasetSchema from 'schemas/v2/fullDataset';
-import { constructFullPathAndEncode } from 'utils/pathUtils';
+import { datasetWithoutData } from 'schemas/v2/fullDataset';
+import { constructFullPathAndEncode, getRouteParamsFromLocation } from 'utils/pathUtils';
 import apiUtils from 'utils/apiUtils/apiUtils';
 import { performNextAction } from 'actions/explore/nextAction';
 
@@ -59,7 +59,7 @@ export function submitSaveDataset(dataset, viewId) {
     return dispatch(postDatasetOperation({
       href,
       viewId,
-      schema: fullDatasetSchema,
+      schema: datasetWithoutData,
       metas: [{}, {mergeEntities: true}], // Save returns dataset and history only, so need to merge fullDataset
       notificationMessage: la('Successfully saved.')
     }));
@@ -68,16 +68,13 @@ export function submitSaveDataset(dataset, viewId) {
 
 export function submitSaveAsDataset(name, fullPath, location, reapply) {
   return (dispatch) => {
-    const routeParams = {
-      resourceId: location.pathname.split('/')[2],
-      tableId: location.pathname.split('/')[3]
-    };
+    const routeParams = getRouteParamsFromLocation(location);
     const link = exploreUtils.getHrefForTransform(routeParams, location);
     const href = `${link}/${reapply ?
       'reapplyAndSave' : 'save'}?as=${constructFullPathAndEncode(fullPath.concat(name))}`;
     return dispatch(postDatasetOperation({
       href,
-      schema: fullDatasetSchema,
+      schema: datasetWithoutData,
       notificationMessage: la('Successfully saved.'),
       metas: [{}, {mergeEntities: true}]
     }));
@@ -86,16 +83,13 @@ export function submitSaveAsDataset(name, fullPath, location, reapply) {
 
 export function submitReapplyAndSaveAsDataset(name, fullPath, location) {
   return (dispatch) => {
-    const routeParams = {
-      resourceId: location.pathname.split('/')[2],
-      tableId: location.pathname.split('/')[3]
-    };
+    const routeParams = getRouteParamsFromLocation(location);
 
     const link = exploreUtils.getHrefForTransform(routeParams, location);
     const href = `${link}/reapplyAndSave?as=${constructFullPathAndEncode(fullPath.concat(name))}`;
     return dispatch(postDatasetOperation({
       href,
-      schema: fullDatasetSchema,
+      schema: datasetWithoutData,
       notificationMessage: la('Successfully saved.'),
       metas: [{}, {mergeEntities: true}]
     })).then((response) => {
@@ -131,7 +125,9 @@ export function deleteOldDatasetVersions(currentVersion, historyItemsList) {
   return {
     type: DELETE_OLD_DATASET_VERSIONS,
     meta: {
-      entityRemovePaths: flatten(datasetVersions.map((id) => [['datasetUI', id], ['tableData', id]]))
+      entityRemovePaths: flatten(datasetVersions
+        .map((id) => ['datasetUI', 'tableData', 'fullDataset', 'history']
+          .map( entityType => [entityType, id])))
     }
   };
 }

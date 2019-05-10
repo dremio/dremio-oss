@@ -18,6 +18,7 @@ package com.dremio.dac.cmd.upgrade;
 import java.util.Map.Entry;
 
 import com.dremio.common.Version;
+import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.service.job.proto.JobAttempt;
@@ -31,6 +32,7 @@ import com.google.common.collect.ImmutableList;
  * size
  */
 public class MinimizeJobResultsMetadata extends UpgradeTask implements LegacyUpgradeTask {
+
 
   //DO NOT MODIFY
   static final String taskUUID = "c33400d9-fa65-47e2-b99a-5c3db12d8f84";
@@ -53,7 +55,7 @@ public class MinimizeJobResultsMetadata extends UpgradeTask implements LegacyUpg
   public void upgrade(UpgradeContext context) throws Exception {
     final IndexedStore<JobId, JobResult> store = context.getKVStoreProvider().getStore(JobsStoreCreator.class);
 
-    System.out.printf("  Minimizing job results metadata%n");
+    AdminLogger.log("  Minimizing job results metadata");
     try {
       for (Entry<JobId, JobResult> entry : store.find()) {
         final JobResult jobResult = entry.getValue();

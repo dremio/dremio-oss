@@ -40,7 +40,6 @@ import com.google.common.collect.ImmutableList;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.parquet.InputStreamProvider;
@@ -48,13 +47,14 @@ import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
+import com.dremio.exec.store.parquet.SingleStreamProvider;
+import com.dremio.exec.store.parquet.StreamPerColumnProvider;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
-import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator;
-import com.dremio.service.namespace.file.proto.ParquetDatasetSplitScanXAttr;
 import com.google.common.collect.Lists;
 
 /**
@@ -107,6 +107,12 @@ public class FileSplitParquetRecordReader implements RecordReader {
     this.outputSchema = outputSchema;
   }
 
+  private InputStreamProvider getInputStreamProvider(boolean useSingleStream, String path,
+                                                     FileSystem fs) {
+    return useSingleStream ? new SingleStreamProvider(fs, new Path(path), -1)
+                           : new StreamPerColumnProvider(fs, new Path(path), -1);
+  }
+
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     try {
@@ -124,14 +130,16 @@ public class FileSplitParquetRecordReader implements RecordReader {
       final FileSystem fs;
       InputStreamProvider inputStreamProvider = null;
       try {
+        // TODO: DX-16001 - make async configurable for Hive.
         fs = FileSystemWrapper.get(finalPath, jobConf, oContext.getStats());
-        inputStreamProvider = new InputStreamProvider(fs, new Path(pathString), useSingleStream);
-        final SingletonParquetFooterCache footerCache = new SingletonParquetFooterCache();
-        footer = footerCache.getFooter(inputStreamProvider.stream(), pathString, -1, fs);
+        inputStreamProvider = getInputStreamProvider(useSingleStream, pathString, fs);
+        footer = inputStreamProvider.getFooter();
       } catch(Exception e) {
         // Close input stream provider in case of errors
         if (inputStreamProvider != null) {
-          inputStreamProvider.close();
+          try {
+            inputStreamProvider.close();
+          } catch(Exception ignore) {}
         }
         if (e instanceof FileNotFoundException) {
           // the outer try-catch handles this.
@@ -144,17 +152,20 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
       final List<Integer> rowGroupNums = getRowGroupNumbersFromFileSplit(fileSplit, footer);
       if (rowGroupNums.isEmpty()) {
-        inputStreamProvider.close();
+        try {
+          inputStreamProvider.close();
+        } catch(Exception ignore) {}
       }
 
       oContext.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, rowGroupNums.size());
       innerReaders = Lists.newArrayList();
       for (int rowGroupNum : rowGroupNums) {
-        ParquetDatasetSplitScanXAttr split = new ParquetDatasetSplitScanXAttr();
-        split.setRowGroupIndex(rowGroupNum);
-        split.setPath(pathString);
-        split.setStart(0l);
-        split.setLength((long) Integer.MAX_VALUE);
+        ParquetDatasetSplitScanXAttr split = ParquetDatasetSplitScanXAttr.newBuilder()
+            .setRowGroupIndex(rowGroupNum)
+            .setPath(pathString)
+            .setStart(0l)
+            .setLength(Integer.MAX_VALUE)
+            .build();
 
         final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
             .readInt96AsTimeStamp(true)
@@ -164,7 +175,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
         // Reuse the stream used for reading footer to read the first row group.
         if (innerReaders.size() > 0) {
-          inputStreamProvider = new InputStreamProvider(fs, new Path(pathString), useSingleStream);
+          inputStreamProvider = getInputStreamProvider(useSingleStream, pathString, fs);
         }
 
         final UnifiedParquetReader innerReader = new UnifiedParquetReader(
@@ -182,7 +193,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
             schemaHelper,
             vectorize,
             enableDetailedTracing,
-          inputStreamProvider
+            true,
+            inputStreamProvider
         );
         innerReader.setIgnoreSchemaLearning(true);
 
@@ -202,11 +214,6 @@ public class FileSplitParquetRecordReader implements RecordReader {
     }
 
     currentReader = innerReadersIter.hasNext() ? innerReadersIter.next() : null;
-  }
-
-  @Override
-  public SchemaChangeMutator getSchemaChangeMutator() {
-    return SchemaChangeMutator.DEFAULT;
   }
 
   @Override

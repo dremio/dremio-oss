@@ -27,13 +27,13 @@ import java.util.List;
 
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.util.DateUtility;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
 import org.joda.time.LocalDateTime;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.common.util.JodaDateUtility;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
@@ -48,15 +48,14 @@ public class TestConvertFunctions extends BaseTestQuery {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestConvertFunctions.class);
 
   private static final FunctionErrorContext context = FunctionErrorContextBuilder.builder().build();
-
   private static final float DELTA = (float) 0.0001;
 
   // "1980-01-01 01:23:45.678"
   private static final String DATE_TIME_BE = "\\x00\\x00\\x00\\x49\\x77\\x85\\x1f\\x8e";
   private static final String DATE_TIME_LE = "\\x8e\\x1f\\x85\\x77\\x49\\x00\\x00\\x00";
 
-  private static LocalDateTime time = LocalDateTime.parse("01:23:45.678", DateUtility.getTimeFormatter());
-  private static LocalDateTime date = LocalDateTime.parse("1980-01-01", DateUtility.getDateTimeFormatter());
+  private static LocalDateTime time = LocalDateTime.parse("01:23:45.678", JodaDateUtility.formatTime);
+  private static LocalDateTime date = LocalDateTime.parse("1980-01-01", JodaDateUtility.getDateTimeFormatter());
 
   String textFileContent;
 
@@ -282,6 +281,28 @@ public class TestConvertFunctions extends BaseTestQuery {
            + " from"
            + "   cp.\"employee.json\" LIMIT 1",
             0xCAFEBABE);
+  }
+
+  @Test
+  public void testConvertDX14291() throws Throwable {
+    test("alter session set \"store.json.all_text_mode\" = true");
+    try {
+      String testName = "testConvertDX14291";
+      Object[] result = getRunResult(QueryType.SQL, "select "
+          + " convert_from('{\"number_array\" : [200551,200513,200499,null,null]}', 'JSON') as number_array");
+      assertEquals(testName, 1, result.length);
+      assertNotNull(testName, result[0]);
+      JsonStringHashMap hashMap = (JsonStringHashMap)result[0];
+      JsonStringArrayList values = (JsonStringArrayList)hashMap.get("number_array");
+      Object[] actualResult = values.toArray();
+      String[] expectedResult = new String[] {"200551", "200513", "200499", "null", "null"};
+      assertEquals(testName, expectedResult.length, actualResult.length);
+      for(int i = 0; i < expectedResult.length; i++) {
+        assertEquals(testName, expectedResult[i], actualResult[i].toString());
+      }
+    } finally {
+      test("alter session set \"store.json.all_text_mode\" = false");
+    }
   }
 
   @Test

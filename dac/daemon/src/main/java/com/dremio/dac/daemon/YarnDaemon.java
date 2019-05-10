@@ -39,7 +39,7 @@ import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.LivenessService;
 import com.dremio.exec.util.GuavaPatcher;
 import com.dremio.provision.yarn.YarnWatchdog;
-import com.google.api.client.util.Throwables;
+import com.google.common.base.Throwables;
 
 
 /**

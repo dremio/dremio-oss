@@ -55,6 +55,7 @@ import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobDataFragment;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceServiceImpl;
@@ -172,11 +173,14 @@ public class TestHdfs extends BaseTestMiniDFS {
   }
 
   @Test
-  public void testQueryOnFile() throws Exception {
-    final JobsService jobService = l(JobsService.class);
-    Job job = jobService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("SELECT * FROM dachdfs_test.dir1.json.\"users.json\"", SampleDataPopulator.DEFAULT_USER_NAME))
-        .build(), NoOpJobStatusListener.INSTANCE);
+  public void testQueryOnFile() {
+    final Job job = JobsServiceUtil.waitForJobCompletion(
+      l(JobsService.class).submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery("SELECT * FROM dachdfs_test.dir1.json.\"users.json\"", SampleDataPopulator.DEFAULT_USER_NAME))
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    );
     JobDataFragment jobData = job.getData().truncate(500);
     assertEquals(3, jobData.getReturnedRowCount());
     assertEquals(2, jobData.getSchema().getFieldCount());

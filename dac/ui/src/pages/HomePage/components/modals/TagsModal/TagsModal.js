@@ -16,37 +16,37 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import { injectIntl } from 'react-intl';
-import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
+import { SelectView } from '@app/components/Fields/SelectView';
 import Menu from 'components/Menus/Menu';
 import MenuItem from 'components/Menus/MenuItem';
 import { Tag } from '@app/pages/ExplorePage/components/TagsEditor/Tag';
 
-import { tag as tagClass, popoverContainer, triangle } from './TagsModal.less';
+import { tag as tagClass, popoverContainer, triangle, triangleHeight } from './TagsModal.less';
 
 
 @injectIntl
 export default class TagsModal extends Component {
   static propTypes = {
-    isOpen: PropTypes.bool,
-    hide: PropTypes.func,
+    mainTagClass: PropTypes.string,
     onTagClick: PropTypes.func,
-    anchorEl: PropTypes.object,
     tags: PropTypes.array,
     intl: PropTypes.object.isRequired
   };
 
   render() {
-    const { tags, isOpen, hide, anchorEl, onTagClick } = this.props;
-    //TODO reuse read mode tag;
+    const { tags, onTagClick, mainTagClass } = this.props;
+
     return (
-      <Popover
-        open={isOpen}
-        anchorEl={anchorEl}
-        anchorOrigin={{horizontal: 'right', vertical: 'bottom'}}
-        targetOrigin={{horizontal: 'right', vertical: 'top'}}
-        onRequestClose={hide}
-        animation={PopoverAnimationVertical}
-        style={{marginTop: 5}}
+      <SelectView
+        content={
+          <Tag key='moreTags' text='...' className={mainTagClass} onClick={this.openModal} />
+        }
+        listStyle={{
+          marginTop: parseInt(triangleHeight, 10),
+          overflow: 'visible'
+        }}
+        listRightAligned
+        hideExpandIcon
       >
         <div className={triangle}/>
         <div className={popoverContainer} data-qa='tagOverflowPopover'>
@@ -60,7 +60,7 @@ export default class TagsModal extends Component {
             </MenuItem>)}
           </Menu>
         </div>
-      </Popover>
+      </SelectView>
     );
   }
 

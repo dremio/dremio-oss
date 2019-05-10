@@ -22,7 +22,6 @@ import java.util.List;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
@@ -37,7 +36,6 @@ import com.dremio.common.expression.FieldReference;
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.planner.common.JoinRelBase;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
-import com.dremio.sabot.op.join.JoinUtils;
 import com.google.common.collect.Lists;
 
 /**
@@ -45,14 +43,19 @@ import com.google.common.collect.Lists;
  * Base class for MergeJoinPrel and HashJoinPrel
  *
  */
-public abstract class JoinPrel extends JoinRelBase implements Prel{
+public abstract class JoinPrel extends JoinRelBase implements Prel {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinPrel.class);
 
-  protected JoinUtils.JoinCategory joincategory;
-
-  public JoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-      JoinRelType joinType) throws InvalidRelException{
+  protected JoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
+      JoinRelType joinType) {
     super(cluster, traits, left, right, condition, joinType);
+  }
+
+  protected static RelTraitSet adjustTraits(RelTraitSet traits) {
+    // Join operators do not preserve distribution
+    return JoinRelBase
+        .adjustTraits(traits)
+        .replaceIf(DistributionTraitDef.INSTANCE, () -> DistributionTrait.ANY);
   }
 
   @Override

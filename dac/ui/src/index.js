@@ -18,7 +18,6 @@ import React from 'react';
 import { render } from 'react-dom';
 import $ from 'jquery';
 import Immutable from 'immutable';
-import reactTapEvent from 'react-tap-event-plugin';
 
 import './vendor/chat';
 import './vendor/gtm';
@@ -53,7 +52,6 @@ window.la = (key) => {
 sentryUtil.install();
 
 const store = configureStore();
-reactTapEvent();
 
 startup.run();
 

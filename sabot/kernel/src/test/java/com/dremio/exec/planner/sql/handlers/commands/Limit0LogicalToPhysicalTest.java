@@ -29,7 +29,7 @@ import org.apache.commons.io.FileUtils;
 import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.Ignore;
 import org.mockito.Mockito;
 
 import com.dremio.BaseTestQuery;
@@ -41,6 +41,7 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.PhysicalPlanReader;
+import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.Prel;
@@ -48,7 +49,6 @@ import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
-import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
@@ -82,7 +82,7 @@ public class Limit0LogicalToPhysicalTest extends BaseTestQuery {
     FileUtils.deleteQuietly(tblPath);
   }
 
-  @Test
+  @Ignore
   public void ExchangesKeepTest() throws Exception {
 
     final String yelpTable = TEMP_SCHEMA + ".\"yelp\"";
@@ -154,11 +154,11 @@ public class Limit0LogicalToPhysicalTest extends BaseTestQuery {
 
     ExecutionPlan exec = ExecutionPlanCreator.getExecutionPlan(queryContext, pPlanReader, observer, plan,
       QueueType.SMALL);
-    List<CoordExecRPC.PlanFragment> fragments  = exec.getFragments();
+    List<PlanFragmentFull> fragments  = exec.getFragments();
 
     int scanFrags = 0;
-    for (CoordExecRPC.PlanFragment fragment : fragments) {
-      if (new String(fragment.getFragmentJson().toByteArray()).contains("easy-sub-scan")) {
+    for (PlanFragmentFull fragment : fragments) {
+      if (new String(fragment.getMajor().getFragmentJson().toByteArray()).contains("easy-sub-scan")) {
         scanFrags++;
       }
     }

@@ -144,10 +144,10 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
 
   @VisibleForTesting
   CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed) {
-    this(baseDirectory, inMemory, timed, true, false);
+    this(baseDirectory, inMemory, timed, true, false, false);
   }
 
-  CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed, boolean validateOCC, boolean disableOCC) {
+  CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed, boolean validateOCC, boolean disableOCC, boolean noDBOpenRetry) {
     super();
     switch(MODE){
     case DISK:
@@ -164,7 +164,7 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
     this.disableOCC = disableOCC; // occ store is not created.
     this.inMemory = inMemory;
 
-    this.byteManager = new ByteStoreManager(baseDirectory, inMemory);
+    this.byteManager = new ByteStoreManager(baseDirectory, inMemory, noDBOpenRetry);
     this.indexManager = new IndexManager(
         baseDirectory,
         inMemory,
@@ -197,6 +197,11 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
   }
 
   void recoverIfPreviouslyCrashed() throws Exception {
+    if (inMemory) {
+      // No recovery for in-memory
+      return;
+    }
+
     alarmFile = new File(baseDirectory, ALARM);
 
     if (!REINDEX_ON_CRASH_DISABLED && alarmFile.exists()) {

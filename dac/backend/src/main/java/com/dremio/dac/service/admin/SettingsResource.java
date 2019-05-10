@@ -16,13 +16,16 @@
 package com.dremio.dac.service.admin;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -39,6 +42,7 @@ import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 
 /**
  * Resource for changing system settings
@@ -59,13 +63,49 @@ public class SettingsResource {
     this.options = context.getOptionManager();
   }
 
-  @GET
-  public SettingsWrapperObject list(){
+  @POST
+  public SettingsWrapperObject list
+    (/* Body */ SettingsRequest request) {
+    Preconditions.checkNotNull(request, "request could not be null");
+
+    Set<String> requiredSettings = request.getRequiredSettings();
+    if (requiredSettings == null) {
+      requiredSettings = Collections.emptySet();
+    }
+
     List<Setting> settings = new ArrayList<>();
-    for(OptionValue optionValue : options){
-      settings.add(toSetting(optionValue));
+    if (requiredSettings.size() != 0 || request.getIncludeSetSettings()) {
+      for (OptionValue optionValue : options) {
+        if (requiredSettings.contains(optionValue.getName()) ||
+          (request.getIncludeSetSettings() && options.isSet(optionValue.getName()))) {
+          settings.add(toSetting(optionValue));
+        }
+      }
     }
     return new SettingsWrapperObject(settings);
+  }
+
+  /**
+   * A request for list of settings
+   */
+  public static class SettingsRequest {
+    private final Set<String> requiredSettings;
+    private final boolean includeSetSettings;
+
+    @JsonCreator
+    public SettingsRequest(@JsonProperty("requiredSettings") Set<String> requiredSettings,
+                           @JsonProperty("includeSetSettings") boolean includeSetSettings) {
+      this.requiredSettings = requiredSettings;
+      this.includeSetSettings = includeSetSettings;
+    }
+
+    public Set<String> getRequiredSettings() {
+      return requiredSettings;
+    }
+
+    public boolean getIncludeSetSettings() {
+      return includeSetSettings;
+    }
   }
 
   /**
@@ -138,18 +178,16 @@ public class SettingsResource {
 
   @SuppressWarnings("rawtypes")
   private Setting toSetting(OptionValue option){
-    // display the value if it is the whitelist or has been set.
-    final boolean showOutsideWhitelist = options.isSet(option.getName());
 
     switch(option.getKind()){
     case BOOLEAN:
-      return new Setting.BooleanSetting(option.getName(), option.getBoolVal(), showOutsideWhitelist);
+      return new Setting.BooleanSetting(option.getName(), option.getBoolVal());
     case DOUBLE:
-      return new Setting.FloatSetting(option.getName(), option.getFloatVal(), showOutsideWhitelist);
+      return new Setting.FloatSetting(option.getName(), option.getFloatVal());
     case LONG:
-      return new Setting.IntegerSetting(option.getName(), option.getNumVal(), showOutsideWhitelist);
+      return new Setting.IntegerSetting(option.getName(), option.getNumVal());
     case STRING:
-      return new Setting.TextSetting(option.getName(), option.getStringVal(), showOutsideWhitelist);
+      return new Setting.TextSetting(option.getName(), option.getStringVal());
     default:
       throw new IllegalStateException("Unable to handle kind " + option.getKind());
     }

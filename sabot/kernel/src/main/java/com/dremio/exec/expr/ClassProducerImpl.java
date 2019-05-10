@@ -33,6 +33,7 @@ import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.PartitionExplorer;
 import com.dremio.sabot.exec.context.CompilationOptions;
@@ -82,6 +83,13 @@ public class ClassProducerImpl implements ClassProducer {
   }
 
   @Override
+  public LogicalExpression materializeWithBatchSchema(LogicalExpression expr, BatchSchema batchSchema) {
+    try(ErrorCollector collector = new ErrorCollectorImpl()){
+      return ExpressionTreeMaterializer.materialize(expr, batchSchema, collector, functionLookupContext, false);
+    }
+  }
+
+  @Override
   public LogicalExpression materializeAndAllowComplex(LogicalExpression expr, VectorAccessible batch) {
     try(ErrorCollector collector = new ErrorCollectorImpl()){
       return ExpressionTreeMaterializer.materialize(expr, batch != null ? batch.getSchema() : null, collector, functionLookupContext, true);
@@ -109,6 +117,11 @@ public class ClassProducerImpl implements ClassProducer {
   @Override
   public FunctionContext getFunctionContext() {
     return functionContext;
+  }
+
+  @Override
+  public FunctionLookupContext getFunctionLookupContext() {
+    return functionLookupContext;
   }
 
   public class ProducerFunctionContext implements FunctionContext {

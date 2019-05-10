@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 import { Schema, arrayOf } from 'normalizr';
+import { ENTITY_TYPES } from '@app/constants/Constants';
 
 import dataset from './dataset';
 import file from './file';
 import folder from './folder';
 import physicalDataset from './physicalDataset';
 
-const space = new Schema('space');
+const space = new Schema(ENTITY_TYPES.space);
 
 space.define({
   contents: {

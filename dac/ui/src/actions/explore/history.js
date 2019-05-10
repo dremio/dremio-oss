@@ -16,7 +16,6 @@
 
 export const UPDATE_HISTORY_WITH_JOB_STATE   = 'UPDATE_HISTORY_WITH_JOB_STATE';
 
-//todo only dataset version is needed here. No need to pass whole dataset
-export function updateHistoryWithJobState(dataset, jobState) {
-  return {type: UPDATE_HISTORY_WITH_JOB_STATE, meta: {dataset, jobState}};
+export function updateHistoryWithJobState(datasetVersion, jobState) {
+  return {type: UPDATE_HISTORY_WITH_JOB_STATE, meta: { datasetVersion, jobState }};
 }

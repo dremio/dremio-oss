@@ -28,6 +28,8 @@ import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
 import static java.lang.String.format;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,13 +51,18 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import org.xerial.snappy.SnappyOutputStream;
+
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.IndexedStore.FindByCondition;
+import com.dremio.datastore.KVStore;
 import com.dremio.datastore.KVStore.FindByRange;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.PassThroughSerializer;
@@ -65,10 +72,12 @@ import com.dremio.datastore.StoreBuildingFactory;
 import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.MultiSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
@@ -81,10 +90,10 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import com.google.protobuf.ByteString;
 
 /**
  * Namespace management.
@@ -93,10 +102,13 @@ public class NamespaceServiceImpl implements NamespaceService {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NamespaceServiceImpl.class);
 
   public static final String DAC_NAMESPACE = "dac-namespace";
-  public static final String DATASET_SPLITS = "metadata-dataset-splits";
+  // NOTE: the name of the partition chunks store needs to stay "metadata-dataset-splits" for backwards compatibility.
+  public static final String PARTITION_CHUNKS = "metadata-dataset-splits";
+  public static final String MULTI_SPLITS = "metadata-multi-splits";
 
   private final IndexedStore<byte[], NameSpaceContainer> namespace;
-  private final IndexedStore<DatasetSplitId, DatasetSplit> splitsStore;
+  private final IndexedStore<PartitionChunkId, PartitionChunk> partitionChunkStore;
+  private final KVStore<PartitionChunkId, MultiSplit> multiSplitStore;
   private final boolean keyNormalization;
 
   /**
@@ -124,7 +136,8 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   protected NamespaceServiceImpl(final KVStoreProvider kvStoreProvider, boolean keyNormalization) {
     this.namespace = kvStoreProvider.getStore(NamespaceStoreCreator.class);
-    this.splitsStore = kvStoreProvider.getStore(DatasetSplitCreator.class);
+    this.partitionChunkStore = kvStoreProvider.getStore(PartitionChunkCreator.class);
+    this.multiSplitStore = kvStoreProvider.getStore(MultiSplitStoreCreator.class);
     this.keyNormalization = keyNormalization;
   }
 
@@ -146,31 +159,45 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   /**
-   * KVStore creator for splits table
+   * KVStore creator for partition chunks table
    */
-  public static class DatasetSplitCreator implements StoreCreationFunction<IndexedStore<DatasetSplitId, DatasetSplit>> {
+  public static class PartitionChunkCreator implements StoreCreationFunction<IndexedStore<PartitionChunkId, PartitionChunk>> {
 
     @Override
-    public IndexedStore<DatasetSplitId, DatasetSplit> build(StoreBuildingFactory factory) {
-      return factory.<DatasetSplitId, DatasetSplit>newStore()
-        .name(DATASET_SPLITS)
-        .keySerializer(DatasetSplitIdSerializer.class)
-        .valueSerializer(DatasetSplitSerializer.class)
-        .buildIndexed(DatasetSplitConverter.class);
+    public IndexedStore<PartitionChunkId, PartitionChunk> build(StoreBuildingFactory factory) {
+      return factory.<PartitionChunkId, PartitionChunk>newStore()
+        .name(PARTITION_CHUNKS)
+        .keySerializer(PartitionChunkIdSerializer.class)
+        .valueSerializer(PartitionChunkSerializer.class)
+        .buildIndexed(PartitionChunkConverter.class);
     }
   }
 
   /**
-   * Comparator for split ranges
+   * Comparator for partition chunk ranges
    */
-  private static final Comparator<Range<DatasetSplitId>> SPLIT_RANGE_COMPARATOR =
+  private static final Comparator<Range<PartitionChunkId>> PARTITION_CHUNK_RANGE_COMPARATOR =
       Comparator.comparing(Range::lowerEndpoint);
 
+  /**
+   * KVStore creator for multisplits table
+   */
+  public static class MultiSplitStoreCreator implements StoreCreationFunction<KVStore<PartitionChunkId, MultiSplit>> {
+
+    @Override
+    public KVStore<PartitionChunkId, MultiSplit> build(StoreBuildingFactory factory) {
+      return factory.<PartitionChunkId, MultiSplit>newStore()
+        .name(MULTI_SPLITS)
+        .keySerializer(PartitionChunkIdSerializer.class)
+        .valueSerializer(MultiSplitSerializer.class)
+        .build();
+    }
+  }
 
   @Override
-  public int deleteSplitOrphans(DatasetSplitId.SplitOrphansRetentionPolicy policy) {
+  public int deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy policy) {
     final Map<String, SourceConfig> sourceConfigs = new HashMap<>();
-    final List<Range<DatasetSplitId>> ranges = new ArrayList<>();
+    final List<Range<PartitionChunkId>> ranges = new ArrayList<>();
 
     // Iterate over all entries in the namespace to collect source
     // and datasets with splits to create a map of the valid split ranges.
@@ -229,7 +256,7 @@ public class NamespaceServiceImpl implements NamespaceService {
           return 0;
         }
 
-        Range<DatasetSplitId> versionRange = policy.apply(metadataPolicy, dataset);
+        Range<PartitionChunkId> versionRange = policy.apply(metadataPolicy, dataset);
         // min version is based on when dataset definition would expire
         // but it has to be at least positive
         ranges.add(versionRange);
@@ -242,20 +269,20 @@ public class NamespaceServiceImpl implements NamespaceService {
     }
 
     // Ranges need to be sorted for binary search to be working
-    Collections.sort(ranges, SPLIT_RANGE_COMPARATOR);
+    Collections.sort(ranges, PARTITION_CHUNK_RANGE_COMPARATOR);
 
     // Some explanations:
-    // ranges is setup to contain the current (exclusive) range of splits for each dataset.
-    // The function then iterates over all splits present in the split tables and verify
-    // that the split belongs to one of the dataset split range. If not, the item is dropped.
-    // The binary search provides the index in ranges where a split would be inserted if not
+    // ranges is setup to contain the current (exclusive) range of partition chunks for each dataset.
+    // The function then iterates over all partition chunks present in the partition chunks store and verify
+    // that the partition chunk belongs to one of the dataset partition chunk ranges. If not, the item is dropped.
+    // The binary search provides the index in ranges where a partition chunk would be inserted if not
     // already present in the list (this is the insertion point, see Collections.binarySort
     // javadoc), which should be just after the corresponding dataset range as ranges items
     // are sorted based on their lower endpoint.
     int elementCount = 0;
-    for (Map.Entry<DatasetSplitId, DatasetSplit> e : splitsStore.find()) {
-      DatasetSplitId id = e.getKey();
-      final int item = Collections.binarySearch(ranges, Range.singleton(id), SPLIT_RANGE_COMPARATOR);
+    for (Map.Entry<PartitionChunkId, PartitionChunk> e : partitionChunkStore.find()) {
+      PartitionChunkId id = e.getKey();
+      final int item = Collections.binarySearch(ranges, Range.singleton(id), PARTITION_CHUNK_RANGE_COMPARATOR);
 
       // we should never find a match since we're searching for a split key and that dataset
       // split range endpoints are excluded/not valid split keys
@@ -265,8 +292,24 @@ public class NamespaceServiceImpl implements NamespaceService {
       final int consideredRange = insertionPoint - 1; // since a normal match would come directly after the start range, we need to check the range directly above the insertion point.
 
       if (consideredRange < 0 || !ranges.get(consideredRange).contains(id)) {
-        splitsStore.delete(e.getKey());
+        partitionChunkStore.delete(e.getKey());
         ++elementCount;
+      }
+    }
+
+    for (Map.Entry<PartitionChunkId, MultiSplit> e : multiSplitStore.find()) {
+      PartitionChunkId id = e.getKey();
+      final int item = Collections.binarySearch(ranges, Range.singleton(id), PARTITION_CHUNK_RANGE_COMPARATOR);
+
+      // we should never find a match since we're searching for a split key and that dataset
+      // split range endpoints are excluded/not valid split keys
+      Preconditions.checkState(item < 0);
+
+      final int insertionPoint = (-item) - 1;
+      final int consideredRange = insertionPoint - 1; // since a normal match would come directly after the start range, we need to check the range directly above the insertion point.
+
+      if (consideredRange < 0 || !ranges.get(consideredRange).contains(id)) {
+        multiSplitStore.delete(e.getKey());
       }
     }
 
@@ -356,9 +399,8 @@ public class NamespaceServiceImpl implements NamespaceService {
     // make sure the id remains the same
     final String idInExistingContainer = getId(existingContainer);
     if (!idInExistingContainer.equals(idInContainer)) {
-      throw UserException.validationError()
-        .message("Id for an existing entity cannot be modified")
-        .build(logger);
+      throw new ConcurrentModificationException(String.format("There already exists an entity of type [%s] at given path [%s] with Id %s. Unable to replace with Id %s",
+          existingContainer.getType(), newOrUpdatedEntity.getPathKey().getPath(), idInExistingContainer, idInContainer));
     }
 
     return true;
@@ -411,63 +453,235 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   /**
+   * Accumulate metadata, then save it in the K/V store.
+   */
+  private class DatasetMetadataSaverImpl implements DatasetMetadataSaver {
+    private final NamespaceKey datasetPath;
+    private final EntityId datasetId;
+    private final long nextDatasetVersion;
+    private final SplitCompression splitCompression;
+    private boolean isClosed;
+    private long partitionChunkCount;
+    private List<PartitionChunkId> createdPartitionChunks;
+    private long accumulatedSizeInBytes;
+    private long accumulatedRecordCount;
+    private List<DatasetSplit> accumulatedSplits;
+    private int totalNumSplits;
+
+    DatasetMetadataSaverImpl(NamespaceKey datasetPath, EntityId datasetId, long nextDatasetVersion, SplitCompression splitCompression) {
+      this.datasetPath = datasetPath;
+      this.datasetId = datasetId;
+      this.nextDatasetVersion = nextDatasetVersion;
+      this.splitCompression = splitCompression;
+      this.isClosed = false;
+      this.partitionChunkCount = -1;  // incremented to 0 below
+      this.createdPartitionChunks = new ArrayList<>();
+      this.totalNumSplits = 0;
+      resetSplitAccumulation();
+    }
+
+    private void resetSplitAccumulation() {
+      ++partitionChunkCount;
+      accumulatedRecordCount = 0;
+      accumulatedSizeInBytes = 0;
+      accumulatedSplits = new ArrayList<>();
+    }
+
+    @Override
+    public void saveDatasetSplit(DatasetSplit split) {
+      if (isClosed) {
+        throw new IllegalStateException("Attempting to save a dataset split after the saver was closed");
+      }
+      accumulatedRecordCount += split.getRecordCount();
+      accumulatedSizeInBytes += split.getSizeInBytes();
+      accumulatedSplits.add(split);
+    }
+
+    @Override
+    public void savePartitionChunk(com.dremio.connector.metadata.PartitionChunk partitionChunk) throws IOException {
+      Preconditions.checkState(!isClosed, "Attempting to save a partition chunk after the saver was closed");
+      if (accumulatedSplits.isEmpty()) {
+        // Must have at least one split for the partition chunk
+        throw new IllegalStateException("Must save at least one split before saving a partition chunk");
+      }
+      String splitKey = Long.toString(partitionChunkCount);
+      PartitionChunk.Builder builder = PartitionChunk.newBuilder()
+          .setSize(accumulatedSizeInBytes)
+          .setRowCount(accumulatedRecordCount)
+          .setPartitionExtendedProperty(MetadataProtoUtils.toProtobuf(partitionChunk.getExtraInfo()))
+          .addAllPartitionValues(partitionChunk.getPartitionValues().stream()
+              .map(MetadataProtoUtils::toProtobuf)
+              .collect(Collectors.toList()))
+          .setSplitKey(splitKey)
+          .setSplitCount(accumulatedSplits.size());
+      if (accumulatedSplits.size() == 1) {
+        // Single-split partition chunk
+        builder.setDatasetSplit(MetadataProtoUtils.toProtobuf(accumulatedSplits.get(0)));
+      }
+      PartitionChunkId chunkId = PartitionChunkId.of(datasetId, nextDatasetVersion, splitKey);
+      NamespaceServiceImpl.this.partitionChunkStore.put(chunkId, builder.build());
+      createdPartitionChunks.add(chunkId);
+      // Intentionally creating any potential multi-splits after creating the partition chunk.
+      // This makes orphan cleaning simpler, as we can key only on the existing partitionChunk(s), and remove
+      // any matching multi-splits
+      if (accumulatedSplits.size() > 1) {
+        NamespaceServiceImpl.this.multiSplitStore.put(chunkId, createMultiSplitFromAccumulated(splitKey));
+      }
+      totalNumSplits += accumulatedSplits.size();
+      resetSplitAccumulation();
+    }
+
+    private OutputStream wrapIfNeeded(OutputStream o) throws IOException {
+      switch (splitCompression) {
+        case UNCOMPRESSED:
+          return o;
+        case SNAPPY:
+          return new SnappyOutputStream(o);
+        default:
+          throw new IllegalArgumentException(String.format("Unsupported compression type: %s", splitCompression));
+      }
+    }
+
+    private MultiSplit.Codec getCodecType() {
+      switch (splitCompression) {
+        case UNCOMPRESSED:
+          return MultiSplit.Codec.UNCOMPRESSED;
+        case SNAPPY:
+          return MultiSplit.Codec.SNAPPY;
+        default:
+          throw new IllegalArgumentException(String.format("Unsupported compression type: %s", splitCompression));
+      }
+    }
+
+    /**
+     * Create a MultiSplit from the accumulated splits
+     * @return
+     */
+    private MultiSplit createMultiSplitFromAccumulated(String splitKey) throws IOException {
+      ByteString.Output output = ByteString.newOutput();
+      OutputStream wrappedOutput = wrapIfNeeded(output);
+      for (DatasetSplit split: accumulatedSplits) {
+        MetadataProtoUtils.toProtobuf(split).writeDelimitedTo(wrappedOutput);
+      }
+      wrappedOutput.flush();
+      ByteString splitData = output.toByteString();
+      return MultiSplit.newBuilder()
+        .setMultiSplitKey(splitKey)
+        .setCodec(getCodecType())
+        .setSplitCount(accumulatedSplits.size())
+        .setSplitData(splitData)
+        .build();
+    }
+
+    @Override
+    public void saveDataset(DatasetConfig datasetConfig, boolean opportunisticSave, NamespaceAttribute... attributes) throws NamespaceException {
+      Preconditions.checkState(!isClosed, "Attempting to save a partition chunk after the whole dataset was saved");
+      Objects.requireNonNull(datasetConfig.getId(), "ID is required");
+      Objects.requireNonNull(datasetConfig.getReadDefinition(), "read_definition is required");
+      datasetConfig.getReadDefinition().setSplitVersion(nextDatasetVersion);
+      datasetConfig.setTotalNumSplits(totalNumSplits);
+      while (true) {
+        try {
+          NamespaceServiceImpl.this.addOrUpdateDataset(datasetPath, datasetConfig, attributes);
+          isClosed = true;
+          break;
+        } catch (ConcurrentModificationException cme) {
+          if (opportunisticSave) {
+            throw cme;
+          }
+          // Get dataset config again
+          final DatasetConfig existingDatasetConfig = NamespaceServiceImpl.this.getDataset(datasetPath);
+          if (existingDatasetConfig.getReadDefinition() != null &&
+            existingDatasetConfig.getReadDefinition().getSplitVersion() != null &&
+            // Only delete splits if strictly newer. If splitVersions are equals, we
+            // could end up delete the splits of the existing dataset (see DX-12232)
+            existingDatasetConfig.getReadDefinition().getSplitVersion() > nextDatasetVersion) {
+            deleteSplits(createdPartitionChunks);
+            isClosed = true;
+            break;
+          }
+          // try again if read definition is not set or splits are not up-to-date.
+          datasetConfig.setTag(existingDatasetConfig.getTag());
+        }
+      }
+    }
+
+    @Override
+    public void close() {
+      if (!isClosed) {
+        deleteSplits(createdPartitionChunks);
+      }
+    }
+  }
+
+  @Override
+  public DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey datasetPath, EntityId datasetId, SplitCompression splitCompression) {
+    return new DatasetMetadataSaverImpl(datasetPath, datasetId, System.currentTimeMillis(), splitCompression);
+  }
+
+  /**
    * Return true if new splits are not same as old splits
    * @param dataset dataset config
    * @param newSplits new splits to be added
    * @param oldSplits existing old splits
    * @return false if old and new splits are same
    */
-  static boolean compareSplits(DatasetConfig dataset,
-                               List<DatasetSplit> newSplits,
-                               Iterable<Map.Entry<DatasetSplitId, DatasetSplit>> oldSplits) {
+  private static boolean compareSplits(DatasetConfig dataset,
+                                       List<PartitionChunk> newSplits,
+                                       Iterable<PartitionChunk> oldSplits) {
     // if both old and new splits are null return false
     if (oldSplits == null && newSplits == null) {
       return false;
     }
-    final ImmutableMap.Builder<DatasetSplitId, DatasetSplit> builder = ImmutableMap.builder();
-    for (DatasetSplit newSplit: newSplits) {
-      final DatasetSplitId splitId = DatasetSplitId.of(dataset, newSplit, dataset.getReadDefinition().getSplitVersion());
-      // for comparison purpose, use the last known split version
-      newSplit.setSplitVersion(dataset.getReadDefinition().getSplitVersion());
-      builder.put(splitId, newSplit);
+    // if new splits are not null, but old splits, not the same...
+    if (oldSplits == null) {
+      return true;
     }
-    final ImmutableMap<DatasetSplitId, DatasetSplit> newSplitsMap = builder.build();
 
-    if (oldSplits != null) {
-      int oldSplitsCount = 0;
-      for (Map.Entry<DatasetSplitId, DatasetSplit> entry : oldSplits) {
-        final DatasetSplit newSplit = newSplitsMap.get(entry.getKey());
-        if (newSplit == null || !newSplit.equals(entry.getValue())) {
-          return true;
-        }
-        ++oldSplitsCount;
-      }
-      if (newSplits.size() != oldSplitsCount) {
+    final Map<PartitionChunkId, PartitionChunk> newSplitsMap = new HashMap<>();
+    for (PartitionChunk newSplit: newSplits) {
+      final PartitionChunkId splitId = PartitionChunkId.of(dataset, newSplit, dataset.getReadDefinition().getSplitVersion());
+      newSplitsMap.put(splitId, newSplit);
+    }
+
+    int oldSplitsCount = 0;
+    for (PartitionChunk partitionChunk : oldSplits) {
+      final PartitionChunkId splitId = PartitionChunkId.of(dataset, partitionChunk, dataset.getReadDefinition().getSplitVersion());
+      final PartitionChunk newSplit = newSplitsMap.get(splitId);
+      if (newSplit == null || !newSplit.equals(partitionChunk)) {
         return true;
       }
-      return false;
+      ++oldSplitsCount;
     }
+    return newSplits.size() != oldSplitsCount;
+  }
 
-    return true;
+  private static Iterable<PartitionChunk> partitionChunkValues(Iterable<Map.Entry<PartitionChunkId, PartitionChunk>> partitionChunks) {
+    return FluentIterable
+      .from(partitionChunks)
+      .transform(Entry::getValue);
   }
 
   @Override
-  public void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, List<DatasetSplit> splits, NamespaceAttribute... attributes) throws NamespaceException {
+  public void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, List<PartitionChunk> splits, NamespaceAttribute... attributes) throws NamespaceException {
     Preconditions.checkNotNull(dataset.getReadDefinition());
 
     if (dataset.getReadDefinition() != null && dataset.getReadDefinition().getSplitVersion() != null &&
-      !compareSplits(dataset, splits, splitsStore.find(DatasetSplitId.getSplitsRange(dataset)))) {
+      !compareSplits(dataset, splits, partitionChunkValues(partitionChunkStore.find(PartitionChunkId.getSplitsRange(dataset))))) {
       addOrUpdateDataset(datasetPath, dataset, attributes);
       return;
     }
 
+    if (dataset.getId() == null) {
+      dataset.setId(new EntityId(UUID.randomUUID().toString())); // TODO: is this a hack?
+    }
+
     final long nextSplitVersion = System.currentTimeMillis();
-    final List<DatasetSplitId> splitIds = Lists.newArrayList();
+    final List<PartitionChunkId> splitIds = Lists.newArrayList();
     // only if splits have changed update splits version and retry read definition on concurrent modification.
-    for (DatasetSplit split : splits) {
-      final DatasetSplitId splitId = DatasetSplitId.of(dataset, split, nextSplitVersion);
-      split.setSplitVersion(nextSplitVersion);
-      splitsStore.put(splitId, split);
+    for (PartitionChunk split : splits) {
+      final PartitionChunkId splitId = PartitionChunkId.of(dataset, split, nextSplitVersion);
+      partitionChunkStore.put(splitId, split);
       splitIds.add(splitId);
     }
     dataset.getReadDefinition().setSplitVersion(nextSplitVersion);
@@ -492,10 +706,17 @@ public class NamespaceServiceImpl implements NamespaceService {
     }
   }
 
+  @VisibleForTesting
+  void directInsertLegacySplit(DatasetConfig dataset, PartitionChunk split, long splitVersion) {
+    final PartitionChunkId splitId = PartitionChunkId.of(dataset, split, splitVersion);
+    partitionChunkStore.put(splitId, split);
+  }
+
   @Override
-  public void deleteSplits(Iterable<DatasetSplitId> splits) {
-    for (DatasetSplitId split: splits) {
-      splitsStore.delete(split);
+  public void deleteSplits(Iterable<PartitionChunkId> splits) {
+    for (PartitionChunkId split: splits) {
+      partitionChunkStore.delete(split);
+      multiSplitStore.delete(split);
     }
   }
 
@@ -1141,27 +1362,42 @@ public class NamespaceServiceImpl implements NamespaceService {
         });
   }
 
-  @Override
-  public Iterable<Map.Entry<DatasetSplitId, DatasetSplit>> findSplits(FindByCondition condition) {
-    return splitsStore.find(condition);
+  private Iterable<PartitionChunkMetadata> partitionChunkValuesAsMetadata(Iterable<Map.Entry<PartitionChunkId, PartitionChunk>> partitionChunks) {
+    return FluentIterable
+      .from(partitionChunks)
+      .transform(item ->
+        item.getValue().hasSplitCount()
+          ? new PartitionChunkMetadataImpl(item.getValue(),  () -> multiSplitStore.get(item.getKey()))
+          : new LegacyPartitionChunkMetadata(item.getValue())
+        );
   }
 
   @Override
-  public Iterable<Entry<DatasetSplitId, DatasetSplit>> findSplits(FindByRange<DatasetSplitId> range) {
-    return splitsStore.find(range);
+  public Iterable<PartitionChunkMetadata> findSplits(FindByCondition condition) {
+    return partitionChunkValuesAsMetadata(partitionChunkStore.find(condition));
   }
 
   @Override
-  public int getSplitCount(FindByCondition condition) {
-    return splitsStore.getCounts(condition.getCondition()).get(0);
+  public Iterable<PartitionChunkMetadata> findSplits(FindByRange<PartitionChunkId> range) {
+    return partitionChunkValuesAsMetadata(partitionChunkStore.find(range));
+  }
+
+  @Override
+  public int getPartitionChunkCount(FindByCondition condition) {
+    return partitionChunkStore.getCounts(condition.getCondition()).get(0);
   }
 
   @Override
   public String dumpSplits() {
     try {
       StringBuilder builder = new StringBuilder();
-      for (Map.Entry<DatasetSplitId, DatasetSplit> split : splitsStore.find()) {
-        builder.append(format("%s: %s\n", split.getKey().toString(), split.getValue().toString()));
+      builder.append("Partition Chunks: \n");
+      for (Map.Entry<PartitionChunkId, PartitionChunk> partitionChunk : partitionChunkStore.find()) {
+        builder.append(format("%s: %s\n", partitionChunk.getKey(), partitionChunk.getValue()));
+      }
+      builder.append("MultiSplits: \n");
+      for (Map.Entry<PartitionChunkId, MultiSplit> multiSplit : multiSplitStore.find()) {
+        builder.append(format("%s: %s\n", multiSplit.getKey(), multiSplit.getValue()));
       }
       return builder.toString();
     } catch (Exception e) {

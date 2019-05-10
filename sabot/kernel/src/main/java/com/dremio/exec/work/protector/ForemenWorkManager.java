@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.work.protector;
 
+import static com.dremio.exec.ExecConstants.MAX_FOREMEN_PER_COORDINATOR;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -26,6 +28,7 @@ import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.ExtendedLatch;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
@@ -65,6 +68,7 @@ import com.dremio.sabot.rpc.user.UserRpcUtils;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.Service;
+import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
@@ -106,6 +110,7 @@ public class ForemenWorkManager implements Service, SafeExit {
   private final Provider<FabricService> fabric;
   private final BindingCreator bindingCreator;
   private final Provider<ResourceAllocator> queryResourceManager;
+  private final Provider<CommandPool> commandPool;
 
   private ClusterCoordinator coordinator;
   private ExtendedLatch exitLatch = null; // This is used to wait to exit when things are still running
@@ -117,12 +122,14 @@ public class ForemenWorkManager implements Service, SafeExit {
       final Provider<FabricService> fabric,
       final Provider<SabotContext> dbContext,
       final Provider<ResourceAllocator> queryResourceManager,
+      final Provider<CommandPool> commandPool,
       final BindingCreator bindingCreator) {
     this.coord = coord;
     this.dbContext = dbContext;
     this.fabric = fabric;
     this.bindingCreator = bindingCreator;
     this.queryResourceManager = queryResourceManager;
+    this.commandPool = commandPool;
   }
 
   @Override
@@ -167,6 +174,11 @@ public class ForemenWorkManager implements Service, SafeExit {
     AutoCloseables.close(pool);
   }
 
+  private boolean canAcceptWork() {
+    final long foremenLimit = dbContext.get().getOptionManager().getOption(MAX_FOREMEN_PER_COORDINATOR);
+    return externalIdToForeman.size() < foremenLimit;
+  }
+
   public void submit(
           final ExternalId externalId,
           final QueryObserver observer,
@@ -177,19 +189,19 @@ public class ForemenWorkManager implements Service, SafeExit {
           final ReAttemptHandler attemptHandler) {
 
     final DelegatingCompletionListener delegate = new DelegatingCompletionListener();
-    final Foreman foreman = newForeman(pool, delegate, externalId, observer, session, request, config,
-      attemptHandler, tunnelCreator, preparedHandles);
+    final Foreman foreman = newForeman(pool, commandPool.get(), delegate, externalId, observer, session, request,
+      config, attemptHandler, tunnelCreator, preparedHandles);
     final ManagedForeman managed = new ManagedForeman(registry, foreman);
     externalIdToForeman.put(foreman.getExternalId(), managed);
     delegate.setListener(managed);
     foreman.start();
   }
 
-  protected Foreman newForeman(Executor executor, CompletionListener listener, ExternalId externalId,
+  protected Foreman newForeman(Executor executor, CommandPool commandPool, CompletionListener listener, ExternalId externalId,
       QueryObserver observer, UserSession session, UserRequest request, OptionProvider config,
       ReAttemptHandler attemptHandler, CoordToExecTunnelCreator tunnelCreator,
       Cache<Long, PreparedPlan> plans) {
-    return new Foreman(dbContext.get(), executor, listener, externalId, observer, session, request, config,
+    return new Foreman(dbContext.get(), executor, commandPool, listener, externalId, observer, session, request, config,
       attemptHandler, tunnelCreator, plans, queryResourceManager.get());
   }
 
@@ -288,7 +300,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     @Override
     public void nodesRegistered(Set<NodeEndpoint> registeredNodes) {
-      for (ManagedForeman f : externalIdToForeman.values()) {
+      for(ManagedForeman f : externalIdToForeman.values()){
         try {
           f.foreman.nodesRegistered(registeredNodes);
         } catch (Exception e) {
@@ -429,6 +441,11 @@ public class ForemenWorkManager implements Service, SafeExit {
     }
 
     @Override
+    public boolean canAcceptWork() {
+      return ForemenWorkManager.this.canAcceptWork();
+    }
+
+    @Override
     public void submitLocalQuery(
         ExternalId externalId,
         QueryObserver observer,
@@ -475,16 +492,29 @@ public class ForemenWorkManager implements Service, SafeExit {
     }
 
     @Override
-    public ExternalId submitWork(UserSession session, UserResponseHandler responseHandler, UserRequest request,
-        TerminationListenerRegistry registry) {
-      final ExternalId externalId = ExternalIdHelper.generateExternalId();
-      session.incrementQueryCount();
-      final QueryObserver observer = dbContext.get().getQueryObserverFactory().get().createNewQueryObserver(
-          externalId, session, responseHandler);
-      final QueryObserver oobObserver = new OutOfBandQueryObserver(observer, executor);
-      final ReAttemptHandler attemptHandler = newExternalAttemptHandler(session.getOptions());
-      submit(externalId, oobObserver, session, request, registry, null, attemptHandler);
-      return externalId;
+    public void submitWork(ExternalId externalId, UserSession session,
+      UserResponseHandler responseHandler, UserRequest request, TerminationListenerRegistry registry) {
+      commandPool.get().<Void>submit(CommandPool.Priority.HIGH,
+        ExternalIdHelper.toString(externalId) + ":work-submission",
+        (waitInMillis) -> {
+          if (!canAcceptWork()) {
+            throw UserException.resourceError()
+              .message(UserException.QUERY_REJECTED_MSG)
+              .buildSilently();
+          }
+
+          if (waitInMillis > CommandPool.WARN_DELAY_MS) {
+            logger.warn("Work submission {} waited too long in the command pool: wait was {}ms",
+              ExternalIdHelper.toString(externalId), waitInMillis);
+          }
+          session.incrementQueryCount();
+          final QueryObserver observer = dbContext.get().getQueryObserverFactory().get().createNewQueryObserver(
+            externalId, session, responseHandler);
+          final QueryObserver oobObserver = new OutOfBandQueryObserver(observer, executor);
+          final ReAttemptHandler attemptHandler = newExternalAttemptHandler(session.getOptions());
+          submit(externalId, oobObserver, session, request, registry, null, attemptHandler);
+          return null;
+        });
     }
 
     @Override

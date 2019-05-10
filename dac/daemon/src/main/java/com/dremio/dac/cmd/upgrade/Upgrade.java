@@ -34,6 +34,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.cmd.CmdUtils;
 import com.dremio.dac.proto.model.source.ClusterIdentity;
 import com.dremio.dac.proto.model.source.UpgradeStatus;
@@ -58,6 +59,7 @@ import com.google.common.base.Preconditions;
  * 2. Repeat task run is it was not successful
  */
 public class Upgrade {
+
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Upgrade.class);
 
   /**
@@ -91,20 +93,20 @@ public class Upgrade {
           return constructor.newInstance();
         } catch (NoSuchMethodException e) {
           if (verbose) {
-            System.out.printf("Ignoring class without public no-arg constructor %s.%n", clazz.getSimpleName());
+            AdminLogger.log("Ignoring class without public no-arg constructor {}.", clazz.getSimpleName());
           }
         } catch (InstantiationException e) {
           if (verbose && clazz != UpgradeTask.class) {
-            System.out.printf("Ignoring abstract class %s.%n", clazz.getSimpleName());
+            AdminLogger.log("Ignoring abstract class {}.", clazz.getSimpleName());
           }
         } catch (IllegalAccessException e) {
           if (verbose) {
-            System.out.printf("Ignoring class without public constructor %s.%n", clazz.getSimpleName());
+            AdminLogger.log("Ignoring class without public constructor {}.", clazz.getSimpleName());
           }
         } catch (InvocationTargetException e) {
           if (verbose) {
-            System.out.printf("Ignoring class %s (failed during instantiation with message %s).%n",
-                clazz.getSimpleName(), e.getTargetException().getMessage());
+            AdminLogger.log("Ignoring class {} (failed during instantiation with message {}).",
+              clazz.getSimpleName(), e.getTargetException().getMessage());
           }
         }
         return null;
@@ -136,13 +138,20 @@ public class Upgrade {
     // make sure we are not trying to downgrade
     Preconditions.checkState(UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) <= 0,
       "Downgrading from version %s to %s is not supported", storeVersion, VERSION);
+
+    // only allow upgrading from 2.0 and higher
+    Preconditions.checkState(storeVersion.getMajorVersion() >= 2,
+      "Upgrading from %s to %s is not supported.  Please upgrade to 2.0 first.", storeVersion, VERSION);
   }
 
-
   public void run() throws Exception {
-    Optional<LocalKVStoreProvider> storeOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig(), classpathScan);
+    run(true);
+  }
+
+  public void run(boolean noDBOpenRetry) throws Exception {
+    Optional<LocalKVStoreProvider> storeOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig(), classpathScan, noDBOpenRetry);
     if (!storeOptional.isPresent()) {
-      System.out.println("No database found. Skipping upgrade");
+      AdminLogger.log("No database found. Skipping upgrade");
       return;
     }
     try (final KVStoreProvider storeProvider = storeOptional.get()) {
@@ -164,18 +173,19 @@ public class Upgrade {
     ClusterIdentity clusterIdentity = identity.get();
 
     final Version kvStoreVersion = retrieveStoreVersion(clusterIdentity);
-    System.out.println("KVStore version is " + kvStoreVersion.getVersion());
+
+    AdminLogger.log("KVStore version is {}",kvStoreVersion.getVersion());
     ensureUpgradeSupported(kvStoreVersion);
 
-    System.out.println("\n Upgrade Tasks Status before Upgrade");
-    System.out.println(upgradeStore.toString());
-    System.out.println();
+    AdminLogger.log("\nUpgrade Tasks Status before upgrade");
+
+    AdminLogger.log(upgradeStore.toString());
 
     List<UpgradeTask> tasksToRun = new ArrayList<>();
     for(UpgradeTask task: upgradeTasks) {
       if (upgradeStore.isUpgradeTaskCompleted(task.getTaskUUID())) {
         if (verbose) {
-          System.out.println("Task: '" + task + "' completed. Skipping.");
+          AdminLogger.log("Task: {} completed. Skipping",task);
         }
         continue;
       }
@@ -190,7 +200,7 @@ public class Upgrade {
       final UpgradeContext context = new UpgradeContext(storeProvider, lpPersistence, connectionReader);
 
       for (UpgradeTask task : tasksToRun) {
-        System.out.println(task);
+        AdminLogger.log(task.toString());
         upgradeExternal(task, context, upgradeStore, kvStoreVersion);
       }
     }
@@ -202,9 +212,9 @@ public class Upgrade {
       throw new RuntimeException("Failed to update store version", e);
     }
 
-    System.out.println("\n Upgrade Tasks Status after Upgrade");
-    System.out.println(upgradeStore.toString());
-    System.out.println();
+    AdminLogger.log("\n Upgrade Tasks Status after upgrade");
+    AdminLogger.log(upgradeStore.toString());
+
   }
 
   /**
@@ -227,7 +237,7 @@ public class Upgrade {
         completeUpgradeTaskRun(upgradeTask, upgradeStore, startTime, UpgradeStatus.FAILED);
       } catch (Exception ex) {
         e.addSuppressed(ex);
-        System.out.println("Failed to update task '" + upgradeTask.getTaskName() + "' state to FAILED ");
+        AdminLogger.log("Failed to update task {} state to FAILED", upgradeTask.getTaskName());
       }
       throw e;
     }
@@ -289,8 +299,7 @@ public class Upgrade {
       Upgrade upgrade = new Upgrade(dacConfig, classPathScan, true);
       upgrade.run();
     } catch (Exception e) {
-      e.printStackTrace();
-      System.err.println("Upgrade failed " + e);
+      AdminLogger.log("\nUpgrade failed", e);
       System.exit(1);
     }
   }

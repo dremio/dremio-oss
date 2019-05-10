@@ -22,10 +22,10 @@ import java.util.List;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.GroupScan;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.physical.base.SubScan;
@@ -33,13 +33,11 @@ import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.fragment.ExecutionNodeMap;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.schedule.SimpleCompleteWork;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
 
 /**
  * System group scan.
@@ -52,16 +50,17 @@ public class SystemGroupScan extends AbstractBase implements GroupScan<SimpleCom
   private final StoragePluginId pluginId;
 
   public SystemGroupScan(
+      OpProps props,
       SystemTable table,
       List<SchemaPath> columns,
-      int nodeCount,
-      StoragePluginId pluginId
+      StoragePluginId pluginId,
+      int nodeCount
       ) {
-    super((String) null);
+    super(props);
     this.table = table;
     this.columns = columns;
-    this.nodeCount = nodeCount;
     this.pluginId = pluginId;
+    this.nodeCount = nodeCount;
   }
 
   // If distributed, the scan needs to happen on every node.
@@ -107,22 +106,6 @@ public class SystemGroupScan extends AbstractBase implements GroupScan<SimpleCom
     return table.getTableName();
   }
 
-  @Deprecated
-  public List<String> getTableSchemaPath() {
-    return null;
-  }
-
-  @JsonIgnore
-  @Override
-  public List<List<String>> getReferencedTables() {
-    return ImmutableList.of();
-  }
-
-  @Override
-  public boolean mayLearnSchema() {
-    return false;
-  }
-
   /**
    * If distributed, the scan needs to happen on every node. Since width is enforced, the number of fragments equals
    * number of SabotNodes. And here we set, each endpoint as mandatory assignment required to ensure every
@@ -146,12 +129,7 @@ public class SystemGroupScan extends AbstractBase implements GroupScan<SimpleCom
 
   @Override
   public SubScan getSpecificScan(List<SimpleCompleteWork> work) {
-    return new SystemSubScan(table, getColumns(), pluginId);
-  }
-
-  @Override
-  public BatchSchema getSchema() {
-    return table.getSchema();
+    return new SystemSubScan(props, table, getColumns(), pluginId);
   }
 
   @Override
@@ -170,13 +148,8 @@ public class SystemGroupScan extends AbstractBase implements GroupScan<SimpleCom
   }
 
   @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    return getSchema().maskAndReorder(getColumns());
-  }
-
-  @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
-    return new SystemGroupScan(table, getColumns(), nodeCount, pluginId);
+    return new SystemGroupScan(props, table, columns, pluginId, nodeCount);
   }
 
 }

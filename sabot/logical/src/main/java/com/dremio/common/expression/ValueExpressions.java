@@ -30,6 +30,7 @@ import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
 
 import com.dremio.common.expression.visitors.ExprVisitor;
+import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.CoreDecimalUtility;
 import com.dremio.common.util.DateTimes;
 import com.google.common.base.Objects;
@@ -128,6 +129,11 @@ public class ValueExpressions {
 
     if(lastChar == 'i') {
       return new IntExpression(Integer.parseInt(numStr.substring(0, numStr.length()-1)));
+    }
+
+    if(lastChar == 'm') {
+      BigDecimal decimal = new BigDecimal(numStr.substring(0, numStr.length()-1));
+      return new DecimalExpression(decimal);
     }
 
     try {
@@ -317,18 +323,24 @@ public class ValueExpressions {
 
   public static class DecimalExpression extends LogicalExpressionBase {
 
-    private int decimal;
+    private BigDecimal decimal;
+    private int decimalIntValue;
     private int scale;
     private int precision;
 
     public DecimalExpression(BigDecimal input) {
       this.scale = input.scale();
       this.precision = input.precision();
-      this.decimal = CoreDecimalUtility.getDecimal9FromBigDecimal(input, scale, precision);
+      this.decimal = input;
+      this.decimalIntValue = CoreDecimalUtility.getDecimal9FromBigDecimal(input, scale, precision);
+    }
+
+    public BigDecimal getDecimal() {
+      return decimal;
     }
 
     public int getIntFromDecimal() {
-      return decimal;
+      return decimalIntValue;
     }
 
     public int getScale() {
@@ -366,6 +378,11 @@ public class ValueExpressions {
     @Override
     public String toString() {
       return "ValueExpression[decimal=" + decimal + ", " + scale + ", " + precision + "]";
+    }
+
+    public TypeProtos.MajorType getMajorType() {
+      return TypeProtos.MajorType.newBuilder().setMinorType(TypeProtos.MinorType.DECIMAL).setScale
+        (scale).setPrecision(precision).setMode(TypeProtos.DataMode.REQUIRED).build();
     }
   }
 

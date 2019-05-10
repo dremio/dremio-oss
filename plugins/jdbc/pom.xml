@@ -20,9 +20,9 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>com.dremio.plugin</groupId>
+    <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>3.1.11-201904261857420193-c674472</version>
+    <version>3.2.0-201905102005330382-0598733</version>
   </parent>
 
   <artifactId>dremio-jdbc-plugin</artifactId>

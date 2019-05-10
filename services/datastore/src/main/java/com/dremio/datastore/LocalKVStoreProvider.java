@@ -76,6 +76,11 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     this(scan, null, null, null, baseDirectory, inMemory, timed, validateOCC, disableOCC);
   }
 
+  @VisibleForTesting
+  public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed, boolean validateOCC, boolean disableOCC, boolean noDBOpenRetry) {
+    this(scan, null, null, null, baseDirectory, inMemory, timed, validateOCC, disableOCC, noDBOpenRetry);
+  }
+
   public LocalKVStoreProvider(
       ScanResult scan,
       Provider<FabricService> fabricService,
@@ -85,10 +90,24 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
       boolean inMemory,
       boolean timed,
       boolean validateOCC,
-      boolean disableOCC
+      boolean disableOCC) {
+    this(scan, fabricService, allocator, hostName, baseDirectory, inMemory, timed, validateOCC, disableOCC, false);
+  }
+
+  public LocalKVStoreProvider(
+      ScanResult scan,
+      Provider<FabricService> fabricService,
+      BufferAllocator allocator,
+      String hostName,
+      String baseDirectory,
+      boolean inMemory,
+      boolean timed,
+      boolean validateOCC,
+      boolean disableOCC,
+      boolean noDBOpenRetry
   ) {
 
-    coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, validateOCC, disableOCC);
+    coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, validateOCC, disableOCC, noDBOpenRetry);
     this.fabricService = fabricService;
     this.allocator = allocator;
     this.hostName = hostName;
@@ -111,7 +130,8 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
         String.format("Missing %s in dremio.conf", DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL)).toString()),
       Boolean.valueOf(Preconditions.checkNotNull(config.get(CONFIG_TIMED), String.format(ERR_FMT, CONFIG_TIMED)).toString()),
       Boolean.parseBoolean(Preconditions.checkNotNull(config.get(CONFIG_VALIDATEOCC), String.format(ERR_FMT, CONFIG_VALIDATEOCC)).toString()),
-      Boolean.parseBoolean(Preconditions.checkNotNull(config.get(CONFIG_DISABLEOCC), String.format(ERR_FMT, CONFIG_DISABLEOCC)).toString())
+      Boolean.parseBoolean(Preconditions.checkNotNull(config.get(CONFIG_DISABLEOCC), String.format(ERR_FMT, CONFIG_DISABLEOCC)).toString()),
+      false
     );
   }
 

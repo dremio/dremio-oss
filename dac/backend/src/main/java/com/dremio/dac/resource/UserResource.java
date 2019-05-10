@@ -138,7 +138,7 @@ public class UserResource {
         logger.warn("Could not delete a user {} after failing to create corresponding home space", userName.getName());
       } finally {
         throw UserException.unsupportedError()
-          .message("Could not create user '%s', make sure you don't already have a similar user with different casing", newUser.getUserName())
+          .message("Unable to create user '%s'.There may already be a user with the same name but different casing", newUser.getUserName())
           .addContext("Cause", e.getMessage())
           .build();
       }

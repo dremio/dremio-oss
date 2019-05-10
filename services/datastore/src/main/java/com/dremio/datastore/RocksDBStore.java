@@ -17,9 +17,16 @@ package com.dremio.datastore;
 
 import static com.dremio.datastore.MetricUtils.COLLECT_METRICS;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.ReferenceQueue;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -27,28 +34,33 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import org.apache.commons.io.IOUtils;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.FlushOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
+import org.xerial.snappy.SnappyInputStream;
+import org.xerial.snappy.SnappyOutputStream;
 
 import com.codahale.metrics.MetricRegistry;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.DeferredException;
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.datastore.MetricUtils.MetricSetBuilder;
+import com.dremio.datastore.rocks.Rocks.BlobPointer;
+import com.dremio.datastore.rocks.Rocks.BlobPointer.Codec;
 import com.dremio.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.UnsignedBytes;
 
@@ -73,6 +85,26 @@ import com.google.common.primitives.UnsignedBytes;
  */
 class RocksDBStore implements ByteStore {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RocksDBStore.class);
+
+  private static final String BLOB_SYS_PROP = "dremio.rocksdb.blob_filter_bytes";
+  static final long BLOB_FILTER_DEFAULT = 1024*1024;
+  private static final long BLOB_FILTER_MINIMUM = 1024;
+  private static final String BLOB_MINIMUM_SYS_PROP = "dremio.rocksdb.minimum_blob_filter_bytes";
+  //  0x06 and 0x07 are unused by proto so we use 0x07 to denote that the entry is a blob pointer
+  static final byte BLOB_VALUE_PREFIX = 7;
+  private static final String BLOB_PATH = "blob";
+  static final long FILTER_SIZE_IN_BYTES;
+
+  static {
+    final long minimumSize = Long.getLong(BLOB_MINIMUM_SYS_PROP, BLOB_FILTER_MINIMUM);
+    long filterSize = Long.getLong(BLOB_SYS_PROP, BLOB_FILTER_DEFAULT);
+    if (filterSize < minimumSize) {
+      filterSize = BLOB_FILTER_DEFAULT;
+      logger.warn("Property {} was set to {} which is below the minimum of "
+          + "{} bytes. Using default value of {}", BLOB_SYS_PROP, filterSize, minimumSize, BLOB_FILTER_DEFAULT);
+    }
+    FILTER_SIZE_IN_BYTES = filterSize;
+  }
 
   private static final String METRICS_PREFIX = "kvstore.stores";
   private static final String[] METRIC_PROPERTIES = {
@@ -135,6 +167,7 @@ class RocksDBStore implements ByteStore {
   private final RocksDB db;
   private final int parallel;
   private final String name;
+  private final BlobManager blobManager;
 
   private final ReferenceQueue<FindByRangeIterator> iteratorQueue = new ReferenceQueue<>();
   private final Set<IteratorReference> iteratorSet = Sets.newConcurrentHashSet();
@@ -146,6 +179,11 @@ class RocksDBStore implements ByteStore {
   private final AtomicBoolean closed = new AtomicBoolean(false);
 
   public RocksDBStore(String name, ColumnFamilyDescriptor family, ColumnFamilyHandle handle, RocksDB db, int stripes) {
+    this(name, family, handle, db, stripes, INLINE_BLOB_MANAGER);
+  }
+
+  public RocksDBStore(String name, ColumnFamilyDescriptor family, ColumnFamilyHandle handle, RocksDB db, int stripes,
+                      BlobManager blobManager) {
     super();
     this.family = family;
     this.name = name;
@@ -154,6 +192,7 @@ class RocksDBStore implements ByteStore {
     this.handle = handle;
     this.sharedLocks = new AutoCloseableLock[stripes];
     this.exclusiveLocks = new AutoCloseableLock[stripes];
+    this.blobManager = blobManager;
 
     for (int i = 0; i < stripes; i++) {
       ReadWriteLock core = new ReentrantReadWriteLock();
@@ -199,9 +238,14 @@ class RocksDBStore implements ByteStore {
       append(sb, "rocksdb.estimate-live-data-size", "Estimated Live Data Size");
       append(sb, "rocksdb.total-sst-files-size", "Total SST files size");
       append(sb, "rocksdb.estimate-pending-compaction-bytes", "Pending Compaction Bytes");
+
+      final BlobStats blobStats = blobManager.getStats();
+      if (blobStats != null) {
+        blobStats.append(sb);
+      }
       return sb.toString();
     } catch(RocksDBException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -258,6 +302,10 @@ class RocksDBStore implements ByteStore {
     return lock;
   }
 
+  /**
+   * Delete all values. Deletes only values inside the store, leaving behind any leftover blobs that have been placed
+   * directly in the file system.
+   */
   @Override
   @VisibleForTesting
   public void deleteAllValues() throws IOException {
@@ -286,9 +334,9 @@ class RocksDBStore implements ByteStore {
   public byte[] get(byte[] key) {
     try (AutoCloseableLock ac = sharedLock(key)) {
       throwIfClosed();
-      return db.get(handle, key);
-    } catch (RocksDBException e) {
-      throw wrap(e);
+      return resolvePtrOrValue(db.get(handle, key));
+    } catch (RocksDBException | BlobNotFoundException e) {
+      throw new RuntimeException(e);
     }
   }
 
@@ -395,16 +443,25 @@ class RocksDBStore implements ByteStore {
 
     try (AutoCloseableLock ac = sharedLock(key)) {
       throwIfClosed();
-      db.put(handle, key, value);
-    } catch (RocksDBException e) {
-      throw wrap(e);
-    }
 
+      final byte[] oldValueOrPtr = db.get(handle, key);
+
+      try (BlobHolder blob = blobManager.filterPut(value)){
+        final byte[] blobOrPtrVal = blob.ptrOrValue();
+        db.put(handle, key, blobOrPtrVal);
+        blobManager.deleteTranslation(oldValueOrPtr);
+        blob.commit();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    } catch (RocksDBException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
   public List<byte[]> get(List<byte[]> keys) {
-    List<byte[]> values = new ArrayList<>();
+    final List<byte[]> values = new ArrayList<>();
     for (byte[] key : keys) {
       values.add(get(key));
     }
@@ -419,16 +476,23 @@ class RocksDBStore implements ByteStore {
 
     try (AutoCloseableLock ac = exclusiveLock(key)) {
       throwIfClosed();
-      byte[] oldValue = db.get(handle, key);
+      final byte[] oldValueOrPtr = db.get(handle, key);
+      final byte[] oldValue = resolvePtrOrValue(oldValueOrPtr);
 
       if (!validator.validate(oldValue)) {
         return false;
       }
 
-      db.put(handle, key, newValue);
+      try (BlobHolder blob = blobManager.filterPut(newValue)) {
+        db.put(handle, key, blob.ptrOrValue());
+        blobManager.deleteTranslation(oldValueOrPtr);
+        blob.commit();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
       return true;
-    } catch (RocksDBException e) {
-      throw wrap(e);
+    } catch (RocksDBException | BlobNotFoundException e) {
+      throw new RuntimeException(e);
     }
   }
 
@@ -436,14 +500,16 @@ class RocksDBStore implements ByteStore {
   public boolean validateAndDelete(byte[] key, ByteValidator validator) {
     try (AutoCloseableLock ac = exclusiveLock(key)) {
       throwIfClosed();
-      byte[] oldValue = db.get(handle, key);
+      final byte[] oldValueOrPtr = db.get(handle, key);
+      final byte[] oldValue = resolvePtrOrValue(oldValueOrPtr);
       if (!validator.validate(oldValue)) {
         return false;
       }
       db.delete(handle, key);
+      blobManager.deleteTranslation(oldValueOrPtr);
       return true;
-    } catch (RocksDBException e) {
-      throw wrap(e);
+    } catch (RocksDBException | BlobNotFoundException e) {
+      throw new RuntimeException(e);
     }
   }
 
@@ -453,7 +519,7 @@ class RocksDBStore implements ByteStore {
       throwIfClosed();
       return db.get(handle, key) != null;
     } catch (RocksDBException e) {
-      throw wrap(e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -461,9 +527,14 @@ class RocksDBStore implements ByteStore {
   public void delete(byte[] key) {
     try (AutoCloseableLock ac = sharedLock(key)) {
       throwIfClosed();
+      final byte[] oldValueOrPtr = db.get(handle, key);
+      if (oldValueOrPtr == null) {
+        return;
+      }
       db.delete(handle, key);
+      blobManager.deleteTranslation(oldValueOrPtr);
     } catch (RocksDBException e) {
-      throw wrap(e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -484,8 +555,14 @@ class RocksDBStore implements ByteStore {
     throw new UnsupportedOperationException("You must use a versioned store to delete by version.");
   }
 
-  public RuntimeException wrap(RocksDBException e) {
-    return Throwables.propagate(e);
+  /**
+   * Allows resolving a RocksDB value that may be a blob pointer.
+   *
+   * @param value
+   * @return the actual value
+   */
+  byte[] resolvePtrOrValue(byte[] value) throws BlobNotFoundException {
+    return blobManager.filterGet(value);
   }
 
   private class RockIterable implements Iterable<Map.Entry<byte[], byte[]>> {
@@ -498,7 +575,7 @@ class RocksDBStore implements ByteStore {
     @Override
     public Iterator<Entry<byte[], byte[]>> iterator() {
       throwIfClosed(); // check not needed during iteration as the underlying iterator is closed when store is closed
-      FindByRangeIterator iterator = new FindByRangeIterator(db, handle, range);
+      FindByRangeIterator iterator = new FindByRangeIterator(db, handle, range, blobManager);
 
       // Create a new reference which will self register
       @SuppressWarnings({ "unused", "resource" })
@@ -512,14 +589,16 @@ class RocksDBStore implements ByteStore {
     private final RocksIterator iter;
     private final byte[] end;
     private final boolean endInclusive;
+    private final BlobManager blob;
 
     private byte[] nextKey;
     private byte[] nextValue;
 
-    public FindByRangeIterator(RocksDB db, ColumnFamilyHandle handle, FindByRange<byte[]> range) {
+    public FindByRangeIterator(RocksDB db, ColumnFamilyHandle handle, FindByRange<byte[]> range, BlobManager blob) {
       this.iter = db.newIterator(handle);
       this.end = range == null ? null : range.getEnd();
       this.endInclusive = range == null ? false : range.isEndInclusive();
+      this.blob = blob;
 
       // position at beginning of cursor.
       if (range != null && range.getStart() != null) {
@@ -567,7 +646,12 @@ class RocksDBStore implements ByteStore {
       Preconditions.checkArgument(nextKey != null, "Called next() when hasNext() is false.");
       Preconditions.checkArgument(nextValue != null, "Called next() when hasNext() is false.");
 
-      RocksEntry entry = new RocksEntry(nextKey, nextValue);
+      RocksEntry entry = null;
+      try {
+        entry = new RocksEntry(nextKey, blob.filterGet(nextValue));
+      } catch (BlobNotFoundException e) {
+        throw new RuntimeException(e);
+      }
       iter.next();
       populateNext();
       return entry;
@@ -630,4 +714,282 @@ class RocksDBStore implements ByteStore {
     RocksDB.loadLibrary();
   }
 
+  /**
+   * Interface that supports external blob storage for RocksDB.
+   */
+  private interface BlobManager {
+    /**
+     * Calculates blob storage stats for the store.
+     *
+     * @return stats
+     */
+    BlobStats getStats();
+
+    /**
+     * Handles retrieving of the value from the blob storage if needed.
+     *
+     * @param valueFromRocks a value from RocksDB
+     * @return
+     */
+    byte[] filterGet(byte[] valueFromRocks) throws BlobNotFoundException;
+
+    /**
+     * Handles storing of the value into the blob storage if needed.
+     *
+     * @param valueToFilter a kvstore value
+     * @return
+     */
+    BlobHolder filterPut(byte[] valueToFilter);
+
+    /**
+     * Handles deleting the value from the blob storage if needed.
+     *
+     * @param valueToDelete
+     */
+    void deleteTranslation(byte[] valueToDelete);
+  }
+
+  private static final BlobManager INLINE_BLOB_MANAGER = new BlobManager() {
+    @Override
+    public BlobStats getStats() {
+      return null;
+    }
+
+    @Override
+    public byte[] filterGet(byte[] valueFromRocks) {
+      return valueFromRocks;
+    }
+
+    @Override
+    public BlobHolder filterPut(byte[] valueToFilter) {
+      return new Inline(valueToFilter);
+    }
+
+    @Override
+    public void deleteTranslation(byte[] valueToDelete) {
+    }
+  };
+
+  /**
+   * A filter on the underlying RocksDB that will automatically route files beyond a certain size to the local
+   * filesystem instead of inside the rocks store.
+   */
+  static class RocksBlobManager implements BlobManager {
+
+    private final Path base;
+    private final long filterSize;
+
+    public RocksBlobManager(String basePath, String name, long filterSize) {
+      this.base = Paths.get(basePath, BLOB_PATH, name);
+      try {
+        Files.createDirectories(base);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      this.filterSize = filterSize;
+    }
+
+    /**
+     * Determine whether the provided bytes are an inline value or an external blob value.
+     * @param bytes The value to check
+     * @return true if the value is inline (not a blob)
+     */
+    private static boolean isInline(byte[] bytes) {
+      if (bytes == null || bytes.length == 0) {
+        return true;
+      }
+
+      return !(bytes[0] == BLOB_VALUE_PREFIX);
+    }
+
+    private static Path path(Path base, byte[] bytes) {
+      return base.resolve(Paths.get(ptr(bytes).getPath()));
+    }
+
+    @Override
+    public BlobStats getStats() {
+      try {
+        final Iterator<Path> iter = Files.list(base).iterator();
+        long count = 0;
+        long size = 0;
+        while (iter.hasNext()) {
+          Path p = iter.next();
+          count++;
+          size += Files.size(p);
+        }
+
+        return new BlobStats(count, size);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    /**
+     * Given a value from RocksDB that is a ptr rather than a value, get the ptr.
+     * @param bytes Ptr bytes with prefix.
+     * @return The value read from the file.
+     */
+    private static BlobPointer ptr(byte[] bytes) {
+      try {
+        // The offset accounts for BLOB_VALUE_PREFIX, which is one byte long
+        final ByteArrayInputStream baos = new ByteArrayInputStream(bytes, 1, bytes.length);
+        return BlobPointer.parseDelimitedFrom(baos);
+      } catch (IOException e) {
+        throw new RuntimeException("Failure parsing recorded translation.", e);
+      }
+    }
+
+    @Override
+    public byte[] filterGet(byte[] valueFromRocks) throws BlobNotFoundException {
+      if (isInline(valueFromRocks)) {
+        return valueFromRocks;
+      }
+
+      try {
+        final BlobPointer ptr = ptr(valueFromRocks);
+        final Path path = base.resolve(Paths.get(ptr.getPath()));
+        switch (ptr.getCodec()) {
+        case SNAPPY: {
+          try (final SnappyInputStream snappyInputStream =
+                 new SnappyInputStream(Files.newInputStream(path))) {
+            return IOUtils.toByteArray(snappyInputStream);
+          }
+        }
+        case UNCOMPRESSED:
+          return Files.readAllBytes(path);
+        case UNKNOWN:
+        default:
+          throw new IllegalArgumentException("Unknown codec: " + ptr.getCodec());
+      }
+      } catch (NoSuchFileException e) {
+        throw new BlobNotFoundException(e);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Override
+    public BlobHolder filterPut(byte[] valueToFilter) {
+      if (valueToFilter.length < filterSize) {
+        return new Inline(valueToFilter);
+      }
+      final Path file = Paths.get(UUID.randomUUID().toString() + ".blob");
+      final Path path = base.resolve(file);
+
+      logger.debug("Value size {} bytes larger than limit {} bytes - storing actual data at {}",
+        valueToFilter.length, filterSize, path);
+
+      try (final SnappyOutputStream snappyOutputStream = new SnappyOutputStream(Files.newOutputStream(path))){
+        snappyOutputStream.write(valueToFilter);
+        return new Blob(file);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Override
+    public void deleteTranslation(byte[] valueToDelete) {
+      if (isInline(valueToDelete)) {
+        return;
+      }
+
+      final Path path = path(base, valueToDelete);
+      try {
+        Files.delete(path);
+      } catch (IOException ex) {
+        logger.warn("Failure while attempting to delete blob: {}", path, ex);
+      }
+    }
+  }
+
+  private static class BlobStats {
+
+    private final long estBlobCount;
+    private final long estBlobSize;
+
+    public BlobStats(long estBlobCount, long estBlobSize) {
+      super();
+      this.estBlobCount = estBlobCount;
+      this.estBlobSize = estBlobSize;
+    }
+
+    public void append(StringBuilder sb) {
+      sb.append("* ");
+      sb.append("Estimated Blob Count: ");
+      sb.append(estBlobCount);
+      sb.append("\n* Estimated Blob Bytes: ");
+      sb.append(estBlobSize);
+      sb.append("\n");
+    }
+  }
+
+  private interface BlobHolder extends AutoCloseable {
+
+    default void commit() {}
+
+    byte[] ptrOrValue() throws IOException;
+
+    @Override
+    default void close() {}
+  }
+
+  private static class Blob implements BlobHolder {
+    private final Path path;
+    private boolean committed = false;
+
+    public Blob(Path path) {
+      this.path = Preconditions.checkNotNull(path);
+    }
+
+    @Override
+    public void commit() {
+      committed = true;
+    }
+
+    @Override
+    public byte[] ptrOrValue() throws IOException {
+      final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      baos.write(BLOB_VALUE_PREFIX);
+      BlobPointer.newBuilder()
+        .setPath(path.toString())
+        .setCodec(Codec.SNAPPY)
+        .build().writeDelimitedTo(baos);
+
+      return baos.toByteArray();
+    }
+
+    @Override
+    public void close() {
+      if (!committed) {
+        try {
+          Files.delete(path);
+        } catch (IOException ex) {
+          logger.warn("Failure while attempting to delete blob: {}", path, ex);
+        }
+      }
+    }
+  }
+
+  private static class Inline implements BlobHolder {
+    private final byte[] value;
+
+    public Inline(byte[] value) {
+      super();
+      this.value = value;
+    }
+
+    @Override
+    public byte[] ptrOrValue() {
+      return value;
+    }
+  }
+
+  /**
+   * Exception for blob file not found
+   */
+  static class BlobNotFoundException extends FileNotFoundException {
+    BlobNotFoundException(NoSuchFileException e) {
+      super(e.getMessage());
+    }
+  }
 }

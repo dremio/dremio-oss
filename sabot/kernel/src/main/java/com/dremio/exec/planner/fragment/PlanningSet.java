@@ -44,7 +44,7 @@ public class PlanningSet implements Iterable<Wrapper> {
       if (node.getSendingExchange() != null) {
 
         // assign the upper 16 nodes as the major fragment id.
-        majorFragmentId = node.getSendingExchange().getChild().getOperatorId() >> 16;
+        majorFragmentId = node.getSendingExchange().getChild().getProps().getMajorFragmentId();
 
         // if they are not assigned, that means we mostly likely have an externally generated plan.  in this case, come up with a major fragmentid.
         if (majorFragmentId == 0) {

@@ -26,7 +26,11 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.exception.JsonFieldChangeExceptionContext;
+import com.dremio.exec.exception.SchemaChangeExceptionContext;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.observer.AttemptObserver;
@@ -39,6 +43,7 @@ import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
@@ -47,6 +52,7 @@ import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.work.AttemptId;
 import com.dremio.exec.work.foreman.AttemptManager;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
@@ -56,6 +62,8 @@ import com.dremio.options.OptionValue;
 import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.commandpool.CommandPool;
+import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
@@ -81,7 +89,8 @@ public class Foreman {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Foreman.class);
 
   // we need all these to start new attemptManager instances if we have to
-  private final Executor executor;
+  private final Executor executor; // unlimited thread pool
+  private final CommandPool commandPool;
   private final SabotContext context;
 //  private final ForemenManager manager;
   private final CompletionListener listener;
@@ -104,6 +113,7 @@ public class Foreman {
   protected Foreman(
     final SabotContext context,
     final Executor executor,
+    final CommandPool commandPool,
     final CompletionListener listener,
     final ExternalId externalId,
     final QueryObserver observer,
@@ -116,6 +126,7 @@ public class Foreman {
     final ResourceAllocator queryResourceManager) {
     this.attemptId = AttemptId.of(externalId);
     this.executor = executor;
+    this.commandPool = commandPool;
     this.context = context;
     this.listener = listener;
     this.session = session;
@@ -129,7 +140,12 @@ public class Foreman {
   }
 
   public void start() {
-    newAttempt(AttemptReason.NONE, Predicates.<DatasetConfig>alwaysTrue());
+    try {
+      newAttempt(AttemptReason.NONE, Predicates.alwaysTrue());
+    } catch (Exception e) {
+      listener.completed();
+      throw e;
+    }
   }
 
   public void nodesUnregistered(Set<NodeEndpoint> unregistereds){
@@ -160,17 +176,18 @@ public class Foreman {
     }
 
     attemptManager = newAttemptManager(context, attemptId, request, attemptObserver, session,
-      optionProvider, tunnelCreator, plans, datasetValidityChecker);
+      optionProvider, tunnelCreator, plans, datasetValidityChecker, queryResourceManager, commandPool);
     executor.execute(attemptManager);
   }
 
   protected AttemptManager newAttemptManager(SabotContext context, AttemptId attemptId, UserRequest queryRequest,
       AttemptObserver observer, UserSession session, OptionProvider options, CoordToExecTunnelCreator tunnelCreator,
-      Cache<Long, PreparedPlan> plans, Predicate<DatasetConfig> datasetValidityChecker) {
+      Cache<Long, PreparedPlan> plans, Predicate<DatasetConfig> datasetValidityChecker, ResourceAllocator resourceAllocator,
+      CommandPool commandPool) {
     final QueryContext queryContext = new QueryContext(session, context, attemptId.toQueryId(),
         queryRequest.getPriority(), queryRequest.getMaxAllocation(), datasetValidityChecker);
     return new AttemptManager(context, attemptId, queryRequest, observer, options, tunnelCreator, plans,
-      queryContext, queryResourceManager);
+      queryContext, resourceAllocator, commandPool);
   }
 
   public void updateStatus(FragmentStatus status) {
@@ -317,6 +334,55 @@ public class Foreman {
       super.planRelTransform(phase, planner, before, after, millisTaken);
     }
 
+    private UserException handleSchemaChangeException(UserException schemaChange) {
+      final SchemaChangeExceptionContext data = SchemaChangeExceptionContext.fromUserException(schemaChange);
+      UserException result = null;
+      if (data != null) {
+        try {
+          NamespaceKey datasetKey = new NamespaceKey(data.getTableSchemaPath());
+          final String queryUserName = session.getCredentials().getUserName();
+          final Catalog catalog =
+            context.getCatalogService().getCatalog(SchemaConfig.newBuilder(queryUserName).build(), Long.MAX_VALUE);
+          catalog.updateDatasetSchema(datasetKey, data.getNewSchema());
+
+          // Update successful, populate return exception.
+          result = UserException.schemaChangeError()
+                                .message("New schema found and recorded. Please reattempt the query. Multiple attempts may be necessary to fully learn the schema.")
+                                .build(logger);
+        } catch (UserException e) {
+          // SCHEMA_CHANGE could result in an INVALID_DATASET_METADATA exception (from ElasticSearch)
+          result = e;
+        } catch (Exception e) {
+          logger.error("something went wrong when trying to persist schema change", e);
+        }
+      }
+
+      return result;
+    }
+
+    private UserException handleJsonFieldChangeException(UserException schemaChange) {
+      final JsonFieldChangeExceptionContext data = JsonFieldChangeExceptionContext.fromUserException(schemaChange);
+      UserException result = null;
+      if (data != null) {
+        try {
+          NamespaceKey datasetKey = new NamespaceKey(data.getOriginTablePath());
+          final String queryUserName = session.getCredentials().getUserName();
+          final Catalog catalog =
+            context.getCatalogService().getCatalog(SchemaConfig.newBuilder(queryUserName).build(), Long.MAX_VALUE);
+          catalog.updateDatasetField(datasetKey, data.getFieldName(), data.getFieldSchema());
+
+          // Update successful, populate return exception.
+          result = UserException.jsonFieldChangeError()
+            .message("New field in the JSON schema found.  Please reattempt the query.  Multiple attempts may be necessary to fully learn the schema.")
+            .build(logger);
+        } catch (Exception e) {
+          logger.error("something went wrong when trying to persist field change", e);
+        }
+      }
+
+      return result;
+    }
+
     @Override
     public void attemptCompletion(UserResult result) {
       // NOTE to developers: adhere to these invariants:
@@ -336,15 +402,32 @@ public class Foreman {
         if (canceled) {
           logger.info("{}: cannot re-attempt the query, user already cancelled it", attemptId);
         } else {
-          // and the attemptHandler allows the reattempt
+
+          // We could have a non-recoverable attempt with a schema change, so do that work up front.
+          UserException ex = result.getException();
+          if (ex.getErrorType() == UserBitShared.DremioPBError.ErrorType.SCHEMA_CHANGE) {
+            UserException e = handleSchemaChangeException(result.getException());
+            if (e != null) {
+              ex = e;
+              result = result.withException(ex);
+            }
+          } else if (ex.getErrorType() == UserBitShared.DremioPBError.ErrorType.JSON_FIELD_CHANGE) {
+            UserException e = handleJsonFieldChangeException(result.getException());
+            if (e != null) {
+              ex = e;
+              result = result.withException(ex);
+            }
+          }
+
+          // Check if the attemptHandler allows the reattempt
           final AttemptReason reason = attemptHandler.isRecoverable(
-            new ReAttemptContext(attemptId, result.getException(), containsHashAgg, isCTAS));
+            new ReAttemptContext(attemptId, ex, containsHashAgg, isCTAS));
           if (reason != AttemptReason.NONE) {
             super.attemptCompletion(result);
 
             Predicate<DatasetConfig> datasetValidityChecker = Predicates.alwaysTrue();
             if (reason == AttemptReason.INVALID_DATASET_METADATA) {
-              final InvalidMetadataErrorContext context = InvalidMetadataErrorContext.fromUserException(result.getException());
+              final InvalidMetadataErrorContext context = InvalidMetadataErrorContext.fromUserException(ex);
               datasetValidityChecker = new Predicate<DatasetConfig>() {
                 final ImmutableSet<List<String>> keys = ImmutableSet.copyOf(context.getPathsToRefresh());
 
@@ -354,6 +437,7 @@ public class Foreman {
                 }
               };
             }
+
             // run another attempt, after making the necessary changes to recover from the failure
             try {
               // if the query gets cancelled before we started the new attempt

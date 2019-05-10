@@ -15,7 +15,6 @@
  */
 const fs = require('fs');
 const path = require('path');
-const childProcess = require('child_process');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
@@ -86,15 +85,6 @@ class BuildInfo {
   apply(compiler) {
     compiler.plugin('compilation', function(compilation) {
       compilation.plugin('html-webpack-plugin-before-html-generation', function(htmlPluginData, callback) {
-        // eslint-disable-next-line no-sync
-        let commit = childProcess.execSync('git rev-parse HEAD').toString().trim();
-        // eslint-disable-next-line no-sync
-        let changes = childProcess.execSync('git status --porcelain --untracked-files=no').toString();
-        changes = changes.replace(/\n?.*pom.xml$/gm, '').trim(); // ignore pom changes from builder
-        if (changes) {
-          commit += '\nWith uncommitted changes:\n' + changes;
-        }
-
         // because config is relying on freemarker template variables to be interpreted by the server
         // at runtime, config has to be string (and not an object) otherwise, shouldEnableRSOD could
         // not be a boolean for example
@@ -103,7 +93,6 @@ class BuildInfo {
           serverStatus: ${JSON.stringify(isProductionBuild ? '${dremio.status}' : 'OK')},
           environment: ${JSON.stringify(isProductionBuild ? 'PRODUCTION' : 'DEVELOPMENT')},
           isReleaseBuild: ${isRelease},
-          commit: ${JSON.stringify(commit)},
           ts: "${new Date()}",
           intercomAppId: ${JSON.stringify(isProductionBuild ? '${dremio.config.intercom.appid}' : userConfig.intercomAppId)},
           shouldEnableBugFiling: ${!isProductionBuild || '${dremio.debug.bug.filing.enabled?c}'},
@@ -294,7 +283,6 @@ const config = {
       'moment',
       'radium',
       'react',
-      'react-bootstrap',
       'react-date-range',
       'react-dnd-html5-backend',
       'react-json-tree',

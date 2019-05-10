@@ -31,6 +31,7 @@ import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.util.Pair;
 import org.apache.commons.lang.StringEscapeUtils;
 
 import com.dremio.common.expression.CompleteType;
@@ -120,7 +121,8 @@ public class SchemaField extends RexInputRef {
         isScalarOrScalarListReturn && !isIpOnPreES5 && !hasSpecialType;
 
     final StringBuilder sb = new StringBuilder();
-    final List<String> possibleNulls = new ArrayList<>();
+    final StringBuilder fullPath = new StringBuilder();
+    final List<Pair<String, String>> possibleNulls = new ArrayList<>();
 
     if (useDoc && !allowPushdownAnalyzedNormalizedFields && type.isText() && annotation != null &&
         (annotation.isAnalyzed() || annotation.isNormalized())) {
@@ -151,7 +153,7 @@ public class SchemaField extends RexInputRef {
           if(segment.isLastPath() && specialType == ElasticSpecialType.GEO_POINT && ("lat".equals(segment.getPath()) || "lon".equals(segment.getPath()))) {
             // since geo point is a atomic type, we need to exit the type to correctly manage things.
             sb.append(CLOSE_BQ);
-            possibleNulls.add(sb.toString());
+            possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
             sb.append('.');
             sb.append(segment.getPath());
             if(type.isList()){
@@ -162,11 +164,14 @@ public class SchemaField extends RexInputRef {
               first.value = false;
             } else {
               sb.append(".");
+              fullPath.append(".");
             }
-            sb.append(StringEscapeUtils.escapeJava(segment.getPath()));
+            String segmentPath = StringEscapeUtils.escapeJava(segment.getPath());
+            sb.append(segmentPath);
+            fullPath.append(segmentPath);
             if(segment.isLastPath()){
               sb.append(CLOSE_BQ);
-              possibleNulls.add(sb.toString());
+              possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
               if(type.isList()){
                 sb.append(".values");
               } else if(!isV5 && (annotation != null && annotation.isIpType())){
@@ -193,7 +198,7 @@ public class SchemaField extends RexInputRef {
           }
 
           // add all parts of field as possible nulls.
-          possibleNulls.add(sb.toString());
+          possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
 
           if(segment.isLastPath()){
             switch(type.toMinorType()){
@@ -244,7 +249,7 @@ public class SchemaField extends RexInputRef {
           sb.append('[');
           sb.append(segment.getIndex());
           sb.append(']');
-          possibleNulls.add(sb.toString());
+          possibleNulls.add(new Pair(sb.toString(), fullPath.toString()));
         } else {
           throw new IllegalStateException(String.format("Unable to pushdown reference %s as it includes at least one array index on a field that cannot be doc value accessed.", path.getAsUnescapedPath()));
         }
@@ -253,11 +258,11 @@ public class SchemaField extends RexInputRef {
 
       }}, null);
 
-    List<NullReference> nullReferences = FluentIterable.from(possibleNulls).transform(new Function<String, NullReference>(){
+    List<NullReference> nullReferences = FluentIterable.from(possibleNulls).transform(new Function<Pair<String, String>, NullReference>(){
 
       @Override
-      public NullReference apply(String input) {
-        return new NullReference(input, useDoc ? ReferenceType.DOC : ReferenceType.SOURCE);
+      public NullReference apply(Pair<String, String> input) {
+        return new NullReference(input.getKey(), input.getValue(), useDoc ? ReferenceType.DOC : ReferenceType.SOURCE);
       }}).toList();
 
     String ref;
@@ -313,12 +318,18 @@ public class SchemaField extends RexInputRef {
 
   public static class NullReference {
     private final String value;
+    private final String fullPath;
     private final ReferenceType referenceType;
 
-    public NullReference(String value, ReferenceType referenceType) {
+    public NullReference(String value, String fullPath, ReferenceType referenceType) {
       super();
       this.value = value;
+      this.fullPath = fullPath;
       this.referenceType = referenceType;
+    }
+
+    public String getFullPath() {
+      return fullPath;
     }
 
     public String getValue() {

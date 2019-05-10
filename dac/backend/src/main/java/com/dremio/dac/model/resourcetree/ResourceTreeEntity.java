@@ -176,7 +176,7 @@ public class ResourceTreeEntity {
 
   @JsonIgnore
   public boolean isListable() {
-    return (type == ResourceType.SPACE || type == ResourceType.HOME || type == ResourceType.FOLDER);
+    return (type == ResourceType.SOURCE || type == ResourceType.SPACE || type == ResourceType.HOME || type == ResourceType.FOLDER);
   }
 
   public void expand(List<ResourceTreeEntity> resourceList) {

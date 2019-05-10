@@ -20,7 +20,6 @@ import static java.util.Arrays.asList;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import org.junit.Assert;
@@ -28,7 +27,6 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.server.BaseTestServer;
@@ -36,6 +34,7 @@ import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
+import com.google.common.collect.ImmutableList;
 
 /**
  * test UDFs
@@ -84,11 +83,13 @@ public class TestUDFs extends BaseTestServer {
   }
 
   private JobDataFragment runQuery(String sql) {
-    JobData completeJobData =
-        new JobUI(jobs.submitJob(JobRequest.newBuilder()
-            .setSqlQuery(new SqlQuery(sql, Collections.singletonList("cp"), DEFAULT_USERNAME))
-            .build(), NoOpJobStatusListener.INSTANCE)).getData();
-    return completeJobData.truncate(500);
+    return JobUI.getJobData(
+      jobs.submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery(sql, ImmutableList.of("cp"), DEFAULT_USERNAME))
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    ).truncate(500);
   }
 
   @Test

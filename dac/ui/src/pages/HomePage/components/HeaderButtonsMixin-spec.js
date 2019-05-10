@@ -16,6 +16,8 @@
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 
+import { Capabilities } from '@app/utils/authUtils';
+
 import { HeaderButtons as HeaderButtonsBase } from './HeaderButtons';
 import HeaderButtonsMixin from './HeaderButtonsMixin';
 
@@ -66,7 +68,11 @@ describe('HeaderButtonsMixin', () => {
         {
           qa: 'settings',
           iconType: 'Settings',
-          to: {...context.location, state: {modal: 'SpaceModal', entityId: 'Prod-sample'}}
+          to: {...context.location, state: {modal: 'SpaceModal', entityId: 'Prod-sample'}},
+          authRule: {
+            isAdmin: true,
+            capabilities: [Capabilities.manageSpaces]
+          }
         },
         {
           qa: 'add-folder',
@@ -101,6 +107,9 @@ describe('HeaderButtonsMixin', () => {
             modal: 'EditSourceModal',
             query: {name: 'Mongo', type: 'mongo'}
           }
+        },
+        authRule: {
+          isAdmin: true
         }
       }]);
     });

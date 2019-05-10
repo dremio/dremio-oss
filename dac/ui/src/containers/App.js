@@ -14,18 +14,17 @@
  * limitations under the License.
  */
 import Immutable from 'immutable';
-import { Component } from 'react';
+import { Component, Fragment } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
-import HTML5Backend from 'react-dnd-html5-backend';
-import { DragDropContext } from 'react-dnd';
-import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
-import getMuiTheme from 'material-ui/styles/getMuiTheme';
+import { MuiThemeProvider, createMuiTheme } from '@material-ui/core/styles';
 import { replace } from 'react-router-redux';
 import DocumentTitle from 'react-document-title';
 import urlParse from 'url-parse';
-import { showProdError } from 'actions/prodError';
+import { showAppError } from 'actions/prodError';
 import { boot } from 'actions/app';
+import { DnDContextDecorator } from '@app/components/DragComponents/DnDContextDecorator';
+import { ErrorBoundary, getError } from '@app/components/ErrorBoundary';
 
 import socket from 'utils/socket';
 import sentryUtil from 'utils/sentryUtil';
@@ -47,15 +46,20 @@ DocumentTitle.join = (tokens) => {
   return [...tokens, formatMessage('App.Dremio')].filter(Boolean).join(' - ');
 };
 
-function getError(e) {
-  if (e instanceof Error) {
-    return e;
+const theme = createMuiTheme({
+  palette: {
+    primary: {
+      main: 'rgb(0, 188, 212)'
+    }
+  },
+  overrides: {
+    MuiSwitch: {
+      switchBase: {
+        height: 'auto'
+      }
+    }
   }
-  if (e.message) {
-    return new Error(e.message + '\n\n' + e.stack + '\n\n(non-Error instance)');
-  }
-  return new Error(e); // error components expect objects
-}
+});
 
 export class App extends Component {
 
@@ -64,7 +68,8 @@ export class App extends Component {
     location: PropTypes.object,
     params: PropTypes.object,
     dispatch: PropTypes.func,
-    serverStatus: PropTypes.instanceOf(Immutable.Map)
+    serverStatus: PropTypes.instanceOf(Immutable.Map),
+    shouldEnableRSOD: PropTypes.bool
   };
 
   static childContextTypes = {
@@ -90,16 +95,12 @@ export class App extends Component {
 
     props.dispatch(boot());
 
-    this.state = {
-      hasShownError: false,
-      rsodError: undefined
-    };
     // use window.onerror here instead of addEventListener('error') because ErrorEvent.error is
     // experimental according to mdn. Can get both file url and error from either.
     window.onerror = this.handleGlobalError.bind(this, window.onerror);
     window.onunhandledrejection = this.handleUnhandledRejection;
 
-    if (config.shouldEnableBugFiling || config.shouldEnableRSOD) {
+    if (config.shouldEnableBugFiling || props.shouldEnableRSOD) {
       enableFatalPropTypes();
     }
   }
@@ -124,7 +125,7 @@ export class App extends Component {
     if (!url || urlParse(url).origin !== this._getWindowOrigin()) return;
 
     console.error('Uncaught Error', error || msg);
-    this.displayError(error || msg);
+    this.displayError(error || msg, sentryUtil.getEventId());
   };
 
   handleUnhandledRejection = (rejectionEvent) => {
@@ -134,27 +135,15 @@ export class App extends Component {
     if (error.stack && this._shouldIgnoreExternalStack(error.stack)) return;
 
     //By default, Raven.js does not capture unhandled promise rejections.
-    sentryUtil.logException(error);
+    const eventId = sentryUtil.logException(error);
 
     console.error('UnhandledRejection', error);
-    this.displayError(error);
+    this.displayError(error, eventId);
   };
 
-  displayError(error) {
-    // once we've shown one error, the app is unstable - don't bother showing more
-    // also prevents render feedback loop from re-triggering the error because we re-render
-    if (this.state.hasShownError) return;
-    this.setState({hasShownError: true});
-
+  displayError(error, eventId) {
     const errorObject = getError(error);
-
-    if (config.shouldEnableRSOD) return this.setState({rsodError: errorObject});
-
-    this.props.dispatch(showProdError(errorObject));
-  }
-
-  handleDismissError = () => {
-    this.setState({rsodError: undefined});
+    this.props.dispatch(showAppError(errorObject, eventId));
   }
 
   _getWindowOrigin() {
@@ -190,23 +179,27 @@ export class App extends Component {
   }
 
   render() {
-    const { children } = this.props;
+    const { children, shouldEnableRSOD } = this.props;
     return (
-      <LocationProvider location={this.props.location}>
-        <div style={{height: '100%'}}>
-          <MuiThemeProvider muiTheme={getMuiTheme()}>
-            {children}
-          </MuiThemeProvider>
-          {
-            config.shouldEnableRSOD &&
-              <DevErrorContainer error={this.state.rsodError} onDismiss={this.handleDismissError}/>
-          }
-          <NotificationContainer/>
-          <ConfirmationContainer/>
-          <ProdErrorContainer/>
-          <ModalsContainer modals={{AboutModal}} style={{height: 0}}/>
-        </div>
-      </LocationProvider>
+      <Fragment>
+        <ErrorBoundary>
+          <LocationProvider location={this.props.location}>
+            <div style={{height: '100%'}}>
+              <MuiThemeProvider theme={theme}>
+                {children}
+              </MuiThemeProvider>
+              <NotificationContainer/>
+              <ConfirmationContainer/>
+              <ModalsContainer modals={{AboutModal}} style={{height: 0}}/>
+            </div>
+          </LocationProvider>
+        </ErrorBoundary>
+        {
+          shouldEnableRSOD ?
+            <DevErrorContainer /> :
+            <ProdErrorContainer />
+        }
+      </Fragment>
     );
   }
 }
@@ -224,9 +217,10 @@ function mapStateToProps(state) {
 
   return {
     user,
-    serverStatus: state.serverStatus
+    serverStatus: state.serverStatus,
+    shouldEnableRSOD: config.shouldEnableRSOD
   };
 }
 
 // don't add mapDispatchToProps, because we require to have dispatch in component props
-export default connect(mapStateToProps)(DragDropContext(HTML5Backend)(App));
+export default connect(mapStateToProps)(DnDContextDecorator(App));

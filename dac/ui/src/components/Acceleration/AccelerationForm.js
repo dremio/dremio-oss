@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import ReactUpdates from 'react-dom/lib/ReactUpdates';
+import ReactDOM from 'react-dom';
 import { connectComplexForm, FormBody, FormTitle, ModalForm, modalFormProps } from 'components/Forms';
 import Immutable from 'immutable';
 import Radium from 'radium';
@@ -156,7 +156,7 @@ export class AccelerationForm extends Component {
     this.setState({waitingForRecommendations: true});
     ApiUtils.fetch(`dataset/${encodeURIComponent(this.props.dataset.get('id'))}/reflection/recommendation`, {method: 'POST'}).then((response) => {
       return response.json().then(({data: reflections}) => {
-        ReactUpdates.batchedUpdates(() => {
+        ReactDOM.unstable_batchedUpdates(() => {
           if (!this.state.waitingForRecommendations || this.unmounted) return;
           if (this.state.mode === 'ADVANCED' || !reflections.length || !reflections.some(r => r.type === 'AGGREGATION')) {
             // protect - ensure we get at least one agg or if user switched to advanced mode

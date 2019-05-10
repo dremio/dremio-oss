@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-provision-parent</artifactId>
-    <version>3.1.11-201904261857420193-c674472</version>
+    <version>3.2.0-201905102005330382-0598733</version>
   </parent>
 
   <groupId>com.dremio.provision</groupId>
@@ -62,12 +62,10 @@
     <dependency>
       <groupId>com.fasterxml.jackson.jaxrs</groupId>
       <artifactId>jackson-jaxrs-json-provider</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
     <dependency>
       <groupId>org.glassfish.jersey.containers</groupId>
       <artifactId>jersey-container-jetty-servlet</artifactId>
-      <version>${jersey.version}</version>
     </dependency> 
     <dependency>
       <groupId>com.google.code.findbugs</groupId>

@@ -118,7 +118,7 @@ describe('SingleCluster', () => {
     it('should return cluster resource info', () => {
       const wrapper = shallow(<SingleCluster {...minimalProps}/>);
       const instance = wrapper.instance();
-      const expectedHtml = '<span>yarn_host<span style="padding:0 .5em;">|</span>'
+      const expectedHtml = '<span>yarn_host<span style="padding:0 .5em">|</span>'
         + '1 core, 1.5GB memory per worker</span>';
       expect(shallow(instance.getWorkerInfoTitle()).html()).to.be.eql(expectedHtml);
     });

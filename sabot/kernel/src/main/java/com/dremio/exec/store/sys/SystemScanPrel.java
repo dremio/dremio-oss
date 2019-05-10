@@ -92,7 +92,12 @@ public class SystemScanPrel extends ScanPrelBase {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    return creator.addMetadata(this, new SystemGroupScan(systemTable, getProjectedColumns(), executorCount, pluginId));
+    return new SystemGroupScan(
+        creator.props(this, getTableMetadata().getUser(), getTableMetadata().getSchema().maskAndReorder(getProjectedColumns()), null, null),
+        systemTable,
+        getProjectedColumns(),
+        pluginId,
+        executorCount);
   }
 
   @Override

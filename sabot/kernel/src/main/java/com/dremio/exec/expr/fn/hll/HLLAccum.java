@@ -21,7 +21,6 @@ import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ObjectHolder;
 
 import com.dremio.sabot.exec.context.SlicedBufferManager;
-
 import com.yahoo.memory.Memory;
 import com.yahoo.memory.WritableMemory;
 import com.yahoo.sketches.hll.HllSketch;

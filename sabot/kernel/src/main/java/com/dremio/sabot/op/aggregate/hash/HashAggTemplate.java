@@ -47,6 +47,7 @@ import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
@@ -204,9 +205,10 @@ public abstract class HashAggTemplate implements HashAggregator {
 
   @Override
   public void setup(HashAggregate hashAggrConfig, HashTableConfig htConfig, ClassProducer producer,
-      OperatorStats stats, BufferAllocator allocator, VectorAccessible incoming,
-      LogicalExpression[] valueExprs, List<TypedFieldId> valueFieldIds, TypedFieldId[] groupByOutFieldIds,
-      VectorContainer outContainer) throws SchemaChangeException, ClassTransformationException, IOException {
+                    OperatorStats stats, BufferAllocator allocator, VectorAccessible incoming,
+                    LogicalExpression[] valueExprs, List<TypedFieldId> valueFieldIds, TypedFieldId[] groupByOutFieldIds,
+                    VectorContainer outContainer, OptionManager optionManager)
+    throws SchemaChangeException, ClassTransformationException, IOException {
 
     if (valueExprs == null || valueFieldIds == null) {
       throw new IllegalArgumentException("Invalid aggr value exprs or workspace variables.");
@@ -267,7 +269,7 @@ public abstract class HashAggTemplate implements HashAggregator {
         new ChainedHashTable(htConfig, producer, allocator, incoming, null /* no incoming probe */, outContainer, listener);
     this.batchHolders = new ArrayList<BatchHolder>();
     this.numGroupByOutFields = groupByOutFieldIds.length;
-    this.htable = ht.createAndSetupHashTable(groupByOutFieldIds);
+    this.htable = ht.createAndSetupHashTable(groupByOutFieldIds, optionManager);
 
     doSetup(producer.getFunctionContext(), incoming);
   }

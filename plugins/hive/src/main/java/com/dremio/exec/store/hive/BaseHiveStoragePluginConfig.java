@@ -38,6 +38,9 @@ import io.protostuff.Tag;
 public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>, P extends StoragePlugin> extends ConnectionConf<T, P>{
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseHiveStoragePluginConfig.class);
   private static final String DREMIO_SOURCE_CONFIGURATION_SOURCE = "Dremio source configuration";
+  private static final String FS_S3_IMPL = "fs.s3.impl";
+  private static final String FS_S3_IMPL_DEFAULT = "org.apache.hadoop.fs.s3a.S3AFileSystem";
+
   /*
    * Hostname where Hive metastore server is running
    */
@@ -88,6 +91,17 @@ public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>
       }
     }
 
+    return hiveConf;
+  }
+
+  /**
+   * Fills in a HiveConf instance with any user provided configuration parameters
+   *
+   * @param hiveConf - the conf to fill in
+   * @param config - the user provided parameters
+   * @return
+   */
+  protected static HiveConf addUserProperties(HiveConf hiveConf, BaseHiveStoragePluginConfig<?,?> config) {
     // Used to capture properties set by user
     final Set<String> userPropertyNames = new HashSet<>();
     if(config.propertyList != null) {
@@ -134,6 +148,15 @@ public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>
     } else {
       logger.debug("Disabling ORC stripe details cache.");
       setConf(hiveConf, HiveConf.ConfVars.HIVE_ORC_CACHE_STRIPE_DETAILS_SIZE, 0);
+    }
+
+    // Check if fs.s3.impl has been set by user
+    boolean fsS3ImplSetByUser = userPropertyNames.contains(FS_S3_IMPL);
+    if (fsS3ImplSetByUser) {
+      logger.warn(FS_S3_IMPL + " manually set. This is not recommended.");
+    } else {
+      logger.debug("Setting " + FS_S3_IMPL + " to " + FS_S3_IMPL_DEFAULT);
+      setConf(hiveConf, FS_S3_IMPL, FS_S3_IMPL_DEFAULT);
     }
 
     return hiveConf;

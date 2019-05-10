@@ -32,7 +32,8 @@ public class ExactFunctionResolver implements FunctionResolver {
    * cast
    */
   @Override
-  public BaseFunctionHolder getBestMatch(List<BaseFunctionHolder> methods, FunctionCall call) {
+  public BaseFunctionHolder getBestMatch(List<BaseFunctionHolder> methods, FunctionCall call,
+                                         boolean isDecimalV2Enabled) {
 
     int currcost;
 
@@ -41,7 +42,7 @@ public class ExactFunctionResolver implements FunctionResolver {
       for (LogicalExpression expression : call.args) {
         argumentTypes.add(expression.getCompleteType());
       }
-      currcost = TypeCastRules.getCost(argumentTypes, h);
+      currcost = TypeCastRules.getCost(argumentTypes, h, isDecimalV2Enabled);
 
       // Return if we found a function that has an exact match with the input arguments
       if (currcost  == 0){

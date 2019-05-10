@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import ReactDOM from 'react-dom';
+import { Component, createRef, Fragment } from 'react';
+import { compose } from 'redux';
+import { connect } from 'react-redux';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { Overlay } from 'react-overlays';
@@ -31,8 +32,26 @@ import FontIcon from 'components/Icon/FontIcon';
 import dataFormatUtils from 'utils/dataFormatUtils';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import { withLocation } from 'containers/dremioLocation';
+import { moduleStateHOC } from '@app/containers/ModuleStateContainer';
+import exploreFullCell, { moduleKey, getCell } from '@app/reducers/modules/exploreFullCell';
+import { KeyChangeTrigger } from '@app/components/KeyChangeTrigger';
+
+import {
+  loadFullCellValue,
+  clearFullCellValue
+} from 'actions/explore/dataset/data';
 import CellPopover from './CellPopover';
 import './ExploreCellLargeOverlay.less';
+
+
+const mapStateToProps = state => ({
+  fullCell: getCell(state)
+});
+
+const mapDispatchToProps = {
+  loadFullCellValue,
+  clearFullCellValue
+};
 
 @Radium
 export class ExploreCellLargeOverlayView extends Component {
@@ -41,6 +60,7 @@ export class ExploreCellLargeOverlayView extends Component {
     // In other cases it should be a string
     cellValue: PropTypes.any,
     anchor: PropTypes.instanceOf(Element).isRequired,
+    isTruncatedValue: PropTypes.bool,
     columnType: PropTypes.string,
     columnName: PropTypes.string,
     valueUrl: PropTypes.string,
@@ -48,7 +68,7 @@ export class ExploreCellLargeOverlayView extends Component {
     fullCellViewState: PropTypes.instanceOf(Immutable.Map),
     hide: PropTypes.func.isRequired,
     loadFullCellValue: PropTypes.func,
-    clearFullCallValue: PropTypes.func,
+    clearFullCellValue: PropTypes.func,
     onSelect: PropTypes.func,
     openPopover: PropTypes.bool,
     selectAll: PropTypes.func,
@@ -60,52 +80,27 @@ export class ExploreCellLargeOverlayView extends Component {
     router: PropTypes.object
   };
 
-  constructor(props) {
-    super(props);
+  contentRef = createRef();
 
-    this.state = {
-      maxHeight: 120,
-      placement: 'top',
-      placementLeft: 0
-    };
-  }
-
-  componentWillMount() {
-    const href = this.props.valueUrl;
+  loadCellData = (href) => {
     if (href) {
       this.props.loadFullCellValue({ href });
     }
   }
 
   componentDidMount() {
-    this.calculateMaxHeight();
-    this.onOverlayShow();
     // we require this line to prevent hover on + icon in tree, because we moveout this icon from tree block
     $('.Object-node').on('mouseenter', 'div', this.onNodeMouseEnter);
     $('li').on('mouseleave', '.Object-node', this.clearCurrentPath);
   }
 
-  componentDidUpdate(prevProps) {
-    const showOverlay = this.showOverlay(this.props);
-    if (showOverlay !== this.showOverlay(prevProps)) {
-      this.onOverlayShow();
-    }
-  }
-
   componentWillUnmount() {
-    if (this.props.clearFullCallValue) {
-      this.props.clearFullCallValue();
+    if (this.props.clearFullCellValue) {
+      this.props.clearFullCellValue();
     }
     this.props.hide();
     $('.Object-node').off('mouseenter', 'div', this.onNodeMouseEnter);
     $('li').off('mouseleave', '.Object-node', this.clearCurrentPath);
-  }
-
-  onOverlayShow() {
-    if (this.showOverlay(this.props)) {
-      this.changePlacementIfNecessary();
-      this.calculatePlacementLeft();
-    }
   }
 
   onNodeMouseEnter = (e) => {
@@ -162,19 +157,6 @@ export class ExploreCellLargeOverlayView extends Component {
     return Boolean(anchor && cellValue);
   }
 
-  changePlacementIfNecessary() {
-    const largeOverlayNode = ReactDOM.findDOMNode(this.refs.largeOverlay);
-    if (this.props.anchor && largeOverlayNode) {
-      const anchorRect = this.props.anchor.getBoundingClientRect();
-      const largeOverlayRect = largeOverlayNode.getBoundingClientRect();
-      if (largeOverlayRect.height > anchorRect.top) {
-        this.setState({
-          placement: 'bottom'
-        });
-      }
-    }
-  }
-
   handleSelectMenuVisibleChange = (state) => {
     this.setState({
       preventHovers: state
@@ -189,36 +171,10 @@ export class ExploreCellLargeOverlayView extends Component {
     }
   }
 
-  calculateMaxHeight() {
-    setTimeout(() => {
-      const domElement = this.refs.largeOverlay && $(ReactDOM.findDOMNode(this.refs.largeOverlay))[0];
-      const top = domElement && domElement.offsetTop;
-
-      if (top < 0) {
-        $(domElement).css({top: 4});
-      }
-    });
-  }
-
-  calculatePlacementLeft() {
-    setTimeout(() => {
-      const largeOverlayNode = ReactDOM.findDOMNode(this.refs.largeOverlay);
-      if (this.props.anchor && largeOverlayNode) {
-        const anchorRect = this.props.anchor.getBoundingClientRect();
-        const largeOverlayRect = largeOverlayNode.getBoundingClientRect();
-        const OFFSET = 3;
-        const placementLeft = anchorRect.left - largeOverlayRect.left - OFFSET;
-        this.setState({
-          placementLeft
-        });
-      }
-    });
-  }
-
   handleSelectAll = () => {
     const { columnType, columnName } = this.props;
     const cellValue = this.getCellValue(this.props);
-    this.props.selectAll(this.refs.content, columnType, columnName, cellValue);
+    this.props.selectAll(this.contentRef.current, columnType, columnName, cellValue);
   }
 
   renderContent() {
@@ -248,52 +204,78 @@ export class ExploreCellLargeOverlayView extends Component {
     }
     return (
       <div style={[styles.content, style]} onMouseUp={this.onMouseUp} data-qa='cell-content'>
-        <span ref='content'>{cellValue}</span>
+        <span ref={this.contentRef}>{cellValue}</span>
       </div>
     );
   }
 
   render() {
-    const { placement, placementLeft } = this.state;
-    const { columnType, fullCell, anchor } = this.props;
-    const pointerStyle = placement === 'top' ? { bottom: 0 } : { top: 0 };
-    const overlayStyle = placement === 'top' ? styles.top : styles.bottom;
+    const { columnType, fullCell, anchor, valueUrl } = this.props;
     return (
-      <Overlay
-        ref='overlay'
-        show={this.showOverlay(this.props)}
-        target={anchor}
-        onHide={this.props.hide}
-        container={this}
-        placement={placement}
-        rootClose={columnType !== MAP && columnType !== LIST}>
-        <div style={[styles.overlay, overlayStyle]} className={`large-overlay ${placement}`} ref='largeOverlay'>
-          <div style={[styles.pointer, pointerStyle, { left: placementLeft }]}>
-            <div className='pointer-bottom'></div>
-            <div className='pointer-top'></div>
-          </div>
-          <div style={[styles.header]}>
-            <div style={styles.path}>
-              {
-                this.props.onSelect && columnType !== MAP && columnType !== LIST
-                  ? <span onClick={this.handleSelectAll} style={{cursor: 'pointer'}}>
-                    {la('Select all')}
-                  </span>
-                  : <EllipsedText text={this.state.currentPath} />
-              }
-            </div>
-            <FontIcon type='XSmall' onClick={this.props.hide} theme={styles.close}/>
-          </div>
-          <ViewStateWrapper viewState={fullCell}>
-            {this.renderContent()}
-          </ViewStateWrapper>
+      <Fragment>
+        <KeyChangeTrigger keyValue={valueUrl} onChange={this.loadCellData} />
+        <Overlay
+          ref='overlay'
+          show={this.showOverlay(this.props)}
+          target={anchor}
+          flip
+          onHide={this.props.hide}
+          container={document.body}
+          placement='top'
+          rootClose={columnType !== MAP && columnType !== LIST}
+        >
+          {
+            ({ props: overlayProps, arrowProps, placement }) => {
+              const pointerStyle = placement === 'top' ? { bottom: 0 } : { top: 0 };
+              const overlayStyle = placement === 'top' ? styles.top : styles.bottom;
+
+              return (
+                <div style={[styles.overlay, overlayProps.style, overlayStyle]} className={`large-overlay ${placement}`} ref={overlayProps.ref}>
+                  <div style={[styles.pointer, pointerStyle, arrowProps.style]} ref={arrowProps.ref}>
+                    <div className='pointer-bottom'></div>
+                    <div className='pointer-top'></div>
+                  </div>
+                  {this.renderHeader()}
+                  <ViewStateWrapper viewState={fullCell}>
+                    {this.renderContent()}
+                  </ViewStateWrapper>
+                </div>
+              );
+            }
+          }
+        </Overlay>
+      </Fragment>
+    );
+  }
+
+  renderHeader() {
+    const { columnType, onSelect, hide, isTruncatedValue } = this.props;
+
+    return (
+      <div style={[styles.header]}>
+        {isTruncatedValue && <span style={styles.infoMessage}>
+          Values are truncated for preview
+        </span>}
+        <div style={styles.path}>
+          {
+            onSelect && columnType !== MAP && columnType !== LIST
+              ? <span onClick={this.handleSelectAll} style={{cursor: 'pointer'}}>
+                {la('Select all')}
+              </span>
+              : <EllipsedText text={this.state.currentPath} />
+          }
         </div>
-      </Overlay>
+        <FontIcon type='XSmall' onClick={hide} theme={styles.close}/>
+      </div>
     );
   }
 }
 
-export default withLocation(ExploreCellLargeOverlayView);
+export default compose(
+  moduleStateHOC(moduleKey, exploreFullCell),
+  withLocation,
+  connect(mapStateToProps, mapDispatchToProps)
+)(ExploreCellLargeOverlayView);
 
 const styles = {
   pointer: {
@@ -320,15 +302,18 @@ const styles = {
   path: {
     display: 'inline-block',
     flexGrow: 1,
-    minWidth: 0
+    minWidth: 0,
+    color: BLUE
   },
   header: { // todo: fix styling/element type for consistent UX
     width: '100%',
     ...LINE_NOWRAP_ROW_BETWEEN_CENTER,
     backgroundColor: CELL_EXPANSION_HEADER,
-    color: BLUE,
     paddingLeft: 5,
     height: 24
+  },
+  infoMessage: {
+    fontStyle: 'italic'
   },
   close: {
     Container: {

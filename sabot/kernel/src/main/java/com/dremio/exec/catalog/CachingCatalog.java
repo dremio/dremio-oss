@@ -62,10 +62,14 @@ public class CachingCatalog extends DelegatingCatalog {
 
   @Override
   public DremioTable getTable(NamespaceKey key) {
-    if (!tablesByNamespaceKey.containsKey(key)) {
-      return putTable(key, super.getTable(key));
+    NamespaceKey resolved = resolveToDefault(key);
+    if (resolved == null) {
+      resolved = key;
     }
-    return tablesByNamespaceKey.get(key);
+    if (!tablesByNamespaceKey.containsKey(resolved)) {
+      return putTable(resolved, super.getTable(key));
+    }
+    return tablesByNamespaceKey.get(resolved);
   }
 
   @Override

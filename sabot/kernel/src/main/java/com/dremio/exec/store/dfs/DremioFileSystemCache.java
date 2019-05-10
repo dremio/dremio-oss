@@ -47,7 +47,7 @@ public class DremioFileSystemCache {
   private final Map<Key, FileSystem> map = new HashMap<>();
   private final Set<Key> toAutoClose = new HashSet<>();
 
-  FileSystem get(URI uri, Configuration conf, List<String> uniqueConnectionProps) throws IOException{
+  public FileSystem get(URI uri, Configuration conf, List<String> uniqueConnectionProps) throws IOException{
     final Key key = new Key(uri, conf, uniqueConnectionProps);
 
     FileSystem fs;
@@ -101,7 +101,7 @@ public class DremioFileSystemCache {
    * Close all FileSystem instances in the Cache.
    * @param onlyAutomatic only close those that are marked for automatic closing
    */
-  synchronized void closeAll(boolean onlyAutomatic) throws IOException {
+  public synchronized void closeAll(boolean onlyAutomatic) throws IOException {
     List<IOException> exceptions = new ArrayList<>();
 
     // Make a copy of the keys in the map since we'll be modifying

@@ -27,10 +27,8 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.dremio.common.logical.data.LogicalOperator;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.common.MoreRelOptUtil;
-import com.dremio.exec.planner.logical.LogicalPlanImplementor;
 import com.dremio.exec.planner.logical.Rel;
 
 /**
@@ -76,11 +74,6 @@ public class JdbcCrel extends SingleRel implements CopyToCluster, Rel {
       input,
       pluginId
     );
-  }
-
-  @Override
-  public LogicalOperator implement(LogicalPlanImplementor implementor) {
-    throw new UnsupportedOperationException();
   }
 
   public StoragePluginId getPluginId() {

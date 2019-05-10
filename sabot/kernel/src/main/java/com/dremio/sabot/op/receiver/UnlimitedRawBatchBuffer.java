@@ -64,6 +64,17 @@ public class UnlimitedRawBatchBuffer extends BaseRawBatchBuffer<RawFragmentBatch
     public void add(RawFragmentBatch batch) {
       buffer.add(batch);
     }
+
+    @Override
+    public void clear() {
+      RawFragmentBatch batch;
+      while (!buffer.isEmpty()) {
+        batch = buffer.poll();
+        if (batch.getBody() != null) {
+          batch.getBody().release();
+        }
+      }
+    }
   }
 
   protected void enqueueInner(final RawFragmentBatch batch) {

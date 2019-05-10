@@ -81,8 +81,13 @@ class CaseFunction extends ElasticFunction {
     return new FunctionRender(newScript, startRender.getNulls()) {
       @Override
       public String getNullGuardedScript() {
+        return getNullGuardedScript(false);
+      }
+
+      @Override
+      public String getNullGuardedScript(boolean variationDetected) {
         if (isLastNullLiteral) {
-          return super.getNullGuardedScript();
+          return super.getNullGuardedScript(variationDetected);
         } else {
           return getScript();
         }

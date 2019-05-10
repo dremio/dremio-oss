@@ -15,6 +15,7 @@
  */
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
+import { Overlay } from 'react-overlays';
 import DatasetItemLabel from './DatasetItemLabel';
 
 describe('DatasetItemLabel', () => {
@@ -41,7 +42,7 @@ describe('DatasetItemLabel', () => {
   it('should render TextHighlight, DatasetOverlayContent', () => {
     const wrapper = shallow(<DatasetItemLabel {...commonProps}/>);
     expect(wrapper.find('TextHighlight')).to.have.length(1);
-    expect(wrapper.find('Overlay')).to.have.length(1);
+    expect(wrapper.find(Overlay)).to.have.length(1);
   });
 
   it('should show fullPath in header', () => {
@@ -62,14 +63,14 @@ describe('DatasetItemLabel', () => {
 
   it('should only show Overlay and Portal when dataset is not new', () => {
     const wrapper = shallow(<DatasetItemLabel {...commonProps}/>);
-    expect(wrapper.find('Overlay')).to.have.length(1);
+    expect(wrapper.find(Overlay)).to.have.length(1);
     wrapper.setProps({ isNewQuery: true });
-    expect(wrapper.find('Overlay')).to.have.length(0);
+    expect(wrapper.find(Overlay)).to.have.length(0);
   });
 
   it('should not show Overlay and Portal for shouldShowOverlay=false', () => {
     const wrapper = shallow(<DatasetItemLabel {...commonProps} shouldShowOverlay={false}/>);
-    expect(wrapper.find('Overlay')).to.have.length(0);
+    expect(wrapper.find(Overlay)).to.have.length(0);
   });
 
   it('should only show Portal if state.isOpenOverlay=true and state.isDragInProgress=false', () => {

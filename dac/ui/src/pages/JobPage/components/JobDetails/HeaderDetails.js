@@ -29,6 +29,7 @@ import Art from 'components/Art';
 import datasetPathUtils from 'utils/resourcePathUtils/dataset';
 import { constructFullPathAndEncode, constructResourcePath } from 'utils/pathUtils';
 import { getViewState } from 'selectors/resources';
+import JobsUtils, { JobState } from '@app/utils/jobsUtils';
 
 import JobStateIcon from '../JobStateIcon';
 
@@ -58,9 +59,10 @@ class HeaderDetails extends Component {
 
   getButton() {
     const { jobDetails, jobId, intl } = this.props;
+    const currentJobState = jobDetails.get('state');
 
     // if the query is running or pending, expose the cancel button.
-    if (jobDetails.get('state') === 'RUNNING' || jobDetails.get('state') === 'PENDING') {
+    if (JobsUtils.getRunning(currentJobState) || currentJobState === JobState.ENQUEUED) {
       return (
         <Button
           type={ButtonTypes.CUSTOM}
@@ -72,7 +74,7 @@ class HeaderDetails extends Component {
     const queryType = jobDetails.get('queryType');
     // don't show the open results link if there are no results available or if not a completed UI query.
     // TODO: show a message if the results are not available (DX-7459)
-    if (!jobDetails.get('resultsAvailable') || jobDetails.get('state') !== 'COMPLETED'
+    if (!jobDetails.get('resultsAvailable') || currentJobState !== JobState.COMPLETED
         || (queryType !== 'UI_PREVIEW' && queryType !== 'UI_RUN' && queryType !== 'UI_EXPORT')) {
       return null;
     }

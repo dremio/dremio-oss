@@ -23,8 +23,8 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.file.proto.FileConfig;
@@ -59,9 +59,9 @@ public interface TableMetadata {
 
   TableMetadata prune(SearchTypes.SearchQuery partitionFilterQuery) throws NamespaceException;
 
-  TableMetadata prune(Predicate<DatasetSplit> splitPredicate) throws NamespaceException;
+  TableMetadata prune(Predicate<PartitionChunkMetadata> partitionPredicate) throws NamespaceException;
 
-  TableMetadata prune(List<DatasetSplit> newSplits) throws NamespaceException;
+  TableMetadata prune(List<PartitionChunkMetadata> newSplits) throws NamespaceException;
 
   /**
    * Get an opaque key to perform comparison on splits
@@ -70,7 +70,7 @@ public interface TableMetadata {
    */
   SplitsKey getSplitsKey();
 
-  Iterator<DatasetSplit> getSplits();
+  Iterator<PartitionChunkMetadata> getSplits();
 
   double getSplitRatio() throws NamespaceException;
 

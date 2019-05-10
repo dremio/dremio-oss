@@ -28,6 +28,7 @@ describe('TableControlsView', () => {
       toogleDropdown: sinon.stub(),
       groupBy: sinon.stub(),
       handleRequestClose: sinon.stub(),
+      columnNames: Immutable.fromJS([]),
       join: sinon.stub(),
       sqlState: false,
       dropdownState: false,

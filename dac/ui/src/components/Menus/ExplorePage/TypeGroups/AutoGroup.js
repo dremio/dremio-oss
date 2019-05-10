@@ -17,7 +17,7 @@ import { Component } from 'react';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
-import Divider from 'material-ui/Divider';
+import Divider from '@material-ui/core/Divider';
 
 import { AUTO_TYPES } from 'constants/columnTypeGroups';
 import { JSONTYPE } from 'constants/DataTypes';

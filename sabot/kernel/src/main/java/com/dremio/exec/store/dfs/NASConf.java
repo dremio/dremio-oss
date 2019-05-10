@@ -73,6 +73,11 @@ public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin<NASConf>> 
   }
 
   @Override
+  public List<String> getConnectionUniqueProperties() {
+    return ImmutableList.of();
+  }
+
+  @Override
   public FileSystemPlugin<NASConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
   }

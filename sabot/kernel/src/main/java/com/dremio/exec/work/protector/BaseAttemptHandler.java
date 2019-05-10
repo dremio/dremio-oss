@@ -104,6 +104,10 @@ abstract class BaseAttemptHandler implements ReAttemptHandler {
       return AttemptReason.SCHEMA_CHANGE;
     }
 
+    if (ex.getErrorType() == ErrorType.JSON_FIELD_CHANGE) {
+      return AttemptReason.JSON_FIELD_CHANGE;
+    }
+
     if (ex.getErrorType() == ErrorType.INVALID_DATASET_METADATA) {
       return AttemptReason.INVALID_DATASET_METADATA;
     }

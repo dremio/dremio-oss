@@ -59,9 +59,11 @@ import com.dremio.exec.ExecTest;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.ClassProducerImpl;
+import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Receiver;
 import com.dremio.exec.physical.base.Sender;
@@ -71,6 +73,8 @@ import com.dremio.exec.physical.config.MergeJoinPOP;
 import com.dremio.exec.physical.config.NestedLoopJoinPOP;
 import com.dremio.exec.physical.config.Screen;
 import com.dremio.exec.physical.config.UnionAll;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
@@ -92,7 +96,6 @@ import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
-import com.dremio.sabot.driver.SchemaChangeListener;
 import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.sabot.exec.context.ContextInformationImpl;
@@ -126,6 +129,7 @@ import io.airlift.tpch.TpchGenerator;
 
 public class BaseTestOperator extends ExecTest {
 
+  protected static final OpProps PROPS = OpProps.prototype();
   public static int DEFAULT_BATCH = 3968;
 
   @ClassRule
@@ -235,18 +239,23 @@ public class BaseTestOperator extends ExecTest {
    * @throws Exception
    */
   protected <T extends Operator> T newOperator(Class<T> clazz, PhysicalOperator pop, int targetBatchSize, final RawFragmentBatchProvider[]... batchProviders) throws Exception {
-    return newOperator(clazz, pop, targetBatchSize, null, batchProviders);
+    return newOperator(clazz, pop, targetBatchSize, null, null, batchProviders);
   }
 
   protected <T extends Operator> T newOperator(Class<T> clazz, PhysicalOperator pop, int targetBatchSize, TunnelProvider tunnelProvider, final RawFragmentBatchProvider[]... batchProviders) throws Exception {
-    return newOperatorWithStats(clazz, pop, targetBatchSize, tunnelProvider, batchProviders).first;
+    return newOperatorWithStats(clazz, pop, targetBatchSize, null, tunnelProvider, batchProviders).first;
+  }
+
+  protected <T extends Operator> T newOperator(Class<T> clazz, PhysicalOperator pop, int targetBatchSize, final EndpointsIndex endpointsIndex, TunnelProvider tunnelProvider, final RawFragmentBatchProvider[]... batchProviders) throws Exception {
+    return newOperatorWithStats(clazz, pop, targetBatchSize, endpointsIndex, tunnelProvider, batchProviders).first;
   }
 
   protected <T extends Operator> Pair<T, OperatorStats> newOperatorWithStats(Class<T> clazz, PhysicalOperator pop, int targetBatchSize, final RawFragmentBatchProvider[]... batchProviders) throws Exception {
-    return newOperatorWithStats(clazz, pop, targetBatchSize, null, batchProviders);
+    return newOperatorWithStats(clazz, pop, targetBatchSize, null, null, batchProviders);
   }
 
-  protected <T extends Operator> Pair<T, OperatorStats> newOperatorWithStats(Class<T> clazz, PhysicalOperator pop, int targetBatchSize, TunnelProvider tunnelProvider, final RawFragmentBatchProvider[]... batchProviders) throws Exception {
+  protected <T extends Operator> Pair<T, OperatorStats> newOperatorWithStats(Class<T> clazz, PhysicalOperator pop, int targetBatchSize, final EndpointsIndex endpointsIndex,
+    TunnelProvider tunnelProvider, final RawFragmentBatchProvider[]... batchProviders) throws Exception {
 
     final BatchStreamProvider provider = new BatchStreamProvider(){
 
@@ -266,16 +275,15 @@ public class BaseTestOperator extends ExecTest {
 
     final BufferAllocator childAllocator = testAllocator.newChildAllocator(
         pop.getClass().getSimpleName(),
-        pop.getInitialAllocation(),
-        pop.getMaxAllocation() == 0 ? Long.MAX_VALUE : pop.getMaxAllocation());
+        pop.getProps().getMemReserve(),
+        pop.getProps().getMemLimit() == 0 ? Long.MAX_VALUE : pop.getProps().getMemLimit());
 
     // we don't close child allocator as the operator context will manage this.
-    final OperatorContextImpl context = testContext.getNewOperatorContext(childAllocator, pop, targetBatchSize);
+    final OperatorContextImpl context = testContext.getNewOperatorContext(childAllocator, pop, targetBatchSize, endpointsIndex);
     testCloseables.add(context);
 
     // mock FEC
     FragmentExecutionContext fec = Mockito.mock(FragmentExecutionContext.class);
-    Mockito.when(fec.getSchemaUpdater()).thenReturn(Mockito.mock(SchemaChangeListener.class));
 
     CreatorVisitor visitor = new CreatorVisitor(fec, provider, tunnelProvider);
     Operator o = pop.accept(visitor, context);
@@ -306,6 +314,7 @@ public class BaseTestOperator extends ExecTest {
     CodeCompiler compiler;
     ExecutionControls ec;
     FunctionLookupContext functionLookup;
+    FunctionLookupContext decimalFunctionLookup;
     ContextInformation contextInformation;
 
     public void setup() {
@@ -324,8 +333,8 @@ public class BaseTestOperator extends ExecTest {
         options.init();
         compiler = new CodeCompiler(config, options);
         ec = new ExecutionControls(options, NodeEndpoint.getDefaultInstance());
-        functionLookup = new FunctionImplementationRegistry(config, result);
-
+        decimalFunctionLookup = new DecimalFunctionImplementationRegistry(config, result, options);
+        functionLookup = new FunctionImplementationRegistry(config, result, options);
         contextInformation = new ContextInformationImpl(UserCredentials.getDefaultInstance(), QueryContextInformation.getDefaultInstance());
 
       }catch(Exception e){
@@ -342,10 +351,15 @@ public class BaseTestOperator extends ExecTest {
     }
 
     public FunctionLookupContext getFunctionLookupContext(){
+      if (options.getOption(PlannerSettings.ENABLE_DECIMAL_V2)) {
+        return decimalFunctionLookup;
+      }
       return functionLookup;
     }
 
-    public OperatorContextImpl getNewOperatorContext(BufferAllocator child, PhysicalOperator pop, int targetBatchSize) throws Exception {
+    public OperatorContextImpl getNewOperatorContext(BufferAllocator child, PhysicalOperator pop, int targetBatchSize,
+      EndpointsIndex endpointsIndex) throws Exception {
+
       OperatorStats stats = new OperatorStats(new OpProfileDef(1, 1, 1), child);
       final NamespaceService namespaceService = new NamespaceServiceImpl(testContext.storeProvider);
       final DremioConfig dremioConfig = DremioConfig.create(null, config);
@@ -373,7 +387,7 @@ public class BaseTestOperator extends ExecTest {
           stats,
           ec,
           inner,
-          functionLookup,
+          getFunctionLookupContext(),
           contextInformation,
           options,
           namespaceService,
@@ -381,12 +395,16 @@ public class BaseTestOperator extends ExecTest {
           NodeDebugContextProvider.NOOP,
           targetBatchSize,
           Mockito.mock(TunnelProvider.class),
-          ImmutableList.of()
-          );
+          ImmutableList.of(),
+          endpointsIndex);
+    }
+
+    public OperatorContextImpl getNewOperatorContext(BufferAllocator child, PhysicalOperator pop, int targetBatchSize) throws Exception {
+      return getNewOperatorContext(child, pop, targetBatchSize, new EndpointsIndex());
     }
 
     public ClassProducer newClassProducer(BufferManager bufferManager) {
-      return new ClassProducerImpl(new CompilationOptions(options), compiler, functionLookup, contextInformation, bufferManager);
+      return new ClassProducerImpl(new CompilationOptions(options), compiler,  getFunctionLookupContext(), contextInformation, bufferManager);
     }
 
 

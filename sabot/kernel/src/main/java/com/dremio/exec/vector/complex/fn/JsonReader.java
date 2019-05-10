@@ -24,6 +24,7 @@ import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
 
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
@@ -51,6 +52,7 @@ public class JsonReader extends BaseJsonProcessor {
   private final ListVectorOutput listOutput;
   private final boolean extended = true;
   private final boolean readNumbersAsDouble;
+  private final int maxFieldSize;
 
   private long dataSizeReadSoFar;
 
@@ -70,11 +72,11 @@ public class JsonReader extends BaseJsonProcessor {
 
   private FieldSelection selection;
 
-  public JsonReader(ArrowBuf managedBuf, boolean allTextMode, boolean skipOuterList, boolean readNumbersAsDouble) {
-    this(managedBuf, GroupScan.ALL_COLUMNS, allTextMode, skipOuterList, readNumbersAsDouble);
+  public JsonReader(ArrowBuf managedBuf, int maxFieldSize, boolean allTextMode, boolean skipOuterList, boolean readNumbersAsDouble) {
+    this(managedBuf, GroupScan.ALL_COLUMNS, maxFieldSize, allTextMode, skipOuterList, readNumbersAsDouble);
   }
 
-  public JsonReader(ArrowBuf managedBuf, List<SchemaPath> columns, boolean allTextMode, boolean skipOuterList, boolean readNumbersAsDouble) {
+  public JsonReader(ArrowBuf managedBuf, List<SchemaPath> columns, int maxFieldSize, boolean allTextMode, boolean skipOuterList, boolean readNumbersAsDouble) {
     assert Preconditions.checkNotNull(columns).size() > 0 : "JSON record reader requires at least one column";
     this.selection = FieldSelection.getFieldSelection(columns);
     this.workingBuffer = new WorkingBuffer(managedBuf);
@@ -85,6 +87,7 @@ public class JsonReader extends BaseJsonProcessor {
     this.listOutput = new ListVectorOutput(workingBuffer);
     this.currentFieldName="<none>";
     this.readNumbersAsDouble = readNumbersAsDouble;
+    this.maxFieldSize = maxFieldSize;
     this.dataSizeReadSoFar = 0;
   }
 
@@ -503,12 +506,14 @@ public class JsonReader extends BaseJsonProcessor {
 
   private void handleString(JsonParser parser, BaseWriter.StructWriter writer, String fieldName) throws IOException {
     final int size = workingBuffer.prepareVarCharHolder(parser.getText());
+    FieldSizeLimitExceptionHelper.checkReadSizeLimit(size, maxFieldSize, currentFieldName, logger);
     writer.varChar(fieldName).writeVarChar(0, size, workingBuffer.getBuf());
     dataSizeReadSoFar += size;
   }
 
   private void handleString(JsonParser parser, ListWriter writer) throws IOException {
     final int size = workingBuffer.prepareVarCharHolder(parser.getText());
+    FieldSizeLimitExceptionHelper.checkReadSizeLimit(size, maxFieldSize, currentFieldName, logger);
     writer.varChar().writeVarChar(0, size, workingBuffer.getBuf());
     dataSizeReadSoFar += size;
   }

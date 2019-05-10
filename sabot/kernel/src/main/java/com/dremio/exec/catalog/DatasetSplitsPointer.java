@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.catalog;
 
-
-import java.util.Map.Entry;
 import java.util.Objects;
 
 import com.dremio.datastore.IndexedStore.FindByCondition;
@@ -24,10 +22,10 @@ import com.dremio.datastore.KVStore.FindByRange;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.store.SplitsPointer;
-import com.dremio.service.namespace.DatasetSplitId;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.PartitionChunkId;
+import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.proto.EntityId;
 import com.google.common.base.Preconditions;
@@ -39,16 +37,10 @@ import com.google.common.base.Preconditions;
  */
 public final class DatasetSplitsPointer extends LazySplitsPointer {
   private final EntityId datasetId;
-  private final long splitVersion;
-
-  private final int splitsCount;
 
   private DatasetSplitsPointer(NamespaceService namespaceService, EntityId datasetId, long splitVersion, int splitsCount) {
-    super(namespaceService, splitsCount);
+    super(namespaceService, splitVersion, splitsCount);
     this.datasetId = datasetId;
-    this.splitVersion = splitVersion;
-
-    this.splitsCount = splitsCount;
   }
 
   public static SplitsPointer of(NamespaceService namespaceService, DatasetConfig datasetConfig) {
@@ -56,26 +48,28 @@ public final class DatasetSplitsPointer extends LazySplitsPointer {
     final ReadDefinition readDefinition = Preconditions.checkNotNull(datasetConfig.getReadDefinition());
     final long splitVersion = readDefinition.getSplitVersion();
 
-    int splitsCount = namespaceService.getSplitCount(new FindByCondition().setCondition(DatasetSplitId.getSplitsQuery(datasetConfig)));
+    final int splitsCount;
+    if (datasetConfig.getTotalNumSplits() != null) {
+      splitsCount = datasetConfig.getTotalNumSplits();
+    } else {
+      // Backwards compatibility: if the total number of splits is not set, then this datasetConfig must be from
+      // before the connector metadata API. At that time, each PartitionChunk represented a single split
+      splitsCount = namespaceService.getPartitionChunkCount(new FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig)));
+    }
     return new DatasetSplitsPointer(namespaceService, datasetId, splitVersion, splitsCount);
   }
 
   @Override
   protected SearchQuery getPartitionQuery(SearchQuery partitionFilterQuery) {
-    FindByCondition splitFilter = new FindByCondition().setCondition(DatasetSplitId.getSplitsQuery(datasetId, splitVersion));
+    FindByCondition splitFilter = new FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetId, getSplitVersion()));
 
     return SearchQueryUtils.and(splitFilter.getCondition(), partitionFilterQuery);
   }
 
   @Override
-  protected Iterable<Entry<DatasetSplitId, DatasetSplit>> findSplits() {
-    FindByRange<DatasetSplitId> filter = DatasetSplitId.getSplitsRange(datasetId, splitVersion);
+  protected Iterable<PartitionChunkMetadata> findSplits() {
+    FindByRange<PartitionChunkId> filter = PartitionChunkId.getSplitsRange(datasetId, getSplitVersion());
     return getNamespaceService().findSplits(filter);
-  }
-
-  @Override
-  protected int computeSplitsCount() {
-    return splitsCount;
   }
 
   @Override
@@ -85,11 +79,21 @@ public final class DatasetSplitsPointer extends LazySplitsPointer {
     }
     DatasetSplitsPointer that = (DatasetSplitsPointer) other;
     return Objects.equals(this.datasetId, that.datasetId)
-        && Objects.equals(this.splitVersion, that.splitVersion);
+        && this.getSplitVersion() == that.getSplitVersion();
+  }
+
+  @Override
+  public double getSplitRatio() {
+    return 1.0d;
+  }
+
+  @Override
+  public int getSplitsCount() {
+    return getTotalSplitsCount();
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(datasetId, splitVersion);
+    return Objects.hash(datasetId, getSplitVersion());
   }
 }

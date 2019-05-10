@@ -106,7 +106,8 @@ const styles = {
     display: 'flex'
   },
   inlineBlock: {
-    display: 'inline-block'
+    display: 'inline-block',
+    marginRight: 20
   },
   label: {
     margin: '0 0 4px'

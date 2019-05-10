@@ -34,5 +34,4 @@ public interface SchedulerService extends Service {
    * @return a {@code Cancellable} instance, to cancel the periodic execution
    */
   Cancellable schedule(Schedule schedule, Runnable task);
-
 }

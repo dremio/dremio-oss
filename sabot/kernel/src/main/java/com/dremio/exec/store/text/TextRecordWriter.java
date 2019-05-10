@@ -30,11 +30,11 @@ import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
 import com.dremio.exec.store.StringOutputRecordWriter;
 import com.dremio.exec.store.WritePartition;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Joiner;
 
@@ -42,12 +42,13 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TextRecordWriter.class);
 
   private final Configuration conf;
-  private final OperatorStats stats;
+  private final OperatorContext context;
   private final String location;
   private final String prefix;
   private final String fieldDelimiter;
   private final String lineDelimiter;
   private final String extension;
+  private final FileSystemPlugin<?> plugin;
 
   private WritePartition partition;
   private List<String> columnNames;
@@ -68,7 +69,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
 
     final FragmentHandle handle = context.getFragmentHandle();
     this.conf = new Configuration(config.getFsConf());
-    this.stats = context.getStats();
+    this.context = context;
     this.location = config.getLocation();
     this.prefix = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
     this.fieldDelimiter = textConfig.getFieldDelimiterAsString();
@@ -76,12 +77,13 @@ public class TextRecordWriter extends StringOutputRecordWriter {
     this.extension = textConfig.outputExtension;
     this.currentRecord = new StringBuilder();
     this.index = 0;
+    this.plugin = config.getFormatPlugin().getFsPlugin();
   }
 
   @Override
   public void setup(List<String> columnNames) throws IOException {
     this.columnNames = columnNames;
-    this.fs = FileSystemWrapper.get(conf, stats);
+    this.fs = plugin.getFileSystem(conf, context);
   }
 
   public static final String NEWLINE = "\n";

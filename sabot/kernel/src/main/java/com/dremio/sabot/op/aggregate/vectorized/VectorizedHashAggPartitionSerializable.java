@@ -60,8 +60,8 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
   private final PartitionToLoadSpilledData partitionToLoadSpilledData;
   private static final int IO_CHUNK_SIZE = 32 * 1024;
   private byte ioBuffer[] = new byte[IO_CHUNK_SIZE];
-  private int numBatchesSpilled;
-  private int numRecordsSpilled;
+  private long numBatchesSpilled;
+  private long numRecordsSpilled;
   private long spilledDataSize;
   private ByteBuffer intBuffer = ByteBuffer.allocate(Integer.SIZE / Byte.SIZE); //byte array of 4 bytes
   private HashAggPartitionWritableBatch inProgressWritableBatch;
@@ -332,7 +332,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    * Get number of batches spilled
    * @return batches spilled
    */
-  int getNumBatchesSpilled() {
+  long getNumBatchesSpilled() {
     return numBatchesSpilled;
   }
 
@@ -340,7 +340,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    * Get number of records spilled
    * @return records spilled
    */
-  int getNumRecordsSpilled() {
+  long getNumRecordsSpilled() {
     return numRecordsSpilled;
   }
 

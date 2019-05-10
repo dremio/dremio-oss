@@ -16,9 +16,11 @@
 package com.dremio.exec.catalog;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
@@ -27,17 +29,20 @@ import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.concurrent.Runnables;
+import com.dremio.connector.ConnectorException;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.EntityPath;
 import com.dremio.datastore.KVStore;
+import com.dremio.exec.catalog.Catalog.UpdateStatus;
 import com.dremio.exec.catalog.PluginsManager.IdProvider;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.CatalogService.UpdateType;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePlugin.CheckResult;
-import com.dremio.exec.store.StoragePlugin.UpdateStatus;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.DatasetHelper;
@@ -47,7 +52,6 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.Message;
 import com.dremio.service.namespace.SourceState.SourceStatus;
-import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -58,6 +62,7 @@ import com.dremio.service.scheduler.SchedulerService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Functions;
 import com.google.common.base.Stopwatch;
+import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.CheckedFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
@@ -85,7 +90,6 @@ public class ManagedStoragePlugin implements AutoCloseable {
   private final PermissionCheckCache permissionsCache;
   private final SourceMetadataManager metadataManager;
   private final OptionManager options;
-  private final Provider<Integer> maxMetadataColumns;
 
   private volatile SourceConfig sourceConfig;
   private volatile StoragePlugin plugin;
@@ -120,15 +124,13 @@ public class ManagedStoragePlugin implements AutoCloseable {
     this.conf = conf;
     this.metadataPolicy = sourceConfig.getMetadataPolicy() == null ? CatalogService.NEVER_REFRESH_POLICY : sourceConfig.getMetadataPolicy();
     final Provider<Long> authTtlProvider = () -> ManagedStoragePlugin.this.metadataPolicy.getAuthTtlMs();
-    this.maxMetadataColumns = () ->
-        (int) ManagedStoragePlugin.this.options.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX);
     this.permissionsCache = new PermissionCheckCache(new StoragePluginProvider(), authTtlProvider, 2500);
     this.plugin = plugin;
     this.options = options;
     this.reader = reader;
 
     // leaks this so do last.
-    this.metadataManager = new SourceMetadataManager(scheduler, isMaster, systemUserNamespaceService, sourceDataStore, this);
+    this.metadataManager = new SourceMetadataManager(scheduler, isMaster, systemUserNamespaceService, sourceDataStore, this, options);
   }
 
   private class StoragePluginProvider implements Provider<StoragePlugin> {
@@ -188,8 +190,8 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
-  Provider<Integer> getMaxMetadataColumns() {
-    return maxMetadataColumns;
+  int getMaxMetadataColumns() {
+    return Ints.saturatedCast(options.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
   }
 
   public ConnectionConf<?, ?> getConnectionConf() {
@@ -204,7 +206,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
   DatasetRetrievalOptions getDefaultRetrievalOptions() {
     return DatasetRetrievalOptions.fromMetadataPolicy(metadataPolicy)
         .toBuilder()
-        .setMaxMetadataLeafColumns(maxMetadataColumns.get())
+        .setMaxMetadataLeafColumns(getMaxMetadataColumns())
         .build()
         .withFallback(DatasetRetrievalOptions.DEFAULT);
   }
@@ -346,8 +348,12 @@ public class ManagedStoragePlugin implements AutoCloseable {
     try(AutoCloseableLock l = readLock()) {
       SourceState state = this.state;
       if(state.getStatus() == SourceState.SourceStatus.bad) {
+        final String msg = state.getMessages().stream()
+          .map(m -> m.getMessage())
+          .collect(Collectors.joining(", "));
+
         UserException.Builder builder = UserException.sourceInBadState()
-          .message("The source [%s] is currently unavailable. Info: [%s].", sourceKey, state.getMessages());
+          .message("The source [%s] is currently unavailable. Info: [%s]", sourceKey, msg);
 
         for(Message message : state.getMessages()) {
           builder.addContext(message.getLevel().name(), message.getMessage());
@@ -398,10 +404,21 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
+
+
   public UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions) {
     try(AutoCloseableLock l = readLock()) {
       checkState();
       return metadataManager.refreshDataset(key, retrievalOptions);
+    } catch (ConnectorException | NamespaceException e) {
+      throw UserException.validationError(e).message("Unable to refresh dataset.").build(logger);
+    }
+  }
+
+  public DatasetConfig getUpdatedDatasetConfig(DatasetConfig oldConfig, BatchSchema newSchema) {
+    try(AutoCloseableLock l = readLock()) {
+      checkState();
+      return plugin.createDatasetConfigFromSchema(oldConfig, newSchema);
     }
   }
 
@@ -413,27 +430,16 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
-  public SourceTableDefinition getTable(NamespaceKey key, DatasetConfig datasetConfig, final boolean ignoreAuthErrors) throws Exception {
-    DatasetRetrievalOptions retrievalOptions = getDefaultRetrievalOptions().toBuilder()
-        .setIgnoreAuthzErrors(ignoreAuthErrors)
-        .build();
-    try(AutoCloseableLock l = readLock()) {
+  public Optional<DatasetHandle> getDatasetHandle(
+      NamespaceKey key,
+      DatasetConfig datasetConfig,
+      DatasetRetrievalOptions retrievalOptions
+  ) throws ConnectorException {
+    try (AutoCloseableLock ignored = readLock()) {
       checkState();
-      if (datasetConfig != null && datasetConfig.getReadDefinition() != null) {
-        final CheckResult res = plugin.checkReadSignature(
-            datasetConfig.getReadDefinition().getReadSignature(),
-            datasetConfig,
-            retrievalOptions
-        );
-        if (res.getStatus() == UpdateStatus.DELETED) {
-          return null;
-        } else if (res.getStatus() == UpdateStatus.CHANGED ||
-                  res.getDataset() != null) {
-          return res.getDataset();
-        }
-      }
 
-      return plugin.getDataset(key, datasetConfig, retrievalOptions);
+      return plugin.getDatasetHandle(new EntityPath(key.getPathComponents()),
+          retrievalOptions.asGetDatasetOptions(datasetConfig));
     }
   }
 

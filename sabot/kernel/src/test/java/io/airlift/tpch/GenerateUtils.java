@@ -140,6 +140,6 @@ public final class GenerateUtils {
 
   public static String formatMoney(long value) {
     // todo there must be a better way to do this
-    return new BigDecimal(value).divide(new BigDecimal(100)).setScale(2).toString();
+    return BigDecimal.valueOf(value).divide(new BigDecimal(100)).setScale(2).toString();
   }
 }

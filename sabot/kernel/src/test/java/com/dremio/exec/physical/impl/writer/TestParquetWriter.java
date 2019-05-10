@@ -20,6 +20,7 @@ import static org.apache.parquet.format.converter.ParquetMetadataConverter.SKIP_
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -59,6 +60,7 @@ import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
 import com.dremio.exec.fn.interp.TestConstantFolding;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.BatchSchema;
@@ -66,6 +68,7 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.WritePartition;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
 import com.dremio.exec.store.parquet.ParquetRecordWriter;
@@ -165,6 +168,12 @@ public class TestParquetWriter extends BaseTestQuery {
   @Test
   public void testDx14882() throws Exception {
     runTestAndValidate("*", "*", "cp.\"/store/json/unionlist.json\"", "unionlist_parquet", false);
+
+    runTestAndValidate("*", "*", "cp.\"/store/json/unionList-1.json\"", "unionlist_parquet1",
+      false);
+
+    runTestAndValidate("*", "*", "cp.\"/store/json/unionList-2.json\"", "unionlist_parquet2",
+      false);
   }
 
   @Test
@@ -759,6 +768,7 @@ public class TestParquetWriter extends BaseTestQuery {
     when(optionManager.getOption(ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE_VALIDATOR)).thenReturn("none"); //compression shouldn't matter
     when(optionManager.getOption(ExecConstants.PARQUET_PAGE_SIZE_VALIDATOR)).thenReturn(256L);
     when(optionManager.getOption(ExecConstants.PARQUET_MAXIMUM_PARTITIONS_VALIDATOR)).thenReturn(1L);
+    when(optionManager.getOption(ExecConstants.PARQUET_DICT_PAGE_SIZE_VALIDATOR)).thenReturn(4096L);
 
     OperatorStats operatorStats = mock(OperatorStats.class);
 
@@ -771,10 +781,14 @@ public class TestParquetWriter extends BaseTestQuery {
     ParquetWriter writerConf = mock(ParquetWriter.class);
     when(writerConf.getFsConf()).thenReturn(hadoopConf);
     when(writerConf.getLocation()).thenReturn(targetPath.toUri().toString());
-    when(writerConf.getUserName()).thenReturn("testuser");
+    OpProps props = mock(OpProps.class);
+    when(writerConf.getProps()).thenReturn(props);
+    when(writerConf.getProps().getUserName()).thenReturn("testuser");
 
     ParquetFormatPlugin formatPlugin = mock(ParquetFormatPlugin.class);
     FileSystemPlugin fsPlugin = mock(FileSystemPlugin.class);
+    when(fsPlugin.getFileSystem((Configuration) notNull(), (OperatorContext) notNull())).thenReturn(new FileSystemWrapper(hadoopConf));
+    when(writerConf.getFormatPlugin()).thenReturn(formatPlugin);
     when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);
 
     UserGroupInformation ugi = ImpersonationUtil.createProxyUgi("testuser");
@@ -835,6 +849,7 @@ public class TestParquetWriter extends BaseTestQuery {
     when(optionManager.getOption(ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE_VALIDATOR)).thenReturn("none"); //compression shouldn't matter
     when(optionManager.getOption(ExecConstants.PARQUET_PAGE_SIZE_VALIDATOR)).thenReturn(256L);
     when(optionManager.getOption(ExecConstants.PARQUET_MAXIMUM_PARTITIONS_VALIDATOR)).thenReturn(1L);
+    when(optionManager.getOption(ExecConstants.PARQUET_DICT_PAGE_SIZE_VALIDATOR)).thenReturn(4096L);
 
     OperatorStats operatorStats = mock(OperatorStats.class);
 
@@ -847,10 +862,14 @@ public class TestParquetWriter extends BaseTestQuery {
     ParquetWriter writerConf = mock(ParquetWriter.class);
     when(writerConf.getFsConf()).thenReturn(hadoopConf);
     when(writerConf.getLocation()).thenReturn(targetPath.toUri().toString());
-    when(writerConf.getUserName()).thenReturn("testuser");
+    OpProps props = mock(OpProps.class);
+    when(writerConf.getProps()).thenReturn(props);
+    when(writerConf.getProps().getUserName()).thenReturn("testuser");
 
     ParquetFormatPlugin formatPlugin = mock(ParquetFormatPlugin.class);
     FileSystemPlugin fsPlugin = mock(FileSystemPlugin.class);
+    when(fsPlugin.getFileSystem((Configuration) notNull(), (OperatorContext) notNull())).thenReturn(new FileSystemWrapper(hadoopConf));
+    when(writerConf.getFormatPlugin()).thenReturn(formatPlugin);
     when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);
 
     UserGroupInformation ugi = mock(UserGroupInformation.class);

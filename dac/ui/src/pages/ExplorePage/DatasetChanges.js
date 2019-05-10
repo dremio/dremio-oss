@@ -20,6 +20,7 @@ import { connect }   from 'react-redux';
 import { withRouter } from 'react-router';
 
 import { getDataset, getHistoryFromLocation, getExploreState } from '@app/selectors/explore';
+import { isSqlChanged } from '@app/sagas/utils';
 
 
 const mapStateToProp = (state, ownProps) => {
@@ -39,7 +40,7 @@ const mapStateToProp = (state, ownProps) => {
   return {
     datasetSql,
     history: getHistoryFromLocation(state, location),
-    currentSql: getExploreState(state).view.get('currentSql')
+    currentSql: getExploreState(state).view.currentSql
   };
 };
 
@@ -60,8 +61,8 @@ export class DatasetChangesView extends Component {
     const { datasetSql, currentSql, history } = this.props;
     return {
       // leaving modified sql?
-      // currentSql === undefined means sql is unchanged.
-      sqlChanged: currentSql !== undefined && datasetSql !== currentSql,
+      // currentSql === null means sql is unchanged.
+      sqlChanged: isSqlChanged(datasetSql, currentSql),
       historyChanged: history ? history.get('isEdited') : false
     };
   }

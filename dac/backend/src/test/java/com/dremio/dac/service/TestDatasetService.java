@@ -45,7 +45,6 @@ import com.dremio.file.FilePath;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.TestNamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -197,61 +196,6 @@ public class TestDatasetService extends BaseTestServer {
     Assert.assertTrue(versions.contains(new DatasetVersion("001")));
 
     Assert.assertTrue(!service.getAllVersions(new DatasetPath("a.ds1")).iterator().hasNext());
-  }
-
-  @Test
-  public void testSearchDatasets() throws Exception {
-    NamespaceService namespaceService = newNamespaceService();
-    DatasetVersionMutator service = newDatasetVersionMutator();
-    SpaceConfig config = new SpaceConfig();
-    config.setName("a");
-    namespaceService.addOrUpdateSpace(new SpacePath(new SpaceName(config.getName())).toNamespaceKey(), config);
-    config = new SpaceConfig();
-    config.setName("b");
-    namespaceService.addOrUpdateSpace(new SpacePath(new SpaceName(config.getName())).toNamespaceKey(), config);
-    config = new SpaceConfig();
-    config.setName("c");
-    namespaceService.addOrUpdateSpace(new SpacePath(new SpaceName(config.getName())).toNamespaceKey(), config);
-
-    createDS(service, "a.ds1", "ds1", "sky1", "11", null);
-    createDS(service, "a.ds2", "ds2", "sky2", "12", null);
-
-    createDS(service, "b.ds3", "ds3", "sky1", "12", null);
-    createDS(service, "b.ds4", "ds4", "sky2", "13", null);
-    createDS(service, "b.ds5", "ds5", "sky3", "14", null);
-
-    createDS(service, "c.ds6", "ds6", "sky1", "15", null);
-    createDS(service, "c.ds7", "ds7", "sky2", "16", null);
-    createDS(service, "c.ds8", "ds8", "sky3", "17", null);
-    createDS(service, "c.ds9", "ds9", "sky1", "18", null);
-
-    Assert.assertEquals(4, service.searchDatasets("sky1").size());
-    Assert.assertEquals(3, service.searchDatasets("sky2").size());
-    Assert.assertEquals(2, service.searchDatasets("sky3").size());
-    Assert.assertEquals(1, service.searchDatasets("ds1").size());
-    Assert.assertEquals(1, service.searchDatasets("ds9").size());
-    Assert.assertEquals(1, service.searchDatasets("ds3").size());
-    Assert.assertEquals(9, service.searchDatasets("sky").size());
-
-    TestNamespaceService.addSource(namespaceService, "src1");
-    TestNamespaceService.addSource(namespaceService, "src2");
-    TestNamespaceService.addHome(namespaceService, DEFAULT_USERNAME);
-
-    createPhysicalDS(namespaceService, "src1.foo1", DatasetType.PHYSICAL_DATASET);
-    createPhysicalDSInHome(namespaceService, "@"+DEFAULT_USERNAME+".foo11", DatasetType.PHYSICAL_DATASET_HOME_FILE);
-    createPhysicalDS(namespaceService, "src1.foo2", DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
-    createPhysicalDS(namespaceService, "src2.foo22", DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER);
-
-    Assert.assertEquals(2, service.searchDatasets("src1").size());
-    Assert.assertEquals(1, service.searchDatasets("src2").size());
-    Assert.assertEquals(4, service.searchDatasets("foo").size());
-    Assert.assertEquals(2, service.searchDatasets("foo1").size());
-    Assert.assertEquals(1, service.searchDatasets("foo11").size());
-    Assert.assertEquals(2, service.searchDatasets("foo2").size());
-    Assert.assertEquals(1, service.searchDatasets("foo22").size());
-
-    createPhysicalDS(namespaceService, "src1.sky1", DatasetType.PHYSICAL_DATASET);
-    Assert.assertEquals(10, service.searchDatasets("sky").size());
   }
 
   @Test

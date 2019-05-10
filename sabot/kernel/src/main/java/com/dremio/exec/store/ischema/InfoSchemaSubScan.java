@@ -16,13 +16,14 @@
 package com.dremio.exec.store.ischema;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractSubScan;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
@@ -42,16 +43,16 @@ public class InfoSchemaSubScan extends AbstractSubScan {
 
   @JsonCreator
   public InfoSchemaSubScan(
-      @JsonProperty("userName") String userName,
+      @JsonProperty("props") OpProps props,
       @JsonProperty("table") InfoSchemaTable table,
-      @JsonProperty("query") SearchQuery query,
       @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("query") SearchQuery query,
       @JsonProperty("pluginId") StoragePluginId pluginId
       ) {
-    super(userName, table.getSchema(), Arrays.asList("INFORMATION_SCHEMA", table.name()));
+    super(props, table.getRecordSchema(), Arrays.asList("INFORMATION_SCHEMA", table.name()));
     this.table = table;
-    this.query = query;
     this.columns = columns;
+    this.query = query;
     this.pluginId = pluginId;
   }
 
@@ -74,6 +75,12 @@ public class InfoSchemaSubScan extends AbstractSubScan {
 
   @JsonIgnore
   @Override
+  public Collection<List<String>> getReferencedTables() {
+    return super.getReferencedTables();
+  }
+
+  @JsonIgnore
+  @Override
   public List<String> getTableSchemaPath() {
     return super.getTableSchemaPath();
   }
@@ -83,15 +90,9 @@ public class InfoSchemaSubScan extends AbstractSubScan {
     return CoreOperatorType.INFO_SCHEMA_SUB_SCAN_VALUE;
   }
 
-  @JsonIgnore
+  @JsonIgnore // no need to serialize.
   @Override
-  public BatchSchema getSchema() {
-    return super.getSchema();
+  public BatchSchema getFullSchema() {
+    return super.getFullSchema();
   }
-
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext functionLookupContext) {
-    return getSchema().maskAndReorder(getColumns());
-  }
-
 }

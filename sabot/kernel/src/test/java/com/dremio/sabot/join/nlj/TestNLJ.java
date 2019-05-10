@@ -20,12 +20,9 @@ import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
 import java.util.Arrays;
-import java.util.Collections;
 
-import org.apache.calcite.rel.core.JoinRelType;
 import org.junit.Test;
 
-import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.physical.config.NestedLoopJoinPOP;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.Fixtures.DataRow;
@@ -71,7 +68,7 @@ public class TestNLJ extends BaseTestOperator {
       );
 
   validateDual(
-      new NestedLoopJoinPOP(null, null, Collections.<JoinCondition>emptyList(), JoinRelType.INNER),
+      new NestedLoopJoinPOP(PROPS, null, null),
       NLJOperator.class,
       TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey"),
       TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_name"),
@@ -114,7 +111,7 @@ public class TestNLJ extends BaseTestOperator {
       );
 
   validateDual(
-      new NestedLoopJoinPOP(null, null, Collections.<JoinCondition>emptyList(), JoinRelType.INNER),
+      new NestedLoopJoinPOP(PROPS, null, null),
       NLJOperator.class,
       TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey"),
       TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_name"),
@@ -156,7 +153,7 @@ public class TestNLJ extends BaseTestOperator {
 
 
     validateDual(
-      new NestedLoopJoinPOP(null, null, Collections.<JoinCondition>emptyList(), JoinRelType.INNER),
+      new NestedLoopJoinPOP(PROPS, null, null),
       NLJOperator.class,
       t1.toGenerator(getTestAllocator()),
       t2.toGenerator(getTestAllocator()),

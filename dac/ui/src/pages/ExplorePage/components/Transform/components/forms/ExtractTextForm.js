@@ -36,6 +36,7 @@ const DEFAULT_CARD = {
 
 export class ExtractTextForm extends Component {
   static propTypes = {
+    // needed only for submit handler
     transform: PropTypes.instanceOf(Immutable.Map),
     submit: PropTypes.func.isRequired,
     onCancel: PropTypes.func.isRequired,
@@ -43,6 +44,7 @@ export class ExtractTextForm extends Component {
 
     // connected
     hasSelection: PropTypes.bool,
+    columnName: PropTypes.string,
     cards: PropTypes.instanceOf(Immutable.List),
     fields: PropTypes.object,
     onFormChange: PropTypes.func,
@@ -62,7 +64,7 @@ export class ExtractTextForm extends Component {
   }, submitType);
 
   render() {
-    const { fields, cards, transform, loadTransformCardPreview, hasSelection } = this.props;
+    const { fields, cards, columnName, loadTransformCardPreview, hasSelection } = this.props;
     return (
       <TransformForm
         {...formWrapperProps(this.props)}
@@ -71,10 +73,10 @@ export class ExtractTextForm extends Component {
         <div>
           <ExtractTextCards
             hasSelection={hasSelection}
-            columnName={transform.get('columnName')}
+            columnName={columnName}
             cards={cards}
             fields={fields}/>
-          <NewFieldSection fields={fields} className={sectionMargin} style={{ marginBottom: 10 }}/>
+          <NewFieldSection columnName={columnName} fields={fields} className={sectionMargin} style={{ marginBottom: 10 }}/>
         </div>
       </TransformForm>
     );
@@ -88,8 +90,9 @@ function mapStateToProps(state, { transform }) {
     return {
       hasSelection,
       cards,
+      columnName: transform.get('columnName'),
       initialValues: {
-        newFieldName: transform.get('columnName'),
+        newFieldName: transform.get('columnName') + '_1', // as dropSourceField = true need provide different name
         cards: cards.toJS().map((card) => pick(card, ['pattern', 'position', 'type'])),
         dropSourceField: false,
         activeCard: 0

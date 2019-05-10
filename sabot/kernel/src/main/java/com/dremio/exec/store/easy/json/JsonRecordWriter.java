@@ -31,6 +31,7 @@ import com.dremio.exec.store.EventBasedRecordWriter;
 import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
 import com.dremio.exec.store.JSONOutputRecordWriter;
 import com.dremio.exec.store.WritePartition;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.easy.json.JSONFormatPlugin.JSONFormatConfig;
@@ -38,7 +39,6 @@ import com.dremio.exec.vector.complex.fn.BasicJsonOutput;
 import com.dremio.exec.vector.complex.fn.ExtendedJsonOutput;
 import com.dremio.exec.vector.complex.fn.JsonWriter;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.context.OperatorStats;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.MinimalPrettyPrinter;
@@ -50,7 +50,8 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
   private static final String LINE_FEED = String.format("%n");
 
   private final Configuration conf;
-  private final OperatorStats stats;
+  private final OperatorContext context;
+  private final FileSystemPlugin<?> plugin;
 
   private String location;
   private String prefix;
@@ -63,49 +64,57 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
 
   private FileSystemWrapper fs = null;
   private FSDataOutputStream stream = null;
+  private JsonGenerator jsonGenerator = null;
 
   private long fileSize = 0;
 
   private final JsonFactory factory = new JsonFactory();
 
-  public JsonRecordWriter(OperatorContext context, EasyWriter writer, JSONFormatConfig formatConfig){
+  public JsonRecordWriter(OperatorContext context, EasyWriter writer, JSONFormatConfig formatConfig) {
+    super(context);
+
     final FragmentHandle handle = context.getFragmentHandle();
     final String fragmentId = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
 
     this.conf = new Configuration(writer.getFsConf());
-    this.stats = context.getStats();
+    this.context = context;
     this.location = writer.getLocation();
     this.prefix = fragmentId;
     this.useExtendedOutput = context.getOptions().getOption(ExecConstants.JSON_EXTENDED_TYPES);
     this.extension = formatConfig.outputExtension;
     this.useExtendedOutput = context.getOptions().getOption(ExecConstants.JSON_EXTENDED_TYPES);
     this.uglify = !formatConfig.prettyPrint || context.getOptions().getOption(ExecConstants.JSON_WRITER_UGLIFY);
+    this.plugin = writer.getFormatPlugin().getFsPlugin();
   }
 
   @Override
   public void setup() throws IOException {
-    this.fs = FileSystemWrapper.get(conf, stats);
+    this.fs = plugin.getFileSystem(conf, context);
   }
 
   @Override
   public void startPartition(WritePartition partition) throws Exception {
     // close previous partition if open.
     if(this.partition != null){
-      close();
+      doClose();
     }
     this.partition = partition;
 
     try {
       this.fileName = fs.canonicalizePath(partition.qualified(location, prefix + "_0." + extension));
       stream = fs.create(fileName);
-      JsonGenerator generator = factory.createGenerator(stream.getWrappedStream()).useDefaultPrettyPrinter();
+      jsonGenerator = factory.createGenerator(stream.getWrappedStream())
+        .disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
+        .enable(JsonGenerator.Feature.FLUSH_PASSED_TO_STREAM)
+        .useDefaultPrettyPrinter();
+
       if (uglify) {
-        generator = generator.setPrettyPrinter(new MinimalPrettyPrinter(LINE_FEED));
+        jsonGenerator = jsonGenerator.setPrettyPrinter(new MinimalPrettyPrinter(LINE_FEED));
       }
       if(useExtendedOutput){
-        gen = new ExtendedJsonOutput(generator);
+        gen = new ExtendedJsonOutput(jsonGenerator);
       }else{
-        gen = new BasicJsonOutput(generator);
+        gen = new BasicJsonOutput(jsonGenerator);
       }
       logger.debug("Created file: {}", fileName);
     } catch (IOException ex) {
@@ -243,31 +252,37 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
 
   @Override
   public void close() throws Exception {
-    try{
-      if(gen == null){
+    try {
+      if (partition == null) {
         // create an empty file.
         startPartition(WritePartition.NONE);
       }
-    }finally{
-      AutoCloseables.close(
-          new AutoCloseable(){
-            @Override
-            public void close() throws IOException {
-              if(gen != null){
-                gen.flush();
-                if (stream != null) {
-                  fileSize = stream.getPos();
-                }
-              }
-            }},
-          stream
-          );
-      stream = null;
-      if(gen != null){
-        listener.recordsWritten(recordCount, fileSize, fileName.toString(), null, partition.getBucketNumber());
-      }
-      recordCount = 0;
-      fileSize = 0;
+    } finally {
+      doClose();
     }
+  }
+
+  private void doClose() throws Exception {
+    AutoCloseables.close(
+      () -> {
+          if (gen != null) {
+            gen.flush();
+            if (stream != null) {
+              fileSize = stream.getPos();
+            }
+          }
+        },
+      jsonGenerator,
+      stream);
+
+    jsonGenerator = null;
+    stream = null;
+    if (gen != null) {
+      listener.recordsWritten(recordCount, fileSize, fileName.toString(), null, partition.getBucketNumber());
+      gen = null;
+    }
+
+    recordCount = 0;
+    fileSize = 0;
   }
 }

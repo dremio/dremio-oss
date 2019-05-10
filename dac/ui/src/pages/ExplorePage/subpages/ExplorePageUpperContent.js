@@ -14,20 +14,16 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import classNames from 'classnames';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
 
 import { PageTypes, pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
-import PullOutRightTree from 'components/PullOutRightTree';
 
 import SqlEditorController from './../components/SqlEditor/SqlEditorController';
 import ExploreInfoHeader from './../components/ExploreInfoHeader';
 import TopSplitterContent from './../components/TopSplitterContent';
-
-const MAX_WIDTH_SETTINGS_PANEL = 290;
 
 @pureRender
 @Radium
@@ -50,11 +46,6 @@ export default class ExplorePageUpperContent extends Component {
 
   render() {
     const { dataset, pageType, dragType, rightTreeVisible, sqlState, sqlSize } = this.props;
-    const pullClass = classNames('settings-block',
-      {'opened': rightTreeVisible},
-      {'closed': !rightTreeVisible}
-    );
-    const widthSettingsPanel = rightTreeVisible ? MAX_WIDTH_SETTINGS_PANEL : 0;
 
     return (
       <div>
@@ -79,16 +70,6 @@ export default class ExplorePageUpperContent extends Component {
                     exploreViewState={this.props.exploreViewState}
                   />
                 </div>
-                { false && /* this feature disabled for now */
-                  <div className={pullClass} style={{ width: widthSettingsPanel }}>
-                    <PullOutRightTree
-                      entity={this.props.dataset}
-                      entityType={this.props.dataset.get('entityType')}
-                      rightTreeVisible={this.props.rightTreeVisible}
-                      toggleVisibility={this.props.toggleRightTree}
-                    />
-                  </div>
-                }
               </div>
             </div>
           </TopSplitterContent>

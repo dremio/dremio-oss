@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -27,7 +28,6 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.exec.catalog.CatalogServiceImpl;
-import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 
@@ -94,21 +94,6 @@ public class TestMetadataRefresh extends BaseTestQuery {
       .build().run();
 
     // verify that REFRESH METADATA optional paramaters are being handled properly
-
-
-    // FORCE UPDATE throws an exception on a PHYSICAL_DATASET_SOURCE_FOLDER
-    try {
-      testBuilder()
-        .sqlQuery("ALTER TABLE dfs_test.blue.metadata_refresh REFRESH METADATA FORCE UPDATE")
-        .unOrdered()
-        .baselineColumns("ok", "summary")
-        .baselineValues(true, "Table 'dfs_test.blue.metadata_refresh' read signature reviewed but source stated metadata is unchanged, no refresh occurred.")
-        .build().run();
-      fail("REFRESH METADATA FORCE UPDATE on a folder didn't throw a RpcException");
-    } catch (RpcException e) {
-      assertTrue(e.getMessage()
-        .contains("only file based datasets can have empty read signature"));
-    }
 
     // LAZY UPDATE, no change expected
     testBuilder()
@@ -254,8 +239,9 @@ public class TestMetadataRefresh extends BaseTestQuery {
         .build().run();
       fail("Data should be unavailable.");
     } catch (Exception e) {
-      assertTrue(e.getMessage()
-        .contains("Failure reading JSON file"));
+      assertTrue(e.getMessage().contains("INVALID_DATASET_METADATA"));
+      assertFalse(e.getMessage()
+        .contains(String.format("Table '%s.blue.metadata_refresh' not found", name)));
     }
 
     // cleanup

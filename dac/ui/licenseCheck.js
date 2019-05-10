@@ -61,18 +61,6 @@ const NORMALIZED_LICENSES = {
 };
 
 const KNOWN = {
-  'toggle-selection': {
-    repository: 'https://github.com/sudodoki/toggle-selection'
-  },
-  'dnd-core': {
-    repository: 'https://github.com/react-dnd/react-dnd'
-  },
-  'react-dnd-html5-backend': {
-    repository: 'https://github.com/react-dnd/react-dnd'
-  },
-  'react-dnd': {
-    repository: 'https://github.com/react-dnd/react-dnd'
-  },
   'csprng': {
     tagScheme: v => v
   },
@@ -100,36 +88,16 @@ const KNOWN = {
     // doesn't use tags
     licenseURL: 'https://github.com/einaros/options.js/raw/65cc69a05e257d6974bb914d47eaf91d92d43ebd/README.md'
   },
-  'change-emitter@0.1.3': {
-    noFile: true
-  },
   'change-emitter@0.1.6': {
     noFile: true
   },
   'mumath@3.3.4': {
     licenseURL: 'https://raw.githubusercontent.com/dfcreative/mumath/master/UNLICENSE'
   },
-  'toggle-selection@1.0.5': {
-    noFile: true
-  },
-  'recompose@0.20.2': {
-    // file not provided before v0.21.0
-    licenseURL: 'https://raw.githubusercontent.com/acdlite/recompose/v0.21.0/LICENSE.md'
-  },
-  'copy-to-clipboard@3.0.5': {
-    noFile: true
-  },
   'jsplumb@2.1.4': {
     // custom name, and doesn't use `v#` tagging scheme
     // licenseURL: 'https://raw.githubusercontent.com/sporritt/jsPlumb/2.1.4/jsPlumb-LICENSE.txt'
     licenseText: '\t\t\t\tMIT LICENSE\n\nCopyright (c) 2010 - 2014 jsPlumb, http://jsplumbtoolkit.com/\n\nPermission is hereby granted, free of charge, to any person obtaining\na copy of this software and associated documentation files (the\n"Software"), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to\npermit persons to whom the Software is furnished to do so, subject to\nthe following conditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND\nNONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE\nLIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION\nOF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION\nWITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.'
-  },
-  'simple-assign@0.1.0': {
-    noFile: true
-  },
-  'regenerator-runtime@0.10.3': {
-    // custom tag scheme, and 0.10.3 doesn't have a tag in GH, but file hasn't changed in years so should be same
-    licenseURL: 'https://raw.githubusercontent.com/facebook/regenerator/runtime%400.10.4/LICENSE'
   },
   'regenerator-runtime@0.10.5': {
     // custom tag scheme
@@ -146,38 +114,67 @@ const KNOWN = {
   'humanable@0.0.2': {
     noFile: true
   },
-  'element-class@0.2.2': {
-    // mismatched package.json and README (choosing ISC from package.json)
-    licenses: 'ISC'
-  },
-  'exenv@1.2.0': {
-    // just says BSD; checked license file and found BSD 3-clause text
-    licenses: 'BSD-3-Clause'
-  },
-  'exenv@1.2.1': {
-    // just says BSD; checked license file and found BSD 3-clause text
-    licenses: 'BSD-3-Clause'
-  },
-  'hoist-non-react-statics@1.1.0': {
-    // just says BSD; checked license file and found BSD 3-clause text
-    licenses: 'BSD-3-Clause'
-  },
   'hoist-non-react-statics@1.2.0': {
     // just says BSD; checked license file and found BSD 3-clause text
     licenses: 'BSD-3-Clause'
   },
-  'raf@3.3.2': {
-    // no exact v3.3.2 tag
-    licenseURL: 'https://raw.githubusercontent.com/chrisdickinson/raf/v3.3.0/README.md'
-  },
-  'chain-function@1.0.0': {
-    noFile: true
-  },
-  'react-dom-factories@1.0.2': {
-    noFile: true // cannot find in weird react repo structure
-  },
   'typo-js': {
     licenseURL: 'https://raw.githubusercontent.com/cfinke/Typo.js/master/license.txt'
+  },
+  'css-select@1.2.0': {
+    licenses: 'BSD-2-Clause',
+    //this line does not affect algorithm, but i put it here for reference
+    licenseURL: 'https://raw.githubusercontent.com/fb55/css-select/v1.2.0/LICENSE'
+  },
+  'css-what@2.1.0': {
+    licenses: 'BSD-2-Clause',
+    //this line does not affect algorithm, but i put it here for reference
+    licenseURL: 'https://github.com/fb55/css-what/blob/v2.1.0/LICENSE'
+  },
+  'domelementtype@1.1.3': {
+    licenses: 'BSD-2-Clause'
+  },
+  'domelementtype@1.3.0': {
+    licenses: 'BSD-2-Clause'
+  },
+  'domutils@1.5.1': {
+    licenses: 'BSD-2-Clause',
+    //this line does not affect algorithm, but i put it here for reference
+    licenseURL: 'https://raw.githubusercontent.com/fb55/domutils/347ed4e848dd7129ec9efd18553588636f6d5bf5/LICENSE'
+  },
+  'entities@1.1.1': {
+    licenses: 'BSD-2-Clause',
+    //this line does not affect algorithm, but i put it here for reference
+    licenseURL: 'https://github.com/fb55/entities/blob/v1.1.1/LICENSE'
+  },
+  'nth-check@1.0.1': {
+    licenses: 'BSD-2-Clause',
+    // no license file for this history https://github.com/fb55/nth-check/tree/257338e5bbd53228236abd4cc09539b66b27dd11
+    noFile: true
+  },
+  'railroad-diagrams@1.0.0': {
+    licenses: 'CC0-1.0',
+    noFile: true
+  },
+  'has@1.0.1': {
+    licenseURL: 'https://raw.githubusercontent.com/tarruda/has/v1.0.1/LICENSE-MIT'
+  },
+  'regenerator-runtime@0.12.1': {
+    licenses: 'MIT',
+    licenseURL: 'https://raw.githubusercontent.com/facebook/regenerator/fde052c6c3563e007d233870ecd4a41920773bbd/LICENSE'
+  },
+  'boolbase@1.0.0': {
+    licenseURL: 'https://raw.githubusercontent.com/fb55/boolbase/be0bcd8a4e917a0a5895e95b523fbbed05a64871/LICENSE'
+  },
+  'debounce@1.2.0': {
+    licenses: 'MIT',
+    // got from readme https://github.com/component/debounce
+    licenseText: `MIT
+  Original implementation is from underscore.js which also has an MIT license.`
+  },
+  'is-in-browser@1.1.3': {
+    licenses: 'MIT',
+    noFile: true
   }
 };
 
@@ -188,62 +185,62 @@ const fetchLicense = (module) => {
   const url = repoVersion.replace(/https:\/\/github.com\//, 'https://raw.githubusercontent.com/');
 
   const urls = module.licenseURL ? [module.licenseURL] : NAMES.map(n => url + '/' + n);
-
   const exit = function() {
     console.log(...Array.from(arguments));
-    exitWithError('Could not find license text for:\n' + module.name + '@' + module.version + ' in ' + uiRepo);
+    return setErrorToModule(module, 'Could not find license text in ' + uiRepo);
   };
 
-  const fetchNext = () => {
+  const fetchNext = async () => {
     if (!urls.length) {
-      exit();
+      return exit();
+    }
+    const response = await fetch(urls.pop());
+
+    console.log('FETCHED', response.url);
+    // if (module.name === 'dom-helpers') console.log(response);
+    if (!response.ok) {
+      return fetchNext();
     }
 
-    return fetch(urls.pop()).then(response => {
-      console.log('FETCHED', response.url);
-      // if (module.name === 'dom-helpers') console.log(response);
-      if (!response.ok) {
-        return fetchNext();
-      }
-      if (response.url.toLowerCase().endsWith('/readme.md')) {
-        return response.text().then(text => {
+    const text = await response.text();
+    let extractedText = text;
 
-          // h2 case
-          let extractedText = text.replace(/[\s\S]+^## License/im, '');
-          if (text !== extractedText) {
-            extractedText = extractedText.replace(/^##? [\s\S]+/im, '').trim();
-          } else {
-            extractedText = '';
-          }
-
-          // h1 case
-          if (!extractedText) {
-            extractedText = text.replace(/[\s\S]+^# License/im, '');
-            if (text !== extractedText) {
-              extractedText.replace(/^# [\s\S]+/im, '').trim();
-            }
-          }
-
-          if (!extractedText) {
-            exit({extractedText, text});
-          }
-          return extractedText;
-        });
+    if (response.url.toLowerCase().endsWith('/readme.md')) {
+      // h2 case
+      extractedText = text.replace(/[\s\S]+^## License/im, '');
+      if (text !== extractedText) {
+        extractedText = extractedText.replace(/^##? [\s\S]+/im, '').trim();
+      } else {
+        extractedText = '';
       }
 
-      return response.text();
-    });
+      // h1 case
+      if (!extractedText) {
+        extractedText = text.replace(/[\s\S]+^# License/im, '');
+        if (text !== extractedText) {
+          extractedText = extractedText.replace(/^# [\s\S]+/im, '').trim();
+        }
+      }
+
+      if (!extractedText) {
+        return exit({extractedText, text});
+      }
+    }
+    module.licenseText = extractedText;
+    return module;
   };
+
   return fetchNext();
 };
 
+const setErrorToModule = (module, errorMessage) => Object.assign(module, { errorMessage, isError: true});
 
-function main() {
+async function main() {
   checker.init({
     start: './',
     production: true,
     customFormat: {version: null, name: null} // extra includes
-  }, (checkerError, modules) => {
+  }, async (checkerError, modules) => {
     if (checkerError) return console.error(checkerError);
 
     for (const [key, module] of Object.entries(modules)) {
@@ -263,9 +260,9 @@ function main() {
       }
 
       if (!BLESSED.has(module.licenses)) {
-        console.error(`Found license type that has not been blessed yet: ${module.licenses}.`);
-        console.error(key, module);
-        process.exit(-1);
+        setErrorToModule(module, `Found license type that has not been blessed yet: ${module.licenses}`);
+        promises.push(module);
+        continue;
       }
 
       if (module.licenseText) {
@@ -282,7 +279,7 @@ function main() {
         const repo = module.repository;
         const isGH = repo && repo.startsWith('https://github.com/');
         if (isGH) {
-          promises.push(fetchLicense(module).then(licenseText => Object.assign(module, {licenseText})));
+          promises.push(fetchLicense(module));
           continue;
         }
 
@@ -295,8 +292,9 @@ function main() {
         fs.readFile(module.licenseFile, 'utf8', (error, licenseText) => error ? reject(error) : resolve(Object.assign(module, {licenseText})));
       }));
     }
+    try {
+      const data = await Promise.all(promises);
 
-    Promise.all(promises).then(data => {
       data.forEach((module) => {
         if (module.licenseText) {
           // cleanliness
@@ -345,9 +343,20 @@ function main() {
         console.error('Found "GPL" in the NOTICE_UI_PRODUCTION.');
         process.exit(-1);
       }
-    }).catch(exitWithError);
 
-    Promise.all(promises).then(data => {
+      // check if there is any error
+      let isError = false;
+
+      data.forEach((module) => {
+        if (module.isError) {
+          isError = true;
+          console.error(`module: '${module.name}@${module.version}'. ${module.errorMessage}`, module);
+        }
+      });
+
+      if (isError) {
+        process.exit(-1);
+      }
 
       csv.stringify(data, {
         header: true,
@@ -365,13 +374,15 @@ function main() {
           copyright: 'notice',
           comment: 'comment' // placeholder
         }
-      }, (error, text) => {
+      }, (error, cvsText) => {
         if (error) return exitWithError(error);
 
-        !NO_WRITE && fs.writeFileSync('NOTICE_UI_PRODUCTION.csv', text);
+        !NO_WRITE && fs.writeFileSync('NOTICE_UI_PRODUCTION.csv', cvsText);
         console.log('\nNOTICE_UI_PRODUCTION.csv written for production dependencies.');
       });
-    }).catch(exitWithError);
+    } catch (e) {
+      exitWithError(e);
+    }
   });
 }
 
@@ -380,16 +391,16 @@ function exitWithError() {
   process.exit(-1);
 }
 
-checkNodeVersion({ npm: '<= 5.5.1' }, (error, results) => {
+checkNodeVersion({ npm: '>= 5.7' }, async (error, results) => {
   if (error) {
     exitWithError(error);
     return;
   }
 
   if (!results.isSatisfied) {
-    exitWithError('NPM must be v5.5.1 or less due to https://github.com/npm/npm/issues/19596');
+    exitWithError('NPM must be v5.7 or greater due to https://github.com/npm/npm/issues/19596');
     return;
   }
 
-  main();
+  await main();
 });

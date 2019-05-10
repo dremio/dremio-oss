@@ -23,7 +23,7 @@ import DocumentTitle from 'react-document-title';
 import { injectIntl } from 'react-intl';
 
 import HomePage from 'pages/HomePage/HomePage';
-import { loadSourceListData, setSourcePin } from 'actions/resources/sources';
+import { loadSourceListData } from 'actions/resources/sources';
 import { getSources } from 'selectors/resources';
 
 import AllSourcesView from './AllSourcesView.js';
@@ -36,7 +36,6 @@ export class AllSources extends Component {
     location: PropTypes.object.isRequired,
     sources: PropTypes.instanceOf(Immutable.List),
     loadSourceListData: PropTypes.func,
-    setSourcePin: PropTypes.func,
     intl: PropTypes.object.isRequired
   };
 
@@ -44,10 +43,6 @@ export class AllSources extends Component {
     if (!shallowEqual(this.props.location.query, nextProps.location.query)) {
       this.props.loadSourceListData();
     }
-  }
-
-  toggleActivePin = (name, pinState) => {
-    this.props.setSourcePin(name, !pinState);
   }
 
   render() {
@@ -58,7 +53,6 @@ export class AllSources extends Component {
         <AllSourcesView
           filters={this.filters}
           sources={sources}
-          toggleActivePin={this.toggleActivePin}
         />
       </HomePage>
     );
@@ -72,6 +66,5 @@ function mapStateToProps(state) {
 }
 
 export default connect(mapStateToProps, {
-  loadSourceListData,
-  setSourcePin
+  loadSourceListData
 })(AllSources);

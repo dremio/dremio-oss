@@ -18,12 +18,12 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect }   from 'react-redux';
 import { withRouter } from 'react-router';
-import $ from 'jquery';
+import domHelpers  from 'dom-helpers';
 
-import { getViewState, getEntity } from 'selectors/resources';
-import { createDynamicStateContainer } from '@app/containers/ModuleStateContainer';
+import { getExploreViewState } from 'selectors/resources';
+import { moduleStateHOC } from '@app/containers/ModuleStateContainer';
 import explore from '@app/reducers/explore';
-import { getDataset, getHistory, exploreStateKey, getExploreState } from 'selectors/explore';
+import { getHistory, exploreStateKey, getExploreState, getExplorePageDataset } from 'selectors/explore';
 import { performLoadDataset } from 'actions/explore/dataset/get';
 import { setCurrentSql } from 'actions/explore/view';
 import { resetViewState } from 'actions/resources';
@@ -41,16 +41,14 @@ import { setResizeProgressState } from 'actions/explore/ui';
 import { updateGridSizes, updateRightTreeVisibility } from 'actions/ui/ui';
 
 import { hasDatasetChanged } from 'utils/datasetUtils';
-import { constructFullPathAndEncode, splitFullPath } from 'utils/pathUtils';
 
-import { EXPLORE_VIEW_ID } from 'reducers/explore/view'; // NOTE: typically want exploreViewState.get('viewId')
 import { PageTypes, pageTypeValuesSet } from '@app/pages/ExplorePage/pageTypes';
 
 import QlikStateModal from './components/modals/QlikStateModal';
 
 import ExplorePage from './ExplorePage';
 
-const HEIGHT_OF_AREA_MARGIN = 160;
+const HEIGHT_AROUND_SQL_EDITOR = 175;
 const defaultPageType = PageTypes.default;
 
 export class ExplorePageControllerComponent extends Component {
@@ -67,7 +65,6 @@ export class ExplorePageControllerComponent extends Component {
     updateGridSizes: PropTypes.func,
     setResizeProgressState: PropTypes.func,
     isResizeInProgress: PropTypes.bool,
-    initialDatasetVersion: PropTypes.string,
     updateSqlPartSize: PropTypes.func.isRequired,
     exploreViewState: PropTypes.instanceOf(Immutable.Map),
     performLoadDataset: PropTypes.func.isRequired,
@@ -90,9 +87,7 @@ export class ExplorePageControllerComponent extends Component {
   constructor(props) {
     super(props);
     this.toggleRightTree = this.toggleRightTree.bind(this);
-    const height = $('#root').height() - HEIGHT_OF_AREA_MARGIN;
     this.state = {
-      tableHeight: height,
       dragType: 'groupBy',
       accessModalState: false,
       nextLocation: null,
@@ -101,9 +96,10 @@ export class ExplorePageControllerComponent extends Component {
   }
 
   componentDidMount() {
+    const { addHasChangesHook } = this.props;
     this.receiveProps(this.props);
-    if (this.props.addHasChangesHook) {
-      this.props.addHasChangesHook(this.shouldShowUnsavedChangesPopup);
+    if (addHasChangesHook) {
+      addHasChangesHook(this.shouldShowUnsavedChangesPopup);
     }
   }
 
@@ -120,10 +116,6 @@ export class ExplorePageControllerComponent extends Component {
       nextProps.router.push('/');
     }
 
-    if (nextProps.route.path !== (prevProps.route && prevProps.route.path)) {
-      //this.props.router.setRouteLeaveHook(nextProps.route, this.routeWillLeave.bind(this));
-    }
-
     const datasetChanged = hasDatasetChanged(nextProps.dataset, prevProps.dataset);
     if (datasetChanged) {
       // reset the view state in case we had an error, but now we are navigating to a properly loaded and cached version
@@ -137,6 +129,7 @@ export class ExplorePageControllerComponent extends Component {
     const prevNeedsLoad = prevProps.dataset ? prevProps.dataset.get('needsLoad') : false;
 
     if (needsLoad && (needsLoad !== prevNeedsLoad || datasetChanged)) {
+      //todo move viewId handling in handlePerformLoadDataset saga. See /dac/ui/src/sagas/performLoadDataset.js
       const {exploreViewState} = nextProps;
       const viewId = exploreViewState.get('viewId');
       nextProps.performLoadDataset(nextProps.dataset, viewId);
@@ -154,35 +147,6 @@ export class ExplorePageControllerComponent extends Component {
 
   toggleRightTree() {
     this.props.updateRightTreeVisibility(!this.props.rightTreeVisible);
-  }
-
-  routeWillLeave(nextLocation) {
-    const { isUnsavedChangesModalShowing } = this.state;
-    if (this.shouldShowUnsavedChangesPopup(nextLocation) && !isUnsavedChangesModalShowing) {
-      this.setState({nextLocation});
-      this.setState({isUnsavedChangesModalShowing: true});
-
-      this.props.showConfirmationDialog({
-        title: la('Unsaved Changes Warning'),
-        text: [
-          la('Performing this action will cause you to lose changes applied to the dataset.'),
-          la('Are you sure you want to continue?')
-        ],
-        confirmText: la('Continue'),
-        cancelText: la('Cancel'),
-        confirm: () => {
-          this.setState({isUnsavedChangesModalShowing: false}, () => {
-            this.didConfirmDiscardUnsavedChanges();
-          });
-        },
-        cancel: () => {
-          this.setState({isUnsavedChangesModalShowing: false});
-        }
-      });
-
-      return false;
-    }
-    return true;
   }
 
   _areLocationsSameDataset(history, oldLocation, newLocation) {
@@ -266,7 +230,6 @@ export class ExplorePageControllerComponent extends Component {
           rightTreeVisible={this.props.rightTreeVisible}
           toggleRightTree={this.toggleRightTree}
           dragType={this.state.dragType}
-          tableHeight={this.state.tableHeight}
           updateGridSizes={this.props.updateGridSizes}
           location={this.props.location}
           updateSqlPartSize={this.props.updateSqlPartSize}
@@ -274,7 +237,6 @@ export class ExplorePageControllerComponent extends Component {
           sqlSize={this.props.sqlSize}
           style={this.props.style}
           isResizeInProgress={this.props.isResizeInProgress}
-          exploreViewState={this.props.exploreViewState}
         />
         <QlikStateModal />
       </div>
@@ -282,85 +244,12 @@ export class ExplorePageControllerComponent extends Component {
   }
 }
 
-export function getNewDataset(location) {
-  return Immutable.fromJS({
-    isNewQuery: true,
-    fullPath: ['tmp', 'UNTITLED'],
-    displayFullPath: ['tmp', 'New Query'],
-    //have to decode a context parameter. This should be consistent with NewQueryButton.getNewQueryHref
-    context: location.query && location.query.context ? splitFullPath(location.query.context).map(decodeURIComponent) : [],
-    sql: '',
-    datasetType: 'VIRTUAL_DATASET',
-    apiLinks: {
-      self: '/dataset/tmp/UNTITLED/new_untitled_sql'
-    }
-  });
-}
-
-function getInitialDataset(location, routeParams, viewState) {
-  const version = location.query.version;
-  const displayFullPath = viewState.getIn(['error', 'details', 'displayFullPath']) ||
-    [...splitFullPath(routeParams.resourceId), ...splitFullPath(routeParams.tableId)];
-  const fullPath = location.query.mode === 'edit' ? displayFullPath : ['tmp', 'UNTITLED'];
-
-  return Immutable.fromJS({
-    fullPath,
-    displayFullPath,
-    sql: viewState.getIn(['error', 'details', 'sql']) || '',
-    context: viewState.getIn(['error', 'details', 'context']) || [],
-    datasetVersion: version,
-    datasetType: viewState.getIn(['error', 'details', 'datasetType']),
-    links: {
-      self: location.pathname + '?version=' + version
-    },
-    apiLinks: {
-      self: `/dataset/${constructFullPathAndEncode(fullPath)}` + (version ? `/version/${version}` : '')
-    }
-  });
-}
-
-function getExploreViewState(state, jobId) {
-  // Runs each get their own viewId so you can navigate away and back and see it's still in progress
-  if (jobId) {
-    return getViewState(state, 'run-' + jobId);
-  }
-  return getViewState(state, EXPLORE_VIEW_ID);
-}
-
 function mapStateToProps(state, ownProps) {
   const { location, routeParams } = ownProps;
   const isNewQuery = location.pathname === '/new_query';
-  const { query } = location || {};
-  const { jobId } = query;
-  const exploreViewState = getExploreViewState(state, jobId);
-
-  let dataset;
-  let needsLoad = false;
-
-
-  if (isNewQuery) {
-    dataset = getNewDataset(location);
-  } else {
-    dataset = getDataset(state, query.version);
-
-    if (dataset) {
-      const fullDataset = getEntity(state, query.version, 'fullDataset');
-      if (fullDataset && fullDataset.get('error')) {
-        needsLoad = true;
-      }
-    } else {
-      needsLoad = true;
-      dataset = getInitialDataset(location, routeParams, exploreViewState);
-    }
-  }
-  dataset = dataset.set('needsLoad', needsLoad);
-
-  if (query.jobId) {
-    dataset = dataset.set('jobId', query.jobId);
-  }
-
-  dataset = dataset.set('tipVersion', query.tipVersion || dataset.get('datasetVersion'));
+  const dataset = getExplorePageDataset(state);
   const explorePageState = getExploreState(state);
+  const sqlHeight = Math.min(explorePageState.ui.get('sqlSize'), domHelpers.ownerWindow().innerHeight - HEIGHT_AROUND_SQL_EDITOR);
 
   return {
     pageType: routeParams.pageType,
@@ -368,11 +257,10 @@ function mapStateToProps(state, ownProps) {
     history: getHistory(state, dataset.get('tipVersion')),
     // in New Query, force sql open, but don't change state in localStorage
     sqlState: explorePageState.ui.get('sqlState') || isNewQuery,
-    sqlSize: explorePageState.ui.get('sqlSize'),
+    sqlSize: sqlHeight,
     isResizeInProgress: explorePageState.ui.get('isResizeInProgress'),
-    initialDatasetVersion: explorePageState.ui.get('initialDatasetVersion'),
     rightTreeVisible: state.ui.get('rightTreeVisible'),
-    exploreViewState
+    exploreViewState: getExploreViewState(state)
   };
 }
 
@@ -389,12 +277,5 @@ const Connected = withHookProvider(connect(mapStateToProps, {
   showConfirmationDialog
 })(withDatasetChanges(ExplorePageController)));
 
-const ModuleStateContainer = createDynamicStateContainer(exploreStateKey, explore);
+export default moduleStateHOC(exploreStateKey, explore)(Connected);
 
-export default props => {
-  return (
-    <ModuleStateContainer>
-      <Connected {...props} />
-    </ModuleStateContainer>
-  );
-};

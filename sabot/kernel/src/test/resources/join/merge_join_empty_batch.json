@@ -8,7 +8,7 @@
   },
   graph:[
     {
-      @id:1,
+      id:1,
       pop:"mock-scan",
       url: "http://source1.apache.org",
       entries:[
@@ -17,10 +17,11 @@
           {name: "red", type: "INT", mode: "REQUIRED"},
           {name: "green", type: "INT", mode: "REQUIRED"}
         ]}
-      ]
+      ],
+      props: {"operatorId": 1, "memLimit": 1073741824 }
     },
     {
-      @id:2,
+      id:2,
       pop:"mock-scan",
       url: "http://source2.apache.org",
       entries:[
@@ -29,20 +30,23 @@
           {name: "red1", type: "INT", mode: "REQUIRED"},
           {name: "green1", type: "INT", mode: "REQUIRED"}
         ]}
-      ]
+      ],
+      props: {"operatorId": 2, "memLimit": 1073741824 }
     },
     {
-      @id: 3,
+      id: 3,
       right: 1,
       left: 2,
       pop: "merge-join",
       joinType: "${JOIN_TYPE}",
-      conditions: [ {relationship: "==", left: "blue1", right: "blue"} ]
+      conditions: [ {relationship: "==", left: "blue1", right: "blue"} ],
+      props: {"operatorId": 3, "memLimit": 1073741824, "targetBatchSize": 1024, "schemaHashCode": -1693187053 }
     },
     {
-      @id: 4,
+      id: 4,
       child: 3,
-      pop: "screen"
+      pop: "screen",
+      props: {"operatorId": 4, "memLimit": 1073741824, "schemaHashCode": -1693187053 }
     }
   ]
 }

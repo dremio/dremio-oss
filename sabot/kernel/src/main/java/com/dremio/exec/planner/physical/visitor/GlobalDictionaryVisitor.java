@@ -36,6 +36,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.physical.AggPrelBase;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
@@ -49,18 +50,18 @@ import com.dremio.exec.planner.physical.LimitPrel;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.sql.TypeInferenceUtils;
-import com.dremio.exec.store.parquet.ParquetDatasetXAttrSerDe;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanPrel;
 import com.dremio.exec.util.GlobalDictionaryBuilder;
+import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.DictionaryEncodedColumns;
+import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetXAttr;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
-import com.dremio.service.namespace.file.proto.DictionaryEncodedColumns;
-import com.dremio.service.namespace.file.proto.ParquetDatasetXAttr;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 
 /**
@@ -364,10 +365,15 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
     final Map<String, String> dictionaryEncodedColumnsToDictionaryFilePath = Maps.newHashMap();
     long dictionaryVersion = -1;
 
-    final ParquetDatasetXAttr xAttr = ParquetDatasetXAttrSerDe.PARQUET_DATASET_XATTR_SERIALIZER.revert(
-      readDefinition.getExtendedProperty().toByteArray());
-    final DictionaryEncodedColumns dictionaryEncodedColumns = xAttr.getDictionaryEncodedColumns();
-    if (dictionaryEncodedColumns != null) {
+    final ParquetDatasetXAttr xAttr;
+    try {
+      xAttr = LegacyProtobufSerializer.parseFrom(ParquetDatasetXAttr.PARSER,
+          readDefinition.getExtendedProperty().toByteArray());
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Could not deserialize parquet dataset info");
+    }
+    if (xAttr.hasDictionaryEncodedColumns()) {
+      final DictionaryEncodedColumns dictionaryEncodedColumns = xAttr.getDictionaryEncodedColumns();
       dictionaryVersion = dictionaryEncodedColumns.getVersion();
       // Construct paths to dictionary files based on the version found in namespace. Do NOT look for files during planning.
       final Path dictionaryRootPath = new Path(dictionaryEncodedColumns.getRootPath());

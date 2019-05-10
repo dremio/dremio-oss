@@ -17,11 +17,11 @@ package com.dremio.exec.planner.cost;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -40,8 +40,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.exception.StoreException;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
@@ -49,12 +51,16 @@ import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.physical.UnionExchangePrel;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
+import com.dremio.exec.serialization.InstanceSerializer;
 import com.dremio.exec.server.ClusterResourceInformation;
+import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.sys.PersistentStore;
+import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.SystemPluginConf;
 import com.dremio.exec.store.sys.SystemScanPrel;
 import com.dremio.exec.store.sys.SystemTable;
-import com.dremio.options.OptionManager;
+import com.dremio.exec.store.sys.store.KVPersistentStore.PersistentStoreCreator;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -73,8 +79,28 @@ public class TestRelMdRowCount {
   private RelOptCluster cluster;
 
   @Before
-  public void setup() {
-    OptionManager optionManager = mock(OptionManager.class);
+  public void setup() throws Exception {
+    SystemOptionManager optionManager = new SystemOptionManager(DremioTest.CLASSPATH_SCAN_RESULT, new LogicalPlanPersistence(DremioTest.DEFAULT_SABOT_CONFIG, DremioTest.CLASSPATH_SCAN_RESULT), new PersistentStoreProvider() {
+
+      @Override
+      public void close() throws Exception {
+      }
+
+      @Override
+      public void start() throws Exception {
+      }
+
+      @Override
+      public <V> PersistentStore<V> getOrCreateStore(String storeName, Class<? extends PersistentStoreCreator> storeCreator,
+          InstanceSerializer<V> serializer) throws StoreException {
+        @SuppressWarnings("unchecked")
+        final PersistentStore<V> store = mock(PersistentStore.class);
+        when(store.getAll()).thenReturn(Collections.emptyIterator());
+        return store;
+      }
+    });
+    optionManager.init();
+
     ClusterResourceInformation info = mock(ClusterResourceInformation.class);
     when(info.getExecutorNodeCount()).thenReturn(1);
     PlannerSettings plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, info);
@@ -139,7 +165,7 @@ public class TestRelMdRowCount {
     RexNode joinExpr = rexBuilder.makeCall(
         SqlStdOperatorTable.EQUALS,
         rexBuilder.makeInputRef(left, 1),
-        rexBuilder.makeInputRef(right, 1)
+        rexBuilder.makeInputRef(right.getRowType().getFieldList().get(1).getType(), 3)
     );
 
     Prel input =
@@ -152,6 +178,28 @@ public class TestRelMdRowCount {
       );
 
     verifyCount(5_000d /* max rowCount from */, input);
+  }
+
+  @Test
+  public void joinNonEqui() throws Exception {
+    Prel left = newProject(exprs(), rowType(), newScan(rowType(), 2_000, 1.0d));
+    Prel right = newProject(exprs(), rowType(), newScan(rowType(), 5_000, 1.0d));
+    RexNode joinExpr = rexBuilder.makeCall(
+        SqlStdOperatorTable.LESS_THAN,
+        rexBuilder.makeInputRef(left, 1),
+        rexBuilder.makeInputRef(right.getRowType().getFieldList().get(1).getType(), 3)
+    );
+
+    Prel input =
+      newScreen(
+        newProject(exprs(), rowType(),
+          newUnionExchange(
+            newJoin(left, right, joinExpr)
+          )
+        )
+      );
+
+    verifyCount(2_500d /* max rowCount from */, input);
   }
 
   private void verifyCount(Double expected, Prel input) {
@@ -174,11 +222,11 @@ public class TestRelMdRowCount {
   private Prel newScan(RelDataType rowType, double rowCount, double splitRatio) throws Exception {
     TableMetadata metadata = Mockito.mock(TableMetadata.class);
     when(metadata.getName()).thenReturn(new NamespaceKey(ImmutableList.of("sys", "version")));
-    when(metadata.getSchema()).thenReturn(SystemTable.VERSION.getSchema());
+    when(metadata.getSchema()).thenReturn(SystemTable.VERSION.getRecordSchema());
     when(metadata.getSplitRatio()).thenReturn(splitRatio);
     StoragePluginId pluginId = new StoragePluginId(new SourceConfig().setConfig(new SystemPluginConf().toBytesString()), new SystemPluginConf(), SourceCapabilities.NONE);
     when(metadata.getStoragePluginId()).thenReturn(pluginId);
-    List<SchemaPath> columns = FluentIterable.from(SystemTable.VERSION.getSchema()).transform(input -> SchemaPath.getSimplePath(input.getName())).toList();
+    List<SchemaPath> columns = FluentIterable.from(SystemTable.VERSION.getRecordSchema()).transform(input -> SchemaPath.getSimplePath(input.getName())).toList();
     final RelOptTable relOptTable = Mockito.mock(RelOptTable.class);
     when(relOptTable.getRowCount()).thenReturn(rowCount);
     return new SystemScanPrel(cluster, traits, relOptTable, metadata, columns, 1.0d, rowType);
@@ -203,11 +251,6 @@ public class TestRelMdRowCount {
   }
 
   private Prel newJoin(Prel left, Prel right, RexNode joinExpr) {
-    try {
-      return new HashJoinPrel(cluster, traits, left, right, joinExpr, JoinRelType.INNER);
-    } catch (Exception e) {
-      fail();
-    }
-    return null;
+    return HashJoinPrel.create(cluster, traits, left, right, joinExpr, JoinRelType.INNER);
   }
 }

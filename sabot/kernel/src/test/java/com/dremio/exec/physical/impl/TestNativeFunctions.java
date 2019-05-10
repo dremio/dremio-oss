@@ -38,6 +38,7 @@ import org.junit.Test;
 
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.Project;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.BaseTestFunction;
@@ -85,7 +86,23 @@ public class TestNativeFunctions extends BaseTestFunction {
   @Test
   public void testCastDate() throws Exception {
     testFunctions(new Object[][]{
+      {"extractYear(castDATE(c0))","0079:10:10", 79l}
+    });
+    testFunctions(new Object[][]{
       {"extractYear(castDATE(c0))","79:10:10", 1979l}
+    });
+    testFunctions(new Object[][]{
+      {"extractYear(castDATE(c0))","2079:10:10", 2079l}
+    });
+  }
+
+  @Test
+  public void testCastTimestamp() throws Exception {
+    testFunctions(new Object[][]{
+      {"extractYear(castTIMESTAMP(c0))","0079-10-10", 79l}
+    });
+    testFunctions(new Object[][]{
+      {"extractYear(castTIMESTAMP(c0))","1979-10-10", 1979l}
     });
   }
 
@@ -363,7 +380,7 @@ public class TestNativeFunctions extends BaseTestFunction {
   }
 
   private void validateMultiRow(String strExpr, Table input, Table output) throws Exception {
-    Project p = new Project(Arrays.asList(n(strExpr, "out")), null);
+    Project p = new Project(OpProps.prototype(), null, Arrays.asList(n(strExpr, "out")));
     validateSingle(p, ProjectOperator.class, input, output);
   }
 
@@ -484,4 +501,5 @@ public class TestNativeFunctions extends BaseTestFunction {
     );
     validateMultiRow("case when c0 > 3 AND c0 < 6 then 1 else 2 end", input, output);
   }
+
 }

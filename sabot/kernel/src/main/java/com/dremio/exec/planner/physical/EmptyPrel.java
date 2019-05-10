@@ -35,9 +35,15 @@ import com.dremio.exec.physical.config.EmptyValues;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 
-
+@Options
 public class EmptyPrel extends AbstractRelNode implements Prel {
+
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.empty.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.empty.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   private final BatchSchema schema;
 
@@ -46,6 +52,10 @@ public class EmptyPrel extends AbstractRelNode implements Prel {
     this.schema = schema;
     this.rowType = rowType;
     this.digest = schema.toString();
+  }
+
+  public BatchSchema getBatchSchema() {
+    return schema;
   }
 
   @Override
@@ -70,7 +80,7 @@ public class EmptyPrel extends AbstractRelNode implements Prel {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    return creator.addMetadata(this, new EmptyValues(schema));
+    return new EmptyValues(creator.props(this, null, schema, RESERVE, LIMIT), schema);
   }
 
   @Override

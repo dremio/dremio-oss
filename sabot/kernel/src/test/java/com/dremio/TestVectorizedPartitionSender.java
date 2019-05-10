@@ -25,6 +25,7 @@ import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.physical.config.HashSenderCalculator;
 import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestVectorizedPartitionSender extends BaseTestQuery {
@@ -50,7 +51,7 @@ public class TestVectorizedPartitionSender extends BaseTestQuery {
           .sqlQuery(query)
           .go();
 
-      try (AutoCloseable ac = withOption(ExecConstants.PARTITION_SENDER_BATCH_ADAPTIVE, true)) {
+      try (AutoCloseable ac = withOption(HashSenderCalculator.ENABLE_ADAPTIVE, true)) {
         testBuilder()
             .unOrdered()
             .optionSettingQueriesForBaseline("SET \"exec.operator.partitioner.vectorize\" = false")

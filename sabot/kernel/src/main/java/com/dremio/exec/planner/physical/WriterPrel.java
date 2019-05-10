@@ -29,8 +29,16 @@ import com.dremio.exec.planner.common.WriterRelBase;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.store.RecordWriter;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 
+@Options
 public class WriterPrel extends WriterRelBase implements Prel {
+
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.writer.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.writer.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   public static final String PARTITION_COMPARATOR_FIELD = "P_A_R_T_I_T_I_O_N_C_O_M_P_A_R_A_T_O_R";
   public static final String BUCKET_NUMBER_FIELD = "P_A_R_T_I_T_I_O_N_N_U_M_B_E_R";
@@ -50,9 +58,12 @@ public class WriterPrel extends WriterRelBase implements Prel {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    Prel child = (Prel) this.getInput();
-    PhysicalOperator g = getCreateTableEntry().getWriter(child.getPhysicalOperator(creator));
-    return creator.addMetadata(this, g);
+    PhysicalOperator child = ((Prel) this.getInput()).getPhysicalOperator(creator);
+
+    return getCreateTableEntry().getWriter(
+        creator.props(this, creator.getContext().getQueryUserName(), RecordWriter.SCHEMA),
+        child
+        );
   }
 
   @Override

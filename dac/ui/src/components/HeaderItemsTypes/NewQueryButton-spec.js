@@ -69,7 +69,7 @@ describe('NewQueryButton', () => {
       expect(commonProps.showConfirmationDialog).to.not.be.called;
       expect(commonProps.resetNewQuery).to.be.called;
 
-      wrapper.setProps({currentSql: undefined});
+      wrapper.setProps({currentSql: null});
       instance.handleClick(clickEvent);
       expect(context.router.push).to.not.be.called;
       expect(commonProps.showConfirmationDialog).to.not.be.called;

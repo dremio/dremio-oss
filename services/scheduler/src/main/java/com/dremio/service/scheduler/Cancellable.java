@@ -32,4 +32,6 @@ public interface Cancellable {
   void cancel(boolean mayInterruptIfRunning);
 
   boolean isCancelled();
+
+  boolean isDone();
 }

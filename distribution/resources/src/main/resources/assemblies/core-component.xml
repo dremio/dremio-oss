@@ -59,6 +59,7 @@
         <exclude>org.apache.hadoop:hadoop-native-libraries</exclude>
         <!-- tests dependencies which cannot be excluded directly -->
         <exclude>org.apache.hbase:hbase-hadoop2-compat:jar:tests</exclude>
+        <exclude>org.apache.parquet:parquet-column:test-jar:tests</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>

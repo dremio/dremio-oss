@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>3.1.11-201904261857420193-c674472</version>
+    <version>3.2.0-201905102005330382-0598733</version>
   </parent>
 
   <artifactId>dremio-dac-ui</artifactId>
@@ -75,7 +75,7 @@
                     <exclude>build/**</exclude>
                     <exclude>node_modules/**</exclude>
                     <exclude>src/main/resources/**</exclude>
-                    <exclude>${project.build.directory}/**</exclude>
+                    <exclude>target/**</exclude>
                   </excludes>
                   <filtering>false</filtering>
                 </resource>
@@ -137,7 +137,7 @@
               <goal>npm</goal>
             </goals>
             <configuration>
-              <arguments>run test:only -- --reporter mocha-junit-reporter --reporter-options mochaFile=${project.build.directory}/mocha-reports/test-results.xml</arguments>
+              <arguments>run test:only -- --reporter mocha-junit-reporter --reporter-options mochaFile=${project.build.directory}/mocha-reports/test-results.xml,testsuitesTitle=dac-ui</arguments>
               <skip>${skipTests}</skip>
             </configuration>
           </execution>

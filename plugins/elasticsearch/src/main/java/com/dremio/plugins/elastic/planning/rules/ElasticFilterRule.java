@@ -94,7 +94,7 @@ public class ElasticFilterRule extends RelOptRule {
 
     Residue newResidue = PredicateAnalyzer.analyzeConjunctions(scan, newFilter.getCondition());
     if (newResidue.none()) {
-      PredicateAnalyzer.analyze(scan, newFilter.getCondition());
+      PredicateAnalyzer.analyze(scan, newFilter.getCondition(), false);
 
       final RexNode residueCondition = residue.getResidue(originalCondition, rexBuilder);
       if (!residueCondition.isAlwaysTrue()) {

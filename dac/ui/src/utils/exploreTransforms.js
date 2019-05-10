@@ -27,8 +27,15 @@ class Transforms {
   dropColumn({name, table}) {
     const nextColumns = table.get('columns').filter(col => col.get('name') !== name);
     const colIndex = table.get('columns').findIndex(col => col.get('name') === name);
-    const nextRows = table.get('rows').filter((r, index) => index !== colIndex);
-    return table.set('columns', nextColumns).set('rows', nextRows);
+
+    let nextTable = table.set('columns', nextColumns);
+    // the data may be loaded asynchronously, so rows could be not presented
+    let nextRows = table.get('rows');
+    if (nextRows) {
+      nextRows = nextRows.map(row => row.set('row', row.get('row').filter((r, index) => index !== colIndex)));
+      nextTable = nextTable.set('rows', nextRows);
+    }
+    return nextTable;
   }
 
   renameColumn({name, nextName, table}) {

@@ -90,7 +90,7 @@ export class ExploreTableCellView extends Component {
   shouldComponentUpdate(nextProps, nextState) {
     const dataPath = [nextProps.rowIndex, 'row', nextProps.columnKey];
 
-    const props = ['rowIndex', 'columnKey', 'columnStatus', 'width'];
+    const props = ['rowIndex', 'columnKey', 'columnStatus', 'columnType', 'width'];
     return !shallowEqual(pick(nextProps, props), pick(this.props, props))
       || !shallowEqual(nextState, this.state)
       || !Immutable.is(nextProps.data.getIn(dataPath), this.props.data.getIn(dataPath));

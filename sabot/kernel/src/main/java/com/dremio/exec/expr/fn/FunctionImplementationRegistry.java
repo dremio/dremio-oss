@@ -21,9 +21,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.vector.types.pojo.ArrowType;
+
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
+import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.resolver.FunctionResolver;
@@ -31,6 +34,7 @@ import com.dremio.options.OptionManager;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 /**
  * This class offers the registry for functions. Notably, in addition to Dremio its functions
@@ -43,6 +47,9 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
   private FunctionRegistry functionRegistry;
   private List<PluggableFunctionRegistry> pluggableFuncRegistries = Lists.newArrayList();
   private OptionManager optionManager = null;
+  private static final Set<String> aggrFunctionNames = Sets.newHashSet("sum", "$sum0", "min",
+    "max", "hll");
+  protected boolean isDecimalV2Enabled;
 
   public FunctionImplementationRegistry(SabotConfig config, ScanResult classpathScan){
     Stopwatch w = Stopwatch.createStarted();
@@ -65,6 +72,8 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
     }
     // All others are added should be safe to add Gandiva now.
     instantiateAndAddRepo(config, GandivaFunctionRegistry.class);
+    // this is the registry used, when decimal v2 is turned off.
+    isDecimalV2Enabled = false;
     logger.info("Function registry loaded.  {} functions loaded in {} ms.", functionRegistry.size(), w.elapsed(TimeUnit.MILLISECONDS));
   }
 
@@ -104,10 +113,10 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
    */
   public void register(OperatorTable operatorTable) {
     // Register Dremio functions first and move to pluggable function registries.
-    functionRegistry.register(operatorTable);
+    functionRegistry.register(operatorTable, isDecimalV2Enabled);
 
     for(PluggableFunctionRegistry registry : pluggableFuncRegistries) {
-      registry.register(operatorTable);
+      registry.register(operatorTable, isDecimalV2Enabled);
     }
   }
 
@@ -121,7 +130,20 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
    */
   @Override
   public BaseFunctionHolder findFunction(FunctionResolver functionResolver, FunctionCall functionCall) {
-    return functionResolver.getBestMatch(functionRegistry.getMethods(functionCall.getName()), functionCall);
+    FunctionCall functionCallToResolve = functionCall;
+    // If decimal v2 is on, switch to function definitions that return decimal vectors
+    // for decimal accumulation.
+    if (isDecimalV2Enabled) {
+      if (aggrFunctionNames.contains(functionCall.getName().toLowerCase())) {
+        LogicalExpression aggrColumn = functionCall.args.get(0);
+        if (aggrColumn.getCompleteType().getType().getTypeID() == ArrowType.ArrowTypeID.Decimal) {
+          functionCallToResolve = new FunctionCall(functionCall.getName() +
+            "_v2", functionCall.args);
+        }
+      }
+    }
+    return functionResolver.getBestMatch(functionRegistry.getMethods(functionCallToResolve.getName()),
+      functionCallToResolve, isDecimalV2Enabled);
   }
 
   /**
@@ -154,13 +176,18 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
   @Override
   public AbstractFunctionHolder findNonFunction(FunctionCall functionCall) {
     for(PluggableFunctionRegistry registry : pluggableFuncRegistries) {
-      AbstractFunctionHolder h = registry.getFunction(functionCall);
+      AbstractFunctionHolder h = registry.getFunction(functionCall, isDecimalV2Enabled);
       if (h != null) {
         return h;
       }
     }
 
     return null;
+  }
+
+  @Override
+  public OptionManager getOptionManager() {
+    return optionManager;
   }
 
   // Method to find if the output type of a dremio function if of complex type
@@ -176,5 +203,9 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
 
   public FunctionRegistry getFunctionRegistry() {
     return functionRegistry;
+  }
+
+  public boolean isDecimalV2Enabled() {
+    return isDecimalV2Enabled;
   }
 }

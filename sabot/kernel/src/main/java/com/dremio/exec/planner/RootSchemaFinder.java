@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner;
 
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -29,13 +28,12 @@ import com.dremio.exec.record.BatchSchema;
  */
 public class RootSchemaFinder extends AbstractPhysicalVisitor<Void, Void, Exception> {
 
-  private final FunctionLookupContext functionLookupContext;
   private BatchSchema batchSchema;
 
-  public static BatchSchema getSchema(Root rootOperator, FunctionLookupContext functionLookupContext) throws Exception {
+  public static BatchSchema getSchema(Root rootOperator) throws Exception {
     // Start with schema of root operator. Replace it with schema of writer operator if any writer exists
-    final BatchSchema rootOperatorSchema = rootOperator.getSchema(functionLookupContext);
-    final RootSchemaFinder rootSchemaFinder = new RootSchemaFinder(functionLookupContext);
+    final BatchSchema rootOperatorSchema = rootOperator.getProps().getSchema();
+    final RootSchemaFinder rootSchemaFinder = new RootSchemaFinder();
     rootOperator.accept(rootSchemaFinder, null);
     if (rootSchemaFinder.batchSchema != null) {
       return rootSchemaFinder.batchSchema;
@@ -44,8 +42,7 @@ public class RootSchemaFinder extends AbstractPhysicalVisitor<Void, Void, Except
     return rootOperatorSchema;
   }
 
-  private RootSchemaFinder(FunctionLookupContext functionLookupContext) {
-    this.functionLookupContext = functionLookupContext;
+  private RootSchemaFinder() {
   }
 
   @Override
@@ -55,7 +52,7 @@ public class RootSchemaFinder extends AbstractPhysicalVisitor<Void, Void, Except
 
   @Override
   public Void visitWriter(Writer writer, Void value) throws Exception {
-    this.batchSchema = ((AbstractWriter) writer).getChild().getSchema(functionLookupContext);
+    this.batchSchema = ((AbstractWriter) writer).getChild().getProps().getSchema();
     return visitOp(writer, value);
   }
 

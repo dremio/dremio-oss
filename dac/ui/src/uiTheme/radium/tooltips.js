@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 import { PALE_NAVY, NAVY } from 'uiTheme/radium/colors';
+import { bodyWhite } from 'uiTheme/radium/typography';
 
-const arrowWidth = '5px';
+export const arrowWidth = '5px';
 
 const typeToColor = {
   error: '#FEEAEA',
@@ -24,15 +25,14 @@ const typeToColor = {
 };
 
 
+const baseToolTipStyle = {
+  position: 'relative'
+};
 
 export default function getTooltipStyles(type) {
   const bgColor = typeToColor[type];
   return {
     base: {
-      position: 'absolute',
-      padding: '0 5px',
-      paddingRight: 4,
-      borderRadius: 1,
       // chris notes: not super happy about zIndex here
       // but these are currently inline in the DOM (not at the end)
       // and they need to be on top of any subsequent stacking context (caused by any reason).
@@ -44,46 +44,52 @@ export default function getTooltipStyles(type) {
     },
 
     inner: {
-      padding: '3px 8px',
-      textAlign: 'center',
+      textAlign: 'left',
       backgroundColor: bgColor,
-      width: 180
+      width: 180,
+      borderRadius: 5,
+      padding: 10,
+      ...(type === 'status' ? bodyWhite : null)
     },
 
     arrow: {
       position: 'absolute',
-      width: 0, height: 0,
+      width: 0,
+      height: 0,
       borderColor: 'transparent',
+      color: 'transparent',
       borderStyle: 'solid'
     },
     placement: {
       top: {
-        tooltip: {marginTop: -3, padding: `${arrowWidth} 0`},
+        tooltip: { ...baseToolTipStyle, paddingBottom: arrowWidth },
         arrow: {
-          bottom: 0, marginLeft: `-${arrowWidth}`, borderWidth: `${arrowWidth} ${arrowWidth} 0`, borderTopColor: bgColor
+          bottom: 0,
+          borderWidth: `${arrowWidth} ${arrowWidth} 0`,
+          borderTopColor: bgColor
         }
       },
       right: {
-        tooltip: {marginRight: 3, padding: `0 ${arrowWidth}`},
+        tooltip: { ...baseToolTipStyle, paddingLeft: arrowWidth },
         arrow: {
           left: 0,
-          marginTop: `-${arrowWidth}`, borderWidth: `${arrowWidth} ${arrowWidth} ${arrowWidth} 0`,
+          borderWidth: `${arrowWidth} ${arrowWidth} ${arrowWidth} 0`,
           borderRightColor: bgColor
         }
       },
       bottom: {
-        tooltip: {marginBottom: 3, padding: `${arrowWidth} 0`},
+        tooltip: { ...baseToolTipStyle, paddingTop: arrowWidth },
         arrow: {
           top: 0,
-          marginLeft: `-${arrowWidth}`, borderWidth: `0 ${arrowWidth} ${arrowWidth}`,
+          borderWidth: `0 ${arrowWidth} ${arrowWidth}`,
           borderBottomColor: bgColor
         }
       },
       left: {
-        tooltip: {marginLeft: -3, padding: `0 ${arrowWidth}`, left: 0},
+        tooltip: { ...baseToolTipStyle, paddingRight: arrowWidth },
         arrow: {
           right: 0,
-          marginTop: `-${arrowWidth}`, borderWidth: `${arrowWidth} 0 ${arrowWidth} ${arrowWidth}`,
+          borderWidth: `${arrowWidth} 0 ${arrowWidth} ${arrowWidth}`,
           borderLeftColor: bgColor
         }
       }

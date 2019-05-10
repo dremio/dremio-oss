@@ -30,10 +30,10 @@ import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.GroupScan;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.physical.base.ScanStats;
@@ -63,8 +63,8 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
   private final List<String> columns;
 
   @JsonCreator
-  public MockGroupScanPOP(@JsonProperty("url") String url, @JsonProperty("entries") List<MockScanEntry> readEntries) {
-    super((String) null);
+  public MockGroupScanPOP(@JsonProperty("props") OpProps props, @JsonProperty("url") String url, @JsonProperty("entries") List<MockScanEntry> readEntries) {
+    super(props);
     this.readEntries = readEntries == null ? ImmutableList.<MockScanEntry>of() : readEntries;
     this.schema = getSchema(this.readEntries);
     this.url = url;
@@ -235,7 +235,7 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
 
   @Override
   public SubScan getSpecificScan(List<MockScanEntry> work) throws ExecutionSetupException {
-    return new MockSubScanPOP(url, work);
+    return new MockSubScanPOP(OpProps.prototype(props.getOperatorId()), url, work);
   }
 
   @Override
@@ -247,7 +247,7 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
   @JsonIgnore
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
     Preconditions.checkArgument(children.isEmpty());
-    return new MockGroupScanPOP(url, readEntries);
+    return new MockGroupScanPOP(this.props, url, readEntries);
 
   }
 
@@ -265,21 +265,6 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
   @Deprecated
   public List<String> getTableSchemaPath() {
     return Collections.singletonList("mock");
-  }
-
-  @Override
-  public List<List<String>> getReferencedTables() {
-    return ImmutableList.of(Collections.singletonList("mock"));
-  }
-
-  @Override
-  public boolean mayLearnSchema() {
-    return false;
-  }
-
-  @Override
-  public BatchSchema getSchema() {
-    return schema;
   }
 
   @Override
@@ -305,11 +290,6 @@ public class MockGroupScanPOP extends AbstractBase implements GroupScan<MockGrou
   @Override
   public DistributionAffinity getDistributionAffinity() {
     return DistributionAffinity.SOFT;
-  }
-
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    return schema;
   }
 
 }

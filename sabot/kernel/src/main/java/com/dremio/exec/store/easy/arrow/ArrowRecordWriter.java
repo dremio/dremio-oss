@@ -41,7 +41,6 @@ import com.dremio.exec.store.easy.arrow.ArrowFileFormat.ArrowFileFooter;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat.ArrowFileMetadata;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat.ArrowRecordBatchSummary;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -53,7 +52,7 @@ public class ArrowRecordWriter implements RecordWriter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EventBasedRecordWriter.class);
 
   private final EasyWriter writerConfig;
-  private final OperatorStats stats;
+  private final OperatorContext context;
   private final List<Path> listOfFilesCreated;
   private final ArrowFileFooter.Builder footerBuilder;
 
@@ -73,11 +72,12 @@ public class ArrowRecordWriter implements RecordWriter {
   private long recordCount;
   private String relativePath;
 
-  public ArrowRecordWriter(OperatorContext context, final EasyWriter writerConfig, ArrowFormatPluginConfig formatConfig) {
+  public ArrowRecordWriter(OperatorContext context, final EasyWriter writerConfig,
+                           ArrowFormatPluginConfig formatConfig) {
     final FragmentHandle handle = context.getFragmentHandle();
 
     this.writerConfig = writerConfig;
-    this.stats = context.getStats();
+    this.context = context;
     this.listOfFilesCreated = Lists.newArrayList();
     this.footerBuilder = ArrowFileFooter.newBuilder();
     this.location = new Path(writerConfig.getLocation());
@@ -92,7 +92,7 @@ public class ArrowRecordWriter implements RecordWriter {
     this.incoming = incoming;
     this.outputEntryListener = outputEntryListener;
     this.writeStatsListener = writeStatsListener;
-    this.fs = FileSystemWrapper.get(location, writerConfig.getFsConf(), stats);
+    this.fs = writerConfig.getFormatPlugin().getFsPlugin().getFileSystem(writerConfig.getFsConf(), context);
     this.currentFile = fs.canonicalizePath(new Path(location, String.format("%s_%d.%s", prefix, nextFileIndex, extension)));
     this.relativePath = currentFile.getName();
     this.currentFileOutputStream = fs.create(currentFile);

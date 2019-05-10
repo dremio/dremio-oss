@@ -18,13 +18,18 @@ package com.dremio.exec.planner.physical;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
+import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
+import com.dremio.exec.planner.common.JoinRelBase;
 import com.dremio.exec.planner.logical.JoinRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
 
 public class HashJoinPrule extends JoinPruleBase {
   public static final RelOptRule DIST_INSTANCE = new HashJoinPrule("Prel.HashJoinDistPrule", RelOptHelper.any(JoinRel.class), true);
@@ -63,20 +68,49 @@ public class HashJoinPrule extends JoinPruleBase {
 
     try {
 
-      if(isDist){
+      if (isDist) {
         createDistBothPlan(call, join, PhysicalJoinType.HASH_JOIN,
             left, right, null /* left collation */, null /* right collation */, hashSingleKey);
-      }else{
-        if (checkBroadcastConditions(call.getPlanner(), join, left, right)) {
-          createBroadcastPlan(call, join, join.getCondition(), PhysicalJoinType.HASH_JOIN,
-              left, right, null /* left collation */, null /* right collation */);
+      } else {
+        if (checkBroadcastConditions(call.getPlanner(), join, left, right, PhysicalJoinType.HASH_JOIN)) {
+          createBroadcastPlan(call, join, join.getCondition(), left, right, null, null);
         }
       }
 
 
-    } catch (InvalidRelException e) {
+    } catch (InvalidRelException | UnsupportedRelOperatorException e) {
       tracer.warn(e.toString());
     }
   }
 
+  @Override
+  protected void createBroadcastPlan(final RelOptRuleCall call, final JoinRel join,
+                                     final RexNode joinCondition,
+                                     final RelNode left, final RelNode right,
+                                     final RelCollation collationLeft, final RelCollation collationRight) throws InvalidRelException {
+
+    final RelNode convertedLeft = convert(left, left.getTraitSet().plus(Prel.PHYSICAL));
+    final RelNode convertedRight = convert(right, right.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.BROADCAST));
+    call.transformTo(HashJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet(), convertedLeft, convertedRight, joinCondition,
+        join.getJoinType()));
+  }
+
+  @Override
+  protected void createDistBothPlan(RelOptRuleCall call, JoinRel join,
+                                  PhysicalJoinType physicalJoinType,
+                                  RelNode left, RelNode right,
+                                  RelCollation collationLeft, RelCollation collationRight,
+                                  DistributionTrait hashLeftPartition, DistributionTrait hashRightPartition) throws InvalidRelException {
+    RelTraitSet traitsLeft = left.getTraitSet().plus(Prel.PHYSICAL).plus(hashLeftPartition);
+    RelTraitSet traitsRight = right.getTraitSet().plus(Prel.PHYSICAL).plus(hashRightPartition);
+
+    final RelNode convertedLeft = convert(left, traitsLeft);
+    final RelNode convertedRight = convert(right, traitsRight);
+
+    JoinRelBase newJoin = HashJoinPrel.create(join.getCluster(), traitsLeft,
+        convertedLeft, convertedRight, join.getCondition(),
+        join.getJoinType());
+
+    call.transformTo(newJoin);
+  }
 }

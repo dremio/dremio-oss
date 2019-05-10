@@ -16,6 +16,9 @@
 import { createSelector } from 'reselect';
 import Immutable from 'immutable';
 import { getModuleState } from '@app/reducers';
+import { getLocation } from 'selectors/routing';
+import { getExploreViewState, getEntity } from 'selectors/resources';
+import { splitFullPath, getRouteParamsFromLocation, constructFullPathAndEncode } from 'utils/pathUtils';
 
 const emptyTable = Immutable.fromJS({
   columns: [],
@@ -38,9 +41,18 @@ function getJoinTableData(state, props) {
   return emptyTable;
 }
 
-function getTableData(state, datasetVersion) {
+export function getTableDataRaw(state, datasetVersion) {
   const { entities } = state.resources;
-  return entities.getIn(['tableData', datasetVersion]) || emptyTable;
+  return entities.getIn(['tableData', datasetVersion]);
+}
+
+function getTableData(state, datasetVersion) {
+  return getTableDataRaw(state, datasetVersion) || emptyTable;
+}
+
+export function getColumnFilter(state) {
+  const { entities } = state.resources;
+  return entities.getIn(['tableData', 'columnFilter']) || '';
 }
 
 export function getPeekData(state, previewVersion) {
@@ -48,13 +60,7 @@ export function getPeekData(state, previewVersion) {
   return entities.getIn(['previewTable', previewVersion])  || emptyTable;
 }
 
-export function getTableViewData(state, datasetVersion) {
-  return getExploreState(state).view.getIn(['tables', datasetVersion]) || Immutable.Map();
-}
-
-export function getTransformViewData(state, href) {
-  return getExploreState(state).view.getIn(['transform', href]);
-}
+export const getFullDataset = (state, datasetVersion) => state.resources.entities.getIn(['fullDataset', datasetVersion]);
 
 export function getPaginationUrl(state, datasetVersion) {
   const { entities } = state.resources;
@@ -67,7 +73,7 @@ export function getApproximate(state, datasetVersion) {
   return entities.getIn(['fullDataset', datasetVersion, 'approximate']);
 }
 
-const getDatasetVersionFromLocation = (location) => location.query && location.query.version;
+export const getDatasetVersionFromLocation = (location) => location.query && location.query.version;
 
 function _getDatasetFromLocation(state, location) {
   return getDatasetData(state, getDatasetVersionFromLocation(location));
@@ -111,6 +117,89 @@ function getDatasetData(state, version) {
   return dataset || undefined;
 }
 
+const getQueryContext = state => {
+  const location = getLocation(state);
+  return location.query && location.query.context;
+};
+
+const makeNewDataset = context => {
+  return Immutable.fromJS({
+    isNewQuery: true,
+    fullPath: ['tmp', 'UNTITLED'],
+    displayFullPath: ['tmp', 'New Query'],
+    //have to decode a context parameter. This should be consistent with NewQueryButton.getNewQueryHref
+    context: context ? splitFullPath(context).map(decodeURIComponent) : [],
+    sql: '',
+    datasetType: 'VIRTUAL_DATASET',
+    apiLinks: {
+      self: '/dataset/tmp/UNTITLED/new_untitled_sql'
+    },
+    needsLoad: false
+  });
+};
+
+export const getNewDatasetFromState = createSelector(
+  [getQueryContext],
+  makeNewDataset
+);
+
+const getInitialDataset = (location, viewState) => {
+  const routeParams = getRouteParamsFromLocation(location);
+  const version = location.query.version;
+  const displayFullPath = viewState.getIn(['error', 'details', 'displayFullPath']) ||
+    [...splitFullPath(routeParams.resourceId), ...splitFullPath(routeParams.tableId)];
+  const fullPath = location.query.mode === 'edit' ? displayFullPath : ['tmp', 'UNTITLED'];
+
+  return Immutable.fromJS({
+    fullPath,
+    displayFullPath,
+    sql: viewState.getIn(['error', 'details', 'sql']) || '',
+    context: viewState.getIn(['error', 'details', 'context']) || [],
+    datasetVersion: version,
+    datasetType: viewState.getIn(['error', 'details', 'datasetType']),
+    links: {
+      self: location.pathname + '?version=' + version
+    },
+    apiLinks: {
+      self: `/dataset/${constructFullPathAndEncode(fullPath)}` + (version ? `/version/${version}` : '')
+    },
+    needsLoad: true
+  });
+};
+
+export const getIntialDatasetFromState = createSelector(
+  [getLocation, getExploreViewState],
+  getInitialDataset
+);
+
+
+export const getExplorePageDataset = state => {
+  const location = getLocation(state);
+  const isNewQuery = location.pathname === '/new_query';
+  const { query } = location || {};
+
+  let dataset;
+
+  if (isNewQuery) {
+    dataset = getNewDatasetFromState(state);
+  } else {
+    dataset = getDataset(state, query.version);
+    if (dataset) {
+      const fullDataset = getEntity(state, query.version, 'fullDataset');
+      dataset = dataset.set('needsLoad', fullDataset && fullDataset.get('error'));
+    } else {
+      dataset = getIntialDatasetFromState(state);
+    }
+  }
+
+  if (query.jobId) {
+    dataset = dataset.set('jobId', query.jobId);
+  }
+  dataset = dataset.set('tipVersion', query.tipVersion || dataset.get('datasetVersion'));
+
+  return dataset;
+};
+
 export function getHistoryData(state, id) {
   return state.resources.entities.getIn(['history', id]);
 }
@@ -124,13 +213,6 @@ export function getHistoryItemsForHistoryId(state, id) {
   if (!history) return Immutable.List();
   return history.get('items').map((itemId) => getHistoryItem(state, itemId));
 }
-
-export const getTable = createSelector(
-  [ getTableData ],
-  table => {
-    return table;
-  }
-);
 
 export const getImmutableTable = createSelector(
   [ getTableData ],
@@ -180,3 +262,7 @@ export const getHistoryItems = createSelector(
 
 export const exploreStateKey = 'explorePage'; // a key that would be used for dynamic redux state
 export const getExploreState = state => getModuleState(state, exploreStateKey);
+export const getCurrentRouteParams = state => {
+  const exploreState = getExploreState(state);
+  return exploreState ? exploreState.currentRouteState : null;
+};

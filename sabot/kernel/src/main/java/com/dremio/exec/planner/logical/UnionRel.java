@@ -17,7 +17,6 @@ package com.dremio.exec.planner.logical;
 
 import java.util.List;
 
-import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -26,10 +25,7 @@ import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
-import com.dremio.common.logical.data.LogicalOperator;
-import com.dremio.common.logical.data.Union;
 import com.dremio.exec.planner.common.UnionRelBase;
-import com.dremio.exec.planner.torel.ConversionContext;
 
 /**
  * Union implemented in Dremio.
@@ -56,19 +52,5 @@ public class UnionRel extends UnionRelBase implements Rel {
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
     // divide cost by two to ensure cheaper than EnumerableRel
     return super.computeSelfCost(planner, mq).multiplyBy(.5);
-  }
-
-  @Override
-  public LogicalOperator implement(LogicalPlanImplementor implementor) {
-    Union.Builder builder = Union.builder();
-    for (Ord<RelNode> input : Ord.zip(inputs)) {
-      builder.addInput(implementor.visitChild(this, input.i, input.e));
-    }
-    builder.setDistinct(!all);
-    return builder.build();
-  }
-
-  public static UnionRel convert(Union union, ConversionContext context) throws InvalidRelException{
-    throw new UnsupportedOperationException();
   }
 }

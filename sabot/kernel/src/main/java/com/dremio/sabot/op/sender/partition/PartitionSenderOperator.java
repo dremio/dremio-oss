@@ -115,7 +115,7 @@ public class PartitionSenderOperator extends BaseSender {
     stats.setLongStat(Metric.N_RECEIVERS, outGoingBatchCount);
     // Algorithm to figure out number of threads to parallelize output
     // numberOfRows/sliceTarget/numReceivers/threadfactor
-    this.cost = config.getChild().getCost();
+    this.cost = config.getChild().getProps().getCost();
     this.numberPartitions = getNumberPartitions(context, config);
     this.actualPartitions = outGoingBatchCount > numberPartitions ? numberPartitions : outGoingBatchCount;
     this.stats.setLongStat(Metric.SENDING_THREADS_COUNT, actualPartitions);
@@ -279,7 +279,7 @@ public class PartitionSenderOperator extends BaseSender {
       .intValue();
     int tmpParts = 1;
     int outGoingBatchCount = config.getDestinations().size();
-    double cost = config.getCost();
+    double cost = config.getProps().getCost();
     if ( sliceTarget != 0 && outGoingBatchCount != 0 ) {
       tmpParts = (int) Math.round((((cost / (sliceTarget*1.0)) / (outGoingBatchCount*1.0)) / (threadFactor*1.0)));
       if ( tmpParts < 1) {

@@ -23,25 +23,6 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
  * Provider to {@code com.dremio.exec.proto.CoordinationProtos.NodeEndpoint}
  */
 public interface ServiceSet {
-  /**
-   * Handle returned by {@code ServiceSet} to unregister itself
-   */
-  interface RegistrationHandle extends AutoCloseable {
-    /**
-     * Unregister the handle
-     *
-     * Close the handle, causing the coordinator to unregister the node
-     */
-    @Override
-    void close();
-
-
-    /**
-     Get the number of registered instances in this {@link ServiceSet}.
-     * @return
-     */
-    int instanceCount();
-  }
 
   /**
    * Register an endpoint for the given service

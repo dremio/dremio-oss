@@ -36,8 +36,10 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.service.BindingProvider;
+import com.dremio.service.DirectProvider;
 import com.dremio.service.Initializer;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.TaskLeaderElection;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -52,14 +54,57 @@ import com.google.common.annotations.VisibleForTesting;
 public class SystemStoragePluginInitializer implements Initializer<Void> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SystemStoragePluginInitializer.class);
 
+  private static final String LOCAL_TASK_LEADER_NAME = "plugininit";
+
   @Override
   public Void initialize(BindingProvider provider) throws Exception {
     final SabotContext sabotContext = provider.lookup(SabotContext.class);
+    boolean isDistributedCoordinator = sabotContext.getDremioConfig().isMasterlessEnabled()
+      && sabotContext.getRoles().contains(ClusterCoordinator.Role.COORDINATOR);
     boolean isMaster = sabotContext.getRoles().contains(ClusterCoordinator.Role.MASTER);
-    if (!isMaster) {
+    if (!(isMaster || isDistributedCoordinator)) {
       logger.debug("System storage plugins will be created only on master coordinator");
       return null;
     }
+
+    if (!isMaster) {
+      // masterless mode
+      TaskLeaderElection taskLeaderElection = new TaskLeaderElection(
+        LOCAL_TASK_LEADER_NAME,
+        DirectProvider.wrap(sabotContext.getClusterCoordinator()),
+        DirectProvider.wrap(sabotContext.getEndpoint()));
+
+      taskLeaderElection.start();
+      // waiting for the leader to show
+      taskLeaderElection.getTaskLeader();
+
+      if (taskLeaderElection.isTaskLeader()) {
+        try {
+          pluginsCreation(provider, sabotContext);
+        } catch (Exception e) {
+          logger.warn("Exception while trying to init system plugins. Let other node (if available) handle it");
+          // close leader elections for this service
+          // let others take over leadership - if they initialize later
+          taskLeaderElection.close();
+          throw e;
+        }
+      } else {
+        logger.debug("System storage plugins will be created only on task leader coordinator");
+      }
+      return null;
+    }
+
+    pluginsCreation(provider, sabotContext);
+    return null;
+  }
+
+  /**
+   * To wrap plugins creation
+   * @param provider
+   * @param sabotContext
+   * @throws Exception
+   */
+  private void pluginsCreation(final BindingProvider provider, final SabotContext sabotContext) throws Exception {
     final DremioConfig config = provider.lookup(DremioConfig.class);
     final CatalogService catalogService = provider.lookup(CatalogService.class);
     final NamespaceService ns = provider.lookup(SabotContext.class).getNamespaceService(SYSTEM_USERNAME);
@@ -84,29 +129,39 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
 
     createOrUpdateSystemSource(catalogService, ns, home);
 
-    createOrUpdateSystemSource(catalogService, ns, AccelerationStoragePluginConfig.create(accelerationPath));
+    final boolean enableAsyncForAcceleration = !config.hasPath(DremioConfig.DEBUG_DIST_ASYNC_ENABLED)
+      || config.getBoolean(DremioConfig.DEBUG_DIST_ASYNC_ENABLED);
+    createOrUpdateSystemSource(catalogService, ns, AccelerationStoragePluginConfig.create(accelerationPath, enableAsyncForAcceleration));
 
+    final boolean enableAsyncForJobs = !config.hasPath(DremioConfig.DEBUG_JOBS_ASYNC_ENABLED)
+      || config.getBoolean(DremioConfig.DEBUG_JOBS_ASYNC_ENABLED);
     createOrUpdateSystemSource(catalogService, ns,
       InternalFileConf.create(DACDaemonModule.JOBS_STORAGEPLUGIN_NAME, resultsPath, SchemaMutability.SYSTEM_TABLE,
-          CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE));
+        CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE, enableAsyncForJobs));
 
+    final boolean enableAsyncForScratch = !config.hasPath(DremioConfig.DEBUG_SCRATCH_ASYNC_ENABLED)
+      || config.getBoolean(DremioConfig.DEBUG_SCRATCH_ASYNC_ENABLED);
     createOrUpdateSystemSource(catalogService, ns,
       InternalFileConf.create(DACDaemonModule.SCRATCH_STORAGEPLUGIN_NAME, scratchPath, SchemaMutability.USER_TABLE,
-          CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE));
+        CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE, enableAsyncForScratch));
 
+    final boolean enableAsyncForDownload = !config.hasPath(DremioConfig.DEBUG_DOWNLOAD_ASYNC_ENABLED)
+      || config.getBoolean(DremioConfig.DEBUG_DOWNLOAD_ASYNC_ENABLED);
     createOrUpdateSystemSource(catalogService, ns,
       InternalFileConf.create(DATASET_DOWNLOAD_STORAGE_PLUGIN, downloadPath, SchemaMutability.USER_TABLE,
-          CatalogService.NEVER_REFRESH_POLICY));
+        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForDownload));
 
+    final boolean enableAsyncForLogs = !config.hasPath(DremioConfig.DEBUG_LOGS_ASYNC_ENABLED)
+      || config.getBoolean(DremioConfig.DEBUG_LOGS_ASYNC_ENABLED);
     createOrUpdateSystemSource(catalogService, ns,
       InternalFileConf.create(LOGS_STORAGE_PLUGIN, logsPath, SchemaMutability.NONE,
-          CatalogService.DEFAULT_METADATA_POLICY));
+        CatalogService.DEFAULT_METADATA_POLICY, enableAsyncForLogs));
 
+    final boolean enableAsyncForSupport = !config.hasPath(DremioConfig.DEBUG_SUPPORT_ASYNC_ENABLED)
+      || config.getBoolean(DremioConfig.DEBUG_SUPPORT_ASYNC_ENABLED);
     createOrUpdateSystemSource(catalogService, ns,
       InternalFileConf.create(LOCAL_STORAGE_PLUGIN, supportURI, SchemaMutability.SYSTEM_TABLE,
-          CatalogService.NEVER_REFRESH_POLICY));
-
-    return null;
+        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForSupport));
   }
 
   /**

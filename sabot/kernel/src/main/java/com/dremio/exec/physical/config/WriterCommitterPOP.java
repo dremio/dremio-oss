@@ -18,9 +18,9 @@ package com.dremio.exec.physical.config;
 
 import java.util.Iterator;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.AbstractSingle;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
@@ -36,37 +36,37 @@ import com.google.common.collect.Iterators;
 
 @JsonTypeName("writer-committer")
 public class WriterCommitterPOP extends AbstractSingle {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(WriterCommitterPOP.class);
 
   private final String tempLocation;
   private final String finalLocation;
-  private final FileSystemPlugin plugin;
+  private final FileSystemPlugin<?> plugin;
 
   @JsonCreator
   public WriterCommitterPOP(
-          @JsonProperty("tempLocation") String tempLocation,
-          @JsonProperty("finalLocation") String finalLocation,
-          @JsonProperty("userName") String userName,
-          @JsonProperty("pluginId") StoragePluginId pluginId,
-          @JsonProperty("child") PhysicalOperator child,
-          @JacksonInject CatalogService catalogService
-  ) throws ExecutionSetupException {
-      super(child, userName);
-      this.tempLocation = tempLocation;
-      this.finalLocation = finalLocation;
-      this.plugin = Preconditions.checkNotNull(catalogService.<FileSystemPlugin>getSource(pluginId));
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("tempLocation") String tempLocation,
+      @JsonProperty("finalLocation") String finalLocation,
+      @JsonProperty("pluginId") StoragePluginId pluginId,
+      @JsonProperty("child") PhysicalOperator child,
+      @JacksonInject CatalogService catalogService
+      ) {
+    super(props, child);
+    this.tempLocation = tempLocation;
+    this.finalLocation = finalLocation;
+    this.plugin = Preconditions.checkNotNull(catalogService.<FileSystemPlugin<?>>getSource(pluginId));
   }
 
   public WriterCommitterPOP(
+      OpProps props,
       String tempLocation,
       String finalLocation,
-      String userName,
-      FileSystemPlugin plugin,
-      PhysicalOperator child) {
-    super(child, userName);
-    this.plugin = Preconditions.checkNotNull(plugin);
+      PhysicalOperator child,
+      FileSystemPlugin<?> plugin
+      ) {
+    super(props, child);
     this.tempLocation = tempLocation;
     this.finalLocation = finalLocation;
+    this.plugin = Preconditions.checkNotNull(plugin);
   }
 
   @Override
@@ -76,7 +76,7 @@ public class WriterCommitterPOP extends AbstractSingle {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new WriterCommitterPOP(tempLocation, finalLocation, getUserName(), plugin, child);
+    return new WriterCommitterPOP(props, tempLocation, finalLocation, child, plugin);
   }
 
   public String getTempLocation() {
@@ -92,7 +92,7 @@ public class WriterCommitterPOP extends AbstractSingle {
   }
 
   @JsonIgnore
-  public FileSystemPlugin getPlugin(){
+  public FileSystemPlugin<?> getPlugin(){
     return plugin;
   }
 

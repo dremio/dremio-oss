@@ -39,7 +39,7 @@ public class TestMergeJoin extends BaseTestOperator {
   private static final int DEFAULT_SMALL_BATCH = 2;
 
   protected JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type) {
-    return new JoinInfo(MergeJoinOperator.class, new MergeJoinPOP(null, null, conditions, type));
+    return new JoinInfo(MergeJoinOperator.class, new MergeJoinPOP(PROPS, null, null, conditions, type));
   }
 
   private void nullLowSingleRowsData(JoinInfo info, Table expected) throws Exception {

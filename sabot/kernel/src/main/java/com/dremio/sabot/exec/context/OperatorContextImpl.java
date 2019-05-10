@@ -31,6 +31,7 @@ import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.expr.ClassProducerImpl;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.record.VectorContainer;
@@ -70,6 +71,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   private final NamespaceService ns;
   private final NodeDebugContextProvider nodeDebugContextProvider;
   private final SpillService spillService;
+  private final EndpointsIndex endpointsIndex;
 
   public OperatorContextImpl(
       SabotConfig config,
@@ -89,7 +91,8 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       NodeDebugContextProvider nodeDebugContextProvider,
       int targetBatchSize,
       TunnelProvider tunnelProvider,
-      List<FragmentAssignment> assignments) throws OutOfMemoryException {
+      List<FragmentAssignment> assignments,
+      EndpointsIndex endpointsIndex) throws OutOfMemoryException {
     this.config = config;
     this.handle = handle;
     this.allocator = allocator;
@@ -112,6 +115,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     this.spillService = spillService;
     this.tunnelProvider = tunnelProvider;
     this.assignments = assignments;
+    this.endpointsIndex = endpointsIndex;
   }
 
   public OperatorContextImpl(
@@ -122,7 +126,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       ) {
 
     this(config, null, null, allocator, allocator, null, null, null, null, null, null,
-      optionManager, null, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of());
+      optionManager, null, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), null);
   }
 
   @Override
@@ -175,6 +179,10 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     return assignments;
   }
 
+  public EndpointsIndex getEndpointsIndex() {
+    return endpointsIndex;
+  }
+
   @Override
   public VectorContainer createOutputVectorContainer() {
     return new VectorContainer(fragmentOutputAllocator);
@@ -199,6 +207,9 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   public BufferAllocator getFragmentOutputAllocator() {
     return fragmentOutputAllocator;
   }
+
+  @Override
+  public BufferManager getBufferManager() { return  manager; }
 
   public boolean isClosed() {
     return closed;

@@ -15,27 +15,26 @@
  */
 import { Component } from 'react';
 import { Cell } from 'fixed-data-table-2';
-import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
+import { SelectView } from '@app/components/Fields/SelectView';
 
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
-import $ from 'jquery';
 
 import DragSource from 'components/DragComponents/DragSource';
 import ColumnActionMenu from 'components/Menus/ExplorePage/ColumnActionMenu';
 import ColumnTypeMenu from 'components/Menus/ExplorePage/ColumnTypeMenu';
 import FontIcon from 'components/Icon/FontIcon';
+import { overlay } from '@app/uiTheme/radium/overlay';
 
 import { EXPLORE_HOVER_COLOR } from 'uiTheme/radium/colors';
 
-import { typeToIconType, BINARY } from 'constants/DataTypes';
+import { typeToIconType, BINARY, MIXED } from 'constants/DataTypes';
 import Keys from 'constants/Keys.json';
 
 const MAX_COLUMN_NAME_LENTH = 62;
 const ACTION_MENU_WIDTH = 24;
 const COLUMN_HEIGHT = 24;
-const MAX_HEIGHT_FOR_ANIMATION = 370;
 const MARGIN_RIGHT = 5;
 
 @Radium
@@ -77,43 +76,6 @@ export default class ColumnHeader extends Component {
     };
   }
 
-  static getAnimationStyle(size) {
-    return size <= MAX_HEIGHT_FOR_ANIMATION
-      ? {
-        transition: `transform 0ms cubic-bezier(0.23, 1, 0.32, 1) 0ms,
-                     opacity 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms,
-                     top 0ms cubic-bezier(0.23, 1, 0.32, 1) 0ms`
-      }
-      : {};
-  }
-
-  constructor(props) {
-    super(props);
-
-    this.doTypeAction = this.doTypeAction.bind(this);
-
-    this.state = {
-      open: false,
-      openType: false,
-      anchorOrigin: {
-        horizontal: 'right',
-        vertical: 'bottom'
-      },
-      targetOrigin: {
-        horizontal: 'right',
-        vertical: 'top'
-      },
-      anchorOriginType: {
-        horizontal: 'left',
-        vertical: 'bottom'
-      },
-      targetOriginType: {
-        horizontal: 'left',
-        vertical: 'top'
-      }
-    };
-  }
-
   doTypeAction(type, e) {
     if (this.isActionsPrevented()) {
       return false;
@@ -122,22 +84,12 @@ export default class ColumnHeader extends Component {
     if (type === 'MIXED') {
       this.props.openDetailsWizard({detailType: 'SINGLE_DATA_TYPE', columnName: column.name});
     } else {
-      this.handleTouchTap('openType', e);
+      this.setState({
+        openType: true,
+        anchorElType: event.currentTarget
+      });
     }
   }
-
-  handleRequestClose = () => this.setState({ open: false });
-  handleRequestCloseType = () => this.setState({ openType: false });
-
-  handleTouchTap = (type, event) => {
-    if (this.isActionsPrevented()) {
-      return false;
-    }
-    const state = type === 'open'
-      ? { open: true, anchorEl: event.currentTarget }
-      : { openType: true, anchorElType: event.currentTarget };
-    this.setState(state);
-  };
 
   isActionsPrevented() {
     return this.props.pageType !== 'default' || this.props.isDumbTable;
@@ -237,95 +189,92 @@ export default class ColumnHeader extends Component {
         style={styles.other}>?</span>;
     }
 
-    const {isDumbTable} = this.props;
+    const { isDumbTable, openDetailsWizard, column } = this.props;
+    const canClick = !this.isActionsPrevented() && !isDumbTable && type !== BINARY; // disable binary type conversions pending DX-5159
 
-    const canClick = !isDumbTable && type !== BINARY; // disable binary type conversions pending DX-5159
-    return <FontIcon
-      type={typeToIconType[type]}
-      theme={styles.typeColumn}
-      id={`${label} + type`}
-      class='type'
-      onClick={canClick ? this.doTypeAction.bind(this, type) : () => {}}
-      style={canClick ? undefined : {cursor: 'default'}}
-    />;
-  }
+    const iconProps = {
+      type: typeToIconType[type],
+      theme: styles.typeColumn,
+      id: `${label} + type`,
+      'class': 'type'
+    };
 
-  renderActionMenuIcon(column) {
-    const preventHoverStyle = this.isActionsPrevented()
-      ? {...styles.arrowDown.Container, ':hover': {}}
-      : {};
-    const activeStyle = this.state.open
-      ? { Container: {...styles.arrowDown.Container, backgroundColor: EXPLORE_HOVER_COLOR} }
-      : { Container: {...styles.arrowDown.Container, ...preventHoverStyle} };
-    return this.isActionsPrevented()
-      ? null
-      : (
-        <FontIcon
-          theme={activeStyle}
-          type='Arrow-Down-Small'
-          key={column.name}
-          onClick={this.handleTouchTap.bind(this, 'open')}/>
-      );
-  }
+    if (!canClick) {
+      return <FontIcon {...iconProps} style={{ cursor: 'default' }} />;
+    }
 
-  renderActionMenu() {
-    const { column } = this.props;
-    this.replaceLibraryPositionMethodsWithOwn(); //TODO we should find better way to change autoposition
-    const height = $('.fixed-data-table').height();
+    if (type === MIXED) {
+      return <FontIcon {...iconProps}
+        onClick={() => openDetailsWizard({detailType: 'SINGLE_DATA_TYPE', columnName: column.name})} />;
+    }
+
+
     return (
-      <Popover
-        ref='menu'
-        animated={false}
-        style={{...styles.popoverAnimation, ...ColumnHeader.getAnimationStyle(height)}}
+      <SelectView
+        content={<FontIcon {...iconProps} />}
+        hideExpandIcon
         useLayerForClickAway={false}
-        open={this.state.open}
-        canAutoPosition
-        anchorEl={this.state.anchorEl}
-        anchorOrigin={this.state.anchorOrigin}
-        targetOrigin={this.state.targetOrigin}
-        onRequestClose={this.handleRequestClose}
-        animation={PopoverAnimationVertical}>
-        <div style={styles.popover}>
-          <ColumnActionMenu
-            columnType={column.type}
-            columnName={column.name}
-            hideDropdown={this.handleRequestClose}
-            columnsCount={this.props.columnsCount}
-            openDetailsWizard={this.props.openDetailsWizard}
-            makeTransform={this.props.makeTransform}
-            disabledButtons={[]}
-            onRename={this.handleRenameAction}
-          />
-        </div>
-      </Popover>
+        listStyle={styles.popoverAnimation}
+      >
+        {
+          ({ closeDD }) => (
+            <div style={styles.popover}>
+              <ColumnTypeMenu
+                columnType={column.type}
+                columnName={column.name}
+                hideDropdown={closeDD}
+                openDetailsWizard={openDetailsWizard}
+                makeTransform={this.props.makeTransform}/>
+            </div>
+          )
+        }
+      </SelectView>
     );
   }
 
-  renderTypeMenu() {
-    const height = $('.fixed-data-table').height();
-    const { column } = this.props;
+  renderActionMenuIcon(column) {
+    if (this.isActionsPrevented()) return null;
+
     return (
-      <Popover
-        ref='menuType'
-        animated={false}
-        style={{...styles.popoverAnimation, ...ColumnHeader.getAnimationStyle(height)}}
+      <SelectView
+        content={
+          ({ isOpen }) => {
+            const preventHoverStyle = this.isActionsPrevented()
+              ? {...styles.arrowDown.Container, ':hover': {}}
+              : {};
+            const activeStyle = isOpen()
+              ? { Container: {...styles.arrowDown.Container, backgroundColor: EXPLORE_HOVER_COLOR} }
+              : { Container: {...styles.arrowDown.Container, ...preventHoverStyle} };
+            return (
+              <FontIcon
+                theme={activeStyle}
+                type='Arrow-Down-Small'
+                key={column.name}/>
+            );
+          }
+        }
+        hideExpandIcon
+        listRightAligned
         useLayerForClickAway={false}
-        canAutoPosition
-        open={this.state.openType}
-        anchorEl={this.state.anchorElType}
-        anchorOrigin={this.state.anchorOriginType}
-        targetOrigin={this.state.targetOriginType}
-        onRequestClose={this.handleRequestCloseType}
-        animation={PopoverAnimationVertical}>
-        <div style={styles.popover}>
-          <ColumnTypeMenu
-            columnType={column.type}
-            columnName={column.name}
-            hideDropdown={this.handleRequestCloseType}
-            openDetailsWizard={this.props.openDetailsWizard}
-            makeTransform={this.props.makeTransform}/>
-        </div>
-      </Popover>
+        listStyle={styles.popoverAnimation}
+      >
+        {
+          ({ closeDD }) => (
+            <div style={styles.popover}>
+              <ColumnActionMenu
+                columnType={column.type}
+                columnName={column.name}
+                hideDropdown={closeDD}
+                columnsCount={this.props.columnsCount}
+                openDetailsWizard={this.props.openDetailsWizard}
+                makeTransform={this.props.makeTransform}
+                disabledButtons={[]}
+                onRename={this.handleRenameAction}
+              />
+            </div>
+          )
+        }
+      </SelectView>
     );
   }
 
@@ -346,11 +295,9 @@ export default class ColumnHeader extends Component {
             style={styles.wrapperColumn}>
             <div style={styles.colWrap}>
               {this.renderColumnIcon(type, label)}
-              {this.renderTypeMenu()}
               {this.renderEditableColumnName(column, label, width)}
             </div>
             {this.renderActionMenuIcon(column)}
-            {this.renderActionMenu()}
           </div>
         </DragSource>
       </Cell>
@@ -369,7 +316,7 @@ const styles = {
   },
   popoverAnimation: {
     // need this because of the case where group by or join button overlays column action menu
-    zIndex: 2,
+    zIndex: overlay.zIndex + 1, // to show a menu above spinner, as spinner should not block headers anymore. Previous value was 2
     transition: `transform 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms,
                  opacity 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms,
                  top 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms`

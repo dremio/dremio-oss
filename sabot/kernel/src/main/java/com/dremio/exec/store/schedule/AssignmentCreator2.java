@@ -197,7 +197,7 @@ public class AssignmentCreator2<T extends CompleteWork> {
     if(w.work instanceof SplitWork) {
       SplitWork sw = (SplitWork) w.work;
       sb.append(", Split key: ");
-      sb.append(sw.getSplit().getSplitKey());
+      sb.append(sw.getSplitInfo().getSplitKey());
     }
     return sb.toString();
   }

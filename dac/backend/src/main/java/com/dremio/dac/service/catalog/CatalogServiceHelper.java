@@ -60,6 +60,7 @@ import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.Catalog.UpdateStatus;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.server.SabotContext;
@@ -73,6 +74,7 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.file.FileFormat;
@@ -540,8 +542,20 @@ public class CatalogServiceHelper {
   public Dataset promoteToDataset(String targetId, Dataset dataset) throws NamespaceException, UnsupportedOperationException {
     Preconditions.checkArgument(dataset.getType() == Dataset.DatasetType.PHYSICAL_DATASET, "Promoting can only create physical datasets.");
 
-    // verify we can promote the target entity
-    List<String> path = getPathFromInternalId(targetId);
+    // The id can either be a internal id or a namespace id.  It will be a namespace id if the entity had been promoted
+    // before and then unpromoted.
+    final List<String> path;
+    if (isInternalId(targetId)) {
+      path = getPathFromInternalId(targetId);
+    } else {
+      final NameSpaceContainer entityById = namespaceService.getEntityById(targetId);
+      if (entityById == null) {
+        throw new IllegalArgumentException(String.format("Could not find entity to promote with ud [%s]", targetId));
+      }
+
+      path = entityById.getFullPathList();
+    }
+
     // getPathFromInternalId will return a path without quotes so make sure we do the same for the dataset path
     List<String> normalizedPath = dataset.getPath().stream().map(PathUtils::removeQuotes).collect(Collectors.toList());
     Preconditions.checkArgument(CollectionUtils.isEqualCollection(path, normalizedPath), "Entity id does not match the path specified in the dataset.");
@@ -595,27 +609,32 @@ public class CatalogServiceHelper {
     NamespaceKey namespaceKey = new NamespaceKey(dataset.getPath());
 
     // check type
+    final DatasetType type = currentDatasetConfig.getType();
+
     if (dataset.getType() == Dataset.DatasetType.PHYSICAL_DATASET) {
       // cannot change the path of a physical dataset
       Preconditions.checkArgument(CollectionUtils.isEqualCollection(dataset.getPath(), currentDatasetConfig.getFullPathList()), "Dataset path can not be modified.");
-      Preconditions.checkArgument( currentDatasetConfig.getType() != VIRTUAL_DATASET, "Dataset type can not be modified");
+      Preconditions.checkArgument( type != VIRTUAL_DATASET, "Dataset type can not be modified");
 
       // PDS specific config
       currentDatasetConfig.getPhysicalDataset().setAllowApproxStats(dataset.getApproximateStatisticsAllowed());
 
-      if (currentDatasetConfig.getType() == com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DATASET_HOME_FILE) {
-        DatasetConfig datasetConfig = toDatasetConfig(dataset.getFormat().asFileConfig(), currentDatasetConfig.getType(),
+      if (type == com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DATASET_HOME_FILE) {
+        DatasetConfig datasetConfig = toDatasetConfig(dataset.getFormat().asFileConfig(), type,
           context.getUserPrincipal().getName(), currentDatasetConfig.getId());
 
         catalog.createOrUpdateDataset(namespaceService, new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), namespaceKey, datasetConfig, attributes);
-      } else if (currentDatasetConfig.getType() == com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DATASET_SOURCE_FILE || currentDatasetConfig.getType() == com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER) {
+      } else if (type == com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DATASET_SOURCE_FILE
+          || type == com.dremio.service.namespace.dataset.proto.DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER) {
         Preconditions.checkArgument(dataset.getFormat() != null, "Promoted dataset needs to have a format set.");
 
         //DatasetConfig datasetConfig = toDatasetConfig(dataset.getFormat().asFileConfig(), currentDatasetConfig.getType(), context.getUserPrincipal().getName(), currentDatasetConfig.getId());
         // only thing that can change is the formatting
         currentDatasetConfig.getPhysicalDataset().setFormatSettings(dataset.getFormat().asFileConfig());
 
-        catalog.createOrUpdateDataset(namespaceService, new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), namespaceKey, currentDatasetConfig, attributes);
+        catalog.createOrUpdateDataset(namespaceService, new NamespaceKey(namespaceKey.getRoot()), namespaceKey, currentDatasetConfig, attributes);
+      } else {
+        catalog.createOrUpdateDataset(namespaceService, new NamespaceKey(namespaceKey.getRoot()), namespaceKey, currentDatasetConfig, attributes);
       }
 
       // update refresh settings
@@ -627,7 +646,7 @@ public class CatalogServiceHelper {
         reflectionServiceHelper.getReflectionSettings().setReflectionSettings(namespaceKey, dataset.getAccelerationRefreshPolicy().toAccelerationSettings());
       }
     } else if (dataset.getType() == Dataset.DatasetType.VIRTUAL_DATASET) {
-      Preconditions.checkArgument(currentDatasetConfig.getType() == VIRTUAL_DATASET, "Dataset type can not be modified");
+      Preconditions.checkArgument(type == VIRTUAL_DATASET, "Dataset type can not be modified");
       VirtualDataset virtualDataset = currentDatasetConfig.getVirtualDataset();
       Dataset currentDataset = getDatasetFromConfig(currentDatasetConfig, null);
 
@@ -900,7 +919,7 @@ public class CatalogServiceHelper {
   /**
    *  Refresh a catalog item's metadata.  Only supports datasets currently.
    */
-  public StoragePlugin.UpdateStatus refreshCatalogItemMetadata(String id,
+  public UpdateStatus refreshCatalogItemMetadata(String id,
                                                                Boolean delete,
                                                                Boolean force,
                                                                Boolean promotion)

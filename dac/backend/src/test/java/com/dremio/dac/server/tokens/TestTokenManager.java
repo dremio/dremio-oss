@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import javax.inject.Provider;
 
@@ -28,6 +29,9 @@ import org.junit.Test;
 
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.options.OptionValue;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.test.DremioTest;
 
@@ -44,22 +48,34 @@ public class TestTokenManager {
 
   @BeforeClass
   public static void startServices() throws Exception {
+    final SabotContext sabotContext = mock(SabotContext.class);
+    SystemOptionManager systemOptionManager = mock(SystemOptionManager.class);
+    when(sabotContext.getOptionManager()).thenReturn(systemOptionManager);
+    when(systemOptionManager.getOption("token.release.leadership.ms")).thenReturn(OptionValue.createOption
+      (OptionValue.Kind.LONG, OptionValue.OptionType.SYSTEM, "token.release.leadership.ms","144000000"));
+
     provider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
     provider.start();
     manager = new TokenManagerImpl(
-        new Provider<KVStoreProvider>() {
-          @Override
-          public KVStoreProvider get() {
-            return provider;
-          }
-        },
-        new Provider<SchedulerService>() {
-          @Override
-          public SchedulerService get() {
-            return mock(SchedulerService.class);
-          }
-        },
-        false, 10, 10);
+      new Provider<KVStoreProvider>() {
+        @Override
+        public KVStoreProvider get() {
+          return provider;
+        }
+      },
+      new Provider<SchedulerService>() {
+        @Override
+        public SchedulerService get() {
+          return mock(SchedulerService.class);
+        }
+      },
+      new Provider<SabotContext>() {
+        @Override
+        public SabotContext get() {
+          return sabotContext;
+        }
+      },
+    false, 10, 10);
     manager.start();
   }
 

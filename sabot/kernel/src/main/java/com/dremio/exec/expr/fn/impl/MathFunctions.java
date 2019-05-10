@@ -110,7 +110,7 @@ public class MathFunctions{
       }
 
       // Round the value
-      java.math.BigDecimal roundedValue = new java.math.BigDecimal(out.value);
+      java.math.BigDecimal roundedValue = java.math.BigDecimal.valueOf(out.value);
       out.value = (roundedValue.setScale(decimalDigits, java.math.BigDecimal.ROUND_HALF_UP)).doubleValue();
     }
   }

@@ -44,6 +44,7 @@ import org.apache.poi.xssf.usermodel.XSSFRichTextString;
 import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTXf;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.google.common.base.Charsets;
@@ -95,6 +96,7 @@ public class StAXBasedParser implements ExcelParser {
   private boolean lookupNextValueInSST;
   private MinorType valueTypeFromAttribute;
   private MinorType valueTypeFromStyle;
+  private final int maxCellSize;
 
   private Map<String, MinorType> styleToTypeCache = Maps.newHashMap();
   private Map<Integer, MinorType> indexToLastTypeCache = Maps.newHashMap();
@@ -123,13 +125,15 @@ public class StAXBasedParser implements ExcelParser {
    * @param pluginConfig config options
    * @param writer {@link VectorContainerWriter} for writing values into vectors.
    * @param managedBuf Workspace buffer.
+   * @param maxCellSize maximum allowable size of variable length cells
    */
   public StAXBasedParser(final InputStream inputStream, final ExcelFormatPluginConfig pluginConfig,
                          final VectorContainerWriter writer, final ArrowBuf managedBuf,
-                         final HashSet<String> columnsToProject) throws Exception {
+                         final HashSet<String> columnsToProject, final int maxCellSize) throws Exception {
     pkgInputStream = OPCPackage.open(inputStream);
     this.writer = writer.rootAsStruct();
     this.managedBuf = managedBuf;
+    this.maxCellSize = maxCellSize;
 
     final XSSFReader xssfReader = new XSSFReader(pkgInputStream);
 
@@ -468,6 +472,8 @@ public class StAXBasedParser implements ExcelParser {
         case VARCHAR:
           indexToLastTypeCache.put(currentColumnIndex, valueTypeFromAttribute);
           final byte[] b = value.getBytes(Charsets.UTF_8);
+          FieldSizeLimitExceptionHelper.checkReadSizeLimit(b.length, maxCellSize, currentColumnIndex, logger);
+
           managedBuf = managedBuf.reallocIfNeeded(b.length);
           managedBuf.setBytes(0, b);
           if(isProjected) {

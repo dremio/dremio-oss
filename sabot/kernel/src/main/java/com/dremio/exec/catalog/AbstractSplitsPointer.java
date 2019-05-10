@@ -15,13 +15,11 @@
  */
 package com.dremio.exec.catalog;
 
-import java.util.List;
-import java.util.Map.Entry;
+import java.util.stream.StreamSupport;
 
 import com.dremio.exec.store.SplitsPointer;
-import com.dremio.service.namespace.DatasetSplitId;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.google.common.base.Function;
+import com.dremio.service.namespace.PartitionChunkMetadata;
+import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 
@@ -37,16 +35,14 @@ import com.google.common.collect.FluentIterable;
  * checking for the pointers.
  */
 public abstract class AbstractSplitsPointer implements SplitsPointer {
-
-  protected static Function<Entry<DatasetSplitId, DatasetSplit>, DatasetSplit> SPLIT_VALUES = new Function<Entry<DatasetSplitId, DatasetSplit>, DatasetSplit>() {
-      @Override
-      public DatasetSplit apply(Entry<DatasetSplitId, DatasetSplit> input) {
-        return input.getValue();
-      }
-    };
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractSplitsPointer.class);
+  private int splitsCount;
 
   protected AbstractSplitsPointer() {
+    splitsCount = -1;
   }
+
+  abstract public long getSplitVersion();
 
   @Override
   public double getSplitRatio() {
@@ -57,14 +53,43 @@ public abstract class AbstractSplitsPointer implements SplitsPointer {
   }
 
   @Override
-  public boolean isPruned() {
-    return getTotalSplitsCount() != getSplitsCount();
+  public int getSplitsCount() {
+    if (splitsCount != -1) {
+      return splitsCount;
+    }
+    splitsCount = StreamSupport.stream(getPartitionChunks().spliterator(), false)
+            .mapToInt(PartitionChunkMetadata::getSplitCount)
+            .sum();
+    return splitsCount;
   }
 
   @Override
-  public SplitsPointer prune(Predicate<DatasetSplit> splitPredicate) {
-    List<DatasetSplit> splits = FluentIterable.from(getSplitIterable()).filter(splitPredicate).toList();
-    return new MaterializedSplitsPointer(splits, getTotalSplitsCount());
+  public boolean isPruned() {
+    final boolean isPruned = getTotalSplitsCount() != getSplitsCount();
+
+    // TODO(DX-15877): remove this block once the ticket is resolved
+    if (isPruned) {
+      logger.warn("Version: {}, total count: {}, split count: {}, partition chunks: {}, \nsplits: {}",
+          getSplitVersion(), getTotalSplitsCount(), getSplitsCount(), FluentIterable.from(getPartitionChunks()).size(),
+          FluentIterable.from(getPartitionChunks())
+              .transform(input -> "[key: " + input.getSplitKey()
+                  + ", count: " + input.getSplitCount()
+                  + ", split count: " + FluentIterable.from(input.getDatasetSplits()).size()
+                  + ", splits: " + FluentIterable.from(input.getDatasetSplits()).limit(5).join(Joiner.on(","))
+                  + "]")
+              .limit(5)
+              .join(Joiner.on("\n"))
+      );
+    }
+
+    return isPruned;
+  }
+
+  @Override
+  public SplitsPointer prune(Predicate<PartitionChunkMetadata> partitionPredicate) {
+    return MaterializedSplitsPointer.of(getSplitVersion(),
+      FluentIterable.from(getPartitionChunks()).filter(partitionPredicate),
+      getTotalSplitsCount());
   }
 
   @Override

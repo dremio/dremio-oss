@@ -28,6 +28,7 @@ import org.apache.arrow.vector.holders.IntHolder;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableDecimalHolder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
+import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 
 import com.dremio.exec.expr.AggrFunction;
@@ -39,6 +40,7 @@ import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
+import com.dremio.exec.expr.fn.FunctionGenerationHelper;
 import com.dremio.exec.expr.fn.OutputDerivation;
 
 import io.netty.buffer.ArrowBuf;
@@ -455,6 +457,276 @@ public class DecimalFunctions {
     public void reset() {
       maxVal.value = 0;
       nonNullCount.value = 0;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "sum_v2", derivation = OutputDerivation.DecimalAggSum.class,
+    scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  public static class NullableDecimalSumV2 implements AggrFunction {
+    @Param NullableDecimalHolder in;
+    @Workspace NullableDecimalHolder sum;
+    @Workspace NullableBigIntHolder nonNullCount;
+    @Output NullableDecimalHolder out;
+    @Inject ArrowBuf buffer;
+
+    public void setup() {
+      sum = new NullableDecimalHolder();
+      sum.isSet = 1;
+      buffer = buffer.reallocIfNeeded(16);
+      sum.buffer = buffer;
+      java.math.BigDecimal zero = new java.math.BigDecimal(java.math.BigInteger.ZERO, 0);
+      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(zero, sum.buffer, 0);
+      sum.start = 0;
+      nonNullCount = new NullableBigIntHolder();
+      nonNullCount.isSet = 1;
+      nonNullCount.value = 0;
+    }
+
+    public void add() {
+      if (in.isSet == 1) {
+        com.dremio.exec.util.DecimalUtils.addSignedDecimalInLittleEndianBytes(sum.buffer, sum.start, in.buffer, in
+          .start, sum.buffer, sum.start);
+        nonNullCount.value++;
+      }
+    }
+
+    public void output() {
+      if (nonNullCount.value > 0) {
+        out.isSet = 1;
+        out.buffer = sum.buffer;
+        out.start = sum.start;
+      } else {
+        // All values were null. Result should be null too
+        out.isSet = 0;
+      }
+    }
+
+    public void reset() {
+      nonNullCount.value = 0;
+      java.math.BigDecimal zero = new java.math.BigDecimal(java.math.BigInteger.ZERO, 0);
+      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(zero, sum.buffer, 0);
+    }
+  }
+
+  /**
+   * Sum0 returns 0 instead of nulls in case all aggregation values
+   * are null.
+   */
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "$sum0_v2", derivation = OutputDerivation.DecimalAggSum.class,
+    scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  public static class NullableDecimalSumZeroV2 implements AggrFunction {
+    @Param NullableDecimalHolder in;
+    @Workspace NullableDecimalHolder sum;
+    @Output NullableDecimalHolder out;
+    @Inject ArrowBuf buffer;
+
+    public void setup() {
+      sum = new NullableDecimalHolder();
+      sum.isSet = 1;
+      buffer = buffer.reallocIfNeeded(16);
+      sum.buffer = buffer;
+      sum.start = 0;
+      java.math.BigDecimal zero = new java.math.BigDecimal(java.math.BigInteger.ZERO, 0);
+      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(zero, sum.buffer, 0);
+    }
+
+    public void add() {
+      if (in.isSet == 1) {
+        com.dremio.exec.util.DecimalUtils.addSignedDecimalInLittleEndianBytes(sum.buffer, sum.start, in.buffer, in
+          .start, sum.buffer, sum.start);
+      }
+    }
+
+    public void output() {
+      out.isSet = 1;
+      out.buffer = sum.buffer;
+      out.start = sum.start;
+    }
+
+    public void reset() {
+      java.math.BigDecimal zero = new java.math.BigDecimal(java.math.BigInteger.ZERO, 0);
+      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(zero, sum.buffer, 0);
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "min_v2", derivation = OutputDerivation.DecimalAggMinMax.class,
+    scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  public static class NullableDecimalMinV2 implements AggrFunction {
+    @Param NullableDecimalHolder in;
+    @Workspace NullableDecimalHolder minVal;
+    @Workspace NullableBigIntHolder nonNullCount;
+    @Output NullableDecimalHolder out;
+    @Inject ArrowBuf buffer;
+
+    public void setup() {
+      minVal = new NullableDecimalHolder();
+      minVal.isSet = 1;
+      minVal.start = 0;
+      buffer = buffer.reallocIfNeeded(16);
+      minVal.buffer = buffer;
+      nonNullCount = new NullableBigIntHolder();
+      nonNullCount.isSet = 1;
+      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(com.dremio.exec.util.DecimalUtils.MAX_DECIMAL, minVal.buffer, 0);
+      nonNullCount.value = 0;
+    }
+
+    public void add() {
+      if (in.isSet != 0) {
+        nonNullCount.value = 1;
+        int compare = com.dremio.exec.util.DecimalUtils
+          .compareSignedDecimalInLittleEndianBytes(in.buffer, in.start, minVal.buffer, 0);
+        if (compare < 0) {
+          in.buffer.getBytes(in.start, minVal.buffer, 0 , org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH);
+        }
+      }
+    }
+    public void output() {
+      if (nonNullCount.value > 0) {
+        out.isSet = 1;
+        out.buffer = minVal.buffer;
+        out.start = 0;
+      } else {
+        // All values were null. Result should be null too
+        out.isSet = 0;
+      }
+    }
+
+    public void reset() {
+      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(com.dremio.exec.util.DecimalUtils.MAX_DECIMAL, minVal.buffer, 0);
+      nonNullCount.value = 0;
+    }
+
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "max_v2", derivation = OutputDerivation.DecimalAggMinMax.class,
+    scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  public static class NullableDecimalMaxV2 implements AggrFunction {
+    @Param NullableDecimalHolder in;
+    @Workspace NullableDecimalHolder maxVal;
+    @Workspace NullableBigIntHolder nonNullCount;
+    @Output NullableDecimalHolder out;
+    @Inject ArrowBuf buffer;
+
+    public void setup() {
+      maxVal = new NullableDecimalHolder();
+      maxVal.isSet = 1;
+      maxVal.start = 0;
+      buffer = buffer.reallocIfNeeded(16);
+      maxVal.buffer = buffer;
+      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(com.dremio.exec.util.DecimalUtils.MIN_DECIMAL, maxVal.buffer, 0);
+      nonNullCount = new NullableBigIntHolder();
+      nonNullCount.isSet = 1;
+      nonNullCount.value = 0;
+    }
+    public void add() {
+      if (in.isSet != 0) {
+        nonNullCount.value = 1;
+        int compare = com.dremio.exec.util.DecimalUtils
+          .compareSignedDecimalInLittleEndianBytes(in.buffer, in.start, maxVal.buffer, 0);
+        if (compare > 0) {
+          in.buffer.getBytes(in.start, maxVal.buffer, 0 , org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH);
+        }
+      }
+    }
+    public void output() {
+      if (nonNullCount.value > 0) {
+        out.isSet = 1;
+        out.buffer = maxVal.buffer;
+        out.start = 0;
+      } else {
+        // All values were null. Result should be null too
+        out.isSet = 0;
+      }
+    }
+    public void reset() {
+      org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(com.dremio.exec.util.DecimalUtils.MIN_DECIMAL, maxVal.buffer, 0);
+      nonNullCount.value = 0;
+    }
+
+  }
+
+  /**
+   * Decimal comparator where null appears last i.e. nulls are considered
+   * larger than all values.
+   */
+  @FunctionTemplate(name = FunctionGenerationHelper.COMPARE_TO_NULLS_HIGH,
+    scope = FunctionTemplate.FunctionScope.SIMPLE,
+    nulls = NullHandling.INTERNAL)
+  public static class CompareDecimalVsDecimalNullsHigh implements SimpleFunction {
+
+    @Param NullableDecimalHolder left;
+    @Param NullableDecimalHolder right;
+    @Output
+    NullableIntHolder out;
+
+    public void setup() {}
+
+    public void eval() {
+      out.isSet = 1;
+      outside:
+      {
+
+        if ( left.isSet == 0 ) {
+          if ( right.isSet == 0 ) {
+            out.value = 0;
+            break outside;
+          } else {
+            out.value = 1;
+            break outside;
+          }
+        } else if ( right.isSet == 0 ) {
+          out.value = -1;
+          break outside;
+        }
+
+        out.value = com.dremio.exec.util.DecimalUtils.compareSignedDecimalInLittleEndianBytes
+          (left.buffer, left.start, right.buffer, right.start);
+      } // outside
+    }
+  }
+
+  /**
+   * Decimal comparator where null appears first i.e. nulls are considered
+   * smaller than all values.
+   */
+  @FunctionTemplate(name = FunctionGenerationHelper.COMPARE_TO_NULLS_LOW,
+    scope = FunctionTemplate.FunctionScope.SIMPLE,
+    nulls = NullHandling.INTERNAL)
+  public static class CompareDecimalVsDecimalNullsLow implements SimpleFunction {
+
+    @Param NullableDecimalHolder left;
+    @Param NullableDecimalHolder right;
+    @Output
+    NullableIntHolder out;
+
+    public void setup() {}
+
+    public void eval() {
+      out.isSet = 1;
+      outside:
+      {
+
+        if ( left.isSet == 0 ) {
+          if ( right.isSet == 0 ) {
+            out.value = 0;
+            break outside;
+          } else {
+            out.value = -1;
+            break outside;
+          }
+        } else if ( right.isSet == 0 ) {
+          out.value = 1;
+          break outside;
+        }
+
+        out.value = com.dremio.exec.util.DecimalUtils.compareSignedDecimalInLittleEndianBytes
+          (left.buffer, left.start, right.buffer, right.start);
+
+      } // outside
     }
   }
 }

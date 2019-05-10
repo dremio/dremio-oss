@@ -32,11 +32,15 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.NamedExpression;
+import com.dremio.common.util.Numbers;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.physical.config.HashAggregate;
+import com.dremio.exec.planner.physical.PhysicalPlanCreator;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.HashAggSpill;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
@@ -204,11 +208,26 @@ import io.netty.util.internal.PlatformDependent;
  *   states as the algorithm recurses.
  *
  *
- *                           +------------------------------------------------+
- *   outputData():           |                                                |
- *                           V                                                |
- *      OUTPUT_INMEMORY_PARTITIONS<-----------------+                         |
- *          |         |        |                    |                         |
+ *   FORCE_SPILL_INMEMORY_DATA---->---(spill inmemory portion of-------->----+
+ *        |        ^                     each active spilled partition)       |
+ *        |        |                                                          |
+ *        |        |                                                          V
+ *        |        +-------<-----(move to next partition)------<------SPILL_NEXT_BATCH
+ *        |                                                             |         ^
+ *    (finished force spilling                                     keep spilling and yielding
+ *     inmemory portions of spilled                                     |         |
+ *     partitions, now output inmemory only                             |         |
+ *     partitions before processing the spilled                         +---->----+
+ *     partitions)
+ *          |
+ *          |
+ *          |
+ *          |
+ *          |                 +------------------------------------------------+
+ *          |                 |                                                |
+ *          V                 V                                                |
+ *      OUTPUT_INMEMORY_PARTITIONS<-----------------+                          |
+ *          |         |        |                    |                          |
  *          |         |        |     (output partitions not spilled      (all spilled batches read,
  *          |         |        |        one batch at a time)                  start output)
  *          |         |        |____________________|                         |
@@ -220,26 +239,29 @@ import io.netty.util.internal.PlatformDependent;
  *          |                                       |                         |
  *          |                                       |     +-------------------+
  *          |                                       |     |
- *          |                                       |     |
- *          |                                       V     |
- *          |                           PROCESS_SPILLED_PARTITION<------+
- *          |                                       |                   |
- *          |                                       |       (read a single batch and process
- *          |                                       |         by feeding into the operator)
- *          V                                       |___________________|
- *        DONE
- *
- *        NOTE: state machine has been augmented to support micro spilling. the high level
- *        idea/algorithm shown in above diagram is still the same. following diagram
- *        just depicts state transitions as micro spilling comes into action
- *
- *        states shown as: (external state, internal state)
- *
- *
- *                                                          keep spilling and yielding
- *                                                                         +--------+
- *                                                                         |        |
- *                                                                         V        |
+ *          |                                       |     |    +------------>---------+
+ *          |                                       V     |    |                      |
+ *          |                           PROCESS_SPILLED_PARTITION<------+             |
+ *          |                                       |                   |             |
+ *          |                                (read a single batch and process         |
+ *          |                                  by feeding into the operator)          |
+ *          V                                       |_________________|               |
+ *        DONE                                                                        recurse
+ *                                                                                hit oom so spill
+ *                                                                                   and yield
+ *        NOTE: state machine has been augmented to support micro spilling.           |
+ *        the high level idea/algorithm shown in above diagram is still the same.     |
+ *        following diagram just depicts state transitions as micro spilling          |
+ *        comes into action                                                           |
+ *                                                                                    |
+ *        states shown as: (external state, internal state)                           V
+ *                                                                                    |
+ *                                                                                    |
+ *                                                              keep spilling and     |
+ *                                                                    yielding        |
+ *                                                                    +--------+      |
+ *                                                                    |        |      |
+ *                                                                    V        |      V
  *     |------>(CAN_CONSUME, NONE)---hit oom so-------------->(CAN_PRODUCE, SPILL_NEXT_BATCH)<-+
  *     |                             spill little and yield         |                 ^        |
  *     |                                                            |                 |        |
@@ -272,11 +294,14 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
 
   public static final PowerOfTwoLongValidator VECTORIZED_HASHAGG_NUMPARTITIONS = new PowerOfTwoLongValidator("exec.operator.aggregate.vectorize.num_partitions", 32, 8);
   /* concept of batch internal to vectorized hashagg operator and hashtable to manage the memory allocation.
-   * as an example, if incoming batch size is 4096, consumeData() will internally treat this as 4 batches
-   * inserted into hash table and accumulator. This is used to reduce the pre-allocated memory
-   * for all partitions.
+   * as an example, if incoming batch size is 4096 and the HashAgg batch size is computed to be 1024,
+   * consumeData() will internally treat this as 4 batches inserted into hash table and accumulator.
+   * This is used to reduce the pre-allocated memory for all partitions.
+   *
+   * The max batch size bytes is for one partitions i.e if this value is 2MB, and
+   * there are 8 partitions, the total for all all partitions would be 2*8 = 16 MB.
    */
-  public static final PositiveLongValidator VECTORIZED_HASHAGG_BATCHSIZE = new PositiveLongValidator("exec.operator.aggregate.vectorize.max_hashtable_batch_size", 4096, 990);
+  public static final PositiveLongValidator VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES = new PositiveLongValidator("exec.operator.aggregate.vectorize.max_hashtable_batch_size_bytes", Integer.MAX_VALUE, 1 * 1024 * 1024);
 
   /* When running on large datasets with limited amount of memory (and thus excessive spilling), this setting
    * will generate huge amount of debug information potentially resulting in out of heap memory error.
@@ -325,7 +350,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
   private final int minHashTableSize;
   private final int minHashTableSizePerPartition;
   private final int estimatedVariableWidthKeySize;
-  private final int maxHashTableBatchSize;
+  private int maxHashTableBatchSize;
 
   private int hashPartitionMask;
   private final HashTableStatsHolder statsHolder;
@@ -364,6 +389,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
 
   private final long jointAllocationMin;
   private final long jointAllocationLimit;
+  private final boolean decimalV2Enabled;
 
   private final boolean setLimitToMinReservation;
   private VectorizedHashAggPartition ongoingVictimPartition;
@@ -390,9 +416,6 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     this.minHashTableSize = (int)options.getOption(ExecConstants.MIN_HASH_TABLE_SIZE);
     this.minHashTableSizePerPartition = (int)Math.ceil((minHashTableSize * 1.0)/numPartitions);
     this.estimatedVariableWidthKeySize = (int)options.getOption(VARIABLE_FIELD_SIZE_ESTIMATE);
-    this.maxHashTableBatchSize = (int) options.getOption(VECTORIZED_HASHAGG_BATCHSIZE);
-    Preconditions.checkArgument(maxHashTableBatchSize > 0 && maxHashTableBatchSize <= 4096,
-      "Error: max hash table batch size should be greater than 0 and not exceed 4096");
     final boolean traceOnException = options.getOption(VECTORIZED_HASHAGG_DEBUG_DETAILED_EXCEPTION);
     this.hashPartitionMask = numPartitions - 1;
     this.statsHolder = new HashTableStatsHolder();
@@ -404,6 +427,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     this.debug = new VectorizedHashAggDebug(traceOnException, (int)options.getOption(VECTORIZED_HASHAGG_DEBUG_MAX_OOMEVENTS));
     this.closed = false;
     this.outputAllocator = context.getFragmentOutputAllocator();
+
     /*
      * notes on usage of allocator:
      *
@@ -423,13 +447,41 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     this.jointAllocationMin = options.getOption(VECTORIZED_HASHAGG_JOINT_ALLOCATION_MIN);
     this.jointAllocationLimit = options.getOption(VECTORIZED_HASHAGG_JOINT_ALLOCATION_MAX);
     this.setLimitToMinReservation = options.getOption(VECTORIZED_HASHAGG_USE_MINIMUM_AS_LIMIT);
+    this.decimalV2Enabled = options.getOption(PlannerSettings.ENABLE_DECIMAL_V2);
     this.ongoingVictimPartition = null;
     this.enableSmallSpills = options.getOption(VECTORIZED_HASHAGG_ENABLE_MICRO_SPILLS);
     this.resumableInsertState = null;
     this.operatorStateBeforeOOB = null;
     this.forceSpillState = null;
-    logger.debug("partitions:{}, min-hashtable-size:{}, variable-width-key-size:{}, max-hashtable-batch-size:{}",
-      numPartitions, minHashTableSize, estimatedVariableWidthKeySize, maxHashTableBatchSize);
+    logger.debug("partitions:{}, min-hashtable-size:{}, variable-width-key-size:{}",
+      numPartitions, minHashTableSize, estimatedVariableWidthKeySize);
+  }
+
+  /**
+   * Calculate the per-partition hashtable batch size. We calculate the batch size based on the
+   * outgoing record size, and the configured min/max batch sizes.
+   */
+  private int calculateHashTableBatchSize(VectorAccessible outgoing) {
+    final OptionManager options = context.getOptions();
+
+    /*
+     * Estimate the outgoing record size. This is proportional to the sum of the accumulator and
+     * pivot sizes.
+     */
+    final int listSizeEstimate = (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
+    final int estimatedRecordSize = outgoing.getSchema().estimateRecordSize(listSizeEstimate, this.estimatedVariableWidthKeySize);
+
+    /*
+     * Compute the max hashtable batchsize, based on the estimated record size.
+     */
+    final int maxOutgoingBatchSize = (int) options.getOption(VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES);
+    int maxOutgoingRecordCount = Numbers.nextPowerOfTwo(maxOutgoingBatchSize / estimatedRecordSize);
+
+    final int configuredTargetRecordCount = (int)context.getOptions().getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
+    final int minTargetRecordCount = (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MIN);
+    int batchSize = Math.min(configuredTargetRecordCount, maxOutgoingRecordCount);
+    batchSize = Math.max(batchSize, minTargetRecordCount);
+    return PhysicalPlanCreator.optimizeBatchSizeForAllocs(batchSize);
   }
 
   @Override
@@ -437,18 +489,18 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     state.is(State.NEEDS_SETUP);
     this.incoming = accessible;
     this.pivot = createPivot();
+
     debug.setInfoBeforeInit(allocator.getInitReservation(), allocator.getLimit(),
-                            maxHashTableBatchSize, maxVariableBlockLength,
+                            maxVariableBlockLength,
                             estimatedVariableWidthKeySize, pivot.getVariableCount(),
                             pivot.getBlockWidth(), minHashTableSize,
                             numPartitions, minHashTableSizePerPartition);
     initStructures();
     partitionSpillHandler = new VectorizedHashAggPartitionSpillHandler(hashAggPartitions, context.getFragmentHandle(),
                                                                        context.getOptions(), context.getConfig(),
-                                                                       popConfig.getOperatorId(), partitionToLoadSpilledData,
+                                                                       popConfig.getProps().getLocalOperatorId(), partitionToLoadSpilledData,
                                                                        context.getSpillService(), minimizeSpilledPartitions);
-    this.outgoing.buildSchema();
-    debug.setInfoAfterInit(allocator.getAllocatedMemory(), outgoing.getSchema());
+    debug.setInfoAfterInit(maxHashTableBatchSize, allocator.getAllocatedMemory(), outgoing.getSchema());
     /* allocator.getAllocatorMemory() at this point represents the minimum reservation
      * (aka preallocation) that operator definitely needs to complete the query.
      * to stress test the spilling functionality, we allow the operator's
@@ -512,6 +564,19 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
      */
     final AccumulatorBuilder.MaterializedAggExpressionsResult materializeAggExpressionsResult =
       AccumulatorBuilder.getAccumulatorTypesFromExpressions(context.getClassProducer(), popConfig.getAggrExprs(), incoming);
+    final List<Field> outputVectorFields = materializeAggExpressionsResult.outputVectorFields;
+    for (int i = 0; i < materializeAggExpressionsResult.accumulatorTypes.length; ++i) {
+      final FieldVector outputVector = TypeHelper.getNewVector(outputVectorFields.get(i), outputAllocator);
+      outgoing.add(outputVector);
+    }
+    outgoing.buildSchema();
+
+    /*
+     * Compute the hash-table batch size, taking into account the outgoing schema.
+     */
+    this.maxHashTableBatchSize = calculateHashTableBatchSize(outgoing);
+    logger.debug("max-hashtable-batch-size:{}", maxHashTableBatchSize);
+
     /*
      * STEP 2: Build data structures for each partition.
      *         -- build hash table
@@ -534,10 +599,10 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
                                                                           outputAllocator,
                                                                           materializeAggExpressionsResult,
                                                                           outgoing,
-                                                                          (i == 0),
                                                                           maxHashTableBatchSize,
                                                                           jointAllocationMin,
-                                                                          jointAllocationLimit);
+                                                                          jointAllocationLimit,
+                                                                          decimalV2Enabled);
         /* this step allocates memory for control structure in hashtable and reverts itself if
          * allocation fails so we don't have to rely on rollback closeable
          */
@@ -548,7 +613,8 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
         final ArrowBuf buffer = combined.slice(i * PARTITIONINDEX_HTORDINAL_WIDTH * maxHashTableBatchSize,
             PARTITIONINDEX_HTORDINAL_WIDTH * maxHashTableBatchSize);
 
-        final VectorizedHashAggPartition hashAggPartition =  new VectorizedHashAggPartition(accumulator, hashTable, pivot.getBlockWidth(), partitionIdentifier, buffer);
+        final VectorizedHashAggPartition hashAggPartition =  new VectorizedHashAggPartition
+          (accumulator, hashTable, pivot.getBlockWidth(), partitionIdentifier, buffer, decimalV2Enabled);
         this.hashAggPartitions[i] = hashAggPartition;
         /* add partition to rollbackable before preallocating because if preallocation
          * fails, we still need to release memory for control structures in hashtable
@@ -1246,10 +1312,12 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
             context.getFragmentHandle().getQueryId(),
             context.getFragmentHandle().getMajorFragmentId(),
             a.getMinorFragmentIdList(),
-            popConfig.getOperatorId(),
+            popConfig.getProps().getOperatorId(),
             context.getFragmentHandle().getMinorFragmentId(),
-            payload);
-        context.getTunnelProvider().getExecTunnel(a.getAssignment()).sendOOBMessage(message);
+            payload, true);
+
+        NodeEndpoint endpoint = context.getEndpointsIndex().getNodeEndpoint(a.getAssignmentIndex());
+        context.getTunnelProvider().getExecTunnel(endpoint).sendOOBMessage(message);
       }
       oobSends++;
     } catch(Exception ex) {
@@ -1703,6 +1771,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     statsHolder.maxHashTableRehashCount = maxRehashCount;
 
     if (iterations == 1) {
+      statsHolder.maxHashTableBatchSize = maxHashTableBatchSize;
       statsHolder.allocatedForFixedBlocks = allocatedForFixedBlocks;
       statsHolder.unusedForFixedBlocks = unusedForFixedBlocks;
       statsHolder.allocatedForVarBlocks = allocatedForVarBlocks;
@@ -1736,6 +1805,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     stats.setLongStat(Metric.MAX_TOTAL_NUM_BUCKETS, statsHolder.maxTotalHashTableCapacity);
     stats.setLongStat(Metric.NUM_RESIZING, statsHolder.hashTableRehashCount);
     stats.setLongStat(Metric.RESIZING_TIME, statsHolder.hashTableRehashTime);
+    stats.setLongStat(Metric.MAX_HASHTABLE_BATCH_SIZE, statsHolder.maxHashTableBatchSize);
     stats.setLongStat(Metric.MIN_HASHTABLE_ENTRIES, statsHolder.minHashTableSize);
     stats.setLongStat(Metric.MAX_HASHTABLE_ENTRIES, statsHolder.maxHashTableSize);
     stats.setLongStat(Metric.MIN_REHASH_COUNT, statsHolder.minHashTableRehashCount);
@@ -1792,6 +1862,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     private int maxHashTableSize;
     private int minHashTableRehashCount;
     private int maxHashTableRehashCount;
+    private int maxHashTableBatchSize;
     private long allocatedForFixedBlocks;
     private long unusedForFixedBlocks;
     private long allocatedForVarBlocks;
@@ -2234,7 +2305,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
        * such metrics for verification in oom unit tests.
        */
       final VectorizedHashAggSpillStats spillStats = new VectorizedHashAggSpillStats();
-      spillStats.setSpills(partitionSpillHandler.getNumberOfSpills());
+      spillStats.setSpills((int)partitionSpillHandler.getNumberOfSpills());
       spillStats.setOoms(ooms);
       spillStats.setIterations(iterations);
       spillStats.setRecursionDepth(computeRecursionDepth());

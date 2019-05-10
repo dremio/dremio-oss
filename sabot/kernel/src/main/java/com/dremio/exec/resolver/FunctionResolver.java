@@ -33,7 +33,9 @@ public interface FunctionResolver {
    *
    * @param methods   a list of candidates of BaseFunctionHolder to be chosen from
    * @param call      a given function call whose BaseFunctionHolder is to be determined via this method
+   * @param isDecimalV2Enabled if v2Decimal implementation is on
    * @return BaseFunctionHolder the chosen BaseFunctionHolder
    */
-  BaseFunctionHolder getBestMatch(List<BaseFunctionHolder> methods, FunctionCall call);
+  BaseFunctionHolder getBestMatch(List<BaseFunctionHolder> methods, FunctionCall call,
+                                  boolean isDecimalV2Enabled);
 }

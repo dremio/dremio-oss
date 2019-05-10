@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.security.PrivilegedAction;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,7 +64,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
@@ -150,9 +151,9 @@ class ScanWithHiveReader {
 
   private static Constructor<? extends HiveAbstractReader> getNativeReaderCtor(Class<? extends HiveAbstractReader> clazz)
       throws NoSuchMethodException {
-    return clazz.getConstructor(HiveTableXattr.class, DatasetSplit.class, List.class, OperatorContext.class,
-        JobConf.class, SerDe.class, StructObjectInspector.class, SerDe.class, StructObjectInspector.class,
-        ScanFilter.class);
+    return clazz.getConstructor(HiveTableXattr.class, SplitInfo.class, List.class, OperatorContext.class,
+                                JobConf.class, SerDe.class, StructObjectInspector.class, SerDe.class, StructObjectInspector.class,
+                                ScanFilter.class, Collection.class);
   }
 
   static ProducerOperator createProducer(
@@ -165,7 +166,7 @@ class ScanWithHiveReader {
       final UserGroupInformation readerUGI){
 
     if(config.getSplits().isEmpty()) {
-      return new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, Iterators.singletonIterator(new EmptyRecordReader()), readerUGI);
+      return new ScanOperator(config, context, Iterators.singletonIterator(new EmptyRecordReader()), readerUGI);
     }
 
     final JobConf baseJobConf = new JobConf(hiveConf);
@@ -180,15 +181,15 @@ class ScanWithHiveReader {
 
     try {
       final UserGroupInformation currentUGI = UserGroupInformation.getCurrentUser();
-      readers = FluentIterable.from(config.getSplits()).transform(new Function<DatasetSplit, RecordReader>(){
+      readers = FluentIterable.from(config.getSplits()).transform(new Function<SplitInfo, RecordReader>(){
 
         @Override
-        public RecordReader apply(final DatasetSplit split) {
+        public RecordReader apply(final SplitInfo split) {
           return currentUGI.doAs(new PrivilegedAction<RecordReader>() {
             @Override
             public RecordReader run() {
               try {
-                final HiveSplitXattr splitAttr = HiveSplitXattr.parseFrom(split.getExtendedProperty().toByteArray());
+                final HiveSplitXattr splitAttr = HiveSplitXattr.parseFrom(split.getSplitExtendedProperty());
                 final JobConf jobConf = new JobConf(baseJobConf);
 
                 final SerDe tableSerDe = createSerDe(jobConf, HiveReaderProtoUtil.getTableSerializationLib(tableAttr).get(),
@@ -242,7 +243,7 @@ class ScanWithHiveReader {
 
                 final RecordReader innerReader = readerCtor.newInstance(tableAttr, split,
                     compositeReader.getInnerColumns(), context, jobConf, tableSerDe, tableOI, partitionSerDe,
-                    partitionOI, config.getFilter());
+                    partitionOI, config.getFilter(), config.getReferencedTables());
 
                 return compositeReader.wrapIfNecessary(context.getAllocator(), innerReader, split);
               } catch (Exception e) {
@@ -251,7 +252,7 @@ class ScanWithHiveReader {
             }
           });
         }});
-      return new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, readers.iterator(), readerUGI);
+      return new ScanOperator(config, context, readers.iterator(), readerUGI);
     } catch (Exception e) {
       AutoCloseables.close(e, readers);
       throw Throwables.propagate(e);

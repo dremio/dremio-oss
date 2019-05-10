@@ -20,6 +20,7 @@ import static com.dremio.dac.proto.model.dataset.ExtractRuleType.position;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -227,6 +228,9 @@ public class DatasetsUtil {
   public static DatasetConfig toDatasetConfig(PhysicalDatasetConfig physicalDatasetConfig, String owner) {
     final DatasetConfig datasetConfig = new DatasetConfig();
 
+    if (physicalDatasetConfig.getId() != null) {
+      datasetConfig.setId(new EntityId(physicalDatasetConfig.getId()));
+    }
     datasetConfig.setOwner(owner);
     datasetConfig.setFullPathList(physicalDatasetConfig.getFullPathList());
     datasetConfig.setName(physicalDatasetConfig.getName());
@@ -239,7 +243,8 @@ public class DatasetsUtil {
 
   public static DatasetConfig toDatasetConfig(FileConfig fileConfig, DatasetType datasetType, String owner, EntityId id) {
     final DatasetConfig datasetConfig = new DatasetConfig();
-
+    Objects.requireNonNull(id, "EntityId must be defined.");
+    Objects.requireNonNull(id.getId(), "EntityId must be defined.");
     datasetConfig.setOwner(owner);
     datasetConfig.setFullPathList(fileConfig.getFullPathList());
     datasetConfig.setName(fileConfig.getName());

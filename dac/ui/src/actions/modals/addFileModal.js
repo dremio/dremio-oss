@@ -22,6 +22,7 @@ import fileFormatSchema from 'schemas/fileFormat';
 
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import addFileModalMapper from 'utils/mappers/addFileModalMapper';
+import apiUtils from '@app/utils/apiUtils/apiUtils';
 
 export const UPLOAD_FILE_REQUEST = 'UPLOAD_FILE_REQUEST';
 export const UPLOAD_FILE_SUCCESS = 'UPLOAD_FILE_SUCCESS';
@@ -101,7 +102,10 @@ function fetchFileFormatPreview(urlPath, values, viewId) {
       ],
       method: 'POST',
       body: JSON.stringify(values),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        ...apiUtils.getJobDataNumbersAsStringsHeader()
+      },
       endpoint: `${API_URL_V2}${urlPath}`
     }
   };

@@ -15,16 +15,13 @@
  */
 package com.dremio.exec.catalog;
 
-
-import java.util.Map.Entry;
 import java.util.Objects;
 
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
-import com.dremio.service.namespace.DatasetSplitId;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.PartitionChunkMetadata;
 
 /**
  * Pointer to a set of splits for a dataset, which has been filtered further using a search query.
@@ -35,9 +32,10 @@ final class FilteredSplitsPointer extends LazySplitsPointer {
 
   FilteredSplitsPointer(
       NamespaceService namespaceService,
+      long splitVersion,
       SearchQuery partitionFilterQuery,
       int totalSplitCount) {
-    super(namespaceService, totalSplitCount);
+    super(namespaceService, splitVersion, totalSplitCount);
     this.splitFilter = new FindByCondition().setCondition(partitionFilterQuery);
   }
 
@@ -47,13 +45,8 @@ final class FilteredSplitsPointer extends LazySplitsPointer {
   }
 
   @Override
-  protected Iterable<Entry<DatasetSplitId, DatasetSplit>> findSplits() {
+  protected Iterable<PartitionChunkMetadata> findSplits() {
     return getNamespaceService().findSplits(splitFilter);
-  }
-
-  @Override
-  protected int computeSplitsCount() {
-    return getNamespaceService().getSplitCount(splitFilter);
   }
 
   @Override
@@ -65,11 +58,12 @@ final class FilteredSplitsPointer extends LazySplitsPointer {
     FilteredSplitsPointer castOther = (FilteredSplitsPointer) other;
     // No need to compare anything else: the filter is based on the dataset id, split version
     // and some specific conditions. Result of the filter should always be the same
-    return Objects.equals(splitFilter, castOther.splitFilter);
+    return this.getSplitVersion() == castOther.getSplitVersion()
+        && Objects.equals(splitFilter, castOther.splitFilter);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(splitFilter);
+    return Objects.hash(getSplitVersion(), splitFilter);
   }
 }

@@ -50,7 +50,6 @@ export class ExplorePageView extends Component {
     showEditColumnsModal: PropTypes.func,
     updateGridSizes: PropTypes.func.isRequired,
     isResizeInProgress: PropTypes.bool,
-    exploreViewState: PropTypes.instanceOf(Immutable.Map),
     style: PropTypes.object,
     onUnmount: PropTypes.func.isRequired
   };
@@ -70,10 +69,17 @@ export class ExplorePageView extends Component {
   }
 
   componentWillReceiveProps(nextProps) {
-    if (nextProps.pageType !== this.props.pageType) {
+    // init editor if changing page type or clicked on new query from non-newQuery view
+    if (nextProps.pageType !== this.props.pageType || this.clickedNewQuery(nextProps)) {
       this.initSqlEditor(nextProps);
     }
   }
+
+  clickedNewQuery = (nextProps) => {
+    return this.locationIncludesNewQuery(nextProps.location) && !this.locationIncludesNewQuery(this.props.location);
+  };
+
+  locationIncludesNewQuery = (location) => location && location.pathname && location.pathname.includes('new_query');
 
   componentWillUnmount() {
     $(window).off('resize', this.resize);
@@ -89,7 +95,10 @@ export class ExplorePageView extends Component {
     case PageTypes.wiki:
     case PageTypes.default:
     case PageTypes.graph: {
-      const newSize = hashHeightTopSplitter[location.query.type] || hashHeightTopSplitter.default;
+      const newSize = hashHeightTopSplitter[location.query.type] ||
+        (this.locationIncludesNewQuery(location)) ?
+        hashHeightTopSplitter.getNewQueryDefaultSqlHeight() :
+        hashHeightTopSplitter.getDefaultSqlHeight();
       props.updateSqlPartSize(newSize);
       break;
     }
@@ -149,7 +158,6 @@ export class ExplorePageView extends Component {
             toggleRightTree={this.props.toggleRightTree}
             toggleAccessModal={this.props.toggleAccessModal}
             showEditColumnsModal={this.props.showEditColumnsModal}
-            exploreViewState={this.props.exploreViewState}
           />
           <HistoryLineController
             dataset={dataset}

@@ -15,10 +15,14 @@
  */
 package com.dremio.common;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.AbstractFuture;
 
 /**
  * Handles wakeup events for the various managers.
@@ -39,17 +43,17 @@ public class WakeupHandler {
     this.manager = Preconditions.checkNotNull(manager, "runnable manager required");
   }
 
-  public void handle(String reason) {
+  public Future<?> handle(String reason) {
     logger.trace("waking up manager, reason: {}", reason);
     if (!wakeup.compareAndSet(false, true)) {
-      return; // wakeup event already queued for handling, nothing more to do
+      return CompletableFuture.completedFuture(null);
     }
     // following check if not necessary. It helps not submitting a thread if the manager is already running
     if (running.get()) {
-      return;
+      return CompletableFuture.completedFuture(null);
     }
 
-    executor.submit(new Runnable() {
+    return executor.submit(new Runnable() {
 
       @Override
       public void run() {

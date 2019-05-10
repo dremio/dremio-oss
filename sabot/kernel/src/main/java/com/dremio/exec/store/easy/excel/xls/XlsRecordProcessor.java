@@ -49,6 +49,7 @@ import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.util.LocaleUtil;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.easy.excel.ColumnNameHandler;
 import com.dremio.exec.store.easy.excel.ExcelFormatPluginConfig;
@@ -79,6 +80,7 @@ public class XlsRecordProcessor implements ExcelParser {
   private final RecordFactoryInputStream recordStream;
   private final FormatManager formatManager;
   private ArrowBuf managedBuf;
+  private final int maxCellSize;
 
   private SSTRecord sstRecord;
   private boolean dateWindow1904; // true if workbook is using 1904 date system
@@ -108,16 +110,18 @@ public class XlsRecordProcessor implements ExcelParser {
    * @param is XLS InputStream
    * @param writer will be used to write the retrieved record into the outgoing vector container
    * @param managedBuf managed buffer used to allocate VarChar values
+   * @param maxCellSize maximum allowable size of variable length cells
    *
    * @throws IOException if data doesn't start with a proper XLS header
    * @throws SheetNotFoundException if the sheet is not part of the workbook
    */
   public XlsRecordProcessor(final XlsInputStream is, final ExcelFormatPluginConfig pluginConfig,
                             final VectorContainerWriter writer, final ArrowBuf managedBuf,
-                            final HashSet<String> columnsToProject)
+                            final HashSet<String> columnsToProject, final int maxCellSize)
           throws IOException, SheetNotFoundException {
     this.writer = writer.rootAsStruct();
     this.managedBuf = managedBuf;
+    this.maxCellSize = maxCellSize;
 
     // following code reads and orders all of the workbook's sectors into a new byte array
     try {
@@ -533,6 +537,8 @@ public class XlsRecordProcessor implements ExcelParser {
 
   private void writeVarChar(final String columnName, final String value) {
     final byte[] b = value.getBytes(Charsets.UTF_8);
+    FieldSizeLimitExceptionHelper.checkReadSizeLimit(b.length, maxCellSize, columnName, logger);
+
     managedBuf = managedBuf.reallocIfNeeded(b.length);
     managedBuf.setBytes(0, b);
     writer.varChar(columnName).writeVarChar(0, b.length, managedBuf);

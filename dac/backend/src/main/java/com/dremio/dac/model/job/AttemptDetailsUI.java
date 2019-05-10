@@ -32,6 +32,7 @@ public class AttemptDetailsUI {
   private final Long planningTime;
   private final Long enqueuedTime;
   private final Long executionTime;
+  private final Long commandPoolWaitTime;
 
   @JsonCreator
   public AttemptDetailsUI(
@@ -40,13 +41,15 @@ public class AttemptDetailsUI {
       @JsonProperty("profileUrl") String profileUrl,
       @JsonProperty("planningTime") Long planningTime,
       @JsonProperty("enqueuedTime") Long enqueuedTime,
-      @JsonProperty("executionTime") Long executionTime) {
+      @JsonProperty("executionTime") Long executionTime,
+      @JsonProperty("commandPoolWaitTime") Long commandPoolWaitTime) {
     this.reason = reason;
     this.result = result;
     this.profileUrl = profileUrl;
     this.planningTime = planningTime;
     this.enqueuedTime = enqueuedTime;
     this.executionTime = executionTime;
+    this.commandPoolWaitTime = commandPoolWaitTime;
   }
 
   public AttemptDetailsUI(final JobAttempt jobAttempt, final JobId jobId, final int attemptIndex) {
@@ -56,6 +59,7 @@ public class AttemptDetailsUI {
     enqueuedTime = AttemptsHelper.getEnqueuedTime(jobAttempt);
     planningTime = AttemptsHelper.getPlanningTime(jobAttempt);
     executionTime = AttemptsHelper.getExecutionTime(jobAttempt);
+    commandPoolWaitTime = AttemptsHelper.getCommandPoolWaitTime(jobAttempt);
   }
 
   public String getReason() {
@@ -80,5 +84,9 @@ public class AttemptDetailsUI {
 
   public Long getExecutionTime() {
     return executionTime;
+  }
+
+  public Long getCommandPoolWaitTime() {
+    return commandPoolWaitTime;
   }
 }

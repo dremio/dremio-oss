@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017-2018 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="30px" height="25px" viewBox="0 0 30 25" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Icon/Upload</title>
+    <defs></defs>
+    <g id="Icons" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round">
+        <g id="Icon/Upload" transform="translate(1.000000, 1.000000)" stroke="#34a1b2" stroke-width="1.5">
+            <path d="M19.4708182,16.9153895 L22.5215455,16.9153895 C22.5215455,16.9153895 28,16.2073895 28,10.8743368 C28,7.49475789 25.1885455,4.71644211 21.6936364,4.84338947 C20.328,1.9836 17.4007273,-0.000189473684 14,-0.000189473684 C9.46463636,-0.000189473684 5.768,3.51644211 5.50390909,7.95012632 C2.66318182,7.36149474 0,9.5076 0,12.3844421 C0,16.9873895 4.86945455,16.9153895 4.86945455,16.9153895 L8.51390909,16.9153895" id="Stroke-2724"></path>
+            <path d="M14,9.72069474 L14,23.6154316" id="Stroke-2725"></path>
+            <polyline id="arrow" points="17.8181818 13.5101684 14 9.72069474 10.1818182 13.5101684"></polyline>
+        </g>
+    </g>
+</svg>

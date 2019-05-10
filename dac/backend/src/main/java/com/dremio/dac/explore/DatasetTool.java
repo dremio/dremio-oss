@@ -117,20 +117,19 @@ public class DatasetTool {
 
   /**
    * Helper method to create {@link InitialPreviewResponse} for existing dataset.
-   * @param datasetPath
    * @param newDataset
+   * @param tipVersion - a top level history version for a dataset.
    * @return
    * @throws DatasetVersionNotFoundException
    */
   InitialPreviewResponse createPreviewResponseForExistingDataset(
-      DatasetPath datasetPath,
       VirtualDatasetUI newDataset,
-      DatasetVersion tipVersion,
+      DatasetVersionResourcePath tipVersion,
       Integer limit
       ) throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
 
     SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username());
-    JobUI job = executor.runQuery(query, QueryType.UI_PREVIEW, datasetPath, newDataset.getVersion());
+    JobUI job = executor.runQuery(query, QueryType.UI_PREVIEW, tipVersion.getDataset(), newDataset.getVersion());
 
     return createPreviewResponse(newDataset, job, tipVersion, limit, true);
   }
@@ -141,9 +140,19 @@ public class DatasetTool {
 
   /**
    * Helper method to create {@link InitialPreviewResponse} from given inputs
+   * @param datasetUI
+   * @param job
+   * @param tipVersion a combination of dataset verion + path to a dataset. It represent a top history version. Path here
+   *                   could differs from path that {@code datasetUI} has, as {@code datasetUI} could be
+   *                   a history version, that references on other dataset with different path.
+   * @param maxRecords
+   * @param catchExecutionError
    * @return
+   * @throws DatasetVersionNotFoundException
+   * @throws NamespaceException
+   * @throws JobNotFoundException
    */
-  InitialPreviewResponse createPreviewResponse(VirtualDatasetUI datasetUI, JobUI job, DatasetVersion tipVersion,
+  InitialPreviewResponse createPreviewResponse(VirtualDatasetUI datasetUI, JobUI job, DatasetVersionResourcePath tipVersion,
       Integer maxRecords, boolean catchExecutionError) throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
     JobDataFragment dataLimited = null;
     ApiErrorModel<?> error = null;
@@ -156,7 +165,7 @@ public class DatasetTool {
       if (maxRecords > 0) {
         dataLimited = job.getData().truncate(maxRecords);
       } else {
-        dataLimited = getDataOnlyWithColumns(jobsService.getJob(job.getJobId()).getJobAttempt().getInfo());
+        dataLimited = getDataOnlyWithColumns(jobsService.getJob(job.getJobId()));
       }
     } catch (Exception ex) {
       if (!catchExecutionError) {
@@ -168,22 +177,31 @@ public class DatasetTool {
       }
       error = new ApiErrorModel<Void>(ApiErrorModel.ErrorType.INITIAL_PREVIEW_ERROR, ex.getMessage(), GenericErrorMessage.printStackTrace(ex), null);
     }
-    final History history = getHistory(new DatasetPath(datasetUI.getFullPathList()), datasetUI.getVersion(), tipVersion);
-    return InitialPreviewResponse.of(newDataset(datasetUI, tipVersion), job.getJobId(), dataLimited, true,
+    final History history = getHistory(tipVersion.getDataset(), datasetUI.getVersion(), tipVersion.getVersion());
+    // VBesschetnov 2019-01-08
+    // this is requires as BE generates apiLinks, that is used by UI to send requests for preview/run. In case, when history
+    // of a dataset reference on a version for other dataset. And a user navigate to that version and tries to preview it,
+    // we would not be resolve a tip version and preview will fail. We should always send requests to original dataset
+    // path (tip version path) to be able to get a preview/run data
+    // TODO(DX-14701) move links from BE to UI
+    datasetUI.setFullPathList(tipVersion.getDataset().toPathList());
+    return InitialPreviewResponse.of(newDataset(datasetUI, tipVersion.getVersion()), job.getJobId(), dataLimited, true,
       history, error);
   }
 
-  private JobDataFragment getDataOnlyWithColumns(JobInfo jobInfo) {
-    ByteString schemaBytes = jobInfo.getBatchSchema();
-    if (schemaBytes == null) {
+  private JobDataFragment getDataOnlyWithColumns(Job job) {
+    job.getData().waitForMetadata();
+    ByteString batchSchema = job.getJobAttempt().getInfo().getBatchSchema();
+
+    if (batchSchema == null) {
       return null;
     }
-    BatchSchema schema = BatchSchema.deserialize(schemaBytes);
+    BatchSchema schema = BatchSchema.deserialize(batchSchema);
     List<Column> columns =  JobDataFragmentWrapper.getColumnsFromSchema(schema).values().asList();
     return new JobDataFragment() {
       @Override
       public JobId getJobId() {
-        return jobInfo.getJobId();
+        return job.getJobId();
       }
 
       @Override
@@ -231,7 +249,7 @@ public class DatasetTool {
   InitialPreviewResponse createPreviewResponse(DatasetPath path, DatasetAndJob datasetAndJob, int maxRecords, boolean catchExecutionError)
       throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
     return createPreviewResponse(
-      datasetAndJob.getDataset(), datasetAndJob.getJob(), datasetAndJob.getDataset().getVersion(), maxRecords, catchExecutionError
+      datasetAndJob.getDataset(), datasetAndJob.getJob(), new DatasetVersionResourcePath(path, datasetAndJob.getDataset().getVersion()), maxRecords, catchExecutionError
     );
   }
 
@@ -261,7 +279,7 @@ public class DatasetTool {
           error = new ApiErrorModel<Void>(ApiErrorModel.ErrorType.INITIAL_PREVIEW_ERROR, ex.getMessage(), GenericErrorMessage.printStackTrace(ex), null);
         }
       } else {
-        dataLimited = getDataOnlyWithColumns(jobInfo);
+        dataLimited = getDataOnlyWithColumns(jobRawData);
       }
       break;
     }
@@ -391,7 +409,11 @@ public class DatasetTool {
       if(prepare) {
         limit = 0;
       }
-      return createPreviewResponse(newDataset, job, newDataset.getVersion(), limit, false);
+      // in case of initial preview a returned dataset should be actual tip version. Dataset's path and version should
+      // be consistent and represent actual key in dataset version store. So use dataset's path and
+      // version as tipVersion
+      return createPreviewResponse(newDataset, job, new DatasetVersionResourcePath(new DatasetPath(newDataset.getFullPathList()), newDataset.getVersion()),
+        limit, false);
     } catch (Exception ex) {
       List<String> parentDataset = getParentDataset(from);
 

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.work.protector;
 
+import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.work.foreman.TerminationListenerRegistry;
@@ -23,7 +24,13 @@ import com.dremio.sabot.rpc.user.UserSession;
 
 public interface UserWorker {
 
-  ExternalId submitWork(UserSession session, UserResponseHandler responseHandler, UserRequest request, TerminationListenerRegistry registry);
+  void submitWork(ExternalId externalId, UserSession session,
+    UserResponseHandler responseHandler, UserRequest request, TerminationListenerRegistry registry);
+
+  default void submitWork(UserSession session, UserResponseHandler responseHandler,
+      UserRequest request, TerminationListenerRegistry registry) {
+    submitWork(ExternalIdHelper.generateExternalId(), session, responseHandler, request, registry);
+  }
 
   Ack cancelQuery(ExternalId query, String username);
 

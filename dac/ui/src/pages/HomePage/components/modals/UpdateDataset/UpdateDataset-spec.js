@@ -28,8 +28,11 @@ describe('UpdateDataset', () => {
       query: {name: 'ds1'},
       isOpen: false,
       loadDependentDatasets: sinon.spy(),
+      removeFileFormat: sinon.spy(),
+      convertDatasetToFolder: sinon.spy(),
       renameSpaceDataset: sinon.stub().returns(Promise.resolve()),
       moveDataSet: sinon.stub().returns(Promise.resolve()),
+      removeDataset: sinon.stub().returns(Promise.resolve()),
       createDatasetFromExisting: sinon.stub().returns(Promise.resolve()),
       hide: sinon.spy()
     };
@@ -37,7 +40,8 @@ describe('UpdateDataset', () => {
       ...minimalProps,
       item: Immutable.fromJS({
         resourcePath: '/dataset/"Prod-Sample".ds2',
-        fullPathList: ['Prod-Sample', 'ds2']
+        fullPathList: ['Prod-Sample', 'ds2'],
+        entityType: 'dataset'
       })
     };
     wrapper = shallow(<UpdateDataset {...commonProps}/>);
@@ -68,9 +72,15 @@ describe('UpdateDataset', () => {
 
   describe('#copyDataset', () => {
     it('should call copyDataset with pathFrom', () => {
-      instance.copyDataset({ datasetName: 'ds3', selectedEntity: 'Prod-Sample' });
+      instance.copyDataset({ datasetName: 'ds3', selectedEntity: 'Prod-Sample2' });
       expect(commonProps.createDatasetFromExisting)
-            .to.have.been.calledWith(commonProps.item.get('fullPathList'), ['Prod-Sample', 'ds3'], { name: 'ds3' });
+            .to.have.been.calledWith(commonProps.item.get('fullPathList'), ['Prod-Sample2', 'ds3'], { name: 'ds3' });
+    });
+
+    it('should call copyDataset w/o selected entity', () => {
+      instance.copyDataset({ datasetName: 'ds3' });
+      expect(commonProps.createDatasetFromExisting)
+        .to.have.been.calledWith(commonProps.item.get('fullPathList'), ['Prod-Sample', 'ds3'], { name: 'ds3' });
     });
   });
 
@@ -78,6 +88,25 @@ describe('UpdateDataset', () => {
     it('should call renameSpaceDataset with pathFrom', () => {
       instance.renameDataset({ datasetName: 'ds12' });
       expect(commonProps.renameSpaceDataset).to.have.been.calledWith(commonProps.item, 'ds12');
+    });
+  });
+
+  describe('#removeFormat', () => {
+    it('should call convertDatasetToFolder for non file entity type', () => {
+      instance.removeFormat();
+      expect(commonProps.convertDatasetToFolder).to.have.been.calledWith(
+        commonProps.item,
+        'toggleFolderPhysicalDataset'
+      );
+    });
+    it('should call removeFileFormat for a file', () => {
+      const tempProps = {
+        ...minimalProps,
+        item: Immutable.fromJS({entityType: 'file'})
+      };
+      instance = shallow(<UpdateDataset {...tempProps}/>).instance();
+      instance.removeFormat();
+      expect(tempProps.removeFileFormat).to.have.been.calledWith(tempProps.item);
     });
   });
 

@@ -27,7 +27,9 @@ import org.apache.hadoop.fs.Path;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.acceleration.MaterializationExpander;
+import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
 import com.dremio.exec.store.RecordWriter;
+import com.dremio.proto.model.UpdateId;
 import com.dremio.service.job.proto.Acceleration.Substitution;
 import com.dremio.service.job.proto.ExtraInfo;
 import com.dremio.service.job.proto.JobAttempt;
@@ -223,7 +225,7 @@ public class RefreshDoneHandler {
 
   private void createAndSaveRefresh(final JobDetails details, final RefreshDecision decision) {
     final boolean isFull = decision.getAccelerationSettings().getMethod() == RefreshMethod.FULL;
-    final long updateId = isFull ? -1L : getUpdateId(job.getJobId(), job.getData());
+    final UpdateId updateId = isFull ? new UpdateId() : getUpdateId(job.getJobId(), job.getData());
     final MaterializationMetrics metrics = ReflectionUtils.computeMetrics(job);
     final List<DataPartition> dataPartitions = ReflectionUtils.computeDataPartitions(job.getJobAttempt().getInfo());
     final List<String> refreshPath = ReflectionUtils.getRefreshPath(job.getJobId(), job.getData(), accelerationBasePath);
@@ -276,9 +278,9 @@ public class RefreshDoneHandler {
   /**
    * @return next updateId
    */
-  private static long getUpdateId(final JobId jobId, final JobData jobData) {
+  private static UpdateId getUpdateId(final JobId jobId, final JobData jobData) {
     final int fetchLimit = 1000;
-    long maxValue = Long.MIN_VALUE;
+    UpdateIdWrapper updateIdWrapper = new UpdateIdWrapper();
 
     int offset = 0;
     JobDataFragment data = jobData.range(offset, fetchLimit);
@@ -288,14 +290,13 @@ public class RefreshDoneHandler {
         if(b == null) {
           throw new IllegalStateException("Didn't find metadata output for job " + jobId.getId());
         }
-        long val = Long.parseLong(new String(b));
-        maxValue = Math.max(maxValue, val);
+        updateIdWrapper.update(UpdateIdWrapper.deserialize(b));
       }
       offset += data.getReturnedRowCount();
       data = jobData.range(offset, fetchLimit);
     }
 
-    return maxValue;
+    return updateIdWrapper.getUpdateId();
   }
 
   /**
@@ -324,5 +325,4 @@ public class RefreshDoneHandler {
         .build(logger);
     }
   }
-
 }

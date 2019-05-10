@@ -17,7 +17,7 @@ import React, { Component } from 'react';
 import classNames from 'classnames';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
-import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
+import Popover from '@material-ui/core/Popover';
 import Radium from 'radium';
 
 import FontIcon from '../Icon/FontIcon';
@@ -101,9 +101,8 @@ export default class SettingsBtn extends Component {
           open={this.state.open}
           anchorEl={this.state.anchorEl}
           anchorOrigin={{horizontal: 'left', vertical: 'bottom'}}
-          targetOrigin={{horizontal: 'left', vertical: 'top'}}
-          onRequestClose={this.handleRequestClose}
-          animation={PopoverAnimationVertical}
+          transformOrigin={{horizontal: 'left', vertical: 'top'}}
+          onClose={this.handleRequestClose}
         >
           {React.cloneElement(this.props.menu, {closeMenu: this.handleRequestClose})}
         </Popover>}
@@ -120,10 +119,5 @@ const styles = {
   },
   button: {
     display: 'flex'
-  },
-  menuStyle: {
-    float: 'left',
-    position: 'relative',
-    zIndex: 0
   }
 };

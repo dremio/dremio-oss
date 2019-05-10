@@ -26,12 +26,11 @@ export default class FinderNavSection extends Component {
     items: PropTypes.instanceOf(Immutable.List).isRequired,
     isInProgress: PropTypes.bool,
     maxItemsCount: PropTypes.number,
-    toggleActivePin: PropTypes.func,
     listHref: PropTypes.oneOfType([PropTypes.string, PropTypes.object])
   };
 
   render() {
-    const { items, maxItemsCount, toggleActivePin, listHref } = this.props;
+    const { items, maxItemsCount, listHref } = this.props;
     if (!items.size) return null;
 
     const hasMore = items.size > maxItemsCount;
@@ -46,7 +45,7 @@ export default class FinderNavSection extends Component {
                 <FinderNavItem
                   key={item.get('id')}
                   item={item.toJS()}
-                  toggleActivePin={toggleActivePin}
+                  itemHasContextMenu // both spaces and sources nav items have context menu
                 />
               );
             }

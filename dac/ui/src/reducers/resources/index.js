@@ -16,15 +16,11 @@
 import { combineReducers } from 'redux';
 
 import entities from 'dyn-load/reducers/resources/entities';
-import tree from './tree';
 import view from './view';
 import sourceList from './sourceList';
-import spaceList from './spaceList';
 
 export default combineReducers({
-  tree,
   entities,
   view,
-  sourceList,
-  spaceList
+  sourceList
 });

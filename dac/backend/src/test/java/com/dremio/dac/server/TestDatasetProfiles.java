@@ -44,6 +44,7 @@ import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceKey;
@@ -189,14 +190,16 @@ public class TestDatasetProfiles extends BaseTestServer {
   }
 
   private static QueryProfile getQueryProfile(final String query) throws JobNotFoundException {
-    final Job job = getJobsService().submitJob(JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
-      .setQueryType(QueryType.UI_INTERNAL_RUN)
-      .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-      .setDatasetVersion(DatasetVersion.NONE)
-      .build(), new NoOpJobStatusListener());
-
-    job.getData().loadIfNecessary();
+    final Job job = JobsServiceUtil.waitForJobCompletion(
+      getJobsService().submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
+          .setQueryType(QueryType.UI_INTERNAL_RUN)
+          .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+          .setDatasetVersion(DatasetVersion.NONE)
+          .build(),
+        new NoOpJobStatusListener())
+    );
     return getJobsService().getProfile(job.getJobId(), 0);
   }
 

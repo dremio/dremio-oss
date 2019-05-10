@@ -16,7 +16,6 @@
 
 package com.dremio.exec.planner.physical;
 
-import java.io.IOException;
 import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
@@ -29,8 +28,6 @@ import org.apache.calcite.util.Pair;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.NamedExpression;
-import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.physical.config.Project;
 import com.dremio.exec.planner.logical.ParseContext;
 import com.dremio.exec.planner.logical.RexToExpr;
 import com.google.common.collect.Lists;
@@ -45,16 +42,6 @@ public class ProjectAllowDupPrel extends ProjectPrel {
   @Override
   public ProjectAllowDupPrel copy(RelTraitSet traitSet, RelNode input, List<RexNode> exps, RelDataType rowType) {
     return ProjectAllowDupPrel.create(getCluster(), traitSet, input, exps, rowType);
-  }
-
-  @Override
-  public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    Prel child = (Prel) this.getInput();
-
-    PhysicalOperator childPOP = child.getPhysicalOperator(creator);
-
-    Project p = new Project(this.getProjectExpressions(new ParseContext(PrelUtil.getSettings(getCluster()))),  childPOP);
-    return creator.addMetadata(this, p);
   }
 
   @Override
@@ -79,7 +66,7 @@ public class ProjectAllowDupPrel extends ProjectPrel {
    */
   public static ProjectAllowDupPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<RexNode> exps,
                                            RelDataType rowType) {
-    final RelTraitSet trimmedTraits = trimTraits(cluster, child, exps, traits);
-    return new ProjectAllowDupPrel(cluster, trimmedTraits, child, exps, rowType);
+    final RelTraitSet adjustedTraits = adjustTraits(cluster, child, exps, traits);
+    return new ProjectAllowDupPrel(cluster, adjustedTraits, child, exps, rowType);
   }
 }

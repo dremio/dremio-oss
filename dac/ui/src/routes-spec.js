@@ -17,70 +17,56 @@ import { mount } from 'enzyme';
 
 import { Router, Route, createMemoryHistory } from 'react-router';
 import { getSourceRoute } from 'routes';
-import FinderNavItem from 'components/FinderNavItem';
+import { EntityLink } from '@app/pages/HomePage/components/EntityLink';
 
 describe('routes', () => {
 
   const rootType = 'source';
   const linkUrl = `/${rootType}/fake_source_id`;
-  const navLinkProps = {
-    item: {
-      links: {
-        self: linkUrl
-      },
-      state: { // needed for rendering
-      }
-    }
+  const linkProps = {
+    linkTo: linkUrl,
+    activeClassName: 'active'
   };
-  const renderLink = () => <FinderNavItem {...navLinkProps} />;
-  let history;
-
-  beforeEach(() => {
-    history = createMemoryHistory();
-  });
+  const renderLink = () => <EntityLink {...linkProps} className='finder-nav-item-link' />;
+  const isLinkActive = wrapper => wrapper.find('.finder-nav-item-link').hostNodes().hasClass('active');
 
   describe('NavLinkItem highlight tests', () => {
+
     it('link is marked as active when a source is selected', () => {
       const wrapper = mount(
-        <Router history={history}>
+        <Router history={createMemoryHistory(linkUrl)}>
           <Route path='/' component={({ children }) => children}>
             {getSourceRoute(rootType, renderLink)}
           </Route>
         </Router>
         );
 
-      history.push(linkUrl);
-
-      expect(wrapper.find('.finder-nav-item-link').hasClass('active')).to.equal(true);
+      expect(isLinkActive(wrapper)).to.equal(true);
     });
 
     it('link is marked as active when a subfolder of a source is selected', () => {
       const wrapper = mount(
-        <Router history={history}>
+        <Router history={createMemoryHistory(`${linkUrl}/folder/fake_subfolder`)}>
           <Route path='/' component={({ children }) => children}>
             {getSourceRoute(rootType, renderLink)}
           </Route>
         </Router>
         );
 
-      history.push(`${linkUrl}/folder/fake_subfolder`);
-
-      expect(wrapper.find('.finder-nav-item-link').hasClass('active')).to.equal(true);
+      expect(isLinkActive(wrapper)).to.equal(true);
     });
 
     it('link is inactive when other path is selected', () => {
       const otherRootName = 'not_a_' + rootType;
       const wrapper = mount(
-        <Router history={history}>
+        <Router history={createMemoryHistory(`${otherRootName}/some_id/folder/fake_subfolder`)}>
           <Route path='/' component={({ children }) => children}>
             {getSourceRoute(otherRootName, renderLink)}
           </Route>
         </Router>
         );
 
-      history.push(`${otherRootName}/some_id/folder/fake_subfolder`);
-
-      expect(wrapper.find('.finder-nav-item-link').hasClass('active')).to.equal(false);
+      expect(isLinkActive(wrapper)).to.equal(false);
     });
   });
 

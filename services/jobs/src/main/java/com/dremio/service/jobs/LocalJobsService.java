@@ -38,6 +38,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -72,6 +75,7 @@ import com.dremio.common.DeferredException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
+import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.common.utils.protos.ExternalIdHelper;
@@ -106,7 +110,6 @@ import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
-import com.dremio.exec.proto.SchemaUserBitShared;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
@@ -147,6 +150,7 @@ import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.BindingCreator;
+import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.job.proto.Acceleration;
 import com.dremio.service.job.proto.ExtraInfo;
 import com.dremio.service.job.proto.JobAttempt;
@@ -171,6 +175,7 @@ import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
+import com.dremio.service.scheduler.ScheduleUtils;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
 import com.google.common.annotations.VisibleForTesting;
@@ -203,9 +208,15 @@ public class LocalJobsService implements JobsService {
 
   private static final long ONE_DAY_IN_MILLIS = TimeUnit.DAYS.toMillis(1);
 
+  private static final int MAX_NUMBER_JOBS_TO_FETCH = 10;
+
   public static final String JOBS_NAME = "jobs";
 
   public static final String PROFILES_NAME = "profiles";
+
+  private static final String LOCAL_TASK_LEADER_NAME = "localjobsclean";
+
+  private static final String LOCAL_ONE_TIME_TASK_LEADER_NAME = "localjobsabandon";
 
   // Sort by descending order of start time. (recently submitted jobs come on top)
   private static final List<SearchFieldSorting> DEFAULT_SORTER = ImmutableList.of(
@@ -223,6 +234,7 @@ public class LocalJobsService implements JobsService {
   private final Provider<ForemenTool> foremenTool;
   private final Provider<CoordTunnelCreator> coordTunnelCreator;
   private final Provider<SchedulerService> schedulerService;
+  private final Provider<CommandPool> commandPoolService;
   private final java.util.function.Function<? super Job, ? extends LoggedQuery> jobResultToLogEntryConverter;
   private final boolean isMaster;
 
@@ -232,7 +244,8 @@ public class LocalJobsService implements JobsService {
   private NamespaceService namespaceService;
   private String storageName;
   private JobResultsStore jobResultsStore;
-  private Cancellable cleanupTask;
+  private Cancellable jobResultsCleanupTask;
+  private Cancellable jobProfilesCleanupTask;
 
   public LocalJobsService(
       final BindingCreator bindingCreator,
@@ -244,6 +257,7 @@ public class LocalJobsService implements JobsService {
       final Provider<ForemenTool> foremenTool,
       final Provider<SabotContext> contextProvider,
       final Provider<SchedulerService> schedulerService,
+      final Provider<CommandPool> commandPoolService,
       final java.util.function.Function<? super Job, ? extends LoggedQuery> jobResultToLogEntryConverterProvider,
       final boolean isMaster
       ) {
@@ -258,6 +272,7 @@ public class LocalJobsService implements JobsService {
     this.foremenTool = foremenTool;
     this.coordTunnelCreator = coordTunnelCreator;
     this.schedulerService = schedulerService;
+    this.commandPoolService = commandPoolService;
     this.isMaster = isMaster;
   }
 
@@ -275,34 +290,72 @@ public class LocalJobsService implements JobsService {
     this.jobResultsStore = new JobResultsStore(fileSystemPlugin, store, allocator);
 
     if (isMaster) { // if Dremio process died, clean up
-      setAbandonedJobsToFailedState(store);
+      CountDownLatch wasRun = new CountDownLatch(1);
+      final Cancellable task = schedulerService.get()
+        .schedule(ScheduleUtils.scheduleToRunOnceNow(LOCAL_ONE_TIME_TASK_LEADER_NAME), () -> {
+            try {
+              setAbandonedJobsToFailedState(store);
+            } finally {
+              wasRun.countDown();
+            }
+          });
+      if (!task.isDone()) {
+        // wait only if it is task leader
+        wasRun.await();
+      }
     }
 
     // register to listen to query lifecycle
     bindingCreator.replace(QueryObserverFactory.class, new JobsObserverFactory());
 
     final OptionManager optionManager = contextProvider.get().getOptionManager();
-    final long maxAgeInMillis = optionManager.getOption(ExecConstants.DEBUG_RESULTS_MAX_AGE_IN_MILLISECONDS);
-    final long maxAgeInDays = optionManager.getOption(ExecConstants.RESULTS_MAX_AGE_IN_DAYS);
-    final long jobResultsMaxAgeInMillis = (maxAgeInDays * ONE_DAY_IN_MILLIS) + maxAgeInMillis;
+
+    // job results
+    final long maxJobResultsAgeInDays = optionManager.getOption(ExecConstants.RESULTS_MAX_AGE_IN_DAYS);
+
+    // job profiles
+    final long jobProfilesAgeOffsetInMillis = optionManager.getOption(ExecConstants.DEBUG_RESULTS_MAX_AGE_IN_MILLISECONDS);
+    final long maxJobProfilesAgeInDays = optionManager.getOption(ExecConstants.JOB_MAX_AGE_IN_DAYS);
+    final long maxJobProfilesAgeInMillis = (maxJobProfilesAgeInDays * ONE_DAY_IN_MILLIS) + jobProfilesAgeOffsetInMillis;
 
     if (isMaster) {
+      final long releaseLeadership = optionManager.getOption(ExecConstants.JOBS_RELEASE_LEADERSHIP_MS);
       final Schedule schedule;
-      // Schedule cleanup to run every day unless the max age is less than a day
-      if (maxAgeInDays != DISABLE_CLEANUP_VALUE) {
-        if (jobResultsMaxAgeInMillis < ONE_DAY_IN_MILLIS) {
-          schedule = Schedule.Builder.everyMillis(jobResultsMaxAgeInMillis)
+
+      // Schedule job profiles cleanup to run every day unless the max age is less than a day (used for testing)
+      if (maxJobProfilesAgeInDays != DISABLE_CLEANUP_VALUE) {
+        if (maxJobProfilesAgeInMillis < ONE_DAY_IN_MILLIS) {
+          schedule = Schedule.Builder.everyMillis(maxJobProfilesAgeInMillis)
               .startingAt(Instant.now()
                   .plus(DELAY_BEFORE_STARTING_CLEANUP_IN_MINUTES, ChronoUnit.MINUTES))
+            .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
+            .releaseOwnershipAfter(releaseLeadership, TimeUnit.MILLISECONDS)
               .build();
         } else {
-          schedule = Schedule.Builder.everyDays(1)
-              .startingAt(Instant.now()
-                  .plus(DELAY_BEFORE_STARTING_CLEANUP_IN_MINUTES, ChronoUnit.MINUTES))
-              .build();
+          final long jobCleanupStartHour = optionManager.getOption(ExecConstants.JOB_CLEANUP_START_HOUR);
+          final LocalTime startTime = LocalTime.of((int) jobCleanupStartHour, 0);
+
+          // schedule every day at the user configured hour (defaults to 1 am)
+          schedule = Schedule.Builder.everyDays(1, startTime)
+            .withTimeZone(ZoneId.systemDefault())
+            .asClusteredSingleton(LOCAL_TASK_LEADER_NAME)
+            .releaseOwnershipAfter(releaseLeadership, TimeUnit.MILLISECONDS)
+            .build();
         }
-        cleanupTask = schedulerService.get()
-            .schedule(schedule, new CleanupTask());
+        jobProfilesCleanupTask = schedulerService.get().schedule(schedule, new JobProfilesCleanupTask());
+      }
+
+      // Schedule job results cleanup
+      if (maxJobResultsAgeInDays != DISABLE_CLEANUP_VALUE) {
+        final long jobResultsCleanupStartHour = optionManager.getOption(ExecConstants.JOB_RESULTS_CLEANUP_START_HOUR);
+        final LocalTime startTime = LocalTime.of((int) jobResultsCleanupStartHour, 0);
+
+        // schedule every day at the user configured hour (defaults to midnight)
+        final Schedule resultSchedule = Schedule.Builder.everyDays(1, startTime)
+          .withTimeZone(ZoneId.systemDefault())
+          .build();
+
+        jobResultsCleanupTask = schedulerService.get().schedule(resultSchedule, new JobResultsCleanupTask());
       }
     }
 
@@ -338,10 +391,16 @@ public class LocalJobsService implements JobsService {
   @Override
   public void close() throws Exception {
     logger.info("Stopping JobsService");
-    if (cleanupTask != null) {
-      cleanupTask.cancel(false);
-      cleanupTask = null;
+    if (jobResultsCleanupTask != null) {
+      jobResultsCleanupTask.cancel(false);
+      jobResultsCleanupTask = null;
     }
+
+    if (jobProfilesCleanupTask != null) {
+      jobProfilesCleanupTask.cancel(false);
+      jobProfilesCleanupTask = null;
+    }
+
     AutoCloseables.close(jobResultsStore, allocator);
     logger.info("Stopped JobsService");
   }
@@ -365,9 +424,8 @@ public class LocalJobsService implements JobsService {
     }
   }
 
-  private Job startJob(JobRequest jobRequest, JobStatusListener statusListener) {
+  private Job startJob(ExternalId externalId, JobRequest jobRequest, JobStatusListener statusListener) {
     // (1) create job details
-    final ExternalId externalId = ExternalIdHelper.generateExternalId();
     final JobId jobId = JobsServiceUtil.getExternalIdAsJobId(externalId);
     final String inSpace =
         !jobRequest.getDatasetPathComponents().isEmpty() &&
@@ -403,7 +461,7 @@ public class LocalJobsService implements JobsService {
 
     // (3) register listener
     final QueryListener jobObserver = new QueryListener(job, statusListener);
-    store.put(job.getJobId(), toJobResult(job));
+    storeJob(job);
     runningJobs.put(jobId, jobObserver);
 
     final boolean isPrepare = queryType.equals(QueryType.PREPARE_INTERNAL);
@@ -427,19 +485,60 @@ public class LocalJobsService implements JobsService {
     }
 
     // (4) submit the job
-    queryExecutor.get()
+    try {
+      queryExecutor.get()
         .submitLocalQuery(externalId, jobObserver, queryRequest, isPrepare, config);
-
+    } catch (Exception ex) {
+      // Failed to submit the job
+      jobAttempt.setState(JobState.FAILED);
+      jobAttempt.setInfo(jobAttempt.getInfo()
+        .setFinishTime(System.currentTimeMillis())
+        .setFailureInfo("Failed to submit the job"));
+      // Update the job in KVStore
+      storeJob(job);
+      // Add profile for this job
+      final AttemptId attemptId = new AttemptId(JobsServiceUtil.getJobIdAsExternalId(jobId), 0);
+      UserException userException = UserException.systemError(ex).build(logger);
+      final QueryProfile.Builder profileBuilder = QueryProfile.newBuilder()
+        .setQuery(jobRequest.getSqlQuery().getSql())
+        .setUser(jobRequest.getUsername())
+        .setId(attemptId.toQueryId())
+        .setState(QueryState.FAILED)
+        .setStart(jobAttempt.getInfo().getStartTime())
+        .setEnd(jobAttempt.getInfo().getFinishTime())
+        .setCommandPoolWaitMillis(0)
+        .setError(userException.getMessage())
+        .setVerboseError(userException.getVerboseMessage(false))
+        .setErrorId(userException.getErrorId())
+        .setDremioVersion(DremioVersionInfo.getVersion());
+      profileStore.put(attemptId, profileBuilder.build());
+      // Remove the job from running jobs
+      runningJobs.remove(jobId);
+      throw ex;
+    }
     return job;
   }
 
   @Override
-  public Job submitJob(JobRequest jobRequest, JobStatusListener statusListener) {
+  public CompletableFuture<Job> submitJob(ExternalId externalId, JobRequest jobRequest, JobStatusListener statusListener) {
     checkNotNull(statusListener, "a status listener must be provided");
-    final Job job = startJob(jobRequest, statusListener);
-    logger.debug("Submitted new job. Id: {} Type: {} Sql: {}", job.getJobId().getId(), jobRequest.getQueryType(),
-        jobRequest.getSqlQuery());
-    return job;
+    return commandPoolService.get().submit(CommandPool.Priority.HIGH,
+      ExternalIdHelper.toString(externalId) + ":job-submission",
+      (waitInMillis) -> {
+        if (!queryExecutor.get().canAcceptWork()) {
+          throw UserException.resourceError()
+            .message(UserException.QUERY_REJECTED_MSG)
+            .buildSilently();
+        }
+
+        final Job job = startJob(externalId, jobRequest, statusListener);
+        logger.debug("Submitted new job. Id: {} Type: {} Sql: {}", job.getJobId().getId(), jobRequest.getQueryType(),
+          jobRequest.getSqlQuery());
+        if (waitInMillis > CommandPool.WARN_DELAY_MS) {
+          logger.warn("Job submission {} waited too long in the command pool: wait was {}ms", job.getJobId().getId(), waitInMillis);
+        }
+        return job;
+      });
   }
 
   @Override
@@ -578,7 +677,7 @@ public class LocalJobsService implements JobsService {
   public Iterable<Job> getJobsForParent(final NamespaceKey datasetPath, int limit) {
     SearchQuery query = SearchQueryUtils.and(
             SearchQueryUtils.newTermQuery(PARENT_DATASET, datasetPath.getSchemaPath()),
-            JobIndexKeys.UI_EXTERNAL_JOBS_FILTER);
+            JobIndexKeys.UI_EXTERNAL_RUN_JOBS_FILTER);
     FindByCondition condition = new FindByCondition()
         .setCondition(query)
         .setLimit(limit);
@@ -752,8 +851,7 @@ public class LocalJobsService implements JobsService {
    * Serializer for {@link QueryProfile query profile}.
    */
   public static final class QueryProfileSerializer extends Serializer<QueryProfile> {
-    private static final InstanceSerializer<QueryProfile> JSON_SERIALIZER =
-        new ProtoSerializer<>(SchemaUserBitShared.QueryProfile.MERGE, SchemaUserBitShared.QueryProfile.WRITE);
+    private static final InstanceSerializer<QueryProfile> JSON_SERIALIZER = ProtoSerializer.of(QueryProfile.class);
 
     @Override
     public QueryProfile fromJson(String profile) throws IOException {
@@ -850,6 +948,7 @@ public class LocalJobsService implements JobsService {
     private final boolean isInternal;
     private final ExternalListenerManager listeners = new ExternalListenerManager();
     private final CountDownLatch completionLatch = new CountDownLatch(1);
+    private final CountDownLatch metadataCompletionLatch = new CountDownLatch(1);
     private final DeferredException exception = new DeferredException();
 
     private JobResultListener attemptObserver;
@@ -880,8 +979,9 @@ public class LocalJobsService implements JobsService {
 
     private void setupJobData() {
       final JobLoader jobLoader = isInternal ?
-          new InternalJobLoader(exception, completionLatch, job.getJobId(), jobResultsStore, store) : new ExternalJobLoader(completionLatch, exception);
-      final JobData result = jobResultsStore.cacheNewJob(job.getJobId(), new JobDataImpl(jobLoader, job.getJobId()));
+          new InternalJobLoader(exception, completionLatch, job.getJobId(), jobResultsStore, store) :
+          new ExternalJobLoader(completionLatch, exception);
+      final JobData result = jobResultsStore.cacheNewJob(job.getJobId(), new JobDataImpl(jobLoader, job.getJobId(), metadataCompletionLatch));
       job.setData(result);
     }
 
@@ -909,10 +1009,12 @@ public class LocalJobsService implements JobsService {
       job.getJobAttempt().setAttemptId(AttemptIdUtils.toString(attemptId));
 
       if (isInternal) {
-        attemptObserver = new JobResultListener(attemptId, job, allocator, statusListener, listeners);
+        attemptObserver = new JobResultListener(attemptId, job, allocator, statusListener, listeners, metadataCompletionLatch);
       } else {
-        attemptObserver = new ExternalJobResultListener(attemptId, responseHandler, job, allocator);
+        attemptObserver = new ExternalJobResultListener(attemptId, responseHandler, job, allocator, metadataCompletionLatch);
       }
+
+      storeJob(job);
 
       return attemptObserver;
     }
@@ -925,10 +1027,10 @@ public class LocalJobsService implements JobsService {
       try {
         if (state == QueryState.COMPLETED) {
           attemptObserver.detailsPopulator.attemptCompleted(userResult.getProfile());
-          final Prel finalPrel = attemptObserver.detailsPopulator.getFinalPrel();
           final JoinAnalysis joinAnalysis;
-          if (finalPrel != null) {
-            JoinAnalyzer joinAnalyzer = new JoinAnalyzer(userResult.getProfile(), finalPrel);
+          if (attemptObserver.joinPreAnalyzer != null) {
+            JoinAnalyzer joinAnalyzer = new JoinAnalyzer(userResult.getProfile(),
+              attemptObserver.joinPreAnalyzer);
             joinAnalysis = joinAnalyzer.computeJoinAnalysis();
           } else {
             // If no prel, probably because user only asked for the plan
@@ -956,6 +1058,8 @@ public class LocalJobsService implements JobsService {
       }
 
       this.completionLatch.countDown();
+      //make sure that latch is released in case of failures
+      this.metadataCompletionLatch.countDown();
 
       if (isInternal) {
         try {
@@ -1089,8 +1193,8 @@ public class LocalJobsService implements JobsService {
     private final UserResponseHandler connection;
     private final ExternalId externalId;
 
-    ExternalJobResultListener(AttemptId attemptId, UserResponseHandler connection, Job job, BufferAllocator allocator) {
-      super(attemptId, job, allocator, NoOpJobStatusListener.INSTANCE);
+    ExternalJobResultListener(AttemptId attemptId, UserResponseHandler connection, Job job, BufferAllocator allocator, CountDownLatch metadataCompletionLatch) {
+      super(attemptId, job, allocator, NoOpJobStatusListener.INSTANCE, metadataCompletionLatch);
       this.connection = connection;
       this.externalId = JobsServiceUtil.getJobIdAsExternalId(job.getJobId());
     }
@@ -1126,12 +1230,15 @@ public class LocalJobsService implements JobsService {
     private final JobId jobId;
     private final BufferAllocator allocator;
     private final JobStatusListener statusListener;
-    private final QueryMetadata.Builder builder;
+    private QueryMetadata.Builder builder;
     private final AccelerationDetailsPopulator detailsPopulator;
     private final ExternalListenerManager externalListenerManager;
+    private final CountDownLatch metadataCompletionLatch;
+    private JoinPreAnalyzer joinPreAnalyzer;
 
     JobResultListener(AttemptId attemptId, Job job, BufferAllocator allocator,
-        JobStatusListener statusListener, ExternalListenerManager externalListenerManager) {
+        JobStatusListener statusListener, ExternalListenerManager externalListenerManager,
+        CountDownLatch metadataCompletionLatch) {
       Preconditions.checkNotNull(jobResultsStore);
       this.attemptId = attemptId;
       this.job = job;
@@ -1141,10 +1248,11 @@ public class LocalJobsService implements JobsService {
       this.statusListener = statusListener;
       this.detailsPopulator = contextProvider.get().getAccelerationManager().newPopulator();
       this.externalListenerManager = externalListenerManager;
+      this.metadataCompletionLatch = metadataCompletionLatch;
     }
 
-    public JobResultListener(AttemptId attemptId, Job job, BufferAllocator allocator, JobStatusListener instance) {
-      this(attemptId, job, allocator, instance, null);
+    public JobResultListener(AttemptId attemptId, Job job, BufferAllocator allocator, JobStatusListener instance, CountDownLatch metadataCompletionLatch) {
+      this(attemptId, job, allocator, instance, null, metadataCompletionLatch);
     }
 
     Exception getException() {
@@ -1164,6 +1272,16 @@ public class LocalJobsService implements JobsService {
       if (externalListenerManager != null) {
         externalListenerManager.queryUpdate(job);
       }
+    }
+
+    @Override
+    public void commandPoolWait(long waitInMillis) {
+      final JobInfo jobInfo = job.getJobAttempt().getInfo();
+
+      long currentWait = Optional.fromNullable(jobInfo.getCommandPoolWaitMillis()).or(0L);
+      jobInfo.setCommandPoolWaitMillis(currentWait + waitInMillis);
+
+      storeJob(job);
     }
 
     @Override
@@ -1211,6 +1329,7 @@ public class LocalJobsService implements JobsService {
           });
       acceleration.setSubstitutionsList(substitutions);
       jobInfo.setAcceleration(acceleration);
+      storeJob(job);
 
       detailsPopulator.planAccelerated(info);
     }
@@ -1219,8 +1338,7 @@ public class LocalJobsService implements JobsService {
     public void planCompleted(final ExecutionPlan plan) {
       if (plan != null) {
         try {
-          builder.addBatchSchema(RootSchemaFinder.getSchema(plan.getRootOperator(),
-              contextProvider.get().getFunctionImplementationRegistry()));
+          builder.addBatchSchema(RootSchemaFinder.getSchema(plan.getRootOperator()));
         } catch (Exception e) {
           exception.addException(e);
         }
@@ -1291,6 +1409,8 @@ public class LocalJobsService implements JobsService {
     private void finalizeMetadata(){
       try {
         QueryMetadata metadata = builder.build();
+        builder = null; // no longer needed.
+
         Optional<List<ParentDatasetInfo>> parents = metadata.getParents();
         JobInfo jobInfo = job.getJobAttempt().getInfo();
         if (parents.isPresent()) {
@@ -1330,6 +1450,7 @@ public class LocalJobsService implements JobsService {
 
         storeJob(job);
         statusListener.metadataCollected(metadata);
+        metadataCompletionLatch.countDown();
       }catch(Exception ex){
         exception.addException(ex);
       }
@@ -1370,7 +1491,7 @@ public class LocalJobsService implements JobsService {
 
     @Override
     public void finalPrel(Prel prel) {
-      detailsPopulator.finalPrel(prel);
+      joinPreAnalyzer = JoinPreAnalyzer.prepare(prel);
     }
 
     @Override
@@ -1379,10 +1500,12 @@ public class LocalJobsService implements JobsService {
         final QueryState queryState = result.getState();
         if (queryState == QueryState.COMPLETED) {
           detailsPopulator.attemptCompleted(result.getProfile());
-          JoinAnalyzer joinAnalyzer = new JoinAnalyzer(result.getProfile(), detailsPopulator.getFinalPrel());
-          JoinAnalysis joinAnalysis = joinAnalyzer.computeJoinAnalysis();
-          if (joinAnalysis != null) {
-            job.getJobAttempt().getInfo().setJoinAnalysis(joinAnalysis);
+          if (joinPreAnalyzer != null) {
+            JoinAnalyzer joinAnalyzer = new JoinAnalyzer(result.getProfile(), joinPreAnalyzer);
+            JoinAnalysis joinAnalysis = joinAnalyzer.computeJoinAnalysis();
+            if (joinAnalysis != null) {
+              job.getJobAttempt().getInfo().setJoinAnalysis(joinAnalysis);
+            }
           }
         }
         addAttemptToJob(job, queryState, result.getProfile());
@@ -1416,6 +1539,7 @@ public class LocalJobsService implements JobsService {
                 ArrowFileFormat.ArrowFileMetadata.parseFrom(metadataVector.getObject(i));
             job.getJobAttempt().getInfo().getResultMetadataList().add(ArrowFileReader.toBean(metadata));
           }
+          storeJob(job);
         }
       } catch (Exception ex) {
         exception.addException(ex);
@@ -1580,27 +1704,25 @@ public class LocalJobsService implements JobsService {
     public long getProfilesDeleted() {
       return profilesDeleted;
     }
-
-
   }
 
   /**
-   * Delete job details and profiles older than provided number of days.
+   * Delete job details and profiles older than provided number of ms.
    *
    * Exposed as static so that cleanup tasks can do this without needing to start a jobs service and supporting daemon.
    *
    * @param provider KVStore provider
-   * @param maxDays Age of job after which it is deleted.
+   * @param maxMs Age of job after which it is deleted.
    * @return A result reporting how many details and profiles were deleted.
    */
-  public static DeleteResult deleteOldJobs(KVStoreProvider provider, int maxDays) {
+  public static DeleteResult deleteOldJobs(KVStoreProvider provider, long maxMs) {
     int jobsDeleted = 0;
     int profilesDeleted = 0;
     IndexedStore<JobId, JobResult> jobStore = provider.getStore(JobsStoreCreator.class);
     KVStore<AttemptId, QueryProfile> profileStore = provider.getStore(JobsProfileCreator.class);
 
-
-    final FindByCondition oldJobs = getOldJobsCondition(System.currentTimeMillis() - maxDays * 86_400_000);
+    final FindByCondition oldJobs = getOldJobsCondition(System.currentTimeMillis() - maxMs)
+      .setPageSize(MAX_NUMBER_JOBS_TO_FETCH);
     for(Entry<JobId, JobResult> entry : jobStore.find(oldJobs)) {
       jobStore.delete(entry.getKey());
       jobsDeleted++;
@@ -1621,10 +1743,10 @@ public class LocalJobsService implements JobsService {
     return new DeleteResult(jobsDeleted, profilesDeleted);
   }
 
-  class CleanupTask implements Runnable {
-
-    private static final int MAX_NUMBER_JOBS_TO_FETCH = 10;
-
+  /**
+   * Removes the job results
+   */
+  class JobResultsCleanupTask implements Runnable {
     @Override
     public void run() {
       cleanup();
@@ -1648,6 +1770,26 @@ public class LocalJobsService implements JobsService {
 
       for (Entry<JobId, JobResult> entry : store.find(condition)) {
         jobResultsStore.cleanup(entry.getKey());
+      }
+    }
+  }
+
+  /**
+   * Removes the job details and profile
+   */
+  class JobProfilesCleanupTask implements Runnable {
+    @Override
+    public void run() {
+      cleanup();
+    }
+
+    public void cleanup() {
+      //obtain the max age values during each cleanup as the values could change.
+      final OptionManager optionManager = contextProvider.get().getOptionManager();
+      final long maxAgeInDays = optionManager.getOption(ExecConstants.JOB_MAX_AGE_IN_DAYS);
+      if (maxAgeInDays != DISABLE_CLEANUP_VALUE) {
+        final DeleteResult deleteResult = LocalJobsService.deleteOldJobs(kvStoreProvider.get(), TimeUnit.DAYS.toMillis(maxAgeInDays));
+        logger.debug("Job cleanup task completed with [{}] jobs deleted and and [{}] profiles deleted ", deleteResult.getJobsDeleted(), deleteResult.getProfilesDeleted());
       }
     }
   }

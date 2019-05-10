@@ -37,6 +37,17 @@ describe('FormUtils', () => {
     });
   });
 
+  describe('addTrailingBrackets', () => {
+    it('should leave no name or name with brackets', () => {
+      expect(FormUtils.addTrailingBrackets('')).to.equal('');
+      expect(FormUtils.addTrailingBrackets('a[]')).to.equal('a[]');
+    });
+    it('should add missing trailing brackets', () => {
+      expect(FormUtils.addTrailingBrackets('a')).to.equal('a[]');
+      expect(FormUtils.addTrailingBrackets('a.b.@@@###.c')).to.equal('a.b.@@@###.c[]');
+    });
+  });
+
   describe('dropTrailingBrackets', () => {
     it('should return falsy argument', () => {
       expect(FormUtils.dropTrailingBrackets('')).to.equal('');

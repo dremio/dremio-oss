@@ -28,8 +28,9 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.physical.config.BroadcastSender;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.FragmentWritableBatch;
@@ -47,14 +48,19 @@ public class TestBroadcastSender extends BaseTestOperator {
 
   @Test
   public void checkMemoryLeak() throws Exception {
-    BroadcastSender sender = new BroadcastSender(1, null,
-        Arrays.asList(
-            new MinorFragmentEndpoint(1, NodeEndpoint.newBuilder().setAddress("a").setFabricPort(1).build()),
-            new MinorFragmentEndpoint(2, NodeEndpoint.newBuilder().setAddress("b").setFabricPort(2).build())
-            ),
-        getSchema()
-        );
+    EndpointsIndex endpointsIndex = new EndpointsIndex(
+      Arrays.asList(
+        NodeEndpoint.newBuilder().setAddress("a").setFabricPort(1).build(),
+        NodeEndpoint.newBuilder().setAddress("b").setFabricPort(2).build()
+      )
+    );
 
+    BroadcastSender sender = new BroadcastSender(PROPS, getSchema(), null, 1,
+        Arrays.asList(
+          MinorFragmentIndexEndpoint.newBuilder().setMinorFragmentId(1).setEndpointIndex(0).build(),
+          MinorFragmentIndexEndpoint.newBuilder().setMinorFragmentId(2).setEndpointIndex(1).build()
+        )
+    );
 
     final AccountingExecTunnel tunnel = mock(AccountingExecTunnel.class);
     doAnswer(new Answer<Void>(){
@@ -72,7 +78,7 @@ public class TestBroadcastSender extends BaseTestOperator {
     when(provider.getExecTunnel(any(NodeEndpoint.class))).thenReturn(tunnel);
 
 
-    try(BroadcastOperator op = newOperator(BroadcastOperator.class, sender, DEFAULT_BATCH, provider);
+    try(BroadcastOperator op = newOperator(BroadcastOperator.class, sender, DEFAULT_BATCH, endpointsIndex, provider);
         TpchGenerator g = TpchGenerator.singleGenerator(TpchTable.NATION, 0.1, getTestAllocator());){
       op.setup(g.getOutput());
       g.next(DEFAULT_BATCH);

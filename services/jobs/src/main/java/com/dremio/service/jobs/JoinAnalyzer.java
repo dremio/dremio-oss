@@ -17,130 +17,72 @@ package com.dremio.service.jobs;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.annotation.Nullable;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.metadata.RelColumnOrigin;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.util.Pair;
 
-import com.dremio.exec.planner.RoutingShuttle;
-import com.dremio.exec.planner.common.ContainerRel;
-import com.dremio.exec.planner.physical.HashJoinPrel;
-import com.dremio.exec.planner.physical.JoinPrel;
-import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.physical.explain.PrelSequencer;
-import com.dremio.exec.planner.physical.explain.PrelSequencer.OpId;
-import com.dremio.exec.planner.physical.visitor.BasePrelVisitor;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.MetricValue;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.sabot.op.join.vhash.HashJoinStats.Metric;
-import com.dremio.service.Pointer;
 import com.dremio.service.job.proto.JoinAnalysis;
 import com.dremio.service.job.proto.JoinCondition;
 import com.dremio.service.job.proto.JoinStats;
 import com.dremio.service.job.proto.JoinTable;
 import com.dremio.service.job.proto.JoinType;
+import com.dremio.service.jobs.JoinPreAnalyzer.JoinPreAnalysisInfo;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 
 /**
  * Finds the statistics for join from the query profile
  */
-public final class JoinAnalyzer extends BasePrelVisitor<Void,Void,RuntimeException> {
+public final class JoinAnalyzer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinAnalyzer.class);
 
   private final QueryProfile profile;
-  private final Prel prel;
-  private final Map<List<String>, Integer> tables = new HashMap<>();
+  private final JoinPreAnalyzer preAnalyzer;
   private final List<JoinStats> joinStatsList = new ArrayList<>();
-  private Map<Prel,OpId> opIdMap;
 
-  public JoinAnalyzer(QueryProfile profile, Prel prel) {
+  public JoinAnalyzer(QueryProfile profile, JoinPreAnalyzer preAnalyzer) {
     this.profile = profile;
-    this.prel = prel;
+    this.preAnalyzer = preAnalyzer;
   }
 
   public JoinAnalysis computeJoinAnalysis() {
     try {
-      opIdMap = PrelSequencer.getIdMap(prel);
+      for (JoinPreAnalysisInfo joinInfo : preAnalyzer.getJoinInfos()) {
+        updateStatsForJoin(joinInfo);
+      }
 
-      TableMapBuilder tableMapBuilder = new TableMapBuilder();
-      tableMapBuilder.visit(prel);
-
-      List<JoinTable> joinTables = FluentIterable.from(tables.entrySet())
-        .transform(new Function<Entry<List<String>,Integer>, JoinTable>() {
-          @Override
-          public JoinTable apply(Entry<List<String>, Integer> entry) {
-            return new JoinTable()
-              .setTableId(entry.getValue())
-              .setTableSchemaPathList(entry.getKey());
-          }
-        })
-        .toList();
-
-      prel.accept(this, null);
-
-      JoinAnalysis joinAnalyis = new JoinAnalysis().setJoinStatsList(joinStatsList).setJoinTablesList(joinTables);
-      logger.debug("Join analysis: {}", joinAnalyis);
-      return joinAnalyis;
+      JoinAnalysis joinAnalysis = new JoinAnalysis()
+        .setJoinStatsList(joinStatsList)
+        .setJoinTablesList(preAnalyzer.getJoinTables());
+      logger.debug("Join analysis: {}", joinAnalysis);
+      return joinAnalysis;
     } catch (Exception e) {
       logger.debug("Caught exception while finding joinStats", e);
       return null;
     }
   }
 
-  private class TableMapBuilder extends RoutingShuttle {
-    private final Pointer<Integer> counter = new Pointer<>(0);
-
-    @Override
-    public RelNode visit(TableScan scan) {
-      List<String> table = scan.getTable().getQualifiedName();
-      tables.put(table, counter.value++);
-      return scan;
-    }
-
-    @Override
-    public RelNode visit(RelNode other) {
-      if ((other instanceof ContainerRel)) {
-        ((ContainerRel) other).getSubTree().accept(this);
-      }
-      return super.visit(other);
-    }
-  }
-
-  @Override
-  public Void visitPrel(final Prel prel, Void dummy) {
-    for (Prel child : prel) {
-      child.accept(this, dummy);
-    }
-    return null;
-  }
-
-  @Override
-  public Void visitJoin(final JoinPrel joinPrel, Void dummy) {
-    super.visitJoin(joinPrel, dummy);
-    OpId opId = opIdMap.get(joinPrel);
-    int fragmentId = opId.getFragmentId();
-    final int operatorId = opId.getOpId();
+  private void updateStatsForJoin(JoinPreAnalysisInfo joinInfo) {
+    int fragmentId = joinInfo.getOpId().getFragmentId();
+    final int operatorId = joinInfo.getOpId().getOpId();
 
     FluentIterable<OperatorProfile> operators = FluentIterable.from(findFragmentProfileWithId(profile, fragmentId).getMinorFragmentProfileList())
       .transform(new Function<MinorFragmentProfile, OperatorProfile>() {
@@ -150,8 +92,7 @@ public final class JoinAnalyzer extends BasePrelVisitor<Void,Void,RuntimeExcepti
         }
       });
 
-    boolean swapped = (joinPrel instanceof HashJoinPrel) && ((HashJoinPrel) joinPrel).isSwapped();
-
+    boolean swapped = joinInfo.getSwapped();
     long unmatchedBuildKeyCount = getSumOfMetric(operators, swapped ? Metric.UNMATCHED_PROBE_COUNT.metricId() : Metric.UNMATCHED_BUILD_KEY_COUNT.metricId());
     long unmatchedProbeCount = getSumOfMetric(operators, swapped ? Metric.UNMATCHED_BUILD_KEY_COUNT.metricId() : Metric.UNMATCHED_PROBE_COUNT.metricId());
     long buildInputRecords = getSumOfInputStream(operators, swapped ? 0 : 1);
@@ -159,46 +100,15 @@ public final class JoinAnalyzer extends BasePrelVisitor<Void,Void,RuntimeExcepti
     long outputRecords = getSumOfMetric(operators, Metric.OUTPUT_RECORDS.metricId());
 
     JoinStats stats = new JoinStats()
-      .setJoinType(toJoinType(joinPrel.getJoinType()))
+      .setJoinType(toJoinType(joinInfo.getJoinType()))
       .setUnmatchedBuildCount(unmatchedBuildKeyCount)
       .setUnmatchedProbeCount(unmatchedProbeCount)
       .setBuildInputCount(buildInputRecords)
       .setProbeInputCount(probeInputRecords)
-      .setOutputRecords(outputRecords);
-
-    final RelMetadataQuery relMetadataQuery = joinPrel.getCluster().getMetadataQuery();
-    final JoinInfo joinInfo = joinPrel.analyzeCondition();
-
-    try {
-      List<JoinCondition> joinConditions = FluentIterable.from(Pair.zip(joinInfo.leftKeys, joinInfo.rightKeys))
-        .transform(new Function<Pair<Integer, Integer>, JoinCondition>() {
-          @Override
-          public JoinCondition apply(Pair<Integer, Integer> pair) {
-            final RelColumnOrigin leftColumnOrigin = Iterables.getOnlyElement(relMetadataQuery.getColumnOrigins(joinPrel.getLeft(), pair.left));
-            final RelColumnOrigin rightColumnOrigin = Iterables.getOnlyElement(relMetadataQuery.getColumnOrigins(joinPrel.getRight(), pair.right));
-            final RelOptTable leftTable = leftColumnOrigin.getOriginTable();
-            final RelOptTable rightTable = rightColumnOrigin.getOriginTable();
-
-            int leftOrdinal = leftColumnOrigin.getOriginColumnOrdinal();
-            int rightOrdinal = rightColumnOrigin.getOriginColumnOrdinal();
-            return new JoinCondition()
-              .setBuildSideColumn(rightTable.getRowType().getFieldList().get(rightOrdinal).getName())
-              .setProbeSideColumn(leftTable.getRowType().getFieldList().get(leftOrdinal).getName())
-              .setBuildSideTableId(tables.get(rightTable.getQualifiedName()))
-              .setProbeSideTableId(tables.get(leftTable.getQualifiedName()));
-          }
-        })
-        .toList();
-
-
-      stats.setJoinConditionsList(joinConditions);
-    } catch (Exception e) {
-      logger.debug("Caught exception while finding join conditions", e);
-    }
+      .setOutputRecords(outputRecords)
+      .setJoinConditionsList(joinInfo.getJoinConditions());
 
     joinStatsList.add(stats);
-
-    return null;
   }
 
   private Long getSumOfMetric(FluentIterable<OperatorProfile> operators, final int metricId) {

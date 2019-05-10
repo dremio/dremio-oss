@@ -20,5 +20,4 @@ public class LocalDateTimes {
   public static long getLocalMillis(LocalDateTime localDateTime) {
     return localDateTime.getLocalMillis();
   }
-
 }

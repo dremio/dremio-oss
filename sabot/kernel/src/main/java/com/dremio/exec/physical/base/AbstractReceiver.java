@@ -17,35 +17,36 @@ package com.dremio.exec.physical.base;
 
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 
-import com.dremio.exec.expr.fn.FunctionLookupContext;
-import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 
 public abstract class AbstractReceiver extends AbstractBase implements Receiver {
 
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractReceiver.class);
 
-  private final int oppositeMajorFragmentId;
-  private final List<MinorFragmentEndpoint> senders;
-  private final boolean spooling;
   private final BatchSchema schema;
+  private final int senderMajorFragmentId;
+  private final boolean spooling;
 
   /**
+   *
+   * @param props
+   * @param schema
    * @param oppositeMajorFragmentId MajorFragmentId of fragments that are sending data to this receiver.
    * @param senders List of sender MinorFragmentEndpoints each containing sender MinorFragmentId and SabotNode endpoint
    *                where it is running.
+   * @param spooling
    */
-  public AbstractReceiver(int oppositeMajorFragmentId, List<MinorFragmentEndpoint> senders, boolean spooling, BatchSchema schema){
-    this.oppositeMajorFragmentId = oppositeMajorFragmentId;
-    this.senders = ImmutableList.copyOf(senders);
-    this.spooling = spooling;
+  public AbstractReceiver(
+      OpProps props,
+      BatchSchema schema,
+      int senderMajorFragmentId,
+      boolean spooling) {
+    super(props);
     this.schema = schema;
+    this.senderMajorFragmentId = senderMajorFragmentId;
+    this.spooling = spooling;
   }
 
   @Override
@@ -58,41 +59,25 @@ public abstract class AbstractReceiver extends AbstractBase implements Receiver 
     return physicalVisitor.visitReceiver(this, value);
   }
 
+  public int getSenderMajorFragmentId() {
+    return senderMajorFragmentId;
+  }
+
   @Override
-  public final PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
-    Preconditions.checkArgument(children.isEmpty());
-    //rewriting is unnecessary since the inputs haven't changed.
-    return this;
-  }
-
-  @JsonProperty("sender-major-fragment")
-  public int getOppositeMajorFragmentId() {
-    return oppositeMajorFragmentId;
-  }
-
-  @JsonProperty("senders")
-  public List<MinorFragmentEndpoint> getProvidingEndpoints() {
-    return senders;
-  }
-
-  @JsonProperty("schema")
   public BatchSchema getSchema() {
-    return schema;
-  }
-
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext functionLookupContext) {
     return schema;
   }
 
   @JsonIgnore
   public int getNumSenders() {
-    return senders.size();
+    return getProvidingEndpoints().size();
   }
 
   @Override
   public boolean isSpooling() {
     return spooling;
   }
+
+
 }
 

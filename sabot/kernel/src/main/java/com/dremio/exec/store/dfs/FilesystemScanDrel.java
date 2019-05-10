@@ -25,10 +25,8 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.logical.data.LogicalOperator;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.common.ScanRelBase;
-import com.dremio.exec.planner.logical.LogicalPlanImplementor;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.store.RelOptNamespaceTable;
 import com.dremio.exec.store.ScanFilter;
@@ -76,16 +74,12 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
   }
 
   @Override
-  public LogicalOperator implement(LogicalPlanImplementor implementor) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   public FilesystemScanDrel applyFilter(ScanFilter scanFilter) {
     Preconditions.checkArgument(scanFilter instanceof ParquetScanFilter);
     return new FilesystemScanDrel(this, (ParquetScanFilter) scanFilter);
   }
 
+  @Override
   public FilesystemScanDrel applyDatasetPointer(TableMetadata newDatasetPointer) {
     return new FilesystemScanDrel(this, newDatasetPointer);
   }
@@ -99,6 +93,7 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
     return filter != null ? filter.getCostAdjustment() : super.getCostAdjustmentFactor();
   }
 
+  @Override
   protected double getFilterReduction(){
     if(filter != null){
       return 0.15d;

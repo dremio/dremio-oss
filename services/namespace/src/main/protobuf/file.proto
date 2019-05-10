@@ -87,22 +87,6 @@ message ParquetFileConfig {
   optional bool autoCorrectCorruptDates = 1 [default = true];
 }
 
-message ColumnValueCount {
-  // top level column name
-  optional string column = 1;
-  optional int64 count = 2;
-}
-
-message FileSystemCachedEntity {
-  optional string path = 1; // full path of a file
-  optional int64 lastModificationTime = 2;
-  optional int64 length = 3;
-}
-
-message FileUpdateKey {
-  repeated FileSystemCachedEntity cachedEntities = 1;
-}
-
 message ExcelFileConfig {
   option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
   optional string sheetName = 1;
@@ -126,45 +110,3 @@ message UnknownFileConfig {
   option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
 }
 
-message ParquetDatasetSplitXAttr {
-  optional string path = 1;
-  optional int64 start = 2;
-  optional int64 length = 3;
-  optional int32 rowGroupIndex = 4;
-  optional FileSystemCachedEntity updateKey = 5;
-  repeated ColumnValueCount columnValueCounts = 6;
-}
-
-// This is an abridged version of the ParquetDatasetSplitXAttr, containing only the information
-// used in sub-scans (sent-on-wire to the executor nodes).
-message ParquetDatasetSplitScanXAttr {
-  optional string path = 1;
-  optional int64 fileLength = 2; // can save an fs call.
-  optional int64 start = 3;
-  optional int64 length = 4;
-  optional int32 rowGroupIndex = 5;
-}
-
-message ParquetDatasetXAttr {
-  optional string selectionRoot = 1;
-  optional DictionaryEncodedColumns dictionaryEncodedColumns = 2;
-  repeated ColumnValueCount columnValueCounts = 3;
-}
-
-// Dictionary encoded column info
-message DictionaryEncodedColumns {
-  optional int64 version = 1; // monotonically increasing dictionary version starting from 0
-  repeated string columns = 2; // full column names for which global dictionaries are created.
-  optional string rootPath = 3; // absolute path to directory where dictonary files are located
-}
-
-message EasyDatasetXAttr {
-  optional string selectionRoot = 1;
-}
-
-message EasyDatasetSplitXAttr {
-  optional string path = 1;
-  optional int64 start = 2;
-  optional int64 length = 3;
-  optional FileSystemCachedEntity updateKey = 4;
-}

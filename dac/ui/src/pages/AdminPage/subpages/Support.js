@@ -18,11 +18,12 @@ import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 
 import { connect } from 'react-redux';
-import settingActions from 'actions/resources/setting';
+import settingActions, { getDefinedSettings } from 'actions/resources/setting';
 import { addNotification } from 'actions/notification';
 
 import { getViewState } from 'selectors/resources';
 import Immutable from 'immutable';
+import { getErrorMessage } from '@app/reducers/resources/view';
 
 import { description } from 'uiTheme/radium/forms';
 import { formContext } from 'uiTheme/radium/typography';
@@ -31,7 +32,7 @@ import './Support.less';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import SimpleButton from 'components/Buttons/SimpleButton';
 import TextField from 'components/Fields/TextField';
-
+import ApiUtils from '@app/utils/apiUtils/apiUtils';
 import SupportAccess,
   { RESERVED as SUPPORT_ACCESS_RESERVED } from 'dyn-load/pages/AdminPage/subpages/SupportAccess';
 import FormUnsavedRouteLeave from 'components/Forms/FormUnsavedRouteLeave';
@@ -47,7 +48,7 @@ export const RESERVED = new Set([...SUPPORT_ACCESS_RESERVED, ...INTERNAL_SUPPORT
 
 export class Support extends PureComponent {
   static propTypes = {
-    getAllSettings: PropTypes.func.isRequired,
+    getDefinedSettings: PropTypes.func.isRequired,
     resetSetting: PropTypes.func.isRequired,
     addNotification: PropTypes.func.isRequired,
     viewState: PropTypes.instanceOf(Immutable.Map).isRequired,
@@ -56,10 +57,11 @@ export class Support extends PureComponent {
   }
 
   componentWillMount() {
-    this.props.getAllSettings({viewId: VIEW_ID});
+    this.props.getDefinedSettings([...RESERVED, ...LABELS_IN_SECTIONS], true, VIEW_ID);
   }
 
   state = {
+    getSettingInProgress: false,
     tempShown: new Immutable.OrderedSet()
   }
 
@@ -84,15 +86,14 @@ export class Support extends PureComponent {
     const ret = !this.props.settings ? [] : this.props.settings.toList().toJS().filter(setting => {
       const id = setting.id;
       if (!includeSections && LABELS_IN_SECTIONS.hasOwnProperty(id)) return false;
-      if (this.state.tempShown.has(id)) return true;
       if (RESERVED.has(id)) return false;
-      return setting.showOutsideWhitelist;
+      return true;
     });
 
     return ret;
   }
 
-  addAdvanced = (evt) => { // todo: replace with generic `prompt` modal
+  addAdvanced = async (evt) => { // todo: replace with generic `prompt` modal
     evt.preventDefault();
 
     const value = evt.target.children[0].value;
@@ -102,18 +103,25 @@ export class Support extends PureComponent {
 
     const valueEle = <span style={{wordBreak: 'break-all'}}>{value}</span>;
 
-    if (!this.settingExists(value)) {
-      this.props.addNotification(
-        <span>No setting “{valueEle}”.</span>, // todo: loc substitution engine
-        'error'
-      );
-      return;
-    }
-
     if (this.getShownSettings().some(e => e.id === value)) {
       this.props.addNotification(
         <span>Setting “{valueEle}” already shown.</span>, // todo: loc substitution engine
         'info'
+      );
+      return;
+    }
+
+    evt.persist(); // need to save an event as it used in async operation
+    this.setState({
+      getSettingInProgress: true
+    });
+    const reduxAction = await this.props.getSetting(value);
+    const payload = reduxAction.payload;
+    if (ApiUtils.isApiError(payload)) {
+      this.props.addNotification(
+        payload.status === 404 ? <span>No setting “{valueEle}”.</span> : // todo: loc substitution engine
+          getErrorMessage(reduxAction).errorMessage,
+        'error'
       );
     } else {
       this.setState(function(state) {
@@ -121,9 +129,12 @@ export class Support extends PureComponent {
           tempShown: state.tempShown.add(value)
         };
       });
+      evt.target.reset();
     }
 
-    evt.target.reset();
+    this.setState({
+      getSettingInProgress: false
+    });
   }
 
   resetSetting(settingId) {
@@ -134,8 +145,6 @@ export class Support extends PureComponent {
           tempShown: state.tempShown.delete(settingId)
         };
       });
-      // we store all settings in memory, so we have to force a refresh here. DX-11295 to fix this.
-      return this.props.getAllSettings({viewId: VIEW_ID});
     });
   }
 
@@ -152,14 +161,15 @@ export class Support extends PureComponent {
   }
 
   sortSettings(settings) {
-    const tempShownArray = this.state.tempShown.toArray();
+    const orderedSet = this.state.tempShown;
+    const tempShownArray = orderedSet.toArray();
     settings.sort((a, b) => {
-      if (this.state.tempShown.has(a.id)) {
-        if (this.state.tempShown.has(b.id)) {
+      if (orderedSet.has(a.id)) {
+        if (orderedSet.has(b.id)) {
           return tempShownArray.indexOf(b.id) - tempShownArray.indexOf(a.id);
         }
         return -1;
-      } else if (this.state.tempShown.has(b.id)) {
+      } else if (orderedSet.has(b.id)) {
         return 1;
       }
 
@@ -176,15 +186,16 @@ export class Support extends PureComponent {
 
   renderOtherSettings() {
     const settings = this.getShownSettings({includeSections: false});
-
     this.sortSettings(settings);
     return settings.map(setting => this.renderMicroForm(setting.id, true));
   }
 
   render() {
+    // SettingsMicroForm has a logic for error display. We should not duplicate it in the viewState
+    const viewStateWithoutError = this.props.viewState.set('isFailed', false);
     const advancedForm = <form style={{flex: '0 0 auto'}} onSubmit={this.addAdvanced}>
       <TextField placeholder={la('Support Key')} data-qa='support-key-search'/>
-      <SimpleButton buttonStyle='secondary' data-qa='support-key-search-btn'
+      <SimpleButton buttonStyle='secondary' data-qa='support-key-search-btn' submitting={this.state.getSettingInProgress}
         style={{verticalAlign: 'bottom', width: 'auto'}}>
         {la('Show')}
       </SimpleButton>
@@ -193,7 +204,7 @@ export class Support extends PureComponent {
     return <div className='support-settings'>
       <Header>{la('Support Settings')}</Header>
 
-      <ViewStateWrapper viewState={this.props.viewState}>
+      <ViewStateWrapper viewState={viewStateWithoutError} hideChildrenWhenFailed={false}>
         {!this.props.settings.size ? null : <div>
           {SupportAccess && <SupportAccess
             renderSettings={this.renderSettingsMicroForm}
@@ -228,8 +239,9 @@ function mapStateToProps(state) {
 }
 
 export default connect(mapStateToProps, { // todo: find way to auto-inject PropTypes for actions
-  getAllSettings: settingActions.getAll.dispatch,
   resetSetting: settingActions.delete.dispatch,
+  getSetting: settingActions.get.dispatch,
+  getDefinedSettings,
   addNotification
 })(FormUnsavedRouteLeave(Support));
 

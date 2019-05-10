@@ -201,12 +201,18 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
 
     boolean allArgTreesSupported = gandivaSupportsAllSubExprs(holder.args);
 
+    // make sure we remove the support for a gandiva holder expression if sub expr cant be executed
+    // in Gandiva.
+    if (!allArgTreesSupported) {
+      context.removeSupporteExecutionEngineForSubExpression(SupportedEngines.Engine.GANDIVA);
+    }
+
     // use context to strip context before looking for output type.
     if (!isSupportedType(context.getCompleteType())) {
       return context;
     }
 
-    if (!isFunctionSupported(holder)) {
+    if (!isFunctionSupported(holder, context.getCompleteType())) {
       return context;
     }
 
@@ -226,21 +232,40 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
     return context;
   }
 
-  private boolean isFunctionSupported(FunctionHolderExpression holder) throws GandivaException {
+  private boolean isFunctionSupported(FunctionHolderExpression holder, CompleteType completeType) throws GandivaException {
     Set<FunctionSignature> supportedFunctions = ExpressionRegistry.getInstance()
       .getSupportedFunctions();
     String name = holder.getName();
-    ArrowType returnType = holder.getCompleteType().getType();
+    ArrowType returnType = completeType.getType();
     List<ArrowType> argTypes = Lists.newArrayList();
-    for (LogicalExpression arg : holder.args) {
-      argTypes.add(arg.getCompleteType().getType());
-    }
+    convertArgsToArrowType(holder, argTypes);
+    returnType = generifyDecimalType(returnType);
     FunctionSignature functionSignature = new FunctionSignature(name, returnType, argTypes);
     if (!supportedFunctions.contains(functionSignature) || !isSpecificFuntionSupported(holder)) {
       logger.info("function signature not supported in gandiva : " + functionSignature);
       return false;
     }
     return true;
+  }
+
+  /*
+   * Decimals can be of arbitrary precision and scale. Hence making
+   * the type a constant since Gandiva supports arbitrary precision
+   * and scale of range 0-38,0-38
+   */
+  private ArrowType generifyDecimalType(ArrowType returnType) {
+    if (returnType.getTypeID() == ArrowType.ArrowTypeID.Decimal) {
+      returnType = new ArrowType.Decimal(1,0);
+    }
+    return returnType;
+  }
+
+  private void convertArgsToArrowType(FunctionHolderExpression holder, List<ArrowType> argTypes) {
+    for (LogicalExpression arg : holder.args) {
+      ArrowType type = arg.getCompleteType().getType();
+      type = generifyDecimalType(type);
+      argTypes.add(type);
+    }
   }
 
   /**
@@ -387,7 +412,9 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
 
   private boolean isSupportedType(CompleteType type) throws GandivaException {
     final Set<ArrowType> supportedTypes = ExpressionRegistry.getInstance().getSupportedTypes();
-    return supportedTypes.contains(type.getType());
+    ArrowType argType = type.getType();
+    argType = generifyDecimalType(argType);
+    return supportedTypes.contains(argType);
   }
 
   private boolean isSupportedReturnType(CompleteType type) throws GandivaException {

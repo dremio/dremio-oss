@@ -8,7 +8,7 @@
     },
     graph:[
         {
-            @id:1,
+            id:1,
             pop:"mock-scan",
             url: "http://apache.org",
             entries:[
@@ -16,33 +16,38 @@
                   {name: "blue", type: "INT", mode: "REQUIRED"},
                   {name: "green", type: "INT", mode: "REQUIRED"}
                 ]}
-            ]
+            ],
+            props: {"operatorId": 1}
         },
         {
-            @id: 2,
+            id: 2,
             pop: "project",
             child: 1,
             exprs: [
               { ref: "blue", expr: "randomBigInt(100000)" }
-            ]
+            ],
+            props: {"operatorId": 2, "memLimit": 1073741824, "schemaHashCode": 777729905}
         },
         {
-            @id:3,
+            id:3,
             child: 2,
             pop:"external-sort",
             orderings: [
               {expr: "blue", order : "DESC"}
-            ]
+            ],
+            props: {"operatorId": 3, "memoryExpensive": true, "memLimit": 1073741824, "targetBatchSize": 1024, "schemaHashCode": 777729905}
         },
         {
-            @id:4,
+            id:4,
             child: 3,
-            pop:"selection-vector-remover"
+            pop:"selection-vector-remover",
+            props: {"operatorId": 4, "memLimit": 1073741824, "schemaHashCode": 777729905}
         },
         {
-            @id: 5,
+            id: 5,
             child: 4,
-            pop: "screen"
+            pop: "screen",
+            props: {"operatorId": 5, "memLimit": 1073741824, "schemaHashCode": 777729905}
         }
     ]
 }

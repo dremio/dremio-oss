@@ -16,28 +16,34 @@
 import Menu from 'components/Menus/Menu';
 import MenuItem from 'components/Menus/MenuItem';
 import MenuItemLink from 'components/Menus/MenuItemLink';
+import { EntityLinkProvider } from '@app/pages/HomePage/components/EntityLink';
 
 export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
     render() {
-      const { space, closeMenu } = this.props;
+      const { item, closeMenu } = this.props;
       const {location} = this.context;
       return (
         <Menu>
           {
-            <MenuItemLink
-              href={space.getIn(['links', 'self'])}
-              text={la('Browse')}
-              closeMenu={closeMenu}/>
+            <EntityLinkProvider entityId={item.get('id')}>
+              {(link) => (
+                <MenuItemLink
+                  href={link}
+                  text={la('Browse')}
+                  closeMenu={closeMenu}
+                />
+              )}
+            </EntityLinkProvider>
           }
           {
             <MenuItemLink
-              href={{...location, state: {modal: 'SpaceModal', entityId: space.get('id')}}}
+              href={{...location, state: {modal: 'SpaceModal', entityId: item.get('id')}}}
               text={la('Edit Details')}
               closeMenu={closeMenu}/>
           }
           {
-            <MenuItem onTouchTap={this.handleRemoveSpace}>{la('Remove Space')}</MenuItem>
+            <MenuItem onClick={this.handleRemoveSpace}>{la('Remove Space')}</MenuItem>
           }
         </Menu>
       );

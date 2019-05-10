@@ -15,10 +15,11 @@
  */
 import { CALL_API } from 'redux-api-middleware';
 import invariant from 'invariant';
+import { debounce } from 'lodash/function';
 
 import { API_URL_V2 } from 'constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
-import fullDatasetSchema from 'schemas/v2/fullDataset';
+import { datasetWithoutData } from 'schemas/v2/fullDataset';
 import exploreUtils from 'utils/explore/exploreUtils';
 
 export const RUN_DATASET_START = 'RUN_DATASET_START';
@@ -34,7 +35,7 @@ function fetchRunDataset(dataset, viewId) {
     [CALL_API]: {
       types: [
         { type: RUN_DATASET_START, meta },
-        schemaUtils.getSuccessActionTypeWithSchema(RUN_DATASET_SUCCESS, fullDatasetSchema, meta),
+        schemaUtils.getSuccessActionTypeWithSchema(RUN_DATASET_SUCCESS, datasetWithoutData, meta),
         { type: RUN_DATASET_FAILURE, meta }
       ],
       method: 'GET',
@@ -67,7 +68,7 @@ function fetchTransformAndRun(dataset, transformData, viewId) {
     [CALL_API]: {
       types: [
         { type: TRANSFORM_AND_RUN_DATASET_START, meta },
-        schemaUtils.getSuccessActionTypeWithSchema(TRANSFORM_AND_RUN_DATASET_SUCCESS, fullDatasetSchema, meta),
+        schemaUtils.getSuccessActionTypeWithSchema(TRANSFORM_AND_RUN_DATASET_SUCCESS, datasetWithoutData, meta),
         { type: TRANSFORM_AND_RUN_DATASET_FAILURE, meta }
       ],
       method: 'POST',
@@ -86,3 +87,24 @@ export const transformAndRunDataset = (dataset, transformData, viewId) =>
 
 export const PERFORM_TRANSFORM_AND_RUN = 'PERFORM_TRANSFORM_AND_RUN';
 export const performTransformAndRun = (payload) => ({ type: PERFORM_TRANSFORM_AND_RUN, payload });
+
+
+export const RUN_DATASET_SQL = 'RUN_DATASET_SQL';
+
+const getRunAction = (dispatch, isPreview) => {
+  const action = { type: RUN_DATASET_SQL };
+  if (isPreview) {
+    action.isPreview = true;
+  }
+  dispatch(action);
+};
+const runDebounced = debounce(getRunAction, 500, {leading: true, trailing: false});
+
+export const runDatasetSql = () => (dispatch) => {
+  runDebounced(dispatch);
+};
+
+export const previewDatasetSql = () => (dispatch) => {
+  const isPreview = true;
+  runDebounced(dispatch, isPreview);
+};

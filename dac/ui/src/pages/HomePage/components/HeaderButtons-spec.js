@@ -61,5 +61,11 @@ describe('HeaderButtons-spec', () => {
       }, 0));
       expect(result.find('Art').first().props().src).to.eql('SimpleAdd.svg');
     });
+
+    it('should render upload button w/o plus', () => {
+      const buttons = instance.getHomeButtons();
+      const result = shallow(instance.renderButton(buttons[1], 1));
+      expect(result.find('Art').first().props().src).to.not.eql('SimpleAdd.svg');
+    });
   });
 });

@@ -17,6 +17,10 @@ package com.dremio.dac.service.admin;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 import javax.ws.rs.client.Entity;
 
 import org.junit.Test;
@@ -25,7 +29,6 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.admin.Setting.TextSetting;
 import com.dremio.dac.service.admin.SettingsResource.SettingsWrapperObject;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.server.options.SystemOptionManager;
 
 /**
  * Test admin services.
@@ -33,17 +36,60 @@ import com.dremio.exec.server.options.SystemOptionManager;
 public class TestAdminServices extends BaseTestServer {
 
   @Test
-  public void getSettingList(){
-    SettingsWrapperObject settings = expectSuccess(getBuilder(getAPIv2().path("settings")).buildGet(), SettingsWrapperObject.class);
-    assertEquals(l(SystemOptionManager.class).settingCount(), settings.getSettings().size());
+  public void getSettingList() {
+    final String settingKeyToCheck = ExecConstants.OUTPUT_FORMAT_OPTION;
+    final Set<String> list = new HashSet(Arrays.asList(ExecConstants.PARQUET_BLOCK_SIZE,
+      ExecConstants.PARQUET_DICT_PAGE_SIZE));
+
+    // check that required settings are returned
+    SettingsWrapperObject settings = getSettings(list, false);
+    assertEquals(list.size(), settings.getSettings().size());
+
+    // check that set settings are returned in case if includeSetSettings = true
+
+    //check that chosen {@code} settingKeyToCheck was not set initially
+    TextSetting setting = getSetting(settingKeyToCheck); // save current value
+
+    deleteSetting(settingKeyToCheck);
+    settings = getSettings(list, true);
+    assertEquals("Setting should not be returned after deletion", false, hasSetting(settings, settingKeyToCheck));
+
+    addOrUpdateSetting(new TextSetting(settingKeyToCheck, "csv"));
+    settings = getSettings(list, true);
+    assertEquals("Setting should be returned if it was set and respective flag is provided to API method",
+      true, hasSetting(settings, settingKeyToCheck));
+    //revert setting to original state
+    addOrUpdateSetting(setting);
   }
 
   @Test
-  public void getAndSetSetting(){
-    TextSetting setting = (TextSetting) expectSuccess(getBuilder(getAPIv2().path("settings").path(ExecConstants.OUTPUT_FORMAT_OPTION)).buildGet(), Setting.class);
-    TextSetting update = new TextSetting(setting.getId(), "csv", true);
-    TextSetting updatedSetting = expectSuccess(getBuilder(getAPIv2().path("settings").path(ExecConstants.OUTPUT_FORMAT_OPTION)).buildPut(Entity.entity(update, JSON)), Setting.TextSetting.class);
+  public void getAndSetSetting() {
+    TextSetting setting = getSetting(ExecConstants.OUTPUT_FORMAT_OPTION);
+    addOrUpdateSetting(new TextSetting(setting.getId(), "csv"));
+    //revert setting to original state
+    addOrUpdateSetting(setting);
+  }
+
+  private SettingsWrapperObject getSettings(Set<String> requiredSettings, boolean includeSetSettings) {
+    return expectSuccess(getBuilder(getAPIv2().path("settings"))
+      .buildPost(Entity.entity(new SettingsResource.SettingsRequest(requiredSettings, includeSetSettings), JSON)),
+        SettingsWrapperObject.class);
+  }
+
+  private TextSetting getSetting(String settingId) {
+    return (TextSetting)expectSuccess(getBuilder(getAPIv2().path("settings").path(settingId)).buildGet(), Setting.class);
+  }
+
+  private void addOrUpdateSetting(TextSetting update) {
+    TextSetting updatedSetting = expectSuccess(getBuilder(getAPIv2().path("settings").path(update.getId())).buildPut(Entity.entity(update, JSON)), Setting.TextSetting.class);
     assertEquals(update.getValue(), updatedSetting.getValue());
-    expectSuccess(getBuilder(getAPIv2().path("settings").path(ExecConstants.OUTPUT_FORMAT_OPTION)).buildPut(Entity.entity(setting, JSON)), Setting.TextSetting.class);
+  }
+
+  private boolean hasSetting(SettingsWrapperObject settings, String settingKey) {
+    return settings.getSettings().stream().anyMatch(s -> s.getId().equals(settingKey));
+  }
+
+  private void deleteSetting(String settingKey) {
+    expectSuccess(getBuilder(getAPIv2().path("settings").path(settingKey)).buildDelete());
   }
 }

@@ -310,7 +310,7 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       this.type = Type.UNKNOWN;
     }
 
-    public ElasticField merge(ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index){
+    public ElasticField merge(ElasticMapping mapping, ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index){
       if(equals(field)){
         return this;
       }
@@ -354,14 +354,18 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       boolean normalized = this.normalized || field.normalized;
 
       // we just have different fields. Let's merge them.
-      return new ElasticField(name, type, indexing, normalized, formats, docValues, mergeFields(children, field.children, curr_mapping, other_mapping, curr_index, other_index));
+      return new ElasticField(name, type, indexing, normalized, formats, docValues, mergeFields(mapping, children, field.children, curr_mapping, other_mapping, curr_index, other_index));
     }
 
     public void logDataReadErrorHelper(ElasticField field, String curr_mapping, String other_mapping, String curr_index, String other_index, String diff, String first, String second) {
       logger.warn(String.format("Unable to merge two different definitions for Field: (%s) with Type: (%s) from (%s.%s) with Field: (%s) with Type: (%s) from (%s.%s) as they are different %s. The %s are %s and %s.", name, type, curr_index, curr_mapping, field.name, field.type, other_index, other_mapping, diff, diff, first, second));
     }
 
-    public static List<ElasticField> mergeFields(List<ElasticField> fieldsA, List<ElasticField> fieldsB, String mappingA, String mappingB, String indexA, String indexB){
+    public static List<ElasticField> mergeFields(ElasticMapping mapping, List<ElasticField> fieldsA, List<ElasticField> fieldsB, String mappingA, String mappingB, String indexA, String indexB){
+      // There is field variation if the number of fieldA is different from that of fieldB.
+      if (fieldsA.size() != fieldsB.size()) {
+        mapping.setVariationDetected(true);
+      }
       Map<String, ElasticField> fields = new LinkedHashMap<>();
       for(ElasticField f : fieldsA){
         fields.put(f.getName(), f);
@@ -370,8 +374,10 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       Map<String, ElasticField> replacements = new HashMap<>();
       for(ElasticField f : fieldsB){
         if(fields.containsKey(f.getName())){
-          replacements.put(f.getName(), fields.get(f.getName()).merge(f, mappingA, mappingB, indexA, indexB));
+          replacements.put(f.getName(), fields.get(f.getName()).merge(mapping, f, mappingA, mappingB, indexA, indexB));
         } else {
+          // There is field variation if the field in fieldB is not found in fieldA.
+          mapping.setVariationDetected(true);
           fields.put(f.getName(), f);
         }
       }
@@ -560,11 +566,13 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
     private final String name;
     private final ImmutableList<ElasticField> fields;
     private final boolean composite;
+    private boolean variationDetected;
 
-    private ElasticMapping(String name, List<ElasticField> fields, boolean merged){
+    private ElasticMapping(String name, List<ElasticField> fields, boolean merged, boolean variationDetected){
       this.name = name;
       this.fields = ImmutableList.copyOf(fields);
       this.composite = merged;
+      this.variationDetected = variationDetected;
     }
 
     @JsonCreator
@@ -575,6 +583,15 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
       this.name = name;
       this.fields = asList(fields);
       this.composite = false;
+      this.variationDetected = false;
+    }
+
+    public boolean isVariationDetected() {
+      return variationDetected;
+    }
+
+    public void setVariationDetected(boolean variationDetected) {
+      this.variationDetected = variationDetected;
     }
 
     public String getName() {
@@ -587,8 +604,8 @@ public class ElasticMappingSet implements Iterable<ElasticMappingSet.ElasticInde
 
     public ElasticMapping merge(ElasticMapping mapping, String curr_index, String other_index){
       String newName = name.equals(mapping.name) ? name : name + "," + mapping.name;
-      List<ElasticField> newFields = ElasticField.mergeFields(fields, mapping.fields, name, mapping.name, curr_index, other_index);
-      return new ElasticMapping(newName, newFields, true);
+      List<ElasticField> newFields = ElasticField.mergeFields(mapping, fields, mapping.fields, name, mapping.name, curr_index, other_index);
+      return new ElasticMapping(newName, newFields, true, mapping.variationDetected);
     }
 
     @Override

@@ -29,16 +29,17 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.config.DremioConfig;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
-import com.dremio.exec.catalog.TestCatalogServiceImpl;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.server.SabotContext;
@@ -60,6 +61,7 @@ import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 
@@ -74,8 +76,6 @@ public class TestSystemStoragePluginInitializer {
   private static final long MAX_ALLOCATION = Long.MAX_VALUE;
   private static final int TIMEOUT = 0;
 
-  private static TestCatalogServiceImpl.MockUpPlugin mockUpPlugin;
-
   private ConnectionReader reader;
 
   private KVStoreProvider storeProvider;
@@ -87,10 +87,14 @@ public class TestSystemStoragePluginInitializer {
   private FabricService fabricService;
   private CatalogService catalogService;
 
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Before
   public void setup() throws Exception {
+    properties.set("dremio_masterless", "false");
     final SabotConfig sabotConfig = SabotConfig.create();
+    final DremioConfig dremioConfig = DremioConfig.create();
     final SabotContext sabotContext = mock(SabotContext.class);
 
     storeProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false);
@@ -123,6 +127,8 @@ public class TestSystemStoragePluginInitializer {
       .thenReturn(storeProvider);
     when(sabotContext.getConfig())
       .thenReturn(DremioTest.DEFAULT_SABOT_CONFIG);
+    when(sabotContext.getDremioConfig())
+      .thenReturn(dremioConfig);
 
     allocator = RootAllocatorFactory.newRoot(sabotConfig);
     when(sabotContext.getAllocator())

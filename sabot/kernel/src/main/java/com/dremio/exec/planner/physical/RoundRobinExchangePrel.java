@@ -26,12 +26,22 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.RoundRobinExchange;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 
+@Options
 public class RoundRobinExchangePrel extends ExchangePrel {
+
+  public static final LongValidator RECEIVER_RESERVE = new PositiveLongValidator("planner.op.receiver.roundrobin.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator RECEIVER_LIMIT = new PositiveLongValidator("planner.op.receiver.roundrobin.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator SENDER_RESERVE = new PositiveLongValidator("planner.op.sender.roundrobin.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator SENDER_LIMIT = new PositiveLongValidator("planner.op.sender.roundrobin.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   public RoundRobinExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input) {
     super(cluster, traitSet, input);
@@ -77,8 +87,17 @@ public class RoundRobinExchangePrel extends ExchangePrel {
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
-    RoundRobinExchange g = new RoundRobinExchange(childPOP);
-    return creator.addMetadata(this, g);
+    final OpProps props = creator.props(this, null, childPOP.getProps().getSchema());
+    final int senderOperatorId = OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
+    final OpProps senderProps = creator.props(senderOperatorId, this, null, props.getSchema(), SENDER_RESERVE, SENDER_LIMIT, props.getCost() * 0.01);
+    final OpProps receiverProps = creator.props(this, null, props.getSchema(), RECEIVER_RESERVE, RECEIVER_LIMIT, props.getCost() * 0.01);
+
+    return new RoundRobinExchange(
+        props,
+        senderProps,
+        receiverProps,
+        props.getSchema(),
+        childPOP);
   }
 
 }

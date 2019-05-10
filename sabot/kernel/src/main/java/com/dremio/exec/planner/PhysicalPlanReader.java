@@ -41,7 +41,6 @@ import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.FragmentRoot;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalOperatorUtil;
-import com.dremio.exec.planner.fragment.SharedDataMap;
 import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.MajorTypeSerDe;
@@ -161,6 +160,10 @@ public class PhysicalPlanReader {
     return writeValueAsByteString(op, codec);
   }
 
+  public com.google.protobuf.ByteString writeObject(Object object, FragmentCodec codec) throws JsonProcessingException{
+    return writeValueAsByteString(object, codec);
+  }
+
   private com.google.protobuf.ByteString writeValueAsByteString(Object value, FragmentCodec codec) throws JsonProcessingException{
     return ProtobufByteStringSerDe.writeValue(mapper, value, toSerDeCodec(codec));
   }
@@ -201,9 +204,13 @@ public class PhysicalPlanReader {
     return readValue(optionListReader, json, codec);
   }
 
-  public FragmentRoot readFragmentOperator(com.google.protobuf.ByteString json, FragmentCodec codec, SharedDataMap sharedDataMap) throws JsonProcessingException, IOException {
+  public <T> T readObject(Class<T> clazz, com.google.protobuf.ByteString json, FragmentCodec codec) throws JsonProcessingException, IOException {
+    ObjectReader objectReader = mapper.readerFor(clazz);
+    return readValue(objectReader, json, codec);
+  }
+
+  public FragmentRoot readFragmentOperator(com.google.protobuf.ByteString json, FragmentCodec codec) throws JsonProcessingException, IOException {
     final InjectableValues.Std injectableValues = new InjectableValues.Std(new HashMap<>(injectables));
-    injectableValues.addValue("sharedData", sharedDataMap);
     PhysicalOperator op = readValue(mapper.readerFor(PhysicalOperator.class).with(injectableValues), json, codec);
     if(op instanceof FragmentRoot){
       return (FragmentRoot) op;

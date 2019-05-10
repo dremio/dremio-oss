@@ -56,4 +56,9 @@ public class JobDataWrapper implements JobData {
   public void loadIfNecessary() {
     delegate.loadIfNecessary();
   }
+
+  @Override
+  public void waitForMetadata() {
+    delegate.waitForMetadata();
+  }
 }

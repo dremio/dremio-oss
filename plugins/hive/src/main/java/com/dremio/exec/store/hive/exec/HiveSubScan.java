@@ -19,14 +19,14 @@ import java.util.List;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScanWithProjection;
-import com.dremio.exec.planner.fragment.SharedDataMap;
+import com.dremio.exec.planner.fragment.MinorDataReader;
+import com.dremio.exec.planner.fragment.MinorDataWriter;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
-import com.dremio.exec.store.hive.HiveGroupScan;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.fasterxml.jackson.annotation.JacksonInject;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -35,49 +35,46 @@ import com.google.common.collect.ImmutableList;
 
 @JsonTypeName("hive-sub-scan")
 public class HiveSubScan extends SubScanWithProjection {
+  private static final String SPLITS_ATTRIBUTE_KEY = "hive-sub-scan-splits";
 
-  private final List<DatasetSplit> splits;
   private final ScanFilter filter;
   private final StoragePluginId pluginId;
   private final List<String> partitionColumns;
+  private final byte[] extendedProperty;
 
   @JsonIgnore
-  private SharedDataMap sharedDataMap;
+  private List<SplitInfo> splits;
 
   public HiveSubScan(
-    List<DatasetSplit> splits,
-    String userName,
-    BatchSchema schema,
+    OpProps props,
+    List<SplitInfo> splits,
+    BatchSchema fullSchema,
     List<String> tablePath,
     ScanFilter filter,
     StoragePluginId pluginId,
     List<SchemaPath> columns,
-    List<String> partitionColumns
+    List<String> partitionColumns,
+    byte[] extendedProperty
   ) {
-    super(userName, schema, tablePath, columns);
+    super(props, fullSchema, tablePath, columns);
     this.splits = splits;
     this.filter = filter;
     this.pluginId = pluginId;
     this.partitionColumns = partitionColumns != null ? ImmutableList.copyOf(partitionColumns) : null;
+    this.extendedProperty = extendedProperty;
   }
+
   @JsonCreator
   public HiveSubScan(
-    @JsonProperty("splits") List<DatasetSplit> splits,
-    @JsonProperty("userName") String userName,
-    @JsonProperty("schema") BatchSchema schema,
+    @JsonProperty("props") OpProps props,
+    @JsonProperty("fullSchema") BatchSchema fullSchema,
     @JsonProperty("tableSchemaPath") List<String> tablePath,
     @JsonProperty("filter") ScanFilter filter,
     @JsonProperty("pluginId") StoragePluginId pluginId,
     @JsonProperty("columns") List<SchemaPath> columns,
     @JsonProperty("partitionColumns") List<String> partitionColumns,
-    @JacksonInject("sharedData") SharedDataMap sharedData
-  ) {
-    super(userName, schema, tablePath, columns);
-    this.splits = splits;
-    this.filter = filter;
-    this.pluginId = pluginId;
-    this.partitionColumns = partitionColumns != null ? ImmutableList.copyOf(partitionColumns) : null;
-    this.sharedDataMap = sharedData;
+    @JsonProperty("extendedProperty") byte[] extendedProperty) {
+    this(props, null, fullSchema, tablePath, filter, pluginId, columns, partitionColumns, extendedProperty);
   }
 
   public StoragePluginId getPluginId(){
@@ -88,14 +85,11 @@ public class HiveSubScan extends SubScanWithProjection {
     return filter;
   }
 
-  public List<DatasetSplit> getSplits() {
+  public List<SplitInfo> getSplits() {
     return splits;
   }
 
-  @JsonIgnore
-  public byte[] getExtendedProperty() {
-    return sharedDataMap.getSharedDataValue(this, HiveGroupScan.HIVE_ATTRIBUTE_KEY);
-  }
+  public byte[] getExtendedProperty() { return this.extendedProperty; }
 
   public List<String> getPartitionColumns() {
     return partitionColumns;
@@ -106,4 +100,18 @@ public class HiveSubScan extends SubScanWithProjection {
     return CoreOperatorType.HIVE_SUB_SCAN_VALUE;
   }
 
+  @Override
+  public void collectMinorSpecificAttrs(MinorDataWriter writer) {
+    writer.writeSplits(this, SPLITS_ATTRIBUTE_KEY, splits);
+  }
+
+  @Override
+  public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
+    this.splits = reader.readSplits(this, SPLITS_ATTRIBUTE_KEY);
+  }
+
+  @Override
+  public boolean mayLearnSchema() {
+    return false;
+  }
 }

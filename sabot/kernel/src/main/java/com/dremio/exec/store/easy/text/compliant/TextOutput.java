@@ -15,15 +15,11 @@
  */
 package com.dremio.exec.store.easy.text.compliant;
 
-import com.dremio.common.exceptions.UserException;
-
 /* Base class for producing output record batches while dealing with
  * Text files.
  */
 abstract class TextOutput {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TextOutput.class);
-
-  private final int maxCellLimit;
+  protected final int maxCellLimit;
 
   protected TextOutput(int maxCellLimit) {
     this.maxCellLimit = maxCellLimit;
@@ -93,16 +89,5 @@ abstract class TextOutput {
 
   public void close() {
     // no op
-  }
-
-  protected void checkFieldLimit(int currentSize, int columnIndex) {
-    if (currentSize >= maxCellLimit) {
-      throw UserException
-        .unsupportedError()
-        .message("Attempting to write a large value for a column.")
-        .addContext("columnIndex", columnIndex)
-        .addContext("Limit", maxCellLimit)
-        .build(logger);
-    }
   }
 }

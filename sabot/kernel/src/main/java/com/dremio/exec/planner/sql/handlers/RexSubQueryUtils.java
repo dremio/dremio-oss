@@ -197,6 +197,7 @@ public final class RexSubQueryUtils {
       if (subQueryFinder.getFoundSubQuery()) {
         return true;
       }
+
       return false;
     }
   }
@@ -224,6 +225,7 @@ public final class RexSubQueryUtils {
     public RexNode visitSubQuery(RexSubQuery subQuery) {
       RexSubQueryUtils.RexSubQueryPushdownChecker checker = new RexSubQueryUtils.RexSubQueryPushdownChecker(pluginId);
       checker.visit(subQuery.rel);
+
       if (!checker.canPushdownRexSubQuery()) {
         canPushdownRexSubQuery = false;
       }
@@ -291,7 +293,13 @@ public final class RexSubQueryUtils {
         return canPushdownRexSubQuery;
       }
 
+      if (subQueryFinder.foundCorrelVariable &&
+        !pluginId.getCapabilities().getCapability(SourceCapabilities.CORRELATED_SUBQUERY_PUSHDOWN)) {
+          return false;
+      }
+
       foundRexSubQuery = true;
+
 
       // Check that the subquery has the same pluginId as well!
       final RexSubQueryPluginIdChecker subQueryConventionChecker = new RexSubQueryPluginIdChecker(pluginId);

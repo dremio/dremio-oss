@@ -19,7 +19,6 @@ import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import urlParse from 'url-parse';
 
 import { getHistoryItems } from 'selectors/explore';
 
@@ -47,7 +46,6 @@ export class HistoryLineController extends Component {
         historyItems={historyItems}
         tipVersion={dataset.get('tipVersion')}
         activeVersion={dataset.get('datasetVersion')}
-        datasetPathname={urlParse(dataset.getIn(['links', 'self'])).pathname}
       />
     );
   }

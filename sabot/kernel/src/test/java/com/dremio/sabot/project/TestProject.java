@@ -36,19 +36,19 @@ public class TestProject extends BaseTestOperator {
 
   @Test
   public void basicProjectionLifecycle() throws Exception {
-    Project conf = new Project(Collections.singletonList(n("c_custkey")), null);
+    Project conf = new Project(PROPS, null, Collections.singletonList(n("c_custkey")));
     assertSingleInput(conf, ProjectOperator.class, TpchTable.CUSTOMER, 0.1, null, 4095);
   }
 
   @Test
   public void doubleColumnProjection() throws Exception {
-    Project conf = new Project(ImmutableList.of(n("c_custkey"), n("c_custkey")), null);
+    Project conf = new Project(PROPS, null, ImmutableList.of(n("c_custkey"), n("c_custkey")));
     assertSingleInput(conf, ProjectOperator.class, TpchTable.CUSTOMER, 0.1, null, 4095);
   }
 
   @Test
   public void projectRegions() throws Exception {
-    Project conf = new Project(Arrays.asList(n("r_regionkey"), n("r_name"), n("r_comment")), null);
+    Project conf = new Project(PROPS, null, Arrays.asList(n("r_regionkey"), n("r_name"), n("r_comment")));
     final Table expected = t(
         th("r_regionkey", "r_name", "r_comment"),
         tr(0L, "AFRICA", "cajole boldly quickly special packages. bold instructions above the final accounts haggle about the slyly express f"),
@@ -64,7 +64,7 @@ public class TestProject extends BaseTestOperator {
 
   @Test
   public void nativeSum() throws Exception {
-    Project conf = new Project(Arrays.asList(n("r_regionkey + r_regionkey", "sum")), null);
+    Project conf = new Project(PROPS, null, Arrays.asList(n("r_regionkey + r_regionkey", "sum")));
     final Table expected = t(
         th("sum"),
         tr(0L),

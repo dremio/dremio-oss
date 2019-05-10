@@ -117,7 +117,7 @@ export default function entitiesReducer(state = initialState, action) {
       });
 
       const newFileFormats = nextState.get('fileFormat').filter((fileFormat) => {
-        return fileFormat.get('fullPath').get(0) !== root;
+        return !fileFormat.get('fullPath') || fileFormat.get('fullPath').get(0) !== root;
       });
 
       nextState = nextState.set('folder', newFolders).set('file', newFiles).set('fileFormat', newFileFormats);

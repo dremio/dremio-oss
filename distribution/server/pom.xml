@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>3.1.11-201904261857420193-c674472</version>
+    <version>3.2.0-201905102005330382-0598733</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -68,20 +68,20 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.dremio.plugin</groupId>
+      <groupId>com.dremio.plugins</groupId>
       <artifactId>dremio-elasticsearch-plugin</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.dremio.plugin</groupId>
+      <groupId>com.dremio.plugins</groupId>
       <artifactId>dremio-mongo-plugin</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.dremio.plugin</groupId>
+      <groupId>com.dremio.plugins</groupId>
       <artifactId>dremio-pdfs-plugin</artifactId>
       <version>${project.version}</version>
-    </dependency>
+    </dependency>  
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-protocol</artifactId>
@@ -165,11 +165,11 @@
     </dependency>
 
     <dependency>
-      <groupId>com.dremio.plugin</groupId>
+      <groupId>com.dremio.plugins</groupId>
       <artifactId>dremio-hive-plugin</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.dremio.plugin</groupId>
+      <groupId>com.dremio.plugins</groupId>
       <artifactId>dremio-hbase-plugin</artifactId>
       <exclusions>
         <exclusion>
@@ -180,7 +180,7 @@
     </dependency>
 
     <dependency>
-      <groupId>com.dremio.plugin</groupId>
+      <groupId>com.dremio.plugins</groupId>
       <artifactId>dremio-jdbc-plugin</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -478,6 +478,31 @@ exit 0
           <groupId>org.json</groupId>
           <artifactId>json</artifactId>
           <version>${org.json.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>notmapr</id>
+      <activation>
+        <property>
+          <name>!mapr</name>
+        </property>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-adls-plugin</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-azure-storage-plugin</artifactId>
+          <version>${project.version}</version>
+        </dependency>  
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-s3-plugin</artifactId>
+          <version>${project.version}</version>
         </dependency>
       </dependencies>
     </profile>

@@ -27,6 +27,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
@@ -97,13 +98,14 @@ public class ExcelRecordReader extends AbstractRecordReader implements XlsInputS
 
     try {
       inputStream = dfs.open(path);
+      final int maxCellSize = Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
 
       if (pluginConfig.xls) {
         // we don't need to close this stream, it will be closed by the parser
         final XlsInputStream xlsStream = new XlsInputStream(this, inputStream);
-        parser = new XlsRecordProcessor(xlsStream, pluginConfig, writer, managedBuf, columnsToProject);
+        parser = new XlsRecordProcessor(xlsStream, pluginConfig, writer, managedBuf, columnsToProject, maxCellSize);
       } else {
-        parser = new StAXBasedParser(inputStream, pluginConfig, writer, managedBuf, columnsToProject);
+        parser = new StAXBasedParser(inputStream, pluginConfig, writer, managedBuf, columnsToProject, maxCellSize);
       }
     } catch (final SheetNotFoundException e) {
       // This check will move to schema validation in planning after DX-2271

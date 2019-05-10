@@ -81,10 +81,11 @@ public class DatasetUI {
 
     boolean isDerivedDirectly = DatasetsUtil.isCreatedFromParent(vds.getLastTransform());
     boolean isUnsavedDirectPhysicalDataset = isUnsaved && vds.getDerivation() == Derivation.DERIVED_PHYSICAL && isDerivedDirectly;
-
     boolean atHistoryTip = tipVersion == null || tipVersion.equals(vds.getVersion());
+    final List<ParentDataset> parentsList = vds.getParentsList();
+
     if (isUnsavedDirectPhysicalDataset && atHistoryTip) { // example select * mongo.yelp.review
-      ParentDataset parentDataset = vds.getParentsList().get(0);
+      ParentDataset parentDataset = parentsList.get(0);
       displayFullPath = parentDataset.getDatasetPathList(); // There is always going to be one parent since its tmp dataset created directly from a physical dataset.
       datasetType = parentDataset.getType();
     } else if(isUnsaved && vds.getDerivation() == Derivation.DERIVED_PHYSICAL) {
@@ -94,8 +95,9 @@ public class DatasetUI {
       // if its tmp.UNTITLED we want to get the parent dataset path to display.  The UI uses displayFullPath for history
       // requests and therefore we need to be precise here. We manually check the path as this code would previously get
       // triggered for history dataset entries that derive from another dataset.
-      if (isUnsaved && vds.getDerivation() == Derivation.DERIVED_VIRTUAL && Arrays.asList("tmp", "UNTITLED").equals(fullPath)) {
-        displayFullPath = vds.getParentsList().get(0).getDatasetPathList();
+      if (isUnsaved && vds.getDerivation() == Derivation.DERIVED_VIRTUAL && parentsList.size() > 0
+        && Arrays.asList("tmp", "UNTITLED").equals(fullPath)) {
+        displayFullPath = parentsList.get(0).getDatasetPathList();
       } else {
         displayFullPath = fullPath;
       }

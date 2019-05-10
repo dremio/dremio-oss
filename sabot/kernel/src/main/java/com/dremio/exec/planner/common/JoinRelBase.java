@@ -23,45 +23,124 @@ import org.apache.arrow.vector.holders.IntHolder;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelShuttleImpl;
+import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.metadata.RelMdUtil;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexUtil;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
 import com.dremio.exec.planner.cost.RelMdRowCount;
+import com.dremio.exec.planner.logical.JoinNormalizationRule;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
+import com.dremio.service.Pointer;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 /**
  * Base class for logical and physical Joins implemented in Dremio.
  */
 public abstract class JoinRelBase extends Join {
-  protected List<Integer> leftKeys = Lists.newArrayList();
-  protected List<Integer> rightKeys = Lists.newArrayList();
+  protected final List<Integer> leftKeys;
+  protected final List<Integer> rightKeys;
 
   /**
    * The join key positions for which null values will not match. null values only match for the
    * "is not distinct from" condition.
    */
-  protected List<Boolean> filterNulls = Lists.newArrayList();
+  protected final List<Boolean> filterNulls;
 
-  public JoinRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
+  /**
+   * The remaining filter condition composed of non-equi expressions
+   */
+  protected final RexNode remaining;
+
+  /**
+   * Dremio join category
+   */
+  protected final JoinUtils.JoinCategory joinCategory;
+
+  protected JoinRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
       JoinRelType joinType){
-    super(cluster, traits, left, right, condition, joinType, Collections.<String> emptySet());
+    super(cluster, traits, left, right, condition, CorrelationId.setOf(Collections.emptySet()), joinType);
+    leftKeys = Lists.newArrayList();
+    rightKeys = Lists.newArrayList();
+    filterNulls = Lists.newArrayList();
+
+    remaining = RelOptUtil.splitJoinCondition(left, right, condition, leftKeys, rightKeys, filterNulls);
+    joinCategory = getJoinCategory(condition, leftKeys, rightKeys, filterNulls, remaining);
+  }
+
+  protected static RelTraitSet adjustTraits(RelTraitSet traits) {
+    // Join operators do not preserve collations
+    return traits.replaceIfs(RelCollationTraitDef.INSTANCE, ImmutableList::of);
   }
 
   @Override
-  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
-    JoinCategory category;
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq) {
+    // normalize join first
+    RelNode normalized = JoinNormalizationRule.INSTANCE.normalize(this);
+    if (normalized != this) {
+      // If normalized, return sum of all converted/generated rels
+      final Pointer<RelOptCost> cost = new Pointer<>(planner.getCostFactory().makeZeroCost());
+      normalized.accept(new RelShuttleImpl() {
+        @Override
+        public RelNode visit(RelNode other) {
+          cost.value = cost.value.plus(mq.getNonCumulativeCost(other));
+          if (!(other instanceof Join)) {
+            return super.visit(other);
+          }
+          return other;
+        }
+      });
+      return cost.value;
+    }
+
+    // Compute filter cost
+    RelOptCost remainingFilterCost;
+    if (remaining.isAlwaysTrue()) {
+      remainingFilterCost = planner.getCostFactory().makeZeroCost();
+    } else {
+      // Similar to FilterRelBase
+      double inputRows = Math.max(mq.getRowCount(getLeft()), mq.getRowCount(getRight()));
+      double compNum = inputRows;
+      double rowCompNum = this.getRowType().getFieldCount() * inputRows ;
+
+      final List<RexNode> conjunctions = RelOptUtil.conjunctions(condition);
+      final int conjunctionsSize = conjunctions.size();
+      for (int i = 0; i< conjunctionsSize; i++) {
+        RexNode conjFilter = RexUtil.composeConjunction(this.getCluster().getRexBuilder(), conjunctions.subList(0, i + 1), false);
+        compNum += RelMdUtil.estimateFilteredRows(this, conjFilter, mq);
+      }
+
+      double cpuCost = compNum * DremioCost.COMPARE_CPU_COST + rowCompNum * DremioCost.COPY_COST;
+      Factory costFactory = (Factory)planner.getCostFactory();
+      // Do not include input rows into the extra filter cost
+      remainingFilterCost = costFactory.makeCost(0, cpuCost, 0, 0);
+    }
+    return remainingFilterCost.plus(doComputeSelfCost(planner, mq));
+  }
+
+
+  /**
+   * Compute inner cost of the join, not taking into account remaining conditions
+   * @param planner
+   * @param relMetadataQuery
+   * @return
+   */
+  private RelOptCost doComputeSelfCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
     /*
      * for costing purpose, we don't use JoinUtils.getJoinCategory()
      * to get the join category. here we are more interested in knowing
@@ -70,34 +149,36 @@ public abstract class JoinRelBase extends Join {
      * the equi-join components from join condition and can mis-categorize
      * an equality join for the purpose of computing plan cost.
      */
-    if (leftKeys.size() > 0 && rightKeys.size() > 0) {
-      category = JoinCategory.EQUALITY;
-    } else {
-      category = JoinCategory.INEQUALITY;
-    }
-    if (category == JoinCategory.INEQUALITY) {
+    if (leftKeys.isEmpty() && rightKeys.isEmpty()) {
+      // Inequality/Cartesian join
       if (PrelUtil.getPlannerSettings(planner).isNestedLoopJoinEnabled()) {
         if (PrelUtil.getPlannerSettings(planner).isNlJoinForScalarOnly()) {
           if (hasScalarSubqueryInput()) {
             return computeLogicalJoinCost(planner, relMetadataQuery);
-          } else {
-            /*
-             *  Why do we return non-infinite cost for CartsianJoin with non-scalar subquery, when LOPT planner is enabled?
-             *   - We do not want to turn on the two Join permutation rule : PushJoinPastThroughJoin.LEFT, RIGHT.
-             *   - As such, we may end up with filter on top of join, which will cause CanNotPlan in LogicalPlanning, if we
-             *   return infinite cost.
-             *   - Such filter on top of join might be pushed into JOIN, when LOPT planner is called.
-             *   - Return non-infinite cost will give LOPT planner a chance to try to push the filters.
-             */
-            if (PrelUtil.getPlannerSettings(planner).isHepOptEnabled()) {
-             return computeCartesianJoinCost(planner, relMetadataQuery);
-            } else {
-              return ((Factory)planner.getCostFactory()).makeInfiniteCost();
-            }
           }
-        } else {
-          return computeLogicalJoinCost(planner, relMetadataQuery);
+
+          /*
+           *  Why do we return non-infinite cost for CartesianJoin with non-scalar subquery, when LOPT planner is enabled?
+           *   - We do not want to turn on the two Join permutation rule : PushJoinPastThroughJoin.LEFT, RIGHT.
+           *   - As such, we may end up with filter on top of join, which will cause CanNotPlan in LogicalPlanning, if we
+           *   return infinite cost.
+           *   - Such filter on top of join might be pushed into JOIN, when LOPT planner is called.
+           *   - Return non-infinite cost will give LOPT planner a chance to try to push the filters.
+           */
+          if (PrelUtil.getPlannerSettings(planner).isHepOptEnabled()) {
+            return computeCartesianJoinCost(planner, relMetadataQuery);
+          }
+
+          /*
+           * Make cost infinite (not supported)
+           */
+          return ((Factory)planner.getCostFactory()).makeInfiniteCost();
         }
+
+        // If cartesian joins are allowed for non scalar inputs
+        // return cost
+        return computeLogicalJoinCost(planner, relMetadataQuery);
+
       }
       return ((Factory)planner.getCostFactory()).makeInfiniteCost();
     }
@@ -114,11 +195,7 @@ public abstract class JoinRelBase extends Join {
    */
   @Override
   public double estimateRowCount(RelMetadataQuery mq) {
-    if (getCondition().isAlwaysTrue()) {
-      return RelMdUtil.getJoinRowCount(mq, this, getCondition());
-    }
-
-    return Math.max(mq.getRowCount(getLeft()), mq.getRowCount(getRight()));
+    return RelMdRowCount.estimateRowCount(this, mq);
   }
 
   /**
@@ -142,6 +219,14 @@ public abstract class JoinRelBase extends Join {
 
   public List<Integer> getRightKeys() {
     return this.rightKeys;
+  }
+
+  public RexNode getRemaining() {
+    return remaining;
+  }
+
+  public JoinUtils.JoinCategory getJoinCategory() {
+    return joinCategory;
   }
 
   protected  RelOptCost computeCartesianJoinCost(RelOptPlanner planner, RelMetadataQuery relMetadataQuery) {
@@ -238,4 +323,16 @@ public abstract class JoinRelBase extends Join {
     return false;
   }
 
+  private static JoinCategory getJoinCategory(RexNode condition,
+      List<Integer> leftKeys, List<Integer> rightKeys, List<Boolean> filterNulls, RexNode remaining) {
+    if (condition.isAlwaysTrue()) {
+      return JoinCategory.CARTESIAN;
+    }
+
+    if (!remaining.isAlwaysTrue() || (leftKeys.size() == 0 || rightKeys.size() == 0) ) {
+      // for practical purposes these cases could be treated as inequality
+      return JoinCategory.INEQUALITY;
+    }
+    return JoinCategory.EQUALITY;
+  }
 }

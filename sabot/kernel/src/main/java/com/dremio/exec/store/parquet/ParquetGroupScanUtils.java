@@ -118,7 +118,7 @@ public class ParquetGroupScanUtils {
     this.formatPlugin = formatPlugin;
     this.conditions = conditions;
     this.columns = columns;
-    this.fs = ImpersonationUtil.createFileSystem(userName, plugin.getFsConf());
+    this.fs = ImpersonationUtil.createFileSystem(userName, plugin.getFsConf(), false);
     this.plugin = plugin;
     this.selectionRoot = selectionRoot;
     this.entries = selection.getStatuses();
@@ -352,9 +352,9 @@ public class ParquetGroupScanUtils {
 
     // TODO: do we need this code path?
     if (entries.size() == 1) {
-      parquetTableMetadata = Metadata.getParquetTableMetadata(entries.get(0), fs, formatPlugin.getConfig(), plugin.getFsConf());
+      parquetTableMetadata = Metadata.getParquetTableMetadata(entries.get(0), fs, formatPlugin.getConfig(), plugin);
     } else {
-      parquetTableMetadata = Metadata.getParquetTableMetadata(entries, formatPlugin.getConfig(), plugin.getFsConf());
+      parquetTableMetadata = Metadata.getParquetTableMetadata(entries, formatPlugin.getConfig(), plugin);
     }
 
     ListMultimap<String, NodeEndpoint> hostEndpointMap = FluentIterable.from(plugin.getContext().getExecutors())

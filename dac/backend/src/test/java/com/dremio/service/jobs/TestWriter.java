@@ -141,12 +141,7 @@ public class TestWriter extends BaseTestServer {
     final AtomicReference<RelNode> physical = new AtomicReference<>(null);
 
     final SqlQuery query = new SqlQuery(queryString, DEFAULT_USERNAME);
-    final Job job = getJobsService().submitJob(JobRequest.newBuilder()
-        .setSqlQuery(query)
-        .setQueryType(QueryType.ACCELERATOR_CREATE)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .setDatasetVersion(DatasetVersion.NONE)
-        .build(), new NoOpJobStatusListener() {
+    final JobStatusListener capturePlanListener = new NoOpJobStatusListener() {
       @Override
       public void planRelTransform(final PlannerPhase phase, final RelNode before, final RelNode after, final long millisTaken) {
         if (phase == PlannerPhase.PHYSICAL) {
@@ -155,9 +150,18 @@ public class TestWriter extends BaseTestServer {
 
         super.planRelTransform(phase, before, after, millisTaken);
       }
-    });
+    };
 
-    job.getData().truncate(1);
+    JobsServiceUtil.waitForJobCompletion(
+      getJobsService().submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(query)
+          .setQueryType(QueryType.ACCELERATOR_CREATE)
+          .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+          .setDatasetVersion(DatasetVersion.NONE)
+          .build(),
+        capturePlanListener)
+    );
     return physical.get();
   }
 }

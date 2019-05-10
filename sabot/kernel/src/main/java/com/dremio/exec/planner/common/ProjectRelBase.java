@@ -83,14 +83,12 @@ public abstract class ProjectRelBase extends Project {
     this.hasContains = foundContains;
   }
 
-  protected static RelTraitSet trimTraits(RelOptCluster cluster, RelNode input, List<? extends RexNode> exps, RelTraitSet traits) {
+  protected static RelTraitSet adjustTraits(RelOptCluster cluster, RelNode input, List<? extends RexNode> exps, RelTraitSet traits) {
     final RelMetadataQuery mq = cluster.getMetadataQuery();
-    final RelTraitSet trimmedTraits = traits.replaceIfs(
+    return traits.replaceIfs(
         RelCollationTraitDef.INSTANCE,
         () -> RelMdCollation.project(mq, input, exps)
     );
-
-    return trimmedTraits;
   }
 
   public boolean hasComplexFields() {

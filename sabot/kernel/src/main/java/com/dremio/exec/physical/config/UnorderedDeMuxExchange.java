@@ -18,39 +18,42 @@ package com.dremio.exec.physical.config;
 import java.util.Collections;
 
 import com.dremio.common.expression.LogicalExpression;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
-import com.dremio.exec.physical.MinorFragmentEndpoint;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Receiver;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
+import com.dremio.exec.record.BatchSchema;
 
 /**
  * UnorderedDeMuxExchange is a version of DeMuxExchange where the incoming batches are not sorted.
  */
-@JsonTypeName("unordered-demux-exchange")
 public class UnorderedDeMuxExchange extends AbstractDeMuxExchange {
 
   public UnorderedDeMuxExchange(
-      @JsonProperty("child") PhysicalOperator child,
-      @JsonProperty("expr") LogicalExpression expr) {
-    super(child, expr);
+      OpProps props,
+      OpProps senderProps,
+      OpProps receiverProps,
+      BatchSchema schema,
+      PhysicalOperator child,
+      LogicalExpression expr) {
+    super(props, senderProps, receiverProps, schema, child, expr);
   }
 
   @Override
-  public Receiver getReceiver(int minorFragmentId, FunctionLookupContext context) {
-    createSenderReceiverMapping();
+  public Receiver getReceiver(int minorFragmentId, EndpointsIndex.Builder indexBuilder) {
+    createSenderReceiverMapping(indexBuilder);
 
-    MinorFragmentEndpoint sender = receiverToSenderMapping.get(minorFragmentId);
+    MinorFragmentIndexEndpoint sender = receiverToSenderMapping.get(minorFragmentId);
     if (sender == null) {
       throw new IllegalStateException(String.format("Failed to find sender for receiver [%d]", minorFragmentId));
     }
 
-    return new UnorderedReceiver(this.senderMajorFragmentId, Collections.singletonList(sender), false, getSchema(context));
+    return new UnorderedReceiver(receiverProps, schema, senderMajorFragmentId, Collections.singletonList(sender), false);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new UnorderedDeMuxExchange(child, expr);
+    return new UnorderedDeMuxExchange(props, senderProps, receiverProps, schema, child, expr);
   }
 }

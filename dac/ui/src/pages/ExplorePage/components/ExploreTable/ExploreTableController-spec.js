@@ -316,7 +316,8 @@ describe('ExploreTableController', () => {
         anchor,
         columnType: 'columnType',
         columnName: 'columnName',
-        valueUrl: 'valueUrl'
+        valueUrl: 'valueUrl',
+        isTruncatedValue: false
       });
     });
   });

@@ -37,6 +37,7 @@ message SearchQuery {
         EXISTS = 15;
         DOES_NOT_EXIST = 16;
         BOOST = 17;
+        CONTAINS = 18;
     }
 
     enum BooleanOp {
@@ -136,7 +137,12 @@ message SearchQuery {
       required float       boost = 2;
     }
 
-    required Type           type = 1; 
+    message Contains {
+      required string field = 1;
+      required string value = 2;
+    }
+
+    required Type           type = 1;
     optional MatchAll       matchAll = 2;
     optional Boolean        boolean = 3;
     optional Not            not = 4;
@@ -153,6 +159,7 @@ message SearchQuery {
     optional TermDouble     termDouble = 15;
     optional Exists         exists = 16;
     optional Boost          boost = 17;
+    optional Contains       containsText = 18;
 }
 
 enum SortOrder {
@@ -160,7 +167,7 @@ enum SortOrder {
     DESCENDING = 2;
 }
 
-message SearchFieldSorting { 
+message SearchFieldSorting {
     enum FieldType {
         STRING = 1;
         LONG = 2;
@@ -169,6 +176,6 @@ message SearchFieldSorting {
     }
 
     required string field = 1; // field name to sort by
-    required FieldType type = 2; 
+    required FieldType type = 2;
     required SortOrder order = 3;
 }

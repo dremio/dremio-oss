@@ -22,6 +22,9 @@ import org.apache.calcite.plan.RelTraitSet;
 import com.dremio.exec.planner.logical.EmptyRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 
+/**
+ * Converts dremio logical {@link EmptyRel} to dremio physical {@link EmptyPrel}
+ */
 public class EmptyPrule extends Prule {
 
   public static final RelOptRule INSTANCE = new EmptyPrule();

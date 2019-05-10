@@ -15,6 +15,7 @@
  */
 package com.dremio;
 
+import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.PARQUET_SCHEMA_FALLBACK_DISABLED;
 import static java.lang.String.format;
 import static org.junit.Assert.fail;
 
@@ -107,6 +108,7 @@ public class BaseTestQuery extends ExecTest {
   private static final Properties TEST_CONFIGURATIONS = new Properties() {
     {
       put(ExecConstants.HTTP_ENABLE, "false");
+      put(PARQUET_SCHEMA_FALLBACK_DISABLED, "true");
     }
   };
 
@@ -656,6 +658,20 @@ public class BaseTestQuery extends ExecTest {
 
   protected static void setSessionOption(final String option, final String value) {
     String str = String.format("alter session set %1$s%2$s%1$s = %3$s", SqlUtils.QUOTE, option, value);
+    try {
+      runSQL(str);
+    } catch(final Exception e) {
+      fail(String.format("Failed to run %s, Error: %s", str, e.toString()));
+    }
+  }
+
+  protected static void setSystemOption(final OptionValidator option, final String value) {
+    setSystemOption(option.getOptionName(), value);
+  }
+
+  protected static void setSystemOption(final String option, final String value) {
+    String str = String.format("alter system set %1$s%2$s%1$s = %3$s", SqlUtils.QUOTE, option,
+      value);
     try {
       runSQL(str);
     } catch(final Exception e) {

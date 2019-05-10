@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.dremio.exec.dotfile.View;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -37,7 +38,7 @@ public interface MutablePlugin extends StoragePlugin {
 
   StoragePluginId getId();
 
-  Writer getWriter(PhysicalOperator child, String userName, String location, WriterOptions options) throws IOException;
+  Writer getWriter(PhysicalOperator child, String location, WriterOptions options, OpProps props) throws IOException;
 
   void dropTable(List<String> tableSchemaPath, SchemaConfig schemaConfig);
 

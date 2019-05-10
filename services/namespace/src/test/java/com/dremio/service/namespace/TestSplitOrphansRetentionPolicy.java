@@ -15,8 +15,8 @@
  */
 package com.dremio.service.namespace;
 
-import static com.dremio.service.namespace.DatasetSplitId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY;
-import static com.dremio.service.namespace.DatasetSplitId.SplitOrphansRetentionPolicy.KEEP_VALID_SPLITS;
+import static com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY;
+import static com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_VALID_SPLITS;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -29,7 +29,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
-import com.dremio.service.namespace.DatasetSplitId.SplitOrphansRetentionPolicy;
+import com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.proto.EntityId;
@@ -65,39 +65,39 @@ public class TestSplitOrphansRetentionPolicy {
   public static Iterable<Object[]> getTestCases() {
     return Arrays.asList(
         // Current version policy
-        newTestCase(true, KEEP_CURRENT_VERSION_ONLY, SOURCE_METADATA_POLICY, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION, "foo")),
-        newTestCase(false, KEEP_CURRENT_VERSION_ONLY, SOURCE_METADATA_POLICY, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION - 1, "foo")),
-        newTestCase(false, KEEP_CURRENT_VERSION_ONLY, SOURCE_METADATA_POLICY, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION + 1, "foo")),
-        newTestCase(true, KEEP_CURRENT_VERSION_ONLY, null, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION, "foo")),
-        newTestCase(false, KEEP_CURRENT_VERSION_ONLY, null, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION - 1, "foo")),
-        newTestCase(false, KEEP_CURRENT_VERSION_ONLY, null, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION + 1, "foo")),
-        newTestCase(true, KEEP_CURRENT_VERSION_ONLY, SOURCE_METADATA_POLICY, OLD_DATASET, DatasetSplitId.of(OLD_DATASET_ID, OLD_DATASET_SPLIT_VERSION, "foo")),
-        newTestCase(false, KEEP_CURRENT_VERSION_ONLY, SOURCE_METADATA_POLICY, OLD_DATASET, DatasetSplitId.of(OLD_DATASET_ID, OLD_DATASET_SPLIT_VERSION - 1, "foo")),
-        newTestCase(false, KEEP_CURRENT_VERSION_ONLY, SOURCE_METADATA_POLICY, OLD_DATASET, DatasetSplitId.of(OLD_DATASET_ID, OLD_DATASET_SPLIT_VERSION + 1, "foo")),
+        newTestCase(true, KEEP_CURRENT_VERSION_ONLY, SOURCE_METADATA_POLICY, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION, "foo")),
+        newTestCase(false, KEEP_CURRENT_VERSION_ONLY, SOURCE_METADATA_POLICY, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION - 1, "foo")),
+        newTestCase(false, KEEP_CURRENT_VERSION_ONLY, SOURCE_METADATA_POLICY, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION + 1, "foo")),
+        newTestCase(true, KEEP_CURRENT_VERSION_ONLY, null, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION, "foo")),
+        newTestCase(false, KEEP_CURRENT_VERSION_ONLY, null, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION - 1, "foo")),
+        newTestCase(false, KEEP_CURRENT_VERSION_ONLY, null, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION + 1, "foo")),
+        newTestCase(true, KEEP_CURRENT_VERSION_ONLY, SOURCE_METADATA_POLICY, OLD_DATASET, PartitionChunkId.of(OLD_DATASET_ID, OLD_DATASET_SPLIT_VERSION, "foo")),
+        newTestCase(false, KEEP_CURRENT_VERSION_ONLY, SOURCE_METADATA_POLICY, OLD_DATASET, PartitionChunkId.of(OLD_DATASET_ID, OLD_DATASET_SPLIT_VERSION - 1, "foo")),
+        newTestCase(false, KEEP_CURRENT_VERSION_ONLY, SOURCE_METADATA_POLICY, OLD_DATASET, PartitionChunkId.of(OLD_DATASET_ID, OLD_DATASET_SPLIT_VERSION + 1, "foo")),
 
         // Valid splits policy
-        newTestCase(true, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION, "foo")),
-        newTestCase(true, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION - 1, "foo")),
-        newTestCase(true, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION + 1, "foo")),
-        newTestCase(true, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION - TimeUnit.DAYS.toMillis(1) + TimeUnit.SECONDS.toMillis(30), "foo")),
+        newTestCase(true, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION, "foo")),
+        newTestCase(true, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION - 1, "foo")),
+        newTestCase(true, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION + 1, "foo")),
+        newTestCase(true, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION - TimeUnit.DAYS.toMillis(1) + TimeUnit.SECONDS.toMillis(30), "foo")),
         // The one below is most likely already expired, but maybe it will take less than 1millis (or whatever is the resolution of System.currentTimeMillis())
         // newTestCase(true, KEEP_VALID_SPLITS, SOURCE, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION - TimeUnit.DAYS.toMillis(1), "foo")),
-        newTestCase(false, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION - TimeUnit.DAYS.toMillis(1) - 1, "foo")),
+        newTestCase(false, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION - TimeUnit.DAYS.toMillis(1) - 1, "foo")),
         // if metadata policy is null, nothing expires
-        newTestCase(true, KEEP_VALID_SPLITS, null, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION, "foo")),
-        newTestCase(true, KEEP_VALID_SPLITS, null, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION - 1, "foo")),
-        newTestCase(true, KEEP_VALID_SPLITS, null, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION + 1, "foo")),
-        newTestCase(true, KEEP_VALID_SPLITS, null, DATASET, DatasetSplitId.of(DATASET_ID, DATASET_SPLIT_VERSION - TimeUnit.DAYS.toMillis(1) + TimeUnit.SECONDS.toMillis(30), "foo")),
-        newTestCase(true, KEEP_VALID_SPLITS, null, DATASET, DatasetSplitId.of(DATASET_ID, 0, "foo")),
+        newTestCase(true, KEEP_VALID_SPLITS, null, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION, "foo")),
+        newTestCase(true, KEEP_VALID_SPLITS, null, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION - 1, "foo")),
+        newTestCase(true, KEEP_VALID_SPLITS, null, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION + 1, "foo")),
+        newTestCase(true, KEEP_VALID_SPLITS, null, DATASET, PartitionChunkId.of(DATASET_ID, DATASET_SPLIT_VERSION - TimeUnit.DAYS.toMillis(1) + TimeUnit.SECONDS.toMillis(30), "foo")),
+        newTestCase(true, KEEP_VALID_SPLITS, null, DATASET, PartitionChunkId.of(DATASET_ID, 0, "foo")),
         // If old datasets expired, still keep the current version (or higher as it is a range...)
-        newTestCase(true, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, OLD_DATASET, DatasetSplitId.of(OLD_DATASET_ID, OLD_DATASET_SPLIT_VERSION, "foo")),
-        newTestCase(false, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, OLD_DATASET, DatasetSplitId.of(OLD_DATASET_ID, OLD_DATASET_SPLIT_VERSION - 1, "foo")),
-        newTestCase(true, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, OLD_DATASET, DatasetSplitId.of(OLD_DATASET_ID, OLD_DATASET_SPLIT_VERSION + 1, "foo"))
+        newTestCase(true, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, OLD_DATASET, PartitionChunkId.of(OLD_DATASET_ID, OLD_DATASET_SPLIT_VERSION, "foo")),
+        newTestCase(false, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, OLD_DATASET, PartitionChunkId.of(OLD_DATASET_ID, OLD_DATASET_SPLIT_VERSION - 1, "foo")),
+        newTestCase(true, KEEP_VALID_SPLITS, SOURCE_METADATA_POLICY, OLD_DATASET, PartitionChunkId.of(OLD_DATASET_ID, OLD_DATASET_SPLIT_VERSION + 1, "foo"))
         );
   }
 
   private static Object[] newTestCase(boolean expected, SplitOrphansRetentionPolicy policy,
-      MetadataPolicy metadataPolicy, DatasetConfig config, DatasetSplitId splitId) {
+      MetadataPolicy metadataPolicy, DatasetConfig config, PartitionChunkId splitId) {
     return new Object[] { expected, policy, metadataPolicy, config, splitId };
   }
 
@@ -105,9 +105,9 @@ public class TestSplitOrphansRetentionPolicy {
   private final SplitOrphansRetentionPolicy policy;
   private final MetadataPolicy metadataPolicy;
   private final DatasetConfig config;
-  private final DatasetSplitId splitId;
+  private final PartitionChunkId splitId;
 
-  public TestSplitOrphansRetentionPolicy(boolean expected, SplitOrphansRetentionPolicy policy, MetadataPolicy metadataPolicy, DatasetConfig config, DatasetSplitId splitId) {
+  public TestSplitOrphansRetentionPolicy(boolean expected, SplitOrphansRetentionPolicy policy, MetadataPolicy metadataPolicy, DatasetConfig config, PartitionChunkId splitId) {
     this.expected = expected;
     this.policy = policy;
     this.metadataPolicy = metadataPolicy;
@@ -117,7 +117,7 @@ public class TestSplitOrphansRetentionPolicy {
 
   @Test
   public void checkRetention() {
-    Range<DatasetSplitId> range = policy.apply(metadataPolicy, config);
+    Range<PartitionChunkId> range = policy.apply(metadataPolicy, config);
 
     assertThat(range.contains(splitId), is(expected));
   }

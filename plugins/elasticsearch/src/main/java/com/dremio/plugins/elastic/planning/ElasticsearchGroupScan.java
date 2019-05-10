@@ -20,12 +20,13 @@ import java.util.List;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.AbstractGroupScan;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
@@ -42,12 +43,13 @@ public class ElasticsearchGroupScan extends AbstractGroupScan {
   private final long rowCountEstimate;
 
   public ElasticsearchGroupScan(
+      OpProps props,
       ElasticsearchScanSpec spec,
       TableMetadata table,
       List<SchemaPath> columns,
       long rowCountEstimate
       ) {
-    super(table, columns);
+    super(props, table, columns);
     this.spec = spec;
     this.rowCountEstimate = rowCountEstimate;
   }
@@ -59,26 +61,21 @@ public class ElasticsearchGroupScan extends AbstractGroupScan {
 
   @Override
   public SubScan getSpecificScan(List<SplitWork> work) throws ExecutionSetupException {
-    List<DatasetSplit> splitWork = FluentIterable.from(work).transform(new Function<SplitWork, DatasetSplit>(){
+    List<SplitInfo> splitWork = FluentIterable.from(work).transform(new Function<SplitWork, SplitInfo>(){
       @Override
-      public DatasetSplit apply(SplitWork input) {
-        return input.getSplit();
+      public SplitInfo apply(SplitWork input) {
+        return input.getSplitInfo();
       }}).toList();
     return new ElasticsearchSubScan(
-        getUserName(),
+        getProps(),
         getDataset().getStoragePluginId(),
         spec,
         splitWork,
         getColumns(),
         Iterables.getOnlyElement(getReferencedTables()),
-        getSchema(),
+        getDataset().getSchema(),
         getDataset().getReadDefinition().getExtendedProperty()
         );
-  }
-
-  @Override
-  public DistributionAffinity getDistributionAffinity() {
-    return DistributionAffinity.SOFT;
   }
 
   @Override

@@ -38,6 +38,7 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.users.SystemUser;
+import com.google.common.util.concurrent.Futures;
 
 /**
  * Jobs API tests
@@ -59,11 +60,10 @@ public class TestJobResource extends BaseTestServer {
 
     SqlQuery query = new SqlQuery("select * from sys.version", Collections.emptyList(), SystemUser.SYSTEM_USERNAME);
 
-    Job job = jobs.submitJob(JobRequest.newBuilder()
-      .setSqlQuery(query)
-      .setQueryType(QueryType.REST)
-      .build(), NoOpJobStatusListener.INSTANCE);
-
+    Job job = Futures.getUnchecked(
+      jobs.submitJob(
+        JobRequest.newBuilder().setSqlQuery(query).setQueryType(QueryType.REST).build(), NoOpJobStatusListener.INSTANCE)
+    );
 
     String id = job.getJobId().getId();
 
@@ -89,10 +89,14 @@ public class TestJobResource extends BaseTestServer {
 
     SqlQuery query = new SqlQuery("select * from sys.version", Collections.emptyList(), SystemUser.SYSTEM_USERNAME);
 
-    Job job = jobs.submitJob(JobRequest.newBuilder()
-      .setSqlQuery(query)
-      .setQueryType(QueryType.REST)
-      .build(), NoOpJobStatusListener.INSTANCE);
+    final Job job = Futures.getUnchecked(
+      jobs.submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(query)
+          .setQueryType(QueryType.REST)
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    );
 
     String id = job.getJobId().getId();
 

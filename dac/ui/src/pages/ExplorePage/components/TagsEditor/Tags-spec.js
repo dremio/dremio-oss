@@ -136,7 +136,7 @@ describe('Tags', () => {
 
       const inputWrapper = getInput(wrapper);
 
-      expect(inputWrapper.node.selectionStart).to.eq(str.length); // check that a cursor in END position
+      expect(inputWrapper.instance().selectionStart).to.eq(str.length); // check that a cursor in END position
     });
 
     // array values should respect keyCodes field names
@@ -200,7 +200,7 @@ describe('Tags', () => {
 
     it('tag is removed on x click', () => {
       const index = 3;
-      getAllTags(wrapper).at(index).find(`.${deleteButton}`).simulate('click');
+      getAllTags(wrapper).at(index).find(`.${deleteButton}`).hostNodes().simulate('click');
 
       expect(removeHandler.calledWith(commonProps.tags.get(index))).to.eq(true); // DELETE handler called for a next to the cursor tag
     });

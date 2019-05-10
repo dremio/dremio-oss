@@ -21,13 +21,7 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexNode;
 
-import com.dremio.common.expression.FieldReference;
-import com.dremio.common.expression.LogicalExpression;
-import com.dremio.common.logical.data.LogicalOperator;
-import com.dremio.common.logical.data.NamedExpression;
-import com.dremio.common.logical.data.Project;
 import com.dremio.exec.planner.common.FlattenRelBase;
 
 /**
@@ -38,20 +32,6 @@ public class FlattenRel extends FlattenRelBase implements Rel {
   public FlattenRel(final RelOptCluster cluster, RelTraitSet traits, RelNode child, List<RexInputRef> toFlatten, int numProjectsPushed) {
     super(cluster, traits, child, toFlatten, numProjectsPushed);
     assert getConvention() == LOGICAL;
-  }
-
-  @Override
-  public LogicalOperator implement(LogicalPlanImplementor implementor) {
-    LogicalOperator inputOp = implementor.visitChild(this, 0, getInput());
-    Project.Builder builder = Project.builder();
-    builder.setInput(inputOp);
-
-    for (RexNode rex : toFlatten) {
-      RexInputRef rexInput = (RexInputRef) rex;
-      LogicalExpression expr = RexToExpr.toExpr(implementor.getContext(), getInput().getRowType(), getCluster().getRexBuilder(), rex);
-      builder.addExpr(new NamedExpression(expr, FieldReference.getWithQuotedRef(getRowType().getFieldNames().get(rexInput.getIndex()))));
-    }
-    return builder.build();
   }
 
   @Override

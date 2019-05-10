@@ -15,13 +15,11 @@
  */
 package com.dremio.exec.physical.config;
 
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractSingle;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
@@ -29,11 +27,12 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeName("selection-vector-remover")
 public class SelectionVectorRemover extends AbstractSingle {
 
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SelectionVectorRemover.class);
-
   @JsonCreator
-  public SelectionVectorRemover(@JsonProperty("child") PhysicalOperator child) {
-    super(child);
+  public SelectionVectorRemover(
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("child") PhysicalOperator child
+      ) {
+    super(props, child);
   }
 
   @Override
@@ -43,12 +42,7 @@ public class SelectionVectorRemover extends AbstractSingle {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new SelectionVectorRemover(child);
-  }
-
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    return child.getSchema(context).clone(SelectionVectorMode.NONE);
+    return new SelectionVectorRemover(props, child);
   }
 
   @Override

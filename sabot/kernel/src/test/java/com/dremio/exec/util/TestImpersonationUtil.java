@@ -15,6 +15,10 @@
  */
 package com.dremio.exec.util;
 
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+import static junit.framework.TestCase.assertTrue;
+import static org.junit.Assert.assertFalse;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -36,5 +40,11 @@ public class TestImpersonationUtil  {
   public void testEmptyUser() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     ImpersonationUtil.createProxyUgi("");
+  }
+
+  @Test
+  public void testIsSystemUserName() throws Exception {
+    assertTrue(ImpersonationUtil.isSystemUserName(SYSTEM_USERNAME));
+    assertFalse(ImpersonationUtil.isSystemUserName("foo"));
   }
 }

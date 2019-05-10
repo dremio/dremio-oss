@@ -17,8 +17,8 @@ package com.dremio.exec.physical.base;
 
 import java.util.List;
 
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.fragment.ParallelizationInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -62,9 +62,11 @@ public interface Exchange extends PhysicalOperator {
    *          The minor fragment id, must be in the range [0, fragment.width).
    * @param child
    *          The feeding node for the requested sender.
+   * @param builder
+   *          The index builder.
    * @return The materialized sender for the given arguments.
    */
-  public abstract Sender getSender(int minorFragmentId, PhysicalOperator child, FunctionLookupContext context) throws PhysicalOperatorSetupException;
+  public abstract Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder builder) throws PhysicalOperatorSetupException;
 
   /**
    * Get the Receiver associated with the given minorFragmentId. Cannot be called until after setupSenders() and
@@ -72,9 +74,11 @@ public interface Exchange extends PhysicalOperator {
    *
    * @param minorFragmentId
    *          The minor fragment id, must be in the range [0, fragment.width).
+   * @param builder
+   *          The index builder.
    * @return The materialized recevier for the given arguments.
    */
-  public abstract Receiver getReceiver(int minorFragmentId, FunctionLookupContext context);
+  public abstract Receiver getReceiver(int minorFragmentId, EndpointsIndex.Builder builder);
 
   /**
    * Provide parallelization parameters for sender side of the exchange. Output includes min width,

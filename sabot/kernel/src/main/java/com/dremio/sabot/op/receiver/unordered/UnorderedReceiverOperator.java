@@ -53,7 +53,7 @@ public class UnorderedReceiverOperator implements ProducerOperator {
   }
 
   public UnorderedReceiverOperator(final BatchStreamProvider streams, final OperatorContext context, final UnorderedReceiver config) {
-    final RawFragmentBatchProvider[] buffers = streams.getBuffers(config.getOppositeMajorFragmentId());
+    final RawFragmentBatchProvider[] buffers = streams.getBuffers(config.getSenderMajorFragmentId());
     Preconditions.checkArgument(buffers.length == 1);
     this.streams = streams;
     this.fragProvider = buffers[0];

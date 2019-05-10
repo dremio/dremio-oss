@@ -16,13 +16,13 @@
 import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
-import Popover from 'material-ui/Popover/Popover';
+import { Popover } from '@app/components/Popover';
 import Immutable from 'immutable';
 import { MAP, TEXT, LIST, MIXED, BINARY } from 'constants/DataTypes';
 import Menu from 'components/Menus/Menu';
 import MenuItemLink from 'components/Menus/MenuItemLink';
 import MenuItem from 'components/Menus/MenuItem';
-import Divider from 'material-ui/Divider';
+import Divider from '@material-ui/core/Divider';
 import { withLocation } from 'containers/dremioLocation';
 
 // todo: loc
@@ -132,7 +132,7 @@ export class SelectedTextPopoverView extends Component {
 
   renderCopySelectionItem = () => {
     return (
-      <MenuItem onTouchTap={this.props.copySelection}>
+      <MenuItem onClick={this.props.copySelection}>
         {la('Copy Selection')}
       </MenuItem>
     );
@@ -171,13 +171,11 @@ export class SelectedTextPopoverView extends Component {
   render() {
     return (
       <Popover
-        open={this.state.open}
-        anchorEl={this.props.anchor}
-        animated={false}
-        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-        targetOrigin={{ horizontal: 'right', vertical: 'top' }}
-        onRequestClose={this.hideDrop}
-        useLayerForClickAway>
+        anchorEl={this.state.open ? this.props.anchor : null}
+        listRightAligned
+        onClose={this.hideDrop}
+        useLayerForClickAway
+      >
         {this.renderItems()}
       </Popover>
     );

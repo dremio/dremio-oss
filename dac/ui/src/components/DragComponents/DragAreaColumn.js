@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import Popover from 'material-ui/Popover';
 import classNames from 'classnames';
 
+import { SelectView } from '@app/components/Fields/SelectView';
 import FontIcon from 'components/Icon/FontIcon';
 import { SearchField } from 'components/Fields';
 import ColumnDragItem from 'utils/ColumnDragItem';
@@ -27,14 +26,13 @@ import EllipsedText from 'components/EllipsedText';
 
 import { formDefault } from 'uiTheme/radium/typography';
 import { typeToIconType } from 'constants/DataTypes';
-import { PALE_BLUE, HISTORY_ITEM_COLOR, ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
+import { HISTORY_ITEM_COLOR, ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
 import { FLEX_ROW_START_CENTER } from 'uiTheme/radium/flexStyle';
 import { NOT_SUPPORTED_TYPES } from './DragColumnMenu';
 import DragSource from './DragSource';
 import DragTarget from './DragTarget';
-import { base, content, column as columnCls } from './DragAreaColumn.less';
+import { base, content, column as columnCls, columnItem as columnItemCls } from './DragAreaColumn.less';
 
-@Radium
 class DragAreaColumn extends Component {
   static propTypes = {
     dragItem: PropTypes.instanceOf(ColumnDragItem),
@@ -62,22 +60,12 @@ class DragAreaColumn extends Component {
   }
 
   state = {
-    sOpen: false,
-    pattern: '',
-    anchorOrigin: {
-      horizontal: 'left',
-      vertical: 'bottom'
-    },
-    targetOrigin: {
-      horizontal: 'left',
-      vertical: 'top'
-    }
+    pattern: ''
   }
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.disabled) {
       this.setState({
-        isOpen: false,
         pattern: ''
       });
     }
@@ -96,12 +84,12 @@ class DragAreaColumn extends Component {
     return true;
   }
 
-  selectColumn = (selectedColumn) => {
+  selectColumn = (selectedColumn, closeDD) => {
     const { columnName } = selectedColumn;
     if (!this.canSelectColumn(columnName) ) {
       return;
     }
-    this.handleRequestClose();
+    closeDD();
 
     this.props.field.onChange(columnName);
   }
@@ -122,15 +110,6 @@ class DragAreaColumn extends Component {
     this.setState({ isDragAreaActive: false });
   }
 
-  showPopover = (event) => {
-    if (!this.props.disabled) {
-      this.setState({
-        isOpen: true,
-        anchorEl: event.currentTarget
-      });
-    }
-  }
-
   checkDropPosibility() {
     const { field, isDragInProgress, dragItem } = this.props;
     const canSelect = this.canSelectColumn(dragItem);
@@ -139,10 +118,6 @@ class DragAreaColumn extends Component {
 
   handleRemoveColumn = () => {
     this.props.onRemoveColumn(this.props.index);
-  }
-
-  handleRequestClose = () => {
-    this.setState({ isOpen: false });
   }
 
   handlePatternChange = (value) => {
@@ -157,7 +132,7 @@ class DragAreaColumn extends Component {
       .toLowerCase().includes(pattern.trim().toLowerCase()));
   }
 
-  renderAllColumns() {
+  renderAllColumns(closeDD) {
     const { dragOrigin, field, id, index } = this.props;
     const selectedColumnName = field.value;
     return this.filterColumns()
@@ -181,9 +156,10 @@ class DragAreaColumn extends Component {
         <div
           disabled={columnDisabled}
           data-qa={columnName}
-          style={[styles.column, formDefault]}
+          className={columnItemCls}
+          style={formDefault}
           key={columnName}
-          onClick={!columnDisabled && this.selectColumn.bind(this, columnData)}>
+          onClick={!columnDisabled && this.selectColumn.bind(this, columnData, closeDD)}>
           <FontIcon type={typeToIconType[columnType]} theme={styles.type}/>
           <EllipsedText style={{...styles.name, ...disabledStyle}} text={columnName} />
         </div>
@@ -197,7 +173,6 @@ class DragAreaColumn extends Component {
       return <div/>;
     }
 
-    const width = this.state.anchorEl && this.state.anchorEl.offsetWidth;
     if (this.checkDropPosibility()) {
       return (
         <div
@@ -210,34 +185,33 @@ class DragAreaColumn extends Component {
       );
     } else if (!field.value) {
       return (
-        <div
+        <SelectView
+          key='custom-content'
+          content={
+            <SearchField
+              style={styles.searchStyle}
+              searchIconTheme={styles.searchIcon}
+              inputStyle={styles.searchInput}
+              value={this.state.pattern}
+              onChange={this.handlePatternChange}
+              placeholder={la('Choose field…')}
+            />
+          }
           className={content}
           style={styles.empty}
-          key='custom-content'
-          onClick={this.showPopover}>
-          <SearchField
-            style={styles.searchStyle}
-            searchIconTheme={styles.searchIcon}
-            inputStyle={styles.searchInput}
-            value={this.state.pattern}
-            onChange={this.handlePatternChange}
-            placeholder={la('Choose field…')}
-          />
-          <Popover
-            ref='menu'
-            style={{marginTop: 2, marginLeft: 0, width}}
-            useLayerForClickAway={false}
-            open={this.state.isOpen}
-            canAutoPosition
-            anchorEl={this.state.anchorEl}
-            anchorOrigin={this.state.anchorOrigin}
-            targetOrigin={this.state.targetOrigin}
-            onRequestClose={this.handleRequestClose}>
-            <div style={styles.popover} data-qa='popover'>
-              {this.renderAllColumns()}
-            </div>
-          </Popover>
-        </div>
+          listWidthSameAsAnchorEl
+          listStyle={{marginTop: 2, marginLeft: 0}}
+          hideExpandIcon
+          useLayerForClickAway={false}
+        >
+          {
+            ({ closeDD }) => (
+              <div style={styles.popover} data-qa='popover'>
+                {this.renderAllColumns(closeDD)}
+              </div>
+            )
+          }
+        </SelectView>
       );
     }
 
@@ -277,8 +251,8 @@ class DragAreaColumn extends Component {
             moveColumn={this.moveColumn}
             index={this.props.index}
             id={columnName}>
-            <div style={[styles.columnWrap]}>
-              <div className={columnCls} style={[dragStyle, columnStyle]} key='custom'>
+            <div style={styles.columnWrap}>
+              <div className={columnCls} style={{ ...dragStyle, ...columnStyle }} key='custom'>
                 {this.renderContent()}
               </div>
               {
@@ -315,10 +289,7 @@ const styles = {
     ...FLEX_ROW_START_CENTER,
     height: 26,
     padding: 5,
-    cursor: 'pointer',
-    ':hover': {
-      backgroundColor: PALE_BLUE
-    }
+    cursor: 'pointer'
   },
   popover: {
     maxHeight: 200,

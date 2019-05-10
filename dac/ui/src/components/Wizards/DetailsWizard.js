@@ -32,7 +32,6 @@ import { JOIN_TABLE_VIEW_ID } from 'components/Wizards/JoinWizard/JoinController
 import { navigateToNextDataset } from 'actions/explore/dataset/common';
 import { runTableTransform, transformHistoryCheck } from 'actions/explore/dataset/transform';
 import { transformPeek } from 'actions/explore/dataset/peek';
-import { getAllDatasets } from 'selectors/datasets';
 import { getExploreState, getImmutableTable } from 'selectors/explore';
 import { getViewState } from 'selectors/resources';
 
@@ -61,7 +60,6 @@ export class DetailsWizard extends Component {
     transformHistoryCheck: PropTypes.func,
     transformPeek: PropTypes.func,
     sqlSize: PropTypes.number,
-    allDatasets: PropTypes.instanceOf(Immutable.Map),
     resetViewState: PropTypes.func,
     recommendedJoins: PropTypes.instanceOf(Immutable.List),
     activeRecommendedJoin: PropTypes.instanceOf(Immutable.Map),
@@ -125,6 +123,7 @@ export class DetailsWizard extends Component {
       tableData
     ).then((response) => {
       if (!response.error) {
+        // this navigation will trigger data load. see explorePageDataChecker saga
         return this.props.navigateToNextDataset(response);
       }
       return response;
@@ -299,7 +298,6 @@ function mapStateToProps(state, props) {
     detailType: location.query.type,
     tableData: getImmutableTable(state, props.dataset.get('datasetVersion'), location),
     sqlSize: explorePageState.ui.get('sqlSize'),
-    allDatasets: getAllDatasets(state, props),
     recommendedJoins: explorePageState.join.getIn(['recommended', 'recommendedJoins']) || Immutable.List([]),
     activeRecommendedJoin: explorePageState.join.getIn(['recommended', 'activeRecommendedJoin']) || Immutable.Map(),
     recommendedJoinsViewState: getViewState(state, RECOMMENDED_JOINS_VIEW_ID),

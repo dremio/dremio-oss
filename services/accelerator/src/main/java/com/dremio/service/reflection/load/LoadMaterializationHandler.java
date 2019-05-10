@@ -40,6 +40,7 @@ import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
@@ -120,7 +121,7 @@ public class LoadMaterializationHandler extends SimpleDirectHandler {
 
     final Function<DatasetConfig, DatasetConfig> datasetMutator;
     if (sortedFields.isEmpty()) {
-      datasetMutator = null;
+      datasetMutator = Functions.identity();
     } else {
       datasetMutator = new Function<DatasetConfig, DatasetConfig>() {
         @Override

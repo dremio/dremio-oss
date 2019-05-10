@@ -15,7 +15,10 @@
  */
 package com.dremio.exec.work.foreman;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,14 +32,15 @@ import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.ops.OperatorMetricRegistry;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.physical.base.EndpointHelper;
 import com.dremio.exec.planner.PlanCaptureAttemptObserver;
+import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.sql.handlers.commands.ResourceAllocationResultObserver;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodePhaseStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
-import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
@@ -95,6 +99,7 @@ class QueryManager {
   private ImmutableMap<NodeEndpoint, NodeReporter> nodeReporters = ImmutableMap.of();
 
   // the following mutable variables are used to capture ongoing query status
+  private long commandPoolWait;
   private long startPlanningTime;
   private long endPlanningTime;  // NB: tracks the end of both planning and resource scheduling. Name kept to match the profile object, which was kept intact for legacy reasons
   private long startTime;
@@ -147,6 +152,11 @@ class QueryManager {
     }
 
     @Override
+    public void commandPoolWait(long waitInMillis) {
+      addCommandPoolWaitTime(waitInMillis);
+    }
+
+    @Override
     public void planStart(String rawPlan) {
       markStartPlanningTime();
     }
@@ -191,14 +201,14 @@ class QueryManager {
     }
   }
 
-  private void populate(List<PlanFragment> fragments){
+  private void populate(List<PlanFragmentFull> fragments){
     Map<NodeEndpoint, NodeTracker> trackers = new HashMap<>();
     Map<FragmentHandle, FragmentData> dataCollectors = new HashMap<>();
     ArrayListMultimap<Integer, FragmentData> majors = ArrayListMultimap.create();
     Map<NodeEndpoint, NodeReporter> nodeReporters = new HashMap<>();
 
-    for(PlanFragment fragment : fragments) {
-      final NodeEndpoint assignment = fragment.getAssignment();
+    for(PlanFragmentFull fragment : fragments) {
+      final NodeEndpoint assignment = fragment.getMinor().getAssignment();
 
       NodeTracker tracker = trackers.get(assignment);
       if (tracker == null) {
@@ -241,7 +251,18 @@ class QueryManager {
    * (3) Leaf fragment: running, send the cancel signal through a tunnel. The cancel is done directly.
    */
   void cancelExecutingFragments() {
-    for(final FragmentData data : fragmentDataMap.values()) {
+    final FragmentData fragments [] = new FragmentData[fragmentDataMap.values().size()];
+    fragmentDataMap.values().toArray(fragments);
+
+    //colocate fragments running on same node
+    Arrays.sort(fragments, new Comparator<FragmentData>() {
+      @Override
+      public int compare(final FragmentData o1, final FragmentData o2) {
+        return o1.getEndpoint().getAddress().compareTo(o2.getEndpoint().getAddress());
+      }
+    });
+
+    for(final FragmentData data : fragments) {
       switch(data.getState()) {
       case SENDING:
       case AWAITING_ALLOCATION:
@@ -315,6 +336,7 @@ class QueryManager {
         .setForeman(context.getCurrentEndpoint())
         .setStart(startTime)
         .setEnd(endTime)
+        .setCommandPoolWaitMillis(commandPoolWait)
         .setPlanningStart(startPlanningTime)
         .setPlanningEnd(endPlanningTime)
         .setTotalFragments(fragmentDataMap.size())
@@ -447,6 +469,10 @@ class QueryManager {
 
   private void markStartTime() {
     startTime = System.currentTimeMillis();
+  }
+
+  private void addCommandPoolWaitTime(long waitInMillis) {
+    commandPoolWait += waitInMillis;
   }
 
   void markEndTime() {
@@ -598,11 +624,17 @@ class QueryManager {
       final StringBuilder failedNodeList = new StringBuilder();
       boolean atLeastOneFailure = false;
 
+      List<NodeTracker> nodesToMarkDead = new ArrayList<>();
       for (final NodeEndpoint ep : unregisteredNodes) {
-        final NodeTracker tracker = nodeMap.get(ep);
+        /*
+         * The nodeMap has minimal endpoints, while this list has nodes with additional attributes.
+         * Convert to a minimal endpoint prior to lookup.
+         */
+        final NodeTracker tracker = nodeMap.get(EndpointHelper.getMinimalEndpoint(ep));
         if (tracker == null) {
           continue; // fragments were not assigned to this SabotNode
         }
+        nodesToMarkDead.add(tracker);
 
         // mark node as dead.
         if (tracker.isDone()) {
@@ -630,11 +662,8 @@ class QueryManager {
       }
 
       // now we can call nodeDead() on all unregistered nodes
-      for (final NodeEndpoint ep : unregisteredNodes) {
-        final NodeTracker tracker = nodeMap.get(ep);
-        if (tracker != null) {
-          tracker.nodeDead();
-        }
+      for (final NodeTracker tracker : nodesToMarkDead) {
+        tracker.nodeDead();
       }
     }
   };

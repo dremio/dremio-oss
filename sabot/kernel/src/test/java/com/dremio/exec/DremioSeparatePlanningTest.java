@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +41,9 @@ import com.dremio.common.util.TestTools;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.planner.PhysicalPlanReader;
-import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
+import com.dremio.exec.planner.fragment.PlanFragmentFull;
+import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
+import com.dremio.exec.proto.CoordExecRPC.PlanFragmentSet;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -55,13 +58,14 @@ import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import io.netty.buffer.ArrowBuf;
 
 /**
- * Class to test different planning use cases (separate form query execution)
+ * Class to test different planning use cases (separate from query execution)
  *
  */
 public class DremioSeparatePlanningTest extends BaseTestQuery {
@@ -88,8 +92,9 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
 
     assertNotNull(planFragments);
 
-    assertEquals(1, planFragments.getFragmentsCount());
-    assertTrue(planFragments.getFragments(0).getLeafFragment());
+    PlanFragmentSet set = planFragments.getFragmentSet();
+    assertEquals(1, set.getMinorCount());
+    assertTrue(set.getMajor(0).getLeafFragment());
 
     getResultsHelper(planFragments);
   }
@@ -103,9 +108,10 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
 
     assertNotNull(planFragments);
 
-    assertTrue((planFragments.getFragmentsCount() > 1));
+    PlanFragmentSet set = planFragments.getFragmentSet();
+    assertTrue((set.getMinorCount() > 1));
 
-    for (PlanFragment planFragment : planFragments.getFragmentsList()) {
+    for (PlanFragmentMajor planFragment : set.getMajorList()) {
       assertTrue(planFragment.getLeafFragment());
     }
 
@@ -121,9 +127,10 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
 
     assertNotNull(planFragments);
 
-    assertTrue((planFragments.getFragmentsCount() > 1));
+    PlanFragmentSet set = planFragments.getFragmentSet();
+    assertTrue((set.getMinorCount() > 1));
 
-    for ( PlanFragment planFragment : planFragments.getFragmentsList()) {
+    for ( PlanFragmentMajor planFragment : set.getMajorList()) {
       assertTrue(planFragment.getLeafFragment());
     }
 
@@ -144,7 +151,8 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
 
     final QueryPlanFragments planFragments = queryFragmentsFutures.get();
 
-    for (PlanFragment fragment : planFragments.getFragmentsList()) {
+    PlanFragmentSet set = planFragments.getFragmentSet();
+    for (PlanFragmentMajor fragment : set.getMajorList()) {
       try {
         System.out.println(PhysicalPlanReader.toString(fragment.getFragmentJson(), fragment.getFragmentCodec()));
       } catch(IOException e) {
@@ -156,7 +164,22 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
   }
 
   private void getResultsHelper(final QueryPlanFragments planFragments) throws Exception {
-    for (PlanFragment fragment : planFragments.getFragmentsList()) {
+    PlanFragmentSet set = planFragments.getFragmentSet();
+    List<PlanFragmentFull> fullFragments = new ArrayList<>();
+
+    // Create a map of major fragments.
+    Map<Integer, PlanFragmentMajor> map = FluentIterable.from(set.getMajorList())
+      .uniqueIndex(major -> major.getHandle().getMajorFragmentId());
+
+    // Build the full fragments.
+    set.getMinorList().forEach(
+      minor -> {
+        PlanFragmentMajor major = map.get(minor.getMajorFragmentId());
+
+        fullFragments.add(new PlanFragmentFull(major, minor));
+      });
+
+    for (PlanFragmentFull fragment : fullFragments) {
       NodeEndpoint assignedNode = fragment.getAssignment();
       DremioClient fragmentClient = new DremioClient(true);
       Properties props = new Properties();
@@ -190,13 +213,16 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
        }
       assertTrue(props.getProperty("direct").equalsIgnoreCase(host+":" + port));
 
-      List<PlanFragment> fragmentList = Lists.newArrayList();
-      fragmentList.add(fragment);
+      PlanFragmentSet.Builder setSingleBuilder = PlanFragmentSet.newBuilder();
+      setSingleBuilder.addMajor(fragment.getMajor());
+      setSingleBuilder.addMinor(fragment.getMinor());
+      setSingleBuilder.addAllEndpointsIndex(set.getEndpointsIndexList());
+
       //AwaitableUserResultsListener listener =
      //     new AwaitableUserResultsListener(new PrintingResultsListener(client.getConfig(), Format.TSV, VectorUtil.DEFAULT_COLUMN_WIDTH));
       AwaitableUserResultsListener listener =
           new AwaitableUserResultsListener(new SilentListener());
-      fragmentClient.runQuery(QueryType.EXECUTION, fragmentList, listener);
+      fragmentClient.runQuery(QueryType.EXECUTION, setSingleBuilder.build(), listener);
       int rows = listener.await();
       fragmentClient.close();
     }
@@ -211,7 +237,7 @@ public class DremioSeparatePlanningTest extends BaseTestQuery {
      //     new AwaitableUserResultsListener(new PrintingResultsListener(client.getConfig(), Format.TSV, VectorUtil.DEFAULT_COLUMN_WIDTH));
       AwaitableUserResultsListener listener =
           new AwaitableUserResultsListener(new SilentListener());
-      client.runQuery(QueryType.EXECUTION, planFragments.getFragmentsList(), listener);
+      client.runQuery(QueryType.EXECUTION, planFragments.getFragmentSet(), listener);
       int rows = listener.await();
   }
 

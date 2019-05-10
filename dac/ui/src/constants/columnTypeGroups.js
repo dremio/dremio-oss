@@ -26,7 +26,10 @@ import {
   MAP,
   MIXED,
   TEXT,
-  TIME
+  TIME,
+  DOUBLE,
+  TIMESTAMP,
+  VARCHAR
 } from 'constants/DataTypes';
 
 // todo: why is this missing some items from constants/DataTypes.js?
@@ -43,7 +46,10 @@ export const ALL_TYPES = [
   MAP,
   BOOLEAN,
   MIXED,
-  BIGINT
+  BIGINT,
+  DOUBLE,
+  TIMESTAMP,
+  VARCHAR
 ];
 
 export const KEEP_ONLY_TYPES = [
@@ -160,5 +166,12 @@ export const DATE_TYPES = [
 
 // changes to this require changes to user-facing text in AccelerationUpdatesForm
 export const INCREMENTAL_TYPES = [
-  BIGINT
+  BIGINT,
+  INTEGER,
+  DATE,
+  TIMESTAMP,
+  FLOAT,
+  DOUBLE,
+  DECIMAL,
+  VARCHAR
 ];

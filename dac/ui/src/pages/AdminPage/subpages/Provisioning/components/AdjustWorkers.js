@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component, Fragment } from 'react';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import Button from 'components/Buttons/Button';
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
-import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
+import { SelectView } from '@app/components/Fields/SelectView';
 import { triangleTop } from 'uiTheme/radium/overlay';
 import AdjustWorkersForm  from './forms/AdjustWorkersForm';
 
@@ -28,56 +28,47 @@ export default class AdjustWorkers extends Component {
     readonly: PropTypes.bool
   }
 
-  state = {
-    isOpen: false
-  };
-
-  onClick = (e) => {
-    this.setState((prevState) => ({ isOpen: !prevState.isOpen }));
-    this.setState({
-      anchorEl: this.state.anchorEl || e.currentTarget.parentElement
-    });
-    if (e) {
-      e.stopPropagation();
-    }
-    return false;
-  }
-
   render() {
     const { entity, readonly } = this.props;
     return (
-      <div>
-        <Button
-          disable={readonly}
-          style={{width: '100%'}}
-          type={ButtonTypes.NEXT}
-          text={la('Add / Remove Workers')}
-          onClick={this.onClick}
-        />
-        <div>
-          <Popover
-            style={styles.popover}
-            anchorEl={this.state.anchorEl}
-            useLayerForClickAway={false}
-            open={this.state.isOpen}
-            anchorOrigin={{horizontal: 'left', vertical: 'bottom'}}
-            targetOrigin={{horizontal: 'left', vertical: 'top'}}
-            animation={PopoverAnimationVertical}>
-            <div style={styles.triangle}/>
-            <h4 style={styles.formTitle}>{la('Workers')}</h4>
-            <AdjustWorkersForm
-              onCancel={this.onClick}
-              ref='dropDown'
-              entity={entity}
-              parent={this}/>
-          </Popover>
-        </div>
-      </div>
+      <SelectView
+        style={styles.fullWidth}
+        content={
+          <Button
+            disable={readonly}
+            style={styles.fullWidth}
+            type={ButtonTypes.NEXT}
+            text={la('Add / Remove Workers')}
+          />
+        }
+        listStyle={styles.popover}
+        hideExpandIcon
+        useLayerForClickAway={false}
+        disabled={readonly}
+      >
+        {
+          ({ closeDD }) => (
+            <Fragment>
+              <div style={styles.triangle}/>
+              <h4 style={styles.formTitle}>{la('Workers')}</h4>
+              <AdjustWorkersForm
+                onCancel={closeDD}
+                ref='dropDown'
+                entity={entity}
+                parent={this}/>
+            </Fragment>
+          )
+        }
+
+      </SelectView>
     );
   }
 }
 
 const styles = {
+  fullWidth: {
+    width: '100%'
+  },
   formTitle: {
     paddingTop: 10,
     paddingLeft: 10

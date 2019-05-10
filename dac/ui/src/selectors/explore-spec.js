@@ -15,7 +15,10 @@
  */
 import Immutable from 'immutable';
 
-import { getImmutableTable } from './explore';
+import {
+  getImmutableTable,
+  getNewDatasetFromState
+} from './explore';
 
 const emptyTable = Immutable.fromJS({
   columns: [],
@@ -60,6 +63,43 @@ describe('explore selectors', () => {
           query: {type: 'default'}, state: {previewVersion: 'previewVersion'}
         })
       ).to.eql(entities.getIn(['table', 'previewVersion']));
+    });
+  });
+
+  describe('getExplorePageDataset', () => {
+
+    describe('getNewDatasetFromState', () => {
+
+      it('new dataset should be initialized', () => {
+        const state = {routing: {locationBeforeTransitions: {query: {context: 'a.b'}}}};
+        const newDataset = getNewDatasetFromState(state);
+        expect(newDataset.get('isNewQuery')).to.equal(true);
+        expect(newDataset.get('fullPath').toJS()).to.eql(['tmp', 'UNTITLED']);
+        expect(newDataset.get('displayFullPath').toJS()).to.eql(['tmp', 'New Query']);
+        expect(newDataset.get('context').toJS()).to.eql(['a', 'b']);
+        expect(newDataset.get('sql')).to.equal('');
+        expect(newDataset.get('datasetType')).to.equal('VIRTUAL_DATASET');
+        expect(newDataset.get('apiLinks').get('self')).to.equal('/dataset/tmp/UNTITLED/new_untitled_sql');
+        expect(newDataset.get('needsLoad')).to.equal(false);
+      });
+
+      it('Query context is decoded correctly', () => {
+        // test data is taken from the bug // DX-12354
+        const space = '"   tomer 12# $"';
+        const folder = '"_ nested $"';
+        const contextInput = `${space}.${folder}`;
+        const location = {
+          query: {
+            context: encodeURIComponent(contextInput) // url parameter should be encoded. See NewQueryButton.getNewQueryHref
+          }
+        };
+        const state = {routing: {locationBeforeTransitions: location}};
+
+        const newDataset = getNewDatasetFromState(state);
+        const contextResult = newDataset.get('context').toJS();
+        expect(contextResult).to.deep.eql([space, folder]);
+      });
+
     });
   });
 });

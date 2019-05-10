@@ -18,6 +18,7 @@ package com.dremio.dac.cmd.upgrade;
 import java.util.stream.StreamSupport;
 
 import com.dremio.common.Version;
+import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
@@ -32,6 +33,7 @@ import com.google.common.collect.ImmutableList;
  * Update all external reflections' query and target dataset hashes.
  */
 public class UpdateExternalReflectionHash extends UpgradeTask implements LegacyUpgradeTask {
+
 
   //DO NOT MODIFY
   static final String taskUUID = "79312f25-49d6-40e7-8096-7e132e1b64c4";
@@ -71,10 +73,10 @@ public class UpdateExternalReflectionHash extends UpgradeTask implements LegacyU
       final String targetDatasetId = reflection.getTargetDatasetId();
       reflection.setTargetDatasetHash(computeDatasetHash(targetDatasetId));
 
-      System.out.printf("  Updated external reflection %s%n", reflection.getId());
+      AdminLogger.log("  Updated external reflection {}", reflection.getId());
       store.addExternalReflection(reflection);
     } catch (Exception e) {
-      System.err.printf("  Failed to update external reflection %s%n", reflection.getId());
+      AdminLogger.log("  Failed to update external reflection {}", reflection.getId());
     }
   }
 

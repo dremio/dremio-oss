@@ -8,7 +8,7 @@
     },
     graph:[
         {
-            @id:1,
+            id:1,
             pop:"mock-scan",
             url: "http://apache.org",
             entries:[
@@ -16,21 +16,24 @@
                   {name: "col1", type: "FLOAT4", mode: "REQUIRED"},
                   {name: "col2", type: "FLOAT8", mode: "REQUIRED"}
              ]}
-            ]
+            ],
+            props: { "operatorId": 1 }
         },
         {
-            @id:2,
+            id:2,
             child: 1,
             pop:"project",
             exprs: [
             {ref: "str_to_int_cast", expr:"8 + '2'" },
             {ref: "int_to_str_cast", expr:"substr(10123, 1, 3)" }
-            ]
+            ],
+            props: { "operatorId": 2, "memLimit": 1073741824, "schemaHashCode": 1003831827 }
         },
         {
-            @id: 3,
+            id: 3,
             child: 2,
-            pop: "screen"
+            pop: "screen",
+            props: { "operatorId": 3, "memLimit": 1073741824, "schemaHashCode": 1003831827   }
         }
     ]
 }

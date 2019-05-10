@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { PureComponent, createRef } from 'react';
 import PropTypes from 'prop-types';
 import Art from '@app/components/Art';
-import Tooltip from 'components/Tooltip';
+import { Tooltip } from 'components/Tooltip';
 import { container, tooltip } from './Alert.less';
 
 export class Alert extends PureComponent {
@@ -41,21 +41,23 @@ export class Alert extends PureComponent {
     });
   };
 
+  iconRef = createRef()
+
   render() {
     const { text, height } = this.props;
     const { isHover } = this.state;
 
     return (<span className={container} onMouseEnter={this.onMouseEnter} onMouseLeave={this.onMouseLeave}>
-      <Art key='icon' src={isHover ? 'WarningSolid.svg' : 'Warning.svg'} alt={text} style={{ height: height || 18}} />
-      {isHover && <Tooltip key='tooltip'
+      <Art key='icon' ref={this.iconRef} src={isHover ? 'WarningSolid.svg' : 'Warning.svg'} alt={text} style={{ height: height || 18}} />
+      <Tooltip key='tooltip'
+        target={() => isHover ? this.iconRef.current : null}
         type='info'
         placement='right'
-        content={text}
         className={tooltip}
-        arrowOffsetTop='50%'
         tooltipInnerStyle={{ width: 'auto', whiteSpace: 'nowrap' }}
-        />
-      }
+      >
+        {text}
+      </Tooltip>
     </span>);
   }
 }

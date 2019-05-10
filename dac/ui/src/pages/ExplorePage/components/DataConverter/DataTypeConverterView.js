@@ -133,8 +133,8 @@ export default class DataTypeConverterView extends Component {
             onChange={this.onConvertTypeChange}
             className={selectLeftAligned}
             itemClass={selectItemCls}
-            itemRenderer={(item, label) => (<span className={classNames([typeElement, 'font-icon'])}>
-              <span className={classNames(['icon-type', typeToIconType[item.option]])}></span>
+            itemRenderer={({ option, label }) => (<span className={classNames([typeElement, 'font-icon'])}>
+              <span className={classNames(['icon-type', typeToIconType[option]])}></span>
               {label}
             </span>)}
           />

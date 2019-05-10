@@ -18,6 +18,7 @@ package com.dremio.sabot.op.aggregate.vectorized.nospill;
 import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.FieldVector;
 
 import com.dremio.common.exceptions.UserException;
@@ -53,9 +54,11 @@ public class AccumulatorBuilderNoSpill {
    * @param aggregateExpressions set of expressions to accumulate.
    * @param incoming Incoming vectors
    * @param outgoing Outgoing vectors
+   * @param decimalV2Enabled
    * @return A Nested accumulator that holds individual sub-accumulators.
    */
-  public static AccumulatorNoSpill getAccumulator(BufferAllocator allocator, ClassProducer producer, List<NamedExpression> aggregateExpressions, VectorAccessible incoming, VectorContainer outgoing){
+  public static AccumulatorNoSpill getAccumulator(BufferAllocator allocator, ClassProducer producer, List<NamedExpression> aggregateExpressions, VectorAccessible incoming,
+                                                  VectorContainer outgoing, boolean decimalV2Enabled, BufferManager bufferManager){
     final AccumulatorNoSpill[] accums = new AccumulatorNoSpill[aggregateExpressions.size()];
 
     for (int i = 0; i < aggregateExpressions.size(); i++) {
@@ -85,15 +88,19 @@ public class AccumulatorBuilderNoSpill {
       final FieldVector incomingValues = incoming.getValueAccessorById(FieldVector.class, vvread.getFieldId().getFieldIds()).getValueVector();
       final FieldVector outputVector = TypeHelper.getNewVector(expr.getCompleteType().toField(ne.getRef()), allocator);
       outgoing.add(outputVector);
-      accums[i] = getAccumulator(func.getName(), incomingValues, outputVector);
+      accums[i] = getAccumulator(func.getName(), incomingValues, outputVector, decimalV2Enabled, bufferManager);
     }
 
     return new NestedAccumulatorNoSpill(accums);
   }
 
-  private static AccumulatorNoSpill getAccumulator(String name, FieldVector incomingValues, FieldVector outputVector) {
+  private static AccumulatorNoSpill getAccumulator(String name, FieldVector incomingValues,
+                                                   FieldVector outputVector, boolean decimalV2Enabled,
+                                                   BufferManager bufferManager) {
     final MinorType type = CompleteType.fromField(incomingValues.getField()).toMinorType();
-    switch(name){
+    //String _complete if present.
+    String functionName = name.split("_")[0];
+    switch(functionName){
     case "count": {
       return new CountColumnAccumulatorNoSpill(incomingValues, outputVector);
     }
@@ -109,7 +116,12 @@ public class AccumulatorBuilderNoSpill {
       case FLOAT8:
         return new SumAccumulatorsNoSpill.DoubleSumAccumulatorNoSpill(incomingValues, outputVector);
       case DECIMAL:
-        return new SumAccumulatorsNoSpill.DecimalSumAccumulatorNoSpill(incomingValues, outputVector);
+        if (decimalV2Enabled) {
+          return new SumAccumulatorsNoSpill.DecimalSumAccumulatorNoSpillV2(incomingValues,
+            outputVector);
+        } else {
+          return new SumAccumulatorsNoSpill.DecimalSumAccumulatorNoSpill(incomingValues, outputVector);
+        }
       }
       break;
     }
@@ -125,7 +137,13 @@ public class AccumulatorBuilderNoSpill {
       case FLOAT8:
         return new MinAccumulatorsNoSpill.DoubleMinAccumulatorNoSpill(incomingValues, outputVector);
       case DECIMAL:
-        return new MinAccumulatorsNoSpill.DecimalMinAccumulatorNoSpill(incomingValues, outputVector);
+        if (decimalV2Enabled) {
+          return new MinAccumulatorsNoSpill.DecimalMinAccumulatorNoSpillV2(incomingValues,
+            outputVector);
+        } else {
+          return new MinAccumulatorsNoSpill.DecimalMinAccumulatorNoSpill(incomingValues,
+            outputVector);
+        }
       case BIT:
         return new MinAccumulatorsNoSpill.BitMinAccumulatorNoSpill(incomingValues, outputVector);
       case DATE:
@@ -146,6 +164,10 @@ public class AccumulatorBuilderNoSpill {
         // interval-year represented as a NullableIntervalYear, which is a 4-byte value containing the number of months
         // in the interval. Comparisons are the same as comparisons on the underlying int values
         return new MinAccumulatorsNoSpill.IntMinAccumulatorNoSpill(incomingValues, outputVector);
+      case VARCHAR:
+        return new MinAccumulatorsNoSpill.VarLenMinAccumulatorNoSpill(incomingValues, outputVector);
+      case VARBINARY:
+        return new MinAccumulatorsNoSpill.VarLenMinAccumulatorNoSpill(incomingValues, outputVector);
       }
       break;
     }
@@ -161,7 +183,13 @@ public class AccumulatorBuilderNoSpill {
       case FLOAT8:
         return new MaxAccumulatorsNoSpill.DoubleMaxAccumulatorNoSpill(incomingValues, outputVector);
       case DECIMAL:
-        return new MaxAccumulatorsNoSpill.DecimalMaxAccumulatorNoSpill(incomingValues, outputVector);
+        if (decimalV2Enabled) {
+          return new MaxAccumulatorsNoSpill.DecimalMaxAccumulatorNoSpillV2(incomingValues,
+            outputVector);
+        } else {
+          return new MaxAccumulatorsNoSpill.DecimalMaxAccumulatorNoSpill(incomingValues,
+            outputVector);
+        }
       case BIT:
         return new MaxAccumulatorsNoSpill.BitMaxAccumulatorNoSpill(incomingValues, outputVector);
       case DATE:
@@ -182,6 +210,10 @@ public class AccumulatorBuilderNoSpill {
         // interval-year represented as a NullableIntervalYear, which is a 4-byte value containing the number of months
         // in the interval. Comparisons are the same as comparisons on the underlying int values
         return new MaxAccumulatorsNoSpill.IntMaxAccumulatorNoSpill(incomingValues, outputVector);
+      case VARCHAR:
+        return new MaxAccumulatorsNoSpill.VarLenMaxAccumulatorNoSpill(incomingValues, outputVector);
+      case VARBINARY:
+        return new MaxAccumulatorsNoSpill.VarLenMaxAccumulatorNoSpill(incomingValues, outputVector);
       }
       break;
     }
@@ -197,10 +229,65 @@ public class AccumulatorBuilderNoSpill {
       case FLOAT8:
         return new SumZeroAccumulatorsNoSpill.DoubleSumZeroAccumulatorNoSpill(incomingValues, outputVector);
       case DECIMAL:
-        return new SumZeroAccumulatorsNoSpill.DecimalSumZeroAccumulatorNoSpill(incomingValues, outputVector);
+        if (decimalV2Enabled) {
+          return new SumZeroAccumulatorsNoSpill.DecimalSumZeroAccumulatorNoSpillV2(incomingValues,
+            outputVector);
+        } else {
+          return new SumZeroAccumulatorsNoSpill.DecimalSumZeroAccumulatorNoSpill(incomingValues, outputVector);
+        }
       }
       break;
     }
+
+    case "hll": {
+        switch (name) {
+          case "hll_merge" :
+            return new NdvAccumulatorsNoSpill.NdvUnionAccumulatorsNoSpill(incomingValues, outputVector, bufferManager);
+        }
+
+        switch(type){
+          case INT:
+            return new NdvAccumulatorsNoSpill.IntNdvAccumulatorsNoSpill(incomingValues, outputVector, bufferManager);
+          case FLOAT4:
+            return new NdvAccumulatorsNoSpill.FloatNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager);
+          case BIGINT:
+            return new NdvAccumulatorsNoSpill.BigIntNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager);
+          case FLOAT8:
+            return new NdvAccumulatorsNoSpill.DoubleNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager);
+          case DECIMAL:
+            if (decimalV2Enabled) {
+              return new NdvAccumulatorsNoSpill.DecimalNdvAccumulatorNoSpillV2(incomingValues,
+                outputVector, bufferManager);
+            } else {
+              return new NdvAccumulatorsNoSpill.DecimalNdvAccumulatorNoSpill(incomingValues,
+                outputVector, bufferManager);
+            }
+          case BIT:
+            return new NdvAccumulatorsNoSpill.BitNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager);
+          case DATE:
+            // dates represented as NullableDateMilli, which are 8-byte values. For purposes of min(), comparisions
+            // of NullableDateMilli are the same as comparisons on the underlying long values
+            return new NdvAccumulatorsNoSpill.BigIntNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager);
+          case TIME:
+            // time represented as NullableTimeMilli, which are 4-byte values. For purposes of min(), comparisons
+            // of NullableTimeMilli are the same as comparisons on the underlying int values
+            return new NdvAccumulatorsNoSpill.IntNdvAccumulatorsNoSpill(incomingValues, outputVector, bufferManager);
+          case TIMESTAMP:
+            // time represented as NullableTimeStampMilli, which are 8-byte values. For purposes of min(), comparisons
+            // of NullableTimeStampMilli are the same as comparisons on the underlying long values
+            return new NdvAccumulatorsNoSpill.BigIntNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager);
+          case INTERVALDAY:
+            return new NdvAccumulatorsNoSpill.IntervalDayNdvAccumulatorNoSpill(incomingValues, outputVector, bufferManager);
+          case INTERVALYEAR:
+            // interval-year represented as a NullableIntervalYear, which is a 4-byte value containing the number of months
+            // in the interval. Comparisons are the same as comparisons on the underlying int values
+            return new NdvAccumulatorsNoSpill.IntNdvAccumulatorsNoSpill(incomingValues, outputVector, bufferManager);
+          case VARCHAR:
+          case VARBINARY:
+            return new NdvAccumulatorsNoSpill.VarLenNdvAccumulatorsNoSpill(incomingValues, outputVector, bufferManager);
+        }
+        break;
+     }
 
     }
 

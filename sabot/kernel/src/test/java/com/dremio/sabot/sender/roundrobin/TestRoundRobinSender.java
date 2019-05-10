@@ -28,8 +28,9 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.physical.config.RoundRobinSender;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.FragmentWritableBatch;
@@ -49,12 +50,17 @@ import io.netty.buffer.ByteBuf;
 public class TestRoundRobinSender extends BaseTestOperator {
   @Test
   public void checkMemoryLeak() throws Exception {
-    RoundRobinSender sender = new RoundRobinSender(1, null,
+    EndpointsIndex endpointsIndex = new EndpointsIndex(
       Arrays.asList(
-        new MinorFragmentEndpoint(1, NodeEndpoint.newBuilder().setAddress("a").setFabricPort(1).build()),
-        new MinorFragmentEndpoint(2, NodeEndpoint.newBuilder().setAddress("b").setFabricPort(2).build())
-      ),
-      getSchema()
+        NodeEndpoint.newBuilder().setAddress("a").setFabricPort(1).build(),
+        NodeEndpoint.newBuilder().setAddress("b").setFabricPort(2).build()
+      )
+    );
+    RoundRobinSender sender = new RoundRobinSender(PROPS, getSchema(), null, 1,
+      Arrays.asList(
+        MinorFragmentIndexEndpoint.newBuilder().setMinorFragmentId(1).setEndpointIndex(0).build(),
+        MinorFragmentIndexEndpoint.newBuilder().setMinorFragmentId(2).setEndpointIndex(1).build()
+      )
     );
 
 
@@ -74,7 +80,7 @@ public class TestRoundRobinSender extends BaseTestOperator {
     when(provider.getExecTunnel(any(NodeEndpoint.class))).thenReturn(tunnel);
 
 
-    try(RoundRobinOperator op = newOperator(RoundRobinOperator.class, sender, DEFAULT_BATCH, provider);
+    try(RoundRobinOperator op = newOperator(RoundRobinOperator.class, sender, DEFAULT_BATCH, endpointsIndex, provider);
         TpchGenerator g = TpchGenerator.singleGenerator(TpchTable.NATION, 0.1, getTestAllocator());){
       op.setup(g.getOutput());
       g.next(DEFAULT_BATCH);

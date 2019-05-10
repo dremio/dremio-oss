@@ -52,6 +52,9 @@ export class InnerComplexForm extends Component {
           messageId={error.id}/>}
 
         {React.Children.map(children, (child) => {
+          // will throw an error, if error has unsupported type for a component
+          // I step in that case with FieldWithError component, that expect string as error, not an
+          // object
           return React.cloneElement(child, { fields, handleSubmit, error });
         })}
       </form>
@@ -122,7 +125,7 @@ export function connectComplexForm(reduxFormParams = {}, sections = [], mapState
   const initialValues = merge({},
     formParams.initialValues,
     getInitialValues()
-    );
+  );
 
   const mapStateToPropsForDirtyWatcher = function(state, ownProps) {
     let propsInitialValues = ownProps.initialValues;
@@ -145,10 +148,6 @@ export function connectComplexForm(reduxFormParams = {}, sections = [], mapState
       ...formParams, fields, validate, initialValues
     }, mapStateToPropsForDirtyWatcher, mapDispatchToProps)(wrapSubmitValueMutator(mutateSubmitValues, component));
   };
-
-  if (formParams.disableStateWatcher) {
-    return complexForm;
-  }
 
   return (component) => {
     const conflictDetectionComponent = ConflictDetectionWatcher(component);

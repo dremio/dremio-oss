@@ -393,7 +393,8 @@
 
 ## Resource defined by class com.dremio.dac.service.admin.SettingsResource
 
- - GET /settings   
+ - POST /settings   
+   > `=>` [com.dremio.dac.service.admin.SettingsResource$SettingsRequest](#class-comdremiodacserviceadminsettingsresource$settingsrequest)   
    > `<=` [com.dremio.dac.service.admin.SettingsResource$SettingsWrapperObject](#class-comdremiodacserviceadminsettingsresource$settingswrapperobject)   
 
  - DELETE /settings/{id} (path params: id={String})   
@@ -1964,6 +1965,7 @@
   },
   attemptDetails: [
     {
+      commandPoolWaitTime: 1,
       enqueuedTime: 1,
       executionTime: 1,
       planningTime: 1,
@@ -2472,7 +2474,7 @@
       startTime: 1,
       user: "abc",
     },
-    reason: "NONE" | "OUT_OF_MEMORY" | "SCHEMA_CHANGE" | "INVALID_DATASET_METADATA",
+    reason: "NONE" | "OUT_OF_MEMORY" | "SCHEMA_CHANGE" | "INVALID_DATASET_METADATA" | "JSON_FIELD_CHANGE",
     state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
     stats: {
       inputBytes: 1,
@@ -4448,8 +4450,19 @@ any
 ```
 {
   id: "abc",
-  showOutsideWhitelist: true | false,
   value: any,
+}
+```
+
+## `class com.dremio.dac.service.admin.SettingsResource$SettingsRequest`
+- Example:
+```
+{
+  includeSetSettings: true | false,
+  requiredSettings: [
+    "abc",
+    ...
+  ],
 }
 ```
 
@@ -4460,7 +4473,6 @@ any
   settings: [
     {
       id: "abc",
-      showOutsideWhitelist: true | false,
       value: any,
     },
     ...
@@ -4816,6 +4828,7 @@ any
   },
   schemaVersion: 1,
   tag: "abc",
+  totalNumSplits: 1,
   type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
   version: 1,
   virtualDataset: {
@@ -4972,6 +4985,7 @@ any
 ## class com.dremio.dac.server.DACExceptionMapperFeature
 ## class com.dremio.dac.server.DACJacksonJaxbJsonFeature
 ## class com.dremio.dac.server.FirstTimeFeature
+## class com.dremio.dac.server.JSONJobDataFilter
 ## class com.dremio.dac.server.JSONPrettyPrintFilter
 ## class com.dremio.dac.server.MediaTypeFilter
 ## class com.dremio.dac.server.TestResourcesFeature

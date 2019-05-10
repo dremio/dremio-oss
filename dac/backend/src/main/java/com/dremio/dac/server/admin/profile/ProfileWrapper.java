@@ -17,12 +17,12 @@ package com.dremio.dac.server.admin.profile;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-
 
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
@@ -126,6 +126,18 @@ public class ProfileWrapper {
       logger.warn("Failed to deserialize acceleration details", e);
     }
     accelerationDetails = wrapper;
+  }
+
+  /**
+   * @return
+   */
+  @SuppressWarnings("unused")
+  public String getCommandPoolWaitMillis() {
+    final QueryProfile profile = getProfile();
+    if (!profile.hasCommandPoolWaitMillis()) {
+      return "";
+    }
+    return NUMBER_FORMAT.format(profile.getCommandPoolWaitMillis()) + "ms";
   }
 
   /**
@@ -304,7 +316,14 @@ public class ProfileWrapper {
 
     for (UserBitShared.LayoutMaterializedViewProfile viewProfile : layoutProfilesList) {
       String reflectionDatasetPath = accelerationDetails.getReflectionDatasetPath(viewProfile.getLayoutId());
-      DatasetPath path = new DatasetPath(reflectionDatasetPath);
+
+      DatasetPath path;
+
+      if ("".equals(reflectionDatasetPath)) {
+        path = new DatasetPath(Arrays.asList("unknown", "missing dataset"));
+      } else {
+        path = new DatasetPath(reflectionDatasetPath);
+      }
 
       if (!map.containsKey(path)) {
         map.put(path, new ArrayList<UserBitShared.LayoutMaterializedViewProfile>());

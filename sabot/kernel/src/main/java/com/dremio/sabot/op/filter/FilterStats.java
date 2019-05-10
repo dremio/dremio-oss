@@ -22,7 +22,10 @@ public class FilterStats {
     JAVA_BUILD_TIME,
     JAVA_EXECUTE_TIME,
     GANDIVA_BUILD_TIME,
-    GANDIVA_EXECUTE_TIME;
+    GANDIVA_EXECUTE_TIME,
+    JAVA_EXPRESSIONS,
+    GANDIVA_EXPRESSIONS,
+    MIXED_SPLITS;
 
     @Override
     public int metricId() {

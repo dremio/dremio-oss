@@ -79,7 +79,7 @@ export default class FileUtils {
     headers.append('Accept', '*');
     const authToken = localStorageUtils && localStorageUtils.getAuthToken();
     if (authToken) {
-      headers.append('Authorization', `_dremio${authToken}`);
+      headers.append('Authorization', authToken);
     }
     return headers;
   }

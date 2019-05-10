@@ -60,6 +60,7 @@ import com.dremio.service.users.SystemUser;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 
@@ -148,6 +149,7 @@ public class FragmentWorkManager implements Service, SafeExit {
     @Override
     public float getClusterLoad() {
       final long maxWidthPerNode = bitContext.getClusterResourceInformation().getAverageExecutorCores(bitContext.getOptionManager());
+      Preconditions.checkState(maxWidthPerNode > 0, "No executors are available. Unable to determine cluster load");
       return fragmentExecutors.size() / (maxWidthPerNode * 1.0f);
     }
 
@@ -281,6 +283,7 @@ public class FragmentWorkManager implements Service, SafeExit {
         sources.get(),
         contextInformationFactory.get(),
         bitContext.getFunctionImplementationRegistry(),
+        bitContext.getDecimalFunctionImplementationRegistry(),
         context.getNodeDebugContextProvider(),
         bitContext.getSpillService(),
         ClusterCoordinator.Role.fromEndpointRoles(identity.get().getRoles()));

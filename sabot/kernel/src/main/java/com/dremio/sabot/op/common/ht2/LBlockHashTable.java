@@ -130,7 +130,7 @@ public final class LBlockHashTable implements AutoCloseable {
     /* maximum records that can be stored in hashtable block/chunk */
     this.MAX_VALUES_PER_BATCH = Numbers.nextPowerOfTwo(maxHashTableBatchSize);
     this.BITS_IN_CHUNK = Long.numberOfTrailingZeros(MAX_VALUES_PER_BATCH);
-    this.CHUNK_OFFSET_MASK = 0xFFFFFFFF >>> (32 - BITS_IN_CHUNK);
+    this.CHUNK_OFFSET_MASK = (1 << BITS_IN_CHUNK) - 1;
     this.variableBlockMaxLength = (pivot.getVariableCount() == 0) ? 0 : (MAX_VALUES_PER_BATCH * (((defaultVariableLengthSize + VAR_OFFSET_SIZE) * pivot.getVariableCount()) + VAR_LENGTH_SIZE));
     this.preallocatedSingleBatch = false;
     this.allocatedForFixedBlocks = 0;

@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import actionUtils from 'utils/actionUtils/actionUtils';
+
 export const SET_CURRENT_SQL = 'SET_CURRENT_SQL';
 export const SET_QUERY_CONTEXT = 'SET_QUERY_CONTEXT';
 export const RESET_NEW_QUERY = 'RESET_NEW_QUERY';
@@ -36,4 +38,11 @@ export const updateHistoryState = (history, version) => ({ type: UPDATE_HISTORY_
 export const UPDATE_COLUMNS = 'UPDATE_COLUMNS';
 export const updateTableColumns = ({ version, columns }) => ({ type: UPDATE_COLUMNS, version, columns });
 
+export const UPDATE_COLUMN_FILTER = 'UPDATE_COLUMN_FILTER';
+export const updateColumnFilter = (columnFilter) => ({ type: UPDATE_COLUMN_FILTER, columnFilter });
+
 export const focusSqlEditor = () => ({ type: FOCUS_EDITOR });
+
+export const datasetMetadataActions = actionUtils.generateRequestActions('DATASET_METADATA');
+export const startDatasetMetadataLoad = () => ({ type: datasetMetadataActions.start });
+export const completeDatasetMetadataLoad = () => ({ type: datasetMetadataActions.success });

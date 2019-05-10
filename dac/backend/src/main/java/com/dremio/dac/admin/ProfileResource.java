@@ -21,6 +21,7 @@ import static javax.ws.rs.core.MediaType.TEXT_HTML;
 
 import java.io.IOException;
 
+import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.DefaultValue;
@@ -36,11 +37,11 @@ import javax.ws.rs.core.SecurityContext;
 import org.glassfish.jersey.server.mvc.Viewable;
 
 import com.dremio.dac.annotations.RestResource;
+import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.resource.NotificationResponse;
 import com.dremio.dac.resource.NotificationResponse.ResponseType;
 import com.dremio.dac.server.admin.profile.ProfileWrapper;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.proto.SchemaUserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.serialization.InstanceSerializer;
 import com.dremio.exec.serialization.ProtoSerializer;
@@ -56,15 +57,15 @@ import com.google.common.annotations.VisibleForTesting;
  * Resource for getting profiles from Dremio.
  */
 // TODO DX-3158 - learn how we can re-enable auth and still get regression to work
-//@Secured
-//@RolesAllowed({"admin", "user"})
+@Secured
+@RolesAllowed({"admin", "user"})
 @RestResource
 @Path("/profiles")
 public class ProfileResource {
 
   // this is only visible to expose the external profile viewer in the test APIs
   @VisibleForTesting
-  public static final InstanceSerializer<QueryProfile> SERIALIZER = new ProtoSerializer<>(SchemaUserBitShared.QueryProfile.MERGE, SchemaUserBitShared.QueryProfile.WRITE);
+  public static final InstanceSerializer<QueryProfile> SERIALIZER = ProtoSerializer.of(QueryProfile.class);
   private final JobsService jobsService;
   private final SabotContext context;
   private final SecurityContext securityContext;

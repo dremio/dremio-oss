@@ -18,25 +18,22 @@ import PropTypes from 'prop-types';
 import uuid from 'uuid';
 
 import FieldList, { AddButton } from 'components/Fields/FieldList';
-import Property, { PropertyValue } from 'components/Forms/Property';
-import { description, sectionTitle } from 'uiTheme/radium/forms';
+import Property from 'components/Forms/Property';
+import ValueListItem from 'components/Forms/ValueListItem';
+import { description } from 'uiTheme/radium/forms';
 import FormUtils from 'utils/FormUtils/FormUtils';
 
 PropertyItem.propTypes = {
-  style: PropTypes.object,
   item: PropTypes.object,
   onRemove: PropTypes.func,
-  elementConfig: PropTypes.object,
   singleValue: PropTypes.bool
 };
 
-// todo: chris is wondering where `style` is actually populated
-// todo: chris also curious why the `PropertyItem` wrapper is needed (couldn't `Property` just own all of this)
-function PropertyItem({style, item, onRemove, singleValue, elementConfig}) {
+function PropertyItem({item, onRemove, singleValue}) {
   return (
-    <div className='property-item' style={{...styles.item, style}}>
+    <div className='property-item' style={styles.item}>
       {!singleValue && <Property fields={item} onRemove={onRemove}/>}
-      {singleValue && <PropertyValue field={item} elementConfig={elementConfig} onRemove={onRemove}/>}
+      {singleValue && <ValueListItem field={item} onRemove={onRemove}/>}
     </div>
   );
 }
@@ -73,7 +70,6 @@ export default class SourceProperties extends Component {
 
   static propTypes = {
     fields: PropTypes.object,
-    title: PropTypes.string,
     emptyLabel: PropTypes.string,
     addLabel: PropTypes.string,
     description: PropTypes.string,
@@ -82,7 +78,6 @@ export default class SourceProperties extends Component {
   };
 
   static defaultProps = { // todo: `la` failing to build here
-    title: ('Properties'),
     emptyLabel: ('No properties added'),
     addLabel: ('Add property'),
     singleValue: false
@@ -114,15 +109,22 @@ export default class SourceProperties extends Component {
     properties.addField({id: uuid.v4()});
   };
 
+  renderTitle() {
+    const {elementConfig, singleValue} = this.props;
+    const defaultTitle = (singleValue) ? la('Value List') : la('Properties');
+    const itemListTitle = elementConfig && elementConfig.label || defaultTitle;
+    return (<div style={styles.listTitle}>{itemListTitle}</div>);
+  }
+
   render() {
-    const {fields: {config}, title, emptyLabel, addLabel, elementConfig, singleValue} = this.props;
+    const {fields: {config}, emptyLabel, addLabel, elementConfig, singleValue} = this.props;
     const propertyName = (elementConfig) ? elementConfig.propertyName : 'propertyList';
     const propertyListFields = config[propertyName];
     const des = this.props.description ? <div className='largerFontSize' style={description}>{this.props.description}</div> : null;
     const properties = (singleValue) ? FormUtils.getFieldByComplexPropName(this.props.fields, elementConfig.propName) : propertyListFields;
     return (
       <div className='properties'>
-        {!elementConfig && <h2 style={sectionTitle}>{title}</h2>}
+        {this.renderTitle()}
         {des}
         <FieldList
           className='normalWeight'
@@ -132,7 +134,7 @@ export default class SourceProperties extends Component {
           getKey={item => item.id.value}
           emptyLabel={emptyLabel}
           propName={elementConfig.propName}>
-          <PropertyItem singleValue={singleValue} elementConfig={elementConfig}/>
+          <PropertyItem singleValue={singleValue}/>
         </FieldList>
 
         <AddButton addItem={this.addItem} style={styles.addButton}>{addLabel}</AddButton>
@@ -142,6 +144,10 @@ export default class SourceProperties extends Component {
 }
 
 const styles = {
+  listTitle: {
+    fontWeight: 500,
+    marginBottom: 3
+  },
   item: {
     display: 'block',
     alignItems: 'center',

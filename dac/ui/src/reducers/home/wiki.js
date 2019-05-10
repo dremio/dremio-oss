@@ -15,6 +15,7 @@
  */
 import { combineReducers } from 'redux';
 import { wikiActions, WIKI_SAVED } from '@app/actions/home';
+import { isLoading, isLoaded, errorMessageReducer, errorMessageId } from '@app/reducers/reducerFactories';
 
 const enitityIdReducer = (state = null, { type, entityId }) => {
   switch (type) {
@@ -43,56 +44,6 @@ const wikiValue = (state = {
     return state;
   }
 };
-
-const isLoading = ({ start, success, failure }) => (state = false, { type }) => {
-  switch (type) {
-  case start:
-    return true;
-  case failure:
-  case success:
-    return false;
-  default:
-    return state;
-  }
-};
-
-const isLoaded = ({ start, success, failure }) => (state = false, { type }) => {
-  switch (type) {
-  case start:
-  case failure:
-    return false;
-  case success:
-    return true;
-  default:
-    return state;
-  }
-};
-
-const errorMessageReducer = ({ start, success, failure }) =>
-  (state = null, { type, errorMessage }) => {
-    switch (type) {
-    case start:
-    case success:
-      return null;
-    case failure:
-      return errorMessage;
-    default:
-      return state;
-    }
-  };
-
-const errorMessageId = ({ start, success, failure }) =>
-  (state = null, { type, errorId }) => {
-    switch (type) {
-    case start:
-    case success:
-      return null;
-    case failure:
-      return errorId;
-    default:
-      return state;
-    }
-  };
 
 export default combineReducers({
   enitityId: enitityIdReducer,

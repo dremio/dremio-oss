@@ -64,7 +64,7 @@ export class Socket {
 
   _createConnection() {
     const authToken = localStorageUtils && localStorageUtils.getAuthToken();
-    window.dremioSocket = this._socket = new WebSocket(WEB_SOCKET_URL, [`_dremio${authToken}`]);
+    window.dremioSocket = this._socket = new WebSocket(WEB_SOCKET_URL, [authToken]);
     this._socket.onopen = this._handleConnectionEstablished;
     this._socket.onclose = this._handleConnectionClose;
     this._socket.onerror = this._handleConnectionError;

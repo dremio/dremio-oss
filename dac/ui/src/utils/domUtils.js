@@ -16,11 +16,33 @@
 
 const disabler = (e) => {
   e.preventDefault();
-  e.stopPropagation();
+  e.stopImmediatePropagation();
   return false;
 };
 
 const getElOrBody = el => el || document.getElementsByTagName('body')[0];
+
+const cursorHelper = () => {
+  let originalCursor = null; // null if setCursor was not called or reset method was called
+
+  return {
+    // use this method if you need to change a cursor for whole page. For example, when you start resizing
+    setCursor: (cursor) => {
+      const body = getElOrBody();
+      // if there are several calls of setCursor, we record cursor state only for first call or call after resetCusor call
+      if (originalCursor === null) { //record only first ponter
+        originalCursor = body.style.cursor;
+      }
+      body.style.cursor = cursor;
+    },
+
+    //resets page's cursor to its original state
+    resetCursor: () => {
+      getElOrBody().style.cursor = originalCursor;
+      originalCursor = null;
+    }
+  };
+};
 
 export const domUtils = {
   disableSelection: el => {
@@ -29,5 +51,30 @@ export const domUtils = {
 
   enableSelection: (el) => {
     getElOrBody(el).removeEventListener('mousedown', disabler, false);
-  }
+  },
+
+  // as safari does not support pointer events, we have to use this hook
+  captureMouseEvents: (onMouseMove, onMouseUp) => {
+    if (typeof onMouseMove !== 'function' ||
+      typeof onMouseUp !== 'function') {
+      throw new Error('onMouseMove and onMouseUp must be provided');
+    }
+    const mouseMoveHandler = e => {
+      onMouseMove(e);
+
+      return disabler(e);
+    };
+    const mouseUpHandler = e => {
+      onMouseUp(e);
+      //clear the listeners to enable default flow
+      document.removeEventListener('mousemove', mouseMoveHandler, true);
+      document.removeEventListener('mouseup', mouseUpHandler, true);
+
+      return disabler(e);
+    };
+    document.addEventListener('mousemove', mouseMoveHandler, true);
+    document.addEventListener('mouseup', mouseUpHandler, true);
+  },
+
+  ...cursorHelper()
 };

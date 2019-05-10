@@ -24,7 +24,6 @@ import java.util.Map;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.bytes.BytesInput;
@@ -41,8 +40,8 @@ import org.apache.parquet.format.Util;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.CodecFactory.BytesDecompressor;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
-import org.apache.parquet.hadoop.util.CompatibilityUtil;
 
+import com.dremio.exec.store.parquet.BulkInputStream;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 
 import io.netty.buffer.ByteBuf;
@@ -71,7 +70,7 @@ public class ColumnChunkIncReadStore implements PageReadStore {
   public class SingleStreamColumnChunkIncPageReader extends ColumnChunkIncPageReader {
     private long lastPosition;
 
-    public SingleStreamColumnChunkIncPageReader(ColumnChunkMetaData metaData, ColumnDescriptor columnDescriptor, FSDataInputStream in) throws IOException {
+    public SingleStreamColumnChunkIncPageReader(ColumnChunkMetaData metaData, ColumnDescriptor columnDescriptor, BulkInputStream in) throws IOException {
       super(metaData, columnDescriptor, in);
       lastPosition = in.getPos();
     }
@@ -110,7 +109,7 @@ public class ColumnChunkIncReadStore implements PageReadStore {
     private long valueReadSoFar = 0;
 
     private DictionaryPage dictionaryPage;
-    protected FSDataInputStream in;
+    protected BulkInputStream in;
     private BytesDecompressor decompressor;
 
     // Release the data page buffer before reading the next page or in close
@@ -119,7 +118,7 @@ public class ColumnChunkIncReadStore implements PageReadStore {
     // Release the dictionary page buffer in close
     private ByteBuf dictionaryPageUncompressed;
 
-    public ColumnChunkIncPageReader(ColumnChunkMetaData metaData, ColumnDescriptor columnDescriptor, FSDataInputStream in) throws IOException {
+    public ColumnChunkIncPageReader(ColumnChunkMetaData metaData, ColumnDescriptor columnDescriptor, BulkInputStream in) throws IOException {
       this.metaData = metaData;
       this.columnDescriptor = columnDescriptor;
       this.size = metaData.getTotalSize();
@@ -135,7 +134,7 @@ public class ColumnChunkIncReadStore implements PageReadStore {
         long pos = 0;
         try {
           pos = in.getPos();
-          pageHeader = Util.readPageHeader(in);
+          pageHeader = Util.readPageHeader(in.asSeekableInputStream());
           if (pageHeader.getDictionary_page_header() == null) {
             in.seek(pos);
             return null;
@@ -177,7 +176,7 @@ public class ColumnChunkIncReadStore implements PageReadStore {
       try {
         releasePrevDataPageBuffers();
         while(valueReadSoFar < metaData.getValueCount()) {
-          pageHeader = Util.readPageHeader(in);
+          pageHeader = Util.readPageHeader(in.asSeekableInputStream());
           int uncompressedPageSize = pageHeader.getUncompressed_page_size();
           int compressedPageSize = pageHeader.getCompressed_page_size();
           switch (pageHeader.type) {
@@ -257,14 +256,11 @@ public class ColumnChunkIncReadStore implements PageReadStore {
       }
     }
 
-    private void readFully(ByteBuffer dest, int size) throws IOException {
-      int lengthLeftToRead = size;
-      while (lengthLeftToRead > 0) {
-        lengthLeftToRead -= CompatibilityUtil.getBuf(in, dest, lengthLeftToRead);
-      }
+    private void readFully(ByteBuf dest, int size) throws IOException {
+      in.readFully(dest, size);
 
       // reset the position back to beginning
-      dest.position(0);
+      dest.readerIndex(0);
     }
 
     private ByteBuffer uncompressPage(PageHeader pageHeader, boolean isDataPage) throws IOException {
@@ -273,10 +269,10 @@ public class ColumnChunkIncReadStore implements PageReadStore {
       final ByteBuf src = allocator.buffer(compressedPageSize);
       ByteBuf dest = null;
       try {
-        ByteBuffer srcBuffer = src.nioBuffer(0, compressedPageSize);
-        readFully(srcBuffer, compressedPageSize);
+        readFully(src, compressedPageSize);
         dest = allocator.buffer(uncompressedPageSize);
         ByteBuffer destBuffer = dest.nioBuffer(0, uncompressedPageSize);
+
         switch (pageHeader.type) {
           /**
            * Page structure :
@@ -302,6 +298,7 @@ public class ColumnChunkIncReadStore implements PageReadStore {
             }
             break;
           default:
+            ByteBuffer srcBuffer = src.nioBuffer(0, compressedPageSize);
             decompressor.decompress(srcBuffer, compressedPageSize, destBuffer, uncompressedPageSize);
         }
         if (isDataPage) {
@@ -324,17 +321,11 @@ public class ColumnChunkIncReadStore implements PageReadStore {
   private Map<ColumnDescriptor, ColumnChunkIncPageReader> columns = new HashMap<>();
 
   public void addColumn(ColumnDescriptor descriptor, ColumnChunkMetaData metaData) throws IOException {
-    final FSDataInputStream in;
-    if (inputStreamProvider.singleStream()) {
-      in = inputStreamProvider.stream();
-      in.seek(metaData.getStartingPos());
-      columns.put(descriptor, new SingleStreamColumnChunkIncPageReader(metaData, descriptor, in));
-    } else {
-      // create new stream per column
-      in = inputStreamProvider.stream();
-      in.seek(metaData.getStartingPos());
-      columns.put(descriptor, new ColumnChunkIncPageReader(metaData, descriptor, in));
-    }
+    final BulkInputStream in = inputStreamProvider.getStream(metaData);
+    in.seek(metaData.getStartingPos());
+    columns.put(descriptor, inputStreamProvider.isSingleStream()
+      ? new SingleStreamColumnChunkIncPageReader(metaData, descriptor, in)
+      : new ColumnChunkIncPageReader(metaData, descriptor, in));
   }
 
   public void close() throws IOException {

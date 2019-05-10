@@ -20,7 +20,7 @@ import PropTypes from 'prop-types';
 import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
 import { FieldWithError, TextField } from 'components/Fields';
 import { applyValidators, isRequired } from 'utils/validation';
-import { getInitialResourceLocation, splitFullPath } from 'utils/pathUtils';
+import { getInitialResourceLocation, constructFullPath } from 'utils/pathUtils';
 import ResourceTreeController from 'components/Tree/ResourceTreeController';
 import DependantDatasetsWarning from 'components/Modals/components/DependantDatasetsWarning';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
@@ -35,6 +35,15 @@ function validate(values) {
     isRequired('location')]);
 }
 
+const locationType = PropTypes.string;
+// I would like to enforce that initial value and field value for location has the same type,
+// as inconsistency in these 2 parameters, cause redux-form treat a form as dirty.
+// I created this as function, not as standalone object, to avoid eslint errors that requires to
+// document the rest of redux-form properties: onChange, error, touched
+const getLocationPropType = () => PropTypes.shape({
+  value: locationType
+});
+
 export class SaveAsDatasetForm extends Component {
   static propTypes = {
     onFormSubmit: PropTypes.func.isRequired,
@@ -43,8 +52,16 @@ export class SaveAsDatasetForm extends Component {
     canReapply: PropTypes.bool,
     datasetType: PropTypes.string,
     handleSubmit: PropTypes.func.isRequired,
-    fields: PropTypes.object,
-    dependentDatasets: PropTypes.array
+    dependentDatasets: PropTypes.array,
+    updateFormDirtyState: PropTypes.func,
+
+    // redux-form
+    initialValues: PropTypes.shape({
+      location: locationType
+    }),
+    fields: PropTypes.shape({
+      location: getLocationPropType()
+    })
   };
 
   static contextTypes = {
@@ -52,7 +69,7 @@ export class SaveAsDatasetForm extends Component {
   }
 
   handleChangeSelectedNode = (nodeId, node) => {
-    this.props.fields.location.onChange(node && node.get('fullPath').toJS() || splitFullPath(nodeId));
+    this.props.fields.location.onChange(node && constructFullPath(node.get('fullPath').toJS()) || nodeId);
   };
 
   renderWarning() {

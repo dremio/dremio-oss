@@ -17,27 +17,30 @@ package com.dremio.exec.physical.base;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
+import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.fragment.ExecutionNodeMap;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.service.namespace.PartitionChunkMetadata;
+import com.dremio.service.namespace.capabilities.SourceCapabilities;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 
 /**
  * GroupScan build on top of a Namespace-sourced SplitWork.
  */
 public abstract class AbstractGroupScan extends AbstractBase implements GroupScan<SplitWork> {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractGroupScan.class);
 
   protected final TableMetadata dataset;
   protected final List<SchemaPath> columns;
@@ -55,39 +58,43 @@ public abstract class AbstractGroupScan extends AbstractBase implements GroupSca
             }
           });
 
+
   public AbstractGroupScan(
+      OpProps props,
       TableMetadata dataset,
       List<SchemaPath> columns) {
-    super(dataset.getUser());
+    super(props);
     this.dataset = dataset;
     this.columns = columns;
   }
 
-  @JsonIgnore
-  @Deprecated
-  public List<String> getTableSchemaPath() {
-    final Collection<List<String>> paths = getReferencedTables();
-    if (paths.isEmpty()) {
-      return null;
-    } else {
-      return Iterables.getOnlyElement(paths);
-    }
-  }
-
-  @JsonIgnore // used in planning
-  @Override
   public Collection<List<String>> getReferencedTables() {
     return referencedTables.get();
   }
 
   @Override
-  public boolean mayLearnSchema() {
-    return true;
+  public final int getMinParallelizationWidth() {
+    if(getDistributionAffinity() != DistributionAffinity.HARD){
+      return 1;
+    }
+
+    final Set<String> nodes = new HashSet<>();
+    Iterator<PartitionChunkMetadata> iter = dataset.getSplits();
+    while(iter.hasNext()){
+      PartitionChunkMetadata split = iter.next();
+      for(PartitionProtobuf.DatasetSplit datasetSplit : split.getDatasetSplits()){
+        for (PartitionProtobuf.Affinity a: datasetSplit.getAffinitiesList()) {
+          nodes.add(a.getHost());
+        }
+      }
+    }
+
+    return nodes.size();
   }
 
   @Override
-  protected BatchSchema constructSchema(FunctionLookupContext functionLookupContext) {
-    return getSchema().maskAndReorder(getColumns());
+  public final DistributionAffinity getDistributionAffinity() {
+    return dataset.getStoragePluginId().getCapabilities().getCapability(SourceCapabilities.REQUIRES_HARD_AFFINITY) ? DistributionAffinity.HARD : DistributionAffinity.SOFT;
   }
 
   @Override
@@ -102,7 +109,7 @@ public abstract class AbstractGroupScan extends AbstractBase implements GroupSca
   }
 
   @JsonIgnore
-  public BatchSchema getSchema() {
+  public BatchSchema getFullSchema() {
     return dataset.getSchema();
   }
 
@@ -125,12 +132,6 @@ public abstract class AbstractGroupScan extends AbstractBase implements GroupSca
   @Override
   public Iterator<SplitWork> getSplits(ExecutionNodeMap nodeMap) {
     return SplitWork.transform(dataset.getSplits(), nodeMap, getDistributionAffinity());
-  }
-
-  @Override
-  @JsonIgnore
-  public int getMinParallelizationWidth() {
-    return 1;
   }
 
   @Override

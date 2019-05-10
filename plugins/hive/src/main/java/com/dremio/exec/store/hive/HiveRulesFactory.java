@@ -33,7 +33,6 @@ import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.logical.data.LogicalOperator;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.SourceType;
@@ -42,7 +41,6 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.EmptyRel;
-import com.dremio.exec.planner.logical.LogicalPlanImplementor;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.planner.logical.partition.PruneScanRuleBase.PruneScanRuleFilterOnProject;
@@ -52,6 +50,7 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ScanPrelBase;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RelOptNamespaceTable;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.StoragePluginRulesFactory.StoragePluginTypeRulesFactory;
@@ -62,6 +61,8 @@ import com.dremio.exec.store.dfs.PruneableScan;
 import com.dremio.exec.store.hive.orc.ORCFilterPushDownRule;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.options.OptionManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import com.google.common.base.Objects;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
@@ -100,12 +101,6 @@ public class HiveRulesFactory extends StoragePluginTypeRulesFactory {
         return planner.getCostFactory().makeInfiniteCost();
       }
       return super.computeSelfCost(planner, mq);
-    }
-
-
-    @Override
-    public LogicalOperator implement(LogicalPlanImplementor implementor) {
-      throw new UnsupportedOperationException();
     }
 
     public ScanFilter getFilter() {
@@ -203,9 +198,14 @@ public class HiveRulesFactory extends StoragePluginTypeRulesFactory {
 
   }
 
-  private static class HiveScanPrel extends ScanPrelBase {
+  @Options
+  public static class HiveScanPrel extends ScanPrelBase implements PruneableScan {
 
     private final ScanFilter filter;
+
+    public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.scan.hive.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+    public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.scan.hive.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+
 
     public HiveScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
         TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
@@ -228,13 +228,26 @@ public class HiveRulesFactory extends StoragePluginTypeRulesFactory {
     }
 
     @Override
+    public boolean hasFilter() {
+      return filter != null;
+    }
+
+    @Override
+    public RelNode applyDatasetPointer(TableMetadata newDatasetPointer) {
+      return new HiveScanPrel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer, projectedColumns, observedRowcountAdjustment, filter);
+    }
+
+    @Override
     public HiveScanPrel cloneWithProject(List<SchemaPath> projection) {
       return new HiveScanPrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, filter);
     }
 
     @Override
     public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-      return creator.addMetadata(this, new HiveGroupScan(tableMetadata, projectedColumns, filter));
+      final BatchSchema schema = tableMetadata.getSchema().maskAndReorder(projectedColumns);
+      return new HiveGroupScan(
+        creator.props(this, tableMetadata.getUser(), schema, RESERVE, LIMIT),
+        tableMetadata, projectedColumns, filter);
     }
 
     @Override

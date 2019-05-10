@@ -16,7 +16,7 @@
 package com.dremio.dac.resource;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,16 +81,9 @@ public class SystemResource {
       context.get().getClusterResourceInformation();
 
     ResourceInfo result;
-    try {
-      result = new ResourceInfo(
-        clusterResourceInformation.getAverageExecutorMemory(),
-        clusterResourceInformation.getAverageExecutorCores(context.get().getOptionManager()),
-        clusterResourceInformation.getExecutorNodeCount()
-      );
-    } catch(IllegalStateException e) {
-      // if we don't executors yet we should not throw exception here
-      result = new ResourceInfo(0L, 0L, 0);
-    }
+    result = new ResourceInfo(clusterResourceInformation.getAverageExecutorMemory(),
+      clusterResourceInformation.getAverageExecutorCores(context.get().getOptionManager()),
+      clusterResourceInformation.getExecutorNodeCount());
     return result;
   }
 
@@ -176,12 +169,15 @@ public class SystemResource {
         "   name,\n" +
         "   port";
 
-      JobUI job = new JobUI(jobsService.get().submitJob(JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(sql, Arrays.asList("sys"), securityContext))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .build(), NoOpJobStatusListener.INSTANCE));
       // TODO: Truncate the results to 500, this will change in DX-3333
-      final JobDataFragment pojo = job.getData().truncate(500);
+      final JobDataFragment pojo = JobUI.getJobData(
+        jobsService.get().submitJob(
+          JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(sql, Collections.singletonList("sys"), securityContext))
+            .setQueryType(QueryType.UI_INTERNAL_RUN)
+            .build(),
+          NoOpJobStatusListener.INSTANCE)
+      ).truncate(500);
 
       for (NodeEndpoint ep : context.get().getExecutors()) {
         map.put(ep.getAddress() + ":" + ep.getFabricPort(), ep);

@@ -20,7 +20,9 @@ import static org.apache.calcite.util.Static.RESOURCE;
 
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.runtime.CalciteContextException;
+import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -43,14 +45,43 @@ class SqlValidatorImpl extends org.apache.calcite.sql.validate.SqlValidatorImpl 
     this.flattenCount = flattenCount;
   }
 
-  public int nextFlattenIndex(){
+  @Override
+  public void validateJoin(SqlJoin join, SqlValidatorScope scope) {
+    SqlNode condition = join.getCondition();
+    checkIfFlattenIsPartOfJoinCondition(condition);
+    super.validateJoin(join, scope);
+  }
+
+  private void checkIfFlattenIsPartOfJoinCondition(SqlNode node) {
+    if (node instanceof SqlBasicCall) {
+      SqlBasicCall call = (SqlBasicCall) node;
+      SqlNode[] conditionOperands = call.getOperands();
+      for (SqlNode operand : conditionOperands) {
+        if (operand instanceof SqlBasicCall) {
+          if (((SqlBasicCall) operand).getOperator().getName().equalsIgnoreCase("flatten")) {
+            throwException(node.getParserPosition());
+          }
+        }
+        checkIfFlattenIsPartOfJoinCondition(operand);
+      }
+    }
+  }
+
+  private void throwException(SqlParserPos parserPos) {
+    throw new CalciteContextException("Failure parsing the query",
+                                      new SqlValidatorException("Flatten is not supported as part of join condition", null),
+                                      parserPos.getLineNum(), parserPos.getEndLineNum(),
+                                      parserPos.getColumnNum(), parserPos.getEndColumnNum());
+  }
+
+  int nextFlattenIndex(){
     return flattenCount.nextFlattenIndex();
   }
 
-  public static class FlattenOpCounter {
+  static class FlattenOpCounter {
     private int value;
 
-    public int nextFlattenIndex(){
+    int nextFlattenIndex(){
       return value++;
     }
   }

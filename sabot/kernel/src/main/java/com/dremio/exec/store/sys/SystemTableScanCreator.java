@@ -37,6 +37,6 @@ public class SystemTableScanCreator implements ProducerOperator.Creator<SystemSu
     final SystemStoragePlugin plugin2 = fec.getStoragePlugin(config.getPluginId());
     final RecordReader reader = new PojoRecordReader(table.getPojoClass(), table.getIterator(plugin2.getSabotContext(), context), config.getColumns());
 
-    return new ScanOperator(fec.getSchemaUpdater(), config, context, Collections.singleton(reader).iterator());
+    return new ScanOperator(config, context, Collections.singleton(reader).iterator());
   }
 }

@@ -15,17 +15,13 @@
  */
 import { Component } from 'react';
 import Immutable from 'immutable';
-import ReactDOM from 'react-dom';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { injectIntl } from 'react-intl';
 import FontIcon from 'components/Icon/FontIcon';
 import SimpleButton from 'components/Buttons/SimpleButton';
-import { Overlay } from 'react-overlays';
-import Tooltip from 'components/Tooltip';
+import { Tooltip } from '@app/components/Tooltip';
 import HoverTrigger from 'components/HoverTrigger';
-import { bodyWhite } from 'uiTheme/radium/typography';
-import { NAVY } from 'uiTheme/radium/colors';
 
 @injectIntl
 @Radium
@@ -93,18 +89,14 @@ export default class ExploreSettingsButton extends Component {
           buttonStyle='secondary'>
           <FontIcon type='Settings' theme={styles.icon}/>
         </SimpleButton>
-        <Overlay
-          show={this.state.isOpenOverlay}
-          container={document && document.body}
-          target={() => ReactDOM.findDOMNode(this.refs.settingsButton)}
-          placement={side}>
-          <Tooltip
-            type='status'
-            placement={side}
-            tooltipInnerStyle={styles.overlay}
-            content={intl.formatMessage({ id: 'Dataset.ChangeSettingsTooltip' })}
-          />
-        </Overlay>
+        <Tooltip
+          container={document.body}
+          target={() => this.state.isOpenOverlay ? this.refs.settingsButton : null}
+          placement={side}
+          tooltipInnerStyle={styles.overlay}
+        >
+          {intl.formatMessage({ id: 'Dataset.ChangeSettingsTooltip' })}
+        </Tooltip>
       </HoverTrigger>
     );
   }
@@ -125,12 +117,6 @@ const styles = {
     }
   },
   overlay: {
-    backgroundColor: NAVY,
-    padding: 10,
-    width: 300,
-    textAlign: 'left',
-    borderRadius: 5,
-    ...bodyWhite,
-    marginLeft: -10
+    width: 300
   }
 };

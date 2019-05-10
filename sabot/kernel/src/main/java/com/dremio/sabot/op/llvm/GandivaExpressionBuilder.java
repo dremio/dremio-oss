@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.op.llvm;
 
+import java.math.BigInteger;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -32,6 +33,7 @@ import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions.BooleanExpression;
+import com.dremio.common.expression.ValueExpressions.DecimalExpression;
 import com.dremio.common.expression.ValueExpressions.DoubleExpression;
 import com.dremio.common.expression.ValueExpressions.FloatExpression;
 import com.dremio.common.expression.ValueExpressions.IntExpression;
@@ -183,6 +185,12 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
   @Override
   public TreeNode visitNullConstant(TypedNullConstant constant, Void value) {
     return TreeBuilder.makeNull(constant.getCompleteType().getType());
+  }
+
+  public TreeNode visitDecimalConstant(DecimalExpression decimalExpression, Void value) {
+    BigInteger unScaledValue = decimalExpression.getDecimal().unscaledValue();
+    return TreeBuilder.makeDecimalLiteral(unScaledValue.toString(),
+      decimalExpression.getPrecision(), decimalExpression.getScale());
   }
 
 }

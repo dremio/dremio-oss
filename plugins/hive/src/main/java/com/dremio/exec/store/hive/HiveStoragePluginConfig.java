@@ -59,7 +59,7 @@ public class HiveStoragePluginConfig extends BaseHiveStoragePluginConfig<HiveSto
 
   @Override
   public HiveStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new HiveStoragePlugin(addAuthenticationSettings(createHiveConf(this), this), context, name);
+    return new HiveStoragePlugin(addAuthenticationSettings(addUserProperties(createHiveConf(this), this), this), context, name);
   }
 
   protected static HiveConf addAuthenticationSettings(HiveConf hiveConf, HiveStoragePluginConfig config) {

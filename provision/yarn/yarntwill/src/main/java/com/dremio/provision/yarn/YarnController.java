@@ -15,6 +15,7 @@
  */
 package com.dremio.provision.yarn;
 
+import static com.dremio.provision.yarn.DacDaemonYarnApplication.DREMIO_HOME;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.KEYTAB_FILE_NAME;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.MAX_APP_RESTART_RETRIES;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.YARN_BUNDLED_JAR_NAME;
@@ -121,6 +122,8 @@ public class YarnController {
     envVars.put("MALLOC_TRIM_THRESHOLD_", "131072");
     envVars.put("MALLOC_TOP_PAD_", "131072");
     envVars.put("MALLOC_MMAP_MAX_", "65536");
+    // Set ${DREMIO_HOME} for YarnDaemon to avoid config substitution failure
+    envVars.put(DREMIO_HOME, ".");
 
     try {
       String userName = UserGroupInformation.getCurrentUser().getUserName();

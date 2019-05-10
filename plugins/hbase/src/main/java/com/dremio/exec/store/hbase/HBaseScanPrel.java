@@ -23,22 +23,30 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
+
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.ScanPrelBase;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-
 /**
  * Physical scan operator.
  */
+@Options
 public class HBaseScanPrel extends ScanPrelBase {
 
   private final byte[] filter;
   private final byte[] startRow;
   private final byte[] stopRow;
+
+  public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.scan.hbase.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.scan.hbase.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+
 
   public HBaseScanPrel(
       RelOptCluster cluster,
@@ -81,10 +89,11 @@ public class HBaseScanPrel extends ScanPrelBase {
     return super.clone();
   }
 
-  public boolean isFilterPushed() {
+  @Override
+  public boolean hasFilter() {
     try {
       return filter != null || getTableMetadata().getSplitRatio() < 1.0d;
-    }catch(Exception ex) {
+    } catch(Exception ex) {
       throw Throwables.propagate(ex);
     }
   }
@@ -92,7 +101,10 @@ public class HBaseScanPrel extends ScanPrelBase {
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     final HBaseScanSpec spec = new HBaseScanSpec(getTableMetadata().getName(), startRow, stopRow, filter);
-    return creator.addMetadata(this, new HBaseGroupScan(spec, getTableMetadata(), getProjectedColumns(), getTableMetadata().getApproximateRecordCount()));
+    final BatchSchema schema = tableMetadata.getSchema().maskAndReorder(getProjectedColumns());
+    return new HBaseGroupScan(
+      creator.props(this, tableMetadata.getUser(), schema, RESERVE, LIMIT),
+      spec, getTableMetadata(), getProjectedColumns(), getTableMetadata().getApproximateRecordCount());
   }
 
   @Override

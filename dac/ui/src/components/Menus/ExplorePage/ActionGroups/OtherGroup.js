@@ -18,9 +18,9 @@ import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
+import { KEEP_ONLY_TYPES } from '@app/constants/columnTypeGroups';
+import ColumnMenuItem from '@app/components/Menus/ExplorePage/ColumnMenus/ColumnMenuItem';
 
-import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
-import { KEEP_ONLY_TYPES } from './../../../../constants/columnTypeGroups';
 
 @Radium
 @pureRender
@@ -31,14 +31,14 @@ export default class OtherGroup extends Component {
   }
   static renderMenuItems(columnType, onClick) {
     return [
-      <ColumnMenuItem
+      <ColumnMenuItem key='KEEP_ONLY'
         columnType={columnType}
         actionType='KEEP_ONLY'
         title={la('Keep Only…')}
         availableTypes={KEEP_ONLY_TYPES}
         onClick={onClick}
       />,
-      <ColumnMenuItem
+      <ColumnMenuItem key='EXCLUDE'
         columnType={columnType}
         actionType='EXCLUDE'
         title={la('Exclude…')}

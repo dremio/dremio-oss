@@ -17,6 +17,10 @@ export const humanSorter = (a, b) => {
   if (typeof a === 'string' && typeof b === 'string') {
     return a.localeCompare(b, undefined, {numeric: true}); // properly handles "1-foo", "12-foo", "2-foo"
   }
+  // strings precede numbers in ascending order
+  if (typeof a === 'string' && typeof b === 'number') return -1;
+  if (typeof a === 'number' && typeof b === 'string') return 1;
+
   if (a < b) return -1;
   if (a > b) return 1;
   return 0;

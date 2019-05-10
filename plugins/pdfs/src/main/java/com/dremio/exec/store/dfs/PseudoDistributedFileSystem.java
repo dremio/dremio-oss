@@ -35,6 +35,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import javax.inject.Provider;
 
@@ -56,14 +58,11 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -102,7 +101,7 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
   private BufferAllocator allocator;
   private Provider<Iterable<NodeEndpoint>> endpointProvider;
   private boolean localAccessAllowed;
-  private String localAddress;
+  private NodeEndpoint localIdentity;
 
   private URI uri;
   private Path workingDirectory;
@@ -213,7 +212,7 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
     this.executor = config.getExecutor();
     this.runnerFactory = config.getRunnerFactory();
     this.endpointProvider = config.getEndpointProvider();
-    this.localAddress = config.getLocalIdentity().getAddress();
+    this.localIdentity = config.getLocalIdentity();
 
     this.uri = name;
     this.underlyingFS = underlyingFS;
@@ -242,22 +241,20 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
   }
 
   private List<NodeEndpoint> getEndpoints(final String address) {
-    List<NodeEndpoint> endpoints = FluentIterable.from(getEndpoints()).filter(new Predicate<NodeEndpoint>() {
-      @Override
-      public boolean apply(NodeEndpoint input) {
-        return address.equals(input.getAddress());
-      }
-    }).toList();
+    final List<NodeEndpoint> endpoints = StreamSupport.stream(getEndpoints().spliterator(), false)
+        .filter(input -> address.equals(input.getAddress()))
+        .collect(Collectors.toList());
 
     return endpoints;
   }
 
   // DX-5178: more hackery given static cached references.
-  private Iterable<NodeEndpoint> getEndpoints(){
-    if(Iterables.isEmpty(endpointProvider.get())){
+  private Iterable<NodeEndpoint> getEndpoints() {
+    final Iterable<NodeEndpoint> endpoints = endpointProvider.get();
+    if (Iterables.isEmpty(endpoints)) {
       return globalConfig.getEndpointProvider().get();
     } else {
-      return endpointProvider.get();
+      return endpoints;
     }
   }
 
@@ -289,7 +286,7 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
   private FileSystem getDelegateFileSystem(final String address) throws IOException {
     // Is it possible to have local access not allowed with a local address?
     // Yes, if there are two nodes on the same machines!
-    if (localAccessAllowed & localAddress.equals(address) ) {
+    if (localAccessAllowed && localIdentity.getAddress().equals(address)) {
       return underlyingFS;
     }
 
@@ -726,11 +723,20 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
     }
 
     try {
-      RemotePath remotePath = getRemotePath(file.getPath());
-      List<NodeEndpoint> endpoints = getEndpoints(remotePath.address);
+      final RemotePath remotePath = getRemotePath(file.getPath());
+      final List<NodeEndpoint> endpoints = getEndpoints(remotePath.address);
 
       if (endpoints.isEmpty()) {
-        return new BlockLocation[] {};
+        if (localAccessAllowed && localIdentity.getAddress().equals(remotePath.address)) { // best effort
+          return new BlockLocation[]{
+              new BlockLocation(
+                  new String[]{format("%s:%d", localIdentity.getAddress(), localIdentity.getFabricPort())},
+                  new String[]{localIdentity.getAddress()},
+                  0, file.getLen())
+          };
+        }
+
+        return new BlockLocation[]{};
       }
 
       String address = endpoints.get(0).getAddress();
@@ -762,7 +768,7 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
     }
 
     if (localAccessAllowed) {
-      return createRemotePath(localAddress, absolutePath);
+      return createRemotePath(localIdentity.getAddress(), absolutePath);
     }
 
     // We aren't local or remote. That means we are a client node that wants to create a file.
@@ -825,18 +831,15 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
       Iterable<NodeEndpoint> endpoints = endpointProvider.get();
       final Set<String> addresses;
       if (!endpoints.iterator().hasNext()) {
-        if(localAccessAllowed){
-          addresses = ImmutableSet.of(localAddress);
+        if (localAccessAllowed) {
+          addresses = ImmutableSet.of(localIdentity.getAddress());
         } else {
           addresses = ImmutableSet.of();
         }
       } else {
-        addresses = FluentIterable.from(endpoints).transform(new Function<NodeEndpoint, String>() {
-          @Override
-          public String apply(NodeEndpoint input) {
-            return input.getAddress();
-          }
-        }).toSet();
+        addresses = StreamSupport.stream(endpoints.spliterator(), false)
+            .map(NodeEndpoint::getAddress)
+            .collect(Collectors.toSet());
 
       }
       List<Future<V>> futures = new ArrayList<>();

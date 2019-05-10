@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 
 import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.util.DateUtility;
 import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormatter;
@@ -27,6 +26,7 @@ import org.joda.time.format.ISODateTimeFormat;
 import org.joda.time.format.ISOPeriodFormat;
 
 import com.dremio.common.util.DateTimes;
+import com.dremio.common.util.JodaDateUtility;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.base.Preconditions;
 
@@ -53,9 +53,9 @@ public class BasicJsonOutput implements JsonOutput {
 
     switch (dateOutput) {
     case SQL: {
-      dateFormatter = DateUtility.formatDate.withZoneUTC();
-      timeFormatter = DateUtility.formatTime.withZoneUTC();
-      timestampFormatter = DateUtility.formatTimeStampMilli.withZoneUTC();
+      dateFormatter = JodaDateUtility.formatDate.withZoneUTC();
+      timeFormatter = JodaDateUtility.formatTime.withZoneUTC();
+      timestampFormatter = JodaDateUtility.formatTimeStampMilli.withZoneUTC();
       break;
     }
     case ISO: {
@@ -207,7 +207,7 @@ public class BasicJsonOutput implements JsonOutput {
   @Override
   public void writeDate(FieldReader reader) throws IOException {
     if (reader.isSet()) {
-      writeDate(reader.readLocalDateTime());
+      writeDate(JodaDateUtility.readLocalDateTime(reader));
     } else {
       writeDateNull();
     }
@@ -216,7 +216,7 @@ public class BasicJsonOutput implements JsonOutput {
   @Override
   public void writeTime(FieldReader reader) throws IOException {
     if (reader.isSet()) {
-      writeTime(reader.readLocalDateTime());
+      writeTime(JodaDateUtility.readLocalDateTime(reader));
     } else {
       writeTimeNull();
     }
@@ -225,7 +225,7 @@ public class BasicJsonOutput implements JsonOutput {
   @Override
   public void writeTimestamp(FieldReader reader) throws IOException {
     if (reader.isSet()) {
-      writeTimestamp(reader.readLocalDateTime());
+      writeTimestamp(JodaDateUtility.readLocalDateTime(reader));
     } else {
       writeTimeNull();
     }
@@ -234,11 +234,13 @@ public class BasicJsonOutput implements JsonOutput {
   @Override
   public void writeInterval(FieldReader reader) throws IOException {
     if (reader.isSet()) {
-      writeInterval(reader.readPeriod());
+      writeInterval(JodaDateUtility.readPeriod(reader));
     } else {
       writeIntervalNull();
     }
   }
+
+
 
   @Override
   public void writeDecimal(BigDecimal value) throws IOException {

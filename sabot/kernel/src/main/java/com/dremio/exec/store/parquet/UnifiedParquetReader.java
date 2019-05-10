@@ -32,6 +32,7 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.parquet.column.Encoding;
 import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
@@ -45,6 +46,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
@@ -53,11 +55,10 @@ import com.dremio.exec.store.parquet.columnreaders.DeprecatedParquetVectorizedRe
 import com.dremio.exec.store.parquet2.ParquetRowiseReader;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
-import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator.Metric;
-import com.dremio.service.namespace.file.proto.ParquetDatasetSplitScanXAttr;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
@@ -80,7 +81,8 @@ public class UnifiedParquetReader implements RecordReader {
   private final CodecFactory codecFactory;
   private final ParquetReaderFactory readerFactory;
   private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap;
-  private final List<ParquetFilterCondition> filterConditions;
+  private final List<ParquetFilterCondition>  filterConditions;
+  private final boolean supportsColocatedReads;
 
   private List<RecordReader> delegates = new ArrayList<>();
   private final List<SchemaPath> nonVectorizableReaderColumns = new ArrayList<>();
@@ -105,6 +107,7 @@ public class UnifiedParquetReader implements RecordReader {
       SchemaDerivationHelper schemaHelper,
       boolean vectorize,
       boolean enableDetailedTracing,
+      boolean supportsColocatedReads,
       InputStreamProvider inputStreamProvider) {
     super();
     this.context = context;
@@ -122,16 +125,17 @@ public class UnifiedParquetReader implements RecordReader {
     this.enableDetailedTracing = enableDetailedTracing;
     this.inputStreamProvider = inputStreamProvider;
     this.schemaHelper = schemaHelper;
+    this.supportsColocatedReads = supportsColocatedReads;
     this.ignoreSchemaLearning = false;
   }
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
-    computeLocality(footer);
+    if (supportsColocatedReads) {
+      computeLocality(footer);
+    }
 
     splitColumns(this.realFields, footer, vectorizableReaderColumns, nonVectorizableReaderColumns);
-
-
 
     final ExecutionPath execPath = getExecutionPath();
     delegates = execPath.getReaders(this);
@@ -158,12 +162,6 @@ public class UnifiedParquetReader implements RecordReader {
 
   public void setIgnoreSchemaLearning(boolean ignoreSchemaLearning) {
     this.ignoreSchemaLearning = ignoreSchemaLearning;
-  }
-
-  // No reason to use delegates since Parquet always uses the default schema change mutator.
-  @Override
-  public SchemaChangeMutator getSchemaChangeMutator() {
-    return SchemaChangeMutator.DEFAULT;
   }
 
   private void computeLocality(ParquetMetadata footer) throws ExecutionSetupException {
@@ -240,10 +238,10 @@ public class UnifiedParquetReader implements RecordReader {
 
   @Override
   public void close() throws Exception {
-    for (RecordReader delegateReader : delegates) {
-      AutoCloseables.close(delegateReader);
-    }
-    AutoCloseables.close(inputStreamProvider);
+    List<AutoCloseable> closeables = new ArrayList<>();
+    closeables.addAll(delegates);
+    closeables.add(inputStreamProvider);
+    AutoCloseables.close(closeables);
   }
 
   private void splitColumns(final List<SchemaPath> projectedColumns,
@@ -251,7 +249,7 @@ public class UnifiedParquetReader implements RecordReader {
                             List<SchemaPath> vectorizableReaderColumns,
                             List<SchemaPath> nonVectorizableReaderColumns) {
     final BlockMetaData block = footer.getBlocks().get(readEntry.getRowGroupIndex());
-    final Map<String, ColumnChunkMetaData> fields = new HashMap<>();
+    final Map<String, ColumnChunkMetaData> fieldsWithEncodingsSupportedByVectorizedReader = new HashMap<>();
     final List<Type> nonVectorizableTypes = new ArrayList<>();
     final List<Type> vectorizableTypes = new ArrayList<>();
 
@@ -261,7 +259,7 @@ public class UnifiedParquetReader implements RecordReader {
          continue;
       }
 
-      fields.put(c.getPath().iterator().next(), c);
+      fieldsWithEncodingsSupportedByVectorizedReader.put(c.getPath().iterator().next(), c);
     }
 
     MessageType schema = footer.getFileMetaData().getSchema();
@@ -280,11 +278,8 @@ public class UnifiedParquetReader implements RecordReader {
           continue;
         }
       }
-      if (fields.containsKey(parquetField.getName()) &&
-        (parquetField.asPrimitiveType().getOriginalType() != OriginalType.DECIMAL
-        && parquetField.isPrimitive()
-          && (parquetField.asPrimitiveType().getPrimitiveTypeName() != PrimitiveType.PrimitiveTypeName.INT96 ||
-          schemaHelper.readInt96AsTimeStamp()))) {
+      if (fieldsWithEncodingsSupportedByVectorizedReader.containsKey(parquetField.getName()) &&
+          isParquetFieldVectorizable(fieldsWithEncodingsSupportedByVectorizedReader, parquetField)) {
         vectorizableTypes.add(parquetField);
       } else {
         nonVectorizableTypes.add(parquetField);
@@ -313,6 +308,28 @@ public class UnifiedParquetReader implements RecordReader {
         }
       }
     }
+  }
+
+  private boolean isParquetFieldVectorizable(Map<String, ColumnChunkMetaData> fields, Type parquetField) {
+    return (parquetField.isPrimitive() && isNotInt96(parquetField) &&
+            checkIfDecimalIsVectorizable(parquetField, fields.get(parquetField.getName())));
+  }
+
+  private boolean isNotInt96(Type parquetField) {
+    return parquetField.asPrimitiveType().getPrimitiveTypeName() != PrimitiveType.PrimitiveTypeName.INT96 ||
+    schemaHelper.readInt96AsTimeStamp();
+  }
+
+  private boolean checkIfDecimalIsVectorizable(Type parquetField, ColumnChunkMetaData metadata) {
+    if (parquetField.asPrimitiveType().getOriginalType() != OriginalType.DECIMAL) {
+      return true;
+    }
+
+    // binary and dictionary will be added in next iteration.
+    return !parquetField.asPrimitiveType().getPrimitiveTypeName().equals(PrimitiveType
+                 .PrimitiveTypeName.BINARY) &&
+           !metadata.getEncodings().contains(Encoding.PLAIN_DICTIONARY) &&
+            context.getOptions().getOption(PlannerSettings.ENABLE_VECTORIZED_PARQUET_DECIMAL);
   }
 
   private Collection<SchemaPath> getResolvedColumns(List<ColumnChunkMetaData> metadata){

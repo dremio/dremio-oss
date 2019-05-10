@@ -19,7 +19,9 @@ import {
   getRootEntityType,
   constructFullPath,
   getInitialResourceLocation,
-  getUniqueName
+  getUniqueName,
+  getRouteParamsFromLocation,
+  navigateToExploreDefaultIfNecessary
 } from './pathUtils';
 
 describe('pathUtils', () => {
@@ -167,6 +169,51 @@ describe('pathUtils', () => {
 
     it('should return name (3)', () => {
       expect(getUniqueName('name', (name) => (!['name', 'name (1)', 'name (2)'].includes(name)))).to.eql('name (3)');
+    });
+  });
+
+  describe('getRouteParamsFromLocation', () => {
+    it('should return empty strings props w/o location', () => {
+      const routParams = getRouteParamsFromLocation();
+      expect(routParams.resourceId).to.equal('');
+      expect(routParams.tableId).to.equal('');
+    });
+
+    it('should parse location pathname', () => {
+      const routParams = getRouteParamsFromLocation({pathname: 'a/b/c/d'});
+      expect(routParams.resourceId).to.equal('c');
+      expect(routParams.tableId).to.equal('d');
+    });
+
+    it('should decode pathname', () => {
+      let routParams = getRouteParamsFromLocation({pathname: 'a/b/"c"/%22d%22'});
+      expect(routParams.resourceId).to.equal('"c"');
+      expect(routParams.tableId).to.equal('"d"');
+
+      const spaceName = '@dremio space';
+      const datasetName = '@a test dataset';
+      const pathname = ['a', 'b', spaceName, datasetName].map(encodeURIComponent).join('/');
+      routParams = getRouteParamsFromLocation({ pathname });
+
+      expect(routParams).to.be.eql({
+        resourceId: spaceName,
+        tableId: datasetName
+      });
+    });
+  });
+
+  describe('navigateToExploreDefaultIfNecessary', () => {
+    const router = [];
+    const location = { pathname: '/a/b/c/d', hash: ''};
+    it('should not alter router for default page type', () => {
+      navigateToExploreDefaultIfNecessary('default', location, router);
+      expect(router.length).to.equal(0);
+    });
+    it('should add router entry', () => {
+      navigateToExploreDefaultIfNecessary('', location, router);
+      expect(router.length).to.equal(1);
+      expect(router[0].hash).to.equal('');
+      expect(router[0].pathname).to.equal('/a/b/c');
     });
   });
 });

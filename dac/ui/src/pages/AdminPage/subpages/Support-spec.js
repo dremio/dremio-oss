@@ -15,6 +15,7 @@
  */
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
+import { ApiError } from 'redux-api-middleware/lib/errors';
 
 import {Support} from './Support';
 import { LABELS } from './settingsConfig';
@@ -30,9 +31,10 @@ describe('Support', () => {
     LABELS.$aAfter = '2 After Label';
 
     minimalProps = {
-      getAllSettings: sinon.stub(),
+      getDefinedSettings: sinon.stub(),
       addNotification: sinon.stub(),
       resetSetting: sinon.stub().returns(Promise.resolve()),
+      getSetting: sinon.stub().returns(Promise.resolve({ payload: {} })), // empty action without error
       viewState: new Immutable.Map(),
       settings: new Immutable.Map(),
       setChildDirtyState: sinon.spy()
@@ -44,58 +46,22 @@ describe('Support', () => {
         '$a': {
           id: '$a',
           value: 1,
-          type: 'INTEGER',
-          showOutsideWhitelist: true
+          type: 'INTEGER'
         },
         '$b': {
           id: '$b',
           value: 'bar',
-          type: 'TEXT',
-          showOutsideWhitelist: false
-        },
-        // unlabeled key sort test
-        '$dz': {
-          id: '$dz',
-          value: true,
-          type: 'BOOLEAN',
-          showOutsideWhitelist: false
-        },
-        '$d': {
-          id: '$d',
-          value: true,
-          type: 'BOOLEAN',
-          showOutsideWhitelist: false
-        },
-        '$c': {
-          id: '$c',
-          value: 1.1,
-          type: 'FLOAT',
-          showOutsideWhitelist: false
+          type: 'TEXT'
         },
         'support.email.addr': { // canary for RESERVED
           id: 'support.email.addr',
           value: true,
-          type: 'BOOLEAN',
-          showOutsideWhitelist: true
+          type: 'BOOLEAN'
         },
         'exec.queue.enable': { // canary for sections & empty string label
           id: 'exec.queue.enable',
           value: true,
-          type: 'BOOLEAN',
-          showOutsideWhitelist: true
-        },
-        // labeled key sort test
-        '$aAfter': {
-          id: '$aAfter',
-          value: 1.1,
-          type: 'FLOAT',
-          showOutsideWhitelist: false
-        },
-        '$zBefore': {
-          id: '$zBefore',
-          value: true,
-          type: 'BOOLEAN',
-          showOutsideWhitelist: false
+          type: 'BOOLEAN'
         }
       }),
       updateFormDirtyState: sinon.spy()
@@ -116,7 +82,7 @@ describe('Support', () => {
 
   it('should getAllSettings on mount', () => {
     shallow(<Support {...commonProps} />);
-    expect(commonProps.getAllSettings).to.have.been.calledWith({ viewId: 'SUPPORT_SETTINGS_VIEW_ID' });
+    expect(commonProps.getDefinedSettings).to.have.been.called;
   });
 
   describe('#settingExists', () => {
@@ -142,16 +108,11 @@ describe('Support', () => {
       expect(instance.getShownSettings()).to.eql([]);
     });
 
-    it('should return items for showOutsideWhitelist and tempShown (and not reserved)', () => {
+    it('should not return reserved items', () => {
       const instance = shallow(<Support {...commonProps} />).instance();
-      instance.setState(function(state) {
-        return {
-          tempShown: state.tempShown.add('$b')
-        };
-      });
 
       // no support.email.addr because it's RESERVED
-      expect(instance.getShownSettings().map(e => e.id)).to.eql('$a exec.queue.enable $b'.split(' '));
+      expect(instance.getShownSettings().map(e => e.id)).to.eql('$a $b exec.queue.enable'.split(' '));
     });
 
     it('should skip items in sections for includeSections:false', () => {
@@ -177,9 +138,8 @@ describe('Support', () => {
       instance.sortSettings(settingsArray);
 
       // $b, $a: tempShown, insertion order
-      // exec.queue.enable, $zBefore, $aAfter, $c, support.email.addr: alpha order of labels
-      // $d, $dz last: alpha order of ids
-      const order = '$b $a exec.queue.enable $zBefore $aAfter $c support.email.addr $d $dz'.split(' ');
+      // exec.queue.enable, support.email.addr: alpha order of labels
+      const order = '$b $a exec.queue.enable support.email.addr'.split(' ');
       expect(settingsArray.map(e => e.id)).to.eql(order);
     });
   });
@@ -191,6 +151,7 @@ describe('Support', () => {
       input = {value: '$d'};
       evt = {
         preventDefault: sinon.stub(),
+        persist: sinon.stub(),
         target: {
           children: [input],
           reset: sinon.stub()
@@ -203,45 +164,47 @@ describe('Support', () => {
     });
 
 
-    it('add', () => {
+    it('add', async () => {
       const instance = shallow(<Support {...commonProps} />).instance();
-      instance.addAdvanced(evt);
+      await instance.addAdvanced(evt);
       expect(Array.from(instance.state.tempShown)).to.eql(['$d']);
 
       expect(evt.target.reset).to.have.been.called;
       expect(minimalProps.addNotification).to.have.not.been.called;
     });
 
-    it('should do nothing when input value is empty string', () => {
+    it('should do nothing when input value is empty string', async () => {
       input.value = '';
 
       const instance = shallow(<Support {...commonProps} />).instance();
-      instance.addAdvanced(evt);
+      await instance.addAdvanced(evt);
       expect(Array.from(instance.state.tempShown)).to.eql([]);
 
       expect(evt.target.reset).to.not.have.been.called;
       expect(minimalProps.addNotification).to.have.not.been.called;
     });
 
-    it('non-existing', () => {
+    it('non-existing', async () => {
       input.value = 'n/a';
-
-      const instance = shallow(<Support {...commonProps} />).instance();
-      instance.addAdvanced(evt);
+      const props = {
+        ...commonProps,
+        getSetting: sinon.stub().returns(Promise.resolve({ payload: new ApiError('test') }))
+      };
+      const instance = shallow(<Support {...props} />).instance();
+      await instance.addAdvanced(evt);
       expect(Array.from(instance.state.tempShown)).to.eql([]);
 
       expect(evt.target.reset).to.not.have.been.called;
       expect(minimalProps.addNotification).to.have.been.called;
     });
 
-    it('pre-existing', () => {
+    it('pre-existing', async () => {
       input.value = '$a';
 
       const instance = shallow(<Support {...commonProps} />).instance();
-      instance.addAdvanced(evt);
+      await instance.addAdvanced(evt);
       expect(Array.from(instance.state.tempShown)).to.eql([]);
 
-      expect(evt.target.reset).to.have.been.called;
       expect(minimalProps.addNotification).to.have.been.called;
     });
   });
@@ -258,7 +221,6 @@ describe('Support', () => {
 
       instance.resetSetting('foo').then(() => {
         expect(instance.props.resetSetting).to.have.been.called;
-        expect(instance.props.getAllSettings).to.have.been.called;
         expect(Array.from(instance.state.tempShown)).to.eql([]);
         done();
       });

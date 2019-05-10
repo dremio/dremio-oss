@@ -147,6 +147,7 @@ message JobInfo {
   optional JobCancellationInfo cancellationInfo = 31;
   optional SpillJobDetails spillJobDetails = 32;
   optional bytes batchSchema = 33;
+  optional int64 commandPoolWaitMillis = 34;
 }
 
 message ResourceSchedulingInfo {

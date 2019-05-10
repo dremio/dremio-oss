@@ -15,8 +15,11 @@
  */
 import { take, race, call, put } from 'redux-saga/effects';
 import invariant from 'invariant';
-import moment from 'moment';
 import { delay } from 'redux-saga';
+import { startDatasetMetadataLoad, completeDatasetMetadataLoad } from '@app/actions/explore/view';
+import { explorePageChanged } from '@app/sagas/runDataset';
+import { navigateToNextDataset } from '@app/actions/explore/dataset/common';
+import { startExplorePageListener, stopExplorePageListener } from '@app/actions/explore/dataset/data';
 
 import { showConfirmationDialog, hideConfirmationDialog} from 'actions/confirmation';
 
@@ -24,9 +27,10 @@ import RealTimeTimer from 'components/RealTimeTimer';
 
 import { RESET_NEW_QUERY } from 'actions/explore/view';
 import { cancelTransform } from 'actions/explore/dataset/transform';
+import timeUtils from 'utils/timeUtils';
 
 import {
-  getApiActionEntity, getExplorePageLocationChangePredicate
+  getApiActionEntity
 } from './utils';
 
 export const MAX_TIME_PER_OPERATION = 10000;
@@ -47,22 +51,50 @@ export class TransformCanceledByLocationChangeError {
   }
 }
 
+export class TransformFailedError {
+  constructor(response) {
+    this.name = 'TransformFailedError';
+    this.response = response;
+  }
+}
+
+// is used to load metadata for a dataset
+export function* transformThenNavigate(action, viewId, navigateOptions) {
+  try {
+    yield put(startDatasetMetadataLoad());
+    const response = yield call(
+      performWatchedTransform,
+      action,
+      viewId
+    );
+    if (response && !response.error) {
+      yield put(stopExplorePageListener());
+      yield put(navigateToNextDataset(response, navigateOptions));
+      return response;
+    }
+    throw new TransformFailedError(response);
+  } finally {
+    yield put(startExplorePageListener(false));
+    yield put(completeDatasetMetadataLoad());
+  }
+}
+
+//export for tests
 export function* performWatchedTransform(apiAction, viewId) {
   invariant(viewId, 'viewId param is required for performWatchedTransform');
   const apiPromise = yield put(apiAction);
   // "apiPromise instanceof Promise" always return "false" in IE/Edge. So check for thenable
   invariant(apiPromise && apiPromise.then, 'action must return a Promise');
 
-  const locationChangedPredicate = yield call(getExplorePageLocationChangePredicate);
   const raceResults = yield race({
     tableTransform: apiPromise,
     cancel: call(cancelTransformWithModal, viewId),
     resetNewQuery: take(RESET_NEW_QUERY),
-    locationChange: take(locationChangedPredicate)
+    locationChange: call(explorePageChanged)
   });
 
   if (!raceResults.cancel) {
-    // TODO: this is a tad dangerous becuase it manipulates the global state under the assumption
+    // TODO: this is a tad dangerous because it manipulates the global state under the assumption
     // the it has the long transform modal up. This is probably safe enough for now though (Chris).
     yield put(hideConfirmationDialog());
   }
@@ -89,7 +121,7 @@ export function* cancelTransformWithModal(viewId) {
         <span>
           {la('Elapsed time')}: <RealTimeTimer
             startTime={Date.now() - MAX_TIME_PER_OPERATION}
-            formatter={(diff) => moment(diff).format('mm:ss')}
+            formatter={(diff) => timeUtils.formatTimeDiff(diff)}
           />
         </span>
       ],

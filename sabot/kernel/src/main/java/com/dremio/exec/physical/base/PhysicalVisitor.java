@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.physical.base;
 
+import com.dremio.exec.physical.config.AbstractSort;
 import com.dremio.exec.physical.config.BroadcastSender;
 import com.dremio.exec.physical.config.DictionaryLookupPOP;
 import com.dremio.exec.physical.config.EmptyValues;
@@ -28,15 +29,11 @@ import com.dremio.exec.physical.config.Limit;
 import com.dremio.exec.physical.config.MergeJoinPOP;
 import com.dremio.exec.physical.config.MergingReceiverPOP;
 import com.dremio.exec.physical.config.NestedLoopJoinPOP;
-import com.dremio.exec.physical.config.ProducerConsumer;
 import com.dremio.exec.physical.config.Project;
-import com.dremio.exec.physical.config.RangeSender;
 import com.dremio.exec.physical.config.RoundRobinSender;
 import com.dremio.exec.physical.config.Screen;
 import com.dremio.exec.physical.config.SingleSender;
-import com.dremio.exec.physical.config.Sort;
 import com.dremio.exec.physical.config.StreamingAggregate;
-import com.dremio.exec.physical.config.Trace;
 import com.dremio.exec.physical.config.UnionAll;
 import com.dremio.exec.physical.config.UnionExchange;
 import com.dremio.exec.physical.config.UnorderedReceiver;
@@ -64,8 +61,7 @@ public interface PhysicalVisitor<RETURN, EXTRA, EXCEP extends Throwable> {
   public RETURN visitUnion(UnionAll union, EXTRA value) throws EXCEP;
   public RETURN visitProject(Project project, EXTRA value) throws EXCEP;
   public RETURN visitDictionaryLookup(DictionaryLookupPOP dictionaryLookupPOP, EXTRA value) throws EXCEP;
-  public RETURN visitTrace(Trace trace, EXTRA value) throws EXCEP;
-  public RETURN visitSort(Sort sort, EXTRA value) throws EXCEP;
+  public RETURN visitSort(AbstractSort sort, EXTRA value) throws EXCEP;
   public RETURN visitLimit(Limit limit, EXTRA value) throws EXCEP;
   public RETURN visitFlatten(FlattenPOP flatten, EXTRA value) throws EXCEP;
   public RETURN visitMergeJoin(MergeJoinPOP join, EXTRA value) throws EXCEP;
@@ -85,13 +81,11 @@ public interface PhysicalVisitor<RETURN, EXTRA, EXCEP extends Throwable> {
   public RETURN visitUnorderedReceiver(UnorderedReceiver op, EXTRA value) throws EXCEP;
   public RETURN visitMergingReceiver(MergingReceiverPOP op, EXTRA value) throws EXCEP;
   public RETURN visitHashPartitionSender(HashToRandomExchange op, EXTRA value) throws EXCEP;
-  public RETURN visitRangeSender(RangeSender op, EXTRA value) throws EXCEP;
   public RETURN visitBroadcastSender(BroadcastSender op, EXTRA value) throws EXCEP;
   public RETURN visitRoundRobinSender(RoundRobinSender op, EXTRA value) throws EXCEP;
   public RETURN visitScreen(Screen op, EXTRA value) throws EXCEP;
   public RETURN visitSingleSender(SingleSender op, EXTRA value) throws EXCEP;
   public RETURN visitUnionExchange(UnionExchange op, EXTRA value) throws EXCEP;
   public RETURN visitWindowFrame(WindowPOP op, EXTRA value) throws EXCEP;
-  public RETURN visitProducerConsumer(ProducerConsumer op, EXTRA value) throws EXCEP;
   public RETURN visitConvertFromJson(ConvertFromJsonPOP op, EXTRA value) throws EXCEP;
 }

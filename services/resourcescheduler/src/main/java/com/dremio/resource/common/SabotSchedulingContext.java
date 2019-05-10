@@ -31,4 +31,6 @@ public interface SabotSchedulingContext {
   Set<ClusterCoordinator.Role> getRoles();
 
   CoordinationProtos.NodeEndpoint getEndpoint();
+
+  boolean isMasterless();
 }

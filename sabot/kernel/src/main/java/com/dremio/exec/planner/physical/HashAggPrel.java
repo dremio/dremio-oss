@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.physical;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.arrow.vector.holders.IntHolder;
@@ -43,15 +44,30 @@ import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.DoubleValidator;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
+import com.dremio.options.TypeValidators.RangeDoubleValidator;
 import com.google.common.collect.ImmutableList;
 
+@Options
 public class HashAggPrel extends AggPrelBase implements Prel{
 
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashAggPrel.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashAggPrel.class);
+
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.hashagg.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.hashagg.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator LOW_LIMIT = new PositiveLongValidator("planner.op.hashagg.low_limit_bytes", Long.MAX_VALUE, 300_000_000);
+  public static final DoubleValidator FACTOR = new RangeDoubleValidator("planner.op.hashagg.factor", 0.0, 1000.0, 1.0d);
+  public static final BooleanValidator BOUNDED = new BooleanValidator("planner.op.hashagg.bounded", true);
+
 
   private Boolean canVectorize;
+  private Boolean canUseSpill;
 
-  public HashAggPrel(RelOptCluster cluster,
+  private HashAggPrel(RelOptCluster cluster,
                      RelTraitSet traits,
                      RelNode child,
                      boolean indicator,
@@ -62,10 +78,22 @@ public class HashAggPrel extends AggPrelBase implements Prel{
     super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls, phase);
   }
 
+  public static HashAggPrel create(RelOptCluster cluster,
+                     RelTraitSet traits,
+                     RelNode child,
+                     boolean indicator,
+                     ImmutableBitSet groupSet,
+                     List<ImmutableBitSet> groupSets,
+                     List<AggregateCall> aggCalls,
+                     OperatorPhase phase) throws InvalidRelException {
+    final RelTraitSet adjustedTraits = AggPrelBase.adjustTraits(traits, child, groupSet);
+    return new HashAggPrel(cluster, adjustedTraits, child, indicator, groupSet, groupSets, aggCalls, phase);
+  }
+
   @Override
   public Aggregate copy(RelTraitSet traitSet, RelNode input, boolean indicator, ImmutableBitSet groupSet, List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) {
     try {
-      return new HashAggPrel(getCluster(), traitSet, input, indicator, groupSet, groupSets, aggCalls,
+      return HashAggPrel.create(getCluster(), traitSet, input, indicator, groupSet, groupSets, aggCalls,
           this.getOperatorPhase());
     } catch (InvalidRelException e) {
       throw new AssertionError(e);
@@ -115,12 +143,40 @@ public class HashAggPrel extends AggPrelBase implements Prel{
     return canVectorize;
   }
 
+  private boolean canUseSpill(PhysicalPlanCreator creator, PhysicalOperator child){
+    if(canUseSpill == null){
+      canUseSpill = initialUseSpill(creator, child);
+    }
+    return canUseSpill;
+  }
+
+  private boolean initialUseSpill(PhysicalPlanCreator creator, PhysicalOperator child) {
+    if (!canVectorize(creator, child)) {
+      return false;
+    }
+    boolean useSpill = true;
+    final BatchSchema childSchema = child.getProps().getSchema();
+    for(NamedExpression ne : aggExprs) {
+      final LogicalExpression expr = ExpressionTreeMaterializer.materializeAndCheckErrors(ne.getExpr(), childSchema, creator.getContext().getFunctionRegistry());
+      if (expr != null && (expr instanceof FunctionHolderExpr)) {
+        final String functionName = ((FunctionHolderExpr) expr).getName();
+        final boolean isMinMaxFn = (functionName.equals("min") || functionName.equals("max"));
+        final boolean isNDVFn = (functionName.equals("hll") || functionName.equals("hll_merge"));
+        if (isNDVFn || (isMinMaxFn && expr.getCompleteType().isVariableWidthScalar())) {
+          useSpill = false;
+          break;
+        }
+      }
+    }
+    return useSpill;
+  }
+
   private boolean initialCanVectorize(PhysicalPlanCreator creator, PhysicalOperator child){
     if(!creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_HASHAGG)){
       return false;
     }
 
-    final BatchSchema childSchema = child.getSchema(creator.getContext().getFunctionRegistry());
+    final BatchSchema childSchema = child.getProps().getSchema();
 
     for(NamedExpression ne : keys){
       // these should all be simple.
@@ -150,6 +206,8 @@ public class HashAggPrel extends AggPrelBase implements Prel{
           return false;
       }
     }
+
+    final boolean enabledVarcharNdv = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_NOSPILL_VARCHAR_NDV_ACCUMULATOR);
 
     for(NamedExpression ne : aggExprs){
       final LogicalExpression expr = ExpressionTreeMaterializer.materializeAndCheckErrors(ne.getExpr(), childSchema, creator.getContext().getFunctionRegistry());
@@ -200,10 +258,23 @@ public class HashAggPrel extends AggPrelBase implements Prel{
         case TIME:
         case TIMESTAMP:
         case DECIMAL:
+        case VARCHAR:
+        case VARBINARY:
+          if (!enabledVarcharNdv) {
+            return false;
+          }
           continue;
         }
 
         return false;
+
+      case "hll":
+      case "hll_merge":
+        if (!enabledVarcharNdv) {
+          return false;
+        }
+        continue;
+
 
       default:
         return false;
@@ -216,9 +287,31 @@ public class HashAggPrel extends AggPrelBase implements Prel{
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     PhysicalOperator child = ((Prel) this.getInput()).getPhysicalOperator(creator);
-    HashAggregate g = new HashAggregate(child, keys, aggExprs, canVectorize(creator, child), 1.0f);
-    return creator.addMetadata(this, g);
+
+    final BatchSchema childSchema = child.getProps().getSchema();
+    List<NamedExpression> exprs = new ArrayList<>();
+    exprs.addAll(keys);
+    exprs.addAll(aggExprs);
+    BatchSchema schema = ExpressionTreeMaterializer.materializeFields(exprs, childSchema, creator.getFunctionLookupContext())
+        .setSelectionVectorMode(SelectionVectorMode.NONE)
+        .build();
+
+    return new HashAggregate(
+        creator.props(this, null, schema, RESERVE, LIMIT, LOW_LIMIT)
+          .cloneWithBound(creator.getOptionManager().getOption(BOUNDED))
+          .cloneWithMemoryFactor(creator.getOptionManager().getOption(FACTOR))
+          .cloneWithMemoryExpensive(true)
+        ,
+        child,
+        keys,
+        aggExprs,
+        canVectorize(creator, child),
+        canUseSpill(creator, child),
+        1.0f);
   }
+
+
+  //options.getOption(AGG_BOUNDED) && options.getOption(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR);
 
   @Override
   public SelectionVectorMode[] getSupportedEncodings() {

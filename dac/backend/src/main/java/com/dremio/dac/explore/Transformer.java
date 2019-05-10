@@ -181,15 +181,22 @@ public class Transformer {
    * Convert a transform result into a dataset.
    * @param newVersion The new version for the dataset.
    * @param path The path of the dataset.
-   * @param baseDataset The original dataset.
+   * @param baseDataset The original dataset. It's path could differs from {@code path} parameter. (Start edit a dataset
+   *                    under {@code path} path. Go back in history to aversion, that corresponds to a {@code baseDataset}
+   *                   in other path. Alter a query and preview.
    * @param transform The transformation that was applied
    * @param result The result of the transformation.
    * @param metadata The query metadata associated with the transformation.
    * @return The new VirtualDatasetUI object.
    */
   private VirtualDatasetUI asDataset(DatasetVersion newVersion, DatasetPath path, VirtualDatasetUI baseDataset, TransformBase transform, TransformResult result, QueryMetadata metadata) {
-    baseDataset.setPreviousVersion(new NameDatasetRef(path.toString()).setDatasetVersion(baseDataset.getVersion().toString()));
+    // here we should take a path from baseDataset, as path could be different
+    baseDataset.setPreviousVersion(new NameDatasetRef(DatasetPath.defaultImpl(baseDataset.getFullPathList()).toString())
+      .setDatasetVersion(baseDataset.getVersion().toString()));
+
     baseDataset.setVersion(newVersion);
+    // update a path with actual path
+    baseDataset.setFullPathList(path.toPathList());
     baseDataset.setState(protectAgainstNull(result, transform));
     // If the user edited the SQL manually we want to keep the SQL as is
     // SQLGenerator.generateSQL(result.getNewState()) is functionally equivalent but not exactly the same
@@ -224,20 +231,7 @@ public class Transformer {
       TransformBase transform,
       QueryType queryType)
           throws DatasetNotFoundException, NamespaceException {
-    final ExecuteTransformActor actor = new ExecuteTransformActor(queryType, newVersion, original.getState(), false, username(), path, executor);
-    final TransformResult transformResult = transform.accept(actor);
-
-    if (!actor.hasMetadata()) {
-      VirtualDatasetState vss = protectAgainstNull(transformResult, transform);
-      final SqlQuery query = new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext);
-      actor.getMetadata(query);
-    }
-    final DatasetAndJob resultToReturn = new DatasetAndJob(actor.getJob(), asDataset(newVersion, path, original,
-      transform, transformResult, actor.getMetadata()));
-    // save this dataset version.
-    datasetService.putVersion(resultToReturn.getDataset());
-
-    return resultToReturn;
+    return this.transformWithExecute(newVersion, path, original, transform, queryType, false);
   }
 
   /**
@@ -259,26 +253,14 @@ public class Transformer {
       TransformBase transform,
       int limit)
       throws DatasetNotFoundException, NamespaceException {
-    final ExecuteTransformActor actor = new ExecuteTransformActor(QueryType.UI_PREVIEW, newVersion, original.getState(), true, username(), path, executor);
-    final TransformResult transformResult = transform.accept(actor);
-
-    if (!actor.hasMetadata()) {
-      VirtualDatasetState vss = protectAgainstNull(transformResult, transform);
-      final SqlQuery query = new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext);
-      actor.getMetadata(query);
-    }
-    final JobUI job = actor.getJob();
-    final VirtualDatasetUI dataset = asDataset(newVersion, path, original, transform, transformResult, actor.getMetadata());
-
-    // save this dataset version.
-    datasetService.putVersion(dataset);
-
+    final TransformResultDatsetAndJob result = this.transformWithExecute(newVersion, path, original, transform, QueryType.UI_PREVIEW, true);
+    final TransformResult transformResult = result.getTransformResult();
     final List<String> highlightedColumnNames = Lists.newArrayList(transformResult.getModifiedColumns());
     highlightedColumnNames.addAll(transformResult.getAddedColumns());
 
     return InitialPendingTransformResponse.of(
-        dataset.getSql(),
-        job.getData().truncate(limit),
+        result.getDataset().getSql(),
+        result.getJob().getData().truncate(limit),
         highlightedColumnNames,
         Lists.newArrayList(transformResult.getRemovedColumns()),
         transformResult.getRowDeletionMarkerColumns()
@@ -306,6 +288,43 @@ public class Transformer {
       return dataset;
     }
 
+  }
+
+  private TransformResultDatsetAndJob transformWithExecute(
+    DatasetVersion newVersion,
+    DatasetPath path,
+    VirtualDatasetUI original,
+    TransformBase transform,
+    QueryType queryType,
+    boolean isPreview)
+    throws DatasetNotFoundException, NamespaceException {
+    final ExecuteTransformActor actor = new ExecuteTransformActor(queryType, newVersion, original.getState(), isPreview, username(), path, executor);
+    final TransformResult transformResult = transform.accept(actor);
+
+    if (!actor.hasMetadata()) {
+      VirtualDatasetState vss = protectAgainstNull(transformResult, transform);
+      final SqlQuery query = new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext);
+      actor.getMetadata(query);
+    }
+    final TransformResultDatsetAndJob resultToReturn = new TransformResultDatsetAndJob(actor.getJob(), asDataset(newVersion, path, original,
+      transform, transformResult, actor.getMetadata()), transformResult);
+    // save this dataset version.
+    datasetService.putVersion(resultToReturn.getDataset());
+
+    return resultToReturn;
+  }
+
+  private static class TransformResultDatsetAndJob extends DatasetAndJob {
+    private final TransformResult transformResult;
+
+    public TransformResultDatsetAndJob(JobUI job, VirtualDatasetUI dataset, TransformResult transformResult) {
+      super(job, dataset);
+      this.transformResult = transformResult;
+    }
+
+    public TransformResult getTransformResult() {
+      return transformResult;
+    }
   }
 
   private class ExtractTransformActor extends TransformActor {

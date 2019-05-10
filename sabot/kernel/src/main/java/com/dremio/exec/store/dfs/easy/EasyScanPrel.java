@@ -29,19 +29,32 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.ScanPrelBase;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 
 /**
  * Convert scan prel to easy group scan.
  */
+@Options
 public class EasyScanPrel extends ScanPrelBase {
+
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.scan.easy.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.scan.easy.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+
   public EasyScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId, TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment) {
     super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
   }
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    return creator.addMetadata(this, new EasyGroupScan(tableMetadata, projectedColumns));
+    final BatchSchema schema = tableMetadata.getSchema().maskAndReorder(projectedColumns);
+    return new EasyGroupScan(
+        creator.props(this, tableMetadata.getUser(), schema, RESERVE, LIMIT),
+        tableMetadata,
+        projectedColumns);
   }
 
   @Override

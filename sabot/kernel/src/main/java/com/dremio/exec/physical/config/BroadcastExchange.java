@@ -15,41 +15,40 @@
  */
 package com.dremio.exec.physical.config;
 
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.physical.base.AbstractExchange;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalOperatorUtil;
 import com.dremio.exec.physical.base.Receiver;
 import com.dremio.exec.physical.base.Sender;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
+import com.dremio.exec.record.BatchSchema;
 
-@JsonTypeName("broadcast-exchange")
 public class BroadcastExchange extends AbstractExchange {
 
-  @JsonCreator
-  public BroadcastExchange(@JsonProperty("child") PhysicalOperator child) {
-    super(child);
+  public BroadcastExchange(
+      OpProps props,
+      OpProps senderProps,
+      OpProps receiverProps,
+      BatchSchema schema,
+      PhysicalOperator child) {
+    super(props, senderProps, receiverProps, schema, child);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new BroadcastExchange(child);
+    return new BroadcastExchange(props, senderProps, receiverProps, schema, child);
   }
 
   @Override
-  public Sender getSender(int minorFragmentId, PhysicalOperator child, FunctionLookupContext context) throws PhysicalOperatorSetupException {
-    return new BroadcastSender(receiverMajorFragmentId, child,
-        PhysicalOperatorUtil.getIndexOrderedEndpoints(receiverLocations), getSchema(context));
+  public Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder builder) throws PhysicalOperatorSetupException {
+    return new BroadcastSender(senderProps, schema, child, receiverMajorFragmentId, PhysicalOperatorUtil.getIndexOrderedEndpoints(receiverLocations, builder));
   }
 
   @Override
-  public Receiver getReceiver(int minorFragmentId, FunctionLookupContext context) {
-    return new UnorderedReceiver(senderMajorFragmentId, PhysicalOperatorUtil.getIndexOrderedEndpoints(senderLocations), false, getSchema(context));
+  public Receiver getReceiver(int minorFragmentId, EndpointsIndex.Builder builder) {
+    return new UnorderedReceiver(receiverProps, schema, senderMajorFragmentId, PhysicalOperatorUtil.getIndexOrderedEndpoints(senderLocations, builder), false);
   }
-
-
 
 }

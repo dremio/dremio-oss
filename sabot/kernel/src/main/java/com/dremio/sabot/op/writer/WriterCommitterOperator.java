@@ -70,7 +70,7 @@ public class WriterCommitterOperator implements SingleInputOperator {
       throw new IllegalStateException(String.format("Incoming record writer schema doesn't match intended. Expected %s, received %s", RecordWriter.SCHEMA, schema));
     }
 
-    fs = config.getPlugin().createFS(config.getUserName());
+    fs = config.getPlugin().createFS(config.getProps().getUserName());
 
     // replacement expression.
     LogicalExpression replacement;
@@ -83,15 +83,17 @@ public class WriterCommitterOperator implements SingleInputOperator {
     } else {
       replacement = SchemaPath.getSimplePath(RecordWriter.PATH.getName());
     }
-
-    Project projectConfig = new Project(ImmutableList.of(
+    Project projectConfig = new Project(
+        config.getProps(),
+        null,
+        ImmutableList.of(
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FRAGMENT.getName()), new FieldReference(RecordWriter.FRAGMENT.getName())),
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.RECORDS.getName()), new FieldReference(RecordWriter.RECORDS.getName())),
         new NamedExpression(replacement, new FieldReference(RecordWriter.PATH.getName())),
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.METADATA.getName()), new FieldReference(RecordWriter.METADATA.getName())),
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.PARTITION.getName()), new FieldReference(RecordWriter.PARTITION.getName())),
         new NamedExpression(SchemaPath.getSimplePath(RecordWriter.FILESIZE.getName()), new FieldReference(RecordWriter.FILESIZE.getName()))
-        ), null);
+        ));
     this.project = new ProjectOperator(context, projectConfig);
     return project.setup(accessible);
   }

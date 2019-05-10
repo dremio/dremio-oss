@@ -17,9 +17,17 @@ import moment from 'moment';
 
 import timeUtils from './timeUtils';
 
-export const JOB_STATE_RUNNING = 'RUNNING';
-export const JOB_STATE_PENDING = 'PENDING';
-export const JOB_STATE_STARTING = 'STARTING';
+// see JobState.java
+export const JobState = {
+  NOT_SUBMITTED: 'NOT_SUBMITTED',
+  STARTING: 'STARTING',
+  RUNNING: 'RUNNING',
+  COMPLETED: 'COMPLETED',
+  CANCELED: 'CANCELED',
+  FAILED: 'FAILED',
+  CANCELLATION_REQUESTED: 'CANCELLATION_REQUESTED',
+  ENQUEUED: 'ENQUEUED'
+};
 
 const RECORD_STEP = 1000;
 const RECORDS_IN_THOUSTHAND = RECORD_STEP;
@@ -29,7 +37,7 @@ class JobsUtils {
   getNumberOfRunningJobs(jobs) {
     if (jobs) {
       return jobs.filter((item) => item.get('state').toLowerCase &&
-        item.get('state').toLowerCase() === JOB_STATE_RUNNING).size;
+        item.get('state').toLowerCase() === JobState.RUNNING).size;
     }
     return 0;
   }
@@ -96,11 +104,11 @@ class JobsUtils {
   }
 
   getRunning(jobState) {
-    return jobState === JOB_STATE_RUNNING || jobState === JOB_STATE_PENDING;
+    return jobState === JobState.RUNNING;
   }
 
   getFinishTime(jobState, jobEndTime) {
-    if (jobState === JOB_STATE_STARTING) {
+    if (jobState === JobState.STARTING) {
       return '-';
     }
     if (this.getRunning(jobState)) {

@@ -18,7 +18,7 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 
-import settingActions from 'actions/resources/setting';
+import { getDefinedSettings } from 'actions/resources/setting';
 import { getViewState } from 'selectors/resources';
 
 import ViewStateWrapper from 'components/ViewStateWrapper';
@@ -38,7 +38,7 @@ export class Advanced extends PureComponent {
   };
 
   componentWillMount() {
-    this.props.getAllSettings({viewId: VIEW_ID}); // all settings asumed to be loaded and used inside SettingsMicroForm
+    this.props.getAllSettings(Object.keys(LABELS), false, VIEW_ID); // all settings asumed to be loaded and used inside SettingsMicroForm
   }
 
   renderMicroForm(settingId) {
@@ -62,9 +62,12 @@ export class Advanced extends PureComponent {
   }
 
   render() {
+    // SettingsMicroForm has a logic for error display. We should not duplicate it in the viewState
+    const viewStateWithoutError = this.props.viewState.set('isFailed', false);
     return <div style={{display: 'flex', flexDirection: 'column', height: '100%'}}>
       <Header>{la('Queue Control')}</Header>
-      <ViewStateWrapper viewState={this.props.viewState} style={{overflow: 'auto', height: '100%', flex: '1 1 auto'}}>
+      <ViewStateWrapper viewState={viewStateWithoutError} style={{overflow: 'auto', height: '100%', flex: '1 1 auto'}}
+        hideChildrenWhenFailed={false}>
         {this.renderSections()}
       </ViewStateWrapper>
     </div>;
@@ -79,5 +82,5 @@ function mapStateToProps(state) {
 }
 
 export default connect(mapStateToProps, {
-  getAllSettings: settingActions.getAll.dispatch
+  getAllSettings: getDefinedSettings
 })(FormUnsavedRouteLeave(Advanced));

@@ -51,16 +51,14 @@ message FragmentStatus {
 
 // Coordinator > Executor
 message InitializeFragments {
-  repeated PlanFragment fragment = 1;
   optional SchedulingInfo scheduling_info = 2;
-  repeated SharedData shared_data = 3;
+  optional PlanFragmentSet fragment_set = 4;
 }
 
-message SharedData {
-  optional int32 major_fragment_id = 1;
-  optional int32 operator_id = 2;
-  optional string name = 3;
-  optional bytes value = 4;
+message PlanFragmentSet {
+  repeated NodeEndpoint endpoints_index = 1;
+  repeated PlanFragmentMajor major = 2;
+  repeated PlanFragmentMinor minor = 3;
 }
 
 message SchedulingInfo {
@@ -78,30 +76,45 @@ enum FragmentCodec {
     SNAPPY = 1;
 }
 
-message PlanFragment {
+// Information that is common for all the minors of this fragment.
+message PlanFragmentMajor {
   optional FragmentHandle handle = 1;
-  optional float network_cost = 4;
-  optional float cpu_cost = 5;
-  optional float disk_cost = 6;
-  optional float memory_cost = 7;
-  optional bytes fragment_json = 8;
-  optional bool leaf_fragment = 9;
-  optional NodeEndpoint assignment = 10;
-  optional NodeEndpoint foreman = 11;
-  optional int64 mem_initial = 12 [default = 20000000]; // 20 megs
-  optional int64 mem_max = 13 [default = 2000000000]; // 20 gigs
-  optional exec.shared.UserCredentials credentials = 14;
-  optional bytes options_json = 15;
-  optional QueryContextInformation context = 16;
-  repeated Collector collector = 17;
-  optional FragmentPriority priority = 18;
-  optional FragmentCodec fragment_codec = 19;
-  repeated FragmentAssignment all_assignment = 20;
+  optional float network_cost = 2;
+  optional float cpu_cost = 3;
+  optional float disk_cost = 4;
+  optional float memory_cost = 5;
+  optional bytes fragment_json = 6;
+  optional bool leaf_fragment = 7;
+  optional bytes options_json = 8;
+  optional NodeEndpoint foreman = 9;
+  optional int64 mem_initial = 10 [default = 20000000]; // 20 megs
+  optional exec.shared.UserCredentials credentials = 11;
+  optional QueryContextInformation context = 12;
+  optional FragmentPriority priority = 13;
+  optional FragmentCodec fragment_codec = 14;
+  repeated FragmentAssignment all_assignment = 15;
+}
+
+// Information that is specific for the minor.
+message PlanFragmentMinor {
+  optional int32 major_fragment_id = 1;
+  optional int32 minor_fragment_id = 2;
+  optional NodeEndpoint assignment = 3;
+  optional int64 mem_max = 4 [default = 2000000000]; // 20 gigs
+  repeated Collector collector = 5;
+  repeated MinorSpecificAttr attrs = 6;
+}
+
+// Key-value pairs for all the minor-specific attributes (saved for each minor seperately).
+message MinorSpecificAttr {
+  optional int32 operator_id = 1;
+  optional string name = 2;
+  optional bytes value = 3;
 }
 
 message FragmentAssignment {
-  optional NodeEndpoint assignment = 1;
   repeated int32 minor_fragment_id = 2;
+  optional int32 assignment_index = 3;
 }
 
 message FragmentPriority {
@@ -110,14 +123,9 @@ message FragmentPriority {
 
 message Collector {
   optional int32 opposite_major_fragment_id = 1;
-  repeated IncomingMinorFragment incoming_minor_fragment = 2; 
   optional bool supports_out_of_order = 3;
   optional bool is_spooling = 4;
-}
-
-message IncomingMinorFragment {
-  optional int32 minor_fragment = 1;
-  optional NodeEndpoint endpoint = 2 ;
+  repeated MinorFragmentIndexEndpoint incoming_minor_fragment_index = 5;
 }
 
 message QueryContextInformation {
@@ -141,4 +149,27 @@ message NodeQueryStatus {
 message NodePhaseStatus {
   optional int32 major_fragment_id = 1;
   optional int64 max_memory_used = 2;
+}
+
+message HBaseSubScanSpec {
+  optional string namespace = 1;
+  optional string table_name = 2;
+  optional bytes start_row = 3;
+  optional bytes stop_row = 4;
+  optional bytes serialized_filter = 5;
+}
+
+message HBaseSubScanSpecList {
+  repeated HBaseSubScanSpec scans = 1;
+}
+
+// fragment endpoint used by senders/receivers.
+message MinorFragmentIndexEndpoint {
+  optional int32 minor_fragment_id = 1;
+  optional int32 endpoint_index = 2;
+}
+
+// List of fragment end-points.
+message MinorFragmentIndexEndpointList {
+  repeated MinorFragmentIndexEndpoint frags = 1;
 }

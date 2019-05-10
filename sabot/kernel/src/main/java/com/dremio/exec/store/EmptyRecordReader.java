@@ -21,7 +21,6 @@ import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.sabot.op.scan.OutputMutator;
 
 public class EmptyRecordReader implements RecordReader {
@@ -39,11 +38,6 @@ public class EmptyRecordReader implements RecordReader {
     for (final ValueVector v : vectorMap.values()) {
       v.allocateNew();
     }
-  }
-
-  @Override
-  public SchemaChangeMutator getSchemaChangeMutator() {
-    return SchemaChangeMutator.DEFAULT;
   }
 
   @Override

@@ -44,6 +44,7 @@ import com.dremio.dac.explore.model.DatasetName;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.InitialDataPreviewResponse;
+import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
@@ -325,14 +326,19 @@ public class DatasetResource {
     final SqlQuery query = new SqlQuery(
         String.format("select * from %s", datasetPath.toPathString()),
         securityContext.getUserPrincipal().getName());
-    final JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(query)
-        .setQueryType(QueryType.UI_PREVIEW)
-        .build(), NoOpJobStatusListener.INSTANCE));
+
+    final JobData jobData = JobUI.getJobData(
+      jobsService.submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(query)
+          .setQueryType(QueryType.UI_PREVIEW)
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    );
     try {
-      return InitialDataPreviewResponse.of(job.getData().truncate(limit));
+      return InitialDataPreviewResponse.of(jobData.truncate(limit));
     } catch(UserException e) {
-      throw DatasetTool.toInvalidQueryException(e, query.getSql(), ImmutableList.<String> of());
+      throw DatasetTool.toInvalidQueryException(e, query.getSql(), ImmutableList.of());
     }
   }
 

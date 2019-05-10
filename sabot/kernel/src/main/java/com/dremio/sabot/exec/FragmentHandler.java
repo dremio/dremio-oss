@@ -30,6 +30,7 @@ import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.fragment.OutOfBandMessage;
 import com.dremio.sabot.exec.rpc.IncomingDataBatch;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 /**
@@ -175,8 +176,14 @@ public class FragmentHandler implements EventProvider {
   }
 
   void invalidate() {
-    this.executor = null;
     expirationTime = System.currentTimeMillis() + evictionDelayMillis;
+    this.executor = null;
     checkStateAndLogIfNecessary();
+  }
+
+  // Testing purposes only: mark this fragment handler as expired
+  @VisibleForTesting
+  void testExpireNow() {
+    expirationTime = System.currentTimeMillis() - 1;
   }
 }

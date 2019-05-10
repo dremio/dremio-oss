@@ -1,9 +1,7 @@
 [
   {"sourceType": "REDSHIFT", "tags": ["beta"]},
-  {"sourceType": "S3", "tags": ["beta"]},
-  {"sourceType": "HBASE", "tags": ["beta"]},
+  {"sourceType": "HBASE", "tags": ["community"]},
   {"sourceType": "MONGO", "tags": ["beta"]},
-  {"sourceType": "ADL", "tags": ["beta"]},
   {"sourceType": "TERADATA", "tags": ["beta"]},
   {"sourceType": "CASSANDRA", "disabled": true},
   {"sourceType": "SALESFORCE", "disabled": true},

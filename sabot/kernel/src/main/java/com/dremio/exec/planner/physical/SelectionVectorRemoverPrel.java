@@ -25,9 +25,15 @@ import org.apache.calcite.rel.RelNode;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.SelectionVectorRemover;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 
-public class SelectionVectorRemoverPrel extends SinglePrel{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SelectionVectorRemoverPrel.class);
+@Options
+public class SelectionVectorRemoverPrel extends SinglePrel {
+
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.svremover.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.svremover.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   public SelectionVectorRemoverPrel(Prel child){
     super(child.getCluster(), child.getTraitSet(), child);
@@ -44,14 +50,17 @@ public class SelectionVectorRemoverPrel extends SinglePrel{
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    SelectionVectorRemover r =  new SelectionVectorRemover( ((Prel)getInput()).getPhysicalOperator(creator));
-    return creator.addMetadata(this, r);
+    final PhysicalOperator childPOP = ((Prel)getInput()).getPhysicalOperator(creator);
+
+    return new SelectionVectorRemover(
+        creator.props(this, null, childPOP.getProps().getSchema().clone(SelectionVectorMode.NONE), RESERVE, LIMIT),
+        childPOP
+        );
   }
 
   @Override
   public SelectionVectorMode getEncoding() {
     return SelectionVectorMode.NONE;
   }
-
 
 }

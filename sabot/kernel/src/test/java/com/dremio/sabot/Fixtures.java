@@ -56,6 +56,7 @@ import org.junit.Assert;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
+import com.dremio.common.util.DremioGetObject;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
@@ -233,6 +234,10 @@ public final class Fixtures {
 
   }
 
+  private static Object getVectorObject(ValueVector vector, int index) {
+    return DremioGetObject.getObject(vector, index);
+  }
+
   private static boolean compareTableResultMap(StringBuilder sb, Field[] fields, List<RecordBatchData> actual,
                                                int expectedRecordCount, HashMap<Object, Fixtures.DataRow> resultMap) {
     final StringBuilder sb1 = new StringBuilder(sb);
@@ -271,12 +276,12 @@ public final class Fixtures {
       final int vectorOffset = actualHolder.data.sv2 == null ? localRowNumber : actualHolder.data.sv2.getIndex(localRowNumber);
       String[] actualValues = new String[fields.length];
       final boolean isValid = actualHolder.check(rowNumber);
-      Object actualKey = isValid ? actualHolder.data.vectors.get(keyColumnIndex).getObject(vectorOffset) : null;
+      Object actualKey = isValid ? getVectorObject(actualHolder.data.vectors.get(keyColumnIndex), vectorOffset) : null;
       actualValues[keyColumnIndex] = isValid ? (actualKey != null ? actualKey.toString() : "null") : "null";
       if (resultMap.containsKey(actualKey)) {
         final DataRow expectedRowData = resultMap.get(actualKey);
         for (int columnIndex = 1; columnIndex < fields.length; columnIndex++) {
-          Object actualCellValue = isValid ? actualHolder.data.vectors.get(columnIndex).getObject(vectorOffset) : null;
+          Object actualCellValue = isValid ? getVectorObject(actualHolder.data.vectors.get(columnIndex), vectorOffset) : null;
           CellCompare comparison = expectedRowData.cells[columnIndex].compare(actualHolder.data.vectors.get(columnIndex), vectorOffset, actualHolder.check(rowNumber));
           if (!comparison.equal) {
             ok = false;
@@ -288,7 +293,7 @@ public final class Fixtures {
         ok = false;
         failures++;
         for (int columnIndex = 1; columnIndex < fields.length; columnIndex++) {
-          Object actualCellValue = isValid ? actualHolder.data.vectors.get(columnIndex).getObject(vectorOffset) : null;
+          Object actualCellValue = isValid ? getVectorObject(actualHolder.data.vectors.get(columnIndex), vectorOffset) : null;
           actualValues[columnIndex] = actualCellValue.toString();
         }
       }
@@ -571,7 +576,6 @@ public final class Fixtures {
         return new IntervalYearMonth(p);
       }
     }
-
     throw new UnsupportedOperationException(String.format("Unable to interpret object of type %s.", obj.getClass().getSimpleName()));
   }
 
@@ -637,7 +641,7 @@ public final class Fixtures {
 
     @SuppressWarnings("unchecked")
     public CellCompare compare(ValueVector vector, int index, boolean isValid) {
-      V obj = isValid ? (V) vector.getObject(index) : null;
+      V obj = isValid ? (V)getVectorObject(vector, index) : null;
       if(obj == null && this.obj == null){
         return new CellCompare(true, toString(obj));
       }
@@ -1012,7 +1016,7 @@ public final class Fixtures {
 
     @Override
     ArrowType getType() {
-      return new ArrowType.Decimal(38 , 0);
+      return new ArrowType.Decimal(38 , obj == null ? 0 : obj.scale());
     }
 
     @Override

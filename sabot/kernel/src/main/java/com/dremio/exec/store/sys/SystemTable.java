@@ -16,12 +16,17 @@
 package com.dremio.exec.store.sys;
 
 import java.util.Iterator;
-import java.util.List;
-import java.util.UUID;
 import java.util.stream.StreamSupport;
 
 import org.apache.calcite.rel.type.RelDataType;
 
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.DatasetSplit;
+import com.dremio.connector.metadata.DatasetStats;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.PartitionChunk;
+import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -37,17 +42,6 @@ import com.dremio.exec.work.WorkStats.FragmentInfo;
 import com.dremio.exec.work.WorkStats.SlicingThreadInfo;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.task.TaskPool;
-import com.dremio.service.namespace.DatasetHelper;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.SourceTableDefinition;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
-import com.dremio.service.namespace.dataset.proto.ReadDefinition;
-import com.dremio.service.namespace.dataset.proto.ScanStats;
-import com.dremio.service.namespace.proto.EntityId;
-import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -58,7 +52,7 @@ import com.google.common.collect.ImmutableList;
  *   SabotNode.
  * </p>
  */
-public enum SystemTable {
+public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChunkListing {
 
   OPTION("options", false, OptionValueWrapper.class) {
     @Override
@@ -163,10 +157,25 @@ public enum SystemTable {
     public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
       return (Iterator<Object>) (Object) sContext.getAccelerationListManager().getReflectionDependencies().iterator();
     }
-  }
-  ;
+  },
 
-  private final NamespaceKey key;
+  @SuppressWarnings("unchecked")
+  SERVICES("services", false, ServicesIterator.ServiceSetInfo.class) {
+    @Override
+    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return new ServicesIterator(sContext);
+    }
+  };
+
+  private static final long RECORD_COUNT = 100L;
+  private static final long SIZE_IN_BYTES = 1000L;
+
+  private static final DatasetStats DATASET_STATS =
+      DatasetStats.of(RECORD_COUNT, ScanCostFactor.OTHER.getFactor());
+  private static final ImmutableList<PartitionChunk> PARTITION_CHUNKS =
+      ImmutableList.of(PartitionChunk.of(DatasetSplit.of(SIZE_IN_BYTES, RECORD_COUNT)));
+
+  private final EntityPath entityPath;
   private final String tableName;
   private final boolean distributed;
   private final Class<?> pojoClass;
@@ -175,7 +184,7 @@ public enum SystemTable {
     this.tableName = tableName;
     this.distributed = distributed;
     this.pojoClass = pojoClass;
-    this.key = new NamespaceKey(ImmutableList.of("sys", tableName));
+    this.entityPath = new EntityPath(ImmutableList.of("sys", tableName));
   }
 
   public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
@@ -194,62 +203,25 @@ public enum SystemTable {
     return pojoClass;
   }
 
-  public BatchSchema getSchema() {
+  @Override
+  public EntityPath getDatasetPath() {
+    return entityPath;
+  }
+
+  @Override
+  public DatasetStats getDatasetStats() {
+    return DATASET_STATS;
+  }
+
+  @Override
+  public BatchSchema getRecordSchema() {
     RecordDataType dataType = new PojoDataType(pojoClass);
     RelDataType type = dataType.getRowType(JavaTypeFactoryImpl.INSTANCE);
     return BatchSchema.fromCalciteRowType(type);
   }
 
-  public SourceTableDefinition asTableDefinition(final DatasetConfig oldDataset) {
-    return new SourceTableDefinition() {
-
-      @Override
-      public NamespaceKey getName() {
-        return key;
-      }
-
-      @Override
-      public DatasetConfig getDataset() {
-        final DatasetConfig dataset;
-        if(oldDataset == null) {
-          dataset = new DatasetConfig()
-           .setFullPathList(key.getPathComponents())
-          .setId(new EntityId(UUID.randomUUID().toString()))
-          .setType(DatasetType.PHYSICAL_DATASET);
-
-        } else {
-          dataset = oldDataset;
-        }
-
-        return dataset
-            .setName(key.getName())
-            .setReadDefinition(new ReadDefinition()
-                .setScanStats(new ScanStats().setRecordCount(100l)
-                    .setScanFactor(ScanCostFactor.OTHER.getFactor())))
-            .setOwner(SystemUser.SYSTEM_USERNAME)
-            .setPhysicalDataset(new PhysicalDataset())
-            .setRecordSchema(getSchema().toByteString())
-            .setSchemaVersion(DatasetHelper.CURRENT_VERSION);
-      }
-
-      @Override
-      public List<DatasetSplit> getSplits() {
-        // The split calculation is dynamic based on nodes at the time of execution, create a single split for the purposes here
-        DatasetSplit split = new DatasetSplit();
-        split.setSize(1L);
-        split.setSplitKey("1");
-        return ImmutableList.of(split);
-      }
-
-      @Override
-      public boolean isSaveable() {
-        return true;
-      }
-
-      @Override
-      public DatasetType getType() {
-        return DatasetType.PHYSICAL_DATASET;
-      }};
-
+  @Override
+  public Iterator<? extends PartitionChunk> iterator() {
+    return PARTITION_CHUNKS.iterator();
   }
 }

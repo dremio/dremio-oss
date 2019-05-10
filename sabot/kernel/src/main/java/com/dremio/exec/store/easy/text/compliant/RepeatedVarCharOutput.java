@@ -29,6 +29,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.Text;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -42,6 +43,8 @@ import io.netty.buffer.ArrowBuf;
  * value within the vector containing all the fields in the record as individual array elements.
  */
 class RepeatedVarCharOutput extends TextOutput {
+  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RepeatedVarCharOutput.class);
+
   private static final String COL_NAME = "columns";
   static final SchemaPath COLUMNS = SchemaPath.getSimplePath("columns");
   public static final int MAXIMUM_NUMBER_COLUMNS = 64 * 1024;
@@ -146,9 +149,12 @@ class RepeatedVarCharOutput extends TextOutput {
     if (charLengthOffset < tmpBuf.capacity()) {
       return;
     }
+
+    FieldSizeLimitExceptionHelper.checkWriteSizeLimit(charLengthOffset, maxCellLimit, fieldIndex, logger);
+
     byte[] tmp = new byte[tmpBuf.capacity()];
     tmpBuf.getBytes(0, tmp);
-    tmpBuf = tmpBuf.reallocIfNeeded(tmpBuf.capacity() * 2);
+    tmpBuf = tmpBuf.reallocIfNeeded(Math.min(tmpBuf.capacity() * 2, maxCellLimit + 1));
     tmpBuf.setBytes(0, tmp);
     charLengthOffset = tmp.length;
   }
@@ -184,7 +190,6 @@ class RepeatedVarCharOutput extends TextOutput {
       return;
     }
 
-    checkFieldLimit(charLengthOffset, fieldIndex);
     expandTmpBufIfNecessary();
     tmpBuf.setByte(charLengthOffset, data);
     charLengthOffset++;

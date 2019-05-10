@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>3.1.11-201904261857420193-c674472</version>
+    <version>3.2.0-201905102005330382-0598733</version>
   </parent>
   <artifactId>dremio-services-datastore</artifactId>
   <name>Services - Datastore</name>
@@ -102,7 +102,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${protobuf.version}</version>
     </dependency>
     <dependency>
       <groupId>commons-codec</groupId>
@@ -145,6 +144,10 @@
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.xerial.snappy</groupId>
+      <artifactId>snappy-java</artifactId>
+    </dependency>
   </dependencies>
 
   <build>
@@ -174,7 +177,7 @@
             </configuration>
           </execution>
         </executions>
-      </plugin>    
+      </plugin>
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
@@ -183,6 +186,7 @@
           <includes>
             <include>remote_datastore.proto</include>
             <include>search_types.proto</include>
+            <include>rocks.proto</include>
           </includes>
         </configuration>
         <executions>

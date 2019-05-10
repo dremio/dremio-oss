@@ -35,7 +35,6 @@ export default class FinderNav extends Component {
     isInProgress: PropTypes.bool,
     addHref: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     listHref: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
-    toggleActivePin: PropTypes.func,
     children: PropTypes.node
   };
 
@@ -57,13 +56,14 @@ export default class FinderNav extends Component {
           )}
         </h4>
         <div className='nav-list'>
-          {!isInProgress && <FinderNavSection
-            items={navItems}
-            isInProgress={isInProgress}
-            maxItemsCount={MAX_TO_SHOW}
-            title={title}
-            listHref={listHref}
-            toggleActivePin={this.props.toggleActivePin} />
+          {
+            !isInProgress && <FinderNavSection
+              items={navItems}
+              isInProgress={isInProgress}
+              maxItemsCount={MAX_TO_SHOW}
+              title={title}
+              listHref={listHref}
+            />
           }
           {!isInProgress && children}
         </div>

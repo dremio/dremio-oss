@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
@@ -30,13 +31,22 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.DictionaryLookupPOP;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.google.common.collect.Maps;
 
 
 /**
  * Convert dictionary ids to original values
  */
+@Options
 public class DictionaryLookupPrel extends SinglePrel {
+
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.dictionary.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.dictionary.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+
 
   private final Map<String, GlobalDictionaryFieldInfo> dictionaryEncodedFields;
   private final RelDataType relDataType;
@@ -69,10 +79,24 @@ public class DictionaryLookupPrel extends SinglePrel {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    Prel child = (Prel) this.getInput();
-    PhysicalOperator childPOP = child.getPhysicalOperator(creator);
-    DictionaryLookupPOP dictionaryLookupPOP = new DictionaryLookupPOP(creator.getContext().getCatalogService(), childPOP, dictionaryEncodedFields);
-    return creator.addMetadata(this, dictionaryLookupPOP);
+    PhysicalOperator child = ((Prel) getInput()).getPhysicalOperator(creator);
+    BatchSchema childSchema = child.getProps().getSchema();
+    SchemaBuilder b = BatchSchema.newBuilder();
+    for (Field field : childSchema.getFields()) {
+      // Revert back to original type
+      if (dictionaryEncodedFields.containsKey(field.getName())) {
+        b.addField(new Field(field.getName(), field.isNullable(), dictionaryEncodedFields.get(field.getName()).getArrowType(), field.getChildren()));
+      } else {
+        b.addField(field);
+      }
+    }
+    b.setSelectionVectorMode(childSchema.getSelectionVectorMode());
+    BatchSchema schema = b.build();
+    return new DictionaryLookupPOP(
+        creator.getContext().getCatalogService(),
+        creator.props(this, null, schema, RESERVE, LIMIT),
+        child,
+        dictionaryEncodedFields);
   }
 
   @Override

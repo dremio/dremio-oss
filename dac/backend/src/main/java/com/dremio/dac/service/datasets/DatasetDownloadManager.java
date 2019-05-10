@@ -44,6 +44,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.Futures;
 
 /**
  * Schedule download jobs and read output of job for dataset download
@@ -110,16 +111,22 @@ public class DatasetDownloadManager {
     String ctasSql = format("CREATE TABLE %s.%s STORE AS (%s) WITH SINGLE WRITER AS %s",
       SqlUtils.quoteIdentifier(DATASET_DOWNLOAD_STORAGE_PLUGIN), SqlUtils.quoteIdentifier(downloadFilePath.toString()), getTableOptions(downloadFormat), selectQuery);
 
-    final Job job = jobsService.submitJob(
+    final Job job = Futures.getUnchecked(
+      jobsService.submitJob(
         JobRequest.newDownloadJobBuilder(downloadId, fileName)
-            .setSqlQuery(new SqlQuery(ctasSql, virtualDatasetUI.getContextList(), userName))
-            .build(), NoOpJobStatusListener.INSTANCE);
+          .setSqlQuery(new SqlQuery(ctasSql, virtualDatasetUI.getContextList(), userName))
+          .build(), NoOpJobStatusListener.INSTANCE)
+    );
     logger.debug("Scheduled download job {} for {}", job.getJobId(), datasetPath);
     return job;
   }
 
   public DownloadDataResponse getDownloadData(DownloadInfo downloadInfo) throws IOException {
     final Path jobDataDir = new Path(storageLocation, downloadInfo.getDownloadId());
+    // NFS filesystems has delay before files written by executor shows up in the coordinator.
+    // For NFS, fs.exists() will force a refresh if the file is not found
+    // No action is taken if it returns false as the code path already handles FileNotFoundException
+    fs.exists(jobDataDir);
     final FileStatus[] files = fs.listStatus(jobDataDir);
     Preconditions.checkArgument(files.length == 1, format("Found %d files in download dir %s, must have only one file.", files.length, jobDataDir));
     return new DownloadDataResponse(fs.open(files[0].getPath()), downloadInfo.getFileName(), files[0].getLen());

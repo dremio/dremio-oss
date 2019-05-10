@@ -23,6 +23,8 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
 
+import com.dremio.exec.util.DecimalUtils;
+
 import io.netty.util.internal.PlatformDependent;
 
 public class SumZeroAccumulators {
@@ -301,7 +303,7 @@ public class SumZeroAccumulators {
         final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
         /* get the corresponding data from input vector -- source data for accumulation */
         final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
-        java.math.BigDecimal newVal = DecimalAccumulatorUtils.getBigDecimal(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
+        java.math.BigDecimal newVal = DecimalUtils.getBigDecimalFromLEBytes(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
         /* get the hash table batch index */
         final int chunkIndex = tableIndex >>> bitsInChunk;
         final int chunkOffset = tableIndex & chunkOffsetMask;
@@ -309,6 +311,51 @@ public class SumZeroAccumulators {
         final long sumAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
         /* store the accumulated values at the target location of accumulation vector */
         PlatformDependent.putLong(sumAddr, Double.doubleToLongBits(Double.longBitsToDouble(PlatformDependent.getLong(sumAddr)) + newVal.doubleValue() * bitVal));
+      }
+    }
+  }
+
+  public static class DecimalSumZeroAccumulatorV2 extends BaseSingleAccumulator {
+    private static final int WIDTH_INPUT = 16;      // decimal inputs
+    private static final int WIDTH_ACCUMULATOR = 16; // decimal accumulators
+    private byte[] valBuf = new byte[WIDTH_INPUT];
+
+    public DecimalSumZeroAccumulatorV2(FieldVector input, FieldVector output,
+                                       FieldVector transferVector, int maxValuesPerBatch,
+                                       BufferAllocator computationVectorAllocator) {
+      super(input, output, transferVector, AccumulatorBuilder.AccumulatorType.SUM0, maxValuesPerBatch,
+        computationVectorAllocator);
+    }
+
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
+      final long maxAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
+      FieldVector inputVector = getInput();
+      final long incomingBit = inputVector.getValidityBufferAddress();
+      final long incomingValue = inputVector.getDataBufferAddress();
+      final long[] valueAddresses = this.valueAddresses;
+      final int scale = ((DecimalVector)inputVector).getScale();
+      final int maxValuesPerBatch = super.maxValuesPerBatch;
+
+      for (long partitionAndOrdinalAddr = memoryAddr; partitionAndOrdinalAddr < maxAddr; partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+        /* get the hash table ordinal */
+        final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
+        /* get the index of data in input vector */
+        final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
+        /* get the corresponding data from input vector -- source data for accumulation */
+        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+        long addressOfInput = incomingValue + (incomingIndex * WIDTH_INPUT);
+        long newValLow = PlatformDependent.getLong(addressOfInput);
+        long newValHigh = PlatformDependent.getLong(addressOfInput + DecimalUtils.LENGTH_OF_LONG);
+        /* get the hash table batch index */
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
+        /* get the target address of accumulation vector */
+        final long sumAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
+        /* store the accumulated values at the target location of accumulation vector */
+        long curValLow = PlatformDependent.getLong(sumAddr);
+        long curValHigh = PlatformDependent.getLong(sumAddr + DecimalUtils.LENGTH_OF_LONG);
+        DecimalUtils.addSignedDecimals(sumAddr, newValLow, newValHigh, curValLow, curValHigh);
       }
     }
   }

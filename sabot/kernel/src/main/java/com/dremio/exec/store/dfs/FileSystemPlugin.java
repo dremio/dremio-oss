@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.dfs;
 
-import static com.dremio.exec.store.dfs.easy.EasyDatasetXAttrSerDe.EASY_DATASET_SPLIT_XATTR_SERIALIZER;
-import static com.dremio.exec.store.parquet.ParquetDatasetXAttrSerDe.PARQUET_DATASET_SPLIT_XATTR_SERIALIZER;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.io.IOException;
@@ -27,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -50,20 +49,39 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.SqlUtils;
+import com.dremio.connector.ConnectorException;
+import com.dremio.connector.metadata.BytesOutput;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.DatasetNotFoundException;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetDatasetOption;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
+import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.connector.metadata.extensions.SupportsReadSignature;
+import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
+import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.DatasetSplitsPointer;
+import com.dremio.exec.catalog.FileConfigOption;
+import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.catalog.MutablePlugin;
+import com.dremio.exec.catalog.SortColumnsOption;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.DotFile;
 import com.dremio.exec.dotfile.DotFileType;
 import com.dremio.exec.dotfile.DotFileUtil;
 import com.dremio.exec.dotfile.View;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.ClassPathFileSystem;
 import com.dremio.exec.store.DatasetRetrievalOptions;
@@ -77,43 +95,44 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.SchemaMutability.MutationType;
+import com.dremio.exec.store.file.proto.FileProtobuf.FileSystemCachedEntity;
+import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.exec.util.ImpersonationUtil;
-import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
+import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitXAttr;
+import com.dremio.service.namespace.MetadataProtoUtils;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.SourceState;
-import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.TableInstance;
 import com.dremio.service.namespace.capabilities.BooleanCapabilityValue;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
-import com.dremio.service.namespace.file.proto.FileSystemCachedEntity;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit;
+import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
-import com.dremio.service.namespace.file.proto.FileUpdateKey;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
-import io.protostuff.ByteString;
-import io.protostuff.ProtostuffIOUtil;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Storage plugin for file system
  */
-public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements StoragePlugin, MutablePlugin {
+public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements StoragePlugin, MutablePlugin, SupportsReadSignature {
   /**
    * Default {@link Configuration} instance. Use this instance through {@link #getNewFsConf()} to create new copies
    * of {@link Configuration} objects.
@@ -160,11 +179,6 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions ignored) throws Exception {
-    return Collections.emptyList(); // file system does not know about physical datasets
-  }
-
-  @Override
   public SourceCapabilities getSourceCapabilities() {
     return systemUserFS.isPdfs() ? new SourceCapabilities(REQUIRES_HARD_AFFINITY) : SourceCapabilities.NONE;
   }
@@ -177,6 +191,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return fsConf;
   }
 
+  @Override
   public StoragePluginId getId() {
     return idProvider.get();
   }
@@ -188,12 +203,18 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
    * @return
    */
   public FileSystemWrapper createFS(String userName) {
-    return createFS(userName, null);
+    return createFs(userName, null);
   }
 
-  public FileSystemWrapper createFS(String userName, OperatorStats stats) {
-    return ImpersonationUtil.createFileSystem(getUGIForUser(userName), getFsConf(), stats,
-      getConnectionUniqueProperties());
+  public FileSystemWrapper createFs(String userName, OperatorContext context) {
+    return ImpersonationUtil.createFileSystem(getUGIForUser(userName), getFsConf(), context != null ?context.getStats() : null,
+        getConnectionUniqueProperties(),
+      isAsyncEnabledForQuery(context) && getConfig().isAsyncEnabled());
+  }
+
+  public FileSystemWrapper getFileSystem(Configuration config, OperatorContext context) throws IOException {
+    return FileSystemWrapper.get(config, context.getStats(),
+      isAsyncEnabledForQuery(context) && getConfig().isAsyncEnabled());
   }
 
   public UserGroupInformation getUGIForUser(String userName) {
@@ -312,19 +333,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return combined;
   }
 
-  @Override
-  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldConfig, DatasetRetrievalOptions retrievalOptions) throws Exception {
-    FormatPluginConfig formatPluginConfig = null;
-
-    PhysicalDataset physicalDataset = oldConfig == null ? null : oldConfig.getPhysicalDataset();
-    if(physicalDataset != null && physicalDataset.getFormatSettings() != null){
-      formatPluginConfig = PhysicalDatasetUtils.toFormatPlugin(physicalDataset.getFormatSettings(), Collections.<String>emptyList());
-    }
-
-    return getDatasetWithFormat(datasetPath, oldConfig, formatPluginConfig, retrievalOptions, null);
-  }
-
-  SourceTableDefinition getDatasetWithOptions(
+  FileDatasetHandle getDatasetWithOptions(
       NamespaceKey datasetPath,
       TableInstance instance,
       boolean ignoreAuthErrors,
@@ -332,19 +341,15 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       int maxLeafColumns
   ) throws Exception {
     final FormatPluginConfig fconfig = optionExtractor.createConfigForTable(instance);
-    return getDatasetWithFormat(
-        datasetPath,
-        null,
-        fconfig,
-        DatasetRetrievalOptions.DEFAULT.toBuilder()
-            .setIgnoreAuthzErrors(ignoreAuthErrors)
-            .setMaxMetadataLeafColumns(maxLeafColumns)
-            .build(),
-        user
-    );
+    final DatasetRetrievalOptions options = DatasetRetrievalOptions.DEFAULT.toBuilder()
+        .setIgnoreAuthzErrors(ignoreAuthErrors)
+        .setMaxMetadataLeafColumns(maxLeafColumns)
+        .build();
+
+    return getDatasetWithFormat(datasetPath, new PreviousDatasetInfo(null, null, null), fconfig, options, user);
   }
 
-  protected SourceTableDefinition getDatasetWithFormat(NamespaceKey datasetPath, DatasetConfig oldConfig, FormatPluginConfig formatPluginConfig,
+  protected FileDatasetHandle getDatasetWithFormat(NamespaceKey datasetPath, PreviousDatasetInfo oldConfig, FormatPluginConfig formatPluginConfig,
                                                        DatasetRetrievalOptions retrievalOptions, String user) throws Exception {
 
     if(datasetPath.size() <= 1){
@@ -374,17 +379,17 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       final FileStatus rootStatus = fs.getFileStatus(new Path(fileSelection.getSelectionRoot()));
 
       // Get subdirectories under file selection before pruning directories
-      final List<FileSystemCachedEntity> cachedEntities = Lists.newArrayList();
+      final FileUpdateKey.Builder updateKeyBuilder = FileUpdateKey.newBuilder();
       if (rootStatus.isDirectory()) {
         // first entity is always a root
-        cachedEntities.add(fromFileStatus(rootStatus));
+        updateKeyBuilder.addCachedEntities(fromFileStatus(rootStatus));
       }
 
       for (FileStatus dirStatus: fileSelection.getAllDirectories()) {
-        cachedEntities.add(fromFileStatus(dirStatus));
+        updateKeyBuilder.addCachedEntities(fromFileStatus(dirStatus));
       }
+      final FileUpdateKey updateKey = updateKeyBuilder.build();
 
-      final FileUpdateKey updateKey = new FileUpdateKey().setCachedEntitiesList(cachedEntities);
       // Expand selection by copying it first used to check extensions of files in directory.
       final FileSelection fileSelectionWithoutDir =  hasDirectories? new FileSelection(fileSelection).minusDirectories(): fileSelection;
       if(fileSelectionWithoutDir == null || fileSelectionWithoutDir.isEmpty()){
@@ -392,7 +397,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         return null;
       }
 
-      SourceTableDefinition datasetAccessor = null;
+      FileDatasetHandle datasetAccessor = null;
+
 
       if (formatPluginConfig != null) {
 
@@ -400,7 +406,8 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         if(formatPlugin == null){
           formatPlugin = formatCreator.newFormatPlugin(formatPluginConfig);
         }
-        datasetAccessor = formatPlugin.getDatasetAccessor(oldConfig, fs, fileSelectionWithoutDir, this, datasetPath,
+        DatasetType type = fs.isDirectory(new Path(fileSelectionWithoutDir.getSelectionRoot())) ? DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER : DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
+        datasetAccessor = formatPlugin.getDatasetAccessor(type, oldConfig, fs, fileSelectionWithoutDir, this, datasetPath,
             updateKey, retrievalOptions.maxMetadataLeafColumns());
       }
 
@@ -409,8 +416,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         for (final FormatMatcher matcher : matchers) {
           try {
             if (matcher.matches(fs, fileSelection, codecFactory)) {
+              DatasetType type = fs.isDirectory(new Path(fileSelectionWithoutDir.getSelectionRoot())) ? DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER : DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
               datasetAccessor = matcher.getFormatPlugin()
-                  .getDatasetAccessor(oldConfig, fs, fileSelectionWithoutDir, this, datasetPath,
+                  .getDatasetAccessor(type, oldConfig, fs, fileSelectionWithoutDir, this, datasetPath,
                       updateKey, retrievalOptions.maxMetadataLeafColumns());
               if (datasetAccessor != null) {
                 break;
@@ -423,6 +431,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       }
 
       return datasetAccessor;
+
     } catch (AccessControlException e) {
       if (!retrievalOptions.ignoreAuthzErrors()) {
         logger.debug(e.getMessage());
@@ -520,9 +529,10 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   protected FileSystemCachedEntity fromFileStatus(FileStatus status){
-    return new FileSystemCachedEntity()
+    return FileSystemCachedEntity.newBuilder()
         .setPath(status.getPath().toString())
-        .setLastModificationTime(status.getModificationTime());
+        .setLastModificationTime(status.getModificationTime())
+        .build();
   }
 
   @Override
@@ -533,7 +543,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         final List<TimedRunnable<Boolean>> permissionCheckTasks = Lists.newArrayList();
 
         permissionCheckTasks.addAll(getUpdateKeyPermissionTasks(datasetConfig, userFs));
-        permissionCheckTasks.addAll(getSplitPermissiomTasks(datasetConfig, userFs, user));
+        permissionCheckTasks.addAll(getSplitPermissionTasks(datasetConfig, userFs, user));
 
         try {
           Stopwatch stopwatch = Stopwatch.createStarted();
@@ -546,7 +556,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
             }
           }
         } catch (IOException ioe) {
-          throw UserException.dataReadError(ioe).build(logger);
+          throw new RuntimeException("Failed to check access permission", ioe);
         }
       }
     }
@@ -555,9 +565,13 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   // Check if all sub directories can be listed/read
   private Collection<FsPermissionTask> getUpdateKeyPermissionTasks(DatasetConfig datasetConfig, FileSystemWrapper userFs) {
-    final FileUpdateKey fileUpdateKey = new FileUpdateKey();
-    ProtostuffIOUtil.mergeFrom(datasetConfig.getReadDefinition().getReadSignature().toByteArray(), fileUpdateKey, FileUpdateKey.getSchema());
-    if (fileUpdateKey.getCachedEntitiesList() == null || fileUpdateKey.getCachedEntitiesList().isEmpty()) {
+    FileUpdateKey fileUpdateKey;
+    try {
+      fileUpdateKey = LegacyProtobufSerializer.parseFrom(FileUpdateKey.PARSER, datasetConfig.getReadDefinition().getReadSignature().toByteArray());
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException("Cannot read file update key", e);
+    }
+    if (fileUpdateKey.getCachedEntitiesList().isEmpty()) {
       return Collections.emptyList();
     }
     final List<FsPermissionTask> fsPermissionTasks = Lists.newArrayList();
@@ -586,25 +600,31 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   // Check if all splits are accessible
-  private Collection<FsPermissionTask> getSplitPermissiomTasks(DatasetConfig datasetConfig, FileSystemWrapper userFs, String user) {
+  private Collection<FsPermissionTask> getSplitPermissionTasks(DatasetConfig datasetConfig, FileSystemWrapper userFs, String user) {
     final SplitsPointer splitsPointer = DatasetSplitsPointer.of(context.getNamespaceService(user), datasetConfig);
     final boolean isParquet = datasetConfig.getPhysicalDataset().getFormatSettings().getType() == FileType.PARQUET;
     final List<FsPermissionTask> fsPermissionTasks = Lists.newArrayList();
     final List<Path> batch = Lists.newArrayList();
 
-    for (DatasetSplit split:  splitsPointer.getSplitIterable()) {
-      final Path filePath;
-      if (isParquet) {
-        filePath = new Path(PARQUET_DATASET_SPLIT_XATTR_SERIALIZER.revert(split.getExtendedProperty().toByteArray()).getPath());
-      } else {
-        filePath = new Path(EASY_DATASET_SPLIT_XATTR_SERIALIZER.revert(split.getExtendedProperty().toByteArray()).getPath());
-      }
+    for (PartitionChunkMetadata partitionChunkMetadata: splitsPointer.getPartitionChunks()) {
+      for (DatasetSplit split : partitionChunkMetadata.getDatasetSplits()) {
+        final Path filePath;
+        try {
+          if (isParquet) {
+            filePath = new Path(LegacyProtobufSerializer.parseFrom(ParquetDatasetSplitXAttr.PARSER, split.getSplitExtendedProperty().toByteArray()).getPath());
+          } else {
+            filePath = new Path(LegacyProtobufSerializer.parseFrom(EasyDatasetSplitXAttr.PARSER, split.getSplitExtendedProperty().toByteArray()).getPath());
+          }
+        } catch (InvalidProtocolBufferException e) {
+          throw new RuntimeException("Could not deserialize split info", e);
+        }
 
-      batch.add(filePath);
-      if (batch.size() == PERMISSION_CHECK_TASK_BATCH_SIZE) {
-        // make a copy of batch
-        fsPermissionTasks.add(new FsPermissionTask(userFs, new ArrayList<>(batch), FsAction.READ));
-        batch.clear();
+        batch.add(filePath);
+        if (batch.size() == PERMISSION_CHECK_TASK_BATCH_SIZE) {
+          // make a copy of batch
+          fsPermissionTasks.add(new FsPermissionTask(userFs, new ArrayList<>(batch), FsAction.READ));
+          batch.clear();
+        }
       }
     }
 
@@ -660,88 +680,63 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return name;
   }
 
-  @Override
-  public boolean containerExists(NamespaceKey key) {
-    final List<String> folderPath = key.getPathComponents();
-    try {
-      return systemUserFS.isDirectory(PathUtils.toFSPath(resolveTableNameToValidPath(folderPath)));
-    } catch (IOException e) {
-      logger.debug("Failure reading path.", e);
-      return false;
-    }
-  }
-
-  @Override
-  public boolean datasetExists(NamespaceKey key) {
-    final List<String> filePath = key.getPathComponents();
-    try {
-      return systemUserFS.exists(PathUtils.toFSPath(resolveTableNameToValidPath(filePath)));
-    } catch (IOException e) {
-      logger.debug("Failure reading path.", e);
-      return false;
-    }
-  }
-
   protected boolean fileExists(String username, List<String> filePath) throws IOException {
     return createFS(username).isFile(PathUtils.toFSPath(resolveTableNameToValidPath(filePath)));
   }
 
+  protected boolean isAsyncEnabledForQuery(OperatorContext context) {
+    return true;
+  }
+
   @Override
-  public CheckResult checkReadSignature(ByteString key, final DatasetConfig oldConfig, DatasetRetrievalOptions retrievalOptions) throws Exception {
-    final FileUpdateKey fileUpdateKey = new FileUpdateKey();
-    ProtostuffIOUtil.mergeFrom(key.toByteArray(), fileUpdateKey, FileUpdateKey.getSchema());
+  public MetadataValidity validateMetadata(BytesOutput signature, DatasetHandle datasetHandle, DatasetMetadata metadata,
+      ValidateMetadataOption... options) throws DatasetNotFoundException {
+    final FileUpdateKey fileUpdateKey;
+    try {
+      fileUpdateKey = LegacyProtobufSerializer.parseFrom(FileUpdateKey.PARSER, MetadataProtoUtils.toProtobuf(signature));
+    } catch (InvalidProtocolBufferException e) {
+      // Wrap protobuf exception for consistency
+      throw new RuntimeException(e);
+    }
 
-    if (retrievalOptions.forceUpdate() ||
-        fileUpdateKey.getCachedEntitiesList() == null ||
-        fileUpdateKey.getCachedEntitiesList().isEmpty()) {
+    if (fileUpdateKey.getCachedEntitiesList() == null || fileUpdateKey.getCachedEntitiesList().isEmpty()) {
+      // TODO: evaluate the need for this.
+//       Preconditions.checkArgument(oldConfig.getType() == DatasetType.PHYSICAL_DATASET_SOURCE_FILE,
+//           "only file based datasets can have empty read signature");
       // single file dataset
-      Preconditions.checkArgument(oldConfig.getType() == DatasetType.PHYSICAL_DATASET_SOURCE_FILE, "only file based datasets can have empty read signature");
-      if (!fileExists(SYSTEM_USERNAME, oldConfig.getFullPathList())) {
-        return CheckResult.DELETED;
-      } else {
-        // assume file has changed
-        final SourceTableDefinition newDatasetAccessor =
-            getDataset(new NamespaceKey(oldConfig.getFullPathList()), oldConfig, retrievalOptions);
-        return new CheckResult() {
-          @Override
-          public UpdateStatus getStatus() {
-            return UpdateStatus.CHANGED;
-          }
-
-          @Override
-          public SourceTableDefinition getDataset() {
-            return newDatasetAccessor;
-          }
-        };
-      }
+      return MetadataValidity.INVALID;
     }
 
     final UpdateStatus status = checkMultifileStatus(fileUpdateKey);
     switch(status) {
     case DELETED:
-      return CheckResult.DELETED;
+      throw new DatasetNotFoundException(datasetHandle.getDatasetPath());
     case UNCHANGED:
+      return MetadataValidity.VALID;
     case CHANGED:
-      // continue below.
-      break;
+      return MetadataValidity.INVALID;
     default:
       throw new UnsupportedOperationException(status.name());
     }
 
-    final SourceTableDefinition newDatasetAccessor =
-        getDataset(new NamespaceKey(oldConfig.getFullPathList()), oldConfig, retrievalOptions);
-    return new CheckResult() {
-      @Override
-      public UpdateStatus getStatus() {
-        return status;
-      }
+  }
 
-      @Override
-      public SourceTableDefinition getDataset() {
-        return newDatasetAccessor;
-      }
-    };
+  private enum UpdateStatus {
+    /**
+     * Metadata hasn't changed.
+     */
+    UNCHANGED,
 
+
+    /**
+     * Metadata has changed.
+     */
+    CHANGED,
+
+    /**
+     * Dataset has been deleted.
+     */
+    DELETED
   }
 
   /**
@@ -756,7 +751,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
       final Path cachedEntityPath =  new Path(cachedEntity.getPath());
       try {
 
-        final Optional<FileStatus> optionalStatus = systemUserFS.getFileStatusSafe(cachedEntityPath);
+        final com.google.common.base.Optional<FileStatus> optionalStatus = systemUserFS.getFileStatusSafe(cachedEntityPath);
         if(!optionalStatus.isPresent()) {
           // if first entity (root) is missing then table is deleted
           if (i == 0) {
@@ -861,6 +856,10 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     FormatMatcher matcher = null;
     FileSelection noDir = fileSelection.minusDirectories();
 
+    if (noDir == null || noDir.getStatuses() == null) {
+      return true;
+    }
+
     for(FileStatus s : noDir.getStatuses()) {
       FileSelection subSelection = FileSelection.create(s);
       if (matcher == null) {
@@ -881,6 +880,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
    * We check if the table contains homogeneous file formats that Dremio can read. Once the checks are performed
    * we rename the file to start with an "_". After the rename we issue a recursive delete of the directory.
    */
+  @Override
   public void dropTable(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
     if(!getMutability().hasMutationCapability(MutationType.TABLE, schemaConfig.isSystemUser())) {
       throw UserException.parseError()
@@ -1079,7 +1079,63 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
   }
 
   @Override
-  public Writer getWriter(PhysicalOperator child, String userName, String location, WriterOptions options) throws IOException {
+  public Writer getWriter(PhysicalOperator child, String location, WriterOptions options, OpProps props) throws IOException {
     throw new IllegalStateException("The ctas entry for a file system plugin should invoke get writer on the format plugin directly.");
+  }
+
+  @Override
+  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options)
+      throws ConnectorException {
+    BatchSchema currentSchema = CurrentSchemaOption.getSchema(options);
+    FileConfig fileConfig = FileConfigOption.getFileConfig(options);
+    List<String> sortColumns = SortColumnsOption.getSortColumns(options);
+
+    FormatPluginConfig formatPluginConfig = null;
+    if (fileConfig != null) {
+      formatPluginConfig = PhysicalDatasetUtils.toFormatPlugin(fileConfig, Collections.<String>emptyList());
+    }
+
+    final PreviousDatasetInfo pdi = new PreviousDatasetInfo(fileConfig, currentSchema, sortColumns);
+    try {
+      return Optional.ofNullable(getDatasetWithFormat(MetadataObjectsUtils.toNamespaceKey(datasetPath), pdi,
+          formatPluginConfig, DatasetRetrievalOptions.of(options), null));
+    } catch (Exception e) {
+      Throwables.propagateIfPossible(e, ConnectorException.class);
+      throw new ConnectorException(e);
+    }
+  }
+
+  @Override
+  public DatasetMetadata getDatasetMetadata(
+      DatasetHandle datasetHandle,
+      PartitionChunkListing chunkListing,
+      GetMetadataOption... options
+  ) throws ConnectorException {
+    return datasetHandle.unwrap(FileDatasetHandle.class)
+        .getDatasetMetadata(options);
+  }
+
+  @Override
+  public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options)
+      throws ConnectorException {
+    return datasetHandle.unwrap(FileDatasetHandle.class)
+        .listPartitionChunks(options);
+  }
+
+  @Override
+  public BytesOutput provideSignature(DatasetHandle datasetHandle, DatasetMetadata metadata) throws ConnectorException {
+    return datasetHandle.unwrap(FileDatasetHandle.class)
+        .provideSignature(metadata);
+  }
+
+  @Override
+  public boolean containerExists(EntityPath containerPath) {
+    final List<String> folderPath = containerPath.getComponents();
+    try {
+      return systemUserFS.isDirectory(PathUtils.toFSPath(resolveTableNameToValidPath(folderPath)));
+    } catch (IOException e) {
+      logger.debug("Failure reading path.", e);
+      return false;
+    }
   }
 }

@@ -15,14 +15,13 @@
  */
 package com.dremio.exec.store.dfs.easy;
 
-import java.io.IOException;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.store.CatalogService;
@@ -45,6 +44,7 @@ public class EasyWriter extends FileSystemWriter {
 
   @JsonCreator
   public EasyWriter(
+      @JsonProperty("props") OpProps props,
       @JsonProperty("child") PhysicalOperator child,
       @JsonProperty("userName") String userName,
       @JsonProperty("location") String location,
@@ -53,8 +53,8 @@ public class EasyWriter extends FileSystemWriter {
       @JsonProperty("pluginId") StoragePluginId pluginId,
       @JsonProperty("format") FormatPluginConfig formatConfig,
       @JacksonInject CatalogService catalogService
-      ) throws IOException, ExecutionSetupException {
-    super(child, userName, options);
+      ) {
+    super(props, child, options);
     //CatalogService catalogService = null;
     this.plugin = catalogService.getSource(pluginId);
     this.formatPlugin = (EasyFormatPlugin<?>) plugin.getFormatPlugin(formatConfig);
@@ -63,15 +63,17 @@ public class EasyWriter extends FileSystemWriter {
   }
 
   public EasyWriter(
+      OpProps props,
       PhysicalOperator child,
       String userName,
       String location,
       WriterOptions options,
       FileSystemPlugin plugin,
       EasyFormatPlugin<?> formatPlugin) {
-    super(child, userName, options);
+    super(props, child, options);
     this.plugin = plugin;
     this.formatPlugin = formatPlugin;
+    Preconditions.checkNotNull(formatPlugin, "Unable to load format plugin for provided format config.");
     this.location = location;
   }
 
@@ -101,7 +103,7 @@ public class EasyWriter extends FileSystemWriter {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new EasyWriter(child, getUserName(), location, getOptions(), plugin, formatPlugin);
+    return new EasyWriter(props, child, props.getUserName(), location, options, plugin, formatPlugin);
   }
 
   @Override

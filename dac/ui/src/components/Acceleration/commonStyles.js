@@ -29,16 +29,17 @@ export const commonStyles = {
   },
   toggleLabel: {
     display: 'flex',
+    alignItems: 'center',
     width: 400, // todo: clean up this hack
     marginLeft: -10
   },
   iconTheme: {
     Container: {
-      margin: '-1px 10px 0 10px'
+      margin: '-1px 10px 0 10px',
+      height: 26
     }
   },
   toggle: {
-    marginTop: 6,
     width: 'auto'
   },
   formText: {

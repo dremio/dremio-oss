@@ -15,11 +15,17 @@
  */
 package com.dremio.sabot.op.aggregate.vectorized.nospill;
 
+import java.math.BigDecimal;
 import java.util.List;
 
+import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.MutableVarcharVector;
+import org.apache.arrow.vector.holders.NullableVarCharHolder;
+import org.apache.arrow.vector.util.ByteFunctionHelpers;
 
+import com.dremio.exec.util.DecimalUtils;
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
 
 import io.netty.buffer.ArrowBuf;
@@ -63,6 +69,63 @@ public class MaxAccumulatorsNoSpill {
         PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
       }
     }
+  }
+
+  public static class VarLenMaxAccumulatorNoSpill extends BaseVarBinaryAccumulatorNoSpill {
+    NullableVarCharHolder holder = new NullableVarCharHolder();
+
+    public VarLenMaxAccumulatorNoSpill(FieldVector input, FieldVector output) {
+      super(input, output);
+    }
+
+    public void accumulate(final long memoryAddr, final int count) {
+      final long maxAddr = memoryAddr + count * 4;
+      final long incomingBit = getInput().getValidityBufferAddress();
+
+      int incomingIndex = 0;
+
+      final ArrowBuf inputOffsetBuf = getInput().getOffsetBuffer();
+      final ArrowBuf inputBuf = getInput().getDataBuffer();
+
+      for(long ordinalAddr = memoryAddr; ordinalAddr < maxAddr; ordinalAddr += 4, incomingIndex++){
+        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+
+        //incoming record is null, skip it
+        if (bitVal == 0) {
+          continue;
+        }
+
+        //get the offset of incoming record
+        final int startOffset = inputOffsetBuf.getInt(incomingIndex * BaseVariableWidthVector.OFFSET_WIDTH);
+        final int endOffset = inputOffsetBuf.getInt((incomingIndex + 1) * BaseVariableWidthVector.OFFSET_WIDTH);
+
+        //get the proper chunk from the ordinal
+        final int tableIndex = PlatformDependent.getInt(ordinalAddr);
+        final int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
+        final int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
+
+        MutableVarcharVector mv = (MutableVarcharVector) this.accumulators[chunkIndex];
+        holder.isSet = 0;
+        boolean swap = false;
+
+        if(mv.isIndexSafe(chunkOffset)) {
+          mv.get(chunkOffset, holder);
+        }
+
+        if (holder.isSet == 0) {
+          //current max value is null, just replace it with incoming record
+          swap = true;
+        } else {
+          //compare incoming with currently running max record
+          final int cmp = ByteFunctionHelpers.compare(inputBuf, startOffset, endOffset, holder.buffer, holder.start, holder.end);
+          swap = (cmp == 1);
+        }
+
+        if (swap) {
+          mv.setSafe(chunkOffset, startOffset, (endOffset - startOffset), inputBuf);
+        }
+      } //for
+    } //accumulate
   }
 
   public static class FloatMaxAccumulatorNoSpill extends BaseSingleAccumulatorNoSpill {
@@ -212,6 +275,62 @@ public class MaxAccumulatorsNoSpill {
         final int bitUpdateVal = bitVal << (chunkOffset & 31);
         PlatformDependent.putLong(maxAddr, Double.doubleToLongBits(max(Double.longBitsToDouble(PlatformDependent.getLong(maxAddr)), newVal.doubleValue(), bitVal)));
         PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+      }
+    }
+  }
+
+  public static class DecimalMaxAccumulatorNoSpillV2 extends BaseSingleAccumulatorNoSpill {
+    private static final BigDecimal INIT = DecimalUtils.MIN_DECIMAL;
+    private static final int WIDTH_ORDINAL = 4;     // int ordinal #s
+    private static final int WIDTH_INPUT = 16;      // decimal inputs
+    private static final int WIDTH_ACCUMULATOR = 16; // decimal accumulators
+
+    public DecimalMaxAccumulatorNoSpillV2(FieldVector input, FieldVector output) {
+      super(input, output);
+    }
+
+    @Override
+    void initialize(FieldVector vector) {
+      setNullAndValue(vector, INIT);
+    }
+
+    public void accumulate(final long memoryAddr, final int count) {
+      final long maxMemAddr = memoryAddr + count * WIDTH_ORDINAL;
+      FieldVector inputVector = getInput();
+      final long incomingBit = inputVector.getValidityBufferAddress();
+      final long incomingValue = inputVector.getDataBufferAddress();
+      final long[] bitAddresses = this.bitAddresses;
+      final long[] valueAddresses = this.valueAddresses;
+
+      int incomingIndex = 0;
+      for(long ordinalAddr = memoryAddr; ordinalAddr < maxMemAddr; ordinalAddr += WIDTH_ORDINAL, incomingIndex++){
+        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+        if (bitVal == 0) {
+          continue;
+        }
+        /* get the corresponding data from input vector -- source data for accumulation */
+        long addressOfInput = incomingValue + (incomingIndex * WIDTH_INPUT);
+        long newValLow = PlatformDependent.getLong(addressOfInput);
+        long newValHigh = PlatformDependent.getLong(addressOfInput + DecimalUtils.LENGTH_OF_LONG);
+        final int tableIndex = PlatformDependent.getInt(ordinalAddr);
+        int chunkIndex = tableIndex >>> LBlockHashTableNoSpill.BITS_IN_CHUNK;
+        int chunkOffset = tableIndex & LBlockHashTableNoSpill.CHUNK_OFFSET_MASK;
+        final long maxAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
+        final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
+
+        final int bitUpdateVal = bitVal << (chunkOffset & 31);
+        /* store the accumulated values(new max or existing) at the target location of accumulation vector */
+        long curValLow = PlatformDependent.getLong(maxAddr);
+        long curValHigh = PlatformDependent.getLong(maxAddr + DecimalUtils.LENGTH_OF_LONG);
+        int compare = DecimalUtils.compareDecimalsAsTwoLongs(newValHigh, newValLow, curValHigh, curValLow);
+
+        if (compare > 0) {
+          /* store the accumulated values(new max or existing) at the target location of
+          accumulation vector */
+          PlatformDependent.putLong(maxAddr, newValLow);
+          PlatformDependent.putLong(maxAddr + 8, newValHigh);
+          PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+        }
       }
     }
   }

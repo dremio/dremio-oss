@@ -18,17 +18,20 @@ package com.dremio.exec.planner.physical;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
+import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
 import com.dremio.exec.planner.logical.JoinRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
+import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
-import com.google.common.collect.Lists;
 
 
 public class NestedLoopJoinPrule extends JoinPruleBase {
@@ -45,23 +48,18 @@ public class NestedLoopJoinPrule extends JoinPruleBase {
       PlannerSettings settings) {
     JoinRelType type = join.getJoinType();
 
-    if (! (type == JoinRelType.INNER || type == JoinRelType.LEFT)) {
+    if (! (type == JoinRelType.INNER || type == JoinRelType.LEFT || type == JoinRelType.RIGHT)) {
       return false;
     }
 
-    JoinCategory category = JoinUtils.getJoinCategory(left, right, join.getCondition(),
-        Lists.<Integer>newArrayList(), Lists.<Integer>newArrayList(), Lists.<Boolean>newArrayList());
+    JoinCategory category = join.getJoinCategory();
     if (category == JoinCategory.EQUALITY
         && (settings.isHashJoinEnabled() || settings.isMergeJoinEnabled())) {
       return false;
     }
 
     if (settings.isNlJoinForScalarOnly()) {
-      if (JoinUtils.isScalarSubquery(left) || JoinUtils.isScalarSubquery(right)) {
-        return true;
-      } else {
-        return false;
-      }
+      return JoinUtils.isScalarSubquery(left) || JoinUtils.isScalarSubquery(right);
     }
 
     return true;
@@ -89,9 +87,8 @@ public class NestedLoopJoinPrule extends JoinPruleBase {
 
     try {
 
-      if (checkBroadcastConditions(call.getPlanner(), join, left, right)) {
-        createBroadcastPlan(call, join, join.getCondition(), PhysicalJoinType.NESTEDLOOP_JOIN,
-            left, right, null /* left collation */, null /* right collation */);
+      if (checkBroadcastConditions(call.getPlanner(), join, left, right, PhysicalJoinType.NESTEDLOOP_JOIN)) {
+        createBroadcastPlan(call, join, join.getCondition(), left, right, null, null);
       }
 
     } catch (InvalidRelException e) {
@@ -99,4 +96,30 @@ public class NestedLoopJoinPrule extends JoinPruleBase {
     }
   }
 
+  @Override
+  protected void createBroadcastPlan(final RelOptRuleCall call,final JoinRel join,
+                                     final RexNode joinCondition,
+                                     final RelNode left, final RelNode right,
+                                     final RelCollation collationLeft, final RelCollation collationRight) throws InvalidRelException {
+    RelTraitSet traitsLeft = left.getTraitSet().plus(Prel.PHYSICAL);
+    RelTraitSet traitsRight = right.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.BROADCAST);
+    RelNode convertedLeft = convert(left, traitsLeft);
+    RelNode convertedRight = convert(right, traitsRight);
+    JoinRelType joinType = join.getJoinType();
+    NestedLoopJoinPrel newJoin = NestedLoopJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet(), convertedLeft, convertedRight, joinType);
+    if (joinCondition.isAlwaysTrue()) {
+      call.transformTo(newJoin);
+    } else if (joinType == JoinRelType.INNER) {
+      call.transformTo(new FilterPrel(join.getCluster(), convertedLeft.getTraitSet(), newJoin, joinCondition));
+    }
+  }
+
+  @Override
+  protected void createDistBothPlan(RelOptRuleCall call, JoinRel join,
+                                    PhysicalJoinType physicalJoinType,
+                                    RelNode left, RelNode right,
+                                    RelCollation collationLeft, RelCollation collationRight,
+                                    DistributionTrait hashLeftPartition, DistributionTrait hashRightPartition) throws UnsupportedRelOperatorException {
+    throw new UnsupportedRelOperatorException("Nested loop join does not support creating join plan with both left and right children hash distributed");
+  }
 }

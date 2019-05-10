@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 import { Component } from 'react';
+import { connect } from 'react-redux';
 import ReactDOM from 'react-dom';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import RedBox, { RedBoxError } from 'redbox-react';
+import { hideAppError } from '@app/actions/prodError';
+import { getAppError } from '@app/reducers';
 
 import fileABug from '../utils/fileABug';
 import FontIcon from '../components/Icon/FontIcon';
@@ -46,7 +49,16 @@ export class CustomRedBox extends RedBox {
   }
 }
 
-export default class DevErrorContainer extends Component {
+
+const mapStateToProps = state => ({
+  error: getAppError(state)
+});
+
+const mapDispatchToProps = ({
+  onDismiss: hideAppError
+});
+
+export class DevErrorView extends Component {
 
   static propTypes = {
     error: PropTypes.object,
@@ -60,6 +72,8 @@ export default class DevErrorContainer extends Component {
     return null;
   }
 }
+
+export default connect(mapStateToProps, mapDispatchToProps)(DevErrorView);
 
 const styles = {
   topRight: {

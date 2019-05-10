@@ -163,7 +163,7 @@ public class PredicateAnalyzer {
 
     for (Ord<RexNode> condition : Ord.zip(conditions)) {
       try {
-        analyze(scan, condition.e);
+        analyze(scan, condition.e, false);
       } catch (ExpressionNotAnalyzableException e) {
         logger.debug("Failed to pushdown condition: {}", condition.e, e);
         residue.set(condition.i);
@@ -180,7 +180,7 @@ public class PredicateAnalyzer {
    * <p/>
    * Callers should catch ExpressionNotAnalyzableException and fall back to not using push-down filters.
    */
-  public static QueryBuilder analyze(ElasticIntermediateScanPrel scan, RexNode originalExpression) throws ExpressionNotAnalyzableException {
+  public static QueryBuilder analyze(ElasticIntermediateScanPrel scan, RexNode originalExpression, boolean variationDetected) throws ExpressionNotAnalyzableException {
     try { // guard SchemaField conversion.
 
       final RexNode expression = SchemaField.convert(originalExpression,
@@ -193,7 +193,7 @@ public class PredicateAnalyzer {
             new Visitor(scan.getCluster().getRexBuilder(), ElasticsearchConf.createElasticsearchConf(scan.getPluginId().getConnectionConf())));
 
         if (e != null && e.isPartial()) {
-          e = CompoundQueryExpression.completeAnd(e, genScriptFilter(expression, scan.getPluginId(), null));
+          e = CompoundQueryExpression.completeAnd(e, genScriptFilter(expression, scan.getPluginId(), variationDetected, null));
         }
         if(logger.isDebugEnabled()) {
           logger.debug("Predicate: [{}] converted to: [\n{}]", expression, queryAsJson(e.builder()));
@@ -204,7 +204,7 @@ public class PredicateAnalyzer {
         // like a range filter if possible. When this fails, instead construct a filter with a script translation
         // of the filter.
         logger.debug("Fall back to script: [{}]", expression, e);
-        return genScriptFilter(expression, scan.getPluginId(), e);
+        return genScriptFilter(expression, scan.getPluginId(), variationDetected, e);
       }
 
     } catch(Throwable e){
@@ -241,7 +241,7 @@ public class PredicateAnalyzer {
     }
   }
 
-  private static QueryBuilder genScriptFilter(RexNode expression, StoragePluginId pluginId, Throwable cause)
+  private static QueryBuilder genScriptFilter(RexNode expression, StoragePluginId pluginId, boolean variationDetected, Throwable cause)
       throws ExpressionNotAnalyzableException {
     try {
       final boolean supportsV5Features = pluginId.getCapabilities().getCapability(ElasticsearchStoragePlugin.ENABLE_V5_FEATURES);
@@ -252,7 +252,8 @@ public class PredicateAnalyzer {
           supportsV5Features,
           config.isScriptsEnabled(),
           false, /* _source is not available in filter context */
-          config.isAllowPushdownOnNormalizedOrAnalyzedFields());
+          config.isAllowPushdownOnNormalizedOrAnalyzedFields(),
+          variationDetected);
       QueryBuilder builder = scriptQuery(script);
       return builder;
     } catch (Throwable t) {
@@ -663,7 +664,8 @@ public class PredicateAnalyzer {
       }
 
       if (CastExpression.isCastExpression(terminal)) {
-        terminal = CastExpression.unpack(terminal);
+        throw new PredicateAnalyzerException(
+          "Cannot handle CAST expression in binary operation, " + terminal);
       }
 
       return new SwapResult(swapped, terminal, literal);

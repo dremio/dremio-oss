@@ -49,7 +49,7 @@ export function* fetchQlikApp(dataset) {
 
   headers.append('Accept', 'text/plain+qlik-app');
   if (localStorageUtils) {
-    headers.append('Authorization', `_dremio${localStorageUtils.getAuthToken()}`);
+    headers.append('Authorization', localStorageUtils.getAuthToken());
   }
   const response = yield call(fetch, `${API_URL_V2}${href}`, {method: 'GET', headers});
   const responseText = yield response.text();

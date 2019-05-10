@@ -30,7 +30,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
-import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
@@ -40,6 +39,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.GroupScan;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
@@ -51,22 +51,22 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.BaseFormatPlugin;
 import com.dremio.exec.store.dfs.BasicFormatMatcher;
+import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
-import com.dremio.exec.store.dfs.FileSystemDatasetAccessor;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.MagicString;
+import com.dremio.exec.store.dfs.PreviousDatasetInfo;
+import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.exec.store.parquet2.ParquetRowiseReader;
 import com.dremio.exec.util.GlobalDictionaryBuilder;
-import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.DictionaryEncodedColumns;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.writer.WriterOperator;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.file.proto.DictionaryEncodedColumns;
-import com.dremio.service.namespace.file.proto.FileUpdateKey;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
@@ -90,7 +90,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
 
   public ParquetFormatPlugin(String name, SabotContext context, FileSystemPlugin fsPlugin){
     this(name, context, new ParquetFormatConfig(), fsPlugin);
-    this.fsPlugin = (FileSystemPlugin) fsPlugin;
+    this.fsPlugin = fsPlugin;
   }
 
   public ParquetFormatPlugin(String name, SabotContext context, ParquetFormatConfig formatConfig, FileSystemPlugin fsPlugin){
@@ -99,7 +99,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
     this.config = formatConfig;
     this.formatMatcher = new ParquetFormatMatcher(this, config);
     this.name = name == null ? DEFAULT_NAME : name;
-    this.fsPlugin = (FileSystemPlugin) fsPlugin;
+    this.fsPlugin = fsPlugin;
   }
 
   @Override
@@ -113,9 +113,8 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
   }
 
   @Override
-  public AbstractWriter getWriter(PhysicalOperator child, String userName, String location, FileSystemPlugin plugin,
-      WriterOptions options) throws IOException {
-    return new ParquetWriter(child, userName, location, options, plugin, this);
+  public AbstractWriter getWriter(PhysicalOperator child, String location, FileSystemPlugin plugin, WriterOptions options, OpProps props) throws IOException {
+    return new ParquetWriter(props, child, location, options, plugin, this);
   }
 
   public RecordWriter getRecordWriter(OperatorContext context, ParquetWriter writer) throws IOException, OutOfMemoryException {
@@ -130,6 +129,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       throw new ExecutionSetupException(String.format("Failed to create the WriterRecordBatch. %s", e.getMessage()), e);
     }
   }
+
 
   public ParquetGroupScanUtils getGroupScan(
       String userName,
@@ -146,11 +146,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
   @Override
   public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper fs, FileStatus status) throws ExecutionSetupException {
     try {
-      final ParquetMetadata footer = ParquetFileReader.readFooter(fsPlugin.getFsConf(), status, ParquetMetadataConverter.NO_FILTER);
-      if (footer.getBlocks().size() == 0) {
-        return null;
-      }
-      return new PreviewReader(context, fs, status, footer);
+      return new PreviewReader(context, fs, status);
     } catch (IOException e) {
       throw new ExecutionSetupException(e);
     }
@@ -176,20 +172,19 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
     public PreviewReader(
         OperatorContext context,
         FileSystemWrapper fs,
-        FileStatus status,
-        ParquetMetadata footer
+        FileStatus status
         ) throws IOException {
       super();
       this.context = context;
       this.fs = fs;
       this.status = status;
-      this.footer = footer;
+      this.streamProvider = new SingleStreamProvider(fs, status.getPath(), status.getLen());
+      this.footer = this.streamProvider.getFooter();
       this.dateStatus = ParquetReaderUtility.detectCorruptDates(footer, GroupScan.ALL_COLUMNS, getConfig().autoCorrectCorruptDates);
       this.schemaHelper = SchemaDerivationHelper.builder()
           .readInt96AsTimeStamp(context.getOptions().getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR))
           .dateCorruptionStatus(dateStatus)
           .build();
-      this.streamProvider = new InputStreamProvider(fs, status.getPath(), true);
     }
 
     @Override
@@ -209,7 +204,12 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
 
       currentIndex++;
 
-      if(currentIndex == footer.getBlocks().size()) {
+      /* Files with N rowgroups have a ParquetRowiseReader created for every rowgroup.
+         Empty files (with block size is 0) must have a single ParquetRowiseReader created
+         to get the columns in the files to generate schema, otherwise we cannot get schema
+         from empty files in preview.
+       */
+      if (currentIndex >= footer.getBlocks().size() && currentIndex > 0) {
         return;
       }
 
@@ -252,12 +252,6 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
 
       return records;
     }
-
-    @Override
-    public SchemaChangeMutator getSchemaChangeMutator() {
-      return current.getSchemaChangeMutator();
-    }
-
   }
 
 
@@ -277,6 +271,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
     return true;
   }
 
+  @Override
   public SabotContext getContext() {
     return context;
   }
@@ -315,7 +310,6 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       long version = GlobalDictionaryBuilder.getDictionaryVersion(fs, root);
       if (version != -1) {
         final List<String> columns = Lists.newArrayList();
-        final DictionaryEncodedColumns dictionaryEncodedColumns = new DictionaryEncodedColumns();
         root = GlobalDictionaryBuilder.getDictionaryVersionedRootPath(fs, root, version);
         for (Field field : batchSchema.getFields()) {
           final Path dictionaryFilePath = GlobalDictionaryBuilder.getDictionaryFile(fs, root, field.getName());
@@ -324,10 +318,11 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
           }
         }
         if (!columns.isEmpty()) {
-          dictionaryEncodedColumns.setVersion(version);
-          dictionaryEncodedColumns.setRootPath(root.toString());
-          dictionaryEncodedColumns.setColumnsList(columns);
-          return dictionaryEncodedColumns;
+          return DictionaryEncodedColumns.newBuilder()
+              .setVersion(version)
+              .setRootPath(root.toString())
+              .addAllColumns(columns)
+              .build();
         }
       }
     } catch (UnsupportedOperationException e) { // class path based filesystem doesn't support listing
@@ -344,17 +339,12 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
     return GlobalDictionaryBuilder.readDictionary(fs, dictionaryFilePath, bufferAllocator);
   }
 
+
+
   @Override
-  public FileSystemDatasetAccessor getDatasetAccessor(
-      DatasetConfig oldConfig,
-      FileSystemWrapper fs,
-      FileSelection fileSelection,
-      FileSystemPlugin fsPlugin,
-      NamespaceKey tableSchemaPath,
-      FileUpdateKey updateKey,
-      int maxLeafColumns
-  ) {
-    return new ParquetFormatDatasetAccessor(oldConfig, fs, fileSelection, fsPlugin, tableSchemaPath,
-        updateKey, this, maxLeafColumns);
+  public FileDatasetHandle getDatasetAccessor(DatasetType type, PreviousDatasetInfo previousInfo, FileSystemWrapper fs,
+      FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, FileUpdateKey updateKey,
+      int maxLeafColumns) {
+    return new ParquetFormatDatasetAccessor(type, fs, fileSelection, fsPlugin, tableSchemaPath, updateKey, this, previousInfo, maxLeafColumns);
   }
 }

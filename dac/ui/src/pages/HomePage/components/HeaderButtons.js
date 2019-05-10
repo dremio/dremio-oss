@@ -22,10 +22,10 @@ import { injectIntl } from 'react-intl';
 
 import config from 'utils/config';
 import Art from 'components/Art';
-import { headerRightPadding } from '@app/uiTheme/radium/allSpacesAndAllSources';
 import { ENTITY_TYPES } from 'constants/Constants';
 
 import HeaderButtonsMixin from 'dyn-load/pages/HomePage/components/HeaderButtonsMixin';
+import { RestrictedArea } from '@app/components/Auth/RestrictedArea';
 
 @injectIntl
 @Radium
@@ -41,8 +41,7 @@ export class HeaderButtons extends Component {
     rootEntityType: PropTypes.oneOf(Object.values(ENTITY_TYPES)),
     user: PropTypes.string,
     rightTreeVisible: PropTypes.bool,
-    intl: PropTypes.object.isRequired,
-    additionalButton: PropTypes.node
+    intl: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -106,9 +105,14 @@ export class HeaderButtons extends Component {
       buttons.push(
         {
           qa: 'add-file',
-          iconType: 'File',
+          iconType: 'UploadBlue',
           to: {...location, state: {modal: 'AddFileModal'}},
-          isAdd: true
+          style: {
+            alignItems: 'center'
+          },
+          iconStyle: {
+            height: 16
+          }
         }
       );
     }
@@ -122,41 +126,56 @@ export class HeaderButtons extends Component {
       Folder: 'Folder.Folder',
       FolderConvert: 'Folder.FolderConvert',
       Query: 'Job.Query',
-      Settings: 'Common.Settings'
+      Settings: 'Common.Settings',
+      UploadBlue: 'File.Upload'
     };
     const iconMessageId = messages[iconType];
     return (iconMessageId) ? this.props.intl.formatMessage({id: iconMessageId}) : '';
   }
 
   renderButton = (item, index) => {
-    const iconAlt = this.getIconAltText(item.iconType);
+    const {
+      qa,
+      to,
+      iconType,
+      style,
+      isAdd,
+      iconStyle,
+      authRule
+    } = item;
+    const iconAlt = this.getIconAltText(iconType);
 
-    return <Link
+    let link = <Link
       className='button-white'
-      data-qa={`${item.qa}-button`}
-      to={item.to ? item.to : '.'}
-      key={`${item.iconType}-${index}`}
-      style={{...styles.button, ...item.style}}>
-      {item.isAdd && <Art
+      data-qa={`${qa}-button`}
+      to={to ? to : '.'}
+      key={`${iconType}-${index}`}
+      style={{...styles.button, ...style}}>
+      {isAdd && <Art
         src='SimpleAdd.svg'
         alt={this.props.intl.formatMessage({ id: 'Common.Add' })}
         style={styles.addIcon}/>}
-      <Art src={`${item.iconType}.svg`} alt={iconAlt} style={styles.typeIcon} />
+      <Art src={`${iconType}.svg`} alt={iconAlt} title={iconAlt} style={{...styles.typeIcon, ...iconStyle}} />
     </Link>;
+
+    if (authRule) {
+      link = (
+        <RestrictedArea rule={authRule}>
+          {link}
+        </RestrictedArea>
+      );
+    }
+
+    return link;
   };
 
   render() {
-    const {
-      rootEntityType,
-      additionalButton
-    } = this.props;
+    const { rootEntityType } = this.props;
     const buttonsForCurrentPage = this.getButtonsForEntityType(rootEntityType);
-
 
     return (
       <span className='main-settings-holder' style={styles.mainSettingsHolder}>
         {buttonsForCurrentPage.map(this.renderButton)}
-        {additionalButton}
       </span>
     );
   }
@@ -173,29 +192,7 @@ const styles = {
     height: 24
   },
   mainSettingsHolder: {
-    display: 'flex',
-    /* Currently we have following structure
-      // header has 5px padding on the right. See headerRightPadding in allSpacesAndAllSources.js
-      <header> // row layout
-        ...
-        <WikiButton /> // has 10px right padding, which is consistent with WikiContent (see below)
-      </header>
-      <content>
-        <LeftColumn />
-        // does not have right paddings
-        <RightColumn>
-          <WikiContent />
-        </RightColumn>
-      </content>
-      So visually we have
-      [WikiButton]|10px|5px
-      [WikiContent]|10px|0
-      which looks weird in terms of alignment
-      So I have to apply -5px margin here for alignment purposes
-      NOTE: this approach will work only if HeaderButtons are only used in BrowseTable.
-      At moment when I wrote this code, that was the case.
-    */
-    marginRight: -headerRightPadding
+    display: 'flex'
   },
   button: {
     background: '#dbe8ed',

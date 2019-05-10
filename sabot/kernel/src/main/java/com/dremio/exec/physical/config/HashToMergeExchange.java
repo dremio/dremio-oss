@@ -19,46 +19,56 @@ import java.util.List;
 
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.Order.Ordering;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractExchange;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalOperatorUtil;
 import com.dremio.exec.physical.base.Receiver;
 import com.dremio.exec.physical.base.Sender;
-import com.fasterxml.jackson.annotation.JsonCreator;
+import com.dremio.exec.physical.config.HashSenderCalculator.BucketOptions;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
+import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 
-@JsonTypeName("hash-to-merge-exchange")
 public class HashToMergeExchange extends AbstractExchange {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashToMergeExchange.class);
 
   private final LogicalExpression distExpr;
   private final List<Ordering> orderExprs;
+  private final BucketOptions options;
 
-  @JsonCreator
-  public HashToMergeExchange(@JsonProperty("child") PhysicalOperator child,
-      @JsonProperty("expr") LogicalExpression expr,
-      @JsonProperty("orderings") List<Ordering> orderExprs) {
-    super(child);
-    this.distExpr = expr;
+  public HashToMergeExchange(
+      OpProps props,
+      OpProps senderProps,
+      OpProps receiverProps,
+      BucketOptions options,
+      BatchSchema schema,
+      PhysicalOperator child,
+      LogicalExpression distExpr,
+      List<Ordering> orderExprs) {
+    super(props, senderProps, receiverProps, schema, child);
+    this.distExpr = distExpr;
     this.orderExprs = orderExprs;
+    this.options = options;
   }
 
   @Override
-  public Sender getSender(int minorFragmentId, PhysicalOperator child, FunctionLookupContext context) {
-    return new HashPartitionSender(receiverMajorFragmentId, child, distExpr,
-        PhysicalOperatorUtil.getIndexOrderedEndpoints(receiverLocations), getSchema(context));
+  public Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder indexBuilder) {
+    final List<MinorFragmentIndexEndpoint> dest = PhysicalOperatorUtil.getIndexOrderedEndpoints(receiverLocations, indexBuilder);
+    return new HashPartitionSender(options.getResult(senderProps, dest.size()), schema, child, receiverMajorFragmentId, dest, distExpr);
   }
 
   @Override
-  public Receiver getReceiver(int minorFragmentId, FunctionLookupContext context) {
-    return new MergingReceiverPOP(senderMajorFragmentId, PhysicalOperatorUtil.getIndexOrderedEndpoints(senderLocations), orderExprs, true, getSchema(context));
+  public Receiver getReceiver(int minorFragmentId, EndpointsIndex.Builder indexBuilder) {
+    return new MergingReceiverPOP(receiverProps, schema, senderMajorFragmentId,
+      PhysicalOperatorUtil.getIndexOrderedEndpoints(senderLocations, indexBuilder),
+      true, orderExprs);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new HashToMergeExchange(child, distExpr, orderExprs);
+    return new HashToMergeExchange(props, senderProps, receiverProps, options, schema, child, distExpr, orderExprs);
   }
 
   @JsonProperty("orderExpr")

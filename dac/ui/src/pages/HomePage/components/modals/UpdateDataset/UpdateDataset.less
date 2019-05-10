@@ -40,15 +40,28 @@
     }
   }
 
-  .update-dataset {
+  .update-dataset-small {
     min-width: 670px;
     min-height: 200px;
+  }
+
+  .update-dataset-smallest {
+    min-width: 435px;
+    min-height: 105px;
+  }
+
+  .update-dataset {
+    display: flex;
+    flex-direction: column;
     height: 100%;
     background-color: #fff;
 
     .update-dataset-content {
       margin: 15px 15px 0 15px;
 
+      .remove-question {
+        font-size: 14px;
+      }
       .property {
 
         label {

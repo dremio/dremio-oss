@@ -34,6 +34,7 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionStatusService;
+import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.PhysicalConnection;
 import com.google.common.base.Function;
@@ -57,13 +58,16 @@ class ReflectionProtocol implements FabricProtocol {
   private final RpcConfig config;
   private final ReflectionStatusService reflectionStatusService;
   private final ReflectionService reflectionService;
+  private final MaterializationStore materializationStore;
 
   public ReflectionProtocol(BufferAllocator allocator, ReflectionStatusService reflectionStatusService,
-                            ReflectionService reflectionService, SabotConfig config) {
+                            ReflectionService reflectionService, MaterializationStore materializationStore,
+                            SabotConfig config) {
     this.allocator = allocator;
     this.config = getMapping(config);
     this.reflectionStatusService = reflectionStatusService;
     this.reflectionService = reflectionService;
+    this.materializationStore = materializationStore;
   }
 
   @Override
@@ -95,6 +99,9 @@ class ReflectionProtocol implements FabricProtocol {
 
       case ReflectionRPC.RpcType.RESP_DEPENDENCY_INFO_VALUE:
         return ReflectionRPC.DependencyInfoResp.getDefaultInstance();
+
+      case ReflectionRPC.RpcType.RESP_MATERIALIZATION_INFO_VALUE:
+        return ReflectionRPC.MaterializationInfoResp.getDefaultInstance();
 
       default:
         throw new UnsupportedOperationException();
@@ -146,6 +153,22 @@ class ReflectionProtocol implements FabricProtocol {
         sender.send(new Response(ReflectionRPC.RpcType.RESP_DEPENDENCY_INFO, response));
         break;
       }
+      case ReflectionRPC.RpcType.REQ_MATERIALIZATION_INFO_VALUE: {
+        Iterable<AccelerationListManager.MaterializationInfo> materializationInfos =
+          AccelerationMaterializationUtils.getMaterializationsFromStore(materializationStore);
+        FluentIterable<ReflectionRPC.MaterializationInfo> materializationProto = FluentIterable.from(materializationInfos)
+          .transform(new Function<AccelerationListManager.MaterializationInfo, ReflectionRPC.MaterializationInfo>() {
+            @Override
+            public ReflectionRPC.MaterializationInfo apply(AccelerationListManager.MaterializationInfo materializationInfo) {
+              return materializationInfo.toProto();
+            }
+          });
+
+        ReflectionRPC.MaterializationInfoResp response = ReflectionRPC.MaterializationInfoResp.newBuilder()
+          .addAllMaterializationInfo(materializationProto).build();
+        sender.send(new Response(ReflectionRPC.RpcType.RESP_MATERIALIZATION_INFO, response));
+        break;
+      }
       default:
         throw new RpcException("Message received that is not yet supported. Message type: " + rpcType);
     }
@@ -159,6 +182,10 @@ class ReflectionProtocol implements FabricProtocol {
         ReflectionRPC.RpcType.RESP_REFLECTION_INFO, ReflectionRPC.ReflectionInfoResp.class)
       .add(ReflectionRPC.RpcType.REQ_REFRESH_INFO, ReflectionRPC.RefreshInfoReq.class,
         ReflectionRPC.RpcType.RESP_REFRESH_INFO, ReflectionRPC.RefreshInfoResp.class)
-       .build();
+      .add(ReflectionRPC.RpcType.REQ_DEPENDENCY_INFO, ReflectionRPC.DependencyInfoReq.class,
+        ReflectionRPC.RpcType.RESP_DEPENDENCY_INFO, ReflectionRPC.DependencyInfoResp.class)
+      .add(ReflectionRPC.RpcType.REQ_MATERIALIZATION_INFO, ReflectionRPC.MaterializationInfoReq.class,
+        ReflectionRPC.RpcType.RESP_MATERIALIZATION_INFO, ReflectionRPC.MaterializationInfoResp.class)
+      .build();
   }
 }

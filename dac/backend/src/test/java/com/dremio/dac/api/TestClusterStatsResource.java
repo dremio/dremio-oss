@@ -15,12 +15,18 @@
  */
 package com.dremio.dac.api;
 
+import static com.dremio.exec.store.CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.Test;
 
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 
 
 /**
@@ -35,4 +41,30 @@ public class TestClusterStatsResource extends BaseTestServer {
     assertNotNull(stats);
     assertEquals(stats.getSources().size(), newSourceService().getSources().size());
   }
+
+  @Test
+  public void testSamplesS3() throws  Exception{
+
+    List<SourceConfig> sources = new ArrayList();
+
+    SourceConfig configS3Samples = new SourceConfig();
+    configS3Samples.setMetadataPolicy(DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE);
+    configS3Samples.setName("Samples");
+    configS3Samples.setType("S3");
+
+    SourceConfig configS3 = new SourceConfig();
+    configS3.setMetadataPolicy(DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE);
+    configS3.setName("SourceS3");
+    configS3.setType("S3");
+
+    sources.add(configS3Samples);
+    sources.add(configS3);
+
+    ClusterStatsResource.Stats result = ClusterStatsResource.getSources(sources,getSabotContext());
+
+    assertTrue("Type is incorrect", "SamplesS3".equals(result.getAllSources().get(0).getType()));
+    assertTrue("Type is incorrect", "S3".equals(result.getAllSources().get(1).getType()));
+
+  }
+
 }

@@ -76,7 +76,7 @@ export default class SearchField extends Component {
         />
         <input
           data-qa={this.props.dataQa}
-          className={classNames(['form-placeholder ' + (this.props.inputClassName || ''), searchInput])}
+          className={classNames([(this.props.inputClassName || ''), searchInput])}
           type='text'
           ref='input'
           placeholder={this.props.placeholder}

@@ -18,11 +18,11 @@ package com.dremio.exec.planner.physical;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.Join;
@@ -40,33 +40,42 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.HashJoinPOP;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.sabot.op.join.JoinUtils;
+import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.DoubleValidator;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
+import com.dremio.options.TypeValidators.RangeDoubleValidator;
 import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
 import com.google.common.collect.Lists;
 
+@Options
 public class HashJoinPrel  extends JoinPrel {
 
-  private boolean swapped = false;
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.hashjoin.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.hashjoin.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
-  public HashJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                      JoinRelType joinType) throws InvalidRelException {
-    this(cluster, traits, left, right, condition, joinType, false);
-  }
+  public static final DoubleValidator FACTOR = new RangeDoubleValidator("planner.op.hashjoin.factor", 0.0, 1000.0, 1.0d);
+  public static final BooleanValidator BOUNDED = new BooleanValidator("planner.op.hashjoin.bounded", false);
 
-  public HashJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-      JoinRelType joinType, boolean swapped) throws InvalidRelException {
+  private final boolean swapped;
+
+  private HashJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
+      JoinRelType joinType, boolean swapped) {
     super(cluster, traits, left, right, condition, joinType);
     this.swapped = swapped;
-    joincategory = JoinUtils.getJoinCategory(left, right, condition, leftKeys, rightKeys, filterNulls);
+  }
+
+  public static HashJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
+                                    JoinRelType joinType) {
+    final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
+    return new HashJoinPrel(cluster, adjustedTraits, left, right, condition, joinType, false);
   }
 
   @Override
   public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
-    try {
-      return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, this.swapped);
-    }catch (InvalidRelException e) {
-      throw new AssertionError(e);
-    }
+    return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, this.swapped);
   }
 
   @Override
@@ -74,7 +83,7 @@ public class HashJoinPrel  extends JoinPrel {
     if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       return super.computeSelfCost(planner).multiplyBy(.1);
     }
-    if (joincategory == JoinCategory.CARTESIAN || joincategory == JoinCategory.INEQUALITY) {
+    if (joinCategory == JoinCategory.CARTESIAN || joinCategory == JoinCategory.INEQUALITY) {
       return planner.getCostFactory().makeInfiniteCost();
     }
     return computeHashJoinCost(planner, mq);
@@ -82,13 +91,7 @@ public class HashJoinPrel  extends JoinPrel {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    // Depending on whether the left/right is swapped for hash inner join, pass in different
-    // combinations of parameters.
-    if (! swapped) {
-      return getHashJoinPop(creator, left, right, leftKeys, rightKeys);
-    } else {
-      return getHashJoinPop(creator, right, left, rightKeys, leftKeys);
-    }
+    return getHashJoinPop(creator);
   }
 
   @Override
@@ -101,32 +104,72 @@ public class HashJoinPrel  extends JoinPrel {
     return SelectionVectorMode.NONE;
   }
 
-  private PhysicalOperator getHashJoinPop(PhysicalPlanCreator creator, RelNode left, RelNode right,
-                                          List<Integer> leftKeys, List<Integer> rightKeys) throws IOException{
+  private PhysicalOperator getHashJoinPop(PhysicalPlanCreator creator) throws IOException {
     final List<String> fields = getRowType().getFieldNames();
     assert isUnique(fields);
 
-    final List<String> leftFields = left.getRowType().getFieldNames();
-    final List<String> rightFields = right.getRowType().getFieldNames();
+    final RelNode currentLeft;
+    final RelNode currentRight;
+    final List<Integer> currentLeftKeys;
+    List<Integer> currentRightKeys;
 
-    PhysicalOperator leftPop = ((Prel)left).getPhysicalOperator(creator);
-    PhysicalOperator rightPop = ((Prel)right).getPhysicalOperator(creator);
+    final JoinRelType jtype;
 
-    JoinRelType jtype = this.getJoinType();
+    // Swapping left and side if necessary
+    // Output is not swapped as the operator uses field names and not field indices
+    // so it is not impacted by reordering
+    if (this.swapped) {
+      currentLeft = right;
+      currentRight = left;
+      currentLeftKeys = rightKeys;
+      currentRightKeys = leftKeys;
+      jtype = this.getJoinType().swap();
+    } else {
+      currentLeft = left;
+      currentRight = right;
+      currentLeftKeys = leftKeys;
+      currentRightKeys = rightKeys;
+      jtype = this.getJoinType();
+    }
+
+    final List<String> leftFields = currentLeft.getRowType().getFieldNames();
+    final List<String> rightFields = currentRight.getRowType().getFieldNames();
+
+    final PhysicalOperator leftPop = ((Prel)currentLeft).getPhysicalOperator(creator);
+    final PhysicalOperator rightPop = ((Prel)currentRight).getPhysicalOperator(creator);
 
     final List<JoinCondition> conditions = Lists.newArrayList();
 
-    buildJoinConditions(conditions, leftFields, rightFields, leftKeys, rightKeys);
+    buildJoinConditions(conditions, leftFields, rightFields, currentLeftKeys, currentRightKeys);
 
     final boolean vectorize = creator.getContext().getOptions().getOption(ExecConstants.ENABLE_VECTORIZED_HASHJOIN)
         && canVectorize(creator.getContext().getFunctionRegistry(), leftPop, rightPop, conditions);
-    final HashJoinPOP hjoin = new HashJoinPOP(leftPop, rightPop, conditions, jtype, vectorize);
-    return creator.addMetadata(this, hjoin);
+
+    SchemaBuilder b = BatchSchema.newBuilder();
+    for (Field f : rightPop.getProps().getSchema()) {
+      b.addField(f);
+    }
+    for (Field f : leftPop.getProps().getSchema()) {
+      b.addField(f);
+    }
+    BatchSchema schema = b.build();
+
+    return new HashJoinPOP(
+        creator
+          .props(this, null, schema, RESERVE, LIMIT)
+          .cloneWithBound(creator.getOptionManager().getOption(BOUNDED))
+          .cloneWithMemoryFactor(creator.getOptionManager().getOption(FACTOR))
+          .cloneWithMemoryExpensive(true),
+        leftPop,
+        rightPop,
+        conditions,
+        joinType,
+        vectorize);
   }
 
   private boolean canVectorize(FunctionLookupContext functionLookup, PhysicalOperator leftPop, PhysicalOperator rightPop, List<JoinCondition> conditions){
-    BatchSchema left = leftPop.getSchema(functionLookup);
-    BatchSchema right = rightPop.getSchema(functionLookup);
+    BatchSchema left = leftPop.getProps().getSchema();
+    BatchSchema right = rightPop.getProps().getSchema();
 
     // we can only vectorize if the join keys are of a safe type.
     for(JoinCondition c : conditions){
@@ -170,8 +213,8 @@ public class HashJoinPrel  extends JoinPrel {
     }
   }
 
-  public void setSwapped(boolean swapped) {
-    this.swapped = swapped;
+  public HashJoinPrel swap() {
+    return new HashJoinPrel(getCluster(), traitSet, left, right, condition, joinType, !swapped);
   }
 
   public boolean isSwapped() {

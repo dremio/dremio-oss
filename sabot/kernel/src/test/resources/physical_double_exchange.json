@@ -8,7 +8,7 @@
     },
     graph:[
         {
-            @id:1,
+            id:1,
             pop:"mock-scan",
             url: "http://apache.org",
             entries:[
@@ -22,34 +22,40 @@
                   {name: "red", type: "BIGINT", mode: "REQUIRED"},
                   {name: "green", type: "INT", mode: "REQUIRED"}
                 ]}
-            ]
+            ],
+            props: {"operatorId": 1}
         },
         {
-            @id:2,
+            id:2,
             pop: "hash-to-random-exchange",
-            child: 1
+            child: 1,
+            props: {"operatorId": 2}
         },
         {
-            @id:3,
+            id:3,
             child: 2,
             pop:"filter",
             expr: "b > 5",
-            selectivity: 0.8
+            selectivity: 0.8,
+            props: {"operatorId": 3}
         },
         {
-            @id: 4,
+            id: 4,
             child: 3,
-            pop: "mock-store"
+            pop: "mock-store",
+            props: {"operatorId": 4}
         },
         {
-            @id:5,
+            id:5,
             child: 4,
-            pop: "union-exchange"
+            pop: "union-exchange",
+            props: {"operatorId": 5}
         },
         {
-            @id: 6,
+            id: 6,
             child: 5,
-            pop: "screen"
+            pop: "screen",
+            props: {"operatorId": 6}
         }
     ]
 }

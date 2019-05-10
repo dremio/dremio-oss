@@ -600,13 +600,13 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
         result = new BigDecimal( innerAccessor.getInt( rowOffset ) );
         break;
       case BIGINT:
-        result = new BigDecimal( innerAccessor.getLong( rowOffset ) );
+        result = BigDecimal.valueOf( innerAccessor.getLong( rowOffset ) );
         break;
       case FLOAT4:
-        result = new BigDecimal( innerAccessor.getFloat( rowOffset ) );
+        result = BigDecimal.valueOf( innerAccessor.getFloat( rowOffset ) );
         break;
       case FLOAT8:
-        result = new BigDecimal( innerAccessor.getDouble( rowOffset ) );
+        result = BigDecimal.valueOf( innerAccessor.getDouble( rowOffset ) );
         break;
 
       // 3. Not-yet-converted and unconvertible types:

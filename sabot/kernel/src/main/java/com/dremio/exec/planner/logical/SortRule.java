@@ -48,6 +48,6 @@ public class SortRule extends RelOptRule {
     final RelTraitSet traits = sort.getTraitSet().plus(Rel.LOGICAL);
 
     final RelNode convertedInput = convert(input, input.getTraitSet().plus(Rel.LOGICAL).simplify());
-    call.transformTo(new SortRel(sort.getCluster(), traits, convertedInput, sort.getCollation()));
+    call.transformTo(SortRel.create(sort.getCluster(), traits, convertedInput, sort.getCollation()));
   }
 }

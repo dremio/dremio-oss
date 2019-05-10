@@ -26,6 +26,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 
 import com.dremio.common.Version;
+import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
@@ -56,11 +57,12 @@ import com.google.common.collect.ImmutableList;
  * Upgrade task to migrate old reflection measures to the new ones
  */
 public class MigrateAccelerationMeasures extends UpgradeTask implements LegacyUpgradeTask {
+
   //DO NOT MODIFY
   static final String taskUUID = "2153deff-8117-4edd-bf36-876fb2c61bb5";
 
   public MigrateAccelerationMeasures() {
-    super("Migrate acceleration measures types", ImmutableList.of(UpdateS3CredentialType.taskUUID));
+    super("Migrate acceleration measures types", ImmutableList.of(UpdateDatasetSplitIdTask.taskUUID));
   }
 
   @Override
@@ -75,7 +77,7 @@ public class MigrateAccelerationMeasures extends UpgradeTask implements LegacyUp
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    System.out.println("  Checking if min/max measures were enabled...");
+    AdminLogger.log("  Checking if min/max measures were enabled...");
     try (final KVPersistentStoreProvider kvPersistentStoreProvider = new KVPersistentStoreProvider(
         DirectProvider.wrap(context.getKVStoreProvider()))) {
       final PersistentStore<OptionValue> options = kvPersistentStoreProvider.getOrCreateStore(
@@ -86,10 +88,10 @@ public class MigrateAccelerationMeasures extends UpgradeTask implements LegacyUp
       final OptionValue optionValue = options.get("accelerator.enable_min_max");
 
       if (optionValue == null || optionValue.getBoolVal()) {
-        System.out.println("  Min/max measures were enabled, migrating aggregate reflections...");
+        AdminLogger.log("  Min/max measures were enabled, migrating aggregate reflections...");
         migrateGoals(context);
       } else {
-        System.out.println("  Min/max measures were disabled, skipping");
+        AdminLogger.log("  Min/max measures were disabled, skipping");
       }
     }
   }
@@ -105,7 +107,7 @@ public class MigrateAccelerationMeasures extends UpgradeTask implements LegacyUp
       try {
         migrateGoal(namespaceService, reflectionGoalsStore, reflectionEntriesStore, materializationStore, reflectionGoal);
       } catch (Exception e) {
-        System.out.println(String.format("    failed migrating reflection [%s] for dataset [%s]: %s", reflectionGoal.getId(), reflectionGoal.getDatasetId(), e));
+        AdminLogger.log("    failed migrating reflection {} for dataset {}: {}", reflectionGoal.getId(), reflectionGoal.getDatasetId(), e.getMessage());
       }
     }
   }
@@ -122,15 +124,14 @@ public class MigrateAccelerationMeasures extends UpgradeTask implements LegacyUp
 
     DatasetConfig datasetConfig = namespaceService.findDatasetByUUID(reflectionGoal.getDatasetId());
     if (datasetConfig == null) {
-      System.out.println(String.format("    skipping reflection [%s] for dataset [%s] because dataset could not be found", reflectionGoal.getName(), reflectionGoal.getDatasetId()));
+      AdminLogger.log("    skipping reflection {} for dataset {} because dataset could not be found", reflectionGoal.getName(), reflectionGoal.getDatasetId());
       return;
     }
 
     final List<Field> datasetFields = DatasetsUtil.getArrowFieldsFromDatasetConfig(datasetConfig);
     final List<ReflectionMeasureField> newMeasureFieldList = new ArrayList<>();
 
-    System.out.println(String.format("    migrating %s measures for reflection [%s] on dataset [%s]", measureFieldList.size(), reflectionGoal.getName(), reflectionGoal.getDatasetId()));
-
+    AdminLogger.log("    migrating %s measures for reflection {} on dataset {}", measureFieldList.size(), reflectionGoal.getName(), reflectionGoal.getDatasetId());
     // for each measure field we add the default measure type given the field type
     for (ReflectionMeasureField measureField : measureFieldList) {
       ReflectionMeasureField newMeasureField = new ReflectionMeasureField();
@@ -139,7 +140,7 @@ public class MigrateAccelerationMeasures extends UpgradeTask implements LegacyUp
       if (datasetFields == null) {
         // If we can't load the schema, add the default NUMERIC measures.  The system will handle for us invalid measure
         // types so this is safe.
-        System.out.println(String.format("      no schema found for dataset [%s], adding default measure types to reflection [%s]", reflectionGoal.getDatasetId(), reflectionGoal.getName()));
+        AdminLogger.log("      no schema found for dataset {}, adding default measure types to reflection {}", reflectionGoal.getDatasetId(), reflectionGoal.getName());
         newMeasureField.setMeasureTypeList(getDefaultsForNumeric());
         newMeasureFieldList.add(newMeasureField);
       } else {
@@ -148,7 +149,7 @@ public class MigrateAccelerationMeasures extends UpgradeTask implements LegacyUp
         final RelDataTypeField field = relDataType.getField(measureField.getName(), false, false);
 
         if (field == null) {
-          System.out.println(String.format("      could not find field [%s] for reflection [%s] on dataset [%s], adding default measure types", measureField.getName(), reflectionGoal.getName(), reflectionGoal.getDatasetId()));
+          AdminLogger.log("      could not find field %s for reflection {} on dataset {}, adding default measure types", measureField.getName(), reflectionGoal.getName(), reflectionGoal.getDatasetId());
           newMeasureField.setMeasureTypeList(getDefaultsForNumeric());
           newMeasureFieldList.add(newMeasureField);
         }

@@ -14,15 +14,12 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
-import Immutable from 'immutable';
 
 import SpaceForm from 'pages/HomePage/components/forms/SpaceForm';
 
 import {SpaceModal} from './SpaceModal';
 
 describe('SpaceModal', () => {
-
-  const entity = Immutable.Map({name: 'bar', description: 'd'});
   let commonProps;
   beforeEach(() => {
     commonProps = {
@@ -42,16 +39,16 @@ describe('SpaceModal', () => {
   });
 
   it('renders <SpaceForm> with initialValues when entity exists', () => {
-    const wrapper = shallow(<SpaceModal {...commonProps} entity={entity}/>);
+    const wrapper = shallow(<SpaceModal {...commonProps} entityId='test' spaceName='a test space'/>);
     const formProps = wrapper.find(SpaceForm).props();
-    expect(formProps.initialValues.name).to.equal(entity.get('name'));
+    expect(formProps.initialValues.name).to.equal('a test space');
     expect(formProps.initialValues.description).to.be.empty; // we removed a description
     expect(formProps.editing).to.be.true;
   });
 
   describe('#submit', () => {
-    it('should call mutateFormValues and updateSpace if entity', () => {
-      const instance = shallow(<SpaceModal {...commonProps} entity={entity}/>).instance();
+    it('should call mutateFormValues and updateSpace if entityId is not empty', () => {
+      const instance = shallow(<SpaceModal {...commonProps} entityId='test' />).instance();
       instance.submit({name: 'foo'});
       expect(commonProps.updateSpace).to.be.calledOnce;
       expect(commonProps.createNewSpace).to.not.be.called;

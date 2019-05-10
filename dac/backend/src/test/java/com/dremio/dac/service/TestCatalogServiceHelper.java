@@ -622,6 +622,12 @@ public class TestCatalogServiceHelper {
     when(catalog.getTable(any(String.class))).thenReturn(dremioTable);
 
     catalogServiceHelper.updateCatalogItem(dataset, dataset.getId());
+    verify(catalog, times(1)).createOrUpdateDataset(
+      eq(namespaceService),
+      eq(new NamespaceKey("source")),
+      eq(new NamespaceKey(dataset.getPath())),
+      any(DatasetConfig.class)
+    );
   }
 
   @Test

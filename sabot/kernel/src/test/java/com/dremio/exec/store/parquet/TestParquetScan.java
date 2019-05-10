@@ -23,6 +23,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.PlanTestBase;
 import com.google.common.io.Resources;
 
 public class TestParquetScan extends BaseTestQuery {
@@ -105,12 +106,18 @@ public class TestParquetScan extends BaseTestQuery {
           .build()
           .run();
 
+      // TODO(DX-15645): remove this sleep
+      Thread.sleep(1000L); // fs modification times have second precision so read signature might be valid
+
       // delete every alternate file.
       for (int i = 0; i < 10; ++i) {
         if (i % 2 == 0) {
           fs.delete(new Path(dir, i + "nation.parquet"), false);
         }
       }
+
+      // TODO(DX-15645): remove this sleep
+      Thread.sleep(1000L); // fs modification times have second precision so read signature might be valid
 
       // re-run the query. Should trigger a metadata refresh and succeed.
       testBuilder()
@@ -162,12 +169,18 @@ public class TestParquetScan extends BaseTestQuery {
         .build()
         .run();
 
+      // TODO(DX-15645): remove this sleep
+      Thread.sleep(1000L); // fs modification times have second precision so read signature might be valid
+
       // delete every third subdir.
       for (int i = 0; i < 9; ++i) {
         if (i % 3 == 0) {
           fs.delete(new Path(dir, "subdir" + i), true);
         }
       }
+
+      // TODO(DX-15645): remove this sleep
+      Thread.sleep(1000L); // fs modification times have second precision so read signature might be valid
 
       // re-run the query. Should trigger a metadata refresh and succeed.
       testBuilder()
@@ -184,5 +197,26 @@ public class TestParquetScan extends BaseTestQuery {
     } finally {
       setEnableReAttempts(false);
     }
+  }
+
+  @Test
+  public void testDX15475() throws Exception {
+    final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/datapage_v2.snappy.parquet\"";
+
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("cnt")
+      .baselineValues(5L)
+      .build()
+      .run();
+  }
+
+  @Test
+  public void testEmptyParquetFile() throws Exception {
+    final String sql = "select * from dfs.\"${WORKING_PATH}/src/test/resources/zero-rows.parquet\"";
+
+    PlanTestBase.testPhysicalPlan(sql, "Empty");
+    PlanTestBase.testPlanMatchingPatterns(sql, new String[]{"Empty"}, "ParquetGroupScan");
   }
 }

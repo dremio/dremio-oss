@@ -36,12 +36,10 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 public abstract class Setting {
 
   private final String id;
-  private final boolean showOutsideWhitelist;
 
-  public Setting(String id, boolean showOutsideWhitelist) {
+  public Setting(String id) {
     super();
     this.id = id;
-    this.showOutsideWhitelist = showOutsideWhitelist;
   }
 
   public String getId() {
@@ -49,10 +47,6 @@ public abstract class Setting {
   }
 
   public abstract Object getValue();
-
-  public boolean isShowOutsideWhitelist() {
-    return showOutsideWhitelist;
-  }
 
   /**
    * Setting with long value.
@@ -65,10 +59,9 @@ public abstract class Setting {
     @JsonCreator
     public IntegerSetting(
         @JsonProperty("id") String id,
-        @JsonProperty("value") long value,
-        @JsonProperty("showOutsideWhitelist") boolean showOutsideWhitelist
+        @JsonProperty("value") long value
         ) {
-      super(id, showOutsideWhitelist);
+      super(id);
       this.value = value;
     }
 
@@ -88,10 +81,9 @@ public abstract class Setting {
     @JsonCreator
     public FloatSetting(
         @JsonProperty("id") String id,
-        @JsonProperty("value") double value,
-        @JsonProperty("showOutsideWhitelist") boolean showOutsideWhitelist
+        @JsonProperty("value") double value
         ) {
-      super(id, showOutsideWhitelist);
+      super(id);
       this.value = value;
     }
 
@@ -111,10 +103,9 @@ public abstract class Setting {
     @JsonCreator
     public BooleanSetting(
         @JsonProperty("id") String id,
-        @JsonProperty("value") boolean value,
-        @JsonProperty("showOutsideWhitelist") boolean showOutsideWhitelist
+        @JsonProperty("value") boolean value
         ) {
-      super(id, showOutsideWhitelist);
+      super(id);
       this.value = value;
     }
 
@@ -134,10 +125,9 @@ public abstract class Setting {
     @JsonCreator
     public TextSetting(
         @JsonProperty("id") String id,
-        @JsonProperty("value") String value,
-        @JsonProperty("showOutsideWhitelist") boolean showOutsideWhitelist
+        @JsonProperty("value") String value
         ) {
-      super(id, showOutsideWhitelist);
+      super(id);
       this.value = value;
     }
 

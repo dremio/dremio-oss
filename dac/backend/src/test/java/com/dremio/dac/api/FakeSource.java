@@ -16,11 +16,19 @@
 package com.dremio.dac.api;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import javax.inject.Provider;
 
+import com.dremio.connector.ConnectorException;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetDatasetOption;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
+import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AuthenticationType;
 import com.dremio.exec.catalog.conf.ConnectionConf;
@@ -32,17 +40,14 @@ import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
-import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
-import io.protostuff.ByteString;
 import io.protostuff.Tag;
 
 /**
@@ -106,26 +111,6 @@ public class FakeSource extends ConnectionConf<FakeSource, StoragePlugin> {
     }
 
     @Override
-    public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions retrievalOptions) throws Exception {
-      return Collections.emptyList();
-    }
-
-    @Override
-    public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, DatasetRetrievalOptions retrievalOptions) throws Exception {
-      return null;
-    }
-
-    @Override
-    public boolean containerExists(NamespaceKey key) {
-      return false;
-    }
-
-    @Override
-    public boolean datasetExists(NamespaceKey key) {
-      return false;
-    }
-
-    @Override
     public boolean hasAccessPermission(String user, NamespaceKey key, DatasetConfig datasetConfig) {
       return false;
     }
@@ -151,11 +136,6 @@ public class FakeSource extends ConnectionConf<FakeSource, StoragePlugin> {
     }
 
     @Override
-    public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig, DatasetRetrievalOptions retrievalOptions) throws Exception {
-      return null;
-    }
-
-    @Override
     public void start() throws IOException {
       // password has to equal name
       if (!this.fakeSource.password.equals(this.name)) {
@@ -164,8 +144,32 @@ public class FakeSource extends ConnectionConf<FakeSource, StoragePlugin> {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
+    }
 
+    @Override
+    public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
+      return Optional.empty();
+    }
+
+    @Override
+    public DatasetMetadata getDatasetMetadata(
+        DatasetHandle datasetHandle,
+        PartitionChunkListing chunkListing,
+        GetMetadataOption... options
+    ) throws ConnectorException {
+      throw new ConnectorException("Invalid handle.");
+    }
+
+    @Override
+    public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options)
+        throws ConnectorException {
+      throw new ConnectorException("Invalid handle.");
+    }
+
+    @Override
+    public boolean containerExists(EntityPath containerPath) {
+      return false;
     }
   }
 

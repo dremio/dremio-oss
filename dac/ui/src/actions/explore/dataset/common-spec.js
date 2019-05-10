@@ -18,7 +18,8 @@ import { push } from 'react-router-redux';
 import * as Actions from './common';
 
 const datasetVersion = '123';
-const datasetLink = `/dataset/foo?version=${datasetVersion}`;
+const pathname = '/@home/dataset/foo';
+const nextDatasetLink = '/@home/dataset2/aNewDataset'; //should differs from pathname
 
 const responsePayload = Immutable.fromJS({
   entities: {
@@ -31,7 +32,7 @@ const responsePayload = Immutable.fromJS({
       [datasetVersion]: {
         datasetVersion,
         links: {
-          self: datasetLink
+          self: `${nextDatasetLink}?version=${datasetVersion}`
         }
       }
     }
@@ -49,7 +50,7 @@ describe('common', () => {
       location = {
         query: {tipVersion: 'tip123'},
         state: {},
-        pathname: ''
+        pathname // should not be changed, unless changePathname or 'isSaveAs' is provided
       };
       getStore = () => ({
         routing: {locationBeforeTransitions: location}
@@ -59,7 +60,7 @@ describe('common', () => {
     it('should return push action', () => {
       const result = Actions.navigateToNextDataset({payload: responsePayload})(obj => obj, getStore);
       expect(result).to.eql(push({
-        pathname: datasetLink.split('?')[0],
+        pathname,
         query: {
           version: datasetVersion,
           tipVersion: '123'
@@ -69,15 +70,35 @@ describe('common', () => {
     });
 
     it('should return push action with pathname to graph', () => {
+      const pathWithGraph = `${pathname}/graph`;
       const getStoreLocal = () => ({
         routing: {locationBeforeTransitions: {
           state: {},
-          pathname: 'foo/graph'
+          pathname: pathWithGraph
         }}
       });
       const result = Actions.navigateToNextDataset({payload: responsePayload})(obj => obj, getStoreLocal);
       expect(result).to.eql(push({
-        pathname: '/dataset/foo/graph',
+        pathname: pathWithGraph,
+        query: {
+          version: datasetVersion,
+          tipVersion: '123'
+        },
+        state: {}
+      }));
+    });
+
+    it('should return push action with pathname to wiki', () => {
+      const pathWithWiki = `${pathname}/wiki`;
+      const getStoreLocal = () => ({
+        routing: {locationBeforeTransitions: {
+          state: {},
+          pathname: pathWithWiki
+        }}
+      });
+      const result = Actions.navigateToNextDataset({payload: responsePayload})(obj => obj, getStoreLocal);
+      expect(result).to.eql(push({
+        pathname: pathWithWiki,
         query: {
           version: datasetVersion,
           tipVersion: '123'
@@ -93,7 +114,7 @@ describe('common', () => {
         ['entities', 'fullDataset', datasetVersion, 'jobId'], Immutable.Map({id: jobId}));
       const result = Actions.navigateToNextDataset({payload})(obj => obj, getStore);
       expect(result).to.eql(push({
-        pathname: datasetLink.split('?')[0],
+        pathname,
         query: {
           jobId,
           version: datasetVersion,
@@ -133,24 +154,40 @@ describe('common', () => {
         const result = Actions.navigateToNextDataset({
           payload: responsePayload}, {isSaveAs: true})(obj => obj, getStore);
         expect(result).to.eql(push({
-          pathname: datasetLink.split('?')[0],
+          pathname: nextDatasetLink, // for 'save as' we should take a path from response
           query: {
             version: datasetVersion,
             mode: 'edit',
             tipVersion: '123'
           },
-          state: {}
+          state: {
+            afterDatasetSave: true
+          }
         }));
       });
     });
 
+
+    it('should take pathname from a response if changePathname = true', () => {
+      const result = Actions.navigateToNextDataset({
+        payload: responsePayload}, {changePathname: true})(obj => obj, getStore);
+      expect(result).to.eql(push({
+        pathname: nextDatasetLink, // should take a path from response
+        query: {
+          version: datasetVersion,
+          tipVersion: '123'
+        },
+        state: {}
+      }));
+    });
+
     describe('preserveTip param', () => {
       it('should preserve tipVersion from location', () => {
-        location.query = {tipVersion: 'abcde'};
+        location.query = { tipVersion: 'abcde' };
         const result = Actions.navigateToNextDataset({
           payload: responsePayload}, {preserveTip: true})(obj => obj, getStore);
         expect(result).to.eql(push({
-          pathname: datasetLink.split('?')[0],
+          pathname,
           query: {
             version: datasetVersion,
             tipVersion: 'abcde'

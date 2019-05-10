@@ -52,6 +52,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
+import com.google.common.util.concurrent.Futures;
 
 /**
  * Analyzes acceleration and generates statistics.
@@ -148,16 +149,20 @@ public class ReflectionAnalyzer {
 
     final SqlQuery query = new SqlQuery(sql, SYSTEM_USERNAME);
 
-    final Job job = jobsService.submitJob(JobRequest.newBuilder()
-      .setSqlQuery(query)
-      .setQueryType(QueryType.UI_INTERNAL_PREVIEW)
-      .setDatasetPath(NONE_PATH)
-      .build(), new NoOpJobStatusListener() {
-      @Override
-      public void jobFailed(final Exception e) {
-        logger.warn("query analysis failed for {}", query, e);
-      }
-    });
+    final Job job = Futures.getUnchecked(
+      jobsService.submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(query)
+          .setQueryType(QueryType.UI_INTERNAL_PREVIEW)
+          .setDatasetPath(NONE_PATH)
+          .build(),
+        new NoOpJobStatusListener() {
+          @Override
+          public void jobFailed(final Exception e) {
+            logger.warn("query analysis failed for {}", query, e);
+          }
+        })
+    );
 
     // trunc blocks until job completion
     final JobDataFragment data = job.getData().truncate(1);

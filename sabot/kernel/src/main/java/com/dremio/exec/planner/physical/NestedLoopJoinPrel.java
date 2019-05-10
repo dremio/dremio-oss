@@ -18,41 +18,53 @@ package com.dremio.exec.planner.physical;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.NestedLoopJoinPOP;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.google.common.collect.Lists;
 
+@Options
 public class NestedLoopJoinPrel  extends JoinPrel {
 
-  public NestedLoopJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                      JoinRelType joinType) throws InvalidRelException {
-    super(cluster, traits, left, right, condition, joinType);
-    RelOptUtil.splitJoinCondition(left, right, condition, leftKeys, rightKeys, filterNulls);
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.nlj.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.nlj.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+
+
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NestedLoopJoinPrel.class);
+  private NestedLoopJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right,
+                      JoinRelType joinType) {
+    super(cluster, traits, left, right, cluster.getRexBuilder().makeLiteral(true), joinType);
+  }
+
+  public static NestedLoopJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right,
+      JoinRelType joinType) {
+    final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
+    return new NestedLoopJoinPrel(cluster, adjustedTraits, left, right, joinType);
   }
 
   @Override
   public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
-    try {
-      return new NestedLoopJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType);
-    }catch (InvalidRelException e) {
-      throw new AssertionError(e);
-    }
+    return new NestedLoopJoinPrel(this.getCluster(), traitSet, left, right, joinType);
   }
 
   @Override
@@ -84,14 +96,25 @@ public class NestedLoopJoinPrel  extends JoinPrel {
     PhysicalOperator leftPop = ((Prel)left).getPhysicalOperator(creator);
     PhysicalOperator rightPop = ((Prel)right).getPhysicalOperator(creator);
 
-    JoinRelType jtype = this.getJoinType();
-
     List<JoinCondition> conditions = Lists.newArrayList();
 
     buildJoinConditions(conditions, leftFields, rightFields, leftKeys, rightKeys);
+    if(!conditions.isEmpty()) {
+      UserException.unsupportedError().message("NLJ doesn't support conditions yet. Conditions found %s.", conditions).build(logger);
+    }
 
-    NestedLoopJoinPOP nljoin = new NestedLoopJoinPOP(leftPop, rightPop, conditions, jtype);
-    return creator.addMetadata(this, nljoin);
+    SchemaBuilder b = BatchSchema.newBuilder();
+    for (Field f : rightPop.getProps().getSchema()) {
+      b.addField(f);
+    }
+    for (Field f : leftPop.getProps().getSchema()) {
+      b.addField(f);
+    }
+    BatchSchema schema = b.build();
+    return new NestedLoopJoinPOP(
+        creator.props(this, null, schema, RESERVE, LIMIT),
+        leftPop,
+        rightPop);
   }
 
   @Override

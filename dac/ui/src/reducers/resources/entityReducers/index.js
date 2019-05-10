@@ -17,7 +17,6 @@ export folder from './folder';
 export table from './table';
 export explore from './explore';
 export tree from './tree';
-export dataset from './dataset';
 export historyItem from './historyItem';
 export provision from './provision';
 export lru from './lru';

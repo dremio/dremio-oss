@@ -45,6 +45,7 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.PhysicalPlanReader;
+import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.observer.AttemptObserver;
@@ -53,7 +54,6 @@ import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
-import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
@@ -159,17 +159,15 @@ public class ResourceAllocationsTest extends BaseTestQuery {
     final BasicResourceAllocator resourceAllocator = new BasicResourceAllocator(DirectProvider.wrap(clusterCoordinator));
     resourceAllocator.start();
 
-    final AsyncCommand asyncCommand = new AsyncCommand(queryContext, resourceAllocator, observer) {
-
-
+    final AsyncCommand asyncCommand = new AsyncCommand(queryContext, resourceAllocator, observer, null, null) {
       @Override
-      public double plan() throws Exception {
-        return 0;
+      protected PhysicalPlan getPhysicalPlan() {
+        return null;
       }
 
       @Override
-      public Object execute() throws Exception {
-        return null;
+      public double plan() {
+        return 0;
       }
 
       @Override
@@ -182,10 +180,10 @@ public class ResourceAllocationsTest extends BaseTestQuery {
 
     final ExecutionPlan exec = ExecutionPlanCreator.getExecutionPlan(queryContext, pPlanReader, observer, plan,
       asyncCommand.getResources(), planningSet);
-    List<CoordExecRPC.PlanFragment> fragments  = exec.getFragments();
+    List<PlanFragmentFull> fragments  = exec.getFragments();
 
     logger.info("Fragments size: " + fragments.size());
-    for (CoordExecRPC.PlanFragment fragment : fragments) {
+    for (PlanFragmentFull fragment : fragments) {
       logger.info(fragment.getHandle().getMajorFragmentId() + " : " +fragment.getHandle().getMinorFragmentId()
       + " : " + fragment.getAssignment().getUserPort() + ", "
       + fragment.getAssignment().getFabricPort());
@@ -239,7 +237,7 @@ public class ResourceAllocationsTest extends BaseTestQuery {
     logger.info("After reparallelization");
     logger.info("Fragments size: " + fragments.size());
 
-    for (CoordExecRPC.PlanFragment fragment : fragments) {
+    for (PlanFragmentFull fragment : fragments) {
       logger.info(fragment.getHandle().getMajorFragmentId() + " : " +fragment.getHandle().getMinorFragmentId()
         + " : " + fragment.getAssignment().getUserPort() + ", "
         + fragment.getAssignment().getFabricPort());
@@ -295,7 +293,7 @@ public class ResourceAllocationsTest extends BaseTestQuery {
     logger.info("After reparallelization");
     logger.info("Fragments size: " + fragments.size());
 
-    for (CoordExecRPC.PlanFragment fragment : fragments) {
+    for (PlanFragmentFull fragment : fragments) {
       logger.info(fragment.getHandle().getMajorFragmentId() + " : " +fragment.getHandle().getMinorFragmentId()
         + " : " + fragment.getAssignment().getUserPort() + ", "
         + fragment.getAssignment().getFabricPort());

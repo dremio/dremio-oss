@@ -29,14 +29,15 @@ import com.dremio.exec.physical.base.Root;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.planner.fragment.MakeFragmentsVisitor;
+import com.dremio.exec.planner.fragment.PlanFragmentFull;
+import com.dremio.exec.planner.fragment.PlanFragmentsIndex;
 import com.dremio.exec.planner.fragment.PlanningSet;
-import com.dremio.exec.planner.fragment.SharedDataVisitor;
 import com.dremio.exec.planner.fragment.SimpleParallelizer;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.CoordExecRPC;
-import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
+import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
+import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMinor;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.util.MemoryAllocationUtilities;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.options.OptionList;
@@ -131,15 +132,19 @@ class ExecutionPlanCreator {
     // pass all query, session and non-default system options to the fragments
     final OptionList fragmentOptions = queryContext.getNonDefaultOptions();
 
-    final List<PlanFragment> planFragments = parallelizer.getFragments(
+    // index repetitive items to reduce rpc size.
+    final PlanFragmentsIndex.Builder indexBuilder = new PlanFragmentsIndex.Builder();
+
+    final List<PlanFragmentFull> planFragments = parallelizer.getFragments(
       fragmentOptions,
       planningSet,
       reader,
-      rootOperatorFragment);
+      rootOperatorFragment,
+      indexBuilder);
 
     traceFragments(queryContext, planFragments);
 
-    return new ExecutionPlan(plan, planFragments, SharedDataVisitor.collect(rootOperator));
+    return new ExecutionPlan(plan, planFragments, indexBuilder);
   }
 
   /**
@@ -186,44 +191,52 @@ class ExecutionPlanCreator {
         .setQueryMaxAllocation(Math.min(memoryLimit, queryMaxAllocation)).build();
     }
 
-    final List<PlanFragment> planFragments = parallelizer.getFragments(
+    // index repetitive items to reduce rpc size.
+    final PlanFragmentsIndex.Builder indexBuilder = new PlanFragmentsIndex.Builder();
+
+    final List<PlanFragmentFull> planFragments = parallelizer.getFragments(
         fragmentOptions,
         queryContext.getCurrentEndpoint(),
         queryContext.getQueryId(),
         endpoints,
         reader,
         rootOperatorFragment,
+        indexBuilder,
         queryContext.getSession(),
         queryContextInformation,
         queryContext.getFunctionRegistry());
 
     traceFragments(queryContext, planFragments);
 
-    return new ExecutionPlan(plan, planFragments, SharedDataVisitor.collect(rootOperator));
+    return new ExecutionPlan(plan, planFragments, indexBuilder);
   }
 
-  private static void traceFragments(QueryContext queryContext, List<PlanFragment> planFragments) {
+  private static void traceFragments(QueryContext queryContext, List<PlanFragmentFull> fullPlanFragments) {
     if (logger.isTraceEnabled()) {
       final StringBuilder sb = new StringBuilder();
       sb.append("PlanFragments for query ");
       sb.append(queryContext.getQueryId());
       sb.append('\n');
 
-      final int fragmentCount = planFragments.size();
+      final int fragmentCount = fullPlanFragments.size();
       int fragmentIndex = 0;
-      for (final PlanFragment planFragment : planFragments) {
-        final FragmentHandle fragmentHandle = planFragment.getHandle();
+      for (final PlanFragmentFull full : fullPlanFragments) {
+        final PlanFragmentMajor major = full.getMajor();
+        final PlanFragmentMinor minor = full.getMinor();
+
         sb.append("PlanFragment(");
         sb.append(++fragmentIndex);
         sb.append('/');
         sb.append(fragmentCount);
         sb.append(") major_fragment_id ");
-        sb.append(fragmentHandle.getMajorFragmentId());
+        sb.append(minor.getMajorFragmentId());
         sb.append(" minor_fragment_id ");
-        sb.append(fragmentHandle.getMinorFragmentId());
+        sb.append(minor.getMinorFragmentId());
+        sb.append(" memMax ");
+        sb.append(minor.getMemMax());
         sb.append('\n');
 
-        final NodeEndpoint endpointAssignment = planFragment.getAssignment();
+        final NodeEndpoint endpointAssignment = minor.getAssignment();
         sb.append("  NodeEndpoint address ");
         sb.append(endpointAssignment.getAddress());
         sb.append('\n');
@@ -231,7 +244,7 @@ class ExecutionPlanCreator {
         String jsonString = "<<malformed JSON>>";
         sb.append("  fragment_json: ");
         final ObjectMapper objectMapper = new ObjectMapper();
-        try (InputStream is = PhysicalPlanReader.toInputStream(planFragment.getFragmentJson(), planFragment.getFragmentCodec())) {
+        try (InputStream is = PhysicalPlanReader.toInputStream(major.getFragmentJson(), major.getFragmentCodec())) {
 
           final Object json = objectMapper.readValue(is, Object.class);
           jsonString = objectMapper.writeValueAsString(json);

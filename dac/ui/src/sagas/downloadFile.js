@@ -25,9 +25,7 @@ import FileUtils from 'utils/FileUtils';
 const DOWNLOAD_FILE = 'DOWNLOAD_FILE';
 
 export default function* download() {
-  yield [
-    takeEvery(DOWNLOAD_FILE, handleDownloadFile)
-  ];
+  yield takeEvery(DOWNLOAD_FILE, handleDownloadFile);
 }
 
 export function* handleDownloadFile(action) {

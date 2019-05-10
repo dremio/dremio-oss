@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.planner.fragment.ParallelizationInfo;
@@ -32,14 +31,21 @@ import com.google.common.collect.Maps;
 public abstract class AbstractExchange extends AbstractSingle implements Exchange {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractExchange.class);
 
+  protected final OpProps senderProps;
+  protected final OpProps receiverProps;
+  protected final BatchSchema schema;
+
   // Ephemeral info for generating execution fragments.
   protected int senderMajorFragmentId;
   protected int receiverMajorFragmentId;
   protected List<NodeEndpoint> senderLocations;
   protected List<NodeEndpoint> receiverLocations;
 
-  public AbstractExchange(PhysicalOperator child) {
-    super(child);
+  public AbstractExchange(OpProps props, OpProps senderProps, OpProps receiverProps, BatchSchema schema, PhysicalOperator child) {
+    super(props, child);
+    this.senderProps = senderProps;
+    this.receiverProps = receiverProps;
+    this.schema = schema;
   }
 
   /**
@@ -101,7 +107,6 @@ public abstract class AbstractExchange extends AbstractSingle implements Exchang
     setupSenders(senderLocations);
   }
 
-
   @Override
   public final void setupReceivers(int majorFragmentId, List<NodeEndpoint> receiverLocations) throws PhysicalOperatorSetupException {
     this.receiverMajorFragmentId = majorFragmentId;
@@ -123,13 +128,4 @@ public abstract class AbstractExchange extends AbstractSingle implements Exchang
     return ParallelizationDependency.RECEIVER_DEPENDS_ON_SENDER;
   }
 
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext functionLookupContext) {
-    BatchSchema schema = child.getSchema(functionLookupContext);
-    if(schema == null){
-      throw new UnsupportedOperationException();
-    }
-
-    return schema;
-  }
 }

@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>3.1.11-201904261857420193-c674472</version>
+    <version>3.2.0-201905102005330382-0598733</version>
   </parent>
 
   <artifactId>dremio-jdbc-driver</artifactId>
@@ -264,8 +264,8 @@
           <groupId>org.ow2.asm</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>dremio-services-namespace</artifactId>
-          <groupId>com.dremio.services</groupId>
+          <artifactId>dremio-connector</artifactId>
+          <groupId>com.dremio</groupId>
         </exclusion>
         <exclusion>
           <artifactId>dremio-services-namespace</artifactId>
@@ -344,7 +344,7 @@
       <exclusions>
         <exclusion>
           <artifactId>dremio-hive-plugin</artifactId>
-          <groupId>com.dremio.plugin</groupId>
+          <groupId>com.dremio.plugins</groupId>
         </exclusion>
         <exclusion>
           <artifactId>foodmart-data-json</artifactId>
@@ -490,27 +490,28 @@
             -XX:MaxDirectMemorySize=3072M
             -XX:+CMSClassUnloadingEnabled -ea</argLine>
           <additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/junit/junit/${junit.version}/junit-${junit.version}.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/org/slf4j/slf4j-api/${slf4j.version}/slf4j-api-${slf4j.version}.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/ch/qos/logback/logback-classic/${logback.version}/logback-classic-${logback.version}.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/ch/qos/logback/logback-core/${logback.version}/logback-core-${logback.version}.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.logback.appender.multiplex-classic/${lilith.version}/de.huxhorn.lilith.logback.appender.multiplex-classic-${lilith.version}.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/de/huxhorn/sulky/de.huxhorn.sulky.codec/0.9.17/de.huxhorn.sulky.codec-0.9.17.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/de/huxhorn/sulky/de.huxhorn.sulky.io/0.9.17/de.huxhorn.sulky.io-0.9.17.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.logback.converter-classic/${lilith.version}/de.huxhorn.lilith.logback.converter-classic-${lilith.version}.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.data.converter/${lilith.version}/de.huxhorn.lilith.data.converter-${lilith.version}.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.logback.classic/${lilith.version}/de.huxhorn.lilith.logback.classic-${lilith.version}.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.data.logging/${lilith.version}/de.huxhorn.lilith.data.logging-${lilith.version}.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/de/huxhorn/sulky/de.huxhorn.sulky.formatting/0.9.17/de.huxhorn.sulky.formatting-0.9.17.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.data.eventsource/${lilith.version}/de.huxhorn.lilith.data.eventsource-${lilith.version}.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.logback.appender.multiplex-core/${lilith.version}/de.huxhorn.lilith.logback.appender.multiplex-core-${lilith.version}.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.sender/${lilith.version}/de.huxhorn.lilith.sender-${lilith.version}.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.data.logging.protobuf/${lilith.version}/de.huxhorn.lilith.data.logging.protobuf-${lilith.version}.jar</additionalClasspathElements>
-            <additionalClasspathElements>${settings.localRepository}/com/google/protobuf/protobuf-java/${protobuf.version}/protobuf-java-${protobuf.version}.jar</additionalClasspathElements>
+            <additionalClasspathElement>${settings.localRepository}/com/dremio/dremio-connector/${project.version}/dremio-connector-${project.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/junit/junit/${junit.version}/junit-${junit.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/org/slf4j/slf4j-api/${slf4j.version}/slf4j-api-${slf4j.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/ch/qos/logback/logback-classic/${logback.version}/logback-classic-${logback.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/ch/qos/logback/logback-core/${logback.version}/logback-core-${logback.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.logback.appender.multiplex-classic/${lilith.version}/de.huxhorn.lilith.logback.appender.multiplex-classic-${lilith.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/de/huxhorn/sulky/de.huxhorn.sulky.codec/0.9.17/de.huxhorn.sulky.codec-0.9.17.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/de/huxhorn/sulky/de.huxhorn.sulky.io/0.9.17/de.huxhorn.sulky.io-0.9.17.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.logback.converter-classic/${lilith.version}/de.huxhorn.lilith.logback.converter-classic-${lilith.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.data.converter/${lilith.version}/de.huxhorn.lilith.data.converter-${lilith.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.logback.classic/${lilith.version}/de.huxhorn.lilith.logback.classic-${lilith.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.data.logging/${lilith.version}/de.huxhorn.lilith.data.logging-${lilith.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/de/huxhorn/sulky/de.huxhorn.sulky.formatting/0.9.17/de.huxhorn.sulky.formatting-0.9.17.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.data.eventsource/${lilith.version}/de.huxhorn.lilith.data.eventsource-${lilith.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.logback.appender.multiplex-core/${lilith.version}/de.huxhorn.lilith.logback.appender.multiplex-core-${lilith.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.sender/${lilith.version}/de.huxhorn.lilith.sender-${lilith.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.data.logging.protobuf/${lilith.version}/de.huxhorn.lilith.data.logging.protobuf-${lilith.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/com/google/protobuf/protobuf-java/${protobuf.version}/protobuf-java-${protobuf.version}.jar</additionalClasspathElement>
           </additionalClasspathElements>
           <classpathDependencyExcludes>
-            <classpathDependencyExcludes>*:*</classpathDependencyExcludes>
+            <classpathDependencyExclude>*:*</classpathDependencyExclude>
           </classpathDependencyExcludes>
 
           <systemPropertyVariables>

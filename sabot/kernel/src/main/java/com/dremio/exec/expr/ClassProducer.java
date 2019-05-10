@@ -18,15 +18,18 @@ package com.dremio.exec.expr;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.compile.TemplateClassDefinition;
+import com.dremio.exec.expr.fn.FunctionLookupContext;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 
 public interface ClassProducer {
   <T> CodeGenerator<T> createGenerator(TemplateClassDefinition<T> definition);
+  LogicalExpression materializeWithBatchSchema(LogicalExpression expr, BatchSchema batchSchema);
   LogicalExpression materialize(LogicalExpression expr, VectorAccessible batch);
   LogicalExpression materializeAndAllowComplex(LogicalExpression expr, VectorAccessible batch);
   LogicalExpression materializeAndAllowComplex(ExpressionEvaluationOptions options, LogicalExpression expr, VectorAccessible batch);
   LogicalExpression addImplicitCast(LogicalExpression fromExpr, CompleteType toType);
   FunctionContext getFunctionContext();
-
+  FunctionLookupContext getFunctionLookupContext();
 }

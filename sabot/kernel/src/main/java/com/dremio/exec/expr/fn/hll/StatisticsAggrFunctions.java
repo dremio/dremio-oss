@@ -16,7 +16,6 @@
 
 package com.dremio.exec.expr.fn.hll;
 
-
 import javax.inject.Inject;
 
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -24,6 +23,7 @@ import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableDateMilliHolder;
+import org.apache.arrow.vector.holders.NullableDecimalHolder;
 import org.apache.arrow.vector.holders.NullableFloat4Holder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
@@ -636,6 +636,47 @@ public class StatisticsAggrFunctions {
     public void add() {
       if(in.isSet == 1) {
         ((com.dremio.exec.expr.fn.hll.HLLAccum) work.obj).addInt(in.value);
+      }
+    }
+
+    @Override
+    public void output() {
+      byte[] ba = ((com.dremio.exec.expr.fn.hll.HLLAccum) work.obj).getOutputBytes();
+      buffer = buffer.reallocIfNeeded(ba.length);
+      out.buffer = buffer;
+      out.start = 0;
+      out.end = ba.length;
+      out.buffer.setBytes(0, ba);
+      out.isSet = 1;
+    }
+
+    @Override
+    public void reset() {
+      ((com.dremio.exec.expr.fn.hll.HLLAccum) work.obj).reset();
+    }
+  }
+
+  @FunctionTemplate(name = "hll_v2", scope = FunctionTemplate.FunctionScope.POINT_AGGREGATE)
+  public static class NullableDecimalHLLFunction implements AggrFunction {
+    @Param
+    NullableDecimalHolder in;
+    @Workspace
+    ObjectHolder work;
+    @Output
+    NullableVarBinaryHolder out;
+    @Inject org.apache.arrow.memory.BufferManager manager;
+    @Inject ArrowBuf buffer;
+
+    @Override
+    public void setup() {
+      work = com.dremio.exec.expr.fn.hll.HLLAccum.create(work, manager);
+    }
+
+    @Override
+    public void add() {
+      if(in.isSet == 1) {
+        ((com.dremio.exec.expr.fn.hll.HLLAccum) work.obj).addBytes(in.buffer, in.start, in.start
+          + org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH);
       }
     }
 

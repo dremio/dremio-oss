@@ -38,7 +38,7 @@ public class WindowRule extends RelOptRule {
     final RelTraitSet traits = window.getTraitSet().plus(Rel.LOGICAL);
     final RelNode convertedInput = convert(input, traits.simplify());
     call.transformTo(
-        new WindowRel(
+        WindowRel.create(
             window.getCluster(),
             traits,
             convertedInput,

@@ -16,12 +16,14 @@
 package com.dremio.exec.store.sys;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractSubScan;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.base.OpWithMinorSpecificAttrs;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
@@ -32,7 +34,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Iterables;
 
 @JsonTypeName("sys")
-public class SystemSubScan extends AbstractSubScan {
+public class SystemSubScan extends AbstractSubScan implements OpWithMinorSpecificAttrs {
 
   private final List<SchemaPath> columns;
   private final SystemTable table;
@@ -40,11 +42,12 @@ public class SystemSubScan extends AbstractSubScan {
 
   @JsonCreator
   public SystemSubScan(
+      @JsonProperty("props") OpProps props,
       @JsonProperty("table") SystemTable table,
       @JsonProperty("columns") List<SchemaPath> columns,
       @JsonProperty("pluginId") StoragePluginId pluginId
       ) {
-    super(null, table.getSchema(), Arrays.asList("sys", table.getTableName()));
+    super(props, table.getRecordSchema(), Arrays.asList("sys", table.getTableName()));
     this.columns = columns;
     this.table = table;
     this.pluginId = pluginId;
@@ -65,13 +68,14 @@ public class SystemSubScan extends AbstractSubScan {
   }
 
   @Override
-  protected BatchSchema constructSchema(FunctionLookupContext functionLookupContext) {
-    return getSchema().maskAndReorder(getColumns());
-  }
-
-  @Override
   public List<SchemaPath> getColumns() {
     return columns;
+  }
+
+  @JsonIgnore
+  @Override
+  public Collection<List<String>> getReferencedTables() {
+    return super.getReferencedTables();
   }
 
   @JsonIgnore
@@ -82,13 +86,12 @@ public class SystemSubScan extends AbstractSubScan {
 
   @JsonIgnore
   @Override
-  public BatchSchema getSchema() {
-    return super.getSchema();
+  public BatchSchema getFullSchema() {
+    return super.getFullSchema();
   }
 
   @Override
   public String toString(){
     return new NamespaceKey(Iterables.getOnlyElement(getReferencedTables())).toString();
   }
-
 }

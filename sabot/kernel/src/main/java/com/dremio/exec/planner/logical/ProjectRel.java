@@ -21,22 +21,12 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
-import org.apache.calcite.rel.type.RelRecordType;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.type.SqlTypeName;
 
-import com.dremio.common.logical.data.LogicalOperator;
-import com.dremio.common.logical.data.NamedExpression;
-import com.dremio.common.logical.data.Project;
 import com.dremio.exec.planner.common.ProjectRelBase;
-import com.dremio.exec.planner.torel.ConversionContext;
-import com.google.common.collect.Lists;
 
 /**
  * Project implemented in Dremio.
@@ -70,28 +60,6 @@ public class ProjectRel extends ProjectRelBase implements Rel {
     return ProjectRel.create(this.getCluster(), traitSet, input, exps, rowType, this.canPushPastFlatten());
   }
 
-  @Override
-  public LogicalOperator implement(LogicalPlanImplementor implementor) {
-    LogicalOperator inputOp = implementor.visitChild(this, 0, getInput());
-    Project.Builder builder = Project.builder();
-    builder.setInput(inputOp);
-    for (NamedExpression e: this.getProjectExpressions(implementor.getContext())) {
-      builder.addExpr(e);
-    }
-    return builder.build();
-  }
-
-  public static ProjectRel convert(Project project, ConversionContext context) throws InvalidRelException{
-    RelNode input = context.toRel(project.getInput());
-    List<RelDataTypeField> fields = Lists.newArrayList();
-    List<RexNode> exps = Lists.newArrayList();
-    for(NamedExpression expr : project.getSelections()){
-      fields.add(new RelDataTypeFieldImpl(expr.getRef().getRootSegment().getPath(), fields.size(), context.getTypeFactory().createSqlType(SqlTypeName.ANY) ));
-      exps.add(context.toRex(expr.getExpr()));
-    }
-    return ProjectRel.create(context.getCluster(), context.getLogicalTraits(), input, exps, new RelRecordType(fields));
-  }
-
   /**
    * Creates an instance of ProjectRel.
    *
@@ -119,7 +87,7 @@ public class ProjectRel extends ProjectRelBase implements Rel {
    */
   public static ProjectRel create(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<? extends RexNode> exps,
                                   RelDataType rowType, boolean canPushPastFlatten) {
-    final RelTraitSet trimmedTraits = trimTraits(cluster, child, exps, traits);
-    return new ProjectRel(cluster, trimmedTraits, child, exps, rowType, canPushPastFlatten);
+    final RelTraitSet adjustedTraits = adjustTraits(cluster, child, exps, traits);
+    return new ProjectRel(cluster, adjustedTraits, child, exps, rowType, canPushPastFlatten);
   }
 }

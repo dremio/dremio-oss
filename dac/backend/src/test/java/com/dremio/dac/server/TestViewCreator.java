@@ -30,6 +30,7 @@ import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 
@@ -44,40 +45,49 @@ public class TestViewCreator extends BaseTestServer {
   }
 
   @Test
-  public void createQueryDrop() throws Exception {
+  public void createQueryDrop() {
     JobsService jobsService = l(JobsService.class);
 
     expectSuccess(getBuilder(getAPIv2().path("space/mySpace")).buildPut(Entity.json(new Space(null, "mySpace", null, null, null, 0, null))));
 
     expectSuccess(getBuilder(getAPIv2().path("space/mySpace/folder/")).buildPost(Entity.json("{\"name\": \"myFolder\"}")), Folder.class);
 
-    Job job1 = jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("create view mySpace.myFolder.myView as select * from cp.nation_ctas.t1.\"0_0_0.parquet\"", DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_RUN)
-        .build(), NoOpJobStatusListener.INSTANCE);
+    JobsServiceUtil.waitForJobCompletion(
+      jobsService.submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery("create view mySpace.myFolder.myView as select * from cp.nation_ctas.t1.\"0_0_0.parquet\"", DEFAULT_USERNAME))
+          .setQueryType(QueryType.UI_RUN)
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    );
 
-    job1.getData().loadIfNecessary();
-
-    Job job2 = jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select * from mySpace.myFolder.myView", DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_RUN)
-        .build(), NoOpJobStatusListener.INSTANCE);
-    job2.getData().loadIfNecessary();
+    final Job job2 = JobsServiceUtil.waitForJobCompletion(
+      jobsService.submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery("select * from mySpace.myFolder.myView", DEFAULT_USERNAME))
+          .setQueryType(QueryType.UI_RUN)
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    );
     assertEquals(25, job2.getJobAttempt().getDetails().getOutputRecords().longValue());
 
-    Job job3 = jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("drop view mySpace.myFolder.myView", DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_RUN)
-        .build(), NoOpJobStatusListener.INSTANCE);
-    job3.getData().loadIfNecessary();
-
-    Job job4 = jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select * from mySpace.myFolder.myView", DEFAULT_USERNAME))
-        .setQueryType(QueryType.UI_RUN)
-        .build(), NoOpJobStatusListener.INSTANCE);
+    JobsServiceUtil.waitForJobCompletion(
+      jobsService.submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery("drop view mySpace.myFolder.myView", DEFAULT_USERNAME))
+          .setQueryType(QueryType.UI_RUN)
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    );
 
     try {
-      job4.getData().loadIfNecessary();
+      JobsServiceUtil.waitForJobCompletion(
+        jobsService.submitJob(
+          JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery("select * from mySpace.myFolder.myView", DEFAULT_USERNAME))
+            .setQueryType(QueryType.UI_RUN)
+            .build(), NoOpJobStatusListener.INSTANCE)
+      );
       Assert.fail("query should have failed");
     } catch (Exception e) {
       assertTrue(e.getMessage().contains("not found"));

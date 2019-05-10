@@ -31,7 +31,6 @@ import {
   getSortedSources,
   getCreatedSource,
   getEntity,
-  getRootEntityByUrlPath,
   getViewState
 } from './resources';
 
@@ -107,13 +106,6 @@ describe('entity selectors', () => {
   describe('getEntity', () => {
     it('should return entity', () => {
       expect(getEntity(state, homeId, 'home')).to.eql(state.resources.entities.getIn(['home', homeId]));
-    });
-  });
-
-  describe('getRootEntityByUrlPath', () => {
-    it('should get home entity', () => {
-      const urlPath = '/';
-      expect(getRootEntityByUrlPath(state, urlPath)).to.equal(getEntity(state, homeId, 'home'));
     });
   });
 

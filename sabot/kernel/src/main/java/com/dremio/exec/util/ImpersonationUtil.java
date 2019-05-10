@@ -196,20 +196,20 @@ public class ImpersonationUtil {
    * @param fsConf FileSystem configuration.
    * @return
    */
-  public static FileSystemWrapper createFileSystem(String proxyUserName, Configuration fsConf) {
-    return createFileSystem(createProxyUgi(proxyUserName), fsConf, null, null);
+  public static FileSystemWrapper createFileSystem(String proxyUserName, Configuration fsConf, boolean enableAsync) {
+    return createFileSystem(createProxyUgi(proxyUserName), fsConf, null, null, enableAsync);
   }
 
   /** Helper method to create FileSystemWrapper */
   public static FileSystemWrapper createFileSystem(UserGroupInformation proxyUserUgi, final Configuration fsConf,
-      final OperatorStats stats, final List<String> connectionUniqueProps) {
+      final OperatorStats stats, final List<String> connectionUniqueProps, boolean enableAsync) {
     FileSystemWrapper fs;
     try {
       fs = proxyUserUgi.doAs(new PrivilegedExceptionAction<FileSystemWrapper>() {
         @Override
         public FileSystemWrapper run() throws Exception {
           logger.trace("Creating FileSystemWrapper for proxy user: " + UserGroupInformation.getCurrentUser());
-          return new FileSystemWrapper(fsConf, stats, connectionUniqueProps);
+          return new FileSystemWrapper(fsConf, stats, connectionUniqueProps, enableAsync);
         }
       });
     } catch (InterruptedException | IOException e) {
@@ -233,7 +233,8 @@ public class ImpersonationUtil {
     return createFileSystem(createProxyUgi(proxyUserName), fsConf, path);
   }
 
-  private static FileSystemWrapper createFileSystem(UserGroupInformation proxyUserUgi, final Configuration fsConf, final Path path) {
+  private static FileSystemWrapper createFileSystem(UserGroupInformation proxyUserUgi, final Configuration fsConf,
+                                                    final Path path) {
     FileSystemWrapper fs;
     try {
       fs = proxyUserUgi.doAs(new PrivilegedExceptionAction<FileSystemWrapper>() {
@@ -250,6 +251,16 @@ public class ImpersonationUtil {
     }
 
     return fs;
+  }
+
+  /**
+   * Determines if the username is the system username
+   *
+   * @param username the name to check
+   * @return
+   */
+  public static boolean isSystemUserName(String username) {
+    return SYSTEM_USERNAME.equals(username);
   }
 
   // avoid instantiation

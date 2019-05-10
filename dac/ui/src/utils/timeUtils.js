@@ -66,9 +66,14 @@ class TimeUtils {
     return moment(timestamp).fromNow();
   }
 
-  formatTime(time, invalidDateString = 'Invalid date') { // todo: loc of 'Invalid date', and loc of real date string
+  formatTime(time, invalidDateString = la('Invalid date'), locale = window.navigator.language) {
+    moment.locale(locale);
     const t = moment(time, 'x');
-    return t.isValid() ? t.format('MM/DD/YYYY HH:mm:ss') : invalidDateString;
+    return t.isValid() ? t.format('L HH:mm:ss') : invalidDateString;
+  }
+
+  formatTimeDiff(timeDiffMs, format = 'H:mm:ss') {
+    return moment.utc(timeDiffMs).format(format);
   }
 }
 

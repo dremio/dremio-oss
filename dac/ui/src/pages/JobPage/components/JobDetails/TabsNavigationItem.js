@@ -37,12 +37,15 @@ export default class TabsNavigationItem extends Component {
   }
   render() {
     const { item, onClick, activeTab, children } = this.props;
+    const tabName = item.get('name');
+    const key = `tab-${tabName}`;
     return (
       <div
-        className={classNames({'tab-link': true, 'active': activeTab === item.get('name')})}
-        style={this.getStylesForTab(item.get('name'))}
-        key={`tab-${item.get('name')}`}
+        className={classNames({'tab-link': true, 'active': activeTab === tabName})}
+        style={this.getStylesForTab(tabName)}
+        key={key}
         onClick={onClick}
+        data-qa={key}
       >
         {children}
       </div>

@@ -116,42 +116,40 @@ public class ProjectOperator implements SingleInputOperator {
 
     final IntHashSet transferFieldIds = new IntHashSet();
 
-    int numberOfExpressionsExecutedInGandiva = 0;
     for (int i = 0; i < exprs.size(); i++) {
       final NamedExpression namedExpression = exprs.get(i);
       final LogicalExpression expr = context.getClassProducer().materializeAndAllowComplex(projectorOptions, namedExpression.getExpr(), incoming);
-
       final LogicalExpression originalExpression = ((CodeGenContext)expr).getChild();
       switch(getEvalMode(incoming, originalExpression, transferFieldIds)){
 
-      case COMPLEX: {
-        LogicalExpression originalExpr = CodeGenerationContextRemover.removeCodeGenContext(expr);
-        outgoing.addOrGet(originalExpr.getCompleteType().toField(namedExpression.getRef()));
-        // The reference name will be passed to ComplexWriter, used as the name of the output vector from the writer.
-        ((ComplexWriterFunctionHolder) ((FunctionHolderExpr) originalExpr).getHolder()).setReference(namedExpression.getRef());
-        cg.addExpr(originalExpr, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
-        break;
-      }
+        case COMPLEX: {
+          LogicalExpression originalExpr = CodeGenerationContextRemover.removeCodeGenContext(expr);
+          outgoing.addOrGet(originalExpr.getCompleteType().toField(namedExpression.getRef()));
+          // The reference name will be passed to ComplexWriter, used as the name of the output vector from the writer.
+          ((ComplexWriterFunctionHolder) ((FunctionHolderExpr) originalExpr).getHolder()).setReference(namedExpression.getRef());
+          cg.addExpr(originalExpr, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+          break;
+        }
 
-      case DIRECT: {
-        LogicalExpression originalExpr = CodeGenerationContextRemover.removeCodeGenContext(expr);
-        final ValueVectorReadExpression vectorRead = (ValueVectorReadExpression) originalExpr;
-        final TypedFieldId id = vectorRead.getFieldId();
-        final ValueVector vvIn = incoming.getValueAccessorById(id.getIntermediateClass(), id.getFieldIds()).getValueVector();
-        final FieldReference ref = namedExpression.getRef();
-        final ValueVector vvOut = outgoing.addOrGet(vectorRead.getCompleteType().toField(ref));
-        final TransferPair tp = vvIn.makeTransferPair(vvOut);
-        transfers.add(tp);
-        transferFieldIds.add(vectorRead.getFieldId().getFieldIds()[0]);
-        break;
-      }
+        case DIRECT: {
+          LogicalExpression originalExpr = CodeGenerationContextRemover.removeCodeGenContext(expr);
+          final ValueVectorReadExpression vectorRead = (ValueVectorReadExpression) originalExpr;
+          final TypedFieldId id = vectorRead.getFieldId();
+          final ValueVector vvIn = incoming.getValueAccessorById(id.getIntermediateClass(), id.getFieldIds()).getValueVector();
+          final FieldReference ref = namedExpression.getRef();
+          final ValueVector vvOut = outgoing.addOrGet(vectorRead.getCompleteType().toField(ref));
+          final TransferPair tp = vvIn.makeTransferPair(vvOut);
+          transfers.add(tp);
+          transferFieldIds.add(vectorRead.getFieldId().getFieldIds()[0]);
+          break;
+        }
 
-      case EVAL: {
-        splitter.addExpr(outgoing, new NamedExpression(expr, namedExpression.getRef()));
-        break;
-      }
-      default:
-        throw new UnsupportedOperationException();
+        case EVAL: {
+          splitter.addExpr(outgoing, new NamedExpression(expr, namedExpression.getRef()));
+          break;
+        }
+        default:
+          throw new UnsupportedOperationException();
       }
 
     }
@@ -160,31 +158,31 @@ public class ProjectOperator implements SingleInputOperator {
     outgoing.setInitialCapacity(context.getTargetBatchSize());
     state = State.CAN_CONSUME;
     initialSchema = outgoing.getSchema();
-
     splitter.setupProjector(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
     javaCodeGenWatch.start();
     this.projector = cg.getCodeGenerator().getImplementationClass();
     projector.setup(
-        context.getFunctionContext(),
-        incoming,
-        outgoing,
-        transfers,
-        new ComplexWriterCreator(){
-          @Override
-          public ComplexWriter addComplexWriter(String name) {
-            VectorAccessibleComplexWriter vc = new VectorAccessibleComplexWriter(outgoing);
-            ComplexWriter writer = new ComplexWriterImpl(name, vc);
-            complexWriters.add(writer);
-            return writer;
-          }
+      context.getFunctionContext(),
+      incoming,
+      outgoing,
+      transfers,
+      new ComplexWriterCreator(){
+        @Override
+        public ComplexWriter addComplexWriter(String name) {
+          VectorAccessibleComplexWriter vc = new VectorAccessibleComplexWriter(outgoing);
+          ComplexWriter writer = new ComplexWriterImpl(name, vc);
+          complexWriters.add(writer);
+          return writer;
         }
-        );
+      }
+    );
     javaCodeGenWatch.stop();
     context.getStats().addLongStat(Metric.JAVA_BUILD_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
     context.getStats().addLongStat(Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
-    context.getStats().addLongStat(Metric.GANDIVA_EXPRESSIONS, numberOfExpressionsExecutedInGandiva);
-    context.getStats().addLongStat(Metric.JAVA_EXPRESSIONS,
-      exprs.size() - numberOfExpressionsExecutedInGandiva);
+    context.getStats().addLongStat(Metric.GANDIVA_EXPRESSIONS, splitter.getNumExprsInGandiva());
+    context.getStats().addLongStat(Metric.JAVA_EXPRESSIONS, splitter.getNumExprsInJava());
+    context.getStats().addLongStat(Metric.MIXED_EXPRESSIONS, splitter.getNumExprsInBoth());
+    context.getStats().addLongStat(Metric.MIXED_SPLITS, splitter.getNumSplitsInBoth());
     gandivaCodeGenWatch.reset();
     javaCodeGenWatch.reset();
     return outgoing;
@@ -298,8 +296,8 @@ public class ProjectOperator implements SingleInputOperator {
     // add value vector to transfer if direct reference and this is allowed, otherwise, add to evaluation stack.
     final boolean canDirectTransfer =
 
-        // the expression is a direct read.
-        expr instanceof ValueVectorReadExpression
+      // the expression is a direct read.
+      expr instanceof ValueVectorReadExpression
 
         // we aren't dealing with a selection vector.
         && incoming.getSchema().getSelectionVectorMode() == SelectionVectorMode.NONE
@@ -314,7 +312,7 @@ public class ProjectOperator implements SingleInputOperator {
       return EvalMode.DIRECT;
     }
     final boolean isComplex =
-        expr instanceof FunctionHolderExpr
+      expr instanceof FunctionHolderExpr
         && ((FunctionHolderExpr) expr).isComplexWriterFuncHolder();
 
     if(isComplex){
@@ -338,8 +336,7 @@ public class ProjectOperator implements SingleInputOperator {
 
     @Override
     public SingleInputOperator create(OperatorContext context, ComplexToJson operator) throws ExecutionSetupException {
-      Project project = new Project(null, null);
-      operator.setOperatorId(operator.getOperatorId());
+      Project project = new Project(operator.getProps(), null, null);
       return new ProjectOperator(context, project);
     }
 

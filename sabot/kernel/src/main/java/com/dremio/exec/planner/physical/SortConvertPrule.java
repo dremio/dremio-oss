@@ -45,9 +45,9 @@ public class SortConvertPrule extends ConverterRule {
   @Override
   public RelNode convert(RelNode r) {
     Sort rel = (Sort) r;
-    return new SortPrel(rel.getCluster(),
-                        rel.getInput().getTraitSet().replace(Prel.PHYSICAL).plus(rel.getCollation()),
-                        convert(rel.getInput(), rel.getInput().getTraitSet().replace(Prel.PHYSICAL).simplify()),
-                        rel.getCollation());
+    return SortPrel.create(rel.getCluster(),
+                           rel.getInput().getTraitSet().replace(Prel.PHYSICAL).plus(rel.getCollation()),
+                           convert(rel.getInput(), rel.getInput().getTraitSet().replace(Prel.PHYSICAL).simplify()),
+                           rel.getCollation());
   }
 }

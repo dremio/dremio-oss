@@ -48,7 +48,7 @@ public class Limit0Converter extends BasePrelVisitor<Prel, Void, IOException> {
       LimitPrel limit = (LimitPrel) prel;
       if(isLimit0(limit.getFetch())){
         PhysicalOperator op = PrelTransformer.convertToPop(config, prel);
-        BatchSchema schema = op.getSchema(config.getContext().getFunctionRegistry());
+        BatchSchema schema = op.getProps().getSchema();
 
         // make sure to remove any selection vector modes since we're now the leaf node.
         schema = schema.clone(SelectionVectorMode.NONE);

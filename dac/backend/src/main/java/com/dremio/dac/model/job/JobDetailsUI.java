@@ -21,6 +21,7 @@ import static com.google.common.collect.ImmutableList.copyOf;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.util.Util;
 
@@ -133,7 +134,7 @@ public class JobDetailsUI {
     this.jobId = jobId;
     this.queryType = queryType;
     this.datasetPathList = datasetPathList;
-    this.parentsList = parentsList;
+    this.parentsList = (parentsList != null) ? parentsList.stream().distinct().collect(Collectors.toList()) : null;
     this.state = state;
     this.startTime = startTime;
     this.endTime = endTime;

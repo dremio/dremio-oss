@@ -15,15 +15,15 @@
  */
 import { shallow } from 'enzyme';
 
-import ResourcePin from './ResourcePin';
+import { ResourcePin } from './ResourcePin';
 
 describe('ResourcePin-spec', () => {
 
   let commonProps;
   beforeEach(() => {
     commonProps = {
-      name: 'foo',
-      isActivePin: false,
+      entityId: 'test entity id',
+      isPinned: false,
       toggleActivePin: sinon.spy()
     };
   });
@@ -34,22 +34,22 @@ describe('ResourcePin-spec', () => {
       expect(wrapper.hasClass('pin-wrap')).to.be.true;
     });
 
-    it('should have active class if isActivePin', () => {
-      const wrapper = shallow(<ResourcePin {...commonProps} isActivePin/>);
+    it('should have active class if isPinned', () => {
+      const wrapper = shallow(<ResourcePin {...commonProps} isPinned/>);
       expect(wrapper.find('.active')).to.have.length(1);
     });
   });
 
   describe('click', () => {
     it('should call toggleActivePin with name and active state', () => {
-      const inactive = shallow(<ResourcePin {...commonProps} na/>);
+      const inactive = shallow(<ResourcePin {...commonProps} />);
       const event = {preventDefault: sinon.spy(), stopPropagation: sinon.spy};
       inactive.simulate('click', event);
       commonProps.toggleActivePin.calledWith(commonProps.name, false);
       expect(event.preventDefault.calledOnce).to.be.true;
 
 
-      const active = shallow(<ResourcePin {...commonProps} isActivePin/>);
+      const active = shallow(<ResourcePin {...commonProps} isPinned/>);
       active.simulate('click', event);
       commonProps.toggleActivePin.calledWith(commonProps.name, true);
     });

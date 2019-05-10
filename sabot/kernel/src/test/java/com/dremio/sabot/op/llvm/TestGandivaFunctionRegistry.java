@@ -25,6 +25,7 @@ import org.apache.arrow.gandiva.exceptions.GandivaException;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
@@ -36,6 +37,7 @@ import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.GandivaFunctionHolder;
 import com.dremio.exec.expr.fn.GandivaFunctionRegistry;
+import com.dremio.options.OptionManager;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -43,6 +45,8 @@ import com.google.common.collect.Sets;
 public class TestGandivaFunctionRegistry extends ExecTest {
 
   private static int totalFuncs = 0, unSupportedFn = 0;
+
+  private static final OptionManager optionManager = Mockito.mock(OptionManager.class);
   /*
    * Test that function lookups on the gandiva repository works.
    */
@@ -51,11 +55,11 @@ public class TestGandivaFunctionRegistry extends ExecTest {
     GandivaFunctionRegistry fnRegistry = new GandivaFunctionRegistry(DEFAULT_SABOT_CONFIG);
 
     FunctionCall fnCall = getAddFn();
-    GandivaFunctionHolder holder = (GandivaFunctionHolder)fnRegistry.getFunction(fnCall);
+    GandivaFunctionHolder holder = (GandivaFunctionHolder)fnRegistry.getFunction(fnCall, false);
     Assert.assertNotNull(holder);
     ArrowType.Int int32 = new ArrowType.Int(32, true);
     CompleteType expectedReturnType = new CompleteType(int32);
-    Assert.assertEquals(expectedReturnType, holder.getReturnType());
+    Assert.assertEquals(expectedReturnType, holder.getReturnType(fnCall.args));
     Assert.assertNotNull(holder.getExpr(fnCall.getName(), fnCall.args));
   }
 

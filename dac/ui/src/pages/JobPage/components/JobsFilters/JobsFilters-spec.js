@@ -49,7 +49,7 @@ describe('JobsFilters', () => {
   it('should render ContainsText, SelectMenu', () => {
     const wrapper = shallow(<JobsFilters {...commonProps}/>, {context});
     expect(wrapper.find('ContainsText')).to.have.length(1);
-    expect(wrapper.find('SelectMenu')).to.have.length(1);
+    expect(wrapper.find('Select')).to.have.length(1);
   });
 
   describe('handlers -', () => {

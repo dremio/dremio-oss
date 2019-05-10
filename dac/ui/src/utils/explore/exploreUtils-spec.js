@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 import Immutable from 'immutable';
+import tableMockedDataExpected from '../mappers/mocks/gridMapper/expected.json';
 import exploreUtils from './exploreUtils';
 
 describe('exploreUtils', () => {
@@ -280,9 +281,11 @@ describe('exploreUtils', () => {
       }
     });
     it('should return link for preview', () => {
+      //limit should be 0, as we decouple data loading from metadata loading. 0 means do not load
+      // a data with initial response.
       expect(
         exploreUtils.getPreviewTransformationLink(dataset, '345')
-      ).to.eql(`${dataset.getIn(['apiLinks', 'self'])}/transformAndPreview?newVersion=345&limit=150`);
+      ).to.eql(`${dataset.getIn(['apiLinks', 'self'])}/transformAndPreview?newVersion=345&limit=0`);
     });
   });
 
@@ -354,9 +357,41 @@ describe('exploreUtils', () => {
       expect(exploreUtils.getHrefForDatasetConfig('path1', '')).to.eql('path1?view=explore&limit=50');
     });
   });
+
   describe('method escapeFieldNameForSQL', () => {
     it('should escape quote with another quote and wrap with quotes', () => {
       expect(exploreUtils.escapeFieldNameForSQL('foo"bar')).to.eql('"foo""bar"');
+    });
+  });
+
+  describe('getFilteredColumns', () => {
+    const columnsList = Immutable.fromJS(tableMockedDataExpected.columns);
+    it('should preserve columns with no or empty filter', () => {
+      expect(columnsList.size).to.equal(4);
+      expect(exploreUtils.getFilteredColumns(columnsList, '').size).to.equal(4);
+    });
+    it('should keep only columns with name including filter value', () => {
+      const filteredColumns = exploreUtils.getFilteredColumns(columnsList, 'o_');
+      expect(filteredColumns.size).to.equal(2);
+      expect(filteredColumns.get(0).get('name').includes('o_')).to.equal(true);
+    });
+  });
+
+  describe('getFilteredColumnCount', () => {
+    const columnsList = Immutable.fromJS(tableMockedDataExpected.columns);
+    it('should return zero when columns is not provided', () => {
+      expect(exploreUtils.getFilteredColumnCount(null)).to.equal(0);
+    });
+    it('should return full array size w/o filter', () => {
+      expect(exploreUtils.getFilteredColumnCount(columnsList)).to.equal(columnsList.size);
+      expect(exploreUtils.getFilteredColumnCount(columnsList, '')).to.equal(columnsList.size);
+    });
+    it('should return filtered array size', () => {
+      expect(exploreUtils.getFilteredColumnCount(columnsList, 'o_')).to.equal(2);
+      expect(exploreUtils.getFilteredColumnCount(columnsList, 'l_')).to.equal(1);
+      // filter should be case insensitive
+      expect(exploreUtils.getFilteredColumnCount(columnsList, 'O_')).to.equal(2);
+      expect(exploreUtils.getFilteredColumnCount(columnsList, 'L_')).to.equal(1);
     });
   });
 });

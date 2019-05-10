@@ -21,8 +21,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.Nullable;
-
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
@@ -32,12 +30,12 @@ import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.datastore.ProtostuffSerializer;
-import com.dremio.datastore.Serializer;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.exception.JsonFieldChangeExceptionContext;
 import com.dremio.exec.exception.SetupException;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
@@ -49,16 +47,7 @@ import com.dremio.exec.vector.complex.fn.JsonReader;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP.ConversionColumn;
 import com.dremio.sabot.op.spi.SingleInputOperator;
-import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetField;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-
-import io.protostuff.ByteString;
 
 public class ConvertFromJsonOperator implements SingleInputOperator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ConvertFromJsonOperator.class);
@@ -89,6 +78,8 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
       cMap.put(c.getInputField().toLowerCase(), c);
     }
 
+    final int sizeLimit = Math.toIntExact(this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+
     for(VectorWrapper<?> w: accessible){
       final Field f = w.getField();
       final ValueVector incomingVector = w.getValueVector();
@@ -98,9 +89,9 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
         ValueVector outgoingVector = outgoing.addOrGet(updatedField);
         Preconditions.checkArgument(incomingVector instanceof VarBinaryVector || incomingVector instanceof VarCharVector, "Incoming field [%s] should have been either a varchar or varbinary.", Describer.describe(f));
         if(incomingVector instanceof VarBinaryVector){
-          converters.add(new BinaryConverter(conversion, (VarBinaryVector) incomingVector, outgoingVector));
+          converters.add(new BinaryConverter(conversion, sizeLimit, (VarBinaryVector) incomingVector, outgoingVector));
         } else {
-          converters.add(new CharConverter(conversion, (VarCharVector) incomingVector, outgoingVector));
+          converters.add(new CharConverter(conversion, sizeLimit, (VarCharVector) incomingVector, outgoingVector));
         }
 
       } else {
@@ -169,35 +160,37 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
 
   private class BinaryConverter extends JsonConverter<VarBinaryVector> {
 
-    BinaryConverter(ConversionColumn column, VarBinaryVector vector, ValueVector outgoingVector) {
-      super(column, vector, outgoingVector);
+    BinaryConverter(ConversionColumn column, int sizeLimit, VarBinaryVector vector, ValueVector outgoingVector) {
+      super(column, sizeLimit, vector, outgoingVector);
     }
 
     @Override
     byte[] getBytes(int inputIndex) {
-      if(vector.isNull(inputIndex)){
+      if (vector.isNull(inputIndex)) {
         return null;
       }
-      return vector.get(inputIndex);
+      final byte[] data = vector.get(inputIndex);
+      FieldSizeLimitExceptionHelper.checkReadSizeLimit(data.length, sizeLimit, inputIndex, logger);
+      return data;
     }
-
   }
 
   private class CharConverter extends JsonConverter<VarCharVector> {
 
-    CharConverter(ConversionColumn column, VarCharVector vector, ValueVector outgoingVector) {
-      super(column, vector, outgoingVector);
+    CharConverter(ConversionColumn column, int sizeLimit, VarCharVector vector, ValueVector outgoingVector) {
+      super(column, sizeLimit, vector, outgoingVector);
     }
 
     @Override
     byte[] getBytes(int inputIndex) {
-      if(vector.isNull(inputIndex)){
+      if (vector.isNull(inputIndex)) {
         return null;
       }
 
-      return vector.get(inputIndex);
+      final byte[] data = vector.get(inputIndex);
+      FieldSizeLimitExceptionHelper.checkReadSizeLimit(data.length, sizeLimit, inputIndex, logger);
+      return data;
     }
-
   }
 
   private abstract class JsonConverter<T extends ValueVector> {
@@ -206,13 +199,15 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
     private final JsonReader reader;
     protected final T vector;
     private final ValueVector outgoingVector;
+    protected final int sizeLimit;
 
-    public JsonConverter(ConversionColumn column, T vector, ValueVector outgoingVector) {
+    public JsonConverter(ConversionColumn column, int sizeLimit, T vector, ValueVector outgoingVector) {
       this.column = column;
       this.vector = vector;
       this.writer = VectorAccessibleComplexWriter.getWriter(column.getInputField(), outgoing);
-      this.reader = new JsonReader(context.getManagedBuffer(), false, false, false);
+      this.reader = new JsonReader(context.getManagedBuffer(), sizeLimit, context.getOptions().getOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR), false, false);
       this.outgoingVector = outgoingVector;
+      this.sizeLimit = sizeLimit;
     }
 
     abstract byte[] getBytes(int inputIndex);
@@ -235,7 +230,6 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
           writer.setValueCount(records);
         }
 
-
       } catch (Exception ex) {
         throw UserException.dataReadError(ex).message("Failure converting field %s from JSON.", column.getInputField())
             .build(logger);
@@ -249,62 +243,15 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
         final SchemaPath path = SchemaPath.getSimplePath(column.getInputField());
         final TypedFieldId typedFieldId = outgoing.getSchema().getFieldId(path);
 
-        // update the field's schema saved in the Namespace store
-        final NamespaceKey key = new NamespaceKey(column.getOriginTable());
-        try {
-          // retrieve the dataset schema from the namespace store
-          DatasetConfig oldDatasetConfig = context.getNamespaceService().getDataset(key);
-
-          DatasetConfig updatedDatasetConfig = updateDatasetField(oldDatasetConfig, column.getOriginField(), typedFieldId.getFinalType());
-
-          // TODO: retry on ConcurrentModificationException, or consolidate with logic in NamespaceUpdater
-          context.getNamespaceService().addOrUpdateDataset(key, updatedDatasetConfig);
-        } catch (NamespaceException e) {
-          // datasetConfig should already be in the namespace store, if we get a NamespaceException then something went wrong
-          throw new RuntimeException(e);
-        }
-
-        throw UserException.schemaChangeError().message("Schema changed for CONVERT_FROM(`%s`, 'JSON'). Original schema %s, New schema %s. ",
-            column.getInputField(), column.getType(), typedFieldId.getFinalType())
-        .build(logger);
+        // throw a fieldChangeError back to coordinator with necessary context to update schema.
+        throw UserException.jsonFieldChangeError()
+          .message("New field in the schema found.  Please reattempt the query.  Multiple attempts may be necessary to fully learn the schema.")
+          .setAdditionalExceptionContext(new JsonFieldChangeExceptionContext(column.getOriginTable(),
+            column.getOriginField(),
+            typedFieldId.getFinalType()))
+          .build(logger);
       }
     }
-
-  }
-
-  /**
-   * Update field schema
-   * @param datasetConfig old dataset config
-   * @param fieldName field's name
-   * @param fieldSchema new field schema
-   * @return updated dataset config
-   */
-  private DatasetConfig updateDatasetField(DatasetConfig datasetConfig, final String fieldName, CompleteType fieldSchema) {
-    // clone the dataset config
-    Serializer<DatasetConfig> serializer = ProtostuffSerializer.of(DatasetConfig.getSchema());
-    DatasetConfig newDatasetConfig = serializer.deserialize(serializer.serialize(datasetConfig));
-
-    List<DatasetField> datasetFields = newDatasetConfig.getDatasetFieldsList();
-    if (datasetFields == null) {
-      datasetFields = Lists.newArrayList();
-    }
-
-    DatasetField datasetField = Iterables.find(datasetFields, new Predicate<DatasetField>() {
-      @Override
-      public boolean apply(@Nullable DatasetField input) {
-        return fieldName.equals(input.getFieldName());
-      }
-    }, null);
-
-    if (datasetField == null) {
-      datasetField = new DatasetField().setFieldName(fieldName);
-      datasetFields.add(datasetField);
-    }
-
-    datasetField.setFieldSchema(ByteString.copyFrom(fieldSchema.serialize()));
-    newDatasetConfig.setDatasetFieldsList(datasetFields);
-
-    return newDatasetConfig;
   }
 
   @SuppressWarnings("unused")

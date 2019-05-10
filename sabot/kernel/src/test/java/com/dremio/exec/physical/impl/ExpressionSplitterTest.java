@@ -58,6 +58,7 @@ import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.expr.fn.GandivaFunctionHolder;
 import com.dremio.exec.expr.fn.GandivaFunctionHolderExpression;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.Project;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
@@ -131,11 +132,11 @@ public class ExpressionSplitterTest extends BaseTestFunction {
     // find the schema for the expression
     VectorAccessible vectorContainer = generator.getOutput();
 
-    Project pop = new Project(Arrays.asList(new NamedExpression(expr, new FieldReference("out"))), null);
+    Project pop = new Project(OpProps.prototype(), null, Arrays.asList(new NamedExpression(expr, new FieldReference("out"))));
     final BufferAllocator childAllocator = testAllocator.newChildAllocator(
       pop.getClass().getSimpleName(),
-      pop.getInitialAllocation(),
-      pop.getMaxAllocation() == 0 ? Long.MAX_VALUE : pop.getMaxAllocation());
+      pop.getProps().getMemReserve(),
+      pop.getProps().getMemLimit() == 0 ? Long.MAX_VALUE : pop.getProps().getMemLimit());
 
     int batchSize = 1;
     final OperatorContextImpl context = testContext.getNewOperatorContext(childAllocator, pop, batchSize);
@@ -175,6 +176,27 @@ public class ExpressionSplitterTest extends BaseTestFunction {
       // verify number of splits
       List<ExpressionSplit> splits = splitter.getSplits();
       assertEquals(expSplits.length, splits.size());
+
+      if (expSplits.length == 1) {
+        // either executed in Java or Gandiva, no split mode
+        if (expSplits[0].useGandiva) {
+          // completely in Gandiva
+          assertEquals(splitter.getNumExprsInJava(), 0);
+          assertEquals(splitter.getNumExprsInGandiva(), 1);
+        } else {
+          // completely in Java
+          assertEquals(splitter.getNumExprsInJava(), 1);
+          assertEquals(splitter.getNumExprsInGandiva(), 0);
+        }
+
+        assertEquals(splitter.getNumExprsInBoth(), 0);
+        assertEquals(splitter.getNumSplitsInBoth(), 0);
+      } else {
+        assertEquals(splitter.getNumExprsInJava(), 0);
+        assertEquals(splitter.getNumExprsInGandiva(), 0);
+        assertEquals(splitter.getNumExprsInBoth(), 1);
+        assertEquals(splitter.getNumSplitsInBoth(), expSplits.length);
+      }
 
       // verify each split with the expected value
       for (int i = 0; i < splits.size(); i++) {

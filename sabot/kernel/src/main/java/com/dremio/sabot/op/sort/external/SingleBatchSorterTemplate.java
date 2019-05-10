@@ -29,7 +29,7 @@ import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
-public abstract class SingleBatchSorterTemplate implements SingleBatchSorter, IndexedSortable{
+public abstract class SingleBatchSorterTemplate implements SingleBatchSorterInterface, IndexedSortable{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SingleBatchSorterTemplate.class);
 
   private SelectionVector2 vector2;

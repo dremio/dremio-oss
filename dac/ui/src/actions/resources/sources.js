@@ -26,6 +26,7 @@ import sourceSchema from 'dyn-load/schemas/source';
 import sourcesMapper from 'utils/mappers/sourcesMapper';
 import { getUniqueName } from 'utils/pathUtils';
 import DataFreshnessSection from 'components/Forms/DataFreshnessSection';
+import { getSources, getSpaces } from '@app/selectors/resources';
 
 export const ADD_NEW_SOURCE_START = 'ADD_NEW_SOURCE_START';
 export const ADD_NEW_SOURCE_SUCCESS = 'ADD_NEW_SOURCE_SUCCESS';
@@ -61,29 +62,32 @@ export function createSource(data, sourceType) {
 }
 
 
-export function createSampleSource(sources, spaces, meta) {
-  const existingNames = new Set([...sources, ...spaces].map(e => e.get('name')));
+export function createSampleSource(meta) {
+  return (dispatch, getState) => {
+    const state = getState();
+    const sources = getSources(state);
+    const spaces = getSpaces(state);
+    const existingNames = new Set([...sources, ...spaces].map(e => e.get('name')));
 
-  const name = getUniqueName(la('Samples'), (nameTry) => {
-    return !existingNames.has(nameTry);
-  });
+    const name = getUniqueName(la('Samples'), (nameTry) => {
+      return !existingNames.has(nameTry);
+    });
 
-  const sourceModel = {
-    'config': {
-      'externalBucketList': [
-        'samples.dremio.com'
-      ],
-      'credentialType': 'NONE',
-      'secure': false,
-      'propertyList': []
-    },
-    name,
-    'accelerationRefreshPeriod': DataFreshnessSection.defaultFormValueRefreshInterval(),
-    'accelerationGracePeriod': DataFreshnessSection.defaultFormValueGracePeriod(),
-    'accelerationNeverRefresh': true,
-    'type': 'S3'
-  };
-  return (dispatch) => {
+    const sourceModel = {
+      'config': {
+        'externalBucketList': [
+          'samples.dremio.com'
+        ],
+        'credentialType': 'NONE',
+        'secure': false,
+        'propertyList': []
+      },
+      name,
+      'accelerationRefreshPeriod': DataFreshnessSection.defaultFormValueRefreshInterval(),
+      'accelerationGracePeriod': DataFreshnessSection.defaultFormValueGracePeriod(),
+      'accelerationNeverRefresh': true,
+      'type': 'S3'
+    };
     return dispatch(postCreateSource(sourceModel, meta, true));
   };
 }
@@ -197,18 +201,6 @@ export function renameSource(oldName, newName) {
   return (dispatch) => {
     return dispatch(fetchRenameSource(oldName, newName)).then(() => {
       return dispatch(fetchSourceListData());
-    });
-  };
-}
-
-export const SET_SOURCE_PIN_STATE = 'SET_SOURCE_PIN_STATE';
-
-export function setSourcePin(sourceName, isActivePin) {
-  return (dispatch) => {
-    dispatch({
-      type: SET_SOURCE_PIN_STATE,
-      name: sourceName,
-      isActivePin
     });
   };
 }

@@ -18,9 +18,9 @@ import moment from 'moment';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
-import { Link } from 'react-router';
 import { injectIntl } from 'react-intl';
 
+import EntityLink from '@app/pages/HomePage/components/EntityLink';
 import EllipsedText from 'components/EllipsedText';
 
 import LinkButton from 'components/Buttons/LinkButton';
@@ -42,7 +42,6 @@ import { tableStyles } from '../../tableStyles';
 export default class AllSourcesView extends Component {
   static propTypes = {
     sources: PropTypes.object,
-    toggleActivePin: PropTypes.func.isRequired,
     intl: PropTypes.object.isRequired
   }
 
@@ -62,14 +61,10 @@ export default class AllSourcesView extends Component {
             node: () => (
               <div style={allSpacesAndAllSources.listItem}>
                 {icon}
-                <Link style={allSpacesAndAllSources.link} to={item.getIn(['links', 'self'])}>
+                <EntityLink entityId={item.get('id')}>
                   <EllipsedText text={item.get('name')} />
-                </Link>
-                <ResourcePin
-                  name={item.get('name')}
-                  isActivePin={item.get('isActivePin') || false}
-                  toggleActivePin={this.props.toggleActivePin}
-                />
+                </EntityLink>
+                <ResourcePin entityId={item.get('id')} />
               </div>
             ),
             value(sortDirection = null) { // todo: DRY
@@ -88,7 +83,7 @@ export default class AllSourcesView extends Component {
               <span className='action-wrap'>
                 <SettingsBtn
                   routeParams={this.context.location.query}
-                  menu={<AllSourcesMenu source={item} type={item.get('type')}/>}
+                  menu={<AllSourcesMenu item={item}/>}
                   dataQa={item.get('name')}
                 />
               </span>

@@ -122,7 +122,9 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
   }
 
   focus() {
-    this.sqlEditor.focus();
+    if (this.sqlEditor) {
+      this.sqlEditor.focus();
+    }
   }
 
   resetValue() {
@@ -303,7 +305,7 @@ const styles = {
     backgroundColor: '#fff'
   },
   smallerSqlEditor: {
-    width: 'calc(50% - 7px)', // 7px - indents from the edge of the screen
+    width: 'calc(60% - 7px)', // 7px - indents from the edge of the screen
     borderRight: 'none'
   },
   tooltip: {

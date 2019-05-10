@@ -15,10 +15,14 @@
  */
 package com.dremio.service.coordinator;
 
+import java.util.Collection;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.inject.Provider;
 
@@ -37,17 +41,17 @@ public class TaskLeaderElection implements AutoCloseable {
   private final Provider<ClusterCoordinator> clusterCoordinator;
   private final TaskLeaderStatusListener taskLeaderStatusListener;
   private final String serviceName;
-  private final Long firstLeaseExpiration;
-  private final Long leaseExpirationTime;
+  private final AtomicReference<Long> leaseExpirationTime = new AtomicReference<>(null);
   private final ScheduledExecutorService executorService;
   private final Provider<CoordinationProtos.NodeEndpoint> currentEndPoint;
 
-  private ServiceSet.RegistrationHandle registrationHandle;
+  private ElectionRegistrationHandle electionHandle;
   private final AtomicBoolean isTaskLeader = new AtomicBoolean(false);
   private volatile boolean isLatchClosed = false;
-  private ServiceSet zkService;
-  private volatile ServiceSet.RegistrationHandle nodeEndpointRegistrationHandle;
+  private ServiceSet serviceSet;
+  private volatile RegistrationHandle nodeEndpointRegistrationHandle;
   private Future leadershipReleaseFuture;
+  private ConcurrentMap<TaskLeaderChangeListener, TaskLeaderChangeListener> listeners = new ConcurrentHashMap<>();
 
   /**
    * If we don't use relinquishing leadership - don't need executor
@@ -58,43 +62,49 @@ public class TaskLeaderElection implements AutoCloseable {
   public TaskLeaderElection(String serviceName,
                             Provider<ClusterCoordinator> clusterCoordinator,
                             Provider<CoordinationProtos.NodeEndpoint> currentEndPoint) {
-    this(serviceName, clusterCoordinator, null, null, currentEndPoint, null);
+    this(serviceName, clusterCoordinator, null, currentEndPoint, null);
   }
 
   public TaskLeaderElection(String serviceName,
                             Provider<ClusterCoordinator> clusterCoordinator,
-                            Long firstLeaseExpiration,
                             Long leaseExpirationTime,
                             Provider<CoordinationProtos.NodeEndpoint> currentEndPoint,
                             ScheduledExecutorService executorService) {
     this.serviceName = serviceName;
     this.clusterCoordinator = clusterCoordinator;
-    this.firstLeaseExpiration = firstLeaseExpiration;
-    this.leaseExpirationTime = leaseExpirationTime;
+    this.leaseExpirationTime.set(leaseExpirationTime);
     this.executorService = executorService;
     this.currentEndPoint = currentEndPoint;
     this.taskLeaderStatusListener = new TaskLeaderStatusListener(serviceName, clusterCoordinator);
   }
 
   public void start() throws Exception {
-    zkService = clusterCoordinator.get().getOrCreateServiceSet(serviceName);
+    serviceSet = clusterCoordinator.get().getOrCreateServiceSet(serviceName);
     taskLeaderStatusListener.start();
     enterElections();
-    // start thread only of relinquishing leadership time was set
-    if (leaseExpirationTime != null && firstLeaseExpiration != null) {
-      leadershipReleaseFuture = executorService.scheduleAtFixedRate(
-        new LeadershipReset(),
-        firstLeaseExpiration,
-        leaseExpirationTime,
-        TimeUnit.MILLISECONDS
-      );
-    }
+  }
+
+  public void addListener(TaskLeaderChangeListener listener) {
+    listeners.put(listener, listener);
+  }
+
+  public void removeListener(TaskLeaderChangeListener listener) {
+    listeners.remove(listener);
+  }
+
+  public void updateLeaseExpirationTime(Long newLeaseExpirationTime) {
+    leaseExpirationTime.updateAndGet(operand -> newLeaseExpirationTime);
+  }
+
+  @VisibleForTesting
+  public Collection<TaskLeaderChangeListener> getTaskLeaderChangeListeners() {
+    return listeners.values();
   }
 
   private void enterElections() {
     logger.info("Starting TaskLeader Election Service for {}", serviceName);
 
-    registrationHandle = clusterCoordinator.get()
+    electionHandle = clusterCoordinator.get()
       .joinElection(serviceName, new ElectionListener() {
       @Override
       public void onElected() {
@@ -104,22 +114,38 @@ public class TaskLeaderElection implements AutoCloseable {
         // currentEndPoint as master again and again
         // therefore checking if we were a leader before registering
         // and doing other operations
-        if (!isTaskLeader.get()) {
+        if (isTaskLeader.compareAndSet(false, true)) {
           logger.info("Electing Leader for {}", serviceName);
           // registering node with service
-          nodeEndpointRegistrationHandle = zkService.register(currentEndPoint.get());
-          isTaskLeader.compareAndSet(false, true);
+          nodeEndpointRegistrationHandle = serviceSet.register(currentEndPoint.get());
+          listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipGained);
+
+          // start thread only if relinquishing leadership time was set
+          if (leaseExpirationTime.get() != null) {
+            leadershipReleaseFuture = executorService.schedule(
+              new LeadershipReset(),
+              leaseExpirationTime.get(),
+              TimeUnit.MILLISECONDS
+            );
+          }
         }
       }
 
       @Override
       public void onCancelled() {
-        logger.info("Rejecting Leader for {}", serviceName);
-        isTaskLeader.compareAndSet(true, false);
-        // unregistering node from service
-        nodeEndpointRegistrationHandle.close();
+        if (isTaskLeader.compareAndSet(true, false)) {
+          logger.info("Rejecting Leader for {}", serviceName);
+          if (leadershipReleaseFuture != null) {
+            leadershipReleaseFuture.cancel(false);
+          }
+          // unregistering node from service
+          nodeEndpointRegistrationHandle.close();
+          listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipLost);
+
+        }
       }
     });
+    isLatchClosed = false;
     // no need to do anything if it is a follower
   }
 
@@ -137,7 +163,7 @@ public class TaskLeaderElection implements AutoCloseable {
   }
 
   public Long getLeaseExpirationTime() {
-    return leaseExpirationTime;
+    return leaseExpirationTime.get();
   }
 
   @VisibleForTesting
@@ -150,43 +176,50 @@ public class TaskLeaderElection implements AutoCloseable {
    * and enter elections again
    */
   private class LeadershipReset implements Runnable {
-    // TODO (DX-13809) should not reelect if task is currently running
     @Override
     public void run() {
       // do not abandon elections if there is no more participants in the elections
-      if (isTaskLeader.get() && registrationHandle.instanceCount() > 1) {
+      if (isTaskLeader.compareAndSet(true, false) && electionHandle.instanceCount() > 1) {
         try {
-          logger.info("Trying to relinquish leadership for {}, as number of participants is {}", serviceName, registrationHandle.instanceCount());
+          logger.info("Trying to relinquish leadership for {}, as number of participants is {}", serviceName, electionHandle.instanceCount());
+          listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipRelinquished);
           // abandon leadership
           // and reenter elections
-          isTaskLeader.compareAndSet(true, false);
           // unregistering node from service
-          AutoCloseables.close(nodeEndpointRegistrationHandle, registrationHandle);
+          AutoCloseables.close(nodeEndpointRegistrationHandle, electionHandle);
           isLatchClosed = true;
+          if (leadershipReleaseFuture != null) {
+            leadershipReleaseFuture.cancel(false);
+          }
         } catch(InterruptedException ie) {
+          logger.error("Current thread is interrupted. stopping elections for {} before leader reelections for {}",
+            serviceName, ie);
           Thread.currentThread().interrupt();
         } catch (Exception e) {
           logger.error("Error while trying to close elections before leader reelections for {}", serviceName);
-        } finally {
-          enterElections();
         }
+        enterElections();
       } else {
         logger.info("Do not relinquish leadership as it is {} and number of election participants is {}",
-          (isTaskLeader.get()) ? "task leader" : "task follower", registrationHandle.instanceCount());
+          (isTaskLeader.get()) ? "task leader" : "task follower", electionHandle.instanceCount());
       }
     }
   }
 
   @Override
   public void close() throws Exception {
-    isTaskLeader.compareAndSet(true, false);
+    if (isTaskLeader.compareAndSet(true, false)) {
+      listeners.keySet().forEach(TaskLeaderChangeListener::onLeadershipLost);
+    }
+    listeners.clear();
     if (leadershipReleaseFuture != null) {
       leadershipReleaseFuture.cancel(true);
     }
     if (isLatchClosed) {
-      AutoCloseables.close(taskLeaderStatusListener, nodeEndpointRegistrationHandle);
+      AutoCloseables.close(taskLeaderStatusListener);
     } else {
-      AutoCloseables.close(taskLeaderStatusListener, registrationHandle, nodeEndpointRegistrationHandle);
+      // order is important
+      AutoCloseables.close(nodeEndpointRegistrationHandle, electionHandle, taskLeaderStatusListener);
     }
   }
 }

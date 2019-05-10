@@ -25,13 +25,24 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.UnionExchange;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 
+@Options
 public class UnionExchangePrel extends ExchangePrel {
+
+  public static final LongValidator RECEIVER_RESERVE = new PositiveLongValidator("planner.op.receiver.unionexchange.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator RECEIVER_LIMIT = new PositiveLongValidator("planner.op.receiver.unionexchange.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator SENDER_RESERVE = new PositiveLongValidator("planner.op.sender.unionexchange.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator SENDER_LIMIT = new PositiveLongValidator("planner.op.sender.unionexchange.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   public UnionExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input) {
     super(cluster, traitSet, input);
@@ -75,8 +86,19 @@ public class UnionExchangePrel extends ExchangePrel {
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
-    UnionExchange g = new UnionExchange(childPOP);
-    return creator.addMetadata(this, g);
+    final BatchSchema schema = childPOP.getProps().getSchema();
+    final OpProps props = creator.props(this, null, schema);
+    final int senderOperatorId = OpProps.buildOperatorId(childPOP.getProps().getMajorFragmentId(), 0);
+    final OpProps senderProps = creator.props(senderOperatorId, this, null, schema, SENDER_RESERVE, SENDER_LIMIT, props.getCost() * 0.01);
+    final OpProps receiverProps = creator.props(this, null, schema, RECEIVER_RESERVE, RECEIVER_LIMIT, props.getCost() * 0.01);
+
+    return new UnionExchange(
+        props,
+        senderProps,
+        receiverProps,
+        props.getSchema(),
+        childPOP
+        );
   }
 
   @Override

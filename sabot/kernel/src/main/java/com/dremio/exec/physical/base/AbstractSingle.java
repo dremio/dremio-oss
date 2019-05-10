@@ -18,8 +18,6 @@ package com.dremio.exec.physical.base;
 import java.util.Iterator;
 import java.util.List;
 
-import com.dremio.exec.expr.fn.FunctionLookupContext;
-import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
@@ -33,12 +31,10 @@ public abstract class AbstractSingle extends AbstractBase {
 
   protected final PhysicalOperator child;
 
-  public AbstractSingle(PhysicalOperator child) {
-    this.child = child;
-  }
-
-  public AbstractSingle(PhysicalOperator child, String userName) {
-    super(userName);
+  public AbstractSingle(
+      OpProps props,
+      PhysicalOperator child) {
+    super(props);
     this.child = child;
   }
 
@@ -60,9 +56,4 @@ public abstract class AbstractSingle extends AbstractBase {
 
   protected abstract PhysicalOperator getNewWithChild(PhysicalOperator child);
 
-
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    return child.getSchema(context);
-  }
 }

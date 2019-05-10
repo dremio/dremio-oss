@@ -19,44 +19,53 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
+import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.CoordinationProtos;
-import com.dremio.exec.proto.UserBitShared.WorkloadClass;
 import com.dremio.exec.util.Utilities;
+import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.foreman.ForemanSetupException;
+import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.resource.ResourceSchedulingProperties;
 import com.dremio.resource.ResourceSchedulingResult;
 import com.dremio.resource.ResourceSet;
-import com.dremio.resource.basic.BasicResourceConstants;
-import com.dremio.resource.basic.QueueType;
 import com.dremio.resource.exception.ResourceAllocationException;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 
 /**
  * Base class for Asynchronous queries.
  */
-public abstract class AsyncCommand<T> implements CommandRunner<T> {
+public abstract class AsyncCommand implements CommandRunner<Void> {
 
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AsyncCommand.class);
 
   protected final QueryContext context;
+  private final PhysicalPlanReader reader;
+  private final CoordToExecTunnelCreator tunnelCreator;
 
-  private QueueType queueType;
   protected ResourceAllocator queryResourceManager;
   protected AttemptObserver observer;
   protected ResourceSet resourceSet;
   protected ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo;
 
-  public AsyncCommand(QueryContext context, ResourceAllocator queryResourceManager, AttemptObserver observer) {
+  private PlanningSet planningSet;
+  private ExecutionPlan executionPlan;
+
+  public AsyncCommand(QueryContext context, ResourceAllocator queryResourceManager, AttemptObserver observer,
+      PhysicalPlanReader reader, CoordToExecTunnelCreator tunnelCreator) {
     this.context = context;
     this.queryResourceManager = queryResourceManager;
     this.observer = observer;
+    this.reader = reader;
+    this.tunnelCreator = tunnelCreator;
   }
 
   @Override
@@ -64,21 +73,32 @@ public abstract class AsyncCommand<T> implements CommandRunner<T> {
     return CommandType.ASYNC_QUERY;
   }
 
-  protected void setQueueTypeFromPlan(PhysicalPlan plan) {
-    final long queueThreshold = context.getOptions().getOption(BasicResourceConstants.QUEUE_THRESHOLD_SIZE);
-    if (context.getQueryContextInfo().getPriority().getWorkloadClass().equals(WorkloadClass.BACKGROUND)) {
-      setQueueType((plan.getCost() > queueThreshold) ? QueueType.REFLECTION_LARGE : QueueType.REFLECTION_SMALL);
-    } else {
-      setQueueType((plan.getCost() > queueThreshold) ? QueueType.LARGE : QueueType.SMALL);
-    }
+  protected abstract PhysicalPlan getPhysicalPlan();
+
+  public void allocateResources() throws Exception {
+    planningSet = allocateResourcesBasedOnPlan(getPhysicalPlan());
   }
 
-  private void setQueueType(QueueType queueType) {
-    this.queueType = queueType;
+  public void planExecution() throws ExecutionSetupException {
+    Preconditions.checkNotNull(planningSet, "planningSet required");
+
+    executionPlan = ExecutionPlanCreator.getExecutionPlan(context, reader, observer, getPhysicalPlan(), resourceSet, planningSet);
+    observer.planCompleted(executionPlan);
+    planningSet = null; // no longer needed
   }
 
-  public QueueType getQueueType() {
-    return queueType;
+  public void startFragments() throws Exception {
+    Preconditions.checkNotNull(executionPlan, "execution plan required");
+
+    FragmentStarter starter = new FragmentStarter(tunnelCreator, resourceSchedulingDecisionInfo);
+    starter.start(executionPlan, observer);
+    executionPlan = null; // no longer needed
+  }
+
+  @Override
+  public Void execute() {
+    //TODO (DX-16022) refactor the code to no longer require this
+    throw new IllegalStateException("Should never be called");
   }
 
   /**
@@ -89,7 +109,6 @@ public abstract class AsyncCommand<T> implements CommandRunner<T> {
    */
   protected PlanningSet allocateResourcesBasedOnPlan(PhysicalPlan plan) throws Exception {
     final double planCost = plan.getCost();
-    setQueueTypeFromPlan(plan);
     final Collection<CoordinationProtos.NodeEndpoint> activeEndpoints = context.getActiveEndpoints();
     final PlanningSet planningSet = ExecutionPlanCreator.getParallelizationInfo(context, observer, plan,
       activeEndpoints);

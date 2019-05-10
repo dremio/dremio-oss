@@ -16,10 +16,11 @@
 /* eslint react/prop-types: 0 */
 
 import './commonGlobalVariables';
-import { Component } from 'react';
 import en from 'dyn-load/locales/en.json';
 import 'url-search-params-polyfill';
 import mockCssModules from 'mock-css-modules';
+import { jsdom } from 'jsdom';
+import config from '../webpack.config';
 
 // Prevent compiling of .less
 mockCssModules.register(['.less']); // needed for css module
@@ -34,12 +35,27 @@ global.navigator = {
 
 /* init jsdom  */
 
-import { jsdom } from 'jsdom';
-
 const exposedProperties = ['navigator', 'document'];
 
 global.document = jsdom('');
 global.window = document.defaultView;
+
+
+const Module = require('module');
+// import of react and enzyme must be after jsdom initialization. See https://github.com/airbnb/enzyme/issues/395
+const { Component } = require('react');
+const Enzyme = require('enzyme');
+const Adapter = require('enzyme-adapter-react-16');
+Enzyme.configure({
+  adapter: new Adapter(),
+  disableLifecycleMethods: true // this is default behaviour that has place for enzyme v.2
+});
+
+
+// Svg tests fails with npm 6.1. A workaround is found here https://github.com/jsdom/jsdom/issues/1721
+if (typeof URL.createObjectURL === 'undefined') {
+  Object.defineProperty(URL, 'createObjectURL', { value: () => 'mock_url' });
+}
 
 global.window.config = { // will this it's FE-DEV, BE-DEV
   language: 'dataEN'
@@ -122,7 +138,6 @@ class FakeComponent extends Component {
 const checkIntlId = id => {
   if (!en[id]) throw new Error(`Intl id "${id}" does not exist.`);
 };
-import config from '../webpack.config';
 
 const aliases = Object.entries(config.resolve.alias);
 const applyAliases = (module) => {
@@ -135,8 +150,6 @@ const applyAliases = (module) => {
   }
   return module;
 };
-
-const Module = require('module');
 const originalRequire = Module.prototype.require;
 Module.prototype.require = function(module) {
   // provide a fake react-intl lib:

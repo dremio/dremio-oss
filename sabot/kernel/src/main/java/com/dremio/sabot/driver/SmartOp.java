@@ -41,8 +41,6 @@ import com.dremio.sabot.op.spi.Operator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.dremio.sabot.op.spi.TerminalOperator;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 
 import io.netty.util.internal.OutOfDirectMemoryError;
 
@@ -72,24 +70,16 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
     this.functionLookupContext = functionLookupContext;
     this.stats = context.getStats();
   }
-
-  private final Supplier<BatchSchema> schemaSupplier = Suppliers.memoize(new Supplier<BatchSchema>() {
-    @Override
-    public BatchSchema get() {
-      return popConfig.getSchema(functionLookupContext);
-    }
-  });
-
   void checkSchema(BatchSchema initialSchema) {
-    BatchSchema expectedSchema = schemaSupplier.get();
-    checkState(initialSchema.getFields().equals(expectedSchema.getFields()),
-      String.format("Schema does not match expected schema:\nExpected:%s\nActual:%s",
-        expectedSchema.toStringVerbose(), initialSchema.toStringVerbose())
-    );
+    int propsSchemaHashCode = popConfig.getProps().getSchemaHashCode();
+    int initialSchemaHashCode = initialSchema.clone(BatchSchema.SelectionVectorMode.NONE).toByteString().hashCode();
+    checkState( propsSchemaHashCode == initialSchemaHashCode,
+      String.format("Schema checksums do not match. Actual schema:%d Config Schema:%d", initialSchemaHashCode, propsSchemaHashCode
+    ));
   }
 
   public int getOperatorId() {
-    return popConfig.getOperatorId();
+    return popConfig.getProps().getOperatorId();
   }
 
   @Override

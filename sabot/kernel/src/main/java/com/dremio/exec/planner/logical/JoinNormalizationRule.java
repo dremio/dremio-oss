@@ -39,7 +39,7 @@ import com.google.common.collect.Lists;
 public class JoinNormalizationRule extends RelOptRule {
   public static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinNormalizationRule.class);
 
-  public static final RelOptRule INSTANCE = new JoinNormalizationRule(DremioRelFactories.LOGICAL_BUILDER);
+  public static final JoinNormalizationRule INSTANCE = new JoinNormalizationRule(DremioRelFactories.LOGICAL_BUILDER);
 
   private final RelBuilderFactory factory;
 
@@ -52,6 +52,24 @@ public class JoinNormalizationRule extends RelOptRule {
   public void onMatch(RelOptRuleCall call) {
     final Join join = call.rel(0);
 
+    final RelNode newJoin = normalize(join);
+
+    if (newJoin != join) {
+      call.transformTo(newJoin);
+    }
+  }
+
+  /**
+   * Normalize the join relation operator
+   *
+   * Normalize the join operator so that conditions are fully push down
+   * and if possible, remaining condition are extracted in a separate filter
+   *
+   * @param rel
+   * @return a new tree of operators containing the normalized join, or {@code join} if
+   * already normalized
+   */
+  public RelNode normalize(Join join) {
     final RelBuilder builder = factory.create(join.getCluster(), null);
 
     RelNode newJoin = RelOptUtil.pushDownJoinConditions(join, builder);
@@ -81,11 +99,8 @@ public class JoinNormalizationRule extends RelOptRule {
       }
     });
 
-    if (newJoin != join) {
-      call.transformTo(newJoin);
-    }
+    return newJoin;
   }
-
   /**
    * Attempt to create a new join with a canonicalized join expression, and a possible filter
    * on top

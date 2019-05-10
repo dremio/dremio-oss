@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 import React, { Component } from 'react';
-import ReactDOM from 'react-dom';
-import { Overlay } from 'react-overlays';
 import Radium from 'radium';
 
 import PropTypes from 'prop-types';
 
-import Tooltip from 'components/Tooltip';
+import { Tooltip } from 'components/Tooltip';
 import HoverHelp from 'components/HoverHelp';
 
 import forms from 'uiTheme/radium/forms';
@@ -61,13 +59,14 @@ export default class FieldWithError extends Component {
         data-qa={name} style={{...style, position:'relative'}}>
         {this.renderLabel()}
         {React.cloneElement(React.Children.only(children), {ref: 'target'})}
-        <Overlay
-          show={showError}
+        <Tooltip
           container={this}
+          target={() => showError ? this.refs.target : null}
           placement={errorPlacement}
-          target={() => ReactDOM.findDOMNode(this.refs.target)}>
-          <Tooltip type='error' placement='left' content={error} arrowOffsetLeft={0} arrowOffsetTop={0}/>
-        </Overlay>
+          type='error'
+        >
+          {error}
+        </Tooltip>
       </div>
     );
   }

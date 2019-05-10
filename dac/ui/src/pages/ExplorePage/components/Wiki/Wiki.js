@@ -195,8 +195,7 @@ export class WikiView extends PureComponent {
         body: JSON.stringify({
           tags: tagsToSave,
           version: tagsVersion
-        }),
-        headers: {'Content-Type': 'application/json'}
+        })
       }, 3).then((response) => {
         response.json().then(this.setOriginalTags);
       }, (error) => {

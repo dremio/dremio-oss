@@ -19,6 +19,7 @@ import pureRender from 'pure-render-decorator';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
+import Mousetrap from 'mousetrap';
 
 import DataGraph from 'dyn-load/pages/ExplorePage/subpages/datagraph/DataGraph';
 import DetailsWizard from 'components/Wizards/DetailsWizard';
@@ -29,6 +30,9 @@ import { RECOMMENDED_JOIN } from 'constants/explorePage/joinTabs';
 import { Wiki } from '@app/pages/ExplorePage/components/Wiki/Wiki';
 import { PageTypes, pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
 import { getDatasetEntityId } from '@app/selectors/explore';
+import { runDatasetSql, previewDatasetSql } from 'actions/explore/dataset/run';
+import { navigateToExploreDefaultIfNecessary } from 'utils/pathUtils';
+import { getExploreViewState } from '@app/selectors/resources';
 
 import ExploreTableController from './../components/ExploreTable/ExploreTableController';
 import JoinTables from './../components/ExploreTable/JoinTables';
@@ -48,7 +52,6 @@ const EXPLORE_DRAG_TYPE = 'explorePage';
 class ExplorePageContentWrapper extends Component {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map),
-    entityId: PropTypes.string,
     pageType: pageTypesProp.isRequired,
     rightTreeVisible: PropTypes.bool.isRequired,
     sqlSize: PropTypes.number.isRequired,
@@ -59,7 +62,15 @@ class ExplorePageContentWrapper extends Component {
     isError: PropTypes.bool.isRequired,
     location: PropTypes.object.isRequired,
     setRecommendationInfo: PropTypes.func,
-    exploreViewState: PropTypes.instanceOf(Immutable.Map)
+    exploreViewState: PropTypes.instanceOf(Immutable.Map),
+    // connected
+    entityId: PropTypes.string,
+    runDatasetSql: PropTypes.func,
+    previewDatasetSql: PropTypes.func
+  };
+
+  static contextTypes = {
+    router: PropTypes.object.isRequired
   };
 
   constructor(props) {
@@ -68,6 +79,28 @@ class ExplorePageContentWrapper extends Component {
     this.getBottomContent = this.getBottomContent.bind(this);
     this.getControlsBlock = this.getControlsBlock.bind(this);
   }
+
+  componentDidMount() {
+    Mousetrap.bind(['mod+enter', 'mod+shift+enter'], this.kbdShorthand);
+  }
+
+  componentWillUnmount() {
+    Mousetrap.unbind(['mod+enter', 'mod+shift+enter']);
+  }
+
+  kbdShorthand = (e) => {
+    if (!e) return;
+
+    const { pageType, location } = this.props;
+    navigateToExploreDefaultIfNecessary(pageType, location, this.context.router);
+
+    if (e.shiftKey) {
+      this.props.runDatasetSql();
+    } else {
+      this.props.previewDatasetSql();
+    }
+  };
+
 
   getBottomContent() {
     const {dataset, pageType, location, entityId} = this.props;
@@ -107,7 +140,7 @@ class ExplorePageContentWrapper extends Component {
     }
     case PageTypes.default:
     case PageTypes.details:
-      return (<ExploreTableController //todo uncomment this after tests
+      return (<ExploreTableController
         pageType={pageType}
         dataset={dataset}
         dragType={EXPLORE_DRAG_TYPE}
@@ -203,8 +236,12 @@ class ExplorePageContentWrapper extends Component {
 }
 
 export default connect((state, { location }) => ({
-  entityId: getDatasetEntityId(state, location)
-}))(ExplorePageContentWrapper);
+  entityId: getDatasetEntityId(state, location),
+  exploreViewState: getExploreViewState(state)
+}), {
+  runDatasetSql,
+  previewDatasetSql
+})(ExplorePageContentWrapper);
 
 const styles = {
   tableControlWrap: {

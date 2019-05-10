@@ -15,47 +15,13 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.Collection;
 import java.util.List;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
-import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public interface Scan extends Leaf {
 
-  /**
-   * Get the list of schema paths of tables referenced by this Scan. Each table's schema path, in the namespace
-   * hierarchy, is a list of strings. For example ["mysql", "database", "table"].
-   *
-   * @return list of referenced tables
-   */
-  @JsonProperty("referenced-tables")
-  Collection<List<String>> getReferencedTables();
-
-  /**
-   * If schema of referenced tables may be learnt in case of schema changes.
-   */
-  boolean mayLearnSchema();
-
-  /**
-   * Similar to base class functionality although FunctionLookupContext can be
-   * null since this is a leaf node. The actual outcome schema.
-   */
-  @Override
-  BatchSchema getSchema(FunctionLookupContext context);
-
-  /**
-   * Return the complete table schema. This schema includes fields, not just
-   * those projected. It differs from the getSchema(FunctionLookupContext) as
-   * that one only includes the fields that are projected. Use this for schema
-   * leraning updates and the other one for output schema determination.
-   *
-   * @return The full schema of the table.
-   */
-  @JsonProperty("schema")
-  BatchSchema getSchema();
 
   /**
    * The set of projected columns.

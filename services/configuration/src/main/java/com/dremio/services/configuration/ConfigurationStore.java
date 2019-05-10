@@ -21,7 +21,7 @@ import com.dremio.datastore.StoreBuildingFactory;
 import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.StringSerializer;
 import com.dremio.datastore.VersionExtractor;
-import com.dremio.service.accelerator.store.serializer.SchemaSerializer;
+import com.dremio.service.reflection.store.SchemaSerializer;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.google.common.base.Preconditions;
 

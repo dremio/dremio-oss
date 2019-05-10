@@ -332,7 +332,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
 
   protected class InboundHandler extends MessageToMessageDecoder<InboundRpcMessage> {
 
-    private final Executor exec;
+    private final SerializedExecutor<Runnable> exec;
     private final C connection;
 
     public InboundHandler(C connection) {
@@ -423,10 +423,10 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
     }
   }
 
-  class RpcEventHandler extends SerializedExecutor {
+  class RpcEventHandler extends SerializedExecutor<Runnable> {
 
     public RpcEventHandler(Executor underlyingExecutor) {
-      super(rpcConfig.getName() + "-rpc-event-queue", underlyingExecutor);
+      super(rpcConfig.getName() + "-rpc-event-queue", underlyingExecutor, false);
     }
 
     @Override

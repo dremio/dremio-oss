@@ -13,13 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from 'react';
-import Radium from 'radium';
+import React, { Component, Fragment } from 'react';
 import PropTypes from 'prop-types';
-import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
+import { SelectView } from '@app/components/Fields/SelectView';
 import { triangleTop } from 'uiTheme/radium/overlay';
 
-@Radium
 export default class HeaderDropdown extends Component {
   static propTypes = {
     dataQa: PropTypes.string,
@@ -31,52 +29,36 @@ export default class HeaderDropdown extends Component {
     name: ''
   };
 
-  state = {
-    open: false
-  }
-
-  handleClick = (event) => {
-    this.setState({
-      open: true,
-      anchorEl: event.currentTarget
-    });
-  }
-
-  handleRequestClose = () => {
-    this.setState({open: false});
-  }
-
   render() {
+    const { dataQa } = this.props;
+
     return (
-      <div data-qa={this.props.dataQa}>
-        <div className='item' onClick={this.handleClick} style={styles.navItem}>
-          <span className='item-wrap' style={styles.name}>{this.props.name}</span>
-          <i className='fa fa-angle-down' style={styles.downArrow}/>
-        </div>
-        <Popover
-          open={this.state.open}
-          anchorEl={this.state.anchorEl}
-          anchorOrigin={{horizontal: 'right', vertical: 'bottom'}}
-          targetOrigin={{horizontal: 'right', vertical: 'top'}}
-          onRequestClose={this.handleRequestClose}
-          animation={PopoverAnimationVertical}
-          style={styles.popover}
-        >
-          <div style={styles.triangle}/>
-          {React.cloneElement(this.props.menu, {closeMenu: this.handleRequestClose})}
-        </Popover>
-      </div>
+      <SelectView
+        content={
+          <div className='item'>
+            <span className='item-wrap' style={styles.name}>{this.props.name}</span>
+            <i className='fa fa-angle-down' style={styles.downArrow}/>
+          </div>
+        }
+        hideExpandIcon // as 'content' render it's own icon
+        listStyle={styles.popover}
+        listRightAligned
+        dataQa={dataQa}
+      >
+        {
+          ({ closeDD }) => (
+            <Fragment>
+              <div style={styles.triangle}/>
+              {React.cloneElement(this.props.menu, { closeMenu: closeDD })}
+            </Fragment>
+          )
+        }
+      </SelectView>
     );
   }
 }
 
 const styles = {
-  avatar: {
-    marginRight: 5
-  },
-  navItem: {
-    height: '100%'
-  },
   name: {
     margin: '0 6px 0 0'
   },
@@ -85,7 +67,7 @@ const styles = {
   },
   popover: {
     marginTop: 5,
-    width: 128
+    overflow: 'visible'
   },
   triangle: {
     ...triangleTop,

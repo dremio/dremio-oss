@@ -231,7 +231,7 @@ const styles = {
     width: 16
   },
   wrapperStylesFix: {
-    height: 'auto'
+    height: '100%'
   }
 };
 

@@ -16,6 +16,7 @@
 package com.dremio.service.jobs;
 
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.service.job.proto.JobId;
@@ -30,6 +31,7 @@ public class JobDataImpl implements JobData {
 
   private final JobLoader dataLoader;
   private final JobId jobId;
+  private final CountDownLatch metadataCompletionLatch;
   private final List<JobDataFragmentImpl> dataObjectsToRelease = Lists.newArrayList();
 
   private boolean closed;
@@ -39,9 +41,10 @@ public class JobDataImpl implements JobData {
    * @param dataLoader
    * @param jobId
    */
-  public JobDataImpl(JobLoader dataLoader, JobId jobId) {
+  public JobDataImpl(JobLoader dataLoader, JobId jobId, CountDownLatch metadataCompletionLatch) {
     this.dataLoader = Preconditions.checkNotNull(dataLoader);
     this.jobId = Preconditions.checkNotNull(jobId);
+    this.metadataCompletionLatch = metadataCompletionLatch;
   }
 
   @Override
@@ -75,6 +78,15 @@ public class JobDataImpl implements JobData {
   @Override
   public void loadIfNecessary() {
     dataLoader.waitForCompletion();
+  }
+
+  @Override
+  public void waitForMetadata() {
+    try {
+      metadataCompletionLatch.await();
+    } catch(InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override

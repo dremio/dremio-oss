@@ -32,7 +32,7 @@ public class TestSimpleFilter extends BaseTestOperator {
   @Test
   public void simpleFilter() throws Exception {
 
-    Filter f = new Filter(null, toExpr("c0 < 10"), 1f);
+    Filter f = new Filter(PROPS, null, toExpr("c0 < 10"), 1f);
     Table input = t(
         th("c0"),
         tr(35),
@@ -51,7 +51,7 @@ public class TestSimpleFilter extends BaseTestOperator {
   @Test
   public void simpleFilter2() throws Exception {
 
-    Filter f = new Filter(null, toExpr("c0 < c1"), 1f);
+    Filter f = new Filter(PROPS, null, toExpr("c0 < c1"), 1f);
     Table input = t(
       th("c0", "c1"),
       tr(35, 45),
@@ -71,7 +71,7 @@ public class TestSimpleFilter extends BaseTestOperator {
   @Test
   public void varcharFilter() throws Exception {
 
-    Filter f = new Filter(null, toExpr("like(c0, 'hell%')"), 1f);
+    Filter f = new Filter(PROPS, null, toExpr("like(c0, 'hell%')"), 1f);
     Table input = t(
         th("c0"),
         tr("hello"),
@@ -89,7 +89,7 @@ public class TestSimpleFilter extends BaseTestOperator {
   @Test
   public void strlenFilter() throws Exception {
     LogicalExpression expr = toExpr("(length(c0) + length(c1)) > 10");
-    Filter f = new Filter(null, expr, 1f);
+    Filter f = new Filter(PROPS, null, expr, 1f);
     Table input = t(
       th("c0", "c1"),
       tr("hello", "world"),

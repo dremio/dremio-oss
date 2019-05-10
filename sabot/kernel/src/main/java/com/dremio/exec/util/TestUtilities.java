@@ -164,13 +164,13 @@ public class TestUtilities {
     {
       List<String> list = new ArrayList<>();
       list.add(NamespaceServiceImpl.DAC_NAMESPACE);
-      list.add(NamespaceServiceImpl.DATASET_SPLITS);
+      list.add(NamespaceServiceImpl.PARTITION_CHUNKS);
       list.add(CatalogServiceImpl.CATALOG_SOURCE_DATA_NAMESPACE);
       list.add("wlmqueue");
       list.add("rulesmanager");
       list.add("wlmqueuecontainerversion");
-      list.add("sys.options");
       list.add("configuration");
+      list.add("sys.options");
       if(savedStores != null) {
         list.addAll(savedStores);
       }

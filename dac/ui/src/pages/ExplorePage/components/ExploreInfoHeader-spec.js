@@ -64,6 +64,8 @@ describe('ExploreInfoHeader', () => {
       startDownloadDataset: sinon.spy(),
       toggleRightTree: sinon.spy(),
       runDataset: sinon.spy(),
+      runDatasetSql: sinon.spy(),
+      previewDatasetSql: sinon.spy(),
       performTransform: sinon.stub().returns(Promise.resolve('performTransform')),
       transformHistoryCheck: sinon.spy(),
       performLoadDataset: sinon.stub().returns(Promise.resolve('performLoadDataset')),
@@ -98,8 +100,8 @@ describe('ExploreInfoHeader', () => {
   it('run and save buttons should be enabled', () => {
     expect(wrapper.find('.run-button').length).to.equal(1);
     expect(wrapper.find('.explore-save-button').length).to.equal(1);
-    expect(wrapper.find('.run-button').node.props.disabled).to.be.undefined;
-    expect(wrapper.find('.explore-save-button').node.props.disabled).to.be.false;
+    expect(wrapper.find('.run-button').getElement().props.disabled).to.be.undefined;
+    expect(wrapper.find('.explore-save-button').getElement().props.disabled).to.be.false;
   });
 
   //TODO should be returned back after fix version problem
@@ -117,8 +119,8 @@ describe('ExploreInfoHeader', () => {
     };
     wrapper = shallow(<ExploreInfoHeader {...props}/>, {context});
     expect(wrapper.find('.run-button').length).to.equal(1);
-    expect(wrapper.find('.run-button').node.props.disabled).to.equal(true);
-    expect(wrapper.find('.explore-save-button').node.props.disabled).to.equal(true);
+    expect(wrapper.find('.run-button').getElement().props.disabled).to.equal(true);
+    expect(wrapper.find('.explore-save-button').getElement().props.disabled).to.equal(true);
   });
 
   //TODO should be returned back after fix version problem
@@ -137,52 +139,49 @@ describe('ExploreInfoHeader', () => {
 
     wrapper = shallow(<ExploreInfoHeader {...props}/>, {context});
     expect(wrapper.find('.run-button').length).to.equal(1);
-    expect(wrapper.find('.run-button').node.props.disabled).to.equal(true);
-    expect(wrapper.find('.explore-save-button').node.props.disabled).to.equal(false);
+    expect(wrapper.find('.run-button').getElement().props.disabled).to.equal(true);
+    expect(wrapper.find('.explore-save-button').getElement().props.disabled).to.equal(false);
   });
 
-  describe('#needsTransform', () => {
+  describe('#isTransformNeeded', () => {
     it('should return true if sql has changed', () => {
       wrapper.setProps({currentSql: 'different sql'});
-      expect(instance.needsTransform()).to.be.true;
+      expect(instance.isTransformNeeded()).to.be.true;
     });
 
     it('should return true if queryContext has changed', () => {
       wrapper.setProps({queryContext: Immutable.List(['different sql'])});
-      expect(instance.needsTransform()).to.be.true;
+      expect(instance.isTransformNeeded()).to.be.true;
     });
 
     it('should return true if dataset has no version', () => {
       wrapper.setProps({dataset: commonProps.dataset.remove('datasetVersion')});
-      expect(instance.needsTransform()).to.be.true;
+      expect(instance.isTransformNeeded()).to.be.true;
     });
 
     it('should return false if none of the above are true', () => {
       const { dataset } = commonProps;
       wrapper.setProps({currentSql: dataset.get('sql'), queryContext: dataset.get('context')});
-      expect(instance.needsTransform()).to.be.false;
+      expect(instance.isTransformNeeded()).to.be.false;
 
-      wrapper.setProps({currentSql: undefined});
-      expect(instance.needsTransform()).to.be.false;
+      wrapper.setProps({currentSql: null});
+      expect(instance.isTransformNeeded()).to.be.false;
     });
   });
 
   describe('#handlePreviewClick', () => {
-    beforeEach(() => {
-      sinon.stub(instance, 'transformIfNecessary');
-    });
-
-    it('should not call performLoadDataset if didTransform', () => {
+    it('should call previewDatasetSql', () => {
+      sinon.stub(instance, 'navigateToExploreTableIfNecessary');
       instance.handlePreviewClick();
-      instance.transformIfNecessary.args[0][0](true);
-      expect(commonProps.performLoadDataset).to.not.be.called;
+      expect(commonProps.previewDatasetSql).to.have.been.called;
     });
+  });
 
-    it('should call navigateToExploreTableIfNecessary, and performLoadDataset if !didTransform', () => {
-      sinon.spy(instance, 'navigateToExploreTableIfNecessary');
-      instance.handlePreviewClick();
-      instance.transformIfNecessary.args[0][0](false);
-      expect(commonProps.performLoadDataset).to.be.called;
+  describe('#handleRunClick', () => {
+    it('should call runDatasetSql', () => {
+      sinon.stub(instance, 'navigateToExploreTableIfNecessary');
+      instance.handleRunClick();
+      expect(commonProps.runDatasetSql).to.have.been.called;
     });
   });
 
@@ -191,9 +190,9 @@ describe('ExploreInfoHeader', () => {
       instance.navigateToExploreTableIfNecessary();
       expect(context.router.push).to.not.be.called;
 
-      wrapper.setProps({location: {pathname: '/ds1/graph'}, pageType: 'graph'});
+      wrapper.setProps({location: {pathname: '/home/space/ds1/graph'}, pageType: 'graph'});
       instance.navigateToExploreTableIfNecessary();
-      expect(context.router.push).to.be.calledWith({pathname: '/ds1'});
+      expect(context.router.push).to.be.calledWith({pathname: '/home/space/ds1'});
     });
   });
 
@@ -251,7 +250,7 @@ describe('ExploreInfoHeader', () => {
       it('should return history.isEdited if none of the above are true', () => {
         wrapper.setProps({currentSql: commonProps.dataset.get('sql'), history: undefined});
         expect(instance.isEditedDataset()).to.be.false;
-        wrapper.setProps({currentSql: undefined});
+        wrapper.setProps({currentSql: null});
         expect(instance.isEditedDataset()).to.be.false;
         wrapper.setProps({history: Immutable.Map({isEdited: false})});
         expect(instance.isEditedDataset()).to.be.false;
@@ -260,60 +259,25 @@ describe('ExploreInfoHeader', () => {
       });
     });
 
-    describe('isSqlChanged', () => {
-      it('should return true only if currentSql !== undefined and it !== dataset.sql', () => {
-        wrapper.setProps({currentSql: undefined});
-        expect(instance.isSqlChanged()).to.be.false;
-
-        wrapper.setProps({currentSql: commonProps.dataset.get('sql')});
-        expect(instance.isSqlChanged()).to.be.false;
-
-        wrapper.setProps({currentSql: 'different sql'});
-        expect(instance.isSqlChanged()).to.be.true;
-      });
-    });
-
     describe('#transformIfNecessary', () => {
       it('should call transformHistoryCheck only if needsTranform', () => {
-        sinon.stub(instance, 'needsTransform').returns(false);
+        sinon.stub(instance, 'isTransformNeeded').returns(false);
         instance.transformIfNecessary();
         expect(commonProps.transformHistoryCheck).to.not.be.called;
 
-        instance.needsTransform.returns(true);
+        instance.isTransformNeeded.returns(true);
         instance.transformIfNecessary();
         expect(commonProps.transformHistoryCheck).to.be.called;
       });
 
       it('should call navigateToExploreTableIfNecessary if performing transform', () => {
-        sinon.stub(instance, 'needsTransform').returns(true);
+        sinon.stub(instance, 'isTransformNeeded').returns(true);
         sinon.spy(instance, 'navigateToExploreTableIfNecessary');
         instance.transformIfNecessary(() => {});
         expect(instance.navigateToExploreTableIfNecessary).to.be.called;
       });
     });
 
-    describe('#runDataset', () => {
-      it('should call performTransformAndRun when sql/context unchanged', () => {
-        wrapper.setProps({dataset: Immutable.fromJS({sql: commonProps.currentSql, context: commonProps.queryContext})});
-        instance.runDataset();
-        expect(commonProps.performTransformAndRun).to.be.calledOnce;
-        expect(commonProps.transformHistoryCheck).to.not.be.called;
-
-        wrapper.setProps({currentSql: undefined});
-        instance.runDataset();
-        expect(commonProps.transformHistoryCheck).to.not.be.called;
-      });
-      it('should call transformHistoryCheck if sql/context changed', () => {
-        instance.runDataset();
-        expect(commonProps.performTransformAndRun).to.not.be.called;
-        expect(commonProps.transformHistoryCheck).to.be.calledOnce;
-      });
-      it('should call navigateToExploreTableIfNecessary', () => {
-        sinon.spy(instance, 'navigateToExploreTableIfNecessary');
-        instance.runDataset();
-        expect(instance.navigateToExploreTableIfNecessary).to.be.called;
-      });
-    });
   });
 
   describe('#isCreatedAndNamedDataset', function() {

@@ -13,27 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { call, put } from 'redux-saga/effects';
-
-import { CALL_API } from 'redux-api-middleware';
-
-import { RUN_DATASET_START } from 'actions/explore/dataset/run';
+import { call, put, spawn } from 'redux-saga/effects';
+import Immutable from 'immutable';
+import { runDataset, transformAndRunDataset } from 'actions/explore/dataset/run';
 import { expandExploreSql } from 'actions/explore/ui';
+import { newUntitledSql, newUntitledSqlAndRun } from 'actions/explore/dataset/new';
+import { runTableTransform } from 'actions/explore/dataset/transform';
+import { transformHistoryCheck } from 'sagas/transformHistoryCheck';
 
-import { getNewDataset } from 'pages/ExplorePage/ExplorePageController';
 import apiUtils from 'utils/apiUtils/apiUtils';
-
-import { unwrapAction } from './utils';
-import { performWatchedTransform } from './transformWatcher';
-import { loadDataset, loadTableData } from './performLoadDataset';
+import { transformThenNavigate } from './transformWatcher';
+import { loadDataset, loadTableData, cancelDataLoad, focusSqlEditorSaga } from './performLoadDataset';
 
 import {
   getTransformData,
   performTransform,
-  doRun,
-  createDataset,
-  transformThenNavigate,
-  TransformFailedError
+  handleRunDatasetSql,
+  getFetchDatasetMetaAction,
+  proceedWithDataLoad
 } from './performTransform';
 
 describe('performTransform saga', () => {
@@ -42,15 +39,16 @@ describe('performTransform saga', () => {
   let gen;
   let next;
   const viewId = 'VIEW_ID';
-  const version = 'fooId';
+  const newDatasetVersion = 'newId';
+  const oldDatasetVersion = 'oldId';
   const datasetResponse = {
     error: false,
     payload: Immutable.fromJS({
       entities: {
-        datasetUI: {[version]: 'dataset'},
-        fullDataset: {[version]: {}}
+        datasetUI: {[newDatasetVersion]: { datasetVersion: newDatasetVersion }},
+        fullDataset: {[newDatasetVersion]: {}}
       },
-      result: version
+      result: newDatasetVersion
     })
   };
 
@@ -58,30 +56,34 @@ describe('performTransform saga', () => {
     transformData = Immutable.fromJS({ href: '123' });
     dataset = Immutable.fromJS({
       displayFullPath: ['foo', 'bar'],
-      datasetVersion: 1,
+      datasetVersion: oldDatasetVersion,
       sql: 'select * from foo',
       context: ['fooContext']});
   });
 
   describe('performTransform', () => {
-    it('should call doRun when isRun', () => {
-      const params = { dataset, currentSql: dataset.get('sql'), transformData, isRun: true };
-
-      gen = performTransform(params);
-      next = gen.next();
-      expect(next.value).to.eql(call(getTransformData, dataset, 'select * from foo', undefined, transformData));
-      next = gen.next(transformData);
-      expect(next.value.CALL.fn).to.equal(doRun);
-    });
+    const gotToCallback = () => {
+      const apiAction = 'an api action';
+      next = gen.next(); // getFetchDatasetMetaAction call
+      next = gen.next({ apiAction }); // cancelDataLoad call
+      expect(next.value).to.be.eql(call(cancelDataLoad));
+      next = gen.next(); // transformThenNavigate call
+      expect(next.value).to.be.eql(call(transformThenNavigate, apiAction, undefined, undefined));
+      next = gen.next(datasetResponse); // loadTableData call
+      // should take a version from reponse here
+      expect(next.value).to.be.eql(spawn(loadTableData, newDatasetVersion, undefined));
+      next = gen.next(); // focusSqlEditorSaga
+      expect(next.value).to.be.eql(call(focusSqlEditorSaga));
+      next = gen.next(); // callback call
+    };
 
     it('should call callback with true if transform request succeeds', () => {
       const params = { dataset, currentSql: dataset.get('sql'), transformData, callback: sinon.spy() };
 
       gen = performTransform(params);
-      next = gen.next();
-      next = gen.next(transformData);
-      expect(next.value.CALL).to.not.be.undefined; // run transform
-      next = gen.next(datasetResponse);
+
+      gotToCallback();
+
       const nextDataset = apiUtils.getEntityFromResponse('datasetUI', datasetResponse);
       expect(next.value.CALL.fn).to.equal(params.callback);
       expect(next.value.CALL.args).to.eql([true, nextDataset]);
@@ -93,49 +95,225 @@ describe('performTransform saga', () => {
       const params = { dataset, currentSql: dataset.get('sql'), callback: sinon.spy() };
 
       gen = performTransform(params);
-      next = gen.next();
-      next = gen.next(null); // no transformData
-      expect(next.value.CALL.fn).to.equal(params.callback);
-      expect(next.value.CALL.args).to.eql([false, dataset]);
-      next = gen.next();
-      expect(next.done).to.be.true;
-    });
+      next = gen.next(); // getFetchDatasetMetaAction call
+      next = gen.next({ apiAction: null }); // callback call
 
-
-    it('should not call callback if transform request fails', () => {
-      const payload = { dataset, currentSql: dataset.get('sql'), transformData, callback: sinon.spy() };
-
-      gen = performTransform(payload);
+      expect(next.value).to.eql(call(params.callback, false, dataset));
       next = gen.next();
-      next = gen.next(transformData);
-      expect(next.value.CALL).to.not.be.undefined; // run transform
-      next = gen.next({error: true});
       expect(next.done).to.be.true;
     });
 
     it('should expand sql if original dataset isNewQuery', () => {
       const payload = {
-        dataset: getNewDataset({query: {context: '@dremio'}}),
+        dataset: Immutable.fromJS({ isNewQuery: true }),
         currentSql: dataset.get('sql')
       };
 
       gen = performTransform(payload);
-      next = gen.next();
-      next = gen.next(null); // transformData
-      next = gen.next(dataset); // createDataset
-      expect(next.value).to.eql(put(expandExploreSql()));
+      gotToCallback();
+      expect(next.value).to.be.eql(put(expandExploreSql()));
       next = gen.next();
       expect(next.done).to.be.true;
     });
+  });
+
+  describe('handleRunDatasetSql', () => {
+    let dataSet, exploreViewState, exploreState;
+    beforeEach(() => {
+      dataSet = Immutable.fromJS({datasetVersion: 1, sql: ''});
+      exploreViewState = Immutable.fromJS({viewId: 'a'});
+      exploreState = { view: { currentSql: '', queryContext: [] } };
+    });
+
+    it('should do nothing if proceedWithDataLoad yields false', () => {
+      gen = handleRunDatasetSql({});
+      next = gen.next();
+      next = gen.next(dataSet);
+      next = gen.next(exploreViewState);
+      next = gen.next(exploreState);
+
+      expect(next.value).to.be.eql(call(proceedWithDataLoad, dataSet, exploreState.view.queryContext,
+        exploreState.view.currentSql));
+      expect(gen.next(false).done).to.be.true;
+    });
+
+    it('should call perform transform with proper run parameters', () => {
+      // needsTransform inside handleRunDatasetSql should return false with default items set in beforeEach
+      const performTransformParam = {
+        dataset: dataSet,
+        currentSql: exploreState.view.currentSql,
+        queryContext: exploreState.view.queryContext,
+        viewId: exploreViewState.get('viewId'),
+        isRun: true
+      };
+      gen = handleRunDatasetSql({});
+      next = gen.next(); // yield dataset
+      next = gen.next(dataSet); // use dataset, yield exploreViewState
+      next = gen.next(exploreViewState); // use exploreViewState, yield exploreState
+      next = gen.next(exploreState); // use exploreState, yield call performTransform
+      next = gen.next(true); // result for proceedWithDataLoad
+      expect(next.value).to.be.eql(call(performTransform, performTransformParam));
+    });
+
+    it('should call perform transform with proper preview parameters', () => {
+      // needsTransform inside handleRunDatasetSql should return false with default items set in beforeEach
+      const performTransformParam = {
+        dataset: dataSet,
+        currentSql: exploreState.view.currentSql,
+        queryContext: exploreState.view.queryContext,
+        viewId: exploreViewState.get('viewId'),
+        forceDataLoad: true
+      };
+      gen = handleRunDatasetSql({ isPreview: true });
+      next = gen.next(); // yield dataset
+      next = gen.next(dataSet); // use dataset, yield exploreViewState
+      next = gen.next(exploreViewState); // use exploreViewState, yield exploreState
+      next = gen.next(exploreState); // use exploreState, yield call performTransform
+      next = gen.next(true); // result for proceedWithDataLoad
+      expect(next.value).to.be.eql(call(performTransform, performTransformParam));
+    });
+  });
+
+  describe('getFetchDatasetMetaAction', () => {
+    const currentSql = 'select * from foo';
+    const queryContext = Immutable.fromJS(['@dremio']);
 
     it('should get sql from dataset if currentSql arg is falsy', () => {
       const payload = {
-        dataset
+        dataset,
+        currentSql: undefined
       };
 
-      gen = performTransform(payload);
+      gen = getFetchDatasetMetaAction(payload);
       next = gen.next();
       expect(next.value).to.eql(call(getTransformData, payload.dataset, 'select * from foo', undefined, undefined));
+    });
+
+    const goToTransformData = transformDataResult => {
+      next = gen.next(); // skip getTransformData
+      next = gen.next(transformDataResult);
+    };
+
+    describe('Run dataset case', () => {
+
+      it('should do newUntitledSqlAndRun if no dataset version', () => {
+        gen = getFetchDatasetMetaAction({
+          isRun: true,
+          dataset: dataset.remove('datasetVersion'),
+          currentSql,
+          queryContext,
+          viewId
+        });
+        goToTransformData();
+        expect(next.value).to.be.eql(call(newUntitledSqlAndRun, currentSql, queryContext, viewId));
+
+        const mockApiAction = 'mock api call';
+        next = gen.next(mockApiAction);
+        expect(next.value).to.be.eql({
+          apiAction: mockApiAction,
+          navigateOptions: { changePathname: true } //changePathname to navigate to newUntitled
+        });
+      });
+
+      it('should do transformAndRun if transformData', () => {
+        gen = getFetchDatasetMetaAction({
+          isRun: true,
+          dataset,
+          currentSql,
+          queryContext,
+          viewId
+        });
+        goToTransformData(transformData);
+        expect(next.value).to.be.eql(call(transformAndRunDataset, dataset, transformData, viewId));
+
+        const mockApiAction = 'mock api call';
+        next = gen.next(mockApiAction);
+        expect(next.value).to.be.eql({
+          apiAction: mockApiAction,
+          navigateOptions: undefined
+        });
+      });
+
+      it('should do runDataset if neither of the above are true', () => {
+        gen = getFetchDatasetMetaAction({
+          isRun: true,
+          dataset,
+          currentSql,
+          queryContext,
+          viewId
+        });
+        goToTransformData();
+        expect(next.value).to.be.eql(call(runDataset, dataset, viewId));
+
+        const mockApiAction = 'mock api call';
+        next = gen.next(mockApiAction);
+        expect(next.value).to.be.eql({
+          apiAction: mockApiAction,
+          navigateOptions: { replaceNav: true, preserveTip: true }
+        });
+      });
+
+    });
+
+    describe('Preview dataset case', () => {
+
+      it('should call newUntitledSql if dataset has not been created', () => {
+        gen = getFetchDatasetMetaAction({
+          isRun: false,
+          dataset: dataset.remove('datasetVersion'),
+          currentSql,
+          queryContext,
+          viewId
+        });
+        goToTransformData();
+        expect(next.value).to.be.eql(call(newUntitledSql, currentSql, queryContext.toJS(), viewId));
+
+        const mockApiAction = 'mock api call';
+        next = gen.next(mockApiAction);
+        expect(next.value).to.be.eql({
+          apiAction: mockApiAction,
+          navigateOptions: { changePathname: true } //changePathname to navigate to newUntitled
+        });
+      });
+
+      it('should call runTableTransform if transform data is provided', () => {
+        gen = getFetchDatasetMetaAction({
+          isRun: false,
+          dataset,
+          currentSql,
+          queryContext,
+          viewId
+        });
+        goToTransformData(transformData);
+        expect(next.value).to.be.eql(call(runTableTransform, dataset, transformData, viewId, undefined));
+
+        const mockApiAction = 'mock api call';
+        next = gen.next(mockApiAction);
+        expect(next.value).to.be.eql({
+          apiAction: mockApiAction,
+          navigateOptions: undefined
+        });
+      });
+
+      it('should call loadDataset if it is existent dataset without transformation is passed as argument along with forceDataLoad = true', () => {
+        gen = getFetchDatasetMetaAction({
+          isRun: false,
+          dataset,
+          currentSql,
+          queryContext,
+          viewId,
+          forceDataLoad: true
+        });
+        goToTransformData();
+        expect(next.value).to.be.eql(call(loadDataset, dataset, viewId));
+
+        const mockApiAction = 'mock api call';
+        next = gen.next(mockApiAction);
+        expect(next.value).to.be.eql({
+          apiAction: mockApiAction,
+          navigateOptions: { replaceNav: true, preserveTip: true }
+        });
+      });
     });
   });
 
@@ -161,7 +339,7 @@ describe('performTransform saga', () => {
 
       expect(getTransformData(dataset.set('isNewQuery', true), sql, context)).to.be.undefined;
       expect(getTransformData(dataset, sql, context, transformData)).to.equal(transformData);
-      expect(getTransformData(dataset, undefined, dataset.get('context'))).to.be.undefined;
+      expect(getTransformData(dataset, null, dataset.get('context'))).to.be.undefined;
       expect(getTransformData(dataset, dataset.get('sql'), dataset.get('context'))).to.be.undefined;
     });
 
@@ -172,122 +350,22 @@ describe('performTransform saga', () => {
     });
   });
 
-  describe('doRun', () => {
-    const currentSql = 'select * from foo';
-    const queryContext = ['@dremio'];
-    it('should do newUntitledSqlAndRun if no dataset version', () => {
-      gen = doRun(dataset.remove('datasetVersion'), currentSql, queryContext, undefined, viewId);
-      next = gen.next();
-      expect(next.value.CALL.fn).to.eql(transformThenNavigate);
-      const action = unwrapAction(next.value.CALL.args[0]);
-      expect(action[CALL_API].endpoint).to.contain('/datasets/new_untitled_sql_and_run');
-    });
-
-    it('should do transformAndRun if transformData', () => {
-      gen = doRun(dataset, currentSql, queryContext, transformData, viewId);
-      next = gen.next();
-      expect(next.value.CALL.fn).to.eql(transformThenNavigate);
-      const action = unwrapAction(next.value.CALL.args[0]);
-      expect(action[CALL_API].endpoint).to.contain('transformAndRun');
-    });
-
-    it('should do runDataset if neither of the above are true', () => {
-      gen = doRun(dataset, currentSql, queryContext, undefined, viewId);
-      next = gen.next();
-      const action = unwrapAction(next.value.CALL.args[0]);
-      expect(action[CALL_API].types[0].type).to.equal(RUN_DATASET_START);
-    });
-
-    it('should loadTableData only if initial request is successful', () => {
-      gen = doRun(dataset, currentSql, queryContext, undefined, viewId);
-      next = gen.next();
-      next = gen.next(datasetResponse);
-      //should call loadTableData with forceReload = true
-      expect(next.value).to.eql(call(loadTableData, version, true));
-      next = gen.next();
-      expect(next.done).to.be.true;
-
-      // error case
-      gen = doRun(dataset, currentSql, queryContext, undefined, viewId);
-      next = gen.next();
-      next = gen.next({error: true});
-      expect(next.done).to.be.true;
-    });
-  });
-
-  describe('createDataset', () => {
-    const sql = 'sql';
-    const context = Immutable.List(['context']);
-
-    it(`should call performWatchedTransform with newUntitledSql if dataset has not been created,
-        and return created dataset`, () => {
-      gen = createDataset(dataset.delete('datasetVersion'), sql, context);
-      next = gen.next();
-      expect(next.value.CALL).to.not.be.undefined; // call(transformThenNavigate, newUntitledSql)
-      const datasetVersion = 'someId';
-      const payload = Immutable.fromJS({
-        entities: {
-          datasetUI: {
-            [datasetVersion]: {
-              datasetVersion
-            }
-          }
-        },
-        result: datasetVersion
+  describe('proceedWithDataLoad', () => {
+    it('returns true if sql and context is not changed', () => {
+      gen = proceedWithDataLoad(dataset, dataset.get('context'), dataset.get('sql'));
+      expect(gen.next()).to.be.eql({
+        done: true,
+        value: true
       });
-      next = gen.next({
-        payload
+    });
+    const testTransformHistoryCheck = resultValue => it(`return ${resultValue}, if transformHistoryCheck returns ${resultValue}`, () => {
+      gen = proceedWithDataLoad(dataset, dataset.get('context'), 'select * from other_query');
+      expect(gen.next().value).to.be.eql(call(transformHistoryCheck, dataset));
+      expect(gen.next(resultValue)).to.be.eql({
+        done: true,
+        value: resultValue
       });
-      expect(next.done).to.be.true;
-      expect(next.value).to.equal(payload.getIn(['entities', 'datasetUI', datasetVersion]));
     });
-
-    it('should call loadDataset if dataset.needsLoad', () => {
-      gen = createDataset(dataset.set('needsLoad', true), sql, context);
-      next = gen.next();
-      expect(next.value.CALL.fn).to.equal(loadDataset);
-      const promise = Promise.resolve;
-      next = gen.next(promise);
-      next = gen.next(datasetResponse);
-      expect(next.value.PUT).to.not.be.undefined; // navigateToNextDataset
-      next = gen.next();
-      expect(next.done).to.be.true;
-    });
-
-    it('should throw error if newUntitledSql failed', () => {
-      gen = createDataset(dataset.delete('datasetVersion'), sql, context);
-      next = gen.next();
-      expect(() => {
-        next = gen.next({error: true});
-      }).to.throw(TransformFailedError);
-    });
-  });
-
-  describe('transformThenNavigate', () => {
-    it('should performWatchedTransform, then navigate, and return response', () => {
-      gen = transformThenNavigate('action', 'viewId');
-      next = gen.next();
-      expect(next.value).to.eql(call(performWatchedTransform, 'action', 'viewId'));
-      const response = {
-        payload: Immutable.fromJS({})
-      };
-      next = gen.next(response);
-      expect(next.value.PUT).to.not.be.undefined; // navigateToNextDataset
-      next = gen.next();
-      expect(next.value).to.equal(response);
-    });
-
-    it('should throw if response.error', () => {
-      gen = transformThenNavigate('action', 'viewId');
-      next = gen.next();
-      expect(next.value).to.eql(call(performWatchedTransform, 'action', 'viewId'));
-      const response = {
-        error: true
-      };
-      expect(() => {
-        next = gen.next(response);
-      }).to.throw(TransformFailedError);
-    });
-
+    [true, false].map(testTransformHistoryCheck);
   });
 });

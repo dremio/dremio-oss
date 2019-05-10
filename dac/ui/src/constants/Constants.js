@@ -25,6 +25,14 @@ export const EXPLORE_PROGRESS_STATES = ['STARTED', 'NOT STARTED', 'RUNNING']; //
 export const CONTAINER_ENTITY_TYPES = new Set(['HOME', 'FOLDER', 'SPACE', 'SOURCE']);
 export const HOME_SPACE_NAME = `@home-${uuid.v4()}`; // better to have Symbol here, but there is several problems with it
 
+export const EXTRA_POPPER_CONFIG = {
+  modifiers: {
+    preventOverflow: {
+      escapeWithReference: true
+    }
+  }
+};
+
 export const ENTITY_TYPES = {
   home: 'home',
   space: 'space',

@@ -16,6 +16,7 @@
 package com.dremio.dac.cmd.upgrade;
 
 import com.dremio.common.Version;
+import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -60,7 +61,8 @@ public class DeleteHive121BasedInputSplits extends UpgradeTask implements Legacy
           continue;
         }
 
-        System.out.printf("  Handling Hive source %s%n", source.getName());
+        AdminLogger.log("  Handling Hive source {}", source.getName());
+
         for (NamespaceKey datasetPath : namespaceService.getAllDatasets(new NamespaceKey(source.getName()))) {
           final DatasetConfig datasetConfig = namespaceService.getDataset(datasetPath);
 
@@ -68,7 +70,7 @@ public class DeleteHive121BasedInputSplits extends UpgradeTask implements Legacy
             continue;
           }
 
-          System.out.printf("    Clearing read definition of table %s%n", datasetPath.getSchemaPath());
+          AdminLogger.log("    Clearing read definition of table {}", datasetPath.getSchemaPath());
           datasetConfig.setReadDefinition(null);
           namespaceService.addOrUpdateDataset(datasetPath, datasetConfig);
         }

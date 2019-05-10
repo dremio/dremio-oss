@@ -16,12 +16,12 @@
 import { PureComponent, Component } from 'react';
 import classNames from 'classnames';
 import { connect } from 'react-redux';
-import Art from 'components/Art';
 import PropTypes from 'prop-types';
 import { withRouter } from 'react-router';
+import Art from '@app/components/Art';
 import SimpleButton from '@app/components/Buttons/SimpleButton';
 import { isWikiPresent } from '@app/selectors/home';
-import { getHomeContents } from '@app/selectors/datasets';
+import { getHomeContents } from 'selectors/datasets';
 import {
   notificationIcon,
   wikiButton as wikiButtonCls,
@@ -31,7 +31,8 @@ import {
 const maspStatToProps = (state, {
   location
 }) => {
-  const entityId = getHomeContents(state, location.pathname).get('id');
+  const currentEntity = getHomeContents(state, location.pathname);
+  const entityId = currentEntity ? currentEntity.get('id') : null;
   return {
     hasWiki: isWikiPresent(state, entityId)
   };
@@ -42,17 +43,19 @@ export class WikiButtonView extends PureComponent {
     isSelected: PropTypes.bool, // toggle state
     onClick: PropTypes.func,
     //this property is connected to redux store
-    showNotification: PropTypes.bool // true to show an orange notification circle.
+    showNotification: PropTypes.bool, // true to show an orange notification circle.
+    className: PropTypes.string
   };
 
   render() {
     const {
       onClick,
       showNotification,
-      isSelected
+      isSelected,
+      className
     } = this.props;
 
-    return <span className={classNames(wikiButtonCls, isSelected && wikiButtonSelected)}>
+    return <span className={classNames(wikiButtonCls, isSelected && wikiButtonSelected, className)}>
       <SimpleButton key='button' style={{minWidth: 0, marginRight: 0, outline: 'none'}}
         buttonStyle={isSelected ? 'primary' : 'secondary'}
         onClick={onClick}
@@ -71,18 +74,21 @@ export class WikiButton extends Component {
     isSelected: PropTypes.bool, // toggle state
     onClick: PropTypes.func,
     location: PropTypes.object, // provided by withRouter
-    hasWiki: PropTypes.bool
+    hasWiki: PropTypes.bool,
+    className: PropTypes.string
   };
   render() {
     const {
       hasWiki,
       isSelected,
-      onClick
+      onClick,
+      className
     } = this.props;
 
     const props = {
       isSelected,
-      onClick
+      onClick,
+      className
     };
 
     return <WikiButtonView {...props} showNotification={!props.isSelected && hasWiki} />;

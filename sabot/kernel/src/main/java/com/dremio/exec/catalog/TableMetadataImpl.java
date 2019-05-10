@@ -25,8 +25,8 @@ import com.dremio.exec.store.SplitsPointer;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.file.proto.FileConfig;
@@ -77,10 +77,8 @@ public class TableMetadataImpl implements TableMetadata {
   }
 
   @Override
-  public Iterator<DatasetSplit> getSplits() {
-    // memoize the splits.
-    splits.materialize();
-    return splits.getSplitIterable().iterator();
+  public Iterator<PartitionChunkMetadata> getSplits() {
+    return splits.getPartitionChunks().iterator();
   }
 
   @Override
@@ -93,13 +91,13 @@ public class TableMetadataImpl implements TableMetadata {
   }
 
   @Override
-  public TableMetadata prune(Predicate<DatasetSplit> splitPredicate) throws NamespaceException {
-    return new TableMetadataImpl(plugin, config, user, splits.prune(splitPredicate));
+  public TableMetadata prune(Predicate<PartitionChunkMetadata> partitionPredicate) throws NamespaceException {
+    return new TableMetadataImpl(plugin, config, user, splits.prune(partitionPredicate));
   }
 
   @Override
-  public TableMetadata prune(List<DatasetSplit> newSplits) throws NamespaceException {
-    return new TableMetadataImpl(plugin, config, user, new MaterializedSplitsPointer(newSplits, splits.getTotalSplitsCount()));
+  public TableMetadata prune(List<PartitionChunkMetadata> newPartitionChunks) throws NamespaceException {
+    return new TableMetadataImpl(plugin, config, user, MaterializedSplitsPointer.prune(splits, newPartitionChunks));
   }
 
   @Override

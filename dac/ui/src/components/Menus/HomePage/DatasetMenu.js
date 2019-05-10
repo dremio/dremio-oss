@@ -18,13 +18,12 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import urlParse from 'url-parse';
-import { removeDataset, removeFile, removeFileFormat } from 'actions/resources/spaceDetails';
-import { convertDatasetToFolder } from 'actions/home';
-import { showConfirmationDialog } from 'actions/confirmation';
-import { constructFullPath, getFullPathListFromEntity } from 'utils/pathUtils';
 import copy from 'copy-to-clipboard';
 
-import { TOGGLE_VIEW_ID } from 'components/RightContext/FolderContext';
+import { removeDataset, removeFile } from 'actions/resources/spaceDetails';
+import { showConfirmationDialog } from 'actions/confirmation';
+import { constructFullPath, getFullPathListFromEntity } from 'utils/pathUtils';
+import { UpdateMode } from 'pages/HomePage/components/modals/UpdateDataset/UpdateDatasetView';
 
 import DatasetMenuMixin from 'dyn-load/components/Menus/HomePage/DatasetMenuMixin';
 
@@ -58,8 +57,6 @@ export class DatasetMenu extends Component {
     closeMenu: PropTypes.func.isRequired,
     removeDataset: PropTypes.func.isRequired,
     removeFile: PropTypes.func.isRequired,
-    removeFileFormat: PropTypes.func.isRequired,
-    convertDatasetToFolder: PropTypes.func.isRequired,
     showConfirmationDialog: PropTypes.func
   };
 
@@ -71,8 +68,7 @@ export class DatasetMenu extends Component {
     return `${parseUrl.pathname}/${itemCode}${parseUrl.query}`;
   }
 
-  // only tested with VDS
-  getRenameLocation() {
+  getLocationConfig = (mode) => {
     const { entity } = this.props;
     return {
       ...this.context.location,
@@ -83,17 +79,28 @@ export class DatasetMenu extends Component {
         query: {
           fullPath: entity.get('fullPath'),
           name: entity.get('datasetName'),
-          mode: 'rename'
+          getGraphLink: this.getGraphLink(),
+          mode
         }
       }
     };
+  };
+  // only tested with VDS
+  getRenameLocation() {
+    return this.getLocationConfig(UpdateMode.rename);
   }
 
   // only tested with VDS
   getMoveLocation() {
-    const location = this.getRenameLocation();
-    location.state.query.mode = 'move';
-    return location;
+    return this.getLocationConfig(UpdateMode.move);
+  }
+
+  getRemoveLocation() {
+    return this.getLocationConfig(UpdateMode.remove);
+  }
+
+  getRemoveFormatLocation() {
+    return this.getLocationConfig(UpdateMode.removeFormat);
   }
 
   getSettingsLocation() {
@@ -102,44 +109,16 @@ export class DatasetMenu extends Component {
     return getSettingsLocation(this.context.location, entity, entityType);
   }
 
-  // only tested with File, Folder
-  removeFormat = () => {
-    if (this.props.entityType === 'file') {
-      this.props.removeFileFormat(this.props.entity);
-    } else {
-      this.props.convertDatasetToFolder(this.props.entity, TOGGLE_VIEW_ID); // todo: cross-knowledge for view id seems brittle
-    }
-  }
-
-  handleRemoveFormat = () => {
+  handleRemoveFile = () => {
+    const { closeMenu, entity } = this.props;
     this.props.showConfirmationDialog({
-      title: la('Remove Format'),
-      text: la('Are you sure you want to remove format for this item?'),
+      text: la(`Are you sure you want to remove file "${entity.get('name')}"?`),
       confirmText: la('Remove'),
-      confirm: () => this.removeFormat()
+      confirm: () => this.props.removeFile(entity),
+      title: la('Remove File')
     });
-    this.props.closeMenu();
-  }
-
-  removeEntity() {
-    if (this.props.entityType === 'file') {
-      this.props.removeFile(this.props.entity);
-    } else {
-      this.props.removeDataset(this.props.entity);
-    }
-  }
-
-  handleRemove = () => {
-    const title = this.props.entityType === 'file'
-      ? la('Remove File') : la('Remove Dataset');
-    this.props.showConfirmationDialog({
-      text: la('Are you sure you want to remove this item?'),
-      confirmText: la('Remove'),
-      confirm: () => this.removeEntity(),
-      title
-    });
-    this.props.closeMenu();
-  }
+    closeMenu();
+  };
 
   copyPath = () => {
     const fullPath = constructFullPath(getFullPathListFromEntity(this.props.entity));
@@ -150,8 +129,6 @@ export class DatasetMenu extends Component {
 
 export default connect(null, {
   removeDataset,
-  removeFileFormat,
   removeFile,
-  showConfirmationDialog,
-  convertDatasetToFolder
+  showConfirmationDialog
 })(DatasetMenu);

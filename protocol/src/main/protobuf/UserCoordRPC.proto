@@ -125,8 +125,9 @@ message GetQueryPlanFragments {
 message QueryPlanFragments {
   required exec.shared.QueryResult.QueryState status = 1;
   optional exec.shared.QueryId query_id = 2;
-  repeated exec.bit.control.PlanFragment fragments = 3;
   optional exec.shared.DremioPBError error = 4;
+
+  optional exec.bit.control.PlanFragmentSet fragment_set = 5;
 }
 
 enum QueryResultsMode {
@@ -707,15 +708,15 @@ message RunQuery {
   optional string plan = 3;
 
   /*
-   * Input for query type EXECUTION. Input is a set of executable fragments.
-   */
-  repeated exec.bit.control.PlanFragment fragments = 4;
-
-  /*
    * Input for query type PREPARED_STATEMENT. Input is a prepared statement handle
    * to state on server side which is returned in response to CreatePreparedStatementReq.
    */
   optional PreparedStatementHandle prepared_statement_handle = 5;
+
+  /*
+   * Input for query type EXECUTION. Input is a set of executable fragments.
+   */
+  optional exec.bit.control.PlanFragmentSet fragment_set = 6;
 
   /* Extra fields from Open source version */
 

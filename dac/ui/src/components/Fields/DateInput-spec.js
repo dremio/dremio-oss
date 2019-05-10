@@ -18,6 +18,7 @@ import { shallow } from 'enzyme';
 import { DATE, TIME, dateTypeToFormat, DATETIME } from 'constants/DataTypes';
 
 import DateInput from './DateInput';
+const getDD = wrapper => shallow(wrapper.find('SelectView').prop('children')({}));
 
 describe('DateInput', () => {
   beforeEach(() => {
@@ -26,11 +27,6 @@ describe('DateInput', () => {
 
   afterEach(() => {
     moment.now.restore();
-  });
-
-  it('should render <input>', () => {
-    const wrapper = shallow(<DateInput value='0' />);
-    expect(wrapper.find('input')).to.have.length(1);
   });
 
   describe('#mergeDateWithTime', () => {
@@ -103,7 +99,7 @@ describe('DateInput', () => {
       };
       const wrapper = shallow(<DateInput {...props}/>);
 
-      expect(wrapper.find('TimePicker').prop('value')).to.eql(props.value);
+      expect(getDD(wrapper).find('TimePicker').prop('value')).to.eql(props.value);
     });
 
     it('should render TimePicker with moment().format(hh:mm:ss) if !props.value', () => {
@@ -113,7 +109,7 @@ describe('DateInput', () => {
       };
       const wrapper = shallow(<DateInput {...props}/>);
 
-      expect(wrapper.find('TimePicker').prop('value')).to.eql(moment().format('hh:mm:ss'));
+      expect(getDD(wrapper).find('TimePicker').prop('value')).to.eql(moment().format('hh:mm:ss'));
     });
 
     it('should render DateRange with props.value', () => {
@@ -124,8 +120,8 @@ describe('DateInput', () => {
       };
       const wrapper = shallow(<DateInput {...props}/>);
 
-      expect(wrapper.find('DateRange').prop('startDate')).to.eql(moment(props.value));
-      expect(wrapper.find('DateRange').prop('endDate')).to.eql(moment(props.value));
+      expect(getDD(wrapper).find('DateRange').prop('startDate')).to.eql(moment(props.value));
+      expect(getDD(wrapper).find('DateRange').prop('endDate')).to.eql(moment(props.value));
     });
 
     it('should render DateRange with current day if !props.value', () => {
@@ -136,8 +132,8 @@ describe('DateInput', () => {
       const wrapper = shallow(<DateInput {...props}/>);
       const curDay = moment().startOf('day');
 
-      expect(wrapper.find('DateRange').prop('startDate')).to.eql(curDay);
-      expect(wrapper.find('DateRange').prop('endDate')).to.eql(curDay);
+      expect(getDD(wrapper).find('DateRange').prop('startDate')).to.eql(curDay);
+      expect(getDD(wrapper).find('DateRange').prop('endDate')).to.eql(curDay);
     });
   });
 
@@ -145,7 +141,9 @@ describe('DateInput', () => {
     let props;
     let wrapper;
     let instance;
+    let closeDD;
     beforeEach(() => {
+      closeDD = sinon.spy();
       props = {
         type: DATE,
         onChange: sinon.spy(),
@@ -159,16 +157,16 @@ describe('DateInput', () => {
     });
     it('should change isOpen to false, call onChange if new value is different', () => {
       const newValue = '2010-12-30';
-      instance.handleCalendarSelect({
+      instance.handleCalendarSelect(closeDD, {
         startDate: moment(newValue, dateTypeToFormat[DATE])
       });
 
       expect(props.onChange).to.be.called;
-      expect(wrapper.state('isOpen')).to.be.false;
+      expect(closeDD).to.be.called;
     });
     it('should not call onChange if new value is the same', () => {
       const newValue = '1970-01-01';
-      instance.handleCalendarSelect({
+      instance.handleCalendarSelect(closeDD, {
         startDate: moment(newValue, dateTypeToFormat[DATE])
       });
 

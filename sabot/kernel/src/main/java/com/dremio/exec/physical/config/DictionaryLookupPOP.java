@@ -17,17 +17,14 @@ package com.dremio.exec.physical.config;
 
 import java.util.Map;
 
-import org.apache.arrow.vector.types.pojo.Field;
-
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractSingle;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.options.Options;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -37,25 +34,29 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 /**
  * Dictionary lookup operator configuration.
  */
+@Options
 @JsonTypeName("dictionary_lookup")
 public class DictionaryLookupPOP extends AbstractSingle {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DictionaryLookupPOP.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DictionaryLookupPOP.class);
 
   private final Map<String, GlobalDictionaryFieldInfo> dictionaryEncodedFields;
   private final CatalogService catalogService;
 
   @JsonCreator
-  public DictionaryLookupPOP(@JacksonInject CatalogService catalogService,
-                             @JsonProperty("child") PhysicalOperator child,
-                             @JsonProperty("dictionaryEncodedFields") Map<String, GlobalDictionaryFieldInfo> dictionaryEncodedFields) {
-    super(child);
-    this.catalogService = catalogService;
+  public DictionaryLookupPOP(
+      @JacksonInject CatalogService catalogService,
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("child") PhysicalOperator child,
+      @JsonProperty("dictionaryEncodedFields") Map<String, GlobalDictionaryFieldInfo> dictionaryEncodedFields
+      ) {
+    super(props, child);
     this.dictionaryEncodedFields = dictionaryEncodedFields;
+    this.catalogService = catalogService;
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new DictionaryLookupPOP(catalogService, child, dictionaryEncodedFields);
+    return new DictionaryLookupPOP(catalogService, props, child, dictionaryEncodedFields);
   }
 
   @Override
@@ -72,21 +73,6 @@ public class DictionaryLookupPOP extends AbstractSingle {
     return dictionaryEncodedFields;
   }
 
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    final BatchSchema childSchema = child.getSchema(context);
-    SchemaBuilder b = BatchSchema.newBuilder();
-    for (Field field : childSchema.getFields()) {
-      // Revert back to original type
-      if (dictionaryEncodedFields.containsKey(field.getName())) {
-        b.addField(new Field(field.getName(), field.isNullable(), dictionaryEncodedFields.get(field.getName()).getArrowType(), field.getChildren()));
-      } else {
-        b.addField(field);
-      }
-    }
-    b.setSelectionVectorMode(childSchema.getSelectionVectorMode());
-    return b.build();
-  }
 
   @Override
   public int getOperatorType() {

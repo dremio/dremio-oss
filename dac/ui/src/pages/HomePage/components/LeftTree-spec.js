@@ -37,6 +37,7 @@ describe('LeftTree', () => {
     minimalProps = {
       spaces: Immutable.fromJS([{}]),
       sources: Immutable.fromJS([{}]),
+      sourceTypesIncludeS3: true,
       spacesViewState: new Immutable.Map(),
       sourcesViewState: new Immutable.Map(),
       createSampleSource: sinon.stub().resolves({
@@ -85,17 +86,6 @@ describe('LeftTree', () => {
         expect(context.router.push).to.have.not.been.called;
         expect(instance.state.isAddingSampleSource).to.be.false;
       });
-    });
-  });
-
-  describe('#getInitialSpacesContent()', () => {
-    it('have no sources', () => {
-      const instance = shallow(<LeftTree {...commonProps} sources={new Immutable.List()} />, { context }).instance();
-      expect(instance.getInitialSpacesContent()).to.be.null;
-    });
-    it('have sources', () => {
-      const instance = shallow(<LeftTree {...commonProps} />, { context }).instance();
-      expect(instance.getInitialSpacesContent()).to.be.null;
     });
   });
 

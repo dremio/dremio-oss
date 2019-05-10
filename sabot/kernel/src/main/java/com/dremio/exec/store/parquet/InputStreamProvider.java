@@ -16,52 +16,28 @@
 package com.dremio.exec.store.parquet;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 /**
- * Provides input streams with one of two policies: reuse a single stream, or create a new stream each time stream() is called
- * For the case where streams are reused, users must handle the repositioning of the stream
+ * Provides input stream(s) for reading a parquet file
  */
-public class InputStreamProvider implements AutoCloseable {
+public interface InputStreamProvider extends AutoCloseable {
+  /**
+   * Obtains a stream for the given column.
+   * Please note, the provider is allowed to reuse a single stream for all columns, if and only if the
+   * {@link #isSingleStream()} method below returns true
+   */
+  BulkInputStream getStream(ColumnChunkMetaData column) throws IOException;
 
-  private final FileSystem fs;
-  private final Path path;
-  private final boolean singleStream;
+  /**
+   * Reads the footer -- or returns the cached one
+   */
+  ParquetMetadata getFooter() throws IOException;
 
-  private final List<FSDataInputStream> streams = new ArrayList<>();
-
-  public InputStreamProvider(FileSystem fs, Path path, boolean singleStream) {
-    this.fs = fs;
-    this.path = path;
-    this.singleStream = singleStream;
-  }
-
-  public FSDataInputStream stream() throws IOException {
-    if (singleStream) {
-      if (streams.isEmpty()) {
-        FSDataInputStream stream = fs.open(path);
-        streams.add(stream);
-      }
-      return streams.get(0);
-    }
-
-    FSDataInputStream stream = fs.open(path);
-    streams.add(stream);
-    return stream;
-  }
-
-  public boolean singleStream() {
-    return singleStream;
-  }
-
-  public void close() throws IOException {
-    for (FSDataInputStream stream : streams) {
-      stream.close();
-    }
-  }
+  /**
+   * Is this provider reusing the same stream for all columns
+   */
+  boolean isSingleStream();
 }

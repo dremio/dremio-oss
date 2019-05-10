@@ -209,7 +209,7 @@ public class ConstExecutor implements RexExecutor {
               outputInt = ((NullableIntHolder) output).value;
             }
             reducedValues.add(rexBuilder.makeLiteral(
-              new BigDecimal(outputInt),
+              BigDecimal.valueOf(outputInt),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.INTEGER, false, null),
               false));
             break;
@@ -221,7 +221,7 @@ public class ConstExecutor implements RexExecutor {
               outputBigint = ((NullableBigIntHolder) output).value;
             }
             reducedValues.add(rexBuilder.makeLiteral(
-              new BigDecimal(outputBigint),
+              BigDecimal.valueOf(outputBigint),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.BIGINT, false, null),
               false));
             break;
@@ -233,7 +233,7 @@ public class ConstExecutor implements RexExecutor {
               outputFloat = ((NullableFloat4Holder) output).value;
             }
             reducedValues.add(rexBuilder.makeLiteral(
-              new BigDecimal(outputFloat),
+              BigDecimal.valueOf(outputFloat),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.FLOAT, false, null),
               false));
             break;
@@ -245,7 +245,7 @@ public class ConstExecutor implements RexExecutor {
               outputFloat8 = ((NullableFloat8Holder) output).value;
             }
             reducedValues.add(rexBuilder.makeLiteral(
-              new BigDecimal(outputFloat8),
+              BigDecimal.valueOf(outputFloat8),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.DOUBLE, false, null),
               false));
             break;
@@ -326,7 +326,7 @@ public class ConstExecutor implements RexExecutor {
               dayValue = ((double) intervalDayOut.days) * ((double) DateUtility.daysToStandardMillis) + (intervalDayOut.milliseconds);
             }
             reducedValues.add(rexBuilder.makeLiteral(
-              new BigDecimal(dayValue),
+              BigDecimal.valueOf(dayValue),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.INTERVAL_DAY_MINUTE, false, null),
               false));
             break;

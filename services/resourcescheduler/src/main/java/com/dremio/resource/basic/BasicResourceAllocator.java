@@ -211,7 +211,7 @@ public class BasicResourceAllocator implements ResourceAllocator {
       lease = distributedSemaphore.acquire(queueTimeout, TimeUnit.MILLISECONDS);
     } catch (final Exception e) {
       final String message = String.format(
-          "Query cancelled by Workload Manager. Cannot enqueue as the '%s' queue is full. Please try again later",
+          "Query cancelled by Workload Manager. Cannot enqueue as the '%s' queue is full. Please try again later.",
           queueName);
       logger.trace(message, e);
       throw new ResourceUnavailableException(message);
@@ -219,7 +219,7 @@ public class BasicResourceAllocator implements ResourceAllocator {
 
     if (lease == null) {
       final String message = String.format(
-          "Query cancelled by Workload Manager. Queue enqueued time of %.2f seconds exceeded for '%s' queue",
+          "Query cancelled by Workload Manager. Query enqueued time of %.2f seconds exceeded for '%s' queue.",
           queueTimeout / 1000.0, queueName);
       logger.trace(message);
       throw new ResourceUnavailableException(message);

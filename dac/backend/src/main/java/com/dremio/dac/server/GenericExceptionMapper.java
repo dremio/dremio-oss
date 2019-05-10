@@ -38,6 +38,8 @@ import org.glassfish.jersey.server.ParamException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.exceptions.ErrorHelper;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.model.common.DACUnauthorizedException;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.InvalidQueryException;
@@ -143,8 +145,13 @@ class GenericExceptionMapper implements ExceptionMapper<Throwable> {
       return newGenericErrorMessage(UNAUTHORIZED, throwable, stackTrace);
     }
 
-    // bug! => 500
-    logger.error("Unexpected exception when processing {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
+    Throwable rootException = ErrorHelper.findWrappedCause(throwable, UserException.class);
+    if (rootException != null && rootException.getMessage() == UserException.QUERY_REJECTED_MSG) {
+      logger.error("Rejected for {} {} because it exceeded the maximum allowed number of live queries in a single coordinator", request.getMethod(), uriInfo.getRequestUri());
+    } else {
+      // bug! => 500
+      logger.error("Unexpected exception when processing {} {} : {}", request.getMethod(), uriInfo.getRequestUri(), throwable.toString(), throwable);
+    }
     return newGenericErrorMessage(INTERNAL_SERVER_ERROR, throwable, stackTrace);
   }
 

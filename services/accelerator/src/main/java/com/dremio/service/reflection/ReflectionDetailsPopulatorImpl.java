@@ -134,16 +134,6 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
   }
 
   @Override
-  public void finalPrel(Prel prel) {
-    this.prel = prel;
-  }
-
-  @Override
-  public Prel getFinalPrel() {
-    return prel;
-  }
-
-  @Override
   public void attemptCompleted(QueryProfile profile) {
     this.profile = profile;
   }

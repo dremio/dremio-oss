@@ -47,7 +47,7 @@ public class HiveScanBatchCreator implements ProducerOperator.Creator<HiveSubSca
 
     final UserGroupInformation proxyUgi = getUGI(storagePlugin, config);
 
-    final CompositeReaderConfig compositeConfig = CompositeReaderConfig.getCompound(config.getSchema(), config.getColumns(), config.getPartitionColumns());
+    final CompositeReaderConfig compositeConfig = CompositeReaderConfig.getCompound(config.getFullSchema(), config.getColumns(), config.getPartitionColumns());
     switch(tableAttr.getReaderType()){
     case NATIVE_PARQUET:
       return ScanWithDremioReader.createProducer(conf, fragmentExecContext, context, config, tableAttr, compositeConfig, proxyUgi);
@@ -60,7 +60,7 @@ public class HiveScanBatchCreator implements ProducerOperator.Creator<HiveSubSca
 
   @VisibleForTesting
   public UserGroupInformation getUGI(HiveStoragePlugin storagePlugin, HiveSubScan config) {
-    final String userName = storagePlugin.getUsername(config.getUserName());
+    final String userName = storagePlugin.getUsername(config.getProps().getUserName());
     return ImpersonationUtil.createProxyUgi(userName);
   }
 }

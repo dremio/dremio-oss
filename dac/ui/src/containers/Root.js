@@ -47,7 +47,7 @@ export default class Root extends Component {
     return <IntlProvider locale={getLocale().language} messages={getLocale().localeStrings}>
       <Provider store={store}>
         <div style={{height: '100%'}}>
-          <Router history={history}>{routes}</Router>
+          <Router history={history}>{routes(store.dispatch)}</Router>
         </div>
       </Provider>
     </IntlProvider>;

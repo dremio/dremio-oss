@@ -54,7 +54,7 @@ import com.dremio.service.reflection.ReflectionStatus.REFRESH_STATUS;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
+import com.google.common.annotations.VisibleForTesting;
 /**
  * Resource for information about sources.
  */
@@ -96,24 +96,10 @@ public class ClusterStatsResource {
     // optimize vds count queries by only going one to the index with a list of queries
     List<SearchTypes.SearchQuery> vdsQueries = new ArrayList<>();
 
-    for (SourceConfig sourceConfig : sourceService.getSources()) {
-      int pdsCount = -1;
-      /*try {
-        pdsCount = namespaceService.getAllDatasetsCount(new NamespaceKey(sourceConfig.getName()));
-      } catch (NamespaceException e) {
-        logger.warn("Failed to get dataset count", e);
-      }*/
+    Stats resource = getSources(this.sourceService.getSources(), this.context.get());
 
-      String type = sourceConfig.getType();
-      if(type == null && sourceConfig.getLegacySourceTypeEnum() != null) {
-        type = sourceConfig.getLegacySourceTypeEnum().name();
-      }
-      SourceStats source = new SourceStats(sourceConfig.getId(), type, pdsCount);
-
-      vdsQueries.add(SearchQueryUtils.newTermQuery(DATASET_SOURCES, sourceConfig.getName()));
-
-      sources.add(source);
-    }
+    sources = resource.getAllSources();
+    vdsQueries = resource.getVdsQueries();
 
     try {
       List<Integer> counts = namespaceService.getCounts(vdsQueries.toArray(new SearchTypes.SearchQuery[vdsQueries.size()]));
@@ -164,6 +150,64 @@ public class ClusterStatsResource {
 
     return result;
   }
+
+  @VisibleForTesting
+  public static Stats getSources(List<SourceConfig> allSources, SabotContext context){
+
+    final Stats resource  = new Stats();
+
+    for (SourceConfig sourceConfig : allSources) {
+      int pdsCount = -1;
+
+      String type = sourceConfig.getType();
+
+      if(type == null && sourceConfig.getLegacySourceTypeEnum() != null) {
+        type = sourceConfig.getLegacySourceTypeEnum().name();
+      }
+
+      if("S3".equals(type) && sourceConfig.getName().startsWith("Samples")) {
+        type = "SamplesS3";
+
+      }
+
+      SourceStats source = new SourceStats(sourceConfig.getId(), type, pdsCount);
+      resource.addVdsQuery(SearchQueryUtils.newTermQuery(DATASET_SOURCES, sourceConfig.getName()));
+      resource.addSource(source);
+    }
+
+    return resource;
+  }
+
+  /**
+   * Internal Stats
+   */
+  static class Stats{
+    private List<SourceStats> sources;
+    private List<SearchTypes.SearchQuery> vdsQueries;
+
+    public Stats(){
+      sources = new ArrayList<>();
+      vdsQueries = new ArrayList<>();
+    }
+
+    public void addSource(SourceStats source){
+      sources.add(source);
+    }
+
+    public void addVdsQuery(SearchTypes.SearchQuery query){
+      vdsQueries.add(query);
+    }
+
+    public List<SourceStats> getAllSources(){
+      return sources;
+    }
+
+    public List<SearchTypes.SearchQuery> getVdsQueries(){
+      return vdsQueries;
+    }
+
+  }
+
 
   private List<EndPoint> processEndPoints(Collection<CoordinationProtos.NodeEndpoint> endpoints) {
     ArrayList<EndPoint> result = new ArrayList<>();

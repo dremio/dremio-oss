@@ -13,20 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 @import '~@app/uiTheme/less/color-schema.less';
 @import '~@app/uiTheme/less/variables.less';
-@import './Select.mixins.less';
 
 @_color: #ececec;
 //#region drop down list styles (see SelectItem) ------------------------------------
 
 .selected {
   background-color: @PALE_NAVY;
-}
-
-.disabled {
-  composes: unavailable disabled from '@app/uiTheme/less/typography.less';
 }
 
 .item-wrapper {
@@ -46,8 +41,9 @@
 
 .button {
   display: flex; // or inline-flex?
+  text-align: center;
   width: @_WIDTH;
-  .select-height(28px);
+  height: 28px;
   border-radius: 2px;
   padding: 0 0 0 10px;
   border: 0 solid @SECONDARY_BORDER;
@@ -66,10 +62,7 @@
 
 .list {
   width: @_WIDTH;
-  padding-top: 0 !important; //to override Menu inline styles
-  padding-bottom: 0 !important; //to override Menu inline styles
-}
-
-.icon {
-  padding-top: 2px;
+  max-height: 250px;
+  // padding-top: 0 !important; //to override Menu inline styles
+  // padding-bottom: 0 !important; //to override Menu inline styles
 }

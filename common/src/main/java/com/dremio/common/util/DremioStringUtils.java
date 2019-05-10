@@ -19,8 +19,6 @@ import org.apache.arrow.vector.util.DateUtility;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.joda.time.Period;
 
-import com.dremio.common.exceptions.UserException;
-
 import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 
@@ -220,7 +218,7 @@ public class DremioStringUtils {
    * For example, the string "-001 18:25:16.766" defines an interval of - 1 day 18 hours 25 minutes 16 seconds and 766 milliseconds
    */
   public static String formatIntervalDay(final Period p) {
-    long millis = p.getDays() * (long) DateUtility.daysToStandardMillis + DateUtility.millisFromPeriod(p);
+    long millis = p.getDays() * (long) DateUtility.daysToStandardMillis + JodaDateUtility.millisFromPeriod(p);
 
     boolean neg = false;
     if (millis < 0) {

@@ -1,0 +1,61 @@
+/*
+ * Copyright (C) 2017-2018 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.sabot.exec.store.parquet.proto;
+
+option java_package = "com.dremio.sabot.exec.store.parquet.proto";
+option optimize_for = SPEED;
+
+option java_outer_classname = "ParquetProtobuf";
+
+import "file.proto";
+
+message ColumnValueCount {
+  // top level column name
+  optional string column = 1;
+  optional int64 count = 2;
+}
+
+message ParquetDatasetSplitXAttr {
+  optional string path = 1;
+  optional int64 start = 2;
+  optional int64 length = 3;
+  optional int32 rowGroupIndex = 4;
+  optional com.dremio.sabot.exec.store.file.proto.FileSystemCachedEntity updateKey = 5;
+  repeated ColumnValueCount columnValueCounts = 6;
+}
+
+// This is an abridged version of the ParquetDatasetSplitXAttr, containing only the information
+// used in sub-scans (sent-on-wire to the executor nodes).
+message ParquetDatasetSplitScanXAttr {
+  optional string path = 1;
+  optional int64 fileLength = 2; // can save an fs call.
+  optional int64 start = 3;
+  optional int64 length = 4;
+  optional int32 rowGroupIndex = 5;
+}
+
+message ParquetDatasetXAttr {
+  optional string selectionRoot = 1;
+  optional DictionaryEncodedColumns dictionaryEncodedColumns = 2;
+  repeated ColumnValueCount columnValueCounts = 3;
+}
+
+// Dictionary encoded column info
+message DictionaryEncodedColumns {
+  optional int64 version = 1; // monotonically increasing dictionary version starting from 0
+  repeated string columns = 2; // full column names for which global dictionaries are created.
+  optional string rootPath = 3; // absolute path to directory where dictonary files are located
+}

@@ -18,74 +18,14 @@ import { API_URL_V2 } from 'constants/Api';
 
 import { makeUncachebleURL } from 'ie11.js';
 
-import spaceSchema from 'dyn-load/schemas/space';
 import folderSchema from 'schemas/folder';
 import datasetSchema from 'schemas/dataset';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import actionUtils from 'utils/actionUtils/actionUtils';
 
-import * as resourcePathUtils from 'utils/resourcePathUtils';
 import { constructFullPathAndEncode } from 'utils/pathUtils';
 
 import { VIEW_ID as HOME_CONTENTS_VIEW_ID } from 'pages/HomePage/subpages/HomeContents';
-
-export const LOAD_SPACE_STARTED = 'LOAD_SPACE_STARTED';
-export const LOAD_SPACE_SUCCESS = 'LOAD_SPACE_SUCCESS';
-export const LOAD_SPACE_FAILURE = 'LOAD_SPACE_FAILURE';
-
-function fetchSpaceData(href) {
-  const resourcePath = resourcePathUtils.space.fromHref(href);
-  const meta = {
-    resourcePath
-  };
-  const uiPropsForEntity = [
-    {key: 'resourcePath', value: resourcePath}
-  ];
-  return {
-    [CALL_API]: {
-      types: [
-        { type: LOAD_SPACE_STARTED, meta},
-        schemaUtils.getSuccessActionTypeWithSchema(LOAD_SPACE_SUCCESS, spaceSchema, meta, uiPropsForEntity),
-        { type: LOAD_SPACE_FAILURE, meta}
-      ],
-      method: 'GET',
-      endpoint: makeUncachebleURL(`${API_URL_V2}${resourcePath}`)
-    }
-  };
-}
-
-export function loadSpaceData(href) {
-  return (dispatch) => {
-    return dispatch(fetchSpaceData(href));
-  };
-}
-
-export const LOAD_SPACE_FOR_TREE_STARTED = 'LOAD_SPACE_FOR_TREE_STARTED';
-export const LOAD_SPACE_FOR_TREE_SUCCESS = 'LOAD_SPACE_FOR_TREE_SUCCESS';
-export const LOAD_SPACE_FOR_TREE_FAILURE = 'LOAD_SPACE_FOR_TREE_FAILURE';
-
-function fetchSpaceDataForTree(parentEntity) {
-  const  meta = {parentId: parentEntity.get('id')};
-  const resourcePath = parentEntity.getIn(['links', 'self']);
-  return {
-    [CALL_API]: {
-      types: [
-        { type: LOAD_SPACE_FOR_TREE_STARTED, meta},
-        schemaUtils.getSuccessActionTypeWithSchema(LOAD_SPACE_FOR_TREE_SUCCESS, spaceSchema, meta),
-        { type: LOAD_SPACE_FOR_TREE_FAILURE, meta}
-      ],
-      method: 'GET',
-      endpoint: makeUncachebleURL(`${API_URL_V2}${resourcePath}`)
-    }
-  };
-}
-
-
-export function loadSpaceDataForTree(parentEntity) {
-  return (dispatch) => {
-    return dispatch(fetchSpaceDataForTree(parentEntity));
-  };
-}
 
 export const ADD_FOLDER_START = 'ADD_FOLDER_START';
 export const ADD_FOLDER_SUCCESS = 'ADD_FOLDER_SUCCESS';
@@ -278,31 +218,6 @@ function fetchRenameDataset(dataset, newName) {
 export function renameSpaceDataset(dataset, newName) {
   return (dispatch) => {
     return dispatch(fetchRenameDataset(dataset, newName));
-  };
-}
-
-function fetchSpaceDataForAddDataset(spaceId, type) {
-  const path = type === 'Home' ? 'home/list' : `space/${spaceId}/list`;
-  const meta = { resourceId: spaceId };
-  const apiURL = spaceId.indexOf('.') > -1
-    ? `${API_URL_V2}/folder/${spaceId}/list`
-    : `${API_URL_V2}/${path}`;
-  return {
-    [CALL_API]: {
-      types: [
-        LOAD_SPACE_STARTED,
-        schemaUtils.getSuccessActionTypeWithSchema(LOAD_SPACE_SUCCESS, spaceSchema, meta, 'name', spaceId),
-        LOAD_SPACE_FAILURE
-      ],
-      method: 'GET',
-      endpoint: apiURL
-    }
-  };
-}
-
-export function loadSpaceDataForAddDataset(spaceId, type) {
-  return (dispatch) => {
-    return dispatch(fetchSpaceDataForAddDataset(spaceId, type));
   };
 }
 

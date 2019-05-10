@@ -16,7 +16,7 @@
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 
-import { ExplorePageControllerComponent, getNewDataset } from './ExplorePageController';
+import { ExplorePageControllerComponent } from './ExplorePageController';
 
 describe('ExplorePageController', () => {
   let commonProps;
@@ -45,9 +45,23 @@ describe('ExplorePageController', () => {
       rightTreeVisible: true,
       location,
       pageType: 'default',
-      dataset: getNewDataset({query: {context: '@dremio'}}),
+      dataset: Immutable.fromJS({
+        isNewQuery: true,
+        fullPath: ['tmp', 'UNTITLED'],
+        displayFullPath: ['tmp', 'New Query'],
+        //have to decode a context parameter. This should be consistent with NewQueryButton.getNewQueryHref
+        context: ['@dremio'],
+        sql: '',
+        datasetType: 'VIRTUAL_DATASET',
+        apiLinks: {
+          self: '/dataset/tmp/UNTITLED/new_untitled_sql'
+        },
+        needsLoad: false
+      }),
       needsLoad: false,
-      getDatasetChangeDetails: () => datasetChangeDetails
+      getDatasetChangeDetails: () => datasetChangeDetails,
+      onMount: sinon.stub(),
+      onUnmount: sinon.stub()
     };
     commonProps = {
       ...minimalProps,
@@ -179,43 +193,13 @@ describe('ExplorePageController', () => {
     });
   });
 
-  describe('Showing unsaved changes popup', () => {
-    let wrapper;
-    let instance;
-    const showConfirmationDialogStub = sinon.stub();
-    beforeEach(() => {
-      const props = {
-        ...commonProps,
-        showConfirmationDialog: showConfirmationDialogStub
-      };
-      wrapper = shallow(<ExplorePageControllerComponent {...props}/>);
-      instance = wrapper.instance();
-    });
-
-    it('should allow navigation when nothing changed', () => {
-      const nextLocation = nextLocations.home;
-      sinon.stub(instance, 'shouldShowUnsavedChangesPopup').returns(false);
-      expect(instance.routeWillLeave(nextLocation)).to.be.true;
-      expect(wrapper.state('isUnsavedChangesModalShowing')).to.be.false;
-      expect(showConfirmationDialogStub).to.not.be.called;
-    });
-
-    it('should prevent navigation when dataset changed and store next location', () => {
-      const nextLocation = nextLocations.home;
-      sinon.stub(instance, 'shouldShowUnsavedChangesPopup').returns(true);
-      expect(instance.routeWillLeave(nextLocation)).to.be.false;
-      expect(wrapper.state('nextLocation')).to.be.eql(nextLocation);
-      expect(wrapper.state('isUnsavedChangesModalShowing')).to.be.true;
-      expect(showConfirmationDialogStub).to.be.calledOnce;
-    });
-
-    it('should allow navigation when dataset changed and modal confirmed', () => {
-      const nextLocation = nextLocations.home;
-      wrapper.setState({ isUnsavedChangesModalShowing: true });
-      sinon.stub(instance, 'shouldShowUnsavedChangesPopup').returns(true);
-      expect(instance.routeWillLeave(nextLocation)).to.be.true;
-      expect(showConfirmationDialogStub).to.be.calledOnce;
-    });
+  it('addHasChangesHook is called on mount', () => {
+    const props = {
+      ...commonProps,
+      addHasChangesHook: sinon.stub()
+    };
+    const instance = shallow(<ExplorePageControllerComponent {...props}/>, { disableLifecycleMethods: false }).instance();
+    expect(props.addHasChangesHook).to.be.calledWith(instance.shouldShowUnsavedChangesPopup);
   });
 
   describe('#_areLocationsSameDataset', () => {
@@ -326,21 +310,6 @@ describe('ExplorePageController', () => {
         });
       });
 
-      it('getNewDataset: Query context is decoded correctly', () => { // DX-12354
-        // test data is taken from the bug // DX-12354
-        const space = '"   tomer 12# $"';
-        const folder = '"_ nested $"';
-        const contextInput = `${space}.${folder}`;
-        const location = {
-          query: {
-            context: encodeURIComponent(contextInput) // url parameter should be encoded. See NewQueryButton.getNewQueryHref
-          }
-        };
-
-        const contextResult = getNewDataset(location).get('context').toJS();
-
-        expect(contextResult).to.deep.eql([space, folder]);
-      });
     });
   });
 });

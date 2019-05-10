@@ -58,22 +58,24 @@ class IntercomUtils {
   boot = () => {
     this._ifAllowed().then((Intercom) => {
       const userData = localStorageUtils.getUserData();
-      Intercom('boot', {
-        'app_id': config.intercomAppId,
-        'email': userData.email,
-        'user_id': userData.clusterId + (userData.email || userData.userId),
-        'created_at': userData.userCreatedAt / 1000,
-        'name': `${userData.firstName} ${userData.lastName}`.trim(),
-        'company': {
-          'id': userData.clusterId,
-          'version': userData.version,
-          'created_at': userData.clusterCreatedAt / 1000
-        },
-        widget: {
-          activator: '#header-chat-button'
-        },
-        ...this._getExtraBootData()
-      });
+      if (userData) {
+        Intercom('boot', {
+          'app_id': config.intercomAppId,
+          'email': userData.email,
+          'user_id': userData.clusterId + (userData.email || userData.userId),
+          'created_at': userData.userCreatedAt / 1000,
+          'name': `${userData.firstName} ${userData.lastName}`.trim(),
+          'company': {
+            'id': userData.clusterId,
+            'version': userData.version,
+            'created_at': userData.clusterCreatedAt / 1000
+          },
+          widget: {
+            activator: '#header-chat-button'
+          },
+          ...this._getExtraBootData()
+        });
+      }
     }, () => {}); // make non-fatal
   }
 

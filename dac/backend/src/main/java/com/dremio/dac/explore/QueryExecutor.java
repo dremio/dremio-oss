@@ -48,6 +48,7 @@ import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.file.FileFormat;
+import com.google.common.util.concurrent.Futures;
 
 /**
  * A per RequestScoped class used to execute queries.
@@ -117,12 +118,15 @@ public class QueryExecutor {
         logger.debug("job not found. Running a new one: " + messagePath);
       }
 
-      return new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+      final Job job = Futures.getUnchecked(
+        jobsService.submitJob(JobRequest.newBuilder()
           .setSqlQuery(query)
           .setQueryType(queryType)
           .setDatasetPath(datasetPath.toNamespaceKey())
           .setDatasetVersion(version)
-          .build(), statusListener));
+          .build(), statusListener)
+      );
+      return new JobUI(job);
     } catch (UserRemoteException e) {
       throw new DACRuntimeException(format("Failure while running %s query for dataset %s :\n%s", queryType, messagePath, query) + "\n" + e.getMessage(), e);
     }
@@ -142,9 +146,10 @@ public class QueryExecutor {
   public JobDataFragment previewPhysicalDataset(String table, FileFormat formatOptions) {
     SqlQuery query = new SqlQuery(format("select * from table(%s (%s))", table, formatOptions.toTableOptions()), null, context.getUserPrincipal().getName());
     // We still need to truncate the results to 500 as the preview physical datasets doesn't support pagination yet
-    return new JobUI(jobsService.submitJob(JobRequest.newBuilder()
+    return JobUI.getJobData(jobsService.submitJob(JobRequest.newBuilder()
         .setSqlQuery(query)
         .setQueryType(QueryType.UI_INITIAL_PREVIEW)
-        .build(), NoOpJobStatusListener.INSTANCE)).getData().truncate(500);
+        .build(), NoOpJobStatusListener.INSTANCE)
+    ).truncate(500);
   }
 }

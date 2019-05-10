@@ -18,16 +18,32 @@ package com.dremio.exec.store.json;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.UserBitShared;
+import com.google.common.io.Resources;
 
 public class TestJsonRecordReader extends BaseTestQuery {
   //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestJsonRecordReader.class);
+
+  static FileSystem fs;
+
+  @BeforeClass
+  public static void initFs() throws Exception {
+    Configuration conf = new Configuration();
+    conf.set("fs.default.name", "local");
+
+    fs = FileSystem.get(conf);
+  }
 
   @Test
   public void testComplexJsonInput() throws Exception {
@@ -186,5 +202,60 @@ public class TestJsonRecordReader extends BaseTestQuery {
         .unOrdered()
         .sqlBaselineQuery(baselineQuery)
         .go();
+  }
+
+  @Test
+  public void testRefreshOnJsonFileNotFound() throws Exception {
+    setEnableReAttempts(true);
+    try {
+      // create directory
+      Path dir = new Path("/tmp/json_file_refresh");
+      if (fs.exists(dir)) {
+        fs.delete(dir, true);
+      }
+      fs.mkdirs(dir);
+
+      // Create 2 json files in the directory.
+      byte[] bytes = Resources.toByteArray(Resources.getResource("store/text/sample.json"));
+      for (int i = 0; i < 2; ++i) {
+        FSDataOutputStream os = fs.create(new Path(dir, i + "sample.json"));
+        os.write(bytes);
+        os.close();
+      }
+
+      // query on all 10 files.
+      testBuilder()
+        .sqlQuery(
+          "select count(*) c from dfs.tmp.json_file_refresh where type = \'donut\'")
+        .unOrdered()
+        .baselineColumns("c")
+        .baselineValues(2L)
+        .build()
+        .run();
+
+      // TODO(DX-15645): remove this sleep
+      Thread.sleep(1000L); // fs modification times have second precision so read signature might be valid
+
+      // delete the second file.
+      fs.delete(new Path(dir, 1 + "sample.json"), false);
+
+      // TODO(DX-15645): remove this sleep
+      Thread.sleep(1000L); // fs modification times have second precision so read signature might be valid
+
+      // re-run the query. Should trigger a metadata refresh and succeed.
+      testBuilder()
+        .sqlQuery(
+          "select count(*) c from dfs.tmp.json_file_refresh where type = \'donut\'")
+        .unOrdered()
+        .baselineColumns("c")
+        .baselineValues(1L)
+        .build()
+        .run();
+
+      // cleanup
+      fs.delete(dir, true);
+    } finally {
+      setEnableReAttempts(false);
+    }
   }
 }

@@ -293,7 +293,7 @@ public class HashJoinOperator implements DualInputOperator {
     // Create the chained hash table
     final ChainedHashTable ht =
         new ChainedHashTable(htConfig, context.getClassProducer(), context.getAllocator(), this.right, this.left, outgoing, new Listener());
-    hashTable = ht.createAndSetupHashTable(null);
+    hashTable = ht.createAndSetupHashTable(null, context.getOptions());
   }
 
 

@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelWriter;
@@ -42,9 +44,13 @@ import com.dremio.exec.record.BatchSchema;
  * inspection and RelMdOrigins determination. Beyond that, three tree should not be used. (For example,
  * it won't show up when doing EXPLAIN).
  */
+@Options
 public class ElasticScanPrel extends TableScan implements LeafPrel, CustomPrel {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ElasticScanPrel.class);
+
+  public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.scan.elastic.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.scan.elastic.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   private final ElasticsearchPrel input;
   private final ScanBuilder scanBuilder;
@@ -81,7 +87,11 @@ public class ElasticScanPrel extends TableScan implements LeafPrel, CustomPrel {
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     final RelMetadataQuery mq = input.getCluster().getMetadataQuery();
-    return creator.addMetadata(this, scanBuilder.toGroupScan(mq.getRowCount(input).longValue()));
+
+    final BatchSchema schema = input.getSchema(creator.getFunctionLookupContext());
+    return scanBuilder.toGroupScan(
+        creator.props(this, null/*todo: need to send user?*/, schema, RESERVE, LIMIT),
+        mq.getRowCount(input).longValue());
   }
 
   @Override

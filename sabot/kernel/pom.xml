@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>3.1.11-201904261857420193-c674472</version>
+    <version>3.2.0-201905102005330382-0598733</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -33,6 +33,12 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-options</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-connector</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -50,7 +56,6 @@
     <dependency>
       <groupId>com.hubspot.jackson</groupId>
       <artifactId>jackson-datatype-protobuf</artifactId>
-      <version>0.9.5</version>
     </dependency>
     
     <dependency>
@@ -181,12 +186,10 @@
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-server</artifactId>
-      <version>${jetty.version}</version>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-servlet</artifactId>
-      <version>${jetty.version}</version>
     </dependency>
     <dependency>
       <groupId>org.glassfish.jersey.containers</groupId>
@@ -195,7 +198,6 @@
     <dependency>
       <groupId>org.glassfish.jersey.media</groupId>
       <artifactId>jersey-media-multipart</artifactId>
-      <version>${jersey.version}</version>
     </dependency>
     <dependency>
       <groupId>com.esotericsoftware</groupId>
@@ -227,7 +229,6 @@
     <dependency>
       <groupId>org.glassfish.jersey.ext</groupId>
       <artifactId>jersey-mvc-freemarker</artifactId>
-      <version>${jersey.version}</version>
       <exclusions>
           <exclusion>
             <artifactId>servlet-api</artifactId>
@@ -300,7 +301,7 @@
     <dependency>
       <groupId>org.apache.parquet</groupId>
       <artifactId>parquet-format</artifactId>
-      <version>2.3.0-incubating-201701192040120487-851e12d</version>
+      <version>2.7.0-201901172054060715-5352a59</version>
       <exclusions>
         <exclusion>
           <groupId>org.apache.hadoop</groupId>
@@ -373,6 +374,21 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>org.apache.parquet</groupId>
+      <artifactId>parquet-arrow</artifactId>
+      <version>${parquet.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-client</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
       <groupId>javax.inject</groupId>
       <artifactId>javax.inject</artifactId>
       <version>1</version>
@@ -393,6 +409,13 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-connector</artifactId>
+      <version>${project.version}</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-spill</artifactId>
       <version>${project.version}</version>
@@ -404,7 +427,6 @@
     <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
-      <version>1.1.4</version>
     </dependency>
     <dependency>
       <groupId>com.carrotsearch</groupId>
@@ -492,6 +514,10 @@
       <groupId>org.apache.arrow.gandiva</groupId>
       <artifactId>arrow-gandiva</artifactId>
       <version>${arrow.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-commandpool</artifactId>
     </dependency>
   </dependencies>
 
@@ -583,7 +609,22 @@
         <configuration>
           <protoModules>
             <protoModule>
-              <source>src/main/protobuf</source>
+              <source>src/main/protobuf/attempts.proto</source>
+              <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
+              <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
+              <options>
+                <property>
+                  <name>generate_field_map</name>
+                  <value>true</value>
+                </property>
+                <property>
+                  <name>builder_pattern</name>
+                  <value>true</value>
+                </property>
+              </options>
+            </protoModule>
+            <protoModule>
+              <source>src/main/protobuf/updateid.proto</source>
               <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
               <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
               <options>
@@ -599,6 +640,25 @@
             </protoModule>
           </protoModules>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+            <configuration>
+              <protoSourceRoot>${basedir}/src/main/protobuf</protoSourceRoot>
+              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+              <excludes>
+                <exclude>**/attempts.proto</exclude>
+                <exclude>**/updateid.proto</exclude>
+              </excludes>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -905,6 +965,16 @@
         </executions>
       </plugin>
     </plugins>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>false</filtering>
+      </resource>
+      <resource>
+        <directory>src/main/resources-${dremio.mapr.distribution}</directory>
+        <filtering>false</filtering>
+      </resource>
+    </resources>
   </build>
 
 </project>

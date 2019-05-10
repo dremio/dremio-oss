@@ -81,7 +81,7 @@ export default class SourceFormJsonPolicy {
    * @param typeConfig
    */
   static getCombinedConfig(typeCode, typeConfig) {
-    const uiConfig = DEFAULT_VLHF_DETAIL.find(type => type.sourceType === typeCode);
+    const uiConfig = DEFAULT_VLHF_DETAIL[typeCode];
     const conbinedConfig = SourceFormJsonPolicy.combineFunctionalAndPresentationalSourceTypeConfig(typeConfig, uiConfig);
     return SourceFormJsonPolicy.applyJsonPolicyToFormConfig(conbinedConfig, typeConfig);
   }

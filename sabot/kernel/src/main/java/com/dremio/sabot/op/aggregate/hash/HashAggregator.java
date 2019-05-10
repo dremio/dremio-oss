@@ -29,6 +29,7 @@ import com.dremio.exec.physical.config.HashAggregate;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.common.hashtable.HashTableConfig;
 
@@ -38,16 +39,18 @@ public interface HashAggregator extends AutoCloseable {
       new TemplateClassDefinition<HashAggregator>(HashAggregator.class, HashAggTemplate.class);
 
   void setup(
-      HashAggregate hashAggrConfig,
-      HashTableConfig htConfig,
-      ClassProducer producer,
-      OperatorStats stats,
-      BufferAllocator allocator,
-      VectorAccessible incoming,
-      LogicalExpression[] valueExprs,
-      List<TypedFieldId> valueFieldIds,
-      TypedFieldId[] groupByOutFieldIds,
-      VectorContainer outContainer) throws SchemaChangeException, ClassTransformationException, IOException;
+    HashAggregate hashAggrConfig,
+    HashTableConfig htConfig,
+    ClassProducer producer,
+    OperatorStats stats,
+    BufferAllocator allocator,
+    VectorAccessible incoming,
+    LogicalExpression[] valueExprs,
+    List<TypedFieldId> valueFieldIds,
+    TypedFieldId[] groupByOutFieldIds,
+    VectorContainer outContainer,
+    OptionManager optionManager) throws SchemaChangeException, ClassTransformationException,
+    IOException;
 
   void addBatch(int records);
 

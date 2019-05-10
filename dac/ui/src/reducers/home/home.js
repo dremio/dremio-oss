@@ -15,12 +15,17 @@
  */
 import { combineReducers } from 'redux';
 
+import pinnedEntities from './pinnedEntities';
 import config from './config';
 import recentDatasets from './recentDatasets';
 import wiki from './wiki';
+import sidebarSize from './sidebarSize';
 
+// todo move to modules
 export default combineReducers({
   config,
   recentDatasets,
-  wiki
+  wiki,
+  sidebarSize,
+  pinnedEntities
 });

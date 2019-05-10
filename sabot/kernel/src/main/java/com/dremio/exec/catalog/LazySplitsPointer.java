@@ -15,19 +15,10 @@
  */
 package com.dremio.exec.catalog;
 
-
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.store.SplitsPointer;
-import com.dremio.service.namespace.DatasetSplitId;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
+import com.dremio.service.namespace.PartitionChunkMetadata;
 
 /**
  * Base class to {@code SplitPointer} types whose data is loaded lazily
@@ -37,15 +28,12 @@ abstract class LazySplitsPointer extends AbstractSplitsPointer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LazySplitsPointer.class);
 
   private final NamespaceService namespaceService;
+  private final long splitVersion;
   private final int totalSplitCount;
 
-  private List<DatasetSplit> materializedSplits;
-  private volatile boolean splitsMaterialized;
-  private volatile Integer splitCount;
-
-
-  protected LazySplitsPointer(NamespaceService namespaceService, int totalSplitCount) {
+  protected LazySplitsPointer(NamespaceService namespaceService, long splitVersion, int totalSplitCount) {
     this.namespaceService = namespaceService;
+    this.splitVersion = splitVersion;
     this.totalSplitCount = totalSplitCount;
   }
 
@@ -54,27 +42,21 @@ abstract class LazySplitsPointer extends AbstractSplitsPointer {
   }
 
   @Override
-  public void materialize(){
-    if(!splitsMaterialized){
-      Stopwatch stopwatch = Stopwatch.createStarted();
-      materializedSplits = ImmutableList.copyOf(getSplitIterable());
-      splitsMaterialized = true;
-      stopwatch.stop();
-      logger.debug("materializing {} splits took {} ms", materializedSplits.size(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
-    }
+  public long getSplitVersion() {
+    return splitVersion;
   }
 
   protected abstract SearchQuery getPartitionQuery(SearchQuery partitionFilterQuery);
 
   @Override
   public SplitsPointer prune(SearchQuery partitionFilterQuery) {
-    if (splitsMaterialized || partitionFilterQuery == null) {
+    if (partitionFilterQuery == null) {
       return this;
     }
 
     final SearchQuery query = getPartitionQuery(partitionFilterQuery);
     final int lastSplits = getSplitsCount();
-    SplitsPointer newSplits = new FilteredSplitsPointer(namespaceService, query, totalSplitCount);
+    SplitsPointer newSplits = new FilteredSplitsPointer(namespaceService, splitVersion, query, totalSplitCount);
 
     if (newSplits.getSplitsCount() < lastSplits) {
       return newSplits;
@@ -82,28 +64,11 @@ abstract class LazySplitsPointer extends AbstractSplitsPointer {
     return this;
   }
 
-  protected abstract Iterable<Map.Entry<DatasetSplitId, DatasetSplit>> findSplits();
+  protected abstract Iterable<PartitionChunkMetadata> findSplits();
 
   @Override
-  public Iterable<DatasetSplit> getSplitIterable() {
-    if (splitsMaterialized) {
-      return materializedSplits;
-    }
-
-    return Iterables.transform(findSplits(), SPLIT_VALUES);
-  }
-
-  protected abstract int computeSplitsCount();
-
-  @Override
-  public int getSplitsCount() {
-    if (splitsMaterialized) {
-      return materializedSplits.size();
-    }
-    if(splitCount == null){
-      splitCount = computeSplitsCount();
-    }
-    return splitCount;
+  public Iterable<PartitionChunkMetadata> getPartitionChunks() {
+    return findSplits();
   }
 
   @Override

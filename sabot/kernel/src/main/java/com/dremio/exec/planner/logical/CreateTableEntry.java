@@ -18,6 +18,7 @@ package com.dremio.exec.planner.logical;
 
 import java.io.IOException;
 
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -38,7 +39,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 })
 public interface CreateTableEntry {
 
-  Writer getWriter(PhysicalOperator child) throws IOException;
+  Writer getWriter(OpProps props, PhysicalOperator child) throws IOException;
 
   WriterOptions getOptions();
 

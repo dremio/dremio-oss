@@ -58,7 +58,7 @@ public class TestLocalSchedulerService {
   @Test
   public void close() throws Exception {
     final CloseableSchedulerThreadPool executorService = mock(CloseableSchedulerThreadPool.class);
-    final LocalSchedulerService service = new LocalSchedulerService(executorService);
+    final LocalSchedulerService service = new LocalSchedulerService(executorService, null, null, false);
 
     service.close();
 
@@ -171,7 +171,7 @@ public class TestLocalSchedulerService {
     };
 
     @SuppressWarnings("resource")
-    final SchedulerService service = new LocalSchedulerService(executorService);
+    final SchedulerService service = new LocalSchedulerService(executorService, null, null, false);
     @SuppressWarnings("unused")
     final Cancellable cancellable = service.schedule(Schedule.Builder.everyHours(1).build(), runnable);
 
@@ -216,7 +216,7 @@ public class TestLocalSchedulerService {
     };
 
     @SuppressWarnings("resource")
-    final SchedulerService service = new LocalSchedulerService(executorService);
+    final SchedulerService service = new LocalSchedulerService(executorService, null, null, false);
     final Cancellable cancellable = service.schedule(Schedule.Builder.everyHours(1).build(), runnable);
     cancellable.cancel(true);
 
@@ -273,7 +273,7 @@ public class TestLocalSchedulerService {
     };
 
     @SuppressWarnings("resource")
-    final SchedulerService service = new LocalSchedulerService(executorService);
+    final SchedulerService service = new LocalSchedulerService(executorService, null, null, false);
     final Cancellable cancellable = service.schedule(Schedule.Builder.everyHours(1).build(), runnable);
 
     // Making a copy as running pending future will alter the list

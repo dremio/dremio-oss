@@ -14,18 +14,16 @@
  * limitations under the License.
  */
 const APP_KEY = 'globalApp';
+const WIKI_SIZE_KEY = 'WIKI_SIZE';
+
 const emptyApp = {
   home: {
     recentDatasetsToken: '',
     readonlyLinks: '',
-    pinnedItems: {
-      sources: {},
-      spaces: {}
-    }
+    pinnedItems: {}
   },
   explore: {
     tasks: [],
-    tables: [],
     transform: {
       info: {}
     }
@@ -62,7 +60,9 @@ export class LocalStorageUtils {
   }
 
   getAuthToken() {
-    return this.getUserData() && this.getUserData().token;
+    const token = this.getUserData() && this.getUserData().token;
+
+    return token ? `_dremio${token}` : null;
   }
 
   getApp() {
@@ -78,16 +78,9 @@ export class LocalStorageUtils {
     return app.home.pinnedItems || {};
   }
 
-  updatePinnedItemState(name, state, group) {
+  updatePinnedItemState(state) {
     const app = this.getApp();
-    if (app.home.pinnedItems && app.home.pinnedItems[group]) {
-      app.home.pinnedItems[group][name] = state;
-    } else {
-      app.home.pinnedItems = {
-        ...app.home.pinnedItems,
-        [group] : { [name]: state }
-      };
-    }
+    app.home.pinnedItems = state;
     this.setApp(app);
   }
 
@@ -119,39 +112,6 @@ export class LocalStorageUtils {
     this.setApp(app);
   }
 
-  saveTableColumns(name, version, columns) {
-    const app = this.getApp();
-    if (!app.explore.tables) {
-      app.explore.tables = [];
-    }
-    let isFound = false;
-    app.explore.tables = app.explore.tables.map(table => {
-      if (table && table.name === name && table.version === version) {
-        table.columns = columns.toJS();
-        isFound = true;
-      }
-      return table;
-    });
-    if (!isFound) {
-      app.explore.tables.push({
-        name,
-        version,
-        columns: columns.toJS()
-      });
-    }
-    this.setApp(app);
-  }
-
-  getTableColumns(name, version) {
-    const app = this.getApp();
-    const curTable = app.explore && app.explore.tables &&
-                     app.explore.tables.find(table => table && table.name === name && table.version === version);
-    if (!curTable) {
-      return null;
-    }
-    return curTable.columns;
-  }
-
   setDefaultSqlState(sqlState) {
     this._safeSave('sqlState', sqlState);
   }
@@ -166,6 +126,14 @@ export class LocalStorageUtils {
 
   getWikiVisibleState() {
     return localStorage.getItem('isWikiVisible') !== 'false'; // true is default value
+  }
+
+  getWikiSize() {
+    return localStorage.getItem(WIKI_SIZE_KEY);
+  }
+
+  setWikiSize(wikiSize) {
+    this._safeSave(WIKI_SIZE_KEY, wikiSize);
   }
 
   setDefaultSqlHeight(sqlHeight) {

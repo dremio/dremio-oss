@@ -28,7 +28,6 @@ import com.dremio.common.util.DremioStringUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
 import com.dremio.exec.physical.base.Exchange.ParallelizationDependency;
@@ -43,8 +42,9 @@ import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.Collector;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
 import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
-import com.dremio.exec.proto.CoordExecRPC.IncomingMinorFragment;
-import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
+import com.dremio.exec.proto.CoordExecRPC.MinorSpecificAttr;
+import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
+import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMinor;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
@@ -54,6 +54,7 @@ import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
+import com.dremio.sabot.op.sort.external.ExternalSortOperator;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
@@ -95,6 +96,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
     this.parallelizationThreshold = sliceTarget > 0 ? sliceTarget : 1;
 
     final long configuredMaxWidthPerNode = context.getClusterResourceInformation().getAverageExecutorCores(optionManager);
+    Preconditions.checkState(configuredMaxWidthPerNode > 0, "Error: No executors are available");
     final double maxWidthFactor = context.getWorkStatsProvider().get().getMaxWidthFactor();
     this.maxWidthPerNode = (int) Math.max(1, configuredMaxWidthPerNode * maxWidthFactor);
 
@@ -178,13 +180,14 @@ public class SimpleParallelizer implements ParallelizationParameters {
    * @throws ExecutionSetupException
    */
   @Deprecated // ("only used in test")
-  public List<PlanFragment> getFragments(
+  public List<PlanFragmentFull> getFragments(
       OptionList options,
       NodeEndpoint foremanNode,
       QueryId queryId,
       Collection<NodeEndpoint> activeEndpoints,
       PhysicalPlanReader reader,
       Fragment rootFragment,
+      PlanFragmentsIndex.Builder indexBuilder,
       UserSession session,
       QueryContextInformation queryContextInfo,
       FunctionLookupContext functionLookupContext) throws ExecutionSetupException {
@@ -195,8 +198,8 @@ public class SimpleParallelizer implements ParallelizationParameters {
     stopwatch.stop();
     observer.planAssignmentTime(stopwatch.elapsed(TimeUnit.MILLISECONDS));
     stopwatch.start();
-    List<PlanFragment> fragments = generateWorkUnit(options, foremanNode, queryId, reader, rootFragment, planningSet,
-      session, queryContextInfo, functionLookupContext);
+    List<PlanFragmentFull> fragments = generateWorkUnit(options, foremanNode, queryId, reader, rootFragment, planningSet,
+      indexBuilder, session, queryContextInfo, functionLookupContext);
     stopwatch.stop();
     observer.planGenerationTime(stopwatch.elapsed(TimeUnit.MILLISECONDS));
     observer.plansDistributionComplete(new QueryWorkUnit(fragments));
@@ -214,16 +217,17 @@ public class SimpleParallelizer implements ParallelizationParameters {
    * @return
    * @throws ExecutionSetupException
    */
-  public List<PlanFragment> getFragments(
+  public List<PlanFragmentFull> getFragments(
     OptionList options,
     PlanningSet planningSet,
     PhysicalPlanReader reader,
-    Fragment rootFragment) throws ExecutionSetupException {
+    Fragment rootFragment,
+    PlanFragmentsIndex.Builder indexBuilder) throws ExecutionSetupException {
     Preconditions.checkNotNull(queryContext);
     final Stopwatch stopwatch = Stopwatch.createStarted();
     observer.planAssignmentTime(stopwatch.elapsed(TimeUnit.MILLISECONDS));
-    List<PlanFragment> fragments =
-      generateWorkUnit(options, reader, rootFragment, planningSet);
+    List<PlanFragmentFull> fragments =
+      generateWorkUnit(options, reader, rootFragment, planningSet, indexBuilder);
     stopwatch.stop();
     observer.planGenerationTime(stopwatch.elapsed(TimeUnit.MILLISECONDS));
     observer.plansDistributionComplete(new QueryWorkUnit(fragments));
@@ -350,11 +354,12 @@ public class SimpleParallelizer implements ParallelizationParameters {
    * @return
    * @throws ExecutionSetupException
    */
-  private List<PlanFragment> generateWorkUnit(
+  private List<PlanFragmentFull> generateWorkUnit(
     OptionList options,
     PhysicalPlanReader reader,
     Fragment rootNode,
-    PlanningSet planningSet) throws ExecutionSetupException {
+    PlanningSet planningSet,
+    PlanFragmentsIndex.Builder indexBuilder) throws ExecutionSetupException {
     Preconditions.checkNotNull(queryContext);
     return generateWorkUnit(options,
       queryContext.getCurrentEndpoint(),
@@ -362,23 +367,27 @@ public class SimpleParallelizer implements ParallelizationParameters {
       reader,
       rootNode,
       planningSet,
+      indexBuilder,
       queryContext.getSession(),
       queryContext.getQueryContextInfo(),
       queryContext.getFunctionRegistry());
   }
 
-    protected List<PlanFragment> generateWorkUnit(
+    protected List<PlanFragmentFull> generateWorkUnit(
       OptionList options,
       NodeEndpoint foremanNode,
       QueryId queryId,
       PhysicalPlanReader reader,
       Fragment rootNode,
       PlanningSet planningSet,
+      PlanFragmentsIndex.Builder indexBuilder,
       UserSession session,
       QueryContextInformation queryContextInfo,
       FunctionLookupContext functionLookupContext) throws ExecutionSetupException {
 
-    final List<PlanFragment> fragments = Lists.newArrayList();
+    final List<PlanFragmentFull> fragments = Lists.newArrayList();
+    EndpointsIndex.Builder builder = indexBuilder.getEndpointsIndexBuilder();
+
     // now we generate all the individual plan fragments and associated assignments. Note, we need all endpoints
     // assigned before we can materialize, so we start a new loop here rather than utilizing the previous one.
     for (Wrapper wrapper : planningSet) {
@@ -401,104 +410,130 @@ public class SimpleParallelizer implements ParallelizationParameters {
       // come up with a list of minor fragments assigned for each endpoint.
       final List<FragmentAssignment> assignments = new ArrayList<>();
 
-      if(queryContext.getOptions().getOption(VectorizedHashAggOperator.OOB_SPILL_TRIGGER_ENABLED)) {
+      if(queryContext.getOptions().getOption(VectorizedHashAggOperator.OOB_SPILL_TRIGGER_ENABLED) ||
+        queryContext.getOptions().getOption(ExternalSortOperator.OOB_SORT_TRIGGER_ENABLED)) {
 
         // collate by node.
-        ArrayListMultimap<NodeEndpoint, Integer> assignMap = ArrayListMultimap.create();
+        ArrayListMultimap<Integer, Integer> assignMap = ArrayListMultimap.create();
         for (int minorFragmentId = 0; minorFragmentId < wrapper.getWidth(); minorFragmentId++) {
-          assignMap.put(wrapper.getAssignedEndpoint(minorFragmentId), minorFragmentId);
+          assignMap.put(builder.addNodeEndpoint(wrapper.getAssignedEndpoint(minorFragmentId)), minorFragmentId);
         }
 
-        // create assignment lists.
-        for(NodeEndpoint ep : assignMap.keySet()) {
+        // create getAssignment lists.
+        for(int ep : assignMap.keySet()) {
           assignments.add(
             FragmentAssignment.newBuilder()
-              .setAssignment(ep)
+              .setAssignmentIndex(ep)
               .addAllMinorFragmentId(assignMap.get(ep))
               .build());
         }
       }
 
       // Create a minorFragment for each major fragment.
+      PlanFragmentMajor major = null;
+      boolean majorAdded = false;
       for (int minorFragmentId = 0; minorFragmentId < wrapper.getWidth(); minorFragmentId++) {
         IndexedFragmentNode iNode = new IndexedFragmentNode(minorFragmentId, wrapper);
         wrapper.resetAllocation();
-        PhysicalOperator op = physicalOperatorRoot.accept(new Materializer(functionLookupContext, wrapper.getSplitSets()), iNode);
+        PhysicalOperator op = physicalOperatorRoot.accept(new Materializer(wrapper.getSplitSets(), builder), iNode);
         Preconditions.checkArgument(op instanceof FragmentRoot);
         FragmentRoot root = (FragmentRoot) op;
 
-        // get plan as JSON
-        ByteString plan;
-        ByteString optionsData;
-        try {
-          plan = reader.writeJsonBytes(root, fragmentCodec);
-          optionsData = reader.writeJsonBytes(options, fragmentCodec);
-        } catch (JsonProcessingException e) {
-          throw new ForemanSetupException("Failure while trying to convert fragment into json.", e);
-        }
-
-        FragmentHandle handle = FragmentHandle //
+        FragmentHandle handle =
+          FragmentHandle //
             .newBuilder() //
             .setMajorFragmentId(wrapper.getMajorFragmentId()) //
-            .setMinorFragmentId(minorFragmentId) //
+            .setMinorFragmentId(minorFragmentId)
             .setQueryId(queryId) //
             .build();
 
-        PlanFragment fragment = PlanFragment.newBuilder() //
-            .setForeman(foremanNode) //
-            .setFragmentJson(plan) //
-            .setHandle(handle) //
-            .setAssignment(wrapper.getAssignedEndpoint(minorFragmentId)) //
-            .setLeafFragment(isLeafFragment) //
-            .setContext(queryContextInformation)
-            .setMemInitial(wrapper.getInitialAllocation())//
-            .setMemMax(wrapper.getMemoryAllocationPerNode(minorFragmentId))
-            .setOptionsJson(optionsData)
-            .setCredentials(session.getCredentials())
-            .addAllCollector(CountRequiredFragments.getCollectors(root))
-            .setPriority(queryContextInfo.getPriority())
-            .setFragmentCodec(fragmentCodec)
-            .addAllAllAssignment(assignments)
-            .build();
+        // Build the major fragment only once.
+        if (!majorAdded) {
+          majorAdded = true;
 
-        if(logger.isTraceEnabled()){
-          logger.trace("Remote fragment:\n {}", DremioStringUtils.unescapeJava(fragment.toString()));
+          // get plan as JSON
+          ByteString plan;
+          ByteString optionsData;
+          try {
+            plan = reader.writeJsonBytes(root, fragmentCodec);
+            optionsData = reader.writeJsonBytes(options, fragmentCodec);
+          } catch (JsonProcessingException e) {
+            throw new ForemanSetupException("Failure while trying to convert fragment into json.", e);
+          }
+
+          major =
+              PlanFragmentMajor.newBuilder()
+                  .setForeman(foremanNode)
+                  .setFragmentJson(plan)
+                  .setHandle(handle.toBuilder().clearMinorFragmentId().build())
+                  .setLeafFragment(isLeafFragment)
+                  .setContext(queryContextInformation)
+                  .setMemInitial(wrapper.getInitialAllocation())
+                  .setOptionsJson(optionsData)
+                  .setCredentials(session.getCredentials())
+                  .setPriority(queryContextInfo.getPriority())
+                  .setFragmentCodec(fragmentCodec)
+                  .addAllAllAssignment(assignments)
+                  .build();
+
+          if (logger.isTraceEnabled()) {
+            logger.trace(
+                "Remote major fragment:\n {}", DremioStringUtils.unescapeJava(major.toString()));
+          }
         }
-        fragments.add(fragment);
-      }
 
+        List<MinorSpecificAttr> attrList = MinorDataCollector.collect(handle,
+          root,
+          new MinorDataSerDe(reader,fragmentCodec),
+          indexBuilder);
+
+        NodeEndpoint assignment = wrapper.getAssignedEndpoint(minorFragmentId);
+
+        // Build minor specific info and attributes.
+        PlanFragmentMinor minor = PlanFragmentMinor.newBuilder()
+          .setMajorFragmentId(wrapper.getMajorFragmentId())
+          .setMinorFragmentId(minorFragmentId)
+          .setAssignment(builder.getMinimalEndpoint(assignment))
+          .setMemMax(wrapper.getMemoryAllocationPerNode(minorFragmentId))
+          .addAllCollector(CountRequiredFragments.getCollectors(root))
+          .addAllAttrs(attrList)
+          .build();
+
+        if (logger.isTraceEnabled()) {
+          logger.trace(
+            "Remote minor fragment:\n {}", DremioStringUtils.unescapeJava(minor.toString()));
+        }
+
+        fragments.add(new PlanFragmentFull(major, minor));
+      }
     }
 
     return fragments;
   }
 
-
   /**
    * Designed to setup initial values for arriving fragment accounting.
    */
   protected static class CountRequiredFragments extends AbstractPhysicalVisitor<Void, List<Collector>, RuntimeException> {
-    private static final CountRequiredFragments INSTANCE = new CountRequiredFragments();
+
+    private CountRequiredFragments() {
+    }
 
     public static List<Collector> getCollectors(PhysicalOperator root) {
+      CountRequiredFragments counter = new CountRequiredFragments();
       List<Collector> collectors = Lists.newArrayList();
-      root.accept(INSTANCE, collectors);
+      root.accept(counter, collectors);
       return collectors;
     }
 
     @Override
     public Void visitReceiver(Receiver receiver, List<Collector> collectors) throws RuntimeException {
-      List<MinorFragmentEndpoint> endpoints = receiver.getProvidingEndpoints();
-      List<IncomingMinorFragment> list = new ArrayList<>(endpoints.size());
-      for (MinorFragmentEndpoint ep : endpoints) {
-        list.add(IncomingMinorFragment.newBuilder().setEndpoint(ep.getEndpoint()).setMinorFragment(ep.getId()).build());
-      }
-
       collectors.add(Collector.newBuilder()
         .setIsSpooling(receiver.isSpooling())
-        .setOppositeMajorFragmentId(receiver.getOppositeMajorFragmentId())
+        .setOppositeMajorFragmentId(receiver.getSenderMajorFragmentId())
         .setSupportsOutOfOrder(receiver.supportsOutOfOrderExchange())
-          .addAllIncomingMinorFragment(list)
-          .build());
+        .addAllIncomingMinorFragmentIndex(receiver.getProvidingEndpoints())
+        .build());
       return null;
     }
 

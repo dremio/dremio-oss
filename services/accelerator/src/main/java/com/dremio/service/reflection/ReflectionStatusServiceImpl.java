@@ -30,6 +30,7 @@ import java.util.stream.StreamSupport;
 import javax.inject.Provider;
 
 import com.dremio.datastore.KVStoreProvider;
+import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ReflectionRPC;
 import com.dremio.exec.server.SabotContext;
@@ -398,7 +399,9 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
       }
     }
     if (refreshInfo.getUpdateId() != null) {
-      refreshInfoBuilder.setUpdateId(refreshInfo.getUpdateId());
+      UpdateIdWrapper wrapper = new UpdateIdWrapper(refreshInfo.getUpdateId());
+      String updateId = wrapper.toStringValue();
+      refreshInfoBuilder.setUpdateId(updateId);
     }
     if (refreshInfo.getPartitionList() != null) {
       StringBuilder strB = new StringBuilder("[");

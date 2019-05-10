@@ -15,6 +15,8 @@
  */
 package com.dremio.datastore;
 
+import static com.dremio.datastore.RocksDBStore.BLOB_VALUE_PREFIX;
+import static com.dremio.datastore.RocksDBStore.FILTER_SIZE_IN_BYTES;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
@@ -27,6 +29,12 @@ import static org.junit.Assume.assumeThat;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.Callable;
@@ -35,8 +43,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import org.hamcrest.CoreMatchers;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,11 +61,15 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 
+import com.dremio.datastore.RocksDBStore.RocksBlobManager;
+
 /**
  * Some robustness tests for {@code RocksDBStore}
  */
 public class TestRocksDBStore {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestRocksDBStore.class);
+
+  private static final long BLOB_FILTER_SIZE = 1024;
 
   private final class RocksDBResource extends ExternalResource {
     private final TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -99,7 +114,8 @@ public class TestRocksDBStore {
   @Before
   public void setUpStore() {
     ColumnFamilyHandle handle = rocksDBResource.get().getDefaultColumnFamily();
-    store = new RocksDBStore("test", new ColumnFamilyDescriptor("test".getBytes(UTF_8)), handle, rocksDBResource.get(), 4);
+    final RocksBlobManager blobManager = new RocksBlobManager(rocksDBResource.dbPath, "test", BLOB_FILTER_SIZE);
+    store = new RocksDBStore("test", new ColumnFamilyDescriptor("test".getBytes(UTF_8)), handle, rocksDBResource.get(), 4, blobManager);
 
     // Making sure test is repeatable
     Random random = new Random(42);
@@ -121,7 +137,8 @@ public class TestRocksDBStore {
       String testColumnFamName = "testColumnFamName";
       ColumnFamilyDescriptor columnFamilyDescriptor = new ColumnFamilyDescriptor(testColumnFamName.getBytes(UTF_8));
       ColumnFamilyHandle handle = rocksDBResource.get().createColumnFamily(columnFamilyDescriptor);
-      RocksDBStore newStore = new RocksDBStore(testColumnFamName, columnFamilyDescriptor, handle, rocksDBResource.get(), 4);
+      final RocksBlobManager blobManager = new RocksBlobManager(rocksDBResource.getDbDir(), testColumnFamName, FILTER_SIZE_IN_BYTES);
+      RocksDBStore newStore = new RocksDBStore(testColumnFamName, columnFamilyDescriptor, handle, rocksDBResource.get(), 4, blobManager);
       File rocksDbDir = new File(rocksDBResource.getDbDir());
 
       // Add KV pair to ensure newStore is working.
@@ -167,8 +184,61 @@ public class TestRocksDBStore {
     } finally {
       // Reset the RocksDBStore for other tests.
       ColumnFamilyHandle handle = rocksDBResource.get().getDefaultColumnFamily();
-      store = new RocksDBStore("test", new ColumnFamilyDescriptor("test".getBytes(UTF_8)), handle, rocksDBResource.get(), 4);
+      final RocksBlobManager blobManager = new RocksBlobManager(rocksDBResource.getDbDir(), "test", FILTER_SIZE_IN_BYTES);
+      store = new RocksDBStore("test", new ColumnFamilyDescriptor("test".getBytes(UTF_8)), handle, rocksDBResource.get(), 4, blobManager);
     }
+  }
+
+  @Test
+  public void checkBlobOps() throws IOException {
+    byte[] randomKey = new byte[5];
+    byte[] randomValue1 = new byte[(int) BLOB_FILTER_SIZE + 1];
+    byte[] randomValue2 = new byte[(int) BLOB_FILTER_SIZE + 1];
+    Random r = new Random(123);
+    r.nextBytes(randomKey);
+    r.nextBytes(randomValue1);
+    r.nextBytes(randomValue2);
+
+    store.put(randomKey, randomValue1);
+    Assert.assertArrayEquals(randomValue1, store.get(randomKey));
+    store.find().forEach(e -> {
+      if (Arrays.equals(randomKey, e.getKey())) {
+        Assert.assertArrayEquals(randomValue1, e.getValue());
+      }
+    });
+
+    String stats = store.getAdmin().getStats();
+    assertThat(stats, CoreMatchers.containsString("Estimated Blob Count: 1"));
+    assertThat(stats, CoreMatchers.containsString("Estimated Blob Bytes: 1050"));
+
+    // fail the put and check we don't corrupt.
+    store.validateAndPut(randomKey, randomValue2, b -> false);
+    Assert.assertArrayEquals(randomValue1, store.get(randomKey));
+
+    // actually put.
+    store.validateAndPut(randomKey, randomValue2, b -> Arrays.equals(b, randomValue1));
+
+    Assert.assertArrayEquals(randomValue2, store.get(randomKey));
+
+    // check a validated delete.
+    assertEquals(true, store.validateAndDelete(randomKey, b -> Arrays.equals(b, randomValue2)));
+
+    // reinsert the record and check a non-validated delete
+    store.put(randomKey, randomValue1);
+    store.delete(randomKey);
+
+    // reinsert the record several times using put - should not result in any orphan blobs
+    store.put(randomKey, randomValue1);
+    store.put(randomKey, randomValue2);
+    store.put(randomKey, randomValue1);
+    store.delete(randomKey);
+
+    Path blobDir = Paths.get(rocksDBResource.getDbDir(), "blob", "test");
+    List<Path> remainingBlobFiles = Files.list(blobDir).collect(Collectors.toList());
+    assertEquals("Expected zero remaining files.", Collections.EMPTY_LIST, remainingBlobFiles);
+
+    // do empty gets and make sure things work correctly.
+    assertEquals(null, store.get(randomKey));
   }
 
   @Test()
@@ -265,6 +335,10 @@ public class TestRocksDBStore {
 
     r.nextBytes(res);
 
+    if (size > 0) {
+      // ensure that the random value doesn't contain our blob prefix
+      res[0] = BLOB_VALUE_PREFIX + 1;
+    }
     return res;
   }
 

@@ -77,6 +77,12 @@ describe('FormUnsavedRouteLeave', () => {
       instance.routeWillLeave();
       expect(minimalProps.showUnsavedChangesConfirmDialog).to.be.calledOnce;
     });
+
+    it('should not call showUnsavedChangesConfirmDialog when redirect reason is unauthorized', () => {
+      instance.setState({isFormDirty: true});
+      instance.routeWillLeave({search: 'abc&reason=401'});
+      expect(minimalProps.showUnsavedChangesConfirmDialog).to.be.not.called;
+    });
   });
 
   describe('#leaveConfirmed', () => {

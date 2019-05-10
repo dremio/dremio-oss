@@ -26,27 +26,25 @@ import exploreTransforms from 'utils/exploreTransforms';
 
 import { LIST, MAP } from 'constants/DataTypes';
 
-import { getPeekData, getImmutableTable, getPaginationUrl, getExploreState } from 'selectors/explore';
+import { getPeekData, getImmutableTable, getPaginationUrl, getExploreState, getColumnFilter } from 'selectors/explore';
 import { getViewState } from 'selectors/resources';
 import { resetViewState } from 'actions/resources';
 import { accessEntity } from 'actions/resources/lru';
 
 import { updateTableColumns } from 'actions/explore/view';
 import {
-  runTableTransform, transformHistoryCheck, performTransform
+  transformHistoryCheck, performTransform
 } from 'actions/explore/dataset/transform';
 
-import {
-  loadNextRows,
-  loadFullCellValue,
-  FULL_CELL_VIEW_ID,
-  clearFullCallValue
-} from 'actions/explore/dataset/data';
+import { FULL_CELL_VIEW_ID } from 'actions/explore/dataset/data';
+import { isSqlChanged } from '@app/sagas/utils';
+import { ErrorBoundary } from '@app/components/ErrorBoundary';
 
 import { LOAD_TRANSFORM_CARDS_VIEW_ID } from 'actions/explore/recommended';
 import { HIGHLIGHTED_TABLE } from 'uiTheme/radium/colors';
 
 import { constructFullPath } from 'utils/pathUtils';
+import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
 
 import ExploreTable from './ExploreTable';
 import ExploreCellLargeOverlay from './ExploreCellLargeOverlay';
@@ -64,7 +62,6 @@ export class ExploreTableController extends Component {
     isDumbTable: PropTypes.bool,
     exploreViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     cardsViewState: PropTypes.instanceOf(Immutable.Map),
-    fullCell: PropTypes.instanceOf(Immutable.Map),
     fullCellViewState: PropTypes.instanceOf(Immutable.Map),
     currentSql: PropTypes.string,
     queryContext: PropTypes.instanceOf(Immutable.List),
@@ -80,12 +77,8 @@ export class ExploreTableController extends Component {
     children: PropTypes.node,
     getTableHeight: PropTypes.func,
     shouldRenderInvisibles: PropTypes.bool, // this is a dangerous/experimental option, it can interfere with other features (e.g. selection dropdown)
-
+    columnFilter: PropTypes.string,
     // Actions
-    runTableTransform: PropTypes.func,
-    loadNextRows: PropTypes.func,
-    loadFullCellValue: PropTypes.func,
-    clearFullCallValue: PropTypes.func,
     resetViewState: PropTypes.func,
     updateTableColumns: PropTypes.func,
     transformHistoryCheck: PropTypes.func,
@@ -122,10 +115,9 @@ export class ExploreTableController extends Component {
 
   componentWillReceiveProps(nextProps) {
     const { isGrayed } = this.state;
-    const isSqlChanged = this.isSqlChanged(nextProps);
     const isContextChanged = this.isContextChanged(nextProps);
 
-    const newIsGreyed = nextProps.pageType === 'default' &&  (isSqlChanged || isContextChanged);
+    const newIsGreyed = nextProps.pageType === PageTypes.default &&  (this.isSqlChanged(nextProps) || isContextChanged);
     if (isGrayed !== newIsGreyed) {
       this.setState({ isGrayed: newIsGreyed });
     }
@@ -144,9 +136,9 @@ export class ExploreTableController extends Component {
       RENAME: () => exploreTransforms.renameColumn({
         name: data.columnName, nextName: data.newColumnName, table: tableData
       }),
-      DESC: () => exploreTransforms.renameColumn({table: tableData}),
-      ASC: () => exploreTransforms.renameColumn({table: tableData}),
-      MULTIPLY: () => exploreTransforms.renameColumn({table: tableData})
+      DESC: () => tableData,
+      ASC: () => tableData,
+      MULTIPLY: () => tableData
     };
     return exploreTransforms.isTransformOptimistic(data.type)
       ? (hash[data.type] && hash[data.type]()) || null
@@ -204,7 +196,16 @@ export class ExploreTableController extends Component {
 
   handleCellShowMore(cellValue, anchor, columnType, columnName, valueUrl) {
     this.setState({
-      activeCell: { cellValue, anchor, columnType, columnName, valueUrl }
+      activeCell: {
+        cellValue,
+        anchor,
+        columnType,
+        columnName,
+        // for dumb table do not try to load full cell value, as server does not support this functionality
+        // for that case. Lets show truncated values that was loaded.
+        isTruncatedValue: Boolean(this.props.isDumbTable && valueUrl),
+        valueUrl: this.props.isDumbTable ? null : valueUrl
+      }
     });
   }
 
@@ -227,7 +228,7 @@ export class ExploreTableController extends Component {
     }
     const nextSql = nextProps.dataset.get('sql');
     const { currentSql } = nextProps;
-    return nextSql && currentSql && nextSql !== currentSql;
+    return isSqlChanged(nextSql, currentSql);
   }
 
   isContextChanged(nextProps) {
@@ -322,31 +323,34 @@ export class ExploreTableController extends Component {
   renderExploreCellLargeOverlay() {
     return this.state.activeCell && !this.props.location.query.transformType
       ? (
-        <ExploreCellLargeOverlay
-          {...this.state.activeCell}
-          isDumbTable={this.props.isDumbTable}
-          loadFullCellValue={this.props.loadFullCellValue}
-          fullCell={this.props.fullCell}
-          fullCellViewState={this.props.fullCellViewState}
-          clearFullCallValue={this.props.clearFullCallValue}
-          onSelect={this.handleCellTextSelect}
-          hide={this.hideCellMore}
-          openPopover={this.state.openPopover}
-          selectAll={this.selectAll}
-        />
+        <ErrorBoundary>
+          <ExploreCellLargeOverlay
+            {...this.state.activeCell}
+            isDumbTable={this.props.isDumbTable}
+            fullCellViewState={this.props.fullCellViewState}
+            onSelect={this.handleCellTextSelect}
+            hide={this.hideCellMore}
+            openPopover={this.state.openPopover}
+            selectAll={this.selectAll}
+          />
+        </ErrorBoundary>
       )
       : null;
   }
 
   render() {
+    const tableData = this.decorateTable(this.props.tableData);
+    const rows = tableData.get('rows');
+    const columns =  exploreUtils.getFilteredColumns(tableData.get('columns'), this.props.columnFilter);
+
     return (
       <div style={styles.base}>
         <ExploreTable
           pageType={this.props.pageType}
           dataset={this.props.dataset}
-          tableData={this.decorateTable(this.props.tableData)}
+          rows={rows}
+          columns={columns}
           paginationUrl={this.props.paginationUrl}
-          loadNextRows={this.props.loadNextRows}
           exploreViewState={this.props.exploreViewState}
           cardsViewState={this.props.cardsViewState}
           isResizeInProgress={this.props.isResizeInProgress}
@@ -391,17 +395,16 @@ function mapStateToProps(state, ownProps) {
   let explorePageProps = null;
   if (exploreState) {
     explorePageProps = {
-      currentSql: exploreState.view.get('currentSql'),
-      queryContext: exploreState.view.get('queryContext'),
-      isResizeInProgress: exploreState.ui.get('isResizeInProgress'),
-      fullCell: exploreState.dataset.get('fullCell')
+      currentSql: exploreState.view.currentSql,
+      queryContext: exploreState.view.queryContext,
+      isResizeInProgress: exploreState.ui.get('isResizeInProgress')
     };
   }
 
   let tableData = ownProps.tableData;
   const previewVersion = location.state && location.state.previewVersion;
   if (!ownProps.isDumbTable) {
-    if (ownProps.pageType === 'default'
+    if (ownProps.pageType === PageTypes.default
       || !previewVersion
       || ownProps.exploreViewState.get('isAutoPeekFailed')) {
       tableData = getImmutableTable(state, datasetVersion);
@@ -412,6 +415,7 @@ function mapStateToProps(state, ownProps) {
 
   return {
     tableData: tableData || Immutable.fromJS({rows: [], columns: []}),
+    columnFilter: getColumnFilter(state),
     previewVersion,
     paginationUrl,
     location,
@@ -424,10 +428,6 @@ function mapStateToProps(state, ownProps) {
 }
 
 export default connect(mapStateToProps, {
-  runTableTransform,
-  loadNextRows,
-  loadFullCellValue,
-  clearFullCallValue,
   resetViewState,
   updateTableColumns,
   transformHistoryCheck,

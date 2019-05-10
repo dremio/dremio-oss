@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelFieldCollation;
@@ -34,12 +35,15 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.util.BitSets;
 
+import com.dremio.common.expression.ErrorCollector;
+import com.dremio.common.expression.ErrorCollectorImpl;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.ValueExpressions;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.logical.data.Order;
+import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.WindowPOP;
 import com.dremio.exec.planner.common.WindowRelBase;
@@ -47,16 +51,38 @@ import com.dremio.exec.planner.logical.ParseContext;
 import com.dremio.exec.planner.logical.RexToExpr;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
+import com.dremio.sabot.op.windowframe.WindowFunction;
 import com.google.common.collect.Lists;
 
+@Options
 public class WindowPrel extends WindowRelBase implements Prel {
-  public WindowPrel(RelOptCluster cluster,
+
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.window.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.window.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+
+  private WindowPrel(RelOptCluster cluster,
                     RelTraitSet traits,
                     RelNode child,
                     List<RexLiteral> constants,
                     RelDataType rowType,
                     Group window) {
     super(cluster, traits, child, constants, rowType, Collections.singletonList(window));
+  }
+
+  public static WindowPrel create(RelOptCluster cluster,
+                    RelTraitSet traitSet,
+                    RelNode child,
+                    List<RexLiteral> constants,
+                    RelDataType rowType,
+                    Group window) {
+    final RelTraitSet traits = adjustTraits(cluster, child, Collections.singletonList(window), traitSet)
+        // At first glance, Dremio window operator does not preserve distribution
+        .replaceIf(DistributionTraitDef.INSTANCE, () -> DistributionTrait.DEFAULT);
+    return new WindowPrel(cluster, traits, child, constants, rowType, window);
   }
 
   @Override
@@ -96,17 +122,31 @@ public class WindowPrel extends WindowRelBase implements Prel {
       orderings.add(new Order.Ordering(fieldCollation.getDirection(), new FieldReference(childFields.get(fieldCollation.getFieldIndex())), fieldCollation.nullDirection));
     }
 
-    WindowPOP windowPOP = new WindowPOP(
+    final BatchSchema childSchema = childPOP.getProps().getSchema();
+    List<NamedExpression> exprs = new ArrayList<>();
+    for(Field f : childSchema){
+      exprs.add(new NamedExpression(new FieldReference(f.getName()), new FieldReference(f.getName())));
+    }
+    SchemaBuilder schemaBuilder = ExpressionTreeMaterializer.materializeFields(exprs, childSchema, creator.getFunctionLookupContext())
+            .setSelectionVectorMode(childSchema.getSelectionVectorMode());
+    try (ErrorCollector collector = new ErrorCollectorImpl()) {
+      for (NamedExpression expr : aggs) {
+        WindowFunction func = WindowFunction.fromExpression(expr);
+        schemaBuilder.addField(func.materialize(expr, childSchema, collector, creator.getFunctionLookupContext()));
+      }
+    }
+    BatchSchema schema = schemaBuilder.build();
+
+    return new WindowPOP(
+        creator.props(this, null, schema, RESERVE, LIMIT),
         childPOP,
         withins,
         aggs,
         orderings,
         window.isRows,
         WindowPOP.newBound(window.lowerBound),
-        WindowPOP.newBound(window.upperBound));
-
-    creator.addMetadata(this, windowPOP);
-    return windowPOP;
+        WindowPOP.newBound(window.upperBound)
+        );
   }
 
   protected LogicalExpression toExpr(AggregateCall call, List<String> fn) {

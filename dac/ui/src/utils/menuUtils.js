@@ -1,3 +1,5 @@
+import { ENTITY_TYPES } from '@app/constants/Constants';
+
 /*
  * Copyright (C) 2017-2018 Dremio Corporation
  *
@@ -21,6 +23,16 @@ class MenuUtils {
       return 'block';
     }
     return 'disabled';
+  }
+
+  showConfirmRemove({item, closeMenu, showConfirmationDialog, removeItem}) {
+    showConfirmationDialog({
+      title: (item.get('entityType') === ENTITY_TYPES.space) ? la('Remove Space') : la('Remove Source'),
+      text: la(`Are you sure you want to remove "${item.get('name')}"?`),
+      confirmText: la('Remove'),
+      confirm: () => removeItem(item)
+    });
+    closeMenu();
   }
 }
 

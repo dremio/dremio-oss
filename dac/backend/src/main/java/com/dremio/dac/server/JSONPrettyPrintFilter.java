@@ -34,28 +34,25 @@ import com.fasterxml.jackson.jaxrs.cfg.ObjectWriterModifier;
  */
 public class JSONPrettyPrintFilter implements ContainerResponseFilter {
 
-  private static final class PrettyPrintWriter extends ObjectWriterModifier {
-    private final ObjectWriterModifier previous;
+  private static final class PrettyPrintWriter extends ObjectWriterModifierChain {
 
     private PrettyPrintWriter(ObjectWriterModifier previous) {
-      this.previous = previous;
+      super(previous);
     }
 
     @Override
     public ObjectWriter modify(EndpointConfigBase<?> endpoint, MultivaluedMap<String, Object> responseHeaders,
-        Object valueToWrite, ObjectWriter w, JsonGenerator g) throws IOException {
-      ObjectWriter writer = w;
-      if (previous != null) {
-        writer = previous.modify(endpoint, responseHeaders, valueToWrite, w, g);
-      }
+      Object valueToWrite, ObjectWriter w, JsonGenerator g) throws IOException {
+      ObjectWriter writer = super.modify(endpoint, responseHeaders, valueToWrite, w, g);
       g.useDefaultPrettyPrinter();
+
       return writer;
     }
   };
 
   @Override
   public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext)
-      throws IOException {
+    throws IOException {
     UriInfo info = requestContext.getUriInfo();
     if (!info.getQueryParameters().containsKey("pretty")) {
       return;

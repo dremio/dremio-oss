@@ -15,6 +15,7 @@
  */
 package com.dremio.service.reflection.refresh;
 
+import static com.dremio.service.reflection.IncrementalUpdateUtils.extractRefreshSettings;
 import static com.dremio.service.reflection.ReflectionUtils.removeUpdateColumn;
 
 import java.util.Optional;
@@ -34,6 +35,7 @@ import com.dremio.exec.planner.sql.handlers.RelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.options.OptionManager;
+import com.dremio.proto.model.UpdateId;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -124,7 +126,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
     final StrippingFactory factory = new StrippingFactory(optionManager, config);
 
     // normalize a tree without expansion nodes.
-    RelNode strippedPlan = factory.strip(plan, mapReflectionType(goal.getType())).getNormalized();
+    final boolean isIncrementalRefresh = extractRefreshSettings(plan, reflectionSettings).getMethod() == RefreshMethod.INCREMENTAL;
+    RelNode strippedPlan = factory.strip(plan, mapReflectionType(goal.getType()), isIncrementalRefresh).getNormalized();
 
     Iterable<DremioTable> requestedTables = sqlHandlerConfig.getContext().getCatalog().getAllRequestedTables();
 
@@ -162,10 +165,9 @@ class ReflectionPlanNormalizer implements RelTransformer {
     return getShuttle(decision.getAccelerationSettings(), decision.getUpdateId());
   }
 
-  private static RelShuttle getShuttle(AccelerationSettings settings, long updateId) {
+  private static RelShuttle getShuttle(AccelerationSettings settings, UpdateId updateId) {
     return new MaterializationShuttle(
-        Optional.ofNullable(settings.getRefreshField()).orElse(IncrementalUpdateUtils.UPDATE_COLUMN),
-        updateId);
+        Optional.ofNullable(settings.getRefreshField()).orElse(IncrementalUpdateUtils.UPDATE_COLUMN), updateId);
   }
 
 }

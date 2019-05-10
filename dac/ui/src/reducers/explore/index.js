@@ -15,6 +15,8 @@
  */
 import { combineReducers } from 'redux';
 
+import { EXPLORE_PAGE_LOCATION_CHANGED } from '@app/actions/explore/dataset/data';
+import { extractValue } from '@app/reducers/reducerFactories';
 import graph from 'dyn-load/reducers/explore/graph';
 
 import sqlActions from './sqlActions';
@@ -22,14 +24,16 @@ import recommended from './recommended';
 import join from './join';
 import ui from './ui';
 import view from './view';
-import dataset from './dataset';
+
+// export for testing
+export const currentRouteState = extractValue(EXPLORE_PAGE_LOCATION_CHANGED, 'newRouteState');
 
 export default combineReducers({
-  dataset,
   view,
   sqlActions,
   ui,
   graph,
   recommended,
-  join
+  join,
+  currentRouteState
 });

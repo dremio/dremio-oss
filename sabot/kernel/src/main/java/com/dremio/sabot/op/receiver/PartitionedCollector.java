@@ -18,6 +18,7 @@ package com.dremio.sabot.op.receiver;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.config.SabotConfig;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC.Collector;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
@@ -28,8 +29,8 @@ import com.dremio.service.spill.SpillService;
 public class PartitionedCollector extends AbstractDataCollector {
 
   public PartitionedCollector(SharedResourceGroup resourceGroup, Collector collector, BufferAllocator allocator, SabotConfig config, FragmentHandle handle,
-                              FragmentWorkQueue workQueue, TunnelProvider tunnelProvider, SpillService spillService) {
-    super(resourceGroup, true, collector, 1, allocator, config, handle, workQueue, tunnelProvider, spillService);
+                              FragmentWorkQueue workQueue, TunnelProvider tunnelProvider, SpillService spillService, EndpointsIndex endpointsIndex) {
+    super(resourceGroup, true, collector, 1, allocator, config, handle, workQueue, tunnelProvider, spillService, endpointsIndex);
   }
 
   @Override

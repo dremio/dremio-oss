@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 import { Component } from 'react';
+import ReactDOM from 'react-dom';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 
-import MenuItemMaterial from 'material-ui/MenuItem';
-import { Popover } from 'material-ui/Popover';
-import getMuiTheme from 'material-ui/styles/getMuiTheme';
+import MenuItemMaterial from '@material-ui/core/MenuItem';
+import Popper from '@material-ui/core/Popper';
+import Paper from '@material-ui/core/Paper';
+import ClickAwayListener from '@material-ui/core/ClickAwayListener';
 
 import './MenuItem.less';
 
@@ -31,7 +33,7 @@ export default class MenuItem extends Component {
   static propTypes = {
     menuItems: PropTypes.array,
     rightIcon: PropTypes.object,
-    onTouchTap: PropTypes.func,
+    onClick: PropTypes.func,
     children: PropTypes.node,
     disabled: PropTypes.bool,
     isInformational: PropTypes.bool // shouldn't look intereactive
@@ -57,7 +59,7 @@ export default class MenuItem extends Component {
     if (enteredElement === window) {
       return true; // have seen this case
     }
-    return (!this.refs.subMenu || !this.refs.subMenu.contains(enteredElement))
+    return (!this.refs.subMenu || !ReactDOM.findDOMNode(this.refs.subMenu).contains(enteredElement))
       && !this.refs.menuItem.contains(enteredElement);
   }
 
@@ -85,16 +87,14 @@ export default class MenuItem extends Component {
   }
 
   render() {
-    const { menuItems, rightIcon, onTouchTap, disabled, isInformational } = this.props;
+    const { menuItems, rightIcon, onClick, disabled, isInformational } = this.props;
     const itemStyle = {...styles.menuItem, ...(isInformational && styles.informational)};
     const className = classNames({disabled}, 'menu-item-inner');
     return (
       <div>
         <MenuItemMaterial
           style={styles.resetStyle}
-          innerDivStyle={styles.innerDivStyle}
-          onTouchTap={onTouchTap}
-          desktop>
+          onClick={onClick}>
           <div
             onMouseOver={this.handleMouseOver}
             onMouseLeave={this.handleMouseLeave}
@@ -119,19 +119,18 @@ export default class MenuItem extends Component {
           // Can go away with DX-5368
           menuItems
             && this.state.open
-            && <Popover
-              style={{overflow: 'visible', zIndex: getMuiTheme().zIndex.popover}}
-              useLayerForClickAway={false}
+            && <Popper
+              placement='right-start'
+              style={{overflow: 'visible', zIndex: 1300 }}
               open={this.state.open}
               anchorEl={this.refs.menuItem}
-              anchorOrigin={this.state.anchorOrigin}
-              targetOrigin={this.state.targetOrigin}
-              onRequestClose={this.handleRequestClose}
-              animated={false}>
-              <div ref='subMenu' onMouseLeave={this.handleMouseLeave} onMouseOver={this.handleMouseOver}>
-                {menuItems}
-              </div>
-            </Popover>
+            >
+              <ClickAwayListener mouseEvent='onMouseDown' onClickAway={this.handleRequestClose}>
+                <Paper ref='subMenu' onMouseLeave={this.handleMouseLeave} onMouseOver={this.handleMouseOver}>
+                  {menuItems}
+                </Paper>
+              </ClickAwayListener>
+            </Popper>
         }
       </div>
     );
@@ -151,10 +150,6 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between'
-  },
-  innerDivStyle: {
-    paddingLeft: 0,
-    paddingRight: 0
   },
   informational: {
     backgroundColor: '#fff',

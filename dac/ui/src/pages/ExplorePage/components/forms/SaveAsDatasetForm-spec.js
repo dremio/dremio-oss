@@ -75,14 +75,14 @@ describe('SaveAsDatasetForm', () => {
       const wrapper = shallow(<SaveAsDatasetForm {...commonProps}/>, context);
       const selected = 'my.folder';
       wrapper.instance().handleChangeSelectedNode(selected);
-      expect(commonProps.fields.location.onChange).to.have.been.calledWith(['my', 'folder']);
+      expect(commonProps.fields.location.onChange).to.have.been.calledWith('my.folder');
     });
 
     it('should call fields.location.onChange with fullPathList that has a home space', () => {
       const wrapper = shallow(<SaveAsDatasetForm {...commonProps}/>, context);
       const selected = '"@home".folder';
       wrapper.instance().handleChangeSelectedNode(selected);
-      expect(commonProps.fields.location.onChange).to.have.been.calledWith(['@home', 'folder']);
+      expect(commonProps.fields.location.onChange).to.have.been.calledWith('"@home".folder');
     });
 
     it('should call fields.location.onChange with fullPath of node', () => {
@@ -92,7 +92,7 @@ describe('SaveAsDatasetForm', () => {
         fullPath: ['foo']
       });
       wrapper.instance().handleChangeSelectedNode(selected, node);
-      expect(commonProps.fields.location.onChange).to.have.been.calledWith(['foo']);
+      expect(commonProps.fields.location.onChange).to.have.been.calledWith('foo');
     });
   });
 });

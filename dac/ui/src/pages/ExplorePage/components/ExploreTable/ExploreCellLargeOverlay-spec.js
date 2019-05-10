@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
-import ReactDOM from 'react-dom';
 import exploreUtils from 'utils/explore/exploreUtils';
 import { ExploreCellLargeOverlayView as ExploreCellLargeOverlay } from './ExploreCellLargeOverlay';
 
@@ -31,7 +30,7 @@ describe('ExploreCellLargeOverlay', () => {
       ...minimalProps,
       columnType: 'TEXT',
       columnName: 'revenue',
-      cellValue: 'dremio forever',
+      cellValue: 'dremio forever cell value',
       location: { state: {} },
       selectAll: sinon.spy(),
       selectItemsOfList: sinon.spy(),
@@ -52,7 +51,7 @@ describe('ExploreCellLargeOverlay', () => {
 
   it('should render Select All if type not eql List or MAP ', () => {
     let wrapper = shallow(<ExploreCellLargeOverlay {...commonProps}/>);
-    expect(wrapper.contains('Select all')).to.eql(true);
+    expect(shallow(wrapper.instance().renderHeader()).contains('Select all')).to.eql(true);
 
     wrapper = shallow(<ExploreCellLargeOverlay {...commonProps} columnType='LIST' />);
     expect(wrapper.contains('Select all')).to.eql(false);
@@ -60,13 +59,14 @@ describe('ExploreCellLargeOverlay', () => {
 
   it('should render CellPopover if columnType= LIST or MAP', () => {
     let wrapper = shallow(<ExploreCellLargeOverlay {...commonProps}/>);
-    expect(wrapper.find('CellPopover')).to.have.length(0);
+    const getContent = () => shallow(<div>{wrapper.instance().renderContent()}</div>);
+    expect(getContent().find('CellPopover')).to.have.length(0);
 
     wrapper = shallow(<ExploreCellLargeOverlay {...commonProps}  columnType='LIST'/>);
-    expect(wrapper.find('CellPopover')).to.have.length(1);
+    expect(getContent().find('CellPopover')).to.have.length(1);
 
     wrapper = shallow(<ExploreCellLargeOverlay {...commonProps}  columnType='MAP'/>);
-    expect(wrapper.find('CellPopover')).to.have.length(1);
+    expect(getContent().find('CellPopover')).to.have.length(1);
   });
 
   it('should select all content in overlay', () => {
@@ -75,7 +75,7 @@ describe('ExploreCellLargeOverlay', () => {
     instance.handleSelectAll();
 
     expect(commonProps.selectAll.calledWith(
-      undefined, commonProps.columnType, commonProps.columnName, commonProps.cellValue
+      null, commonProps.columnType, commonProps.columnName, commonProps.cellValue
     )).to.be.true;
   });
 
@@ -84,7 +84,7 @@ describe('ExploreCellLargeOverlay', () => {
     let data;
     beforeEach(() => {
       selection = {
-        oRange: { startContainer: { data: 'dremio forever' } },
+        oRange: { startContainer: { data: 'dremio forever selected text' } },
         text: 'drem',
         startOffset: 2,
         endOffset: 5,
@@ -112,7 +112,7 @@ describe('ExploreCellLargeOverlay', () => {
       instance.onMouseUp();
 
       expect(commonProps.selectAll.calledWith(
-        undefined, 'INTEGER', columnName, cellValue
+        null, 'INTEGER', columnName, cellValue
       )).to.be.true;
     });
 
@@ -136,62 +136,5 @@ describe('ExploreCellLargeOverlay', () => {
 
     });
 
-  });
-
-  describe('changePlacementIfNecessary', () => {
-    let findDOMNodeStub;
-    beforeEach(() => {
-      findDOMNodeStub = sinon.stub(ReactDOM, 'findDOMNode');
-    });
-    afterEach(() => {
-      ReactDOM.findDOMNode.restore();
-    });
-    it('should change placement to bottom if overlay is too big', () => {
-      findDOMNodeStub.returns({
-        getBoundingClientRect: () => ({ height: 200 })
-      });
-      const wrapper = shallow(<ExploreCellLargeOverlay {...commonProps}/>);
-      const instance = wrapper.instance();
-      instance.props.anchor.getBoundingClientRect = () => ({ top: 100 });
-      instance.changePlacementIfNecessary();
-      expect(wrapper.state().placement).to.eql('bottom');
-    });
-    it('should not change placement to bottom if overlay is small', () => {
-      findDOMNodeStub.onFirstCall().returns({
-        getBoundingClientRect: () => ({ top: 200 })
-      });
-      findDOMNodeStub.onSecondCall().returns({
-        getBoundingClientRect: () => ({ height: 50 })
-      });
-      const wrapper = shallow(<ExploreCellLargeOverlay {...commonProps}/>);
-      const instance = wrapper.instance();
-      instance.changePlacementIfNecessary();
-      expect(wrapper.state().placement).to.eql('top');
-    });
-  });
-
-  describe('calculatePlacementLeft', () => {
-    let findDOMNodeStub;
-    let clock;
-    beforeEach(() => {
-      findDOMNodeStub = sinon.stub(ReactDOM, 'findDOMNode');
-      clock = sinon.useFakeTimers();
-    });
-    afterEach(() => {
-      ReactDOM.findDOMNode.restore();
-      clock.restore();
-    });
-    it('should calculate placement left for pointer', (done) => {
-      findDOMNodeStub.returns({
-        getBoundingClientRect: () => ({ left: 53 })
-      });
-      const wrapper = shallow(<ExploreCellLargeOverlay {...commonProps}/>);
-      const instance = wrapper.instance();
-      instance.props.anchor.getBoundingClientRect = () => ({ left: 100 });
-      instance.calculatePlacementLeft();
-      clock.tick(100);
-      expect(wrapper.state().placementLeft).to.eql(44);
-      done();
-    });
   });
 });

@@ -17,25 +17,47 @@ package com.dremio.exec.physical.config;
 
 import java.util.List;
 
-import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.physical.base.AbstractReceiver;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.base.OpWithMinorSpecificAttrs;
+import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
+import com.dremio.exec.planner.fragment.MinorDataReader;
+import com.dremio.exec.planner.fragment.MinorDataWriter;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Preconditions;
 
 @JsonTypeName("unordered-receiver")
-public class UnorderedReceiver extends AbstractReceiver {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UnorderedReceiver.class);
+public class UnorderedReceiver extends AbstractReceiver implements OpWithMinorSpecificAttrs {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UnorderedReceiver.class);
+  private static final String SENDERS_ATTRIBUTE_KEY = "unordered-receiver-senders";
+  private List<MinorFragmentIndexEndpoint> senders;
+
+  public UnorderedReceiver(
+    OpProps props,
+    BatchSchema schema,
+    int senderMajorFragmentId,
+    List<MinorFragmentIndexEndpoint> senders,
+    boolean spooling)
+  {
+    super(props, schema, senderMajorFragmentId, spooling);
+    this.senders = senders;
+  }
 
   @JsonCreator
-  public UnorderedReceiver(@JsonProperty("sender-major-fragment") int oppositeMajorFragmentId,
-                           @JsonProperty("senders") List<MinorFragmentEndpoint> senders,
-                           @JsonProperty("spooling") boolean spooling,
-                           @JsonProperty("schema") BatchSchema schema) {
-    super(oppositeMajorFragmentId, senders, spooling, schema);
+  public UnorderedReceiver(
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("schema") BatchSchema schema,
+      @JsonProperty("senderMajorFragmentId") int senderMajorFragmentId,
+      @JsonProperty("spooling") boolean spooling
+      ) {
+    this(props, schema, senderMajorFragmentId, null, spooling);
   }
 
   @Override
@@ -49,7 +71,28 @@ public class UnorderedReceiver extends AbstractReceiver {
   }
 
   @Override
+  public final PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
+    Preconditions.checkArgument(children.isEmpty());
+    return new UnorderedReceiver(props, getSchema(), getSenderMajorFragmentId(), senders, isSpooling());
+  }
+
+  @JsonIgnore
+  public List<MinorFragmentIndexEndpoint> getProvidingEndpoints() {
+    return senders;
+  }
+
+  @Override
   public int getOperatorType() {
     return CoreOperatorType.UNORDERED_RECEIVER_VALUE;
+  }
+
+  @Override
+  public void collectMinorSpecificAttrs(MinorDataWriter writer) {
+    writer.writeMinorFragmentIndexEndpoints(this, SENDERS_ATTRIBUTE_KEY, senders);
+  }
+
+  @Override
+  public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
+    this.senders = reader.readMinorFragmentIndexEndpoints(this, SENDERS_ATTRIBUTE_KEY);
   }
 }

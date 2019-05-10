@@ -21,6 +21,7 @@ import static com.dremio.service.reflection.proto.ReflectionState.ACTIVE;
 import static com.dremio.service.reflection.proto.ReflectionState.REFRESHING;
 
 import java.util.Objects;
+import java.util.concurrent.Future;
 
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.service.reflection.ReflectionService;
@@ -147,6 +148,25 @@ public class ReflectionMonitor {
     }
 
     throw new IllegalStateException();
+  }
+
+  public void waitUntilNoMoreRefreshing(long requestTime) {
+    Wait w = new Wait();
+    while (w.loop()) {
+      Future<?> future = reflections.wakeupManager("start refresh");
+      try {
+        future.get();
+      } catch (Exception e) {
+        Throwables.propagate(e);
+      }
+      if (materializations.get().stream().noneMatch(m -> {
+        Optional<ReflectionEntry> e = reflections.getEntry(new ReflectionId(m.getLayoutId()));
+        long lastSuccessful = e.get().getLastSuccessfulRefresh();
+        return e.transform(r -> (r.getState() == REFRESHING || ((lastSuccessful != 0L) && (lastSuccessful < requestTime)))).or(false);
+      })) {
+        break;
+      }
+    }
   }
 
   private class Wait {

@@ -49,10 +49,13 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
   @Tag(2)
   public String path = "/";
 
+  @Tag(3)
+  public boolean enableAsync = true;
+
   public AccelerationStoragePluginConfig() {
   }
 
-  public AccelerationStoragePluginConfig(URI path) {
+  public AccelerationStoragePluginConfig(URI path, boolean enableAsync) {
     if(path.getAuthority() != null) {
       connection = path.getScheme() + "://" + path.getAuthority() + "/";
     } else {
@@ -62,6 +65,7 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
     if (!isNullOrEmpty(storagePath)) {
       this.path = storagePath;
     }
+    this.enableAsync = enableAsync;
   }
 
   @Override
@@ -99,9 +103,14 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
     return SchemaMutability.SYSTEM_TABLE;
   }
 
-  public static SourceConfig create(URI path) {
+  @Override
+  public List<String> getConnectionUniqueProperties() {
+    return ImmutableList.of();
+  }
+
+  public static SourceConfig create(URI path, boolean enableAsync) {
     SourceConfig conf = new SourceConfig();
-    AccelerationStoragePluginConfig connection = new AccelerationStoragePluginConfig(path);
+    AccelerationStoragePluginConfig connection = new AccelerationStoragePluginConfig(path, enableAsync);
     conf.setConnectionConf(connection);
     conf.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
     conf.setName(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
@@ -111,5 +120,10 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
   @Override
   public boolean createIfMissing() {
     return true;
+  }
+
+  @Override
+  public boolean isAsyncEnabled() {
+    return enableAsync;
   }
 }

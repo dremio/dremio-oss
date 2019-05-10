@@ -19,6 +19,7 @@ import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.util.trace.CalciteTrace;
@@ -41,14 +42,19 @@ public class AggregateRule extends RelOptRule {
     final LogicalAggregate aggregate = (LogicalAggregate) call.rel(0);
     final RelNode input = call.rel(1);
 
-    if (aggregate.containsDistinctCall()) {
-      // currently, don't use this rule if any of the aggregates contains DISTINCT
+    if (aggregate.containsDistinctCall() || ProjectableSqlAggFunctions.isProjectableAggregate(aggregate)) {
+      // currently, don't use this rule if any of the aggregates contains DISTINCT or projectable agg calls
       return;
     }
 
     final RelTraitSet traits = aggregate.getTraitSet().plus(Rel.LOGICAL);
     final RelNode convertedInput = convert(input, input.getTraitSet().plus(Rel.LOGICAL).simplify());
-    call.transformTo(new AggregateRel(aggregate.getCluster(), traits, convertedInput, aggregate.indicator,
-        aggregate.getGroupSet(), aggregate.getGroupSets(), aggregate.getAggCallList()));
+    try {
+      call.transformTo(AggregateRel.create(aggregate.getCluster(), traits, convertedInput, aggregate.indicator,
+          aggregate.getGroupSet(), aggregate.getGroupSets(), aggregate.getAggCallList()));
+    } catch (InvalidRelException e) {
+      // Do nothing. Planning might not succeed, but that's okay.
+      tracer.debug("Cannot create aggregate node", e);
+    }
   }
 }

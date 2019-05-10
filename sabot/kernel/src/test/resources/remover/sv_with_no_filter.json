@@ -8,7 +8,7 @@
     },
     graph:[
         {
-            @id:1,
+            id:1,
             pop:"mock-scan",
             url: "http://apache.org",
             entries:[
@@ -17,17 +17,20 @@
                   {name: "red", type: "BIGINT", mode: "REQUIRED"},
                   {name: "green", type: "INT", mode: "OPTIONAL"}
                 ]}
-            ]
+            ],
+            props: {"operatorId": 1}
         },
         {
-            @id:2,
+            id:2,
             child: 1,
-            pop:"selection-vector-remover"
+            pop:"selection-vector-remover",
+            props: {"operatorId": 2, "schemaHashCode": -444278285}
         },
         {
-            @id: 3,
+            id: 3,
             child: 2,
-            pop: "screen"
+            pop: "screen",
+            props: {"operatorId": 3, "schemaHashCode": -444278285}
         }
     ]
 }

@@ -15,12 +15,13 @@
  */
 package com.dremio.exec.physical.impl;
 
-import org.apache.arrow.vector.util.DateUtility;
+
 import org.joda.time.LocalDateTime;
 import org.joda.time.LocalTime;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import com.dremio.common.util.JodaDateUtility;
 import com.dremio.sabot.BaseTestFunction;
 
 public class TestConvertFunctions2 extends BaseTestFunction {
@@ -29,8 +30,8 @@ public class TestConvertFunctions2 extends BaseTestFunction {
   private static final String DATE_TIME_BE = "\\x00\\x00\\x00\\x49\\x77\\x85\\x1f\\x8e";
   private static final String DATE_TIME_LE = "\\x8e\\x1f\\x85\\x77\\x49\\x00\\x00\\x00";
 
-  private static LocalTime time = LocalTime.parse("01:23:45.678", DateUtility.getTimeFormatter());
-  private static LocalDateTime date = LocalDateTime.parse("1980-01-01", DateUtility.getDateTimeFormatter());
+  private static LocalTime time = LocalTime.parse("01:23:45.678", JodaDateUtility.getTimeFormatter());
+  private static LocalDateTime date = LocalDateTime.parse("1980-01-01", JodaDateUtility.getDateTimeFormatter());
 
   @Ignore("DX-4929")
   @Test

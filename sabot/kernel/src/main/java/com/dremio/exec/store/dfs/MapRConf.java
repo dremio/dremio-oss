@@ -29,6 +29,7 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import io.protostuff.Tag;
@@ -41,6 +42,7 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf
   //  optional bool secure = 3;
   //  repeated Property property = 4;
   //  optional string root_path = 5 [default = "/"];
+  //  optional bool allowCreateDrop = 6;
 
   @NotBlank
   @Tag(1)
@@ -92,6 +94,11 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf
   @Override
   public SchemaMutability getSchemaMutability() {
     return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
+  }
+
+  @Override
+  public List<String> getConnectionUniqueProperties() {
+    return ImmutableList.of();
   }
 
   @Override

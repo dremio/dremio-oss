@@ -17,6 +17,7 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
+import invariant from 'invariant';
 
 import Modal from 'components/Modals/Modal';
 
@@ -28,6 +29,8 @@ import { getViewState, getDescendantsList } from 'selectors/resources';
 import { NEXT_ACTIONS } from 'actions/explore/nextAction';
 import { loadDependentDatasets } from 'actions/resources/spaceDetails';
 import ApiUtils from 'utils/apiUtils/apiUtils';
+import FormUnsavedWarningHOC from '@app/components/Modals/FormUnsavedWarningHOC';
+import { splitFullPath } from '@app/utils/pathUtils';
 
 import SaveAsDatasetForm from '../forms/SaveAsDatasetForm';
 
@@ -49,7 +52,9 @@ export class SaveAsDatasetModal extends Component {
     submitReapplyAndSaveAsDataset: PropTypes.func.isRequired,
     afterSaveDataset: PropTypes.func.isRequired,
     loadDependentDatasets: PropTypes.func,
-    navigateToNextDataset: PropTypes.func
+    navigateToNextDataset: PropTypes.func,
+    // from FormUnsavedWarningHOC
+    updateFormDirtyState: PropTypes.func
   };
 
   static defaultProps = {
@@ -60,11 +65,19 @@ export class SaveAsDatasetModal extends Component {
     username: PropTypes.string
   };
 
+  componentWillMount() {
+    this.receiveProps(this.props, {});
+  }
+
   componentWillReceiveProps(nextProps) {
-    if (!this.props.isOpen && nextProps.isOpen) {
+    this.receiveProps(nextProps, this.props);
+  }
+
+  receiveProps = (nextProps, oldProps) => {
+    if (!oldProps.isOpen && nextProps.isOpen) {
       nextProps.loadDependentDatasets(nextProps.dataset.get('fullPath'));
     }
-  }
+  };
 
   getMessage(nextAction) {
     const toolName = {
@@ -78,18 +91,20 @@ export class SaveAsDatasetModal extends Component {
 
   submit = (values) => {
     const {location, nextAction} = this.props;
+    invariant(typeof values.location === 'string',
+     `values.location must be of type string. Got '${typeof values.location}' instead.`);
     const action = values.reapply === 'ORIGINAL'
           ? this.props.submitReapplyAndSaveAsDataset
           : this.props.submitSaveAsDataset;
     return ApiUtils.attachFormSubmitHandlers(
-      action(values.name, values.location, location)
+      action(values.name, splitFullPath(values.location), location)
     ).then((response) => {
       return this.props.afterSaveDataset(response, nextAction);
     });
   };
 
   render() {
-    const { isOpen, hide, nextAction, dataset, dependentDatasets } = this.props;
+    const { isOpen, hide, nextAction, dataset, dependentDatasets, updateFormDirtyState } = this.props;
     const fullPath = dataset && dataset.get('displayFullPath');
     return (
       <Modal
@@ -105,6 +120,7 @@ export class SaveAsDatasetModal extends Component {
           canReapply={dataset && Immutable.Map(dataset).get('canReapply')}
           datasetType={dataset.get('datasetType')}
           fullPath={fullPath && fullPath.slice(0, -1).toJS()}
+          updateFormDirtyState={updateFormDirtyState}
         />
       </Modal>
     );
@@ -131,4 +147,4 @@ export default connect(mapStateToProps, {
   afterSaveDataset,
   loadDependentDatasets,
   navigateToNextDataset
-})(SaveAsDatasetModal);
+})(FormUnsavedWarningHOC(SaveAsDatasetModal));

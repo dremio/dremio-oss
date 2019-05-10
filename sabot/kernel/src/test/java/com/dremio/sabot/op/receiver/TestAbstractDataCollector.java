@@ -18,9 +18,8 @@ package com.dremio.sabot.op.receiver;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.inject.Provider;
@@ -33,9 +32,10 @@ import org.mockito.Mockito;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.config.DremioConfig;
-import com.dremio.exec.physical.MinorFragmentEndpoint;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC;
-import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.sabot.exec.fragment.FragmentWorkQueue;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
@@ -53,18 +53,24 @@ public class TestAbstractDataCollector {
     SabotConfig config = mock(SabotConfig.class);
     FragmentWorkQueue workQueue = mock(FragmentWorkQueue.class);
     TunnelProvider tunnelProvider = mock(TunnelProvider.class);
-    List<CoordExecRPC.IncomingMinorFragment> list = new ArrayList<>(2);
-    MinorFragmentEndpoint ep1 = mock(MinorFragmentEndpoint.class);
-    when(ep1.getEndpoint()).thenReturn(CoordinationProtos.NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(12345).build());
-    MinorFragmentEndpoint ep2 = mock(MinorFragmentEndpoint.class);
-    when(ep2.getEndpoint()).thenReturn(CoordinationProtos.NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(12345).build());
-    list.add(CoordExecRPC.IncomingMinorFragment.newBuilder().setEndpoint(ep1.getEndpoint()).setMinorFragment(ep1.getId()).build());
-    list.add(CoordExecRPC.IncomingMinorFragment.newBuilder().setEndpoint(ep2.getEndpoint()).setMinorFragment(ep2.getId()).build());
+
+    EndpointsIndex endpointsIndex = new EndpointsIndex(
+      Arrays.asList(
+        NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(12345).build(),
+        NodeEndpoint.newBuilder().setAddress("localhost").setFabricPort(12345).build()
+      )
+    );
+    List<CoordExecRPC.MinorFragmentIndexEndpoint> list =
+      Arrays.asList(
+        MinorFragmentIndexEndpoint.newBuilder().setEndpointIndex(0).setMinorFragmentId(0).build(),
+        MinorFragmentIndexEndpoint.newBuilder().setEndpointIndex(0).setMinorFragmentId(0).build()
+      );
+
     CoordExecRPC.Collector collector = CoordExecRPC.Collector.newBuilder()
       .setIsSpooling(true)
       .setOppositeMajorFragmentId(3)
       .setSupportsOutOfOrder(true)
-      .addAllIncomingMinorFragment(list)
+      .addAllIncomingMinorFragmentIndex(list)
       .build();
     ExecProtos.FragmentHandle handle = ExecProtos.FragmentHandle.newBuilder().setMajorFragmentId(2323).setMinorFragmentId(234234).build();
     BufferAllocator allocator = new RootAllocator(2000000);
@@ -79,7 +85,7 @@ public class TestAbstractDataCollector {
                                                            });
     try {
       AbstractDataCollector dataCollector = new AbstractDataCollector(resourceGroup, true,
-        collector, 10240, allocator, config, handle, workQueue, tunnelProvider, spillService) {
+        collector, 10240, allocator, config, handle, workQueue, tunnelProvider, spillService, endpointsIndex) {
         @Override
         protected RawBatchBuffer getBuffer(int minorFragmentId) {
           return null;

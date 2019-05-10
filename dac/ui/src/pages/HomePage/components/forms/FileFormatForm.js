@@ -206,8 +206,9 @@ export class FileFormatForm extends Component {
           spinnerStyle={{height: 'calc(100% - 48px)', paddingBottom: 0}}
           spinnerDelay={0}
           style={{ display: 'flex'}}
+          dataQa='file-preview-mask'
         >
-          <div className='table-parent' style={styles.previewTable}>
+          <div className='table-parent file-preview-table' style={styles.previewTable}>
             {previewData.get('rows') && <ExploreTableController
               isDumbTable
               isResizeInProgress

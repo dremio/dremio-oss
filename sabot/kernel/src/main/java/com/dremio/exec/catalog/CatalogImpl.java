@@ -19,26 +19,32 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 import org.apache.calcite.schema.Function;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.connector.metadata.EntityPath;
 import com.dremio.datastore.IndexedStore.FindByCondition;
+import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.Serializer;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.StoragePlugin.UpdateStatus;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
 import com.dremio.exec.store.ischema.tables.SchemataTable.Schema;
@@ -52,14 +58,19 @@ import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.DatasetField;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.SystemUser;
+import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+
+import io.protostuff.ByteString;
 
 /**
  * Default, non caching, implementation of {@link Catalog}
@@ -104,7 +115,8 @@ public class CatalogImpl implements Catalog {
     this.userNamespaceService = context.getNamespaceService(username);
     this.datasets = new DatasetManager(
       pluginRetriever,
-      userNamespaceService
+      userNamespaceService,
+      context.getOptionManager()
     );
 
     this.sourceModifier = sourceModifier;
@@ -192,7 +204,7 @@ public class CatalogImpl implements Catalog {
         return false;
       }
 
-      return plugin.unwrap(StoragePlugin.class).containerExists(path);
+      return plugin.unwrap(StoragePlugin.class).containerExists(new EntityPath(path.getPathComponents()));
     } catch(NamespaceException ex) {
       return false;
     }
@@ -434,7 +446,7 @@ public class CatalogImpl implements Catalog {
       return (MutablePlugin) plugin;
     }
 
-    throw new UnsupportedOperationException(key.getRoot() + " " + error);
+    throw UserException.unsupportedError().message(key.getRoot() + " " + error).build(logger);
   }
 
   @Override
@@ -506,7 +518,70 @@ public class CatalogImpl implements Catalog {
       throw UserException.validationError().message("Unknown source %s", datasetPath.getRoot()).build(logger);
     }
 
-    return datasets.createOrUpdateDataset(userNamespaceService, plugin, source, datasetPath, datasetConfig, attributes);
+    return datasets.createOrUpdateDataset(plugin, datasetPath, datasetConfig, attributes);
+  }
+
+
+  @Override
+  public void updateDatasetSchema(NamespaceKey datasetKey, BatchSchema newSchema) {
+    ManagedStoragePlugin plugin = pluginRetriever.getPlugin(datasetKey.getRoot(), true);
+
+    boolean success;
+    try {
+      do {
+        DatasetConfig oldConfig = systemNamespaceService.getDataset(datasetKey);
+        DatasetConfig newConfig = plugin.getUpdatedDatasetConfig(oldConfig, newSchema);
+        success = storeSchema(datasetKey, newConfig);
+      } while (!success);
+    } catch (NamespaceException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Override
+  public void updateDatasetField(NamespaceKey datasetKey, String originField, CompleteType fieldSchema) {
+    boolean success;
+    try {
+      do {
+        DatasetConfig oldDatasetConfig = systemNamespaceService.getDataset(datasetKey);
+
+        Serializer<DatasetConfig> serializer = ProtostuffSerializer.of(DatasetConfig.getSchema());
+        DatasetConfig newDatasetConfig = serializer.deserialize(serializer.serialize(oldDatasetConfig));
+
+        List<DatasetField> datasetFields = newDatasetConfig.getDatasetFieldsList();
+        if (datasetFields == null) {
+          datasetFields = Lists.newArrayList();
+        }
+
+        DatasetField datasetField = Iterables.find(datasetFields, new Predicate<DatasetField>() {
+          @Override
+          public boolean apply(@Nullable DatasetField input) {
+            return originField.equals(input.getFieldName());
+          }
+        }, null);
+
+        if (datasetField == null) {
+          datasetField = new DatasetField().setFieldName(originField);
+          datasetFields.add(datasetField);
+        }
+
+        datasetField.setFieldSchema(ByteString.copyFrom(fieldSchema.serialize()));
+        newDatasetConfig.setDatasetFieldsList(datasetFields);
+
+        success = storeSchema(datasetKey, newDatasetConfig);
+      } while (!success);
+    } catch (NamespaceException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private boolean storeSchema(NamespaceKey key, DatasetConfig config) throws NamespaceException {
+    try {
+      systemNamespaceService.addOrUpdateDataset(key, config);
+      return true;
+    } catch (ConcurrentModificationException ex) {
+      return false;
+    }
   }
 
   @Override

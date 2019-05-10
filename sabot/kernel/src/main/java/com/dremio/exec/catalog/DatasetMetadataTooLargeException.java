@@ -18,6 +18,8 @@ package com.dremio.exec.catalog;
 
 /**
  * Thrown when metadata is too large
+ *
+ * TODO: make this a ConnectorException
  */
 public class DatasetMetadataTooLargeException extends RuntimeException {
   private static final long serialVersionUID = 238969807207907793L;

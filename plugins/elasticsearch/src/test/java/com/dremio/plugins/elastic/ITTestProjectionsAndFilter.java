@@ -17,6 +17,7 @@ package com.dremio.plugins.elastic;
 
 import static com.dremio.TestBuilder.listOf;
 import static com.dremio.TestBuilder.mapOf;
+import static com.dremio.plugins.elastic.ElasticsearchType.KEYWORD;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
 import static org.junit.Assume.assumeFalse;
@@ -1549,5 +1550,69 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
     if (unexpectedSuccess) {
       throw new RuntimeException("Negative test for json comparison, did not throw expected exception.");
     }
+  }
+
+  @Test
+  public void testCastKeywordToFloat() throws Exception {
+    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
+      new ElasticsearchCluster.ColumnData("float_val", KEYWORD, new Object[][]{
+        {403},
+        {30},
+        {200},
+      })
+    };
+
+    elastic.load(schema, table, data);
+
+    String sql = String.format("select max(t1.val) as max_val from (SELECT CAST(\"float_val\" as float) as val FROM elasticsearch.%s.%s) as t1 where t1.val < 50", schema, table);
+
+    verifyJsonInPlan(sql, new String[] {
+      "[{\n" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"script\" : {\n" +
+        "      \"script\" : {\n" +
+        "        \"inline\" : \"(def) ((doc[\\\"float_val\\\"].empty) ? false : ( Float.parseFloat(doc[\\\"float_val\\\"].value) < 50 ))\",\n" +
+        "        \"lang\" : \"painless\"\n" +
+        "      },\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"float_val\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
+    });
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("max_val")
+      .baselineValues((float)30.0)
+      .go();
+  }
+
+  @Test
+  public void testCastIntToVarchar() throws Exception {
+    ElasticsearchCluster.ColumnData[] data = new ElasticsearchCluster.ColumnData[]{
+      new ElasticsearchCluster.ColumnData("count_val", ElasticsearchType.INTEGER, new Object[][]{
+        {403},
+        {30},
+        {200},
+      })
+    };
+
+    elastic.load(schema, table, data);
+
+    String sql = String.format("SELECT count_val FROM elasticsearch.%s.%s where cast(count_val as varchar(100)) like \'2%%\'", schema, table);
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("count_val")
+      .baselineValues(200)
+      .go();
   }
 }

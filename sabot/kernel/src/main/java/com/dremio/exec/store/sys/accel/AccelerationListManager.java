@@ -208,6 +208,82 @@ public interface AccelerationListManager extends Service {
       this.last_refresh_from_pds = lastRefreshFromPds;
     }
 
+    public ReflectionRPC.MaterializationInfo toProto() {
+      ReflectionRPC.MaterializationInfo.Builder protoMaterializationInfo =
+        ReflectionRPC.MaterializationInfo.newBuilder();
+
+      if(reflection_id != null) {
+        protoMaterializationInfo.setReflectionId(reflection_id);
+      }
+
+      if(materialization_id != null) {
+        protoMaterializationInfo.setMaterializationId(materialization_id);
+      }
+
+      if(create != null) {
+        protoMaterializationInfo.setCreate(create.getTime());
+      }
+
+      if (expiration != null) {
+        protoMaterializationInfo.setExpiration(expiration.getTime());
+      }
+
+      if (bytes != null) {
+        protoMaterializationInfo.setBytes(bytes);
+      }
+
+      if (seriesId != null) {
+        protoMaterializationInfo.setSeriesId(seriesId);
+      }
+
+      if (init_refresh_job_id != null) {
+        protoMaterializationInfo.setInitRefreshJobId(init_refresh_job_id);
+      }
+
+      if (series_ordinal != null) {
+        protoMaterializationInfo.setSeriesOrdinal(series_ordinal);
+      }
+
+      if (join_analysis != null) {
+        protoMaterializationInfo.setJoinAnalysis(join_analysis);
+      }
+
+      if (state != null) {
+        protoMaterializationInfo.setState(state);
+      }
+
+      if (failure_msg != null) {
+        protoMaterializationInfo.setFailureMsg(failure_msg);
+      }
+
+      if (data_partitions != null) {
+        protoMaterializationInfo.setDataPartitions(data_partitions);
+      }
+
+      if (last_refresh_from_pds != null) {
+        protoMaterializationInfo.setLastRefreshFromPds(last_refresh_from_pds.getTime());
+      }
+
+      return protoMaterializationInfo.build();
+    }
+
+    public static MaterializationInfo fromMaterializationInfo(ReflectionRPC.MaterializationInfo materializationInfoProto) {
+      return new MaterializationInfo(
+        materializationInfoProto.getReflectionId(),
+        materializationInfoProto.getMaterializationId(),
+        new Timestamp(Optional.fromNullable(materializationInfoProto.getCreate()).or(0L)),
+        new Timestamp(Optional.fromNullable(materializationInfoProto.getExpiration()).or(0L)),
+        materializationInfoProto.getBytes(),
+        materializationInfoProto.getSeriesId(),
+        materializationInfoProto.getInitRefreshJobId(),
+        materializationInfoProto.getSeriesOrdinal(),
+        materializationInfoProto.getJoinAnalysis(),
+        materializationInfoProto.getState(),
+        materializationInfoProto.getFailureMsg(),
+        materializationInfoProto.getDataPartitions(),
+        new Timestamp(Optional.fromNullable(materializationInfoProto.getLastRefreshFromPds()).or(0L))
+      );
+    }
   }
 
   class RefreshInfo {
@@ -229,7 +305,7 @@ public interface AccelerationListManager extends Service {
     // e.g. TestDatasetService.testSearchdatasets
     public final Long bytes;
     public final Double original_cost;
-    public final Long update_id;
+    public final String update_id;
     public final String partitions; // json array of hosts
     public final Integer series_ordinal;
 
@@ -249,7 +325,7 @@ public interface AccelerationListManager extends Service {
         Long output_records,
         Long footprint,
         Double original_cost,
-        Long update_id,
+        String update_id,
         String partitions,
         Integer series_ordinal
     ) {

@@ -109,10 +109,26 @@ class ApiUtils {
   fetch(endpoint, options = {}, version = 3) {
     const apiVersion = (version === 3) ? API_URL_V3 : API_URL_V2;
 
-    const headers = new Headers(options.headers || {}); // protect against older chrome browsers
-    headers.append('Authorization', `_dremio${localStorageUtils.getAuthToken()}`);
+    const headers = new Headers({
+      'Content-Type': 'application/json',
+      ...options.headers,
+      'Authorization': localStorageUtils.getAuthToken()
+    }); // protect against older chrome browsers
 
     return fetch(`${apiVersion}/${endpoint}`, { ...options, headers }).then(response => response.ok ? response : Promise.reject(response));
+  }
+
+  /**
+   * Returns headers that enables writing numbers as strings for job data
+   *
+   * key should match with {@see WebServer#X_DREMIO_JOB_DATA_NUMBERS_AS_STRINGS} in {@see WebServer.java}
+   * @returns headers object
+   * @memberof ApiUtils
+   */
+  getJobDataNumbersAsStringsHeader() {
+    return {
+      'x-dremio-job-data-number-format': 'number-as-string'
+    };
   }
 
   // error response may contain moreInfo or errorMessage field, that should be used for error message

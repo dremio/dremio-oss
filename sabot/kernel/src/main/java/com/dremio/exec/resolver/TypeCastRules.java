@@ -29,6 +29,7 @@ import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -538,13 +539,22 @@ public class TypeCastRules {
    * Function checks if casting is allowed from the 'from' -> 'to' minor type. If its allowed
    * we also check if the precedence map allows such a cast and return true if both cases are satisfied
    */
-  public static MinorType getLeastRestrictiveType(List<MinorType> types) {
+  public static MinorType getLeastRestrictiveType(List<MinorType> types, boolean isDecimalV2Enabled) {
     assert types.size() >= 2;
     MinorType result = types.get(0);
     if (result == MinorType.UNION) {
       return result;
     }
-    int resultPrec = ResolverTypePrecedence.PRECEDENCE_MAP.get(result);
+
+    ImmutableMap<MinorType, Integer> precedenceMap = null;
+
+    if (isDecimalV2Enabled) {
+      precedenceMap = ResolverTypePrecedence.PRECEDENCE_MAP_DECIMAL;
+    } else {
+      precedenceMap = ResolverTypePrecedence.PRECEDENCE_MAP;
+    }
+
+    int resultPrec = precedenceMap.get(result);
 
     for (int i = 1; i < types.size(); i++) {
       MinorType next = types.get(i);
@@ -556,7 +566,7 @@ public class TypeCastRules {
         continue;
       }
 
-      int nextPrec = ResolverTypePrecedence.PRECEDENCE_MAP.get(next);
+      int nextPrec = precedenceMap.get(next);
 
       if (isCastable(next, result) && resultPrec >= nextPrec) {
         // result is the least restrictive between the two args; nothing to do continue
@@ -579,7 +589,8 @@ public class TypeCastRules {
    * implicit cast > 0: cost associated with implicit cast. ==0: parms are
    * exactly same type of arg. No need of implicit.
    */
-  public static int getCost(List<CompleteType> argumentTypes, AbstractFunctionHolder holder) {
+  public static int getCost(List<CompleteType> argumentTypes, AbstractFunctionHolder holder,
+                            boolean isDecimalV2Enabled) {
     int cost = 0;
 
     if (argumentTypes.size() != holder.getParamCount()) {
@@ -608,6 +619,14 @@ public class TypeCastRules {
       }
     }
 
+    ImmutableMap<MinorType, Integer> precedenceMap = null;
+
+    if (isDecimalV2Enabled) {
+      precedenceMap = ResolverTypePrecedence.PRECEDENCE_MAP_DECIMAL;
+    } else {
+      precedenceMap = ResolverTypePrecedence.PRECEDENCE_MAP;
+    }
+
     final int numOfArgs = holder.getParamCount();
     for (int i = 0; i < numOfArgs; i++) {
       final CompleteType argType = argumentTypes.get(i);
@@ -628,8 +647,8 @@ public class TypeCastRules {
         return -1;
       }
 
-      Integer parmVal = ResolverTypePrecedence.PRECEDENCE_MAP.get(parmType.toMinorType());
-      Integer argVal = ResolverTypePrecedence.PRECEDENCE_MAP.get(argType.toMinorType());
+      Integer parmVal = precedenceMap.get(parmType.toMinorType());
+      Integer argVal = precedenceMap.get(argType.toMinorType());
 
       if (parmVal == null) {
         throw new RuntimeException(String.format(

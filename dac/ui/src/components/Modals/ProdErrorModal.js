@@ -31,14 +31,21 @@ export default class ProdErrorModal extends Component {
 
   static propTypes = {
     error: PropTypes.object.isRequired,
+    eventId: PropTypes.string,
     onHide: PropTypes.func,
     showGoHome: PropTypes.bool,
     showFileABug: PropTypes.bool
   };
 
+  renderCopyButton(valueToCopy) {
+    return !config.outsideCommunicationDisabled &&
+      <CopyButton style={{marginLeft: '0.5em'}} text={valueToCopy} title={la('Copy')} />;
+  }
+
   render() {
     const {
       error,
+      eventId,
       showGoHome,
       showFileABug
     } = this.props;
@@ -60,8 +67,14 @@ export default class ProdErrorModal extends Component {
           <div style={styles.content}>
             <div>{la('If the problem persists, please contact support.')}</div>
             <div style={{...formDescription, fontSize: 12, marginTop: '1em'}}>
-              {sessionUUID}
-              {!config.outsideCommunicationDisabled && <CopyButton style={{marginLeft: '0.5em'}} text={sessionUUID} title={la('Copy')}/>}
+              <div>
+                {sessionUUID}
+                {this.renderCopyButton(sentryUtil.sessionUUID)}
+              </div>
+              {eventId && <div>
+                Event ID: {eventId}
+                {this.renderCopyButton(eventId)}
+              </div>}
             </div>
           </div>
         </div>

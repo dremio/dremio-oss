@@ -22,7 +22,7 @@ export const panel = {
   top: 42,
   bottom: 2,
   right: 0,
-  left: '50%',
+  left: '60%',
   transform: 'translateX(100%)',
   borderRight: `1px solid ${BORDER}`,
   borderTop: `1px solid ${BORDER}`,

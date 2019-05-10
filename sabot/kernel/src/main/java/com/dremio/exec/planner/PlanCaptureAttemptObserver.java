@@ -43,6 +43,7 @@ import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.AccelerationProfile;
+import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.LayoutMaterializedViewProfile;
 import com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
 import com.dremio.exec.proto.UserBitShared.SubstitutionProfile;
@@ -234,7 +235,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   public void planCompleted(ExecutionPlan plan) {
     if (plan != null) {
       try {
-        schema = RootSchemaFinder.getSchema(plan.getRootOperator(), funcRegistry);
+        schema = RootSchemaFinder.getSchema(plan.getRootOperator());
       } catch (Exception e) {
         logger.warn("Failed to capture query output schema", e);
       }
@@ -402,20 +403,20 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   }
 
   @Override
-  public void intermediateFragmentScheduling(long millisTaken) {
+  public void intermediateFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats) {
     planPhases.add(PlanPhaseProfile.newBuilder()
       .setPhaseName("Intermediate Fragments Scheduling")
       .setDurationMillis(millisTaken)
-      .setPlan("")
+      .setSizeStats(stats)
       .build());
   }
 
   @Override
-  public void leafFragmentScheduling(long millisTaken) {
+  public void leafFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats) {
     planPhases.add(PlanPhaseProfile.newBuilder()
       .setPhaseName("Leaf Fragments Scheduling")
       .setDurationMillis(millisTaken)
-      .setPlan("")
+      .setSizeStats(stats)
       .build());
   }
 

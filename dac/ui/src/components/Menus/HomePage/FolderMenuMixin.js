@@ -29,7 +29,7 @@ export default function(input) {
             href={folder.getIn(['links', 'self'])}
             text={la('Browse Contents')}
             closeMenu={closeMenu}/>
-          <MenuItem onTouchTap={this.removeFolder}>
+          <MenuItem onClick={this.removeFolder}>
             {la('Remove Folder')}
           </MenuItem>
         </Menu>

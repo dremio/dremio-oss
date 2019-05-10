@@ -31,8 +31,9 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.physical.config.HashPartitionSender;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.FragmentWritableBatch;
 import com.dremio.sabot.BaseTestOperator;
@@ -65,10 +66,7 @@ public class TestVectorizedPartitionSender extends BaseTestOperator {
 
   @Test
   public void testNumPartitions() throws Exception {
-    HashPartitionSender sender = new HashPartitionSender(1, null, f(CustomGenerator.ID.getName()),
-      getEndpoints(),
-      generator.getSchema()
-    );
+    HashPartitionSender sender = new HashPartitionSender(PROPS, generator.getSchema(), null, 1, getIndexEndpoints(), f(CustomGenerator.ID.getName()));
 
     final int[] rowCountPerFragment = new int[NUM_FRAGMENTS];
 
@@ -89,7 +87,8 @@ public class TestVectorizedPartitionSender extends BaseTestOperator {
     final TunnelProvider provider = mock(TunnelProvider.class);
     when(provider.getExecTunnel(any(NodeEndpoint.class))).thenReturn(tunnel);
 
-    VectorizedPartitionSenderOperator op = newOperator(VectorizedPartitionSenderOperator.class, sender, DEFAULT_BATCH, provider);
+    VectorizedPartitionSenderOperator op = newOperator(VectorizedPartitionSenderOperator.class, sender, DEFAULT_BATCH,
+      new EndpointsIndex(getEndpoints()), provider);
     op.setup(generator.getOutput());
     op.getOperatorContext().getStats().startProcessing();
     op.consumeData(generator.next(DEFAULT_BATCH));
@@ -104,10 +103,18 @@ public class TestVectorizedPartitionSender extends BaseTestOperator {
     assertEquals(NUM_ROWS, sum);
   }
 
-  public List<MinorFragmentEndpoint> getEndpoints() {
-    List<MinorFragmentEndpoint> l = new ArrayList<MinorFragmentEndpoint>();
+  public List<MinorFragmentIndexEndpoint> getIndexEndpoints() {
+    List<MinorFragmentIndexEndpoint> l = new ArrayList<>();
     for (int i = 0; i < NUM_FRAGMENTS; i++) {
-      l.add(new MinorFragmentEndpoint(i, NodeEndpoint.newBuilder().setAddress(String.format("a_%d", i)).setFabricPort(1).build()));
+      l.add(MinorFragmentIndexEndpoint.newBuilder().setMinorFragmentId(i).setEndpointIndex(0).build());
+    }
+    return l;
+  }
+
+  public List<NodeEndpoint> getEndpoints() {
+    List<NodeEndpoint> l = new ArrayList<>();
+    for (int i = 0; i < NUM_FRAGMENTS; i++) {
+      l.add(NodeEndpoint.newBuilder().setAddress(String.format("a_%d", i)).setFabricPort(1).build());
     }
     return l;
   }

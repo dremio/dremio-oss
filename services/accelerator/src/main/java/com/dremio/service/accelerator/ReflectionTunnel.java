@@ -90,6 +90,21 @@ class ReflectionTunnel {
     }
   }
 
+  public static class RequestMaterializationInfos extends FutureBitCommand<ReflectionRPC.MaterializationInfoResp, ProxyConnection> {
+    private final ReflectionRPC.MaterializationInfoReq materializationInfoRequest;
+
+    public RequestMaterializationInfos(ReflectionRPC.MaterializationInfoReq materializationInfoRequest) {
+      super();
+      this.materializationInfoRequest = materializationInfoRequest;
+    }
+
+    @Override
+    public void doRpcCall(RpcOutcomeListener<ReflectionRPC.MaterializationInfoResp> outcomeListener, ProxyConnection connection) {
+      connection.send(outcomeListener, ReflectionRPC.RpcType.REQ_MATERIALIZATION_INFO, materializationInfoRequest,
+        ReflectionRPC.MaterializationInfoResp.class);
+    }
+  }
+
   public RpcFuture<ReflectionRPC.ReflectionInfoResp> requestReflectionStatus() {
     ReflectionRPC.ReflectionInfoReq reflectionStatusRequest = ReflectionRPC.ReflectionInfoReq.newBuilder().build();
     ReflectionTunnel.RequestReflectionInfo b = new ReflectionTunnel.RequestReflectionInfo(reflectionStatusRequest);
@@ -107,6 +122,13 @@ class ReflectionTunnel {
   public RpcFuture<ReflectionRPC.DependencyInfoResp> requestDependencyInfos() {
     ReflectionRPC.DependencyInfoReq dependencyInfosRequest = ReflectionRPC.DependencyInfoReq.newBuilder().build();
     ReflectionTunnel.RequestDependencyInfos b = new ReflectionTunnel.RequestDependencyInfos(dependencyInfosRequest);
+    manager.runCommand(b);
+    return b.getFuture();
+  }
+
+  public RpcFuture<ReflectionRPC.MaterializationInfoResp> requestMaterializationInfos() {
+     ReflectionRPC.MaterializationInfoReq materializationInfosRequest = ReflectionRPC.MaterializationInfoReq.newBuilder().build();
+    ReflectionTunnel.RequestMaterializationInfos b = new ReflectionTunnel.RequestMaterializationInfos(materializationInfosRequest);
     manager.runCommand(b);
     return b.getFuture();
   }

@@ -14,21 +14,20 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import ReactDOM from 'react-dom';
-import { Overlay } from 'react-overlays';
 import pureRender from 'pure-render-decorator';
 import classNames from 'classnames';
 
 import PropTypes from 'prop-types';
 
 import FontIcon from 'components/Icon/FontIcon';
-import Tooltip from 'components/Tooltip';
+import { Tooltip } from 'components/Tooltip';
 
 @pureRender
 export default class HoverHelp extends Component {
 
   static propTypes = {
     style: PropTypes.object,
+    iconStyle: PropTypes.object,
     tooltipInnerStyle: PropTypes.object,
     content: PropTypes.node,
     className: PropTypes.string
@@ -50,7 +49,7 @@ export default class HoverHelp extends Component {
   }
 
   render() {
-    const { style, content, tooltipInnerStyle, className } = this.props;
+    const { style, iconStyle, content, tooltipInnerStyle, className } = this.props;
     const {hover} = this.state;
     const finalInnerStyle = {...styles.defaultInnerStyle, ...tooltipInnerStyle};
 
@@ -60,17 +59,19 @@ export default class HoverHelp extends Component {
       <FontIcon
         type={hover ? 'InfoCircleSolid' : 'InfoCircle'}
         ref='target'
-        iconStyle={styles.iconStyle}
+        iconStyle={{...styles.iconStyle, ...iconStyle}}
         onMouseEnter={this.onMouseEnter}
         onMouseLeave={this.onMouseLeave}
       />
-      <Overlay
-        show={hover}
+      <Tooltip
         container={this}
-        placement='right'
-        target={() => ReactDOM.findDOMNode(this.refs.target)}>
-        <Tooltip type='status' placement='right' content={content} tooltipInnerStyle={finalInnerStyle}/>
-      </Overlay>
+        placement='right-start'
+        target={() => hover ? this.refs.target : null}
+        type='status'
+        tooltipInnerStyle={finalInnerStyle}
+      >
+        {content}
+      </Tooltip>
     </div>;
   }
 }
@@ -85,11 +86,6 @@ const styles = {
   defaultInnerStyle: {
     borderRadius: 5,
     padding: 10,
-    textAlign: 'left',
-    width: 300,
-    whiteSpace: 'pre-line',
-    fontWeight: 400,
-    fontSize: 12,
-    color: '#FFFFFF'
+    width: 300
   }
 };

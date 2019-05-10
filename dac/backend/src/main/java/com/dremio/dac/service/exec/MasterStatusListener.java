@@ -44,7 +44,7 @@ public class MasterStatusListener implements NodeStatusListener, Service {
     return taskLeaderStatusListener.isTaskLeaderUp();
   }
 
-  public void waitForMaster() throws InterruptedException{
+  public void waitForMaster() throws InterruptedException {
     taskLeaderStatusListener.waitForTaskLeader();
   }
 

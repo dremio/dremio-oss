@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.time.temporal.TemporalAmount;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 
 /**
  *
@@ -56,6 +57,203 @@ public final class ScheduleUtils {
       public Iterator<Instant> iterator() {
         return Collections.singletonList(instant)
             .iterator();
+      }
+
+      @Override
+      public String getTaskName() {
+        return null;
+      }
+
+      @Override
+      public Long getScheduledOwnershipReleaseInMillis() {
+        return null;
+      }
+    };
+  }
+
+  /**
+   * Create a schedule to run a task exactly once at the given time.
+   * for a service with given name and relinquishing leadership
+   * at a given interval
+   *
+   * @param instant the task will run
+   * @param taskName name of the task in the global world
+   * @param number period to release leadership
+   * @param timeUnit time unit to release leadership
+   * @return schedule with the time in millis
+   */
+  public static Schedule scheduleForRunningOnceAt(final Instant instant, final String taskName,
+                                                  long number, TimeUnit timeUnit) {
+    return new Schedule() {
+      @Override
+      public TemporalAmount getPeriod() {
+        return null;
+      }
+
+      @Override
+      public Iterator<Instant> iterator() {
+        return Collections.singletonList(instant)
+          .iterator();
+      }
+
+      @Override
+      public String getTaskName() {
+        return taskName;
+      }
+
+      @Override
+      public Long getScheduledOwnershipReleaseInMillis() {
+        return timeUnit.toMillis(number);
+      }
+    };
+  }
+
+  /**
+   * Create a schedule to run a task exactly once at the given time.
+   * for a service with given name and relinquishing leadership
+   * at a given interval
+   *
+   * @param instant the task will run
+   * @param taskName name of the task in the global world
+   * @param number period to release leadership
+   * @param timeUnit time unit to release leadership
+   * @param cleanupListener cleanup listener to clean up upon cancel
+   * @return schedule with the time in millis
+   */
+  public static Schedule scheduleForRunningOnceAt(final Instant instant, final String taskName,
+                                                  long number, TimeUnit timeUnit, final CleanupListener cleanupListener) {
+    return new Schedule() {
+      @Override
+      public TemporalAmount getPeriod() {
+        return null;
+      }
+
+      @Override
+      public Iterator<Instant> iterator() {
+        return Collections.singletonList(instant)
+          .iterator();
+      }
+
+      @Override
+      public String getTaskName() {
+        return taskName;
+      }
+
+      @Override
+      public Long getScheduledOwnershipReleaseInMillis() {
+        return timeUnit.toMillis(number);
+      }
+
+      @Override
+      public CleanupListener getCleanupListener() {
+        return cleanupListener;
+      }
+    };
+  }
+
+  /**
+   * Create a schedule to run a task exactly once at the given time.
+   * for a service with given name and never relinquishing leadership
+   *
+   * @param instant the task will run
+   * @param taskName name of the task in the global world
+   * @return schedule with the time in millis
+   */
+  public static Schedule scheduleForRunningOnceAt(final Instant instant, final String taskName) {
+    return new Schedule() {
+      @Override
+      public TemporalAmount getPeriod() {
+        return null;
+      }
+
+      @Override
+      public Iterator<Instant> iterator() {
+        return Collections.singletonList(instant)
+          .iterator();
+      }
+
+      @Override
+      public String getTaskName() {
+        return taskName;
+      }
+
+      @Override
+      public Long getScheduledOwnershipReleaseInMillis() {
+        return null;
+      }
+    };
+  }
+
+  /**
+   * Create a schedule to run a task exactly once at the given time.
+   * for a service with given name and never relinquishing leadership
+   *
+   * @param instant the task will run
+   * @param taskName name of the task in the global world
+   * @param cleanupListener cleanup listener to clean up upon cancel
+   * @return schedule with the time in millis
+   */
+  public static Schedule scheduleForRunningOnceAt(final Instant instant, final String taskName,
+                                                  final CleanupListener cleanupListener) {
+    return new Schedule() {
+      @Override
+      public TemporalAmount getPeriod() {
+        return null;
+      }
+
+      @Override
+      public Iterator<Instant> iterator() {
+        return Collections.singletonList(instant)
+          .iterator();
+      }
+
+      @Override
+      public String getTaskName() {
+        return taskName;
+      }
+
+      @Override
+      public Long getScheduledOwnershipReleaseInMillis() {
+        return null;
+      }
+
+      @Override
+      public CleanupListener getCleanupListener() { return cleanupListener; }
+    };
+  }
+
+  /**
+   * Create a schedule to run a task exactly once now.
+   * for a service with given name and never relinquishing leadership
+   * @param taskName name of the task in the global world
+   * @return schedule with the time in millis
+   */
+  public static Schedule scheduleToRunOnceNow(final String taskName) {
+    return new Schedule() {
+      @Override
+      public TemporalAmount getPeriod() {
+        return null;
+      }
+
+      @Override
+      public Iterator<Instant> iterator() {
+        return Collections.singletonList(Instant.now())
+          .iterator();
+      }
+
+      @Override
+      public String getTaskName() {
+        return taskName;
+      }
+
+      @Override
+      public Long getScheduledOwnershipReleaseInMillis() {
+        return null;
+      }
+
+      @Override
+      public boolean isToRunOnce() {
+        return true;
       }
     };
   }

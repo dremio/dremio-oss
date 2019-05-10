@@ -68,6 +68,7 @@ public class RestServerV2 extends ResourceConfig {
     register(DACAuthFilterFeature.class);
     register(DACExceptionMapperFeature.class);
     register(DACJacksonJaxbJsonFeature.class);
+    register(JSONJobDataFilter.class);
     register(TestResourcesFeature.class);
 
     // LISTENERS //

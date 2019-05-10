@@ -56,6 +56,11 @@ public interface JobData extends AutoCloseable {
   String getJobResultsTable();
 
   /**
+   * Wait for the job metadata to be collected
+   */
+  void waitForMetadata();
+
+  /**
    * Load the data
    */
   void loadIfNecessary();

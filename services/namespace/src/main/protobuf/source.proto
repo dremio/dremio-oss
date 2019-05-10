@@ -81,7 +81,7 @@ enum UpdateMode {
   UNKNOWN = 0;
   PREFETCH = 1;
   PREFETCH_QUERIED = 2;
-  INLINE = 3;
+  INLINE = 3 [deprecated = true];  // DX-16127: INLINE update mode is deprecated
 }
 
 @Deprecated

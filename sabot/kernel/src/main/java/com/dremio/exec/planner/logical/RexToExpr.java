@@ -82,6 +82,7 @@ import com.google.common.collect.Lists;
 public class RexToExpr {
   public static final String UNSUPPORTED_REX_NODE_ERROR = "Cannot convert RexNode to equivalent Dremio expression. ";
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RexToExpr.class);
+  private static boolean warnDecimal = true;
 
   /**
    * Converts a tree of {@link RexNode} operators into a scalar expression in Dremio syntax.
@@ -752,25 +753,24 @@ public class RexToExpr {
         return ValueExpressions.getInt(a);
 
       case DECIMAL:
-        /* TODO: Enable using Decimal literals once we have more functions implemented for Decimal
-         * For now continue using Double instead of decimals
-
-        int precision = ((BigDecimal) literal.getValue()).precision();
-        if (precision <= 9) {
-            return ValueExpressions.getDecimal9((BigDecimal)literal.getValue());
-        } else if (precision <= 18) {
-            return ValueExpressions.getDecimal18((BigDecimal)literal.getValue());
-        } else if (precision <= 28) {
-            return ValueExpressions.getDecimal28((BigDecimal)literal.getValue());
-        } else if (precision <= 38) {
-            return ValueExpressions.getDecimal38((BigDecimal)literal.getValue());
-        } */
-        if (isLiteralNull(literal)) {
-          return createNullExpr(MinorType.FLOAT8);
+        if (context.getPlannerSettings().getOptions().getOption(PlannerSettings.ENABLE_DECIMAL_V2)) {
+          if (isLiteralNull(literal)) {
+            return createNullExpr(MinorType.DECIMAL);
+          }
+          return ValueExpressions.getDecimal((BigDecimal)literal.getValue());
+        } else {
+          if (isLiteralNull(literal)) {
+            return createNullExpr(MinorType.FLOAT8);
+          }
+          double dbl = ((BigDecimal) literal.getValue()).doubleValue();
+          if (warnDecimal) {
+            logger.warn("Converting exact decimal into approximate decimal.  Should be fixed once decimal is implemented.");
+            warnDecimal = false;
+          } else {
+            logger.debug("Converting exact decimal into approximate decimal.  Should be fixed once decimal is implemented.");
+          }
+          return ValueExpressions.getFloat8(dbl);
         }
-        double dbl = ((BigDecimal) literal.getValue()).doubleValue();
-        logger.warn("Converting exact decimal into approximate decimal.  Should be fixed once decimal is implemented.");
-        return ValueExpressions.getFloat8(dbl);
       case VARCHAR:
         if (isLiteralNull(literal)) {
           return createNullExpr(MinorType.VARCHAR);

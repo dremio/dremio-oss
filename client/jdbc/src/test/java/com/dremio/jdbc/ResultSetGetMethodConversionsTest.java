@@ -458,17 +458,17 @@ public class ResultSetGetMethodConversionsTest extends JdbcWithServerTestBase {
   @Ignore( "TODO(DRILL-2683): unignore when REAL is implemented" )
   @Test
   public void test_getBigDecimal_handles_REAL() throws SQLException {
-    assertThat( testDataRow.getBigDecimal( "C_REAL_5.5" ), equalTo( new BigDecimal( 5.5f ) ) );
+    assertThat( testDataRow.getBigDecimal( "C_REAL_5.5" ), equalTo( BigDecimal.valueOf( 5.5f ) ) );
   }
 
   @Test
   public void test_getBigDecimal_handles_DOUBLE() throws SQLException {
-    assertThat( testDataRow.getBigDecimal( "C_DOUBLE_PREC._6.6" ), equalTo( new BigDecimal( 6.6d ) ) );
+    assertThat( testDataRow.getBigDecimal( "C_DOUBLE_PREC._6.6" ), equalTo( BigDecimal.valueOf( 6.6d ) ) );
   }
 
   @Test
   public void test_getBigDecimal_handles_FLOAT() throws SQLException {
-    assertThat( testDataRow.getBigDecimal( "C_FLOAT_7.7" ), equalTo( new BigDecimal( 7.7f ) ) );
+    assertThat( testDataRow.getBigDecimal( "C_FLOAT_7.7" ), equalTo( BigDecimal.valueOf( 7.7f ) ) );
   }
 
   @Test
@@ -479,7 +479,7 @@ public class ResultSetGetMethodConversionsTest extends JdbcWithServerTestBase {
   @Ignore( "TODO(DRILL-3367): unignore when DECIMAL is no longer DOUBLE" )
   @Test
   public void test_getBigDecimal_handles_DECIMAL_2() throws SQLException {
-    assertThat( testDataRow.getBigDecimal( "C_DECIMAL_10.10" ), equalTo( new BigDecimal( "10.10") ) );
+    assertThat( testDataRow.getBigDecimal( "C_DECIMAL_10.10" ), equalTo( new BigDecimal("10.10") ) );
   }
 
 

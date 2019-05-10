@@ -61,7 +61,7 @@ describe('ExplorePage', () => {
     it('should call updateSqlPartSize with sqlState true if dataset displayFullPath starts with tmp', () => {
       instance.initSqlEditor(minimalProps);
       expect(minimalProps.updateSqlPartSize.called).to.be.true;
-      expect(minimalProps.updateSqlPartSize.calledWith(hashHeightTopSplitter.default)).to.be.true;
+      expect(minimalProps.updateSqlPartSize.calledWith(hashHeightTopSplitter.getDefaultSqlHeight())).to.be.true;
     });
     it('should call updateSqlPartSize with sqlState true if dataset is new', () => {
       const props = {
@@ -69,11 +69,15 @@ describe('ExplorePage', () => {
         dataset: Immutable.fromJS({
           isNewQuery: true,
           displayFullPath: ['tmp', 'UNTITLED']
-        })
+        }),
+        location: {
+          query: '',
+          pathname: '/new_query?context=dremio'
+        }
       };
       instance.initSqlEditor(props);
       expect(minimalProps.updateSqlPartSize.called).to.be.true;
-      expect(minimalProps.updateSqlPartSize.calledWith(hashHeightTopSplitter.default)).to.be.true;
+      expect(minimalProps.updateSqlPartSize.calledWith(hashHeightTopSplitter.getNewQueryDefaultSqlHeight())).to.be.true;
     });
     it('should call updateSqlPartSize with sqlState false if dataset is not new', () => {
       const props = {
@@ -85,7 +89,7 @@ describe('ExplorePage', () => {
 
       instance.initSqlEditor(props);
       expect(minimalProps.updateSqlPartSize.called).to.be.true;
-      expect(minimalProps.updateSqlPartSize.calledWith(hashHeightTopSplitter.default)).to.be.true;
+      expect(minimalProps.updateSqlPartSize.calledWith(hashHeightTopSplitter.getDefaultSqlHeight())).to.be.true;
     });
     it('should not call updateSqlPartSize if pageType is not default', () => {
       instance.initSqlEditor(commonProps);

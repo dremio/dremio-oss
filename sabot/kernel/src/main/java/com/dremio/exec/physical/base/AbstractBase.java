@@ -15,50 +15,27 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map.Entry;
-
 import com.dremio.common.graph.GraphVisitor;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
-import com.dremio.exec.record.BatchSchema;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
-import com.google.protobuf.ByteString;
 
-public abstract class AbstractBase implements PhysicalOperator{
+public abstract class AbstractBase implements PhysicalOperator {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractBase.class);
 
-  private final String userName;
+  protected final OpProps props;
 
-  private long initialAllocation = 1000000L;
-  private long maxAllocation = Long.MAX_VALUE;
-  private int id;
-  private double cost;
-  private boolean isSingle = false;
-  private BatchSchema cachedSchema;
-
-  public AbstractBase() {
-    userName = null;
-  }
-
-  public AbstractBase(String userName) {
-    this.userName = userName;
-  }
-
-  public AbstractBase(AbstractBase that) {
-    Preconditions.checkNotNull(that, "Unable to clone: source is null.");
-    this.userName = that.userName;
+  public AbstractBase(OpProps props) {
+    Preconditions.checkNotNull(props, String.format("Null props."));
+    this.props = props;
   }
 
   @Override
-  public void setAsSingle() {
-    isSingle = true;
+  public OpProps getProps() {
+    return props;
   }
 
   @Override
-  public boolean isSingle() {
-    return isSingle;
+  public final void setId(int id) {
+    PhysicalOperator.super.setId(id);
   }
 
   @Override
@@ -74,62 +51,4 @@ public abstract class AbstractBase implements PhysicalOperator{
     visitor.leave(this);
   }
 
-  @Override
-  public final void setOperatorId(int id) {
-    this.id = id;
-  }
-
-  @Override
-  public int getOperatorId() {
-    return id;
-  }
-
-  @Override
-  public long getInitialAllocation() {
-    return initialAllocation;
-  }
-
-  public void setInitialAllocation(long initialAllocation) {
-    this.initialAllocation = initialAllocation;
-  }
-
-  @Override
-  public double getCost() {
-    return cost;
-  }
-
-  @Override
-  public void setCost(double cost) {
-    this.cost = cost;
-  }
-
-  @Override
-  public long getMaxAllocation() {
-    return maxAllocation;
-  }
-
-  public void setMaxAllocation(long maxAllocation) {
-    this.maxAllocation = maxAllocation;
-  }
-
-  @Override
-  public String getUserName() {
-    return userName;
-  }
-
-  @Override
-  public final BatchSchema getSchema(FunctionLookupContext context) {
-    if (cachedSchema == null) {
-      cachedSchema = constructSchema(context);
-    }
-
-    return cachedSchema;
-  }
-
-  protected abstract BatchSchema constructSchema(FunctionLookupContext context);
-
-  @JsonIgnore
-  public Collection<Entry<String, ByteString>> getSharedData() {
-    return Collections.emptyList();
-  }
 }

@@ -18,27 +18,29 @@ package com.dremio.exec.physical.config;
 import java.util.List;
 
 import com.dremio.common.logical.data.NamedExpression;
-import com.dremio.exec.expr.ExpressionTreeMaterializer;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractSingle;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.collect.ImmutableList;
 
 @JsonTypeName("project")
-public class Project extends AbstractSingle{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Project.class);
+public class Project extends AbstractSingle {
 
   private final List<NamedExpression> exprs;
 
   @JsonCreator
-  public Project(@JsonProperty("exprs") List<NamedExpression> exprs, @JsonProperty("child") PhysicalOperator child) {
-    super(child);
-    this.exprs = exprs;
+  public Project(
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("child") PhysicalOperator child,
+      @JsonProperty("exprs") List<NamedExpression> exprs
+      ) {
+    super(props, child);
+    this.exprs = (exprs == null) ? null : ImmutableList.copyOf(exprs);
   }
 
   /**
@@ -55,15 +57,7 @@ public class Project extends AbstractSingle{
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new Project(exprs, child);
-  }
-
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    final BatchSchema childSchema = child.getSchema(context);
-    return ExpressionTreeMaterializer.materializeFields(getExprs(), childSchema, context, true)
-        .setSelectionVectorMode(childSchema.getSelectionVectorMode())
-        .build();
+    return new Project(props, child, exprs);
   }
 
   @Override

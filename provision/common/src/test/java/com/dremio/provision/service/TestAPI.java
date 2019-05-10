@@ -504,6 +504,59 @@ public class TestAPI {
     assertEquals( (32768-2096), clusterConfig.getClusterSpec().getMemoryMBOffHeap().intValue());
   }
 
+  @Test
+  public void testUpdateFromDefaultToLargeSystem() throws Exception {
+    ClusterCreateRequest clusterCreateRequest = new ClusterCreateRequest();
+    clusterCreateRequest.setMemoryMB(32767);
+    clusterCreateRequest.setClusterType(ClusterType.YARN);
+    clusterCreateRequest.setDynamicConfig(new DynamicConfig(2));
+    clusterCreateRequest.setVirtualCoreCount(2);
+    clusterCreateRequest.setDistroType(DistroType.MAPR).setIsSecure(true);
+    ClusterConfig defaultConfig = resource.getClusterConfig(clusterCreateRequest);
+
+    final Cluster initStoredCluster = clusterCreateHelper();
+    final Cluster defaultStoredCluster = service.toCluster(defaultConfig, ClusterState.RUNNING, initStoredCluster);
+
+    assertEquals(4096, defaultStoredCluster.getClusterConfig().getClusterSpec().getMemoryMBOnHeap().intValue());
+    assertEquals( (32767-4096), defaultStoredCluster.getClusterConfig().getClusterSpec().getMemoryMBOffHeap().intValue());
+
+    ClusterModifyRequest clusterModifyRequest = new ClusterModifyRequest();
+    clusterModifyRequest.setMemoryMB(32768);
+
+    ClusterConfig largeSystemConfig = resource.toClusterConfig(clusterModifyRequest);
+
+    final Cluster largeSystemStoredCluster = service.toCluster(largeSystemConfig, ClusterState.RUNNING, defaultStoredCluster);
+
+    assertEquals(8192, largeSystemStoredCluster.getClusterConfig().getClusterSpec().getMemoryMBOnHeap().intValue());
+    assertEquals( (32768-8192), largeSystemStoredCluster.getClusterConfig().getClusterSpec().getMemoryMBOffHeap().intValue());
+  }
+
+  @Test
+  public void testUpdateFromLargeSystemToDefault() throws Exception {
+    ClusterCreateRequest clusterCreateRequest = new ClusterCreateRequest();
+    clusterCreateRequest.setMemoryMB(32768);
+    clusterCreateRequest.setClusterType(ClusterType.YARN);
+    clusterCreateRequest.setDynamicConfig(new DynamicConfig(2));
+    clusterCreateRequest.setVirtualCoreCount(2);
+    clusterCreateRequest.setDistroType(DistroType.MAPR).setIsSecure(true);
+    ClusterConfig defaultConfig = resource.getClusterConfig(clusterCreateRequest);
+
+    final Cluster initStoredCluster = clusterCreateHelper();
+    final Cluster defaultStoredCluster = service.toCluster(defaultConfig, ClusterState.RUNNING, initStoredCluster);
+
+    assertEquals(8192, defaultStoredCluster.getClusterConfig().getClusterSpec().getMemoryMBOnHeap().intValue());
+    assertEquals( (32768-8192), defaultStoredCluster.getClusterConfig().getClusterSpec().getMemoryMBOffHeap().intValue());
+
+    ClusterModifyRequest clusterModifyRequest = new ClusterModifyRequest();
+    clusterModifyRequest.setMemoryMB(32767);
+
+    ClusterConfig largeSystemConfig = resource.toClusterConfig(clusterModifyRequest);
+
+    final Cluster largeSystemStoredCluster = service.toCluster(largeSystemConfig, ClusterState.RUNNING, defaultStoredCluster);
+
+    assertEquals(4096, largeSystemStoredCluster.getClusterConfig().getClusterSpec().getMemoryMBOnHeap().intValue());
+    assertEquals( (32767-4096), largeSystemStoredCluster.getClusterConfig().getClusterSpec().getMemoryMBOffHeap().intValue());
+  }
 
   @Test
   public void testRestartProperties() throws Exception {

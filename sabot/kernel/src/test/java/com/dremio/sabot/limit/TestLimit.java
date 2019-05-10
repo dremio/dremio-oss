@@ -36,7 +36,7 @@ public class TestLimit extends BaseTestOperator {
 
   @Test
   public void firstFive() throws Exception {
-    Limit l = new Limit(null, 0, 5);
+    Limit l = new Limit(PROPS, null, 0, 5);
     Table output = t(
         th("c0"),
         tr(1),
@@ -51,7 +51,7 @@ public class TestLimit extends BaseTestOperator {
 
   @Test
   public void earlyTermination() throws Exception {
-    Limit limit = new Limit(null, 0, 1);
+    Limit limit = new Limit(PROPS, null, 0, 1);
     try(
         LimitOperator op = newOperator(LimitOperator.class, limit, 100);
         Generator generator = TpchGenerator.singleGenerator(TpchTable.CUSTOMER, 1, getTestAllocator());
@@ -68,7 +68,7 @@ public class TestLimit extends BaseTestOperator {
 
   @Test
   public void secondFive() throws Exception {
-    Limit l = new Limit(null, 5, 10);
+    Limit l = new Limit(PROPS, null, 5, 10);
     Table output = t(
         th("c0"),
         tr(6),

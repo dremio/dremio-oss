@@ -70,19 +70,19 @@ public class GandivaFunctionRegistry implements PluggableFunctionRegistry {
   }
 
   @Override
-  public void register(OperatorTable operatorTable) {
+  public void register(OperatorTable operatorTable, boolean isDecimalV2Enabled) {
 
     for (String name : supportedFunctions.keySet()) {
       for (GandivaFunctionHolder holder : supportedFunctions.get(name)) {
         SqlOperator operator  = GandivaOperator.getSimpleFunction(name, holder.getParamCount(), new
-          PlugginRepositorySqlReturnTypeInference(this));
+          PlugginRepositorySqlReturnTypeInference(this, isDecimalV2Enabled));
         operatorTable.add(name, operator);
       }
     }
   }
 
   @Override
-  public AbstractFunctionHolder getFunction(FunctionCall functionCall) {
+  public AbstractFunctionHolder getFunction(FunctionCall functionCall, boolean isDecimalV2Enabled) {
     int bestcost = Integer.MAX_VALUE;
     int currcost = Integer.MAX_VALUE;
     GandivaFunctionHolder bestmatch = null;
@@ -100,7 +100,7 @@ public class GandivaFunctionRegistry implements PluggableFunctionRegistry {
       for (LogicalExpression expression : functionCall.args) {
         argumentTypes.add(expression.getCompleteType());
       }
-      currcost = TypeCastRules.getCost(argumentTypes, h);
+      currcost = TypeCastRules.getCost(argumentTypes, h, isDecimalV2Enabled);
 
       // if cost is lower than 0, func implementation is not matched, either w/ or w/o implicit casts
       if (currcost  < 0 ) {

@@ -31,6 +31,7 @@ import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.expr.fn.interpreter.InterpreterEvaluator;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.Project;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.Fixtures.Table;
@@ -96,7 +97,7 @@ public class BaseTestFunction extends BaseTestOperator {
 
       final Table input = Fixtures.t(Fixtures.th(names), Fixtures.tr(inputs.toArray(new Object[inputs.size()])));
       final Table output = Fixtures.t(Fixtures.th("out"), Fixtures.tr(fieldsArr[fieldsArr.length - 1]));
-      Project p = new Project(Arrays.asList(new NamedExpression(expr, new FieldReference("out"))), null);
+      Project p = new Project(OpProps.prototype(), null, Arrays.asList(new NamedExpression(expr, new FieldReference("out"))));
 
       try {
         validateSingle(p, ProjectOperator.class, input.toGenerator(getTestAllocator()), output, DEFAULT_BATCH);

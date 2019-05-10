@@ -46,7 +46,7 @@ public class UserDelegatingOperatorCreator implements OperatorCreator {
 
   @Override
   public <T extends PhysicalOperator> SingleInputOperator getSingleInputOperator(final OperatorContext context, final T operator) throws Exception {
-    final UserGroupInformation proxyUgi = ImpersonationUtil.createProxyUgi(operator.getUserName(), queryUser);
+    final UserGroupInformation proxyUgi = ImpersonationUtil.createProxyUgi(operator.getProps().getUserName(), queryUser);
     return proxyUgi.doAs(new PrivilegedExceptionAction<SingleInputOperator>() {
       @Override
       public SingleInputOperator run() throws Exception {
@@ -57,7 +57,7 @@ public class UserDelegatingOperatorCreator implements OperatorCreator {
 
   @Override
   public <T extends PhysicalOperator> DualInputOperator getDualInputOperator(final OperatorContext context, final T operator) throws Exception {
-    final UserGroupInformation proxyUgi = ImpersonationUtil.createProxyUgi(operator.getUserName(), queryUser);
+    final UserGroupInformation proxyUgi = ImpersonationUtil.createProxyUgi(operator.getProps().getUserName(), queryUser);
     return proxyUgi.doAs(new PrivilegedExceptionAction<DualInputOperator>() {
       @Override
       public DualInputOperator run() throws Exception {
@@ -71,7 +71,7 @@ public class UserDelegatingOperatorCreator implements OperatorCreator {
       final TunnelProvider provider,
       final OperatorContext context,
       final T operator) throws Exception {
-    final UserGroupInformation proxyUgi = ImpersonationUtil.createProxyUgi(operator.getUserName(), queryUser);
+    final UserGroupInformation proxyUgi = ImpersonationUtil.createProxyUgi(operator.getProps().getUserName(), queryUser);
     return proxyUgi.doAs(new PrivilegedExceptionAction<TerminalOperator>() {
       @Override
       public TerminalOperator run() throws Exception {
@@ -82,7 +82,7 @@ public class UserDelegatingOperatorCreator implements OperatorCreator {
 
   @Override
   public <T extends PhysicalOperator> ProducerOperator getProducerOperator(final FragmentExecutionContext fec, final OperatorContext context, final T operator) throws Exception {
-    final UserGroupInformation proxyUgi = ImpersonationUtil.createProxyUgi(operator.getUserName(), queryUser);
+    final UserGroupInformation proxyUgi = ImpersonationUtil.createProxyUgi(operator.getProps().getUserName(), queryUser);
     return proxyUgi.doAs(new PrivilegedExceptionAction<ProducerOperator>() {
       @Override
       public ProducerOperator run() throws Exception {
@@ -96,7 +96,7 @@ public class UserDelegatingOperatorCreator implements OperatorCreator {
       final BatchStreamProvider buffers,
       final OperatorContext context,
       final T operator) throws Exception {
-    final UserGroupInformation proxyUgi = ImpersonationUtil.createProxyUgi(operator.getUserName(), queryUser);
+    final UserGroupInformation proxyUgi = ImpersonationUtil.createProxyUgi(operator.getProps().getUserName(), queryUser);
     return proxyUgi.doAs(new PrivilegedExceptionAction<ProducerOperator>() {
       @Override
       public ProducerOperator run() throws Exception {

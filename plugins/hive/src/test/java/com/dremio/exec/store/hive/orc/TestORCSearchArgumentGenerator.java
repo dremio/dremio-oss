@@ -30,7 +30,14 @@ import static org.apache.calcite.sql.fun.SqlStdOperatorTable.NOT_EQUALS;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.OR;
 import static org.junit.Assert.assertEquals;
 
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.util.DateString;
+import org.apache.commons.net.ntp.TimeStamp;
 import org.junit.Test;
 
 import com.dremio.exec.planner.RexBuilderTestBase;
@@ -53,13 +60,18 @@ public class TestORCSearchArgumentGenerator extends RexBuilderTestBase {
     RexNode eqDouble = builder.makeCall(EQUALS, asList(input(3), doubleLit(3, 235234234.234324d)));
     assertEquals("leaf-0 = (EQUALS doubleC 2.35234234234324E8), expr = leaf-0", sarg(eqDouble));
 
-    // passes only in UTC timezone machine
-    RexNode eqDate = builder.makeCall(EQUALS, asList(input(4), dateLit(4, 24233)));
-    assertEquals("leaf-0 = (EQUALS dateC 2036-05-07), expr = leaf-0", sarg(eqDate));
+    final int daysSinceEpoch = 24233;
+    RexNode eqDate = builder.makeCall(EQUALS, asList(input(4), dateLit(4, daysSinceEpoch)));
+    Date date = new Date(DateString.fromDaysSinceEpoch(daysSinceEpoch).getMillisSinceEpoch());
+    DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    final String strDate = dateFormat.format(date);
+    assertEquals("leaf-0 = (EQUALS dateC " + strDate + "), expr = leaf-0", sarg(eqDate));
 
-    // passes only in UTC timezone machine
-    RexNode eqTs = builder.makeCall(EQUALS, asList(input(5), tsLit(5, 232349893L)));
-    assertEquals("leaf-0 = (EQUALS tsC 1970-01-03 16:32:29.893), expr = leaf-0", sarg(eqTs));
+    final long millisSinceEpoch = 232349893L;
+    RexNode eqTs = builder.makeCall(EQUALS, asList(input(5), tsLit(5, millisSinceEpoch)));
+    final StringBuilder strTime = new StringBuilder();
+    strTime.append(new Timestamp(millisSinceEpoch));
+    assertEquals("leaf-0 = (EQUALS tsC " + strTime.toString() + "), expr = leaf-0", sarg(eqTs));
 
     RexNode eqVarchar = builder.makeCall(EQUALS, asList(input(6), varcharLit(6, "str")));
     assertEquals("leaf-0 = (EQUALS varcharC str), expr = leaf-0", sarg(eqVarchar));
@@ -82,13 +94,18 @@ public class TestORCSearchArgumentGenerator extends RexBuilderTestBase {
     RexNode eqDouble = builder.makeCall(NOT_EQUALS, asList(input(3), doubleLit(3, 235234234.234324d)));
     assertEquals("leaf-0 = (EQUALS doubleC 2.35234234234324E8), expr = (not leaf-0)", sarg(eqDouble));
 
-    // passes only in UTC timezone machine
-    RexNode eqDate = builder.makeCall(NOT_EQUALS, asList(input(4), dateLit(4, 24233)));
-    assertEquals("leaf-0 = (EQUALS dateC 2036-05-07), expr = (not leaf-0)", sarg(eqDate));
+    final int daysSinceEpoch = 24233;
+    RexNode eqDate = builder.makeCall(NOT_EQUALS, asList(input(4), dateLit(4, daysSinceEpoch)));
+    Date date = new Date(DateString.fromDaysSinceEpoch(daysSinceEpoch).getMillisSinceEpoch());
+    DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    final String strDate = dateFormat.format(date);
+    assertEquals("leaf-0 = (EQUALS dateC " + strDate + "), expr = (not leaf-0)", sarg(eqDate));
 
-    // passes only in UTC timezone machine
-    RexNode eqTs = builder.makeCall(NOT_EQUALS, asList(input(5), tsLit(5, 232349893L)));
-    assertEquals("leaf-0 = (EQUALS tsC 1970-01-03 16:32:29.893), expr = (not leaf-0)", sarg(eqTs));
+    final long millisSinceEpoch = 232349893L;
+    RexNode eqTs = builder.makeCall(NOT_EQUALS, asList(input(5), tsLit(5, millisSinceEpoch)));
+    final StringBuilder strTime = new StringBuilder();
+    strTime.append(new Timestamp(millisSinceEpoch));
+    assertEquals("leaf-0 = (EQUALS tsC " + strTime.toString() + "), expr = (not leaf-0)", sarg(eqTs));
 
     RexNode eqVarchar = builder.makeCall(NOT_EQUALS, asList(input(6), varcharLit(6, "str")));
     assertEquals("leaf-0 = (EQUALS varcharC str), expr = (not leaf-0)", sarg(eqVarchar));
@@ -111,13 +128,18 @@ public class TestORCSearchArgumentGenerator extends RexBuilderTestBase {
     RexNode eqDouble = builder.makeCall(LESS_THAN, asList(input(3), doubleLit(3, 235234234.234324d)));
     assertEquals("leaf-0 = (LESS_THAN doubleC 2.35234234234324E8), expr = leaf-0", sarg(eqDouble));
 
-    // passes only in UTC timezone machine
-    RexNode eqDate = builder.makeCall(LESS_THAN, asList(input(4), dateLit(4, 24233)));
-    assertEquals("leaf-0 = (LESS_THAN dateC 2036-05-07), expr = leaf-0", sarg(eqDate));
+    final int daysSinceEpoch = 24233;
+    RexNode eqDate = builder.makeCall(LESS_THAN, asList(input(4), dateLit(4, daysSinceEpoch)));
+    Date date = new Date(DateString.fromDaysSinceEpoch(daysSinceEpoch).getMillisSinceEpoch());
+    DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    final String strDate = dateFormat.format(date);
+    assertEquals("leaf-0 = (LESS_THAN dateC " + strDate + "), expr = leaf-0", sarg(eqDate));
 
-    // passes only in UTC timezone machine
-    RexNode eqTs = builder.makeCall(LESS_THAN, asList(input(5), tsLit(5, 232349893L)));
-    assertEquals("leaf-0 = (LESS_THAN tsC 1970-01-03 16:32:29.893), expr = leaf-0", sarg(eqTs));
+    final long millisSinceEpoch = 232349893L;
+    RexNode eqTs = builder.makeCall(LESS_THAN, asList(input(5), tsLit(5, millisSinceEpoch)));
+    final StringBuilder strTime = new StringBuilder();
+    strTime.append(new Timestamp(millisSinceEpoch));
+    assertEquals("leaf-0 = (LESS_THAN tsC " + strTime.toString() + "), expr = leaf-0", sarg(eqTs));
 
     RexNode eqVarchar = builder.makeCall(LESS_THAN, asList(input(6), varcharLit(6, "str")));
     assertEquals("leaf-0 = (LESS_THAN varcharC str), expr = leaf-0", sarg(eqVarchar));
@@ -140,13 +162,18 @@ public class TestORCSearchArgumentGenerator extends RexBuilderTestBase {
     RexNode eqDouble = builder.makeCall(LESS_THAN_OR_EQUAL, asList(input(3), doubleLit(3, 235234234.234324d)));
     assertEquals("leaf-0 = (LESS_THAN_EQUALS doubleC 2.35234234234324E8), expr = leaf-0", sarg(eqDouble));
 
-    // passes only in UTC timezone machine
-    RexNode eqDate = builder.makeCall(LESS_THAN_OR_EQUAL, asList(input(4), dateLit(4, 24233)));
-    assertEquals("leaf-0 = (LESS_THAN_EQUALS dateC 2036-05-07), expr = leaf-0", sarg(eqDate));
+    final int daysSinceEpoch = 24233;
+    RexNode eqDate = builder.makeCall(LESS_THAN_OR_EQUAL, asList(input(4), dateLit(4, daysSinceEpoch)));
+    Date date = new Date(DateString.fromDaysSinceEpoch(daysSinceEpoch).getMillisSinceEpoch());
+    DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    final String strDate = dateFormat.format(date);
+    assertEquals("leaf-0 = (LESS_THAN_EQUALS dateC " + strDate + "), expr = leaf-0", sarg(eqDate));
 
-    // passes only in UTC timezone machine
-    RexNode eqTs = builder.makeCall(LESS_THAN_OR_EQUAL, asList(input(5), tsLit(5, 232349893L)));
-    assertEquals("leaf-0 = (LESS_THAN_EQUALS tsC 1970-01-03 16:32:29.893), expr = leaf-0", sarg(eqTs));
+    final long millisSinceEpoch = 232349893L;
+    RexNode eqTs = builder.makeCall(LESS_THAN_OR_EQUAL, asList(input(5), tsLit(5, millisSinceEpoch)));
+    final StringBuilder strTime = new StringBuilder();
+    strTime.append(new Timestamp(millisSinceEpoch));
+    assertEquals("leaf-0 = (LESS_THAN_EQUALS tsC " + strTime.toString() + "), expr = leaf-0", sarg(eqTs));
 
     RexNode eqVarchar = builder.makeCall(LESS_THAN_OR_EQUAL, asList(input(6), varcharLit(6, "str")));
     assertEquals("leaf-0 = (LESS_THAN_EQUALS varcharC str), expr = leaf-0", sarg(eqVarchar));
@@ -169,13 +196,18 @@ public class TestORCSearchArgumentGenerator extends RexBuilderTestBase {
     RexNode eqDouble = builder.makeCall(GREATER_THAN, asList(input(3), doubleLit(3, 235234234.234324d)));
     assertEquals("leaf-0 = (LESS_THAN_EQUALS doubleC 2.35234234234324E8), expr = (not leaf-0)", sarg(eqDouble));
 
-    // passes only in UTC timezone machine
-    RexNode eqDate = builder.makeCall(GREATER_THAN, asList(input(4), dateLit(4, 24233)));
-    assertEquals("leaf-0 = (LESS_THAN_EQUALS dateC 2036-05-07), expr = (not leaf-0)", sarg(eqDate));
+    final int daysSinceEpoch = 24233;
+    RexNode eqDate = builder.makeCall(GREATER_THAN, asList(input(4), dateLit(4, daysSinceEpoch)));
+    Date date = new Date(DateString.fromDaysSinceEpoch(daysSinceEpoch).getMillisSinceEpoch());
+    DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    final String strDate = dateFormat.format(date);
+    assertEquals("leaf-0 = (LESS_THAN_EQUALS dateC " + strDate + "), expr = (not leaf-0)", sarg(eqDate));
 
-    // passes only in UTC timezone machine
-    RexNode eqTs = builder.makeCall(GREATER_THAN, asList(input(5), tsLit(5, 232349893L)));
-    assertEquals("leaf-0 = (LESS_THAN_EQUALS tsC 1970-01-03 16:32:29.893), expr = (not leaf-0)", sarg(eqTs));
+    final long millisSinceEpoch = 232349893L;
+    RexNode eqTs = builder.makeCall(GREATER_THAN, asList(input(5), tsLit(5, millisSinceEpoch)));
+    final StringBuilder strTime = new StringBuilder();
+    strTime.append(new Timestamp(millisSinceEpoch));
+    assertEquals("leaf-0 = (LESS_THAN_EQUALS tsC " + strTime.toString() + "), expr = (not leaf-0)", sarg(eqTs));
 
     RexNode eqVarchar = builder.makeCall(GREATER_THAN, asList(input(6), varcharLit(6, "str")));
     assertEquals("leaf-0 = (LESS_THAN_EQUALS varcharC str), expr = (not leaf-0)", sarg(eqVarchar));
@@ -198,13 +230,18 @@ public class TestORCSearchArgumentGenerator extends RexBuilderTestBase {
     RexNode eqDouble = builder.makeCall(GREATER_THAN_OR_EQUAL, asList(input(3), doubleLit(3, 235234234.234324d)));
     assertEquals("leaf-0 = (LESS_THAN doubleC 2.35234234234324E8), expr = (not leaf-0)", sarg(eqDouble));
 
-    // passes only in UTC timezone machine
-    RexNode eqDate = builder.makeCall(GREATER_THAN_OR_EQUAL, asList(input(4), dateLit(4, 24233)));
-    assertEquals("leaf-0 = (LESS_THAN dateC 2036-05-07), expr = (not leaf-0)", sarg(eqDate));
+    final int daysSinceEpoch = 24233;
+    RexNode eqDate = builder.makeCall(GREATER_THAN_OR_EQUAL, asList(input(4), dateLit(4, daysSinceEpoch)));
+    Date date = new Date(DateString.fromDaysSinceEpoch(daysSinceEpoch).getMillisSinceEpoch());
+    DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    final String strDate = dateFormat.format(date);
+    assertEquals("leaf-0 = (LESS_THAN dateC " + strDate + "), expr = (not leaf-0)", sarg(eqDate));
 
-    // passes only in UTC timezone machine
-    RexNode eqTs = builder.makeCall(GREATER_THAN_OR_EQUAL, asList(input(5), tsLit(5, 232349893L)));
-    assertEquals("leaf-0 = (LESS_THAN tsC 1970-01-03 16:32:29.893), expr = (not leaf-0)", sarg(eqTs));
+    final long millisSinceEpoch = 232349893L;
+    RexNode eqTs = builder.makeCall(GREATER_THAN_OR_EQUAL, asList(input(5), tsLit(5, millisSinceEpoch)));
+    final StringBuilder strTime = new StringBuilder();
+    strTime.append(new Timestamp(millisSinceEpoch));
+    assertEquals("leaf-0 = (LESS_THAN tsC " + strTime.toString() + "), expr = (not leaf-0)", sarg(eqTs));
 
     RexNode eqVarchar = builder.makeCall(GREATER_THAN_OR_EQUAL, asList(input(6), varcharLit(6, "str")));
     assertEquals("leaf-0 = (LESS_THAN varcharC str), expr = (not leaf-0)", sarg(eqVarchar));

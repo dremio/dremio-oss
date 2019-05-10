@@ -29,7 +29,6 @@ import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.impl.SingleStructReaderImpl;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.util.Pair;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.slf4j.Logger;
@@ -41,10 +40,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticSplitXattr;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticTableXattr;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.DefaultSchemaMutator;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.easy.json.JsonProcessor;
 import com.dremio.exec.vector.complex.fn.JsonWriter;
@@ -56,25 +52,18 @@ import com.dremio.plugins.elastic.ElasticConnectionPool.ElasticConnection;
 import com.dremio.plugins.elastic.ElasticsearchConf;
 import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
-import com.dremio.plugins.elastic.mapping.ElasticMappingSet.ElasticMapping;
-import com.dremio.plugins.elastic.mapping.SchemaMerger;
-import com.dremio.plugins.elastic.mapping.SchemaMerger.MergeResult;
 import com.dremio.plugins.elastic.planning.ElasticsearchScanSpec;
-import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.google.common.base.Charsets;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
-
-import io.protostuff.ByteString;
 
 /**
  * Record reader for Elasticsearch.
@@ -124,7 +113,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       OperatorContext context,
       ElasticsearchScanSpec spec,
       boolean useElasticProjection,
-      DatasetSplit split,
+      SplitInfo split,
       ElasticConnection connection,
       List<SchemaPath> columns,
       FieldReadDefinition readDefinition,
@@ -141,7 +130,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
     this.query = query != null && query.length() > 0 ? query : MATCH_ALL_REQUEST;
     this.usingElasticProjection = useElasticProjection;
     this.config = config;
-    this.splitAttributes = split == null ? null : ElasticSplitXattr.parseFrom(split.getExtendedProperty().toByteArray());
+    this.splitAttributes = split == null ? null : ElasticSplitXattr.parseFrom(split.getSplitExtendedProperty());
     this.resource = split == null ? spec.getResource() : splitAttributes.getResource();
     this.metaUIDSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.UID)) || isStarQuery();
     this.metaIDSelected = config.isShowIdColumn() && (getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.ID)) || isStarQuery());
@@ -186,69 +175,6 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
   @Override
   protected boolean supportsSkipAllQuery() {
     return true;
-  }
-
-  @Override
-  public SchemaChangeMutator getSchemaChangeMutator() {
-    return new SchemaUpdateMerger();
-  }
-
-  private final class SchemaUpdateMerger implements SchemaChangeMutator {
-
-    @Override
-    public DatasetConfig updateForSchemaChange(DatasetConfig oldConfig, BatchSchema expectedSchema, BatchSchema newlyObservedSchema) {
-      Preconditions.checkNotNull(oldConfig);
-      Preconditions.checkNotNull(newlyObservedSchema);
-
-      // its possible that the mapping has changed. If so, we need to re-sample the data. fail the query and retry.
-      // If not, make sure we update the schema using the elastic schema merger rather than a general merge behavior.
-      int mappingHash = tableAttributes.getMappingHash();
-      NamespaceKey key = new NamespaceKey(tableSchemaPath);
-      ElasticMapping mapping = plugin.getMapping(key);
-      if(mapping == null){
-        throw UserException.dataReadError()
-            .message("Unable to find schema information for %s after observing schema change.", key)
-            .build(logger);
-      }
-
-      if (context.getOptions().getOption(ExecConstants.ELASTIC_ENABLE_MAPPING_CHECKSUM)) {
-        final int latestMappingHash = mapping.hashCode();
-        if (mappingHash != latestMappingHash) {
-          final UserException.Builder builder = UserException.invalidMetadataError()
-              .setAdditionalExceptionContext(
-                  new InvalidMetadataErrorContext(Collections.singletonList(tableSchemaPath)))
-              .addContext("new mapping", mapping.toString());
-
-          final List<Pair<Field, Field>> differentFields = expectedSchema.findDiff(newlyObservedSchema);
-          for (Pair<Field, Field> pair : differentFields) {
-            if (pair.left == null) {
-              builder.addContext("new Field", pair.right.toString());
-            } else {
-              builder.addContext("different Field", pair.toString());
-            }
-          }
-          throw builder.build(logger);
-        }
-      }
-
-      SchemaMerger merger = new SchemaMerger(new NamespaceKey(oldConfig.getFullPathList()).toString());
-      // Since the newlyObserved schema could be partial due to projections, we need to merge it with the original.
-      DatasetConfig newConfig = DefaultSchemaMutator.clone(oldConfig);
-
-      BatchSchema preMergedSchema = expectedSchema.merge(newlyObservedSchema);
-      MergeResult result = merger.merge(mapping, preMergedSchema);
-
-
-      try {
-        // update the annotations.
-        ElasticTableXattr xattr = ElasticTableXattr.parseFrom(newConfig.getReadDefinition().getExtendedProperty().toByteArray());
-        newConfig.getReadDefinition().setExtendedProperty(ByteString.copyFrom(xattr.toBuilder().clearAnnotation().addAllAnnotation(result.getAnnotations()).build().toByteArray()));
-        newConfig.setRecordSchema(ByteString.copyFrom(result.getSchema().serialize()));
-        return newConfig;
-      } catch (InvalidProtocolBufferException e) {
-        throw new IllegalStateException(e);
-      }
-    }
   }
 
   private void getFirstPage() {

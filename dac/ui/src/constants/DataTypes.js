@@ -48,7 +48,7 @@ export const typeToIconType = {
   [FLOAT]: 'TypeFloat',
   [DECIMAL]: 'TypeDecimal',
   [INTEGER]: 'TypeInteger',
-  [DOUBLE]: 'TypeInteger',
+  [DOUBLE]: 'TypeFloat',
   [BIGINT]: 'TypeInteger',
   [MIXED]: 'TypeMixed',
   [UNION]: 'TypeMixed',

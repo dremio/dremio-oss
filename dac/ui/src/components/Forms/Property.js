@@ -26,32 +26,6 @@ import { inputSpacing as inputSpacingCssValue} from '@app/uiTheme/less/variables
 
 const inputSpacing = parseInt(inputSpacingCssValue, 10);
 
-export class PropertyValue extends Component {
-  static propTypes = {
-    field: PropTypes.object,
-    style: PropTypes.object,
-    elementConfig: PropTypes.object,
-    onRemove: PropTypes.func
-  };
-
-  render() {
-    const {elementConfig, onRemove, field} = this.props;
-    const label = elementConfig && elementConfig.label || 'Value';
-    const propertyStyle = {display: 'flex'};
-    const fieldStyle = {flex: 'auto'};
-    const textStyle = {width: '100%'};
-
-    return (
-      <div style={propertyStyle}>
-        <FieldWithError label={label} {...field} style={fieldStyle} errorPlacement='top'>
-          <TextField {...field} style={textStyle}/>
-        </FieldWithError>
-        {onRemove && <RemoveButton onClick={onRemove} style={styles.removeButton}/>}
-      </div>
-    );
-  }
-}
-
 export default class Property extends Component {
   static getFields() {
     return [

@@ -75,7 +75,7 @@ describe('qlik saga', () => {
       const headers = new Headers();
       headers.append('Accept', 'text/plain+qlik-app');
       if (localStorageUtils) {
-        headers.append('Authorization', `_dremio${localStorageUtils.getAuthToken()}`);
+        headers.append('Authorization', localStorageUtils.getAuthToken());
       }
       expect(JSON.stringify(next.value)).to.eql(
         JSON.stringify(call(fetch, `${API_URL_V2}/qlik/myspace.foo`, {method: 'GET', headers}))

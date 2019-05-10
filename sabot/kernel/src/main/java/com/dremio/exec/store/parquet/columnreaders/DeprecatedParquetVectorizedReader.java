@@ -34,7 +34,6 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.RepeatedValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -44,6 +43,8 @@ import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
+import org.apache.parquet.hadoop.util.HadoopStreams;
+import org.apache.parquet.io.SeekableInputStream;
 import org.apache.parquet.schema.PrimitiveType;
 
 import com.dremio.common.arrow.DremioArrowSchema;
@@ -94,7 +95,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
   private final CodecFactory codecFactory;
   int rowGroupIndex;
   long totalRecordsRead;
-  FSDataInputStream singleInputStream;
+  SeekableInputStream singleInputStream;
 
   private final SchemaDerivationHelper schemaHelper;
   private final GlobalDictionaries globalDictionaries;
@@ -261,7 +262,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     boolean useSingleStream = context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM);
     if (useSingleStream || columns.size()  >= context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD)) {
       try {
-        singleInputStream = fileSystem.open(hadoopPath);
+        singleInputStream = HadoopStreams.wrap(fileSystem.open(hadoopPath));
       } catch (IOException ioe) {
         throw new ExecutionSetupException("Error opening or reading metadata for parquet file at location: "
           + hadoopPath.getName(), ioe);
@@ -308,13 +309,15 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     }
 //    rowGroupOffset = footer.getBlocks().get(rowGroupIndex).getColumns().get(0).getFirstDataPageOffset();
 
+    int rowsPerBatch = 0;
     if (columnsToScan != 0 && allFieldsFixedLength) {
-      numRowsPerBatch = (int) Math.min(Math.min(numBytesPerBatch / bitWidthAllFixedFields,
+      rowsPerBatch = (int) Math.min(Math.min(numBytesPerBatch / bitWidthAllFixedFields,
           footer.getBlocks().get(0).getColumns().get(0).getValueCount()), 65535);
     }
     else {
-      numRowsPerBatch = DEFAULT_RECORDS_TO_READ_IF_NOT_FIXED_WIDTH;
+      rowsPerBatch = DEFAULT_RECORDS_TO_READ_IF_NOT_FIXED_WIDTH;
     }
+    this.numRowsPerBatch = Math.min(this.numRowsPerBatch, rowsPerBatch);
 
     try {
       ValueVector vector;
@@ -440,7 +443,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     }
   }
 
-  FSDataInputStream getSingleStream() {
+  SeekableInputStream getSingleStream() {
     return singleInputStream;
   }
 
@@ -500,7 +503,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
         if (mockRecordsRead == footer.getBlocks().get(rowGroupIndex).getRowCount()) {
           return 0;
         }
-        recordsToRead = Math.min(DEFAULT_RECORDS_TO_READ_IF_NOT_FIXED_WIDTH, footer.getBlocks().get(rowGroupIndex).getRowCount() - mockRecordsRead);
+        recordsToRead = Math.min(numRowsPerBatch, footer.getBlocks().get(rowGroupIndex).getRowCount() - mockRecordsRead);
         for (final ValueVector vv : nullFilledVectors ) {
           vv.setValueCount( (int) recordsToRead);
         }
@@ -510,11 +513,11 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
       }
 
       if (allFieldsFixedLength) {
-        recordsToRead = Math.min(numRowsPerBatch, firstColumnStatus.columnChunkMetaData.getValueCount() - firstColumnStatus.totalValuesRead);
+        recordsToRead = firstColumnStatus.columnChunkMetaData.getValueCount() - firstColumnStatus.totalValuesRead;
       } else {
         recordsToRead = DEFAULT_RECORDS_TO_READ_IF_NOT_FIXED_WIDTH;
-
       }
+      recordsToRead = Math.min(recordsToRead, numRowsPerBatch);
 
       if (allFieldsFixedLength) {
         readAllFixedFields(recordsToRead);

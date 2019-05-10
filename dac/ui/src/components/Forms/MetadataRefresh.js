@@ -33,11 +33,8 @@ Fetch Modes:
 Only Queried Datasets:
 Dremio updates details for previously queried objects in a source. This mode increases query performance as less work needs to be done at query time for these datasets.
 
-All Datasets:
-Dremio updates details for all datasets in a source. This mode increases query performance as less work needs to be done at query time.
-
-As Needed:
-Dremio updates details for a dataset at query time. This mode minimizes metadata queries on a source when not used, but might lead to longer planning times.`;
+All Datasets (deprecated):
+Dremio updates details for all datasets in a source. This mode increases query performance as less work needs to be done at query time.`;
 
 const AUTHORIZATION_TOOLTIP =
   'When impersonation is enabled, maximum amount of time Dremio will cache authorization information.';
@@ -84,7 +81,7 @@ export default class MetadataRefresh extends Component {
       errors.metadataPolicy.namesRefreshMillis = la('Dataset discovery fetch must be at least 1 minute.');
     }
 
-    if (values.metadataPolicy.updateMode !== 'INLINE' && values.metadataPolicy.datasetDefinitionRefreshAfterMillis < MIN_TIME) {
+    if (values.metadataPolicy.datasetDefinitionRefreshAfterMillis < MIN_TIME) {
       errors.metadataPolicy.datasetDefinitionRefreshAfterMillis = la('Dataset details fetch must be at least 1 minute.');
     }
 
@@ -112,8 +109,7 @@ export default class MetadataRefresh extends Component {
 
   refreshModeOptions = [
     { label: la('Only Queried Datasets'), option: 'PREFETCH_QUERIED' },
-    { label: la('All Datasets'), option: 'PREFETCH' },
-    { label: la('As Needed'), option: 'INLINE' }
+    { label: la('All Datasets (deprecated)'), option: 'PREFETCH' }
   ];
 
   render() {
@@ -123,8 +119,6 @@ export default class MetadataRefresh extends Component {
       showAuthorization
     } = this.props;
 
-    // if INLINE, disable the datasetDefinitionRefreshAfterMillis field
-    const disableFetchEvery = metadataPolicy.updateMode && metadataPolicy.updateMode.value === 'INLINE';
     return (
       <div className='metadata-refresh'>
         {showDatasetDiscovery && <div style={styles.subSection}>
@@ -163,7 +157,6 @@ export default class MetadataRefresh extends Component {
               <DurationField
                 {...metadataPolicy.datasetDefinitionRefreshAfterMillis}
                 min={MIN_TIME}
-                disabled={disableFetchEvery}
                 style={styles.durationField}/>
             </FieldWithError>
           </div>

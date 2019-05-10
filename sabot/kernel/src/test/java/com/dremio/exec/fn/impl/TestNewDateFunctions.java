@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.fn.impl;
 
-import static org.apache.arrow.vector.util.DateUtility.formatTimeStampMilli;
+import static com.dremio.common.util.JodaDateUtility.formatTimeStampMilli;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 

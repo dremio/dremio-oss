@@ -48,7 +48,12 @@ export default class RadioWrapper extends Component {
     return (
       <div className={flexContainer}>
         <div className={classNames({[radioColumnWrapper]: isLayoutColumn, [rowOfInputsSpacing]: !isLayoutColumn})}>
-          {label && <div className={radioTopLabel}>{label}</div>}
+          {label &&
+            <div className={radioTopLabel}>
+              {label}
+              {tooltip && <HoverHelp content={tooltip} className={tooltipIcon} iconStyle={{marginTop: -3}}/>}
+            </div>
+          }
           {elementConfig.getConfig().options.map((option, index) => {
             const radioClassName = classNames(radioBody, {[radioBodyColumn]: isLayoutColumn});
             return (
@@ -56,7 +61,6 @@ export default class RadioWrapper extends Component {
             );
           })}
         </div>
-        {tooltip && <HoverHelp content={tooltip} className={tooltipIcon}/>}
       </div>
     );
   }

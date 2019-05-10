@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -87,7 +88,8 @@ public class JobResultsStore implements Service {
             new CacheLoader<JobId, JobData>() {
               @Override
               public JobData load(JobId key) throws Exception {
-                final JobDataImpl jobDataImpl = new JobDataImpl(new LateJobLoader(key), key);
+                // CountDownLatch(0) as jobs are completed and metadata should be already collected
+                final JobDataImpl jobDataImpl = new JobDataImpl(new LateJobLoader(key), key, new CountDownLatch(0));
                 return newJobDataReference(jobDataImpl);
               }
             });
@@ -117,7 +119,7 @@ public class JobResultsStore implements Service {
     try {
       if (dfs.exists(jobOutputDir)) {
         dfs.delete(jobOutputDir, true);
-        logger.info("Deleted job output directory : " + jobOutputDir);
+        logger.debug("Deleted job output directory : {}", jobOutputDir);
       }
       return true;
     } catch (IOException e) {

@@ -13,9 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import PropTypes from 'prop-types';
 import { shallow, mount } from 'enzyme';
-import getMuiTheme from 'material-ui/styles/getMuiTheme';
+import MenuItemMaterial from '@material-ui/core/MenuItem';
 import MenuItem from './MenuItem';
 
 describe('MenuItem', () => {
@@ -26,7 +25,7 @@ describe('MenuItem', () => {
     commonProps = {
       ...minimalProps,
       children: 'node',
-      onTouchTap: sinon.spy()
+      onClick: sinon.spy()
     };
   });
   it('should render with minimal props without exploding', () => {
@@ -35,7 +34,7 @@ describe('MenuItem', () => {
   });
   it('should render MenuItemMaterial', () => {
     const wrapper = shallow(<MenuItem {...commonProps}/>);
-    expect(wrapper.find('MenuItem')).to.have.length(1);
+    expect(wrapper.find(MenuItemMaterial)).to.have.length(1);
     expect(wrapper).to.have.length(1);
   });
   it('should render Popover if menuItems is defined', () => {
@@ -47,12 +46,12 @@ describe('MenuItem', () => {
     wrapper.setState({
       open: true
     });
-    expect(wrapper.find('Popover')).to.have.length(1);
+    expect(wrapper.find('Popper')).to.have.length(1);
   });
   it('should not render Popover if menuItems is not defined', () => {
     const wrapper = shallow(<MenuItem {...commonProps}/>);
 
-    expect(wrapper.find('Popover')).to.have.length(0);
+    expect(wrapper.find('Popper')).to.have.length(0);
   });
   describe('#handleRequestOpen', () => {
     it('should set state.open to true', () => {
@@ -115,14 +114,7 @@ describe('MenuItem', () => {
     let wrapper;
     let instance;
     beforeEach(() => {
-      const mountWithContext = (node) => mount(node, {
-        context: {
-          muiTheme: getMuiTheme()
-        },
-        childContextTypes: {
-          muiTheme: PropTypes.object.isRequired
-        }
-      });
+      const mountWithContext = (node) => mount(node);
       const props = {
         ...commonProps,
         menuItems: ['item1', 'item2']
@@ -135,18 +127,9 @@ describe('MenuItem', () => {
       instance.shouldClose.restore();
     });
     it('should call shouldClose and return true if relatedTarget is not .sub-item', () => {
-      wrapper.ref('menuItem').simulate('mouseLeave');
+      instance.handleMouseLeave({});
       expect(instance.shouldClose).to.be.called;
       expect(instance.shouldClose).to.be.returned(true);
-    });
-    it('should return false if relatedTarget is subMenu or menuItem', () => {
-      wrapper.ref('menuItem').simulate('mouseOver');
-      wrapper.ref('menuItem').simulate('mouseLeave', { relatedTarget: wrapper.ref('subMenu').node });
-      expect(instance.shouldClose).to.be.returned(false);
-
-      wrapper.ref('menuItem').simulate('mouseOver');
-      wrapper.ref('menuItem').simulate('mouseLeave', { relatedTarget: wrapper.ref('menuItem').node });
-      expect(instance.shouldClose).to.be.returned(false);
     });
   });
 });

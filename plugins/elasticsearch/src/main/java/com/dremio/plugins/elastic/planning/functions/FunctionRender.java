@@ -19,15 +19,20 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.planning.rules.SchemaField.NullReference;
 import com.dremio.plugins.elastic.planning.rules.SchemaField.ReferenceType;
 import com.google.common.collect.ImmutableList;
 
 public class FunctionRender {
   public static final String EMPTY = ".empty";
+  public static final String CONTAINSKEY = ".containsKey";
   public static final String EQ_NULL = " == null";
   public static final String EQ_THEN = " ? %s : ";
   public static final String EQ_OR = " || ";
+  public static final String EQ_NOT = "!";
+  public static final String LEFT_PARENTHESIS = "(\"";
+  public static final String RIGHT_PARENTHESIS = "\")";
 
   private final String script;
   private final Iterable<NullReference> nulls;
@@ -48,9 +53,11 @@ public class FunctionRender {
   /**
    * Renders this as null guarded.
    * @param nullReplacement is the value to return when a null value is caught
+   * @param variationDetected true, if there is field variation for indexes in alias;
+   *                          false, otherwise.
    * @return a null guarded version of the provided script.
    */
-  public String getNullGuardedScript(String nullReplacement){
+  public String getNullGuardedScript(String nullReplacement, boolean variationDetected){
     List<NullReference> inputListToCheck = ImmutableList.copyOf(nulls);
     Set<NullReference> checkRepeats = new HashSet<>();
     String toReturn = "";
@@ -67,6 +74,14 @@ public class FunctionRender {
         if(toCheck.getReferenceType() == ReferenceType.SOURCE){
           toReturn += toCheck.getValue() + EQ_NULL;
         }else if (toCheck.getReferenceType() == ReferenceType.DOC){
+          if (variationDetected) {
+            // Adds doc.containsKey check to avoid the no field found error.
+            toReturn += EQ_NOT;
+            toReturn += ElasticsearchConstants.DOC + CONTAINSKEY + LEFT_PARENTHESIS;
+            toReturn += toCheck.getFullPath();
+            toReturn += RIGHT_PARENTHESIS;
+            toReturn += EQ_OR;
+          }
           toReturn += toCheck.getValue() + EMPTY;
         }else{
           throw new UnsupportedOperationException("Unknown reference type." + toCheck.getReferenceType());
@@ -83,7 +98,11 @@ public class FunctionRender {
   }
 
   public String getNullGuardedScript() {
-    return this.getNullGuardedScript("null");
+    return this.getNullGuardedScript("null", false);
+  }
+
+  public String getNullGuardedScript(boolean variationDetected) {
+    return this.getNullGuardedScript("null", variationDetected);
   }
 }
 

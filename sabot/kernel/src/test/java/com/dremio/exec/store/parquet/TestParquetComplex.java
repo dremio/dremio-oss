@@ -258,8 +258,13 @@ public class TestParquetComplex extends BaseTestQuery {
   }
 
   @Test
-  public void testZeroRowParquet() throws Exception {
+  public void testZeroRowParquetDir() throws Exception {
     String currentPath = Paths.get(".").toAbsolutePath().normalize().toString();
     test("select * from dfs.\"" + currentPath + "/src/test/resources/store/parquet/zero-rows\"");
+  }
+
+  @Test
+  public void testZeroRowParquetFile() throws Exception {
+    test("select * from cp.\"store/parquet/complex/zero-rows.parquet\" p");
   }
 }

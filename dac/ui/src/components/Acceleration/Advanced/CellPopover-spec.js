@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
-import DragTarget from 'components/DragComponents/DragTarget';
-import DragSource from 'components/DragComponents/DragSource';
-import CellPopover from './CellPopover';
+import CellPopover, { ColumnReorder } from './CellPopover';
 
 describe('CellPopover', () => {
   let minimalProps;
@@ -123,7 +121,7 @@ describe('CellPopover', () => {
     });
   });
 
-  it('should render columns for drag area', () => {
+  it('should render ColumnReorder with columns', () => {
     wrapper.setProps({
       sortFields: [
         { name: { value: 'A' } },
@@ -132,7 +130,11 @@ describe('CellPopover', () => {
       currentCell: {labelCell: 'sort'}
     });
 
-    expect(wrapper.find(DragTarget)).to.have.length(2);
-    expect(wrapper.find(DragSource)).to.have.length(2);
+    const cols = wrapper.find(ColumnReorder);
+
+    expect(cols.props().columns).to.eql([
+      { name: 'A' },
+      { name: 'B' }
+    ]);
   });
 });

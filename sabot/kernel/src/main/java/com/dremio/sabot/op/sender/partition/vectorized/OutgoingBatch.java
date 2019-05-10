@@ -164,7 +164,7 @@ public class OutgoingBatch extends VectorContainer {
       handle.getQueryId(),
       handle.getMajorFragmentId(),
       handle.getMinorFragmentId(),
-      config.getOppositeMajorFragmentId(),
+      config.getReceiverMajorFragmentId(),
       this,
       oppositeMinorFragmentId);
 

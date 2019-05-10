@@ -19,6 +19,7 @@ import { injectIntl } from 'react-intl';
 import PropTypes from 'prop-types';
 
 import SelectConnectionButton from 'components/SelectConnectionButton';
+import { sourceTypesIncludeS3 } from 'utils/sourceUtils';
 
 import 'pages/HomePage/components/modals/AddSourceModal/SelectSourceType.less';
 
@@ -41,15 +42,20 @@ export default class SelectSourceType extends Component {
   renderSourceTypes(connections) {
     return connections.map((item) => {
       let pillText = '';
+      let isCommunity = false;
       if (item.disabled) {
         pillText = la('coming soon');
       } else if (item.tags && item.tags.includes('beta')) {
         pillText = la('beta');
+      } else if (item.tags && item.tags.includes('community')) {
+        pillText = la('community');
+        isCommunity = true;
       }
 
       return <SelectConnectionButton
         label={item.label}
         pillText={pillText}
+        isCommunity={isCommunity}
         disabled={item.disabled}
         iconType={`sources/${item.sourceType}`}
         icon={item.icon}
@@ -66,15 +72,16 @@ export default class SelectSourceType extends Component {
   }
 
   render() {
+    const { sourceTypes } = this.props;
     return (
       <div className='SelectSourceType'>
         <div className='main'>
           <div className='source-type-section'>
-            { this.renderSourceTypes(this.getEnabledSourceTypes(this.props.sourceTypes)) }
-            { this.renderSampleSource() }
+            { this.renderSourceTypes(this.getEnabledSourceTypes(sourceTypes)) }
+            { sourceTypesIncludeS3(sourceTypes) && this.renderSampleSource() }
           </div>
           <div className='source-type-section'>
-            { this.renderSourceTypes(this.getDisabledSourceTypes(this.props.sourceTypes)) }
+            { this.renderSourceTypes(this.getDisabledSourceTypes(sourceTypes)) }
           </div>
         </div>
       </div>

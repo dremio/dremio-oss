@@ -52,11 +52,14 @@ public class TestScratchSource extends BaseTestServer {
     properties.set("dremio.datasets.auto_promote", "false");
     // Create a table
     final SqlQuery ctas = getQueryFromSQL("CREATE TABLE \"$scratch\".\"ctas\" AS select * from (VALUES (1))");
-    final Job ctasJob = jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(ctas)
-        .setQueryType(QueryType.UI_RUN)
-        .build(), NoOpJobStatusListener.INSTANCE);
-    ctasJob.getData().loadIfNecessary();
+    JobsServiceUtil.waitForJobCompletion(
+      jobsService.submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(ctas)
+          .setQueryType(QueryType.UI_RUN)
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    );
 
     final FileSystemPlugin plugin = getCurrentDremioDaemon()
         .getBindingProvider()
@@ -70,11 +73,14 @@ public class TestScratchSource extends BaseTestServer {
 
     // Now drop the table
     SqlQuery dropTable = getQueryFromSQL("DROP TABLE \"$scratch\".\"ctas\""); // throws if not auto-promoted
-    Job dropTableJob = jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(dropTable)
-        .setQueryType(QueryType.ACCELERATOR_DROP)
-        .build(), NoOpJobStatusListener.INSTANCE);
-    dropTableJob.getData().loadIfNecessary();
+    JobsServiceUtil.waitForJobCompletion(
+      jobsService.submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(dropTable)
+          .setQueryType(QueryType.ACCELERATOR_DROP)
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    );
 
     // Make sure the table data directory is deleted
     assertFalse(ctasTableDir.exists());

@@ -13,16 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import Immutable from 'immutable';
 import { CALL_API } from 'redux-api-middleware';
+import { explorePageLocationChanged } from '@app/actions/explore/dataset/data';
+import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
 
 import {
   LOCATION_CHANGE,
   getLocationChangePredicate,
-  getExplorePageLocationChangePredicateImpl,
+  getExplorePageLocationChangePredicate,
   getActionPredicate,
   getApiCallCompletePredicate,
   getApiActionTypes,
-  getApiActionEntity
+  getApiActionEntity,
+  needsTransform,
+  isSqlChanged
 } from './utils';
 
 const apiAction = {
@@ -60,73 +65,112 @@ describe('saga utils', () => {
     });
   });
 
-  describe('getExplorePageLocationChangePredicateImpl', () => {
-    const oldLocation = {
-      pathname: '/resources/resourceId/foo',
+  describe('getExplorePageLocationChangePredicate', () => {
+    const generateRouteState = ({
+      path,
+      pageType,
+      query,
+      state
+    }) => ({
+      location: {
+        pathname: path + (pageType ? `/${pageType}` : ''),
+        query,
+        state
+      },
+      params: {
+        pageType
+      }
+    });
+
+    const originalParams = {
+      path: '/resources/resourceId/foo',
       query: { bar: 'bar'},
       state: { a: 'b' }
     };
-    const differentLocation = {
-      pathname: '/resources/resourceId/different',
+    const differentParams = {
+      path: '/resources/resourceId/different',
       query: { bar: 'different'},
       state: { a: 'different'}
     };
-    const predicate = getExplorePageLocationChangePredicateImpl(oldLocation);
+    const predicate = getExplorePageLocationChangePredicate(generateRouteState(originalParams));
+
+    const testPredicate = (newParams, expected) => {
+      expect(predicate(explorePageLocationChanged(generateRouteState(newParams)))).to.be.equal(expected);
+    };
 
     it('returns false if location is not changed', () => {
-      expect(predicate({type: LOCATION_CHANGE, payload: oldLocation})).to.be.false;
+      testPredicate(originalParams, false);
     });
 
-    it('returns false if any action, except location changed action is resecived', () => {
-      expect(predicate({ type: 'foo', payload: differentLocation })).to.be.false;
+    it('returns false if any action, except EXPLORE_PAGE_LOCATION_CHANGED action is received', () => {
+      expect(predicate({ ...explorePageLocationChanged(originalParams, differentParams), type: 'foo' })).to.be.false;
       expect(predicate({ type: 'foo' })).to.be.false;
-      expect(predicate({ type: LOCATION_CHANGE, payload: differentLocation })).to.be.true;
+      testPredicate(differentParams, true);
     });
 
     it('returns true if location.path is changed', () => {
-      expect(predicate({type: LOCATION_CHANGE, payload: {
-        ...oldLocation,
-        pathname: differentLocation.pathname
-      }})).to.be.true;
+      testPredicate({
+        ...originalParams,
+        path: differentParams.path
+      }, true);
+      // treat navigation to details page as location change
+      testPredicate({
+        ...originalParams,
+        pageType: PageTypes.details
+      }, true);
       // should return false if we are navigating to graph/wiki tab
-      expect(predicate({type: LOCATION_CHANGE, payload: {
-        ...oldLocation,
-        pathname: oldLocation.pathname + '/graph'
-      }})).to.be.false;
+      testPredicate({
+        ...originalParams,
+        pageType: PageTypes.graph
+      }, false);
+      testPredicate({
+        ...originalParams,
+        pageType: PageTypes.wiki
+      }, false);
     });
 
     it('returns true if location.query is changed', () => {
-      expect(predicate({type: LOCATION_CHANGE, payload: {
-        ...oldLocation,
-        query: differentLocation.query
-      }})).to.be.true;
+      testPredicate({
+        ...originalParams,
+        query: differentParams.query
+      }, true);
 
-      expect(predicate({type: LOCATION_CHANGE, payload: {
-        ...oldLocation,
+      testPredicate({
+        ...originalParams,
         query: null
-      }})).to.be.true;
+      }, true);
 
-      expect(predicate({type: LOCATION_CHANGE, payload: {
-        ...oldLocation,
+      testPredicate({
+        ...originalParams,
         query: {}
-      }})).to.be.true;
+      }, true);
     });
 
     it('returns false if location.state is changed', () => {
-      expect(predicate({type: LOCATION_CHANGE, payload: {
-        ...oldLocation,
-        state: differentLocation.state
-      }})).to.be.false;
-      expect(predicate({type: LOCATION_CHANGE, payload: {
-        ...oldLocation,
+      testPredicate({
+        ...originalParams,
+        state: differentParams.state
+      }, false);
+      testPredicate({
+        ...originalParams,
         state: null
-      }})).to.be.false;
-      expect(predicate({type: LOCATION_CHANGE, payload: {
-        ...oldLocation,
+      }, false);
+      testPredicate({
+        ...originalParams,
         state: {}
-      }})).to.be.false;
+      }, false);
     });
 
+    it('returns false if location is changed due to the fact, that a dataset was saved as other dataset', () => {
+      // In that case we set state.afterDatasetSave = true
+      testPredicate({
+        ...differentParams,
+        state: {
+          ...differentParams.state,
+          afterDatasetSave: true
+        }
+      }, false);
+    });
   });
 
   describe('getActionPredicate', () => {
@@ -234,6 +278,44 @@ describe('saga utils', () => {
 
       action[CALL_API].types[1] = 'type2';
       expect(getApiActionEntity(action)).to.be.undefined;
+    });
+  });
+
+  it('isSqlChanged should return true only if currentSql !== null and it !== savedSql', () => {
+    expect(isSqlChanged('some sql', null)).to.be.false;
+    expect(isSqlChanged('some sql', undefined)).to.be.false;
+    expect(isSqlChanged('some sql', 'some sql')).to.be.false;
+    expect(isSqlChanged('some sql', 'different sql')).to.be.true;
+    expect(isSqlChanged()).to.be.false;
+    expect(isSqlChanged(null, 'some sql')).to.be.true;
+    expect(isSqlChanged(undefined, 'some sql')).to.be.true;
+  });
+
+  describe('needsTransform', () => {
+    it('should return false if no changes for existing dataset', () => {
+      const dataset = Immutable.fromJS({datasetVersion: 1});
+      const result = needsTransform(dataset);
+      expect(result).to.equal(false);
+    });
+    it('should return true if sql changed', () => {
+      const dataset = Immutable.fromJS({datasetVersion: 1});
+      const result = needsTransform(dataset, [], 'SELECT');
+      expect(result).to.equal(true);
+    });
+    it('should return false if sql is not changed', () => {
+      const dataset = Immutable.fromJS({datasetVersion: 1, sql: 'SELECT'});
+      const result = needsTransform(dataset, [], 'SELECT');
+      expect(result).to.equal(false);
+    });
+    it('should return true if context changed', () => {
+      const dataset = Immutable.fromJS({datasetVersion: 1, sql: 'SELECT', context: ['Prod', '1']});
+      const result = needsTransform(dataset, ['Prod', '2'], 'SELECT');
+      expect(result).to.equal(true);
+    });
+    it('should return false if context not changed', () => {
+      const dataset = Immutable.fromJS({datasetVersion: 1, sql: 'SELECT', context: ['Prod', '1']});
+      const result = needsTransform(dataset, ['Prod', '1'], 'SELECT');
+      expect(result).to.equal(false);
     });
   });
 });

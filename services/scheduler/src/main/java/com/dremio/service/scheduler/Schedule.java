@@ -29,6 +29,7 @@ import java.time.temporal.TemporalAdjuster;
 import java.time.temporal.TemporalAdjusters;
 import java.time.temporal.TemporalAmount;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -45,11 +46,14 @@ public interface Schedule extends Iterable<Instant> {
   /**
    * Builder to create {@code Schedule} instances
    */
-  public static final class Builder {
+  final class Builder {
     private final Instant start;
     private final TemporalAmount amount;
     private final TemporalAdjuster adjuster;
     private final ZoneId zoneId;
+    private final String taskName;
+    private final Long scheduledOwnershipRelease;
+    private final CleanupListener cleanupListener;
 
     private Builder(TemporalAmount amount) {
       this(Instant.now(), amount, NO_ADJUSTMENT, ZoneOffset.UTC);
@@ -60,27 +64,89 @@ public interface Schedule extends Iterable<Instant> {
     }
 
     private Builder(Instant start, TemporalAmount amount, TemporalAdjuster adjuster, ZoneId zoneId) {
+      this(start, amount, adjuster, zoneId, null, null);
+    }
+
+    private Builder(Instant start,
+                    TemporalAmount amount,
+                    TemporalAdjuster adjuster,
+                    ZoneId zoneId,
+                    String taskName,
+                    Long scheduledOwnershipRelease) {
+      this(start, amount, adjuster, zoneId, taskName, scheduledOwnershipRelease,
+        () -> { /*do nothing */ });
+    }
+
+    private Builder(Instant start,
+                    TemporalAmount amount,
+                    TemporalAdjuster adjuster,
+                    ZoneId zoneId,
+                    String taskName,
+                    Long scheduledOwnershipRelease,
+                    CleanupListener cleanupListener) {
       this.start = start;
       this.amount = amount;
       this.adjuster = adjuster;
       this.zoneId = zoneId;
+      this.taskName = taskName;
+      this.scheduledOwnershipRelease = scheduledOwnershipRelease;
+      this.cleanupListener = cleanupListener;
     }
 
     private Builder withAdjuster(TemporalAdjuster adjuster) {
-      return new Builder(this.start, this.amount, adjuster, zoneId);
+      return new Builder(this.start, this.amount, adjuster, zoneId,
+        this.taskName, this.scheduledOwnershipRelease,
+        this.cleanupListener);
     }
 
     public Builder withTimeZone(ZoneId zoneId) {
-      return new Builder(this.start, this.amount, this.adjuster, zoneId);
+      return new Builder(this.start, this.amount, this.adjuster, zoneId,
+        this.taskName, this.scheduledOwnershipRelease,
+        this.cleanupListener);
     }
 
 
     public Builder startingAt(Instant start) {
-      return new Builder(start, this.amount, this.adjuster, zoneId);
+      return new Builder(start, this.amount, this.adjuster, zoneId, this.taskName, this.scheduledOwnershipRelease,
+        this.cleanupListener);
     }
 
     public final Schedule build() {
-      return new BaseSchedule(start, amount, adjuster, zoneId);
+      return new BaseSchedule(
+        start, amount, adjuster, zoneId,
+        taskName, scheduledOwnershipRelease, cleanupListener);
+    }
+
+    public Builder asClusteredSingleton(String taskName) {
+      return new Builder(
+        start,
+        amount,
+        adjuster,
+        zoneId,
+        taskName,
+        scheduledOwnershipRelease);
+    }
+
+    public Builder withCleanup(CleanupListener cleanupListener) {
+      return new Builder(
+        start,
+        amount,
+        adjuster,
+        zoneId,
+        taskName,
+        scheduledOwnershipRelease,
+        cleanupListener);
+    }
+
+    public Builder releaseOwnershipAfter(long number, TimeUnit timeUnit) {
+      timeUnit.toMillis(number);
+      return new Builder(
+        start,
+        amount,
+        adjuster,
+        zoneId,
+        taskName,
+        timeUnit.toMillis(number));
     }
 
     /**
@@ -337,4 +403,47 @@ public interface Schedule extends Iterable<Instant> {
    */
   @Override
   Iterator<Instant> iterator();
+
+  /**
+   * To get name of distributed singleton task
+   * @return
+   */
+  String getTaskName();
+
+  /**
+   * Time period after which to release leadership
+   * in milliseconds
+   * @return
+   */
+  Long getScheduledOwnershipReleaseInMillis();
+
+  /**
+   * To define if it is distributed singleton task
+   * @return
+   */
+  default boolean isDistributedSingleton() {
+    return (getTaskName() != null);
+  }
+
+  /**
+   * To run just once
+   * @return
+   */
+  default boolean isToRunOnce() {
+    return false;
+  }
+
+  /**
+   * To get CleanupListener that will be used
+   * to clean up during distributed singleton task
+   * losing/abandoning leadership
+   * This can/should be used by tasks that need
+   * to clearly differentiate their state while they are leaders
+   * or not leaders
+   * @return CleanupListener
+   */
+  default CleanupListener getCleanupListener() { return () -> {
+    // do nothing by default
+    };
+  }
 }

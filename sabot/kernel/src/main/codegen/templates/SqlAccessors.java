@@ -49,6 +49,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import com.google.common.base.Charsets;
 import io.netty.buffer.ByteBufInputStream;
+import com.dremio.common.util.DremioGetObject;
 import com.dremio.common.util.DremioStringUtils;
 import com.dremio.exec.vector.accessor.sql.TimePrintMillis;
 import org.joda.time.Period;
@@ -233,7 +234,8 @@ public class ${name}Accessor extends AbstractSqlAccessor {
         if (ac.isNull(index)) {
         return null;
         }
-        return DremioStringUtils.formatIntervalDay(ac.getObject(index));
+        return DremioStringUtils.formatIntervalDay(
+          DremioGetObject.getPeriodObject(ac, index));
   }
   <#else>
 @Override
@@ -241,7 +243,8 @@ public Object getObject(int index) {
         if (ac.isNull(index)) {
         return null;
         }
-        return DremioStringUtils.formatIntervalYear(ac.getObject(index));
+        return DremioStringUtils.formatIntervalYear(
+          DremioGetObject.getPeriodObject(ac, index));
         }
   </#if>
 

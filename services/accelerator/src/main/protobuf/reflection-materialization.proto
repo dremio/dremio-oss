@@ -15,6 +15,7 @@
  */
 package com.dremio.service.reflection.proto;
 
+import "../../../../../sabot/kernel/src/main/protobuf/updateid.proto";
 import "../../../../../services/jobs/src/main/protobuf/job.proto";
 import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
 import "reflection-common.proto";
@@ -68,10 +69,11 @@ message Refresh {
   optional string path = 6;
   optional JobDetails job = 7;
   optional MaterializationMetrics metrics = 8;
-  optional int64 update_id = 9;
+  optional int64 legacy_update_id = 9 [deprecated = true];
   repeated DataPartition partition = 10; // nodes containing materialized data
   optional int32 seriesOrdinal = 11 [default = 0]; // refresh order in its series, 0 for initial refresh
   optional bool compacted = 12 [default = false]; // true if this refresh is the result of a compaction
+  optional UpdateId update_id = 13;
 }
 
 // materialization job details
@@ -87,7 +89,7 @@ message JobDetails {
 
 message RefreshDecision {
   optional bool initial_refresh = 1;
-  optional int64 update_id = 2;
+  optional UpdateId update_id = 2;
   optional int64 series_id = 3;
   optional com.dremio.service.namespace.dataset.proto.AccelerationSettings acceleration_settings = 4;
   optional int32 dataset_hash = 5;

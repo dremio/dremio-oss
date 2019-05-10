@@ -15,7 +15,6 @@
  */
 import { Component } from 'react';
 import Radium from 'radium';
-import ReactDOM from 'react-dom';
 import { Overlay, Portal } from 'react-overlays';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
@@ -23,6 +22,10 @@ import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
 import TextHighlight from 'components/TextHighlight';
 import EllipsedText from 'components/EllipsedText';
+import {EXTRA_POPPER_CONFIG} from 'constants/Constants';
+// need this util as MainInfoItemName.js wraps label into a link. If we do not block event bubbling
+// redirect would occur
+import { stopPropagation } from '@app/utils/reactEventUtils';
 import DatasetOverlayContent from './DatasetOverlayContent';
 
 @Radium
@@ -73,8 +76,7 @@ export default class DatasetItemLabel extends Component {
 
   handleClick = (evt) => {
     if (!this.props.shouldShowOverlay) return;
-    evt.preventDefault();
-    evt.stopPropagation();
+    stopPropagation(evt);
     this.setOpenOverlay();
   };
 
@@ -136,7 +138,7 @@ export default class DatasetItemLabel extends Component {
         { node }
         {canShowOverlay && this.state.isOpenOverlay && !this.state.isDragInProgress
         && <Portal container={document && document.body}>
-          <div style={styles.backdrop}>
+          <div style={styles.backdrop} onClick={stopPropagation}>
           </div>
         </Portal>}
         { canShowOverlay && <Overlay
@@ -144,17 +146,22 @@ export default class DatasetItemLabel extends Component {
           show={this.state.isOpenOverlay}
           onHide={this.setCloseOverlay}
           container={document && document.body}
-          target={() => ReactDOM.findDOMNode(this.refs.dataset)}
+          target={() => this.refs.dataset}
+          popperConfig={EXTRA_POPPER_CONFIG}
           placement={this.props.placement || 'left'}>
-          <DatasetOverlayContent
-            fullPath={fullPath}
-            showFullPath
-            placement={this.props.placement}
-            dragType={this.props.dragType}
-            toggleIsDragInProgress={this.toggleIsDragInProgress}
-            typeIcon={typeIcon}
-            onClose={this.setCloseOverlay}
-          />
+          {
+            ({ props: overlayProps }) => <DatasetOverlayContent
+              onRef={overlayProps.ref}
+              style={overlayProps.style}
+              fullPath={fullPath}
+              showFullPath
+              placement={this.props.placement}
+              dragType={this.props.dragType}
+              toggleIsDragInProgress={this.toggleIsDragInProgress}
+              typeIcon={typeIcon}
+              onClose={this.setCloseOverlay}
+            />
+          }
         </Overlay> }
       </div>
     );

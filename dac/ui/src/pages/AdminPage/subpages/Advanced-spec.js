@@ -15,7 +15,7 @@
  */
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
-
+import { LABELS } from './settingsConfig';
 import { Advanced } from './Advanced';
 
 describe('Advanced', () => {
@@ -40,8 +40,7 @@ describe('Advanced', () => {
         '$a': {
           id: '$a',
           value: 1,
-          type: 'INTEGER',
-          showOutsideWhitelist: true
+          type: 'INTEGER'
         }
       })
     };
@@ -54,7 +53,6 @@ describe('Advanced', () => {
 
   it('should getAllSettings on mount', () => {
     shallow(<Advanced {...commonProps} />);
-    expect(commonProps.getAllSettings).to.have.been.calledWith({ viewId: 'ADVANCED_SETTINGS_VIEW_ID' });
+    expect(commonProps.getAllSettings).to.have.been.calledWith(Object.keys(LABELS), false, 'ADVANCED_SETTINGS_VIEW_ID');
   });
-
 });

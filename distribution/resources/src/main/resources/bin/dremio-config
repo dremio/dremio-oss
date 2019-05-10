@@ -99,8 +99,6 @@ if [ ! -d "$DREMIO_LOG_DIR" ] || [ "$DREMIO_LOG_DIR_FALLBACK" = "1" ]; then
   DREMIO_LOG_DIR="$DREMIO_HOME/log"
 fi
 
-mkdir -p "$DREMIO_LOG_DIR/json"
-
 # Add Dremio conf folder at the beginning of the classpath
 DREMIO_CLASSPATH="$DREMIO_CONF_DIR"
 
@@ -238,6 +236,11 @@ else
   DREMIO_MAX_DIRECT_MEMORY_SIZE_MB=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB:-8192}
 fi
 
+#Set Timezone as UTC if DREMIO_FORCE_UTC is not set
+if [ "$DREMIO_FORCE_UTC" != "no" ]; then
+  export TZ=UTC
+fi
+
 # make sure allocator chunks are done as mmap'd memory (and reduce arena overhead)
 # Newer versions of glibc use an arena memory allocator that causes virtual
 # memory usage to explode. Tune the variable down to prevent vmem explosion.
@@ -258,3 +261,5 @@ export DREMIO_LOG_DIR
 export DREMIO_CLASSPATH
 export DREMIO_MAX_HEAP_MEMORY_SIZE_MB
 export DREMIO_MAX_DIRECT_MEMORY_SIZE_MB
+export DREMIO_ADMIN_LOG_DIR
+export DREMIO_ADMIN_LOG_VERBOSITY

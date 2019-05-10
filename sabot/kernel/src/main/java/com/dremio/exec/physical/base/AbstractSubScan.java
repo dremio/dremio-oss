@@ -22,28 +22,36 @@ import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.graph.GraphVisitor;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
+import com.dremio.exec.planner.fragment.MinorDataReader;
+import com.dremio.exec.planner.fragment.MinorDataWriter;
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
-public abstract class AbstractSubScan extends AbstractBase implements SubScan {
+public abstract class AbstractSubScan extends AbstractBase implements SubScan, OpWithMinorSpecificAttrs, Cloneable {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractSubScan.class);
 
-  private final BatchSchema schema;
+  private final BatchSchema fullSchema;
   private final Collection<List<String>> referencedTables;
 
-  public AbstractSubScan(String userName, BatchSchema schema, Collection<List<String>> referencedTableList) {
-    super(userName);
-    this.schema = schema;
-    this.referencedTables = referencedTableList;
+  public AbstractSubScan(
+      OpProps props,
+      BatchSchema fullSchema,
+      Collection<List<String>> referencedTables) {
+    super(props);
+    this.fullSchema = fullSchema;
+    this.referencedTables = referencedTables;
   }
 
-  public AbstractSubScan(String userName, BatchSchema schema, List<String> tablePath) {
-    super(userName);
-    this.schema = schema;
+  public AbstractSubScan(
+      OpProps props,
+      BatchSchema fullSchema,
+      List<String> tablePath
+      ) {
+    super(props);
+    this.fullSchema = fullSchema;
     if (tablePath == null) {
       this.referencedTables = ImmutableList.of();
     } else {
@@ -80,7 +88,12 @@ public abstract class AbstractSubScan extends AbstractBase implements SubScan {
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
     assert children == null || children.isEmpty();
-    return this;
+
+    try {
+      return (PhysicalOperator)this.clone();
+    } catch (CloneNotSupportedException e) {
+      throw new ExecutionSetupException("failed when cloning", e);
+    }
   }
 
   @Override
@@ -95,13 +108,14 @@ public abstract class AbstractSubScan extends AbstractBase implements SubScan {
     return Collections.emptyIterator();
   }
 
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    return schema;
+  @JsonProperty("fullSchema")
+  public BatchSchema getFullSchema() {
+    return fullSchema;
   }
 
-  @JsonProperty("schema")
-  public BatchSchema getSchema() {
-    return schema;
-  }
+  @Override
+  public void collectMinorSpecificAttrs(MinorDataWriter writer) throws Exception {}
+
+  @Override
+  public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {}
 }

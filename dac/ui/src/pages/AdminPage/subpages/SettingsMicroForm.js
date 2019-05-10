@@ -24,7 +24,6 @@ import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectCo
 import SimpleButton from 'components/Buttons/SimpleButton';
 import TextField from 'components/Fields/TextField';
 import Toggle from 'components/Fields/Toggle';
-import FieldWithError from 'components/Fields/FieldWithError';
 import { isInteger, isNumber, isRequired } from 'utils/validation';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import settingActions from 'actions/resources/setting';
@@ -39,9 +38,9 @@ export class SettingsMicroForm extends PureComponent {
     settingId: PropTypes.string.isRequired,
     setting: PropTypes.instanceOf(Immutable.Map),
     putSetting: PropTypes.func.isRequired,
-    getSetting: PropTypes.func.isRequired,
     fields: PropTypes.object.isRequired,
     showLabel: PropTypes.bool.isRequired,
+    allowEmpty: PropTypes.bool,
     style: PropTypes.object,
     resetSetting: PropTypes.func
   }
@@ -57,8 +56,7 @@ export class SettingsMicroForm extends PureComponent {
 
     const data = {
       ...this.props.setting.toJS(),
-      ...form,
-      showOutsideWhitelist: true
+      ...form
     };
 
     const type = this.props.setting.get('type');
@@ -68,7 +66,7 @@ export class SettingsMicroForm extends PureComponent {
 
     return ApiUtils.attachFormSubmitHandlers(
       this.props.putSetting(data, {viewId: this.props.viewId})
-    ).then(() => this.props.getSetting(this.props.settingId, {viewId: this.props.viewId}));
+    );
   }
 
   remove = () => {
@@ -83,7 +81,7 @@ export class SettingsMicroForm extends PureComponent {
 
     switch (this.props.setting.get('type')) {
     case 'BOOLEAN':
-      return <div style={{display: 'inline-block', marginTop: 2, marginLeft: 3, verticalAlign: '-0.8em'}}>
+      return <div style={{display: 'inline-block', marginTop: 2, marginLeft: 3}}>
         <Toggle {...this.props.fields.value} />
       </div>;
     case 'INTEGER':
@@ -123,21 +121,19 @@ export class SettingsMicroForm extends PureComponent {
       label = <b style={{display: 'block'}}>{LABELS[id] || id}:</b>;
     }
     return <InnerComplexForm {...this.props} onSubmit={this.submit} style={{display: 'block'}}>
-      <FieldWithError errorPlacement='right' {...this.props.fields.value}>
-        <div style={{...this.props.style, display: 'inline-block', paddingRight: 20}}>
-          <label>
-            {label}
-            {this.renderField()}
-          </label>
-          {/* todo: by default buttons and textfields and toggles don't align. need to (carefully) fix */}
-          <SimpleButton buttonStyle='secondary' style={saveButtonStyle}>
-            {la('Save')}
-          </SimpleButton>
-          { this.props.resetSetting && <SimpleButton onClick={this.remove} buttonStyle='secondary' style={buttonStyle}>
-            {la('Reset')}
-          </SimpleButton>}
-        </div>
-      </FieldWithError>
+      <div style={{...this.props.style, display: 'inline-block', paddingRight: 20}}>
+        <label>
+          {label}
+          {this.renderField()}
+        </label>
+        {/* todo: by default buttons and textfields and toggles don't align. need to (carefully) fix */}
+        <SimpleButton buttonStyle='secondary' style={saveButtonStyle}>
+          {la('Save')}
+        </SimpleButton>
+        { this.props.resetSetting && <SimpleButton onClick={this.remove} buttonStyle='secondary' style={buttonStyle}>
+          {la('Reset')}
+        </SimpleButton>}
+      </div>
     </InnerComplexForm>;
   }
 }
@@ -158,7 +154,7 @@ const ConnectedForm = connectComplexForm({
       return;
     }
 
-    let errors = {
+    let errors = (props.allowEmpty) ? {} : {
       ...isRequired('value', 'Value')(values)
     };
 
@@ -172,8 +168,7 @@ const ConnectedForm = connectComplexForm({
     return errors;
   }
 }, [], mapToFormState, {
-  putSetting: settingActions.put.dispatch,
-  getSetting: settingActions.get.dispatch
+  putSetting: settingActions.put.dispatch
 })(SettingsMicroForm);
 
 // This little guard makes sure that the form doesn't initialize with the wrong value type with the data is loading in

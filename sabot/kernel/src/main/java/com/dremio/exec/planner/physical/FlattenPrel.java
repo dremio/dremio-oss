@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
@@ -26,15 +28,29 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.Describer;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.config.AbstractSchemaConverter;
 import com.dremio.exec.physical.config.FlattenPOP;
 import com.dremio.exec.planner.logical.ParseContext;
 import com.dremio.exec.planner.logical.RexToExpr;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 
+@Options
 public class FlattenPrel extends SinglePrel implements Prel {
+
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FlattenPrel.class);
+
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.flatten.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.flatten.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   RexNode toFlatten;
 
@@ -63,8 +79,28 @@ public class FlattenPrel extends SinglePrel implements Prel {
     Prel child = (Prel) this.getInput();
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
-    FlattenPOP f = new FlattenPOP(childPOP, (SchemaPath) getFlattenExpression(new ParseContext(PrelUtil.getSettings(getCluster()))));
-    return creator.addMetadata(this, f);
+
+    SchemaPath column = (SchemaPath) getFlattenExpression(new ParseContext(PrelUtil.getSettings(getCluster())));
+    SchemaBuilder builder = BatchSchema.newBuilder();
+
+    BatchSchema batchSchema = childPOP.getProps().getSchema();
+    // flatten operator currently puts the flattened field first
+    Field flattenField = batchSchema.findField(column.getAsUnescapedPath());
+    builder.addField(flattenField.getType().accept(new SchemaConverter(flattenField, column)));
+    for(Field f : batchSchema){
+      if (f.getName().equals(column.getAsUnescapedPath())) {
+        continue;
+      }
+      builder.addField(f.getType().accept(new SchemaConverter(f, column)));
+    }
+
+    builder.setSelectionVectorMode(SelectionVectorMode.NONE);
+    BatchSchema schema = builder.build();
+
+    return new FlattenPOP(
+        creator.props(this, null, schema, RESERVE, LIMIT),
+        childPOP,
+        column);
   }
 
   @Override
@@ -79,5 +115,34 @@ public class FlattenPrel extends SinglePrel implements Prel {
 
   protected LogicalExpression getFlattenExpression(ParseContext context){
     return RexToExpr.toExpr(context, getInput().getRowType(), getCluster().getRexBuilder(), toFlatten);
+  }
+
+
+  private static class SchemaConverter extends AbstractSchemaConverter {
+
+    private final SchemaPath column;
+
+    public SchemaConverter(Field field, SchemaPath column) {
+      super(field);
+      this.column = column;
+    }
+
+    @Override
+    public Field visit(ArrowType.List type) {
+      if(field.getName().equals(column.getAsUnescapedPath())){
+        Field child = field.getChildren().get(0);
+        return new Field(field.getName(), child.isNullable(), child.getType(), child.getChildren());
+      }
+      return field;
+    }
+
+    @Override
+    public Field visitGeneric(ArrowType type) {
+      if(field.getName().equals(column.getAsUnescapedPath())){
+        throw UserException.validationError().message("You're trying to flatten a field that is not a list. The offending field is %s.", Describer.describe(field)).build(logger);
+      }
+      return super.visitGeneric(type);
+    }
+
   }
 }

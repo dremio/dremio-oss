@@ -17,12 +17,15 @@ package com.dremio.sabot.op.aggregate.vectorized;
 
 import static java.util.Arrays.asList;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedWidthVector;
+import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.AutoCloseables;
@@ -467,6 +470,17 @@ abstract class BaseSingleAccumulator implements Accumulator {
     }
   }
 
+  public static void writeWordwise(ArrowBuf buffer, int length, BigDecimal value) {
+    if (length == 0) {
+      return;
+    }
+    int numberOfDecimals = length >>>4;
+    byte [] valueInLEBytes = value.unscaledValue().toByteArray();
+    IntStream.range(0, numberOfDecimals).forEach( (index) -> {
+      DecimalUtility.writeByteArrayToArrowBuf(valueInLEBytes, buffer, index);
+    });
+  }
+
   public static void fillInts(long addr, int length, int value) {
     if (length == 0) {
       return;
@@ -518,6 +532,14 @@ abstract class BaseSingleAccumulator implements Accumulator {
     writeWordwise(bits.memoryAddress(), bits.capacity(), ON);
     ArrowBuf values = buffers.get(1);
     writeWordwise(values.memoryAddress(), values.capacity(), OFF);
+  }
+
+  public static void setNullAndValue(FieldVector vector, BigDecimal value){
+    List<ArrowBuf> buffers = vector.getFieldBuffers();
+    ArrowBuf bits = buffers.get(0);
+    writeWordwise(bits.memoryAddress(), bits.capacity(), OFF);
+    ArrowBuf values = buffers.get(1);
+    writeWordwise(values, values.capacity(), value);
   }
 
   /**

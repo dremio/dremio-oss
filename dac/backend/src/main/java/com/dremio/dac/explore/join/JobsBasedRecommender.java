@@ -46,9 +46,10 @@ import com.dremio.service.job.proto.JoinStats;
 import com.dremio.service.job.proto.JoinTable;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.Origin;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableListMultimap;
@@ -63,15 +64,12 @@ public class JobsBasedRecommender implements JoinRecommender {
   private static final int MAX_JOBS = 5000;
 
   private final ParentJobsProvider parentJobsProvider;
+  private final NamespaceService namespaceService;
 
   @Inject
-  public JobsBasedRecommender(JobsService jobsService) {
-    this(new JobsServiceParentJobsProvider(jobsService));
-  }
-
-  @VisibleForTesting
-  JobsBasedRecommender(ParentJobsProvider parentJobsProvider) {
-    this.parentJobsProvider = parentJobsProvider;
+  public JobsBasedRecommender(JobsService jobsService, NamespaceService namespaceService) {
+    this.parentJobsProvider = new JobsServiceParentJobsProvider(jobsService);
+    this.namespaceService = namespaceService;
   }
 
   @Override
@@ -88,9 +86,10 @@ public class JobsBasedRecommender implements JoinRecommender {
     Map<Origin, String> refs = new HashMap<>();
     indexOrigins(fieldOriginsList, parents, refs);
 
-    long now = System.currentTimeMillis();
-
+    final long now = System.currentTimeMillis();
     final List<JoinRecoForScoring> recommendations = new ArrayList<>();
+    // we cache namespace checks since we are very likely to see repeated datasets
+    final Map<NamespaceKey, Boolean> existsMap = new HashMap<>();
 
     // 2nd step: for each parent table we look for existing joins.
     for (List<String> parentDataset : parents) {
@@ -119,8 +118,14 @@ public class JobsBasedRecommender implements JoinRecommender {
             if (join.getJoinConditionsList() == null || join.getJoinConditionsList().isEmpty()) {
               continue;
             }
-            List<String> leftTablePathList = joinTables.get(join.getJoinConditionsList().get(0).getProbeSideTableId()).getTableSchemaPathList();
-            List<String> rightTablePathList = joinTables.get(join.getJoinConditionsList().get(0).getBuildSideTableId()).getTableSchemaPathList();
+            final List<String> leftTablePathList = joinTables.get(join.getJoinConditionsList().get(0).getProbeSideTableId()).getTableSchemaPathList();
+            final List<String> rightTablePathList = joinTables.get(join.getJoinConditionsList().get(0).getBuildSideTableId()).getTableSchemaPathList();
+
+            // if any of the join sides no longer exists in namespace, skip it
+            if (!checkIfExists(existsMap, leftTablePathList) || !checkIfExists(existsMap, rightTablePathList)) {
+              continue;
+            }
+
             if (parents.contains(leftTablePathList)) {
               addJoinReco(refs, recommendations, recency, join, rightTablePathList, leftTablePathList, joinTables);
             }
@@ -152,6 +157,17 @@ public class JobsBasedRecommender implements JoinRecommender {
     }
     Collections.sort(mergedRecommendations);
     return recos(mergedRecommendations);
+  }
+
+  private boolean checkIfExists(final Map<NamespaceKey, Boolean> existsMap, List<String> path) {
+    final NamespaceKey key = new NamespaceKey(path);
+    if (existsMap.containsKey(key)) {
+      return existsMap.get(key);
+    }
+
+    final boolean exists = namespaceService.exists(key);
+    existsMap.put(key, exists);
+    return exists;
   }
 
   private void indexOrigins(final List<FieldOrigin> fieldOriginsList, Set<List<String>> parents,

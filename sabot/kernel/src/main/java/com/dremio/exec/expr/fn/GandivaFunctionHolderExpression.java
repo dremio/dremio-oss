@@ -41,7 +41,7 @@ public class GandivaFunctionHolderExpression extends FunctionHolderExpression im
 
   @Override
   public CompleteType getCompleteType() {
-      return holder.getReturnType();
+      return holder.getReturnType(args);
     }
 
   @Override

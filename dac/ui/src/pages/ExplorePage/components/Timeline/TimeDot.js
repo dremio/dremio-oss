@@ -13,32 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import ReactDOM from 'react-dom';
+import { Component, Fragment, createRef } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
-import { Overlay } from 'react-overlays';
 import { Link } from 'react-router';
 
-// import FontIcon from 'components/Icon/FontIcon';
-import { EXPLORE_PROGRESS_STATES } from 'constants/Constants';
-import Spinner from 'components/Spinner';
-
-import { HISTORY_ITEM_COLOR, ORANGE, NAVY } from 'uiTheme/radium/colors';
+import { Tooltip } from '@app/components/Tooltip';
+import { HISTORY_ITEM_COLOR, ORANGE } from 'uiTheme/radium/colors';
 import { h5White /*, bodySmallWhite*/ } from 'uiTheme/radium/typography';
 import { TIME_DOT_DIAMETER } from 'uiTheme/radium/sizes';
 import EllipsedText from 'components/EllipsedText';
-
 @Radium
-export default class TimeDot extends Component {
+export class TimeDot extends Component {
   static propTypes = {
     historyItem: PropTypes.instanceOf(Immutable.Map).isRequired,
     tipVersion: PropTypes.string.isRequired,
     activeVersion: PropTypes.string.isRequired,
     hideDelay: PropTypes.number,
-    location: PropTypes.object.isRequired,
-    datasetPathname: PropTypes.string.isRequired
+    location: PropTypes.object.isRequired
   };
 
   static defaultProps = {
@@ -46,38 +39,22 @@ export default class TimeDot extends Component {
     historyItem: Immutable.Map()
   };
 
-  constructor(props) {
-    super(props);
+  state = {
+    open: false
+  };
 
-    this.canClose = true;
+  targetRef = createRef();
 
-    this.state = {
-      open: false,
-      triangleOffsetY: 0
-    };
-
-    this.popoverHash = {
-      'DONE': this.renderCompletedContent,
-      'COMPLETED': this.renderCompletedContent,
-      'CANCELED': this.renderCompletedContent,
-      'ENQUEUED': this.renderCompletedContent,
-      'STARTED': this.renderProgressContent,
-      'RUNNING': this.renderProgressContent,
-      'NOT_SUBMITTED': this.renderCompletedContent,
-      'NOT STARTED': this.renderProgressContent
-    };
-  }
-
-  canClose = false;
+  getTooltipTarget = () => this.state.open ? this.targetRef.current : null;
 
   getLinkLocation() {
-    const { tipVersion, historyItem, datasetPathname, location } = this.props;
+    const { tipVersion, historyItem, location } = this.props;
     const query = location && location.query || {};
     if (query.version === historyItem.get('datasetVersion')) {
       return null;
     }
     return {
-      pathname: datasetPathname,
+      pathname: location.pathname,
       query: {
         ...((query.mode ? {mode: query.mode} : {})),
         tipVersion,
@@ -94,26 +71,14 @@ export default class TimeDot extends Component {
     }, this.props.hideDelay);
   }
 
+  componentWillUnmount() {
+    clearTimeout(this.hideTimeout);
+  }
+
   handleMouseEnter = (e) => {
-    if (this.hideTimeout) {
-      clearTimeout(this.hideTimeout);
-    }
-    const clientRect = e.target.getBoundingClientRect();
-    // to place overlay triangular pointer, calculate it's vertical offset:
-    // starting with Y of the dot and, when popover box is rendered, adjust offset
-    // by the top coordinate of the popover
+    clearTimeout(this.hideTimeout);
     this.setState({
-      open: true,
-      triangleOffsetY: clientRect.top + clientRect.height / 2
-    }, () => {
-      setTimeout(() => {
-        const popover = ReactDOM.findDOMNode(this.refs.popover);
-        if (popover) {
-          this.setState((state) => {
-            return {triangleOffsetY : state.triangleOffsetY - popover.offsetTop};
-          });
-        }
-      }, 10);
+      open: true
     });
   }
 
@@ -127,75 +92,67 @@ export default class TimeDot extends Component {
     return wrap ? <div>{node}</div> : node;
   }
 
-  renderProgressContent = () => {
-    return (
-      <div>
-        {this.renderCompletedContent(false)}
-        <div style={[styles.progress]}>
-          <Spinner containerStyle={styles.progressIcon.Container} iconStyle={styles.progressIcon.Icon}/>
-        </div>
-        {/*DX-8023 <div style={[styles.popoverFooterWrap]}>
-          <span style={[bodySmallWhite, styles.cancel]}>
-            <FontIcon type='CanceledGray' theme={styles.cancelIcon}/>
-            <span style={styles.cancelText}>Cancel Job</span>
-          </span>
-        </div>*/}
-      </div>
-    );
-  }
-
   renderContent() {
     const { historyItem, activeVersion } = this.props;
 
     const activeStyle = activeVersion === historyItem.get('datasetVersion')
       ? styles.activeStyle
       : {};
-    const circle = EXPLORE_PROGRESS_STATES.indexOf(historyItem.get('state')) !== -1
-      ? <Spinner containerStyle={styles.spinner.Container} iconStyle={styles.spinner.Icon}/>
-      : <div style={[styles.circle, activeStyle]}/>;
-
-    const popoverContent = this.popoverHash[historyItem.get('state')] &&
-        this.popoverHash[historyItem.get('state')]();
+    // Talked to Jeff. It is ok to not show a spinner for loading history items. May be we will return
+    // this functionality later. The issue with this is that we cancel job listener if we navigate to
+    // a new version. If a user alter and preview query to quickly, some history items could stuck
+    // in progress mode
+    const circle = <div style={[styles.circle, activeStyle]}/>;
     return <div>
       <div
+        key='dot'
         data-qa='time-dot-target'
-        onMouseEnter={this.handleMouseEnter}
-        onMouseLeave={this.handleMouseLeave}
-        style={styles.wrapStyle}
-        ref='target'>
+      >
         {circle}
       </div>
-      <Overlay
-        show={this.state.open}
-        container={document.body}
-        placement='left'
-        target={() => ReactDOM.findDOMNode(this.refs.target)}>
-        <div style={styles.popoverWrap} ref='popover'>
-          <div style={{...styles.triangle, top: this.state.triangleOffsetY}}/>
-          <div
-            data-qa='time-dot-popover'
-            style={styles.popover}>
-            {popoverContent}
-          </div>
-        </div>
-      </Overlay>
     </div>;
   }
 
   render() {
     const linkLocation = this.getLinkLocation();
-    if (linkLocation) {
-      return <Link
+    const commonProps = {
+      onMouseEnter: this.handleMouseEnter,
+      onMouseLeave: this.handleMouseLeave,
+      ref: this.targetRef
+    };
+    const dotEl = linkLocation ? (
+      <Link
         className='time-dot'
         style={styles.base}
         to={linkLocation}
+        {...commonProps}
       >
         {this.renderContent()}
-      </Link>;
-    }
-    return <span className='time-dot' style={styles.base}>{this.renderContent()}</span>;
+      </Link>
+    ) : (
+      <span className='time-dot' style={styles.base}
+        {...commonProps}
+      >
+        {this.renderContent()}
+      </span>
+    );
+
+    return <Fragment>
+      {dotEl}
+      <Tooltip
+        container={document.body}
+        placement='left'
+        target={this.getTooltipTarget}
+        tooltipInnerStyle={styles.popover}
+        dataQa='time-dot-popover'
+      >
+        {this.renderCompletedContent()}
+      </Tooltip>
+    </Fragment>;
   }
 }
+
+export default TimeDot;
 
 const styles = {
   base: {
@@ -203,14 +160,6 @@ const styles = {
     width: 30,
     height: TIME_DOT_DIAMETER,
     marginTop: 10,
-    position: 'relative',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  wrapStyle: {
-    minWidth: 30,
-    minHeight: 15,
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center'
@@ -222,65 +171,9 @@ const styles = {
     paddingRight: 10,
     whiteSpace: 'inherit'
   },
-  progress: {
-    display: 'flex',
-    alignItems: 'center',
-    height: 20
-  },
-  cancelText: {
-    position: 'relative',
-    top: 1
-  },
-  cancelIcon: {
-    Container: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      left: -4,
-      position: 'relative'
-    },
-    Icon: {
-      width: 24,
-      height: 24
-    }
-  },
-  progressIcon: {
-    Container: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      left: -5,
-      position: 'relative'
-    },
-    Icon: {
-      width: 25,
-      height: 25
-    }
-  },
   popoverTitle: {
     display: 'flex',
     justifyContent: 'space-between'
-  },
-  cancel: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    cursor: 'pointer'
-  },
-  spinner: {
-    Icon: {
-      width: 15,
-      height: 15,
-      position: 'relative',
-      cursor: 'pointer',
-      borderRadius: 20,
-      backgroundSize: '23px 23px',
-      backgroundPosition: 'center'
-    },
-    Container: {
-      width: 30,
-      height: 30,
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center'
-    }
   },
   pointer: {
     cursor: 'pointer'
@@ -291,37 +184,10 @@ const styles = {
     height: TIME_DOT_DIAMETER,
     borderRadius: TIME_DOT_DIAMETER / 2
   },
-  popoverWrap: {
-    minWidth: 345,
-    maxWidth: 350,
-    backgroundColor: NAVY,
-    overflow: 'visible',
-    boxShadow: '2px 2px 5px 0px rgba(0,0,0,0.05)',
-    borderRadius: 2,
-    position: 'absolute'
-  },
-  triangle: {
-    width: 0,
-    height: 0,
-    borderStyle: 'solid',
-    borderWidth: '5px 0 5px 6px',
-    borderColor: `transparent transparent transparent ${NAVY}`,
-    right: -5,
-    transform: 'translateY(-50%)',
-    position: 'absolute',
-    backgroundColor: 'transparent'
-  },
   activeStyle: {
     backgroundColor: ORANGE
   },
-  popoverFooterWrap: {
-    display: 'flex',
-    alignItems: 'center',
-    height: 23,
-    justifyContent: 'space-between'
-  },
   popover: {
-    padding: 10,
     minHeight: 46,
     maxHeight: 298, // to cut last visible line in half in case of overflow
     overflow: 'hidden',

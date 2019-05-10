@@ -28,11 +28,6 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 
-import com.dremio.common.expression.FieldReference;
-import com.dremio.common.expression.LogicalExpression;
-import com.dremio.common.logical.data.LogicalOperator;
-import com.dremio.common.logical.data.NamedExpression;
-import com.dremio.common.logical.data.Project;
 import com.google.common.base.Preconditions;
 
 public class ProjectForFlattenRel extends SingleRel implements Rel {
@@ -69,22 +64,6 @@ public class ProjectForFlattenRel extends SingleRel implements Rel {
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     return super.explainTerms(pw).item("projExprs", projExprs).item("itemExprs", this.itemExprs);
-  }
-
-  @Override
-  public LogicalOperator implement(LogicalPlanImplementor implementor) {
-    LogicalOperator inputOp = implementor.visitChild(this, 0, getInput());
-    Project.Builder builder = Project.builder();
-    builder.setInput(inputOp);
-
-    // This is not a complete description of this rel node.  Should also include the itemExprs.
-    int index = 0;
-    for (RexNode rex : projExprs) {
-      LogicalExpression expr = RexToExpr.toExpr(implementor.getContext(), getInput().getRowType(), getCluster().getRexBuilder(), rex);
-      builder.addExpr(new NamedExpression(expr, FieldReference.getWithQuotedRef(getRowType().getFieldNames().get(index))));
-      index++;
-    }
-    return builder.build();
   }
 
   @Override

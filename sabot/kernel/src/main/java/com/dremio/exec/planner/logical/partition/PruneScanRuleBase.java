@@ -96,8 +96,8 @@ import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetFilterCondition.FilterProperties;
 import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.dremio.service.namespace.dataset.proto.PartitionValue;
+import com.dremio.service.namespace.PartitionChunkMetadata;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -114,7 +114,7 @@ import com.google.common.collect.Maps;
 public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> extends RelOptRule {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PruneScanRuleBase.class);
 
-  private static final long MIN_TO_LOG_INFO_MS = 5000;
+  private static final long MIN_TO_LOG_INFO_MS = 10000;
 
   public static final int PARTITION_BATCH_SIZE = Character.MAX_VALUE;
   final private OptimizerRulesContext optimizerContext;
@@ -153,10 +153,10 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
   }
 
   private static class EvaluationPruningResult {
-    private final ImmutableList<DatasetSplit> finalSplits;
+    private final ImmutableList<PartitionChunkMetadata> finalSplits;
     private final int totalRecords;
 
-    private EvaluationPruningResult(List<DatasetSplit> finalSplits, int allRecords) {
+    private EvaluationPruningResult(List<PartitionChunkMetadata> finalSplits, int allRecords) {
       this.finalSplits = ImmutableList.copyOf(finalSplits);
       this.totalRecords = allRecords;
     }
@@ -301,13 +301,11 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       PlannerSettings settings,
       RexNode pruneCondition,
       T scanRel,
-      Pointer<List<DatasetSplit>> finalSplits){
+      Pointer<List<PartitionChunkMetadata>> finalSplits){
     final int batchSize = PARTITION_BATCH_SIZE;
 
-    final ImmutableList.Builder<DatasetSplit> selectedSplits = ImmutableList.builder();
+    final ImmutableList.Builder<PartitionChunkMetadata> selectedSplits = ImmutableList.builder();
     final Stopwatch miscTimer = Stopwatch.createUnstarted();
-
-
 
     // Convert the condition into an expression
     logger.debug("Attempting to prune {}", pruneCondition);
@@ -327,15 +325,15 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     int batchIndex = 0;
     int recordCount = 0;
     int qualifiedCount = 0;
-    Iterator<DatasetSplit> splitIter = tableMetadata.getSplits();
+    Iterator<PartitionChunkMetadata> splitIter = tableMetadata.getSplits();
     LogicalExpression materializedExpr = null;
 
     do {
       miscTimer.start();
 
-      List<DatasetSplit> splitsInBatch = new ArrayList<>();
+      List<PartitionChunkMetadata> splitsInBatch = new ArrayList<>();
       for(int splitsLoaded = 0; splitsLoaded < batchSize && splitIter.hasNext(); ++splitsLoaded) {
-        final DatasetSplit split = splitIter.next();
+        final PartitionChunkMetadata split = splitIter.next();
         splitsInBatch.add(split);
       }
 
@@ -370,14 +368,9 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
         miscTimer.start();
 
         int splitsLoaded = 0;
-        for(DatasetSplit split: splitsInBatch) {
-          if (split.getPartitionValuesList() == null) {
-            ++splitsLoaded;
-            continue;
-          }
-
+        for(PartitionChunkMetadata split: splitsInBatch) {
           // load partition values
-          for (PartitionValue partitionValue : split.getPartitionValuesList()) {
+          for (PartitionValue partitionValue : split.getPartitionValues()) {
             final int columnIndex = partitionColumnsToIdMap.get(partitionValue.getColumn());
             // TODO (AH) handle invisible columns partitionColumnIdToTypeMap is built from row data type which may or may not have $update column
             if (partitionColumnIdToTypeMap.containsKey(columnIndex)) {
@@ -412,7 +405,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
           if (!output.isNull(i) && output.get(i) == 1) {
             // select this partition
             qualifiedCount++;
-            final DatasetSplit split = splitsInBatch.get(i);
+            final PartitionChunkMetadata split = splitsInBatch.get(i);
             selectedSplits.add(split);
           }
           recordCount++;
@@ -424,7 +417,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       }
     } while (splitIter.hasNext());
 
-    List<DatasetSplit> finalNewSplits = selectedSplits.build();
+    List<PartitionChunkMetadata> finalNewSplits = selectedSplits.build();
 
     // Store results in local cache
     evalutationPruningCache.put(cacheKey, new EvaluationPruningResult(finalNewSplits, recordCount));
@@ -474,8 +467,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       }
 
       if (partitionColumnBitSet.isEmpty()) {
-        logger.debug("No partition columns are projected from the scan..continue. " +
-          "Total pruning elapsed time: {} ms", totalPruningTime.elapsed(TimeUnit.MILLISECONDS));
+        logger.debug("No partition columns are projected from the scan.");
         return;
       }
 
@@ -498,8 +490,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       longRun = elapsed > MIN_TO_LOG_INFO_MS;
       if (pruneCondition == null) {
         if(longRun) {
-          logger.info("No conditions were found eligible for partition pruning." +
-            "Total pruning elapsed time: {} ms", totalPruningTime.elapsed(TimeUnit.MILLISECONDS));
+          logger.info("No conditions were found eligible for partition pruning.");
         }
         return;
       }
@@ -513,10 +504,10 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       stopwatch.stop();
       logger.debug("Partition pruning using search index took {} ms", stopwatch.elapsed(TimeUnit.MILLISECONDS));
       final boolean evalPruned;
-      final List<DatasetSplit> finalNewSplits;
+      final List<PartitionChunkMetadata> finalNewSplits;
       if(!outputCondition.value.isAlwaysTrue()){
         // do interpreter-based evaluation
-        Pointer<List<DatasetSplit>> prunedOutput = new Pointer<>();
+        Pointer<List<PartitionChunkMetadata>> prunedOutput = new Pointer<>();
         stopwatch.start();
         evalPruned = doEvalPruning(filterRel, fieldNameMap, partitionColumnsToIdMap, partitionColumnBitSet, dataset.value, settings, outputCondition.value, scanRel, prunedOutput);
         stopwatch.stop();
@@ -596,10 +587,13 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     } catch (Exception e) {
       logger.warn("Exception while using the pruned partitions.", e);
     } finally {
+      totalPruningTime.stop();
+      final long elapsed = totalPruningTime.elapsed(TimeUnit.MILLISECONDS);
+      longRun = elapsed > MIN_TO_LOG_INFO_MS;
       if(longRun) {
-        logger.info("Total pruning elapsed time: {} ms", totalPruningTime.elapsed(TimeUnit.MILLISECONDS));
+        logger.info("Total pruning elapsed time: {} ms", elapsed);
       } else {
-        logger.debug("Total pruning elapsed time: {} ms", totalPruningTime.elapsed(TimeUnit.MILLISECONDS));
+        logger.debug("Total pruning elapsed time: {} ms", elapsed);
       }
     }
   }
@@ -608,78 +602,70 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     switch (majorType.getMinorType()) {
       case INT: {
         IntVector intVector = (IntVector) vv;
-        if(pv.getIntValue() != null){
+        if(pv.hasIntValue()){
           intVector.setSafe(index, pv.getIntValue());
         }
         return;
       }
       case SMALLINT: {
         SmallIntVector smallIntVector = (SmallIntVector) vv;
-        Integer value = pv.getIntValue();
-        if(value != null){
-          smallIntVector.setSafe(index, value.shortValue());
+        if(pv.hasIntValue()){
+          smallIntVector.setSafe(index, (short) pv.getIntValue());
         }
         return;
       }
       case TINYINT: {
         TinyIntVector tinyIntVector = (TinyIntVector) vv;
-        Integer value = pv.getIntValue();
-        if(value != null){
-          tinyIntVector.setSafe(index, value.byteValue());
+        if(pv.hasIntValue()){
+          tinyIntVector.setSafe(index, (byte) pv.getIntValue());
         }
         return;
       }
       case UINT1: {
         UInt1Vector intVector = (UInt1Vector) vv;
-        Integer value = pv.getIntValue();
-        if(value != null){
-          intVector.setSafe(index, value.byteValue());
+        if(pv.hasIntValue()){
+          intVector.setSafe(index, pv.getIntValue());
         }
         return;
       }
       case UINT2: {
         UInt2Vector intVector = (UInt2Vector) vv;
-        Integer value = pv.getIntValue();
-        if(value != null){
-          intVector.setSafe(index, (char) value.shortValue());
+        if(pv.hasIntValue()){
+          intVector.setSafe(index, (char) pv.getIntValue());
         }
         return;
       }
       case UINT4: {
         UInt4Vector intVector = (UInt4Vector) vv;
-        Integer value = pv.getIntValue();
-        if(value != null){
-          intVector.setSafe(index, value);
+        if(pv.hasIntValue()){
+          intVector.setSafe(index, pv.getIntValue());
         }
         return;
       }
       case BIGINT: {
         BigIntVector bigIntVector = (BigIntVector) vv;
-        Long value = pv.getLongValue();
-        if(value != null){
-          bigIntVector.setSafe(index, value);
+        if(pv.hasLongValue()){
+          bigIntVector.setSafe(index, pv.getLongValue());
         }
         return;
       }
       case FLOAT4: {
         Float4Vector float4Vector = (Float4Vector) vv;
-        Float value = pv.getFloatValue();
-        if(value != null){
-          float4Vector.setSafe(index, value);
+        if(pv.hasFloatValue()){
+          float4Vector.setSafe(index, pv.getFloatValue());
         }
         return;
       }
       case FLOAT8: {
         Float8Vector float8Vector = (Float8Vector) vv;
-        Double value = pv.getDoubleValue();
-        if(value != null){
-          float8Vector.setSafe(index, value);
+        if(pv.hasDoubleValue()){
+          float8Vector.setSafe(index, pv.getDoubleValue());
         }
         return;
       }
       case VARBINARY: {
         VarBinaryVector varBinaryVector = (VarBinaryVector) vv;
-        if(pv.getBinaryValue() != null){
+        if(pv.hasBinaryValue()){
           byte[] bytes = pv.getBinaryValue().toByteArray();
           varBinaryVector.setSafe(index, bytes, 0, bytes.length);
         }
@@ -687,38 +673,35 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       }
       case DATE: {
         DateMilliVector dateVector = (DateMilliVector) vv;
-        Long value = pv.getLongValue();
-        if(value != null){
-          dateVector.setSafe(index, value);
+        if(pv.hasLongValue()){
+          dateVector.setSafe(index, pv.getLongValue());
         }
         return;
       }
       case TIME: {
         TimeMilliVector timeVector = (TimeMilliVector) vv;
-        Integer value = pv.getIntValue();
-        if(value != null){
-          timeVector.setSafe(index, value);
+        if(pv.hasIntValue()){
+          timeVector.setSafe(index, pv.getIntValue());
         }
         return;
       }
       case TIMESTAMP: {
         TimeStampMilliVector timeStampVector = (TimeStampMilliVector) vv;
-        Long value = pv.getLongValue();
-        if(value != null){
-          timeStampVector.setSafe(index, value);
+        if(pv.hasLongValue()){
+          timeStampVector.setSafe(index, pv.getLongValue());
         }
         return;
       }
       case BIT: {
         BitVector bitVect = (BitVector) vv;
-        if(pv.getBitValue() != null){
+        if(pv.hasBitValue()){
           bitVect.setSafe(index, pv.getBitValue() ? 1 : 0);
         }
         return;
       }
       case DECIMAL: {
         DecimalVector decimal = (DecimalVector) vv;
-        if(pv.getBinaryValue() != null){
+        if(pv.hasBinaryValue()){
           byte[] bytes = pv.getBinaryValue().toByteArray();
           Preconditions.checkArgument(bytes.length == 16, "Expected 16 bytes, received %d", bytes.length);
           /* set the bytes in LE format in the buffer of decimal vector, we will swap
@@ -730,7 +713,7 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
       }
       case VARCHAR: {
         VarCharVector varCharVector = (VarCharVector) vv;
-        if(pv.getStringValue() != null){
+        if(pv.hasStringValue()){
           byte[] bytes = pv.getStringValue().getBytes();
           varCharVector.setSafe(index, bytes, 0, bytes.length);
         }

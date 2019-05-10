@@ -19,8 +19,9 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import com.dremio.service.namespace.dataset.proto.PartitionValue;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hubspot.jackson.datatype.protobuf.ProtobufModule;
 
 /**
  * Serialization tests
@@ -37,17 +38,21 @@ public class TestSerialization {
 
   @Test
   public void testNullValueSerialization() throws Exception {
-    ObjectMapper mapper = new ObjectMapper();
+    ObjectMapper mapper = new ObjectMapper()
+        // Need to register proto module (as PhysicalPlanReader...)
+        .registerModule(new ProtobufModule());
 
-    PartitionValue value = new PartitionValue();
-    value.setColumn("test");
-    value.setIntValue(10);
+    PartitionValue value = PartitionValue.newBuilder()
+        .setColumn("test")
+        .setIntValue(10)
+        .build();
     String serialized = mapper.writeValueAsString(value);
     assertContains("intValue", serialized);
     assertNotContains("longValue", serialized);
 
-    value = new PartitionValue();
-    value.setColumn("test");
+    value = PartitionValue.newBuilder()
+        .setColumn("test")
+        .build();
     serialized = mapper.writeValueAsString(value);
     assertNotContains("intValue", serialized);
   }

@@ -31,7 +31,6 @@ import com.dremio.dac.server.tokens.TokenUtils;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
-import com.google.common.net.HttpHeaders;
 
 /**
  * Read cookie from request and validate it.
@@ -50,8 +49,7 @@ public class DACAuthFilter implements ContainerRequestFilter {
   @Override
   public void filter(ContainerRequestContext requestContext) {
     try {
-      final String token = TokenUtils.getTokenFromAuthHeader(
-        requestContext.getHeaderString(HttpHeaders.AUTHORIZATION));
+      final String token = TokenUtils.getTokenFromAuthHeaderOrQueryParameter(requestContext);
       final UserName userName;
       try {
         userName = new UserName(tokenManager.validateToken(token).username);

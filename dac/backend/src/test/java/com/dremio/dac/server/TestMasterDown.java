@@ -170,6 +170,8 @@ public class TestMasterDown extends BaseClientUtils {
   private static void initClient() {
     JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
     ObjectMapper objectMapper = JSONUtil.prettyMapper();
+    JSONUtil.registerStorageTypes(objectMapper, DremioTest.CLASSPATH_SCAN_RESULT,
+        ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG));
     objectMapper.registerModule(
       new SimpleModule()
         .addDeserializer(JobDataFragment.class,
@@ -190,6 +192,8 @@ public class TestMasterDown extends BaseClientUtils {
   private static void initMasterClient() {
     JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
     ObjectMapper objectMapper = JSONUtil.prettyMapper();
+    JSONUtil.registerStorageTypes(objectMapper, DremioTest.CLASSPATH_SCAN_RESULT,
+        ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG));
     objectMapper.registerModule(
       new SimpleModule()
         .addDeserializer(JobDataFragment.class,
@@ -207,20 +211,41 @@ public class TestMasterDown extends BaseClientUtils {
     masterApiV2 = rootTarget.path(API_LOCATION);
   }
 
-  private void checkMasterOk() throws Exception {
-    ServerStatus serverStatus = expectSuccess(masterApiV2.path("/server_status").request(JSON).buildGet(), ServerStatus.class);
-    assertEquals(ServerStatus.OK, serverStatus);
+  private void checkNodeStatus(long giveUpAfterMs, WebTarget webTarget, Response.Status expectedStatus, ServerStatus expectedServerStatus) throws Exception {
+    final long sleepBetweenRetries = 10; // ms
+    long sleptSoFar = 0;
+    ServerStatus serverStatus = ServerStatus.OK;
+    int responseStatusCode = -1;
+    while (sleptSoFar < giveUpAfterMs) {
+      Response response = webTarget.path("/server_status").request(JSON).buildGet().invoke();
+      response.bufferEntity();
+      responseStatusCode = response.getStatusInfo().getStatusCode();
+      if (responseStatusCode == expectedStatus.getStatusCode()) {
+        serverStatus = response.readEntity(ServerStatus.class);
+        if (serverStatus.equals(expectedServerStatus)) {
+          return;
+        }
+      }
+      Thread.sleep(sleepBetweenRetries);
+      sleptSoFar += sleepBetweenRetries;
+    }
+    assertEquals(responseStatusCode, expectedStatus.getStatusCode());
+    assertEquals(serverStatus, expectedServerStatus);
   }
 
-  private void checkNodeOk() throws Exception {
-    ServerStatus serverStatus = expectSuccess(currentApiV2.path("/server_status").request(JSON).buildGet(), ServerStatus.class);
-    assertEquals(ServerStatus.OK, serverStatus);
+  private void checkMasterOk(long giveUpAfterMs) throws Exception {
+    checkNodeStatus(giveUpAfterMs, masterApiV2, Response.Status.OK, ServerStatus.OK);
   }
 
-  private void checkNodeMasterDown() throws Exception {
-    ServerStatus serverStatus = expectStatus(Response.Status.SERVICE_UNAVAILABLE,
-      currentApiV2.path("/server_status").request(JSON).buildGet(), ServerStatus.class);
-    assertEquals(serverStatus, ServerStatus.MASTER_DOWN);
+  private void checkNodeOk(long giveUpAfterMs) throws Exception {
+    checkNodeStatus(giveUpAfterMs, currentApiV2, Response.Status.OK, ServerStatus.OK);
+  }
+
+  /**
+   * Check if the master node is down. Give up after 'giveUpAfterMs' milliseconds
+   */
+  private void checkNodeMasterDown(long giveUpAfterMs) throws Exception {
+    checkNodeStatus(giveUpAfterMs, currentApiV2, Response.Status.SERVICE_UNAVAILABLE, ServerStatus.MASTER_DOWN);
   }
 
   private void sanityCheck() throws Exception {
@@ -242,6 +267,7 @@ public class TestMasterDown extends BaseClientUtils {
 
   @Test
   public void testMasterDown() throws Exception {
+    final long timeoutMs = 5_000; // Timeout when checking if a node reached a given status
     masterDremioDaemon.startPreServices();
 
     currentDremioDaemon.startPreServices();
@@ -266,8 +292,8 @@ public class TestMasterDown extends BaseClientUtils {
     t1.join();
     initClient();
     initMasterClient();
-    checkMasterOk();
-    checkNodeOk();
+    checkMasterOk(timeoutMs);
+    checkNodeOk(timeoutMs);
     NamespaceService ns = mp.lookup(NamespaceService.Factory.class).get(DEFAULT_USERNAME);
 
     final DatasetVersionMutator datasetVersionMutator = new DatasetVersionMutator(
@@ -298,19 +324,17 @@ public class TestMasterDown extends BaseClientUtils {
     populator.populateInitialData();
 
     sanityCheck();
-    checkMasterOk();
-    checkNodeOk();
+    checkMasterOk(timeoutMs);
+    checkNodeOk(timeoutMs);
 
     // stop master, fake it by un-registering master node from zk
     masterDremioDaemon.getBindingProvider().lookup(NodeRegistration.class).close();
-    Thread.sleep(100);
-    checkNodeMasterDown();
+    checkNodeMasterDown(timeoutMs);
     // start master
     masterDremioDaemon.getBindingProvider().lookup(NodeRegistration.class).start();
-    Thread.sleep(100);
 
-    checkNodeOk();
-    checkMasterOk();
+    checkNodeOk(timeoutMs);
+    checkMasterOk(timeoutMs);
 
     sanityCheck();
   }

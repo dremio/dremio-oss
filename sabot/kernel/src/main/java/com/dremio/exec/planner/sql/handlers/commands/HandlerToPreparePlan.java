@@ -30,6 +30,7 @@ import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
+import com.dremio.exec.planner.fragment.PlanFragmentsIndex;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
@@ -96,7 +97,7 @@ public class HandlerToPreparePlan implements CommandRunner<CreatePreparedStateme
       planCache.put(handle, prepared);
 
       // record a partial plan so that we can grab metadata and use it (for example during view creation of via sql).
-      observers.planCompleted(new ExecutionPlan(plan, ImmutableList.of(), ImmutableList.of()));
+      observers.planCompleted(new ExecutionPlan(plan, ImmutableList.of(), new PlanFragmentsIndex.Builder()));
       return 1;
     }catch(Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
@@ -110,7 +111,7 @@ public class HandlerToPreparePlan implements CommandRunner<CreatePreparedStateme
 
   @Override
   public CreatePreparedStatementResp execute() {
-    return PreparedStatementProvider.build(plan.getRoot().getSchema(context.getFunctionRegistry()), state,
+    return PreparedStatementProvider.build(plan.getRoot().getProps().getSchema(), state,
       context.getQueryId(), context.getSession().getCatalogName());
   }
 

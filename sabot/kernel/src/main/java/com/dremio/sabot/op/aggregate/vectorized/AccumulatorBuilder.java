@@ -117,6 +117,7 @@ public class AccumulatorBuilder {
    * @param addToOutgoing should add the accumulator output vector to outgoing
    * @param maxValuesPerBatch maximum records that can be stored in a hashtable block/batch
    *
+   * @param decimalV2Enabled
    * @return A Nested accumulator that holds individual sub-accumulators.
    *
    * With partitioning in VectorizedHashAgg operator, accumulators are handled on a
@@ -127,12 +128,12 @@ public class AccumulatorBuilder {
    * outputting data.
    */
   public static AccumulatorSet getAccumulator(final BufferAllocator computationVectorAllocator,
-                                           final BufferAllocator outputVectorAllocator,
-                                           MaterializedAggExpressionsResult materializedAggExpressions,
-                                           VectorContainer outgoing, boolean addToOutgoing,
-                                           final int maxValuesPerBatch,
-                                           final long jointAllocationMin,
-                                           final long jointAllocationLimit) {
+                                              final BufferAllocator outputVectorAllocator,
+                                              MaterializedAggExpressionsResult materializedAggExpressions,
+                                              VectorContainer outgoing,
+                                              final int maxValuesPerBatch,
+                                              final long jointAllocationMin,
+                                              final long jointAllocationLimit, boolean decimalV2Enabled) {
     final byte[] accumulatorTypes = materializedAggExpressions.accumulatorTypes;
     final List<FieldVector> inputVectors = materializedAggExpressions.inputVectors;
     final List<Field> outputVectorFields = materializedAggExpressions.outputVectorFields;
@@ -145,15 +146,10 @@ public class AccumulatorBuilder {
       final FieldVector transferVector;
       final byte accumulatorType = accumulatorTypes[i];
 
-      if (addToOutgoing) {
-        outgoing.add(outputVector);
-        transferVector = outputVector;
-      } else {
-        transferVector = outgoing.addOrGet(outputVector.getField());
-      }
-
+      transferVector = outgoing.addOrGet(outputVector.getField());
       accums[i] = getAccumulator(accumulatorType, inputVector, outputVector,
-                                 transferVector, maxValuesPerBatch, computationVectorAllocator);
+                                 transferVector, maxValuesPerBatch, computationVectorAllocator,
+                                 decimalV2Enabled);
       if (accums[i] == null) {
         throw new IllegalStateException("ERROR: invalid accumulator state");
       }
@@ -165,7 +161,8 @@ public class AccumulatorBuilder {
   private static Accumulator getAccumulator(byte accumulatorType, FieldVector incomingValues,
                                             FieldVector outputVector, FieldVector transferVector,
                                             final int maxValuesPerBatch,
-                                            final BufferAllocator computationVectorAllocator) {
+                                            final BufferAllocator computationVectorAllocator,
+                                            boolean decimalCompleteEnabled) {
     if (accumulatorType == AccumulatorType.COUNT1.ordinal()) {
       return new CountOneAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
                                      computationVectorAllocator);
@@ -188,8 +185,13 @@ public class AccumulatorBuilder {
             return new SumAccumulators.DoubleSumAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
                                                             computationVectorAllocator);
           case DECIMAL:
-            return new SumAccumulators.DecimalSumAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
-                                                             computationVectorAllocator);
+            if (decimalCompleteEnabled) {
+              return new SumAccumulators.DecimalSumAccumulatorV2(incomingValues, outputVector, transferVector, maxValuesPerBatch,
+                computationVectorAllocator);
+            } else {
+              return new SumAccumulators.DecimalSumAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
+                computationVectorAllocator);
+            }
         }
         break;
       }
@@ -209,8 +211,13 @@ public class AccumulatorBuilder {
             return new MinAccumulators.DoubleMinAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
                                                             computationVectorAllocator);
           case DECIMAL:
-            return new MinAccumulators.DecimalMinAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
-                                                             computationVectorAllocator);
+            if (decimalCompleteEnabled) {
+              return new MinAccumulators.DecimalMinAccumulatorV2(incomingValues, outputVector, transferVector, maxValuesPerBatch,
+                computationVectorAllocator);
+            } else {
+              return new MinAccumulators.DecimalMinAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
+                computationVectorAllocator);
+            }
           case BIT:
             return new MinAccumulators.BitMinAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
                                                          computationVectorAllocator);
@@ -256,8 +263,13 @@ public class AccumulatorBuilder {
             return new MaxAccumulators.DoubleMaxAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
                                                             computationVectorAllocator);
           case DECIMAL:
-            return new MaxAccumulators.DecimalMaxAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
-                                                             computationVectorAllocator);
+            if (decimalCompleteEnabled) {
+              return new MaxAccumulators.DecimalMaxAccumulatorV2(incomingValues,
+                outputVector, transferVector, maxValuesPerBatch, computationVectorAllocator);
+            } else {
+              return new MaxAccumulators.DecimalMaxAccumulator(incomingValues, outputVector,
+                transferVector, maxValuesPerBatch, computationVectorAllocator);
+            }
           case BIT:
             return new MaxAccumulators.BitMaxAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
                                                          computationVectorAllocator);
@@ -303,8 +315,13 @@ public class AccumulatorBuilder {
             return new SumZeroAccumulators.DoubleSumZeroAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
                                                                     computationVectorAllocator);
           case DECIMAL:
-            return new SumZeroAccumulators.DecimalSumZeroAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
-                                                                     computationVectorAllocator);
+            if (decimalCompleteEnabled) {
+              return new SumZeroAccumulators.DecimalSumZeroAccumulatorV2(incomingValues, outputVector, transferVector, maxValuesPerBatch,
+                computationVectorAllocator);
+            } else {
+              return new SumZeroAccumulators.DecimalSumZeroAccumulator(incomingValues, outputVector, transferVector, maxValuesPerBatch,
+                computationVectorAllocator);
+            }
         }
         break;
       }
@@ -348,6 +365,8 @@ public class AccumulatorBuilder {
   }
 
   private static byte getAccumulatorTypeFromName(String name) throws Exception {
+    // Strip _complete if present.
+    String functionName  = name.split("_")[0];
     switch (name) {
       case "sum":
         return (byte)AccumulatorType.SUM.ordinal();

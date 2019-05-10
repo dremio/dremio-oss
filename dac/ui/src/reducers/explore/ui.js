@@ -23,10 +23,9 @@ import {hashHeightTopSplitter} from 'constants/explorePage/heightTopSplitter';
 function getInitialState() {
   return Immutable.fromJS({
     sqlState: localStorageUtils.getDefaultSqlState(),
-    sqlSize: hashHeightTopSplitter.default,
+    sqlSize: hashHeightTopSplitter.getDefaultSqlHeight(),
     isResizeInProgress: false,
     isUnsavedChangesModalShowing: false,
-    initialDatasetVersion: null,
     qlikDialogVisible: false,
     qlikShowDialogDataset: null,
     qlikInProgress: false,

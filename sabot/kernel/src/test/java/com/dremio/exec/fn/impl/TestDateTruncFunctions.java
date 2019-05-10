@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.fn.impl;
 
-import static org.apache.arrow.vector.util.DateUtility.formatDate;
-import static org.apache.arrow.vector.util.DateUtility.formatTime;
-import static org.apache.arrow.vector.util.DateUtility.formatTimeStampMilli;
+import static com.dremio.common.util.JodaDateUtility.formatDate;
+import static com.dremio.common.util.JodaDateUtility.formatTime;
+import static com.dremio.common.util.JodaDateUtility.formatTimeStampMilli;
 
 import org.joda.time.LocalDateTime;
 import org.joda.time.Period;

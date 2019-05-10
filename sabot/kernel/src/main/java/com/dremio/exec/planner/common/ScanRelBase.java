@@ -149,7 +149,7 @@ public abstract class ScanRelBase extends TableScan {
 
     return Objects.equal(projectedColumns, castOther.projectedColumns)
         && Objects.equal(getTable(), castOther.getTable())
-        && Objects.equal(getTableMetadata().getName(), castOther.getTableMetadata().getName())
+        && Objects.equal(getTableMetadata().computeDigest(), castOther.getTableMetadata().computeDigest())
         && Objects.equal(getPluginId(), castOther.getPluginId());
   }
 

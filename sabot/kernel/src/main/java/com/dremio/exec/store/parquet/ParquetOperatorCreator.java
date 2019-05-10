@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.parquet;
 
+import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.ACCELERATOR_STORAGEPLUGIN_NAME;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collections;
@@ -30,6 +32,7 @@ import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.store.RecordReader;
@@ -40,19 +43,20 @@ import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.dremio.sabot.op.spi.ProducerOperator.Creator;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.Pointer;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.dremio.service.namespace.file.FileFormat;
-import com.dremio.service.namespace.file.proto.ParquetDatasetSplitScanXAttr;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.google.common.base.Function;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Parquet scan batch creator from dataset config
@@ -63,11 +67,11 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
   @Override
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, final OperatorContext context, final ParquetSubScan config) throws ExecutionSetupException {
     final FileSystemPlugin plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
-    final FileSystemWrapper fs = plugin.createFS(config.getUserName(), context.getStats());
+    final FileSystemWrapper fs = plugin.createFs(config.getProps().getUserName(), context);
 
     final Stopwatch watch = Stopwatch.createStarted();
 
-    boolean isAccelerator = config.getPluginId().getName().equals("__accelerator");
+    boolean isAccelerator = config.getPluginId().getName().equals(ACCELERATOR_STORAGEPLUGIN_NAME);
 
     final ParquetReaderFactory readerFactory = UnifiedParquetReader.getReaderFactory(context.getConfig());
 
@@ -82,6 +86,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     final boolean enableDetailedTracing = context.getOptions().getOption(ExecConstants.ENABLED_PARQUET_TRACING);
     final CodecFactory codec = CodecFactory.createDirectCodecFactory(fs.getConf(), new ParquetDirectByteBufferAllocator(context.getAllocator()), 0);
 
+    final boolean supportsColocatedReads = plugin.supportsColocatedReads();
     final Map<String, GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns = Maps.newHashMap();
 
     if (globalDictionaries != null) {
@@ -90,14 +95,20 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       }
     }
 
-    final CompositeReaderConfig readerConfig = CompositeReaderConfig.getCompound(config.getSchema(), config.getColumns(), config.getPartitionColumns());
+    final CompositeReaderConfig readerConfig = CompositeReaderConfig.getCompound(config.getFullSchema(), config.getColumns(), config.getPartitionColumns());
     final List<ParquetDatasetSplit> sortedSplits = Lists.newArrayList();
-    final SingletonParquetFooterCache footerCache = new SingletonParquetFooterCache();
 
-    for (DatasetSplit split : config.getSplits()) {
+    // cache the previous footer so we don't retrieve multiple times.
+    Pointer<Path> lastPath = new Pointer<>();
+    Pointer<ParquetMetadata> lastFooter = new Pointer<>();
+
+    for (SplitInfo split : config.getSplits()) {
       sortedSplits.add(new ParquetDatasetSplit(split));
     }
     Collections.sort(sortedSplits);
+
+    final InputStreamProviderFactory factory = context.getConfig()
+      .getInstance("dremio.plugins.parquet.input_stream_factory", InputStreamProviderFactory.class, InputStreamProviderFactory.DEFAULT);
 
     FluentIterable < RecordReader > readers = FluentIterable.from(sortedSplits).transform(new Function<ParquetDatasetSplit, RecordReader>() {
       @Override
@@ -114,13 +125,18 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
 
         try {
           Path p = new Path(split.getSplitXAttr().getPath());
-          Long length = split.getSplitXAttr().getFileLength();
-          if (length == null || !context.getOptions().getOption(ExecConstants.PARQUET_CACHED_ENTITY_SET_FILE_SIZE)) {
+          long length;
+          if (split.getSplitXAttr().hasFileLength() && context.getOptions().getOption(ExecConstants.PARQUET_CACHED_ENTITY_SET_FILE_SIZE)) {
+            length = split.getSplitXAttr().getFileLength();
+          } else {
             length = fs.getFileStatus(p).getLen();
           }
-          InputStreamProvider inputStreamProvider = new InputStreamProvider(fs, p, useSingleStream);
-
-          final ParquetMetadata footer = footerCache.getFooter(inputStreamProvider.stream(), split.getSplitXAttr().getPath(), length, fs);
+          final InputStreamProvider inputStreamProvider = factory
+            .create(plugin, fs, context, p, length, split.getDatasetSplit().getSize(), finder.getRealFields(),
+              p.equals(lastPath.value) ? lastFooter.value : null, split.getSplitXAttr().getRowGroupIndex());
+          final ParquetMetadata footer = inputStreamProvider.getFooter();
+          lastFooter.value = footer;
+          lastPath.value = p;
 
           final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
               .readInt96AsTimeStamp(readInt96AsTimeStamp)
@@ -130,7 +146,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
           final UnifiedParquetReader inner = new UnifiedParquetReader(
             context,
             readerFactory,
-            config.getSchema(),
+            config.getFullSchema(),
             finder.getRealFields(),
             globalDictionaryEncodedColumns,
             config.getConditions(),
@@ -142,6 +158,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
             schemaHelper,
             vectorize,
             enableDetailedTracing,
+            supportsColocatedReads,
             inputStreamProvider
           );
           return readerConfig.wrapIfNecessary(context.getAllocator(), inner, split.getDatasetSplit());
@@ -149,7 +166,8 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
           throw UserException.invalidMetadataError(e)
             .addContext("Parquet file not found")
             .addContext("File", split.getSplitXAttr().getPath())
-            .setAdditionalExceptionContext(new InvalidMetadataErrorContext(ImmutableList.of(ImmutableList.copyOf(config.getTablePath()))))
+            .setAdditionalExceptionContext(new InvalidMetadataErrorContext(
+              config.getTablePath()))
             .build(logger);
         } catch (IOException e) {
           throw UserException.dataReadError(e)
@@ -160,23 +178,27 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       }
     });
 
-    final UserGroupInformation ugi = plugin.getUGIForUser(config.getUserName());
+    final UserGroupInformation ugi = plugin.getUGIForUser(config.getProps().getUserName());
 
-    final ScanOperator scan = new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, readers.iterator(), globalDictionaries, ugi);
+    final ScanOperator scan = new ScanOperator(config, context, readers.iterator(), globalDictionaries, ugi);
     logger.debug("Took {} ms to create Parquet Scan SqlOperatorImpl.", watch.elapsed(TimeUnit.MILLISECONDS));
     return scan;
   }
 
-  private static class ParquetDatasetSplit implements Comparable {
-    private final DatasetSplit datasetSplit;
+  private static class ParquetDatasetSplit implements Comparable<ParquetDatasetSplit> {
+    private final SplitInfo datasetSplit;
     private final ParquetDatasetSplitScanXAttr splitXAttr;
 
-    ParquetDatasetSplit(DatasetSplit datasetSplit) {
+    ParquetDatasetSplit(SplitInfo datasetSplit) {
       this.datasetSplit = datasetSplit;
-      this.splitXAttr = ParquetDatasetXAttrSerDe.PARQUET_DATASET_SPLIT_SCAN_XATTR_SERIALIZER.revert(datasetSplit.getExtendedProperty().toByteArray());;
+      try {
+        this.splitXAttr = LegacyProtobufSerializer.parseFrom(ParquetDatasetSplitScanXAttr.PARSER, datasetSplit.getSplitExtendedProperty());
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException("Could not deserialize parquet dataset split scan attributes", e);
+      };
     }
 
-    DatasetSplit getDatasetSplit() {
+    SplitInfo getDatasetSplit() {
       return datasetSplit;
     }
 
@@ -185,8 +207,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     }
 
     @Override
-    public int compareTo(Object o) {
-      final ParquetDatasetSplit other = (ParquetDatasetSplit) o;
+    public int compareTo(ParquetDatasetSplit other) {
       return splitXAttr.getPath().compareTo(other.getSplitXAttr().getPath());
     }
   }

@@ -17,22 +17,24 @@ package com.mapr.fs;
 
 /**
  * OSInfo
+ *
+ * Included for compiling ShimLoader
+ *
  */
 // CHECKSTYLE:OFF FinalClass
+
 public class OSInfo {
-
   private OSInfo() {
-
   }
 
   public static void main(String[] args) {
-    if(args.length >= 1) {
-      if("--os".equals(args[0])) {
+    if (args.length >= 1) {
+      if ("--os".equals(args[0])) {
         System.out.print(getOSName());
         return;
       }
 
-      if("--arch".equals(args[0])) {
+      if ("--arch".equals(args[0])) {
         System.out.print(getArchName());
         return;
       }
@@ -50,14 +52,26 @@ public class OSInfo {
   }
 
   public static String getArchName() {
-    String osArch = System.getProperty("os.arch");
     // CHECKSTYLE:OFF EqualsAvoidNullCheck
-    return getOSName().equals("Mac") && (osArch.equals("universal") || osArch.equals("amd64"))?"x86_64":(osArch.equals("amd64")?"x86_64":(osArch.equals("x86")?"i386":translateArchNameToFolderName(osArch)));
+    String osArch = System.getProperty("os.arch");
+    if (getOSName().equals("Mac") && (osArch.equals("universal") || osArch.equals("amd64"))) {
+      return "x86_64";
+    } else if (osArch.equals("amd64")) {
+      return "x86_64";
+    } else {
+      return osArch.equals("x86") ? "i386" : translateArchNameToFolderName(osArch);
+    }
     // CHECKSTYLE:ON
   }
 
   static String translateOSNameToFolderName(String osName) {
-    return osName.contains("Windows")?"Windows":(osName.contains("Mac")?"Mac":(osName.contains("Linux")?"Linux":osName.replaceAll("\\W", "")));
+    if (osName.contains("Windows")) {
+      return "Windows";
+    } else if (osName.contains("Mac")) {
+      return "Mac";
+    } else {
+      return osName.contains("Linux") ? "Linux" : osName.replaceAll("\\W", "");
+    }
   }
 
   static String translateArchNameToFolderName(String archName) {

@@ -25,9 +25,10 @@ import org.junit.Test;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.PhysicalPlanReaderTestFactory;
 import com.dremio.exec.planner.fragment.Fragment;
+import com.dremio.exec.planner.fragment.PlanFragmentFull;
+import com.dremio.exec.planner.fragment.PlanFragmentsIndex;
 import com.dremio.exec.planner.fragment.SimpleParallelizer;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
-import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared;
@@ -64,7 +65,8 @@ public class TestFragmentChecker extends PopUnitTestBase{
     }
 
     final QueryContextInformation queryContextInfo = Utilities.createQueryContextInfo("dummySchemaName");
-    List<PlanFragment> qwu = par.getFragments(new OptionList(), localBit, QueryId.getDefaultInstance(), endpoints, ppr, fragmentRoot,
+    List<PlanFragmentFull> qwu = par.getFragments(new OptionList(), localBit, QueryId.getDefaultInstance(), endpoints, ppr, fragmentRoot,
+        new PlanFragmentsIndex.Builder(),
         UserSession.Builder.newBuilder().withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build()).build(),
         queryContextInfo,
         null);

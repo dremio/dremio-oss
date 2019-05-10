@@ -24,6 +24,7 @@ import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.planner.acceleration.PlanHasher;
 import com.dremio.exec.planner.serialization.LogicalPlanSerializer;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
+import com.dremio.proto.model.UpdateId;
 import com.dremio.service.job.proto.ScanPath;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
@@ -121,7 +122,7 @@ class RefreshDecisionMaker {
     if(refresh == null) {
       logger.trace("No existing refresh, doing an initial refresh.");
       return decision.setInitialRefresh(true)
-          .setUpdateId(Long.MIN_VALUE)
+          .setUpdateId(new UpdateId())
           .setSeriesId(newSeriesId);
     }
 
@@ -129,14 +130,14 @@ class RefreshDecisionMaker {
     if (entry.getRefreshMethod() != settings.getMethod() || !Objects.equal(entry.getRefreshField(), settings.getRefreshField())) {
       logger.trace("Change in refresh method, doing an initial refresh.");
       return decision.setInitialRefresh(true)
-          .setUpdateId(Long.MIN_VALUE)
+          .setUpdateId(new UpdateId())
           .setSeriesId(newSeriesId);
     }
 
     if (!Objects.equal(entry.getDatasetHash(), decision.getDatasetHash())) {
       logger.trace("Change in dataset hash, doing an initial refresh.");
       return decision.setInitialRefresh(true)
-          .setUpdateId(Long.MIN_VALUE)
+          .setUpdateId(new UpdateId())
           .setSeriesId(newSeriesId);
     }
 

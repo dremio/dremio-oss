@@ -58,7 +58,7 @@ describe('ExploreSettingsButton', () => {
 
   it('should render Overlay with commonProps', () => {
     const wrapper = shallow(<ExploreSettingsButton {...commonProps}/>);
-    expect(wrapper.find('Overlay')).to.have.length(1);
+    expect(wrapper.find('Tooltip')).to.have.length(1);
   });
 
   describe('#handleMouseEnter', () => {

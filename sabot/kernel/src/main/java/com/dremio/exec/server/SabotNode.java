@@ -62,6 +62,8 @@ import com.dremio.sabot.task.TaskPool;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.SingletonRegistry;
+import com.dremio.service.commandpool.CommandPool;
+import com.dremio.service.commandpool.CommandPoolFactory;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.listing.DatasetListingServiceImpl;
@@ -243,6 +245,7 @@ public class SabotNode implements AutoCloseable {
             registry.provider(WorkloadTicketDepot.class),
             registry.getBindingCreator(),
             registry.provider(TaskPool.class)));
+    registry.bind(CommandPool.class, CommandPoolFactory.INSTANCE.newPool(dremioConfig));
 
     registry.bindSelf(
         new ForemenWorkManager(
@@ -250,6 +253,7 @@ public class SabotNode implements AutoCloseable {
             registry.provider(FabricService.class),
             registry.provider(SabotContext.class),
             registry.provider(ResourceAllocator.class),
+            registry.provider(CommandPool.class),
             registry.getBindingCreator()
             )
         );

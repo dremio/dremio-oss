@@ -32,11 +32,13 @@ import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.SequenceFileAsBinaryInputFormat;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
@@ -61,6 +63,7 @@ public class SequenceFileRecordReader extends AbstractRecordReader {
   private final BytesWritable key = new BytesWritable();
   private final BytesWritable value = new BytesWritable();
   private final FileSystemWrapper dfs;
+  private final int maxCellSize;
 
   public SequenceFileRecordReader(final OperatorContext context,
                                   final FileSplit split,
@@ -68,6 +71,7 @@ public class SequenceFileRecordReader extends AbstractRecordReader {
     super(context, getStaticColumns());
     this.dfs = dfs;
     this.split = split;
+    this.maxCellSize = Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
   }
 
   private static List<SchemaPath> getStaticColumns() {
@@ -125,7 +129,9 @@ public class SequenceFileRecordReader extends AbstractRecordReader {
     int batchSize = 0;
     try {
       while (recordCount < numRowsPerBatch && batchSize < numBytesPerBatch && reader.next(key, value)) {
+        FieldSizeLimitExceptionHelper.checkReadSizeLimit(key.getLength(), maxCellSize, 0, logger);
         keyVector.setSafe(recordCount, key.getBytes(), 0, key.getLength());
+        FieldSizeLimitExceptionHelper.checkReadSizeLimit(value.getLength(), maxCellSize, 1, logger);
         valueVector.setSafe(recordCount, value.getBytes(), 0, value.getLength());
         batchSize += (key.getLength() + value.getLength());
         ++recordCount;

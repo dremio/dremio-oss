@@ -15,29 +15,18 @@
  */
 package com.dremio.service.accelerator;
 
-
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
-import com.dremio.service.accelerator.proto.Acceleration;
-import com.dremio.service.accelerator.proto.Layout;
-import com.dremio.service.accelerator.proto.LayoutContainer;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.proto.TimePeriod;
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 
 /**
  * Collection of helper methods for the accelerator
  *
  */
 public final class AccelerationUtils {
-
-  private static final LayoutContainer EMPTY_CONTAINER = new LayoutContainer();
-
   private AccelerationUtils() {}
 
   public static long toMillis(final TimePeriod period) {
@@ -61,13 +50,6 @@ public final class AccelerationUtils {
     }
   }
 
-  public static <T> List<T> selfOrEmptyCollection(final Collection<T> iterable) {
-    if (iterable == null) {
-      return ImmutableList.of();
-    }
-    return ImmutableList.copyOf(iterable);
-  }
-
   public static <T> Stream<T> selfOrEmpty(final Stream<T> stream) {
     if (stream == null) {
       return Stream.of();
@@ -84,39 +66,4 @@ public final class AccelerationUtils {
     }
     return iterable;
   }
-
-  public static Iterable<Layout> getAllLayouts(final Acceleration acceleration) {
-    final LayoutContainer aggContainer = Optional.fromNullable(acceleration.getAggregationLayouts()).or(EMPTY_CONTAINER);
-    final LayoutContainer rawContainer = Optional.fromNullable(acceleration.getRawLayouts()).or(EMPTY_CONTAINER);
-
-    return Iterables.concat(AccelerationUtils.selfOrEmpty(aggContainer.getLayoutList()),
-        AccelerationUtils.selfOrEmpty(rawContainer.getLayoutList()));
-  }
-
-  public static Iterable<Layout> allActiveLayouts(final Acceleration acceleration) {
-    final LayoutContainer aggContainer = Optional.fromNullable(acceleration.getAggregationLayouts()).or(EMPTY_CONTAINER);
-    final LayoutContainer rawContainer = Optional.fromNullable(acceleration.getRawLayouts()).or(EMPTY_CONTAINER);
-
-    final Iterable<Layout> aggLayouts = AccelerationUtils.selfOrEmpty(aggContainer.getLayoutList());
-    final Iterable<Layout> rawLayouts = AccelerationUtils.selfOrEmpty(rawContainer.getLayoutList());
-
-    if (aggContainer.getEnabled() && rawContainer.getEnabled()) {
-      return Iterables.concat(aggLayouts, rawLayouts);
-    }
-
-    if (aggContainer.getEnabled()) {
-      return aggLayouts;
-    }
-
-    if (rawContainer.getEnabled()) {
-      return rawLayouts;
-    }
-
-    return ImmutableList.of();
-  }
-
-  public static String makePathString(final List<String> paths) {
-    return new NamespaceKey(paths).getSchemaPath();
-  }
-
 }

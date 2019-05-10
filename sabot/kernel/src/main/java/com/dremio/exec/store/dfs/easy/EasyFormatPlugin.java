@@ -25,6 +25,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.physical.base.AbstractWriter;
 import com.dremio.exec.physical.base.GroupScan;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.ScanStats;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -34,18 +35,19 @@ import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.BaseFormatPlugin;
 import com.dremio.exec.store.dfs.BasicFormatMatcher;
 import com.dremio.exec.store.dfs.CompleteFileWork;
+import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
-import com.dremio.exec.store.dfs.FileSystemDatasetAccessor;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.FormatMatcher;
+import com.dremio.exec.store.dfs.PreviousDatasetInfo;
 import com.dremio.exec.store.easy.EasyFormatDatasetAccessor;
+import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
 import com.dremio.sabot.op.writer.WriterOperator;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.file.proto.EasyDatasetSplitXAttr;
-import com.dremio.service.namespace.file.proto.FileUpdateKey;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 
 public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends BaseFormatPlugin {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EasyFormatPlugin.class);
@@ -78,6 +80,7 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
     return name;
   }
 
+  @Override
   public SabotContext getContext() {
     return context;
   }
@@ -111,10 +114,11 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
 
   @Override
   public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper dfs, FileStatus status) throws ExecutionSetupException {
-    EasyDatasetSplitXAttr attr = new EasyDatasetSplitXAttr()
+    EasyDatasetSplitXAttr attr = EasyDatasetSplitXAttr.newBuilder()
         .setPath(status.getPath().toString())
         .setStart(0L)
-        .setLength(status.getLen());
+        .setLength(status.getLen())
+        .build();
 
     return getRecordReader(context, dfs, attr, GroupScan.ALL_COLUMNS);
   }
@@ -133,9 +137,8 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
   }
 
   @Override
-  public AbstractWriter getWriter(PhysicalOperator child, String userName, String location, FileSystemPlugin plugin,
-      WriterOptions options) throws IOException {
-    return new EasyWriter(child, userName, location, options, plugin, this);
+  public AbstractWriter getWriter(PhysicalOperator child, String location, FileSystemPlugin plugin, WriterOptions options, OpProps props) throws IOException{
+    return new EasyWriter(props, child, props.getUserName(), location, options, plugin, this);
   }
 
   public EasyGroupScanUtils getGroupScan(
@@ -175,17 +178,10 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
   public abstract int getWriterOperatorType();
 
   @Override
-  public FileSystemDatasetAccessor getDatasetAccessor(
-      DatasetConfig oldConfig,
-      FileSystemWrapper fs,
-      FileSelection fileSelection,
-      FileSystemPlugin fsPlugin,
-      NamespaceKey tableSchemaPath,
-      FileUpdateKey updateKey,
-      int maxLeafColumns
-  ) {
-    return new EasyFormatDatasetAccessor(fs, fileSelection, fsPlugin, tableSchemaPath, updateKey, this, oldConfig,
-        maxLeafColumns);
+  public FileDatasetHandle getDatasetAccessor(DatasetType type, PreviousDatasetInfo previousInfo, FileSystemWrapper fs,
+      FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, FileUpdateKey updateKey,
+      int maxLeafColumns) {
+    return new EasyFormatDatasetAccessor(type, fs, fileSelection, fsPlugin, tableSchemaPath, updateKey, this, previousInfo, maxLeafColumns);
   }
 
   protected ScanStats getScanStats(final EasyGroupScanUtils scan) {

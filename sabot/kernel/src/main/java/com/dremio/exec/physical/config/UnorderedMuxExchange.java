@@ -17,38 +17,40 @@ package com.dremio.exec.physical.config;
 
 import java.util.List;
 
-import com.dremio.exec.expr.fn.FunctionLookupContext;
-import com.dremio.exec.physical.MinorFragmentEndpoint;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Receiver;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
+import com.dremio.exec.record.BatchSchema;
 
 /**
  * UnorderedMuxExchange is a version of MuxExchange where the incoming batches are not sorted.
  */
-@JsonTypeName("unordered-mux-exchange")
 public class UnorderedMuxExchange extends AbstractMuxExchange {
 
   public UnorderedMuxExchange(
-      @JsonProperty("child") PhysicalOperator child) {
-    super(child);
+      OpProps props,
+      OpProps senderProps,
+      OpProps receiverProps,
+      BatchSchema schema,
+      PhysicalOperator child) {
+    super(props, senderProps, receiverProps, schema, child);
   }
 
   @Override
-  public Receiver getReceiver(int minorFragmentId, FunctionLookupContext context) {
-    createSenderReceiverMapping();
+  public Receiver getReceiver(int minorFragmentId, EndpointsIndex.Builder indexBuilder) {
+    createSenderReceiverMapping(indexBuilder);
 
-    List<MinorFragmentEndpoint> senders = receiverToSenderMapping.get(minorFragmentId);
+    List<MinorFragmentIndexEndpoint> senders = receiverToSenderMapping.get(minorFragmentId);
     if (senders == null || senders.size() <= 0) {
       throw new IllegalStateException(String.format("Failed to find senders for receiver [%d]", minorFragmentId));
     }
-
-    return new UnorderedReceiver(senderMajorFragmentId, senders, false, getSchema(context));
+    return new UnorderedReceiver(receiverProps, schema, senderMajorFragmentId, senders, false);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new UnorderedMuxExchange(child);
+    return new UnorderedMuxExchange(props, senderProps, receiverProps, schema, child);
   }
 }

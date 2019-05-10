@@ -19,14 +19,16 @@ import java.util.List;
 import java.util.Map;
 
 import com.dremio.common.expression.LogicalExpression;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.EndpointAffinity;
-import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.physical.base.AbstractExchange;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Sender;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.fragment.ParallelizationInfo;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
@@ -49,12 +51,19 @@ public abstract class AbstractDeMuxExchange extends AbstractExchange {
   protected final LogicalExpression expr;
 
   // Ephemeral info used when creating execution fragments.
-  protected Map<Integer, MinorFragmentEndpoint> receiverToSenderMapping;
-  protected ArrayListMultimap<Integer, MinorFragmentEndpoint> senderToReceiversMapping;
+  protected Map<Integer, MinorFragmentIndexEndpoint> receiverToSenderMapping;
+  protected ArrayListMultimap<Integer, MinorFragmentIndexEndpoint> senderToReceiversMapping;
   private boolean isSenderReceiverMappingCreated;
 
-  public AbstractDeMuxExchange(PhysicalOperator child, LogicalExpression expr) {
-    super(child);
+  public AbstractDeMuxExchange(
+      OpProps props,
+      OpProps senderProps,
+      OpProps receiverProps,
+      BatchSchema schema,
+      PhysicalOperator child,
+      LogicalExpression expr
+      ) {
+    super(props, senderProps, receiverProps, schema, child);
     this.expr = expr;
   }
 
@@ -86,15 +95,15 @@ public abstract class AbstractDeMuxExchange extends AbstractExchange {
   }
 
   @Override
-  public Sender getSender(int minorFragmentId, PhysicalOperator child, FunctionLookupContext context) {
-    createSenderReceiverMapping();
+  public Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder indexBuilder) {
+    createSenderReceiverMapping(indexBuilder);
 
-    List<MinorFragmentEndpoint> receivers = senderToReceiversMapping.get(minorFragmentId);
+    List<MinorFragmentIndexEndpoint> receivers = senderToReceiversMapping.get(minorFragmentId);
     if (receivers == null || receivers.size() <= 0) {
       throw new IllegalStateException(String.format("Failed to find receivers for sender [%d]", minorFragmentId));
     }
 
-    return new HashPartitionSender(receiverMajorFragmentId, child, expr, receivers, getSchema(context));
+    return new HashPartitionSender(senderProps, schema, child, receiverMajorFragmentId, receivers, expr);
   }
 
   /**
@@ -106,7 +115,7 @@ public abstract class AbstractDeMuxExchange extends AbstractExchange {
     return ParallelizationDependency.SENDER_DEPENDS_ON_RECEIVER;
   }
 
-  protected void createSenderReceiverMapping() {
+  protected void createSenderReceiverMapping(EndpointsIndex.Builder indexBuilder) {
     if (isSenderReceiverMappingCreated) {
       return;
     }
@@ -128,10 +137,10 @@ public abstract class AbstractDeMuxExchange extends AbstractExchange {
       final List<Integer> receiverMinorFragmentIds = endpointReceiverList.get(senderLocation);
 
       for(Integer receiverId : receiverMinorFragmentIds) {
-        receiverToSenderMapping.put(receiverId, new MinorFragmentEndpoint(senderFragmentId, senderLocation));
+        receiverToSenderMapping.put(receiverId, indexBuilder.addFragmentEndpoint(senderFragmentId, senderLocation));
 
         senderToReceiversMapping.put(senderFragmentId,
-            new MinorFragmentEndpoint(receiverId, receiverLocations.get(receiverId)));
+            indexBuilder.addFragmentEndpoint(receiverId, receiverLocations.get(receiverId)));
       }
       senderFragmentId++;
     }

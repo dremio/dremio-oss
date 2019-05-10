@@ -20,15 +20,23 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { injectIntl } from 'react-intl';
 
-import Modal from 'components/Modals/Modal';
+import Modal, { ModalSize } from 'components/Modals/Modal';
 import { CANCEL, CUSTOM, NEXT } from 'components/Buttons/ButtonTypes';
 import { moveDataSet, createDatasetFromExisting } from 'actions/explore/sqlActions';
-import { renameSpaceDataset, loadSpaceData, loadDependentDatasets } from 'actions/resources/spaceDetails';
+import { convertDatasetToFolder } from 'actions/home';
+import {
+  renameSpaceDataset,
+  loadDependentDatasets,
+  removeDataset,
+  removeFileFormat
+} from 'actions/resources/spaceDetails';
 import { getDescendantsList } from 'selectors/resources';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import { constructFullPath, splitFullPath } from 'utils/pathUtils';
 
-import UpdateDatasetView from './UpdateDatasetView';
+import { TOGGLE_VIEW_ID } from 'components/RightContext/FolderContext';
+
+import UpdateDatasetView, {UpdateMode} from './UpdateDatasetView';
 
 @injectIntl
 @pureRender
@@ -39,10 +47,12 @@ export class UpdateDataset extends Component {
     item: PropTypes.instanceOf(Immutable.Map),
     isOpen: PropTypes.bool.isRequired,
     hide: PropTypes.func.isRequired,
-    loadSpaceData: PropTypes.func,
     query: PropTypes.object.isRequired,
     createDatasetFromExisting: PropTypes.func.isRequired,
     moveDataSet: PropTypes.func.isRequired,
+    removeDataset: PropTypes.func.isRequired,
+    removeFileFormat: PropTypes.func.isRequired,
+    convertDatasetToFolder: PropTypes.func.isRequired,
     renameSpaceDataset: PropTypes.func.isRequired,
     loadDependentDatasets: PropTypes.func.isRequired,
     dependentDatasets: PropTypes.array,
@@ -56,15 +66,25 @@ export class UpdateDataset extends Component {
     super(props);
     const { intl } = props;
     this.config = {
-      rename: () => ({
-        title: intl.formatMessage({ id: 'Dataset.RenameDataset'}),
-        hidePath: true,
-        buttons: [
+      [UpdateMode.rename]: (dependentDatasets) => {
+        const hasDeps = dependentDatasets && dependentDatasets.length;
+        const buttons = [
           { name: intl.formatMessage({ id: 'Common.Cancel' }), key: 'cancel', type: CANCEL },
-          { name: intl.formatMessage({ id: 'Common.Rename' }), key: 'renameDataset', type: NEXT }
-        ]
-      }),
-      move: (dependentDatasets) => {
+          { name: intl.formatMessage({ id: 'Common.MakeCopy' }), key: 'copyDataset', type: hasDeps ? NEXT : CUSTOM },
+          {
+            name: intl.formatMessage({ id: hasDeps ? 'Common.RenameAnyway' : 'Common.Rename' }),
+            key: 'renameDataset',
+            type: hasDeps ? CUSTOM : NEXT
+          }
+        ];
+
+        return {
+          title: intl.formatMessage({ id: 'Dataset.RenameDataset'}),
+          hidePath: true,
+          buttons
+        };
+      },
+      [UpdateMode.move]: (dependentDatasets) => {
         const hasDeps = dependentDatasets && dependentDatasets.length;
         const buttons = [
           { name: intl.formatMessage({ id: 'Common.Cancel' }), key: 'cancel', type: CANCEL },
@@ -76,7 +96,23 @@ export class UpdateDataset extends Component {
           }
         ];
         return { title: intl.formatMessage({ id: 'Dataset.MoveDataset' }), buttons };
-      }
+      },
+      [UpdateMode.remove]: () => ({
+        title: intl.formatMessage({ id: 'Dataset.RemoveDataset'}),
+        hidePath: true,
+        buttons: [
+          { name: intl.formatMessage({ id: 'Common.Cancel' }), key: 'cancel', type: CANCEL },
+          { name: intl.formatMessage({ id: 'Common.Remove' }), key: 'removeDataset', type: NEXT }
+        ]
+      }),
+      [UpdateMode.removeFormat]: () => ({
+        title: intl.formatMessage({ id: 'Dataset.RemoveFormat'}),
+        hidePath: true,
+        buttons: [
+          { name: intl.formatMessage({ id: 'Common.Cancel' }), key: 'cancel', type: CANCEL },
+          { name: intl.formatMessage({ id: 'Dataset.RemoveFormat' }), key: 'removeFormat', type: NEXT }
+        ]
+      })
     };
   }
 
@@ -88,31 +124,46 @@ export class UpdateDataset extends Component {
     this.receiveProps(nextProps, this.props);
   }
 
-  getCurrentFullPath = (item = this.props.item) => item && item.get('fullPathList')
+  getCurrentFullPath = (item = this.props.item) => item && item.get('fullPathList');
 
-  getNewFullPath = (datasetName, selectedEntity) => splitFullPath(selectedEntity).concat(datasetName)
+  getNewFullPath = (datasetName, selectedEntity) => splitFullPath(selectedEntity).concat(datasetName);
 
   receiveProps = (nextProps, oldProps) => {
     if (!oldProps.item && nextProps.item) {
       nextProps.loadDependentDatasets(nextProps.item.get('fullPathList'));
     }
-  }
+  };
 
   copyDataset = ({ datasetName, selectedEntity }) => {
     const cPathFrom = this.getCurrentFullPath();
-    const cPathTo = this.getNewFullPath(datasetName, selectedEntity);
+    const cPathTo = (selectedEntity) ?
+      this.getNewFullPath(datasetName, selectedEntity) :
+      [cPathFrom.get(0), datasetName]; // space is not selected during rename, use cPathFrom
     return this.props.createDatasetFromExisting(cPathFrom, cPathTo, { name: datasetName });
-  }
+  };
 
   moveDataset = ({ datasetName, selectedEntity }) => {
     const pathFrom = this.getCurrentFullPath();
     const cPathTo = this.getNewFullPath(datasetName, selectedEntity);
     return this.props.moveDataSet(pathFrom, cPathTo);
-  }
+  };
 
   renameDataset = ({ datasetName }) => {
     return this.props.renameSpaceDataset(this.props.item, datasetName);
-  }
+  };
+
+  removeDataset = () => {
+    return this.props.removeDataset(this.props.item);
+  };
+
+  removeFormat = () => {
+    const { item } = this.props;
+    if (item.get('entityType') === 'file') {
+      return this.props.removeFileFormat(item);
+    } else {
+      return this.props.convertDatasetToFolder(item, TOGGLE_VIEW_ID);
+    }
+  };
 
   submit = (keyAction, values) => {
     return ApiUtils.attachFormSubmitHandlers(
@@ -122,30 +173,40 @@ export class UpdateDataset extends Component {
         this.props.hide();
       }
     });
-  }
+  };
 
   render() {
-    const { mode } = this.props.query;
-    const config = mode && this.config[mode](this.props.dependentDatasets);
+    const { dependentDatasets, query, hide, isOpen, item } = this.props;
+    const { mode } = query;
+    const config = mode && this.config[mode](dependentDatasets);
     const fullPath = this.getCurrentFullPath();
     // initialPath should be the parent folder
     const initialPath = fullPath ? constructFullPath(fullPath.slice(0, -1)) : null;
+    // use smaller popup for remove and removeFormat w/o dependencies
+    const size = (
+      (mode === UpdateMode.remove || mode === UpdateMode.removeFormat) &&
+        !(dependentDatasets && dependentDatasets.length)
+    ) ? ModalSize.smallest : ModalSize.small;
 
     const datasetView = config
       ? <UpdateDatasetView
-        hide={this.props.hide}
+        hide={hide}
         initialPath={initialPath}
-        name={this.props.query.name}
+        name={query.name}
         buttons={config.buttons}
         hidePath={config.hidePath}
-        dependentDatasets={this.props.dependentDatasets}
+        dependentDatasets={dependentDatasets}
+        getGraphLink={query.getGraphLink}
+        mode={mode}
+        item={item}
+        size={size}
         submit={this.submit}/>
       : null;
     return (
       <Modal
-        hide={this.props.hide}
-        size='small'
-        isOpen={this.props.isOpen}
+        hide={hide}
+        size={size}
+        isOpen={isOpen}
         title={config ? config.title : ''}>
         {datasetView}
       </Modal>
@@ -163,8 +224,10 @@ const mapStateToProps = (state, ownProps) => {
 
 export default connect(mapStateToProps, {
   renameSpaceDataset,
-  loadSpaceData,
   createDatasetFromExisting,
   moveDataSet,
+  removeDataset,
+  removeFileFormat,
+  convertDatasetToFolder,
   loadDependentDatasets
 })(UpdateDataset);

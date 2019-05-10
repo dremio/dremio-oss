@@ -28,8 +28,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
@@ -39,7 +37,7 @@ import org.apache.zookeeper.server.persistence.FileTxnLog;
  * Mostly Copied from HBase's MiniZooKeeperCluster, but without the Hadoop dependency.
  */
 public class MiniZooKeeperCluster {
-  private static final Log LOG = LogFactory.getLog(MiniZooKeeperCluster.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MiniZooKeeperCluster.class);
 
   private static final int TICK_TIME = 2000;
   private static final int CONNECTION_TIMEOUT = 30000;
@@ -152,7 +150,7 @@ public class MiniZooKeeperCluster {
           standaloneServerFactory.configure(
             new InetSocketAddress(tentativePort), 1000);
         } catch (BindException e) {
-          LOG.debug("Failed binding ZK Server to client port: " +
+          logger.debug("Failed binding ZK Server to client port: " +
             tentativePort);
           // This port is already in use, try to use another.
           tentativePort++;
@@ -177,7 +175,7 @@ public class MiniZooKeeperCluster {
     activeZKServerIndex = 0;
     started = true;
     clientPort = clientPortList.get(activeZKServerIndex);
-    LOG.info("Started MiniZK Cluster and connect 1 ZK server " +
+    logger.info("Started MiniZK Cluster and connect 1 ZK server " +
       "on client port: " + clientPort);
     return clientPort;
   }
@@ -219,7 +217,7 @@ public class MiniZooKeeperCluster {
     clientPortList.clear();
     zooKeeperServers.clear();
 
-    LOG.info("Shutdown MiniZK cluster with all ZK servers");
+    logger.info("Shutdown MiniZK cluster with all ZK servers");
   }
 
   /**
@@ -248,7 +246,7 @@ public class MiniZooKeeperCluster {
     standaloneServerFactoryList.remove(activeZKServerIndex);
     clientPortList.remove(activeZKServerIndex);
     zooKeeperServers.remove(activeZKServerIndex);
-    LOG.info("Kill the current active ZK servers in the cluster " +
+    logger.info("Kill the current active ZK servers in the cluster " +
       "on client port: " + clientPort);
 
     if (standaloneServerFactoryList.size() == 0) {
@@ -256,7 +254,7 @@ public class MiniZooKeeperCluster {
       return -1;
     }
     clientPort = clientPortList.get(activeZKServerIndex);
-    LOG.info("Activate a backup zk server in the cluster " +
+    logger.info("Activate a backup zk server in the cluster " +
       "on client port: " + clientPort);
     // return the next back zk server's port
     return clientPort;
@@ -290,7 +288,7 @@ public class MiniZooKeeperCluster {
     standaloneServerFactoryList.remove(backupZKServerIndex);
     clientPortList.remove(backupZKServerIndex);
     zooKeeperServers.remove(backupZKServerIndex);
-    LOG.info("Kill one backup ZK servers in the cluster " +
+    logger.info("Kill one backup ZK servers in the cluster " +
       "on client port: " + clientPort);
   }
 
@@ -349,7 +347,7 @@ public class MiniZooKeeperCluster {
         }
       } catch (IOException e) {
         // ignore as this is expected
-        LOG.info("server localhost:" + port + " not up " + e);
+        logger.info("server localhost:" + port + " not up " + e);
       }
 
       if (System.currentTimeMillis() > start + timeout) {

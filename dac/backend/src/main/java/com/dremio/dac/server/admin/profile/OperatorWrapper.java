@@ -146,7 +146,6 @@ public class OperatorWrapper {
       return "";
     }
 
-    final String[] metricNames = OperatorMetricRegistry.getMetricNames(operatorType.getNumber());
     final Integer[] metricIds = OperatorMetricRegistry.getMetricIds(coreOperatorTypeMetricsMap, operatorType.getNumber());
 
     if (metricIds.length == 0) {
@@ -207,7 +206,7 @@ public class OperatorWrapper {
       int count = 0;
       for (final Number value : values) {
         if (value != null) {
-          if (isHashAgg && metricNames[count].contains("TIME")) {
+          if (isHashAgg && metricsTableColumnNames[count].contains("TIME")) {
             /* format elapsed time related metrics correctly as string (using hrs, mins, secs, us, ns as applicable) */
             builder.appendNanosWithUnit(value.longValue());
           } else {

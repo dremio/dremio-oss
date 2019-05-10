@@ -138,7 +138,7 @@ public class FunctionRegistry {
     return this.registeredFunctions.get(name.toLowerCase());
   }
 
-  public void register(OperatorTable operatorTable) {
+  public void register(OperatorTable operatorTable, boolean isDecimalV2Enabled) {
     operatorTable.add("NDV", HyperLogLog.NDV);
     operatorTable.add("DATE_PART", SqlDatePartOperator.INSTANCE);
     operatorTable.add("FLATTEN", SqlFlattenOperator.INSTANCE);
@@ -201,7 +201,8 @@ public class FunctionRegistry {
             max,
             isDeterministic,
             isDynamic,
-            TypeInferenceUtils.getSqlReturnTypeInference(name, Lists.newArrayList(entry.getValue())),
+            TypeInferenceUtils.getSqlReturnTypeInference(name, Lists.newArrayList(entry.getValue
+              ()), isDecimalV2Enabled),
             sqlSyntax);
         operatorTable.add(name, sqlOperator);
       }
@@ -210,7 +211,8 @@ public class FunctionRegistry {
             name,
             entry.getKey(),
             entry.getKey(),
-            TypeInferenceUtils.getSqlReturnTypeInference(name, Lists.newArrayList(entry.getValue()))));
+            TypeInferenceUtils.getSqlReturnTypeInference(name, Lists.newArrayList(entry.getValue
+              ()), isDecimalV2Enabled)));
       }
     }
   }

@@ -17,14 +17,11 @@ package com.dremio.exec.planner.logical;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rex.RexNode;
 
-import com.dremio.common.logical.data.LogicalOperator;
 import com.dremio.exec.planner.common.FilterRelBase;
-import com.dremio.exec.planner.torel.ConversionContext;
 
 
 public class FilterRel extends FilterRelBase implements Rel {
@@ -47,19 +44,6 @@ public class FilterRel extends FilterRelBase implements Rel {
   @Override
   public Filter copy(RelTraitSet traitSet, RelNode input, RexNode condition) {
     return new FilterRel(getCluster(), traitSet, input, condition, alreadyPushedDown);
-  }
-
-  @Override
-  public LogicalOperator implement(LogicalPlanImplementor implementor) {
-    final LogicalOperator input = implementor.visitChild(this, 0, getInput());
-    com.dremio.common.logical.data.Filter f = new com.dremio.common.logical.data.Filter(getFilterExpression(implementor.getContext()));
-    f.setInput(input);
-    return f;
-  }
-
-  public static FilterRel convert(com.dremio.common.logical.data.Filter filter, ConversionContext context) throws InvalidRelException{
-    RelNode input = context.toRel(filter.getInput());
-    return new FilterRel(context.getCluster(), context.getLogicalTraits(), input, context.toRex(filter.getExpr()));
   }
 
   public static FilterRel create(RelNode child, RexNode condition) {

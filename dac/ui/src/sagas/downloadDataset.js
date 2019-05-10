@@ -17,6 +17,8 @@ import { race, take, put, call, takeEvery } from 'redux-saga/effects';
 import { delay } from 'redux-saga';
 
 import socket, { WS_MESSAGE_JOB_PROGRESS } from 'utils/socket';
+import { addNotification } from 'actions/notification';
+
 
 import {
   START_DATASET_DOWNLOAD,
@@ -36,9 +38,7 @@ const getJobDoneActionFilter = (jobId) => (action) =>
   action.type === WS_MESSAGE_JOB_PROGRESS && action.payload.id.id === jobId && action.payload.update.isComplete;
 
 export default function* () {
-  yield [
-    takeEvery(START_DATASET_DOWNLOAD, handleStartDatasetDownload)
-  ];
+  yield takeEvery(START_DATASET_DOWNLOAD, handleStartDatasetDownload);
 }
 
 export function* showDownloadModalAfterDelay(jobId) {
@@ -73,6 +73,10 @@ export function* handleStartDatasetDownload({ meta }) {
 
     if (jobDone) {
       yield put(hideConfirmationDialog());
+      if (jobDone.payload.update.state !== 'COMPLETED') {
+        yield put(addNotification(la('Error preparing job download.'), 'error'));
+        return;
+      }
     } else {
       yield take(getJobDoneActionFilter(jobId.id));
     }

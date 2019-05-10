@@ -123,7 +123,6 @@ class ExpressionMaterializationVisitor
       assert newExpr != null : String.format("Materialization of %s return a null expression.", op.args.get(i));
       args.add(newExpr);
     }
-
     // replace with a new function call, since its argument could be changed.
     return new BooleanOperator(op.getName(), args);
   }
@@ -150,7 +149,8 @@ class ExpressionMaterializationVisitor
       }
 
       if (matchedFuncHolder != null) {
-        return getFunctionHolderExpr(call, matchedFuncHolder, functionLookupContext, errorCollector);
+        return getFunctionHolderExpr(call, matchedFuncHolder,
+          functionLookupContext, errorCollector);
       }
     }
 
@@ -370,7 +370,8 @@ class ExpressionMaterializationVisitor
     // if the types aren't equal (and one of them isn't null), we need to unify them.
     if(!thenType.equals(elseType) && !thenType.isNull() && !elseType.isNull()){
 
-      final MinorType leastRestrictive = TypeCastRules.getLeastRestrictiveType((Arrays.asList(thenMinor, elseMinor)));
+      final MinorType leastRestrictive = TypeCastRules.getLeastRestrictiveType((Arrays.asList
+        (thenMinor, elseMinor)), functionLookupContext.isDecimalV2Enabled());
       if (leastRestrictive != thenMinor) {
         // Implicitly cast the then expression
         condition = new IfExpression.IfCondition(newCondition, ExpressionTreeMaterializer.addImplicitCastExact(condition.expression, newElseExpr.getCompleteType(), functionLookupContext, errorCollector));

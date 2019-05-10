@@ -42,6 +42,7 @@ import com.dremio.service.jobs.JobDataFragment;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobResultsStore;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
@@ -65,14 +66,17 @@ public class TestJobResultsStore extends BaseTestServer {
     populateInitialData();
     final JobsService jobsService = l(JobsService.class);
     final DatasetPath ds1 = new DatasetPath("s.ds1");
-    Job job1_0 = jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select * from LocalFS1.\"dac-sample1.json\" limit 10", ds1.toParentPathList(), DEFAULT_USERNAME))
-        .setDatasetPath(ds1.toNamespaceKey())
-        .setDatasetVersion(new DatasetVersion("1"))
-        .build(), NoOpJobStatusListener.INSTANCE);
-    job1_0.getData().loadIfNecessary();
-    JobDataFragment result = job1_0.getData().truncate(10);
-    JobDataFragment storedResult = jobsService.getJob(job1_0.getJobId()).getData().truncate(10);
+    final Job job = JobsServiceUtil.waitForJobCompletion(
+      jobsService.submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery("select * from LocalFS1.\"dac-sample1.json\" limit 10", ds1.toParentPathList(), DEFAULT_USERNAME))
+          .setDatasetPath(ds1.toNamespaceKey())
+          .setDatasetVersion(new DatasetVersion("1"))
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    );
+    JobDataFragment result = job.getData().truncate(10);
+    JobDataFragment storedResult = jobsService.getJob(job.getJobId()).getData().truncate(10);
     for (Field column: result.getSchema()) {
       assertTrue(storedResult.getSchema().getFields().contains(column));
     }
@@ -98,7 +102,7 @@ public class TestJobResultsStore extends BaseTestServer {
   }
 
   @Test
-  public void testCancelBeforeLoadingJob() throws Exception {
+  public void testCancelBeforeLoadingJob() {
     exception.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.DATA_READ,
       "Could not load results as the query was canceled"));
 
@@ -106,7 +110,7 @@ public class TestJobResultsStore extends BaseTestServer {
     JobResult jobResult = new JobResult();
     JobAttempt jobAttempt = new JobAttempt();
     jobAttempt.setState(JobState.CANCELED);
-    List<JobAttempt> attempts = new ArrayList<JobAttempt>();
+    List<JobAttempt> attempts = new ArrayList<>();
     attempts.add(jobAttempt);
     jobResult.setAttemptsList(attempts);
     when(jobResultsStore.loadJobData(new JobId("Canceled Job"),jobResult,0,0)).thenCallRealMethod();

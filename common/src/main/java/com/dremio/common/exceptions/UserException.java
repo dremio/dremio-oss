@@ -46,6 +46,7 @@ public class UserException extends RuntimeException {
 
   public static final String MEMORY_ERROR_MSG = "Query was cancelled because it exceeded the memory limits set by the administrator.";
 
+  public static final String QUERY_REJECTED_MSG = "Rejecting query because it exceeded the maximum allowed number of live queries in a single coordinator";
   /**
    * Creates a new INVALID_DATASET_METADATA exception builder.
    *
@@ -103,6 +104,32 @@ public class UserException extends RuntimeException {
   public static Builder schemaChangeError(final Throwable cause) {
     return builder(DremioPBError.ErrorType.SCHEMA_CHANGE, cause);
   }
+
+  /**
+   * Creates a new JSON_FIELD_CHANGE exception builder.
+   *
+   * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#FIELD_CHANGE
+   * @return user exception builder
+   */
+  public static Builder jsonFieldChangeError() {
+    return jsonFieldChangeError(null);
+  }
+
+  /**
+   * Wraps the passed exception inside a JSON field change error.
+   * <p>The cause message will be used unless {@link Builder#message(String, Object...)} is called.
+   * <p>If the wrapped exception is, or wraps, a user exception it will be returned by {@link Builder#build(Logger)}
+   * instead of creating a new exception. Any added context will be added to the user exception as well.
+   *
+   * @see com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType#JSON_FIELD_CHANGE
+   *
+   * @param cause exception we want the user exception to wrap. If cause is, or wrap, a user exception it will be
+   *              returned by the builder instead of creating a new user exception
+   * @return user exception builder
+   */
+   public static Builder jsonFieldChangeError(final Throwable cause) {
+     return builder(DremioPBError.ErrorType.JSON_FIELD_CHANGE, cause);
+   }
 
   /**
    * Creates an OUT_OF_MEMORY error with a prebuilt message
@@ -717,7 +744,7 @@ public class UserException extends RuntimeException {
      * builds a user exception or returns the wrapped one. If the error is a system error, the error message is logged
      * to the given {@link Logger}.
      *
-     * @param logger the logger to write to
+     * @param logger the logger to write to, if null call won't log
      * @return user exception
      */
     public UserException build(final Logger logger) {
@@ -761,8 +788,15 @@ public class UserException extends RuntimeException {
             case OUT_OF_MEMORY:
               logger.error(newException.getMessage(), newException);
               break;
+            case SCHEMA_CHANGE:
             case IO_EXCEPTION:
               logger.debug(newException.getMessage(), newException);
+              break;
+            case VALIDATION:
+            case PLAN:
+              // log SQL validation/plan errors in trace mode since the end user will anyway see
+              // them when failure is reported in UI
+              logger.trace(newException.getMessage(), newException);
               break;
             default:
               logger.info(
@@ -774,6 +808,7 @@ public class UserException extends RuntimeException {
           // see https://dremio.atlassian.net/browse/DX-15825
           Exception e = new Exception("Failure while logging", ignore.getCause());
           e.addSuppressed(newException);
+          // we can't log the exception so make sure we are printing to std.out otherwise it will be completely hidden
           e.printStackTrace();
 
           newException.addSuppressed(ignore);
@@ -793,6 +828,16 @@ public class UserException extends RuntimeException {
     @Deprecated
     public UserException build() {
       return build(logger);
+    }
+
+    /**
+     * Builds a user exception or returns the wrapped one.
+     * Doesn't log anything
+     *
+     * @return user exception
+     */
+    public UserException buildSilently() {
+      return build(null);
     }
   }
 

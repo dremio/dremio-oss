@@ -23,10 +23,18 @@ import {smallModal, mediumModal, largeModal, tallModal, smallestModal, modalBody
 import ModalHeader from './ModalHeader';
 import './Modals.less';
 
+export const ModalSize = {
+  small: 'small',
+  large: 'large',
+  tall: 'tall',
+  medium: 'medium',
+  smallest: 'smallest'
+};
+
 export default class Modal extends Component {
 
   static propTypes = {
-    size: PropTypes.oneOf(['small', 'large', 'tall', 'medium', 'smallest']).isRequired,
+    size: PropTypes.oneOf(Object.values(ModalSize)).isRequired,
     isOpen: PropTypes.bool,
     hideCloseButton: PropTypes.bool,
     onClickCloseButton: PropTypes.func, // optional. defaults to props.hide
@@ -59,7 +67,13 @@ export default class Modal extends Component {
     const mediumModalUpdated = { ...mediumModal, content: { ...mediumModal.content, ...style}};
     const largeModalUpdated = { ...largeModal, content: { ...largeModal.content, ...style}};
     const tallModalUpdated = { ...tallModal, content: { ...tallModal.content, ...style}};
-    const styles = {small: smallModalUpdated, medium: mediumModalUpdated, large: largeModalUpdated, tall: tallModalUpdated, smallest: smallestModal};
+    const styles = {
+      [ModalSize.small]: smallModalUpdated,
+      [ModalSize.medium]: mediumModalUpdated,
+      [ModalSize.large]: largeModalUpdated,
+      [ModalSize.tall]: tallModalUpdated,
+      [ModalSize.smallest]: smallestModal
+    };
 
     let stringTitle = title;
     if (typeof stringTitle === 'object') {
@@ -72,7 +86,7 @@ export default class Modal extends Component {
     return (
       <ReactModal
         contentLabel={stringTitle}
-        overlayClassName={`${size}-modal qa-${classQa}`}
+        overlayClassName={`dremio-modal ${size}-modal qa-${classQa}`}
         isOpen={isOpen}
         onRequestClose={hide}
         style={styles[size]}

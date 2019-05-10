@@ -19,14 +19,18 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
 import FontIcon from 'components/Icon/FontIcon';
-import SelectWithPopover from 'components/Fields/SelectWithPopover';
+import Select from 'components/Fields/Select';
 
 import { bodySmall, formDefault } from 'uiTheme/radium/typography';
 import { PALE_BLUE, PALE_GREY } from 'uiTheme/radium/colors';
-import { INLINE_NOWRAP_ROW_FLEX_START } from 'uiTheme/radium/flexStyle';
+import { LINE_CENTER_CENTER } from 'uiTheme/radium/flexStyle';
 import { MAP, LIST, OTHER, GEO, MIXED, ANY } from 'constants/DataTypes';
 import JoinColumnMenu from './components/JoinColumnMenu';
 import JoinDragArea from './components/JoinDragArea';
+import {
+  ddList as ddListCls,
+  ddItem as ddItemCls
+}  from './InnerJoin.less';
 
 const DEFAULT_WIDTH = 200;
 
@@ -59,8 +63,6 @@ export class InnerJoin extends Component {
 
   constructor(props) {
     super(props);
-
-    this.renderCurItem = this.renderCurItem.bind(this);
 
     this.items = [
       {
@@ -147,32 +149,41 @@ export class InnerJoin extends Component {
     );
   }
 
-  renderCurItem() {
-    const { value } = this.props.fields.joinType;
-    const curIcon = this.items.find(item => item.value === value || item.label === value).icon || '';
+  renderCurItem = (selectedItem) => {
+    if (!selectedItem) return '';
     return (
       <div style={styles.label}>
-        <div style={INLINE_NOWRAP_ROW_FLEX_START}>
-          <FontIcon type={curIcon}/>
-          {value}
+        <div style={LINE_CENTER_CENTER}>
+          <FontIcon type={selectedItem.icon}/>
+          {selectedItem.label}
         </div>
-        <FontIcon type='ArrowDownSmall'/>
       </div>
     );
-  }
+  };
+
+  renderDdItem = (item) => {
+    return <DdItem {...item} />;
+  };
 
   render() {
+    const joinType = this.props.fields.joinType;
     return (
       <div className='inner-join' style={[styles.base]} onMouseUp={this.props.stopDrag}>
         <div style={styles.wrap}>
           <div style={[styles.item]}>
             <span style={[styles.font]}>{la('Type: ')}</span>
-            <SelectWithPopover
+            <Select
               dataQa='selectedJoinType'
               items={this.items}
-              curItem={this.renderCurItem()}
-              onChange={this.props.fields.joinType.onChange}
-              styleWrap={{marginTop: 3}}/>
+              valueField='value'
+              itemRenderer={this.renderDdItem}
+              value={joinType.value}
+              selectedValueRenderer={this.renderCurItem}
+              onChange={joinType.onChange}
+              style={ddStyles.button}
+              listClass={ddListCls}
+              itemClass={ddItemCls}
+            />
           </div>
         </div>
         <div style={[styles.inner]}>
@@ -204,6 +215,35 @@ export class InnerJoin extends Component {
     );
   }
 }
+
+const DdItem = ({
+  label,
+  icon,
+  des
+}) => {
+
+  const itemIcon = icon ? <FontIcon type={icon}/> : null;
+  const primaryText = (
+    <div style={ddStyles.defaultTextStyle}>
+      <div style={{ height: 23 }}>{itemIcon}</div>
+      <div>{label}</div>
+    </div>
+  );
+  const secondaryText = <div style={ddStyles.secondaryText}>{des}</div>;
+  return (
+    <div>
+      {primaryText}
+      {secondaryText}
+    </div>
+  );
+};
+DdItem.propTypes = {
+  label: PropTypes.string,
+  value: PropTypes.any,
+  icon: PropTypes.string,
+  des: PropTypes.string,
+  isLast: PropTypes.bool
+};
 
 const styles = {
   base: {
@@ -312,9 +352,37 @@ const styles = {
     flexDirection: 'row',
     flexWrap: 'nowrap',
     justifyContent: 'space-between',
-    padding: '0 5px',
     width: '100%',
     ...formDefault
+  }
+};
+
+const ddStyles = {
+  button: {
+    height: 24,
+    width: 130,
+    boxShadow: 0
+  },
+  wrapped: {
+    marginLeft: -15,
+    lineHeight: 2,
+    height: 55,
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    flexDirection: 'column-reverse'
+  },
+  secondaryText: {
+    whiteSpace: 'normal',
+    marginTop: -5,
+    lineHeight: '14px',
+    marginLeft: 24,
+    color: '#999999'
+  },
+  defaultTextStyle: {
+    display: 'flex',
+    alignItems: 'center',
+    height: 27
   }
 };
 

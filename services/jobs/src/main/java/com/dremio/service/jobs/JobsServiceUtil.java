@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
@@ -50,6 +51,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import io.protostuff.LinkedBuffer;
@@ -58,8 +60,7 @@ import io.protostuff.ProtobufIOUtil;
 /**
  * utility class.
  */
-// package private
-final class JobsServiceUtil {
+public final class JobsServiceUtil {
   private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(JobsServiceUtil.class);
 
   private JobsServiceUtil() {
@@ -83,6 +84,15 @@ final class JobsServiceUtil {
                 return SearchQueryUtils.newTermQuery(JOB_STATE, input.name());
               }
             }));
+  }
+
+  /**
+   * Waits for a given job's completion
+   */
+  public static Job waitForJobCompletion(CompletableFuture<Job> jobFuture) {
+    final Job job = Futures.getUnchecked(jobFuture);
+    job.getData().loadIfNecessary();
+    return job;
   }
 
   static SearchQuery getApparentlyAbandonedQuery() {
@@ -131,7 +141,7 @@ final class JobsServiceUtil {
    * @param id external id
    * @return job id
    */
-  static JobId getExternalIdAsJobId(ExternalId id) {
+  public static JobId getExternalIdAsJobId(ExternalId id) {
     return new JobId(new UUID(id.getPart1(), id.getPart2()).toString());
   }
 
@@ -248,12 +258,12 @@ final class JobsServiceUtil {
     }
 
     List<JobFailureInfo.Error> errors;
-    if (lines.length == 3) {
-      errors = null;
-    } else {
+    JobFailureInfo.Error error = new JobFailureInfo.Error()
+      .setMessage(message);
+    if (lines.length > 3) {
       // Parse all the context lines
       Map<String, String> context = new HashMap<>();
-      for(int i = 3; i < lines.length; i++) {
+      for (int i = 3; i < lines.length; i++) {
         String line = lines[i];
         if (line.isEmpty()) {
           break;
@@ -267,8 +277,6 @@ final class JobsServiceUtil {
         context.put(contextLine[0], contextLine[1]);
       }
 
-      JobFailureInfo.Error error = new JobFailureInfo.Error()
-          .setMessage(message);
       if (context.containsKey(START_LINE_CONTEXT)) {
         try {
           int startLine = Integer.parseInt(context.get(START_LINE_CONTEXT));
@@ -285,9 +293,8 @@ final class JobsServiceUtil {
           // Ignoring
         }
       }
-
-      errors = ImmutableList.of(error);
     }
+    errors = ImmutableList.of(error);
 
     return new JobFailureInfo().setMessage("Invalid Query Exception").setType(type).setErrorsList(errors);
   }

@@ -13,46 +13,57 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
+import { connect } from 'react-redux';
 import classNames from 'classnames';
 import Radium from 'radium';
-import PureRender from 'pure-render-decorator';
-
 import PropTypes from 'prop-types';
 
+import { stopPropagation } from '@app/utils/reactEventUtils';
+import { setEntityActiveState } from '@app/reducers/home/pinnedEntities';
+import { isEntityPinned } from '@app/selectors/home';
 import FontIcon from 'components/Icon/FontIcon';
 
-@PureRender
+const mapStateToProps = (state, {
+  entityId
+}) => ({
+  isPinned: isEntityPinned(state, entityId)
+});
+
+const mapDispatchToProps = {
+  toggleActivePin: setEntityActiveState
+};
+
+//export for tests
 @Radium
-export default class ResourcePin extends Component {
+export class ResourcePin extends PureComponent {
   static propTypes = {
-    name: PropTypes.string.isRequired,
-    isActivePin: PropTypes.bool.isRequired,
-    toggleActivePin: PropTypes.func.isRequired
+    //public api
+    entityId: PropTypes.string.isRequired,
+
+    // connected
+    isPinned: PropTypes.bool.isRequired,
+
+    toggleActivePin: PropTypes.func // (entityId: string, isPinned: bool): void
   };
 
-  constructor(props) {
-    super(props);
-    this.onPinClick = this.onPinClick.bind(this);
-  }
 
-  onPinClick(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    const {name, isActivePin, toggleActivePin} = this.props;
-    toggleActivePin.apply(this, [name, isActivePin]);
-  }
+  onPinClick = (e) => {
+    stopPropagation(e);
+    const { entityId, isPinned, toggleActivePin} = this.props;
+    toggleActivePin(entityId, !isPinned);
+  };
 
   render() {
-    const { isActivePin } = this.props;
-    const pinClass = classNames('pin', {'active': isActivePin});
+    const { isPinned } = this.props;
+    const pinClass = classNames('pin', {'active': isPinned});
     return (
       <span
         className='pin-wrap'
         onClick={this.onPinClick}>
         <span
           className={pinClass}
-          style={[styles.pin, isActivePin ? styles.activePin : null]}>
+          style={[styles.pin, isPinned ? styles.activePin : null]}>
           <FontIcon
             type='Pin'
             theme={styles.iconStyle}/>
@@ -61,6 +72,8 @@ export default class ResourcePin extends Component {
     );
   }
 }
+
+export default connect(mapStateToProps, mapDispatchToProps)(ResourcePin);
 
 const styles = {
   pin: {

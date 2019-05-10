@@ -23,21 +23,20 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.GroupScan;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.fragment.ExecutionNodeMap;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
 import com.dremio.exec.store.schedule.SimpleCompleteWork;
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
-import com.google.common.collect.ImmutableList;
 
 /**
  * InfoSchema group scan.
@@ -49,14 +48,15 @@ public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<Simpl
   private final SearchQuery query;
   private final StoragePluginId pluginId;
 
+  @JsonCreator
   public InfoSchemaGroupScan(
-      String userName,
-      InfoSchemaTable table,
-      SearchQuery query,
-      List<SchemaPath> columns,
-      StoragePluginId pluginId
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("table") InfoSchemaTable table,
+      @JsonProperty("columns") List<SchemaPath> columns,
+      @JsonProperty("query") SearchQuery query,
+      @JsonProperty("pluginId") StoragePluginId pluginId
       ) {
-    super(userName);
+    super(props);
     this.table = table;
     this.columns = columns;
     this.query = query;
@@ -64,13 +64,11 @@ public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<Simpl
   }
 
   @Override
-  @JsonIgnore
   public int getMaxParallelizationWidth() {
     return 1;
   }
 
   @Override
-  @JsonIgnore
   public int getMinParallelizationWidth() {
     return 1;
   }
@@ -109,17 +107,6 @@ public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<Simpl
     return null;
   }
 
-  @JsonIgnore
-  @Override
-  public List<List<String>> getReferencedTables() {
-    return ImmutableList.of();
-  }
-
-  @Override
-  public boolean mayLearnSchema() {
-    return false;
-  }
-
   /**
    * If distributed, the scan needs to happen on every node. Since width is enforced, the number of fragments equals
    * number of SabotNodes. And here we set, each endpoint as mandatory assignment required to ensure every
@@ -133,12 +120,7 @@ public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<Simpl
 
   @Override
   public SubScan getSpecificScan(List<SimpleCompleteWork> work) {
-    return new InfoSchemaSubScan(getUserName(), table, query, getColumns(), pluginId);
-  }
-
-  @Override
-  public BatchSchema getSchema() {
-    return table.getSchema();
+    return new InfoSchemaSubScan(props, table, columns, query, pluginId);
   }
 
   @Override
@@ -154,11 +136,6 @@ public class InfoSchemaGroupScan extends AbstractBase implements GroupScan<Simpl
   @Override
   public Iterator<PhysicalOperator> iterator() {
     return Collections.emptyIterator();
-  }
-
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    return getSchema().maskAndReorder(getColumns());
   }
 
   @Override

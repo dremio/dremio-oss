@@ -18,13 +18,17 @@ package com.dremio.exec.physical.config;
 import java.util.Collections;
 import java.util.List;
 
-import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.physical.base.AbstractSender;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.base.OpWithMinorSpecificAttrs;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.planner.fragment.MinorDataReader;
+import com.dremio.exec.planner.fragment.MinorDataWriter;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.Options;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -33,50 +37,43 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 /**
  * Sender that pushes all data to a single destination node.
  */
+@Options
 @JsonTypeName("single-sender")
-public class SingleSender extends AbstractSender {
+public class SingleSender extends AbstractSender implements OpWithMinorSpecificAttrs {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SingleSender.class);
+  private static final String DESTINATION_ATTRIBUTE_KEY = "single-sender-destination";
+  private MinorFragmentIndexEndpoint destination;
 
-  /**
-   * Create a SingleSender which sends data to fragment identified by given MajorFragmentId and MinorFragmentId,
-   * and running at given endpoint
-   *
-   * @param oppositeMajorFragmentId MajorFragmentId of the receiver fragment.
-   * @param oppositeMinorFragmentId MinorFragmentId of the receiver fragment.
-   * @param child Child operator
-   * @param destination SabotNode endpoint where the receiver fragment is running.
-   */
+  public SingleSender(
+      OpProps props,
+      BatchSchema schema,
+      PhysicalOperator child,
+      int receiverMajorFragmentId,
+      MinorFragmentIndexEndpoint destination
+      ) {
+    super(props, schema, child, receiverMajorFragmentId);
+    this.destination = destination;
+  }
+
   @JsonCreator
-  public SingleSender(@JsonProperty("receiver-major-fragment") int oppositeMajorFragmentId,
-                      @JsonProperty("receiver-minor-fragment") int oppositeMinorFragmentId,
-                      @JsonProperty("child") PhysicalOperator child,
-                      @JsonProperty("destination") NodeEndpoint destination,
-                      @JsonProperty("schema") BatchSchema schema) {
-    super(oppositeMajorFragmentId, child,
-        Collections.singletonList(new MinorFragmentEndpoint(oppositeMinorFragmentId, destination)), schema);
+  public SingleSender(
+    @JsonProperty("props") OpProps props,
+    @JsonProperty("schema") BatchSchema schema,
+    @JsonProperty("child") PhysicalOperator child,
+    @JsonProperty("receiverMajorFragmentId") int receiverMajorFragmentId
+    )  {
+    super(props, schema, child, receiverMajorFragmentId);
   }
 
-  /**
-   * Create a SingleSender which sends data to fragment with MinorFragmentId as <i>0</i> in given opposite major
-   * fragment.
-   *
-   * @param oppositeMajorFragmentId MajorFragmentId of the receiver fragment.
-   * @param child Child operator
-   * @param destination SabotNode endpoint where the receiver fragment is running.
-   */
-  public SingleSender(int oppositeMajorFragmentId, PhysicalOperator child, NodeEndpoint destination, BatchSchema schema) {
-    this(oppositeMajorFragmentId, 0 /* default opposite minor fragment id*/, child, destination, schema);
-  }
-
+  @JsonIgnore
   @Override
-  @JsonIgnore // Destination endpoint is exported via getDestination() and getOppositeMinorFragmentId()
-  public List<MinorFragmentEndpoint> getDestinations() {
-    return destinations;
+  public List<MinorFragmentIndexEndpoint> getDestinations() {
+    return Collections.singletonList(destination);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new SingleSender(oppositeMajorFragmentId, getOppositeMinorFragmentId(), child, getDestination(), schema);
+    return new SingleSender(props, schema, child, receiverMajorFragmentId, destination);
   }
 
   @Override
@@ -84,14 +81,9 @@ public class SingleSender extends AbstractSender {
     return physicalVisitor.visitSingleSender(this, value);
   }
 
-  @JsonProperty("destination")
-  public NodeEndpoint getDestination() {
-    return getDestinations().get(0).getEndpoint();
-  }
-
-  @JsonProperty("receiver-minor-fragment")
-  public int getOppositeMinorFragmentId() {
-    return getDestinations().get(0).getId();
+  @JsonIgnore
+  public int getReceiverMinorFragmentId() {
+    return destination.getMinorFragmentId();
   }
 
   @Override
@@ -99,4 +91,13 @@ public class SingleSender extends AbstractSender {
     return CoreOperatorType.SINGLE_SENDER_VALUE;
   }
 
+  @Override
+  public void collectMinorSpecificAttrs(MinorDataWriter writer) {
+    writer.writeMinorFragmentIndexEndpoint(this, DESTINATION_ATTRIBUTE_KEY, destination);
+  }
+
+  @Override
+  public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
+    this.destination = reader.readMinorFragmentIndexEndpoint(this, DESTINATION_ATTRIBUTE_KEY);
+  }
 }

@@ -26,34 +26,27 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.exec.exception.ClassTransformationException;
 import com.dremio.exec.exception.SchemaChangeException;
-import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassProducer;
-import com.dremio.exec.expr.CodeGenerator;
 import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
-import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.op.copier.Copier;
 import com.dremio.sabot.op.copier.CopierOperator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import io.netty.buffer.ArrowBuf;
-
 /**
- * Describes a set of ordered batches of data. Sorts new data as it is inserted
- * using a SplayTree. Sort has two stages:
+ * Describes a set of ordered batches of data in memory. Sort each batch as it
+ * is inserted using the Sorter.  Sorter can be configured to use QuickSort (by
+ * default) or SplaySort.
  *
- * - Sort each batch using an Sv2
- * - Insert each batch into a SplayTree as it arrives
- *
- * Memory Guarantees Targeted: ensures that spilling can be done before
- * accepting a new batch of records. Does this by pre-reserving
- * BATCH_SIZE_MULTIPLIER times the size of the largest batch included in the
- * memory run.
+ * Memory Guarantees Targeted:
+ * - Ensure that spilling can be done before accepting a new batch of records.
+ *   We do this by pre-reserving BATCH_SIZE_MULTIPLIER times the size of the
+ *   largest batch included in the memory run.
  *
  * Can either be spilled or returned in SV4 sorted structure.
  */
@@ -63,14 +56,12 @@ class MemoryRun implements AutoCloseable {
 
   private final ExternalSort sortConfig;
   private final ClassProducer classProducer;
+  private final Schema schema;
   private final BufferAllocator allocator;
 
-  private ArrowBuf splayTreeBuffer;
-  private SingleBatchSorter localSorter;
-  private SplaySorter treeManager;
+  private Sorter sorter;
   private RecordBatchItem head;
   private RecordBatchItem tail;
-  private final Schema schema;
 
   private long maxBatchSize;
   private int minRecordCount = Character.MAX_VALUE;
@@ -88,16 +79,26 @@ class MemoryRun implements AutoCloseable {
       BufferAllocator allocator,
       Schema schema,
       ExternalSortTracer tracer,
-      int batchsizeMultiplier
+      int batchsizeMultiplier,
+      boolean useSplaySort
       ) {
     this.schema = schema;
     this.sortConfig = sortConfig;
     this.allocator = allocator;
     this.classProducer = classProducer;
-    this.splayTreeBuffer = allocator.buffer(4096 * SplayTree.NODE_SIZE);
-    splayTreeBuffer.setZero(0, splayTreeBuffer.capacity());
     this.tracer = tracer;
     this.batchsizeMultiplier = batchsizeMultiplier;
+    try {
+      if (useSplaySort) {
+        this.sorter = new SplaySorter(sortConfig, classProducer, schema, allocator);
+      } else {
+        this.sorter = new QuickSorter(sortConfig, classProducer, schema, allocator);
+      }
+    } catch (OutOfMemoryException ex) {
+      this.sorter = null;
+      logger.debug("Memory Run: failed to allocate memory for sorter");
+      throw ex;
+    }
     updateProtectedSize(1 << 16);
   }
 
@@ -130,47 +131,53 @@ class MemoryRun implements AutoCloseable {
   }
 
   public boolean addBatch(VectorAccessible incoming) throws Exception {
+    final int recordCount = incoming.getRecordCount();
     final long batchSize = new BatchStats().getSize(incoming, BatchStats.SizeType.WORSE_CASE);
 
-    // if after adding incoming we end up with less than 20% of memory available for the sort allocator we should spill instead
+    // If after adding incoming we end up with less than 20% of memory available for the sort allocator we should
+    // spill instead.
     double headroom = allocator.getHeadroom() - batchSize;
-    double total = allocator.getAllocatedMemory() + headroom;
-
+    double total = allocator.getAllocatedMemory() + headroom + batchSize;
     if (headroom/total < 0.2) {
       logger.debug("Memory Run: less than 20% of memory available after adding, failed to add batch");
       return false;
     }
 
-    // make sure we have room for an expanded tree before adding record batch.
-    if (!expandTreeIfNecessary(incoming.getRecordCount())) {
-      logger.debug("Memory Run: no room for expanding the tree, failed to add batch");
+    // Make sure we have room for expanded MultiBatch global-sorter or SplayTree sorter before adding a new
+    // record batch.
+    if (!sorter.expandMemoryIfNecessary(recordLength + recordCount)) {
+      logger.debug("Memory Run: no room for expanding sorter, failed to add batch");
       return false;
     }
 
-    if (treeManager != null && (treeManager.getHyperBatch().size() >= 65535 || size >= 32768)) {
-      logger.debug("Memory Run: no room for storing new batch, failed to add batch");
+    // Make sure we are not already over max batches we are allowed to hold in memory.
+    if (sorter.getHyperBatchSize() >= ExternalSortOperator.MAX_BATCHES_PER_HYPERBATCH ||
+        size >= ExternalSortOperator.MAX_BATCHES_PER_MEMORY_RUN) {
+      logger.debug("Memory Run: no room for storing new batch, current size = {}, failed to add batch", size);
       return false;
     }
 
-    // copy size is BATCH_SIZE_MULTIPLIER worse case batch size since we have to
-    // be careful of memory rounding. sv4 for sort output vector is the total
-    // number of records x4 bytes per sv4 value. we need to reserve this here
-    // (but not allocate so we always guarantee that we can allocate later.
-    final long needed = batchSize * batchsizeMultiplier + nextPowerOfTwo((recordLength + incoming.getRecordCount()) * 4);
+    // Copy size is BATCH_SIZE_MULTIPLIER X worse case batch size since we have to be careful of memory rounding.
+    // Plus one sv4 for sort output vector, so we need number of records X 4bytes more. This has to be reserved
+    // here (but not allocated) so we can guarantee allocation later.
+    final long needed = batchSize * batchsizeMultiplier +
+      nextPowerOfTwo((recordLength + recordCount) * 4);
     if (copyTargetSize < needed) {
-      logger.debug("Memory Run: new size needed to reserve for spill {} current target copy size {}", needed, copyTargetSize);
+      logger.debug("Memory Run: new size needed to reserve for spill {} current target copy size {}",
+        needed, copyTargetSize);
       if (!updateProtectedSize(needed)) {
         logger.debug("Memory Run: failed to reserve space");
         return false;
       }
     }
 
-    final int recordCount = incoming.getRecordCount();
+    recordLength += recordCount;
     if (recordCount < minRecordCount) {
       minRecordCount = recordCount;
     }
 
-    // We can safely transfer ownership of data into our allocator since this will always succeed (even if we become overlimit).
+    // We can safely transfer ownership of data into our allocator since this will always succeed (even if we
+    // become overlimit).
     final RecordBatchItem rbi = new RecordBatchItem(allocator, incoming);
 
     try(RollbackCloseable commitable = AutoCloseables.rollbackable(rbi.data)){
@@ -178,15 +185,14 @@ class MemoryRun implements AutoCloseable {
       if (first) {
         maxBatchSize = rbi.getMemorySize();
         head = tail = rbi;
-        compileSortingClasses(rbi.data.getContainer());
+        sorter.setup(rbi.data.getContainer());
       } else {
         maxBatchSize = Math.max(maxBatchSize, batchSize);
         tail.setNext(rbi);
         tail = rbi;
-        treeManager.getHyperBatch().addBatch(rbi.data.getContainer());
       }
 
-      sortBatchAndInsertInTree(rbi);
+      sorter.addBatch(rbi.data, copyTargetAllocator);
       size++;
       commitable.commit();
       return true;
@@ -203,83 +209,6 @@ class MemoryRun implements AutoCloseable {
     return size;
   }
 
-  private boolean expandTreeIfNecessary(int newRecords) {
-    // 0 position is used for null in splay tree, see need to account for this
-    final int requiredSize = (recordLength + newRecords + 1) * SplayTree.NODE_SIZE;
-
-    while (splayTreeBuffer.capacity() < requiredSize) {
-
-      try {
-        final ArrowBuf oldSplayTree = splayTreeBuffer;
-        this.splayTreeBuffer = allocator.buffer(splayTreeBuffer.capacity() * 2);
-        splayTreeBuffer.setBytes(0, oldSplayTree, 0, oldSplayTree.capacity());
-        splayTreeBuffer.setZero(oldSplayTree.capacity(), splayTreeBuffer.capacity() - oldSplayTree.capacity());
-        if(treeManager != null){
-          treeManager.setData(splayTreeBuffer);
-        }
-        oldSplayTree.close();
-      } catch (OutOfMemoryException ex) {
-        return false;
-      }
-    }
-    recordLength += newRecords;
-    return true;
-  }
-
-  private void sortBatchAndInsertInTree(RecordBatchItem item)
-      throws SchemaChangeException {
-    // next we'll generate a new sv2 for the local sort. We do this even if the
-    // incoming batch has an sv2. This is because we need to treat that one as
-    // immutable.
-    //
-    // Note that we shouldn't have an issue with allocation here since we'll use
-    // the copyTargetAllocator.
-    // This isn't yet used and is guaranteed to be larger than the size of this
-    // ephemeral allocation.
-    try (SelectionVector2 localSortVector = new SelectionVector2(copyTargetAllocator)) {
-      final int recordCount = item.getRecordCount();
-      localSortVector.allocateNew(recordCount);
-      final SelectionVector2 incomingSv2 = item.data.getSv2();
-      if (incomingSv2 != null) {
-        // just copy the sv2.
-        localSortVector.getBuffer(false).writeBytes(incomingSv2.getBuffer(false), 0, recordCount * 2);
-      } else {
-        for (int i = 0; i < recordCount; i++) {
-          localSortVector.setIndex(i * 2, i);
-        }
-      }
-
-      // quicksort for cache-local performance benefits (includes resetting vector references)
-      localSorter.setup(classProducer.getFunctionContext(), localSortVector, item.data.getContainer());
-      localSorter.sort(localSortVector);
-
-      // now we need to insert the values into the splay tree.
-      treeManager.add(localSortVector, item.data);
-
-    }
-  }
-
-  private void compileSortingClasses(VectorAccessible batch)
-      throws ClassTransformationException, SchemaChangeException, IOException {
-
-    { // Local (single batch) sorter
-      CodeGenerator<SingleBatchSorter> cg = classProducer.createGenerator(SingleBatchSorter.TEMPLATE_DEFINITION);
-      ClassGenerator<SingleBatchSorter> g = cg.getRoot();
-      ExternalSortOperator.generateComparisons(g, batch, sortConfig.getOrderings(), classProducer);
-      this.localSorter = cg.getImplementationClass();
-    }
-
-    { // Tree
-      CodeGenerator<SplaySorter> cg = classProducer.createGenerator(SplaySorter.TEMPLATE_DEFINITION);
-      ClassGenerator<SplaySorter> g = cg.getRoot();
-      final Sv4HyperContainer container = new Sv4HyperContainer(allocator, schema);
-      ExternalSortOperator.generateComparisons(g, container, sortConfig.getOrderings(), classProducer);
-      this.treeManager = cg.getImplementationClass();
-      treeManager.init(classProducer.getFunctionContext(), container);
-      treeManager.setData(splayTreeBuffer);
-    }
-  }
-
   @Override
   public void close() throws Exception {
     final List<AutoCloseable> closeables = Lists.newArrayList();
@@ -292,11 +221,10 @@ class MemoryRun implements AutoCloseable {
       closeables.add(item);
     }
 
-    closeables.add(splayTreeBuffer);
+    closeables.add(sorter);
     closeables.add(copyTargetAllocator);
     AutoCloseables.close(closeables);
 
-    splayTreeBuffer = null;
     copyTargetAllocator = null;
   }
 
@@ -336,11 +264,12 @@ class MemoryRun implements AutoCloseable {
   }
 
   private SelectionVector4 closeToContainer(VectorContainer container, int targetBatchSize) {
-    SelectionVector4 sv4 = treeManager.getFinalSort(copyTargetAllocator, targetBatchSize);
-    for (VectorWrapper<?> w : treeManager.getHyperBatch()) {
+    SelectionVector4 sv4 = sorter.getFinalSort(copyTargetAllocator, targetBatchSize);
+    for (VectorWrapper<?> w : sorter.getHyperBatch()) {
       container.add(w.getValueVectors());
     }
-    treeManager.getHyperBatch().noReleaseClear();
+    sorter.getHyperBatch().noReleaseClear();
+
     container.buildSchema(SelectionVectorMode.FOUR_BYTE);
     return sv4;
   }
@@ -386,7 +315,6 @@ class MemoryRun implements AutoCloseable {
           input,
           output);
     }
-
 
     @Override
     public int copy(int targetRecordCount) {

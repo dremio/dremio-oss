@@ -13,70 +13,100 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
+import { Overlay } from 'react-overlays';
 
 import PropTypes from 'prop-types';
 
 import getTooltipStyles from 'uiTheme/radium/tooltips';
 
-@pureRender
-export default class Tooltip extends Component {
-
+export class Tooltip extends PureComponent {
   static propTypes = {
-    content: PropTypes.node,
+    children: PropTypes.node,
     type: PropTypes.string,
+    /** identifies */
     placement: PropTypes.string,
     id: PropTypes.string,
     className: PropTypes.string,
     style: PropTypes.object,
+    target: PropTypes.func.isRequired,
+    container: PropTypes.object,
     tooltipInnerStyle: PropTypes.object,
     tooltipArrowStyle: PropTypes.object,
-    // we can get arrowOffsetLeft like percent
-    arrowOffsetLeft: PropTypes.oneOfType([
-      PropTypes.number,
-      PropTypes.string
-    ]),
-    arrowOffsetTop: PropTypes.oneOfType([
-      PropTypes.number,
-      PropTypes.string
-    ])
+    dataQa: PropTypes.string
   };
 
-  constructor(props) {
-    super(props);
-    this.state = { content: this.props.content };
-  }
-
-  componentWillReceiveProps(nextProps) {
-    if (nextProps.content) {
-      this.setState({ content: nextProps.content });
-    }
-  }
+  static defaultProps = {
+    type: 'status'
+  };
 
   render() {
-    const styles = getTooltipStyles(this.props.type, 'error', this.props.placement);
-    const placementStyle = styles.placement[this.props.placement];
-
     const {
+      children,
       className,
       id,
       style,
+      placement,
+      target,
       tooltipInnerStyle,
-      tooltipArrowStyle,
-      arrowOffsetLeft: left = placementStyle.arrow.left,
-      arrowOffsetTop: top = placementStyle.arrow.top
+      container,
+      dataQa
     } = this.props;
-
-    const finalStyle = { ...styles.base, ...placementStyle.tooltip, ...style };
+    const index = placement.indexOf('-');
+    const styles = getTooltipStyles(this.props.type);
+    const placementStyle = styles.placement[index >= 0 ? placement.substring(0, index) : placement];
+    const finalStyle = { ...styles.base, ...style };
 
     return (
-      <div id={id} className={className} data-qa='tooltip' style={finalStyle}>
-        <div style={{ ...styles.arrow, ...placementStyle.arrow, ...tooltipArrowStyle, left, top }}/>
-        <div style={{ ...styles.inner, ...tooltipInnerStyle }}>
-          {this.state.content}
-        </div>
-      </div>
+      <Overlay
+        show={Boolean(target())}
+        placement={placement}
+        target={target}
+        container={container}
+        popperConfig={popperConfig}
+      >
+        {
+          (overlayInfo) => {
+            const { props: overlayProps, arrowProps } = overlayInfo;
+
+            return (
+              <div
+                {...overlayProps}
+                id={id} className={className}
+                data-qa='tooltip'
+                style={{
+                  ...finalStyle,
+                  ...overlayProps.style
+                }}
+              >
+                <div style={placementStyle.tooltip}>
+                  <div
+                    {...arrowProps}
+                    style={{
+                      ...styles.arrow,
+                      // arrowProps.style could contain styles like top: '', left: ''. That is why
+                      // we need to apply placementStyle after arrowProps
+                      ...arrowProps.style,
+                      ...placementStyle.arrow
+                    }}
+                  />
+                  <div data-qa={dataQa} style={{ ...styles.inner, ...tooltipInnerStyle }}>
+                    {children}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+        }
+      </Overlay>
     );
   }
 }
+
+const popperConfig = {
+  modifiers: {
+    preventOverflow: {
+      boundariesElement: 'viewport'
+    }
+  }
+};

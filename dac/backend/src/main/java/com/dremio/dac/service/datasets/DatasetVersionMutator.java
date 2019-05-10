@@ -20,7 +20,6 @@ import static com.dremio.dac.util.DatasetsUtil.toVirtualDatasetUI;
 import static com.dremio.dac.util.DatasetsUtil.toVirtualDatasetVersion;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_ALLPARENTS;
 import static com.dremio.service.namespace.DatasetIndexKeys.DATASET_ID;
-import static com.dremio.service.namespace.DatasetIndexKeys.MAPPING;
 import static com.dremio.service.namespace.dataset.DatasetVersion.MAX_VERSION;
 import static com.dremio.service.namespace.dataset.DatasetVersion.MIN_VERSION;
 import static java.lang.String.format;
@@ -53,7 +52,6 @@ import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting;
-import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.datastore.Serializer;
 import com.dremio.datastore.StoreBuildingFactory;
@@ -76,9 +74,7 @@ import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 /**
@@ -280,9 +276,9 @@ public class DatasetVersionMutator {
     }
   }
 
-  public void deleteDataset(DatasetPath datasetPath, String version) throws DatasetNotFoundException, NamespaceException {
+  public void deleteDataset(DatasetPath datasetPath, String namespaceEntityVersion) throws DatasetNotFoundException, NamespaceException {
     try {
-      namespaceService.deleteDataset(datasetPath.toNamespaceKey(), version);
+      namespaceService.deleteDataset(datasetPath.toNamespaceKey(), namespaceEntityVersion);
     } catch (NamespaceNotFoundException nsnf) {
       throw new DatasetNotFoundException(datasetPath, nsnf);
     }
@@ -340,39 +336,6 @@ public class DatasetVersionMutator {
   }
 
   private static final SearchFieldSorting DEFAULT_SORTING = DATASET_ID.toSortField(SortOrder.DESCENDING);
-
-  public List<DatasetConfig> searchDatasets(String query) {
-    final SearchQuery searchQuery;
-    if (query == null || query.isEmpty()) {
-      searchQuery = SearchQueryUtils.newMatchAllQuery();
-    } else {
-      final ImmutableList.Builder<SearchQuery> builder = ImmutableList.builder();
-      for (final String name : MAPPING.getSearchAllIndexKeys()) {
-        final String value;
-        if (query.contains("*")) {
-          value = query;
-        } else {
-          value = String.format("*%s*", query);
-        }
-        builder.add(SearchQueryUtils.newWildcardQuery(name, value));
-      }
-
-      searchQuery = SearchQueryUtils.or(builder.build());
-    }
-
-    final FindByCondition condition = new FindByCondition()
-        .setCondition(searchQuery)
-        .setLimit(100) // TODO(DX-10859): this should be in the function API
-        .addSorting(DEFAULT_SORTING);
-
-    final List<DatasetConfig> datasets = Lists.newArrayList();
-    for (Entry<NamespaceKey, NameSpaceContainer> entry : namespaceService.find(condition)) {
-      if (entry.getValue().getType() == NameSpaceContainer.Type.DATASET) {
-        datasets.add(entry.getValue().getDataset());
-      }
-    }
-    return datasets;
-  }
 
   public Job prepareDownload(DatasetPath datasetPath, DatasetVersion datasetVersion, DownloadFormat downloadFormat,
                              int limit, String userName) throws DatasetVersionNotFoundException, IOException {

@@ -32,20 +32,19 @@ import org.joda.time.DateTimeConstants;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.MinorType;
+import com.dremio.connector.metadata.PartitionValue;
+import com.dremio.connector.metadata.PartitionValue.PartitionValueType;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchFieldSorting.FieldType;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.physical.base.ScanStats;
 import com.dremio.exec.store.parquet.ParquetFilterCondition.FilterProperties;
 import com.dremio.exec.store.parquet.ParquetReaderUtility.NanoTimeUtils;
-import com.dremio.service.namespace.DatasetSplitConverter;
-import com.dremio.service.namespace.dataset.proto.PartitionValue;
+import com.dremio.service.namespace.PartitionChunkConverter;
 import com.dremio.service.namespace.dataset.proto.ScanStatsType;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-
-import io.protostuff.ByteString;
 
 /**
  * Utils to serialize storage plugin specific structures to/from namespace.
@@ -91,90 +90,73 @@ public class MetadataUtils {
     return Lists.transform(columns, schemaPathStringFunction);
   }
 
-  public static PartitionValue toPartitionValue(final SchemaPath column, final Object value, final MinorType type) {
-    final PartitionValue partitionValue = new PartitionValue();
-    partitionValue.setColumn(column.getAsUnescapedPath());
+  public static PartitionValue toPartitionValue(final SchemaPath column, final Object value, final MinorType type,
+      final PartitionValueType partitionType) {
+      final String name = column.getAsUnescapedPath();
+    if (value == null) {
+      return PartitionValue.of(name, partitionType);
+    }
+
     switch (type) {
       case INT:
       case TIME:
       case INTERVALYEAR:
-        partitionValue.setIntValue(value == null? null : ((Number)value).intValue());
-        break;
+        return PartitionValue.of(name, ((Number)value).intValue(), partitionType);
+
       case TIMESTAMP:
-        if (value == null) {
-          partitionValue.setLongValue(null);
-          break;
-        }
         if(value instanceof Binary){
           // int96.
-          partitionValue.setLongValue(NanoTimeUtils.getDateTimeValueFromBinary((Binary) value));
-          break;
+          return PartitionValue.of(name, NanoTimeUtils.getDateTimeValueFromBinary((Binary) value), partitionType);
         }
-        partitionValue.setLongValue(value == null? null : ((Number)value).longValue());
-        break;
+
+        return PartitionValue.of(name, ((Number)value).longValue(), partitionType);
 
       case DATE:
-        partitionValue.setLongValue(value == null? null : ((Number)value).intValue() * (long) DateTimeConstants.MILLIS_PER_DAY);
-        break;
+        return PartitionValue.of(name, ((Number)value).intValue() * (long) DateTimeConstants.MILLIS_PER_DAY, partitionType);
 
       case BIGINT:
       case INTERVALDAY:
-        partitionValue.setLongValue(value == null? null : ((Number)value).longValue());
-        break;
+        return PartitionValue.of(name, ((Number)value).longValue(), partitionType);
 
       case VARCHAR:
-        if (value == null) {
-          partitionValue.setStringValue(null);
+        if (value instanceof String) { // if the metadata was read from a JSON cache file it maybe a string type
+          return PartitionValue.of(name, (String) value, partitionType);
+        } else if (value instanceof Binary) {
+          return PartitionValue.of(name, new String(((Binary) value).getBytes(), UTF8), partitionType);
+        } else if (value instanceof byte[]) {
+          return PartitionValue.of(name, new String((byte[]) value, UTF8), partitionType);
         } else {
-          if (value instanceof String) { // if the metadata was read from a JSON cache file it maybe a string type
-            partitionValue.setStringValue((String) value);
-          } else if (value instanceof Binary) {
-            partitionValue.setStringValue(new String(((Binary) value).getBytes(), UTF8));
-          } else if (value instanceof byte[]) {
-            partitionValue.setStringValue(new String((byte[]) value, UTF8));
-          } else {
-            throw new UnsupportedOperationException("Unable to create column data for type: " + type);
-          }
+          throw new UnsupportedOperationException("Unable to create column data for type: " + type);
         }
-        break;
 
       case VARBINARY:
-        if (value == null) {
-          partitionValue.setBinaryValue(null);
+        if (value instanceof String) { // if the metadata was read from a JSON cache file it maybe a string type
+          return PartitionValue.of(name, os -> os.write(((String) value).getBytes(UTF8)), partitionType);
+        } else if (value instanceof Binary) {
+          return PartitionValue.of(name, os -> os.write(((Binary) value).getBytes()), partitionType);
+        } else if (value instanceof byte[]) {
+          return PartitionValue.of(name, os -> os.write((byte[]) value), partitionType);
         } else {
-          if (value instanceof String) { // if the metadata was read from a JSON cache file it maybe a string type
-            partitionValue.setBinaryValue(ByteString.copyFrom(((String) value).getBytes(UTF8)));
-          } else if (value instanceof Binary) {
-            partitionValue.setBinaryValue(ByteString.copyFrom(((Binary) value).getBytes()));
-          } else if (value instanceof byte[]) {
-            partitionValue.setBinaryValue(ByteString.copyFrom((byte[]) value));
-          } else {
-            throw new UnsupportedOperationException("Unable to create column data for type: " + type);
-          }
+          throw new UnsupportedOperationException("Unable to create column data for type: " + type);
         }
-        break;
 
       case FLOAT4:
-        partitionValue.setFloatValue(value == null? null : ((Number)value).floatValue());
-        break;
+        return PartitionValue.of(name, ((Number)value).floatValue(), partitionType);
 
       case FLOAT8:
-        partitionValue.setDoubleValue(value == null? null : ((Number)value).doubleValue());
-        break;
+        return PartitionValue.of(name, ((Number)value).doubleValue(), partitionType);
 
       case BIT:
-        partitionValue.setBitValue(value == null? null : (Boolean) value);
-        break;
+        return PartitionValue.of(name, (Boolean) value, partitionType);
 
       case DECIMAL:
-        if (value == null) {
-          partitionValue.setBinaryValue(null);
-        } else if (value instanceof Binary) {
-          partitionValue.setBinaryValue(ByteString.copyFrom(((Binary) value).getBytes()));
+        if (value instanceof Binary) {
+          return PartitionValue.of(name, os -> os.write(((Binary) value).getBytes()), partitionType);
         } else if (value instanceof byte[]) {
-          partitionValue.setBinaryValue(ByteString.copyFrom((byte[]) value));
+          return PartitionValue.of(name, os -> os.write((byte[]) value), partitionType);
         }
-        break;
+        return PartitionValue.of(name, partitionType);
+
       case LIST:
       case UNION:
       case NULL:
@@ -182,7 +164,6 @@ public class MetadataUtils {
       default:
         throw new UnsupportedOperationException(type + " is not supported");
     }
-    return partitionValue;
   }
 
   private static class RangeQueryInput {
@@ -245,7 +226,7 @@ public class MetadataUtils {
     final CompleteType ct = CompleteType.fromField(field);
 
     final FieldType fieldType = getFieldType(ct);
-    final String columnKey = DatasetSplitConverter.buildColumnKey(fieldType, field.getName());
+    final String columnKey = PartitionChunkConverter.buildColumnKey(fieldType, field.getName());
     final SearchQuery partitionColumnNotDefinedQuery = SearchQueryUtils.newDoesNotExistQuery(columnKey);
     final List<SearchQuery> filterQueries = Lists.newArrayList();
 

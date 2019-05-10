@@ -118,6 +118,7 @@ describe('ExploreTableCell', () => {
             rowIndex: instance.props.rowIndex,
             columnKey: instance.props.columnKey,
             columnStatus: instance.props.columnStatus,
+            columnType: instance.props.columnType,
             data: instance.props.data
           },
           instance.state
@@ -129,6 +130,7 @@ describe('ExploreTableCell', () => {
             rowIndex: instance.props.rowIndex,
             columnKey: instance.props.columnKey,
             columnStatus: instance.props.columnStatus,
+            columnType: instance.props.columnType,
             data: Immutable.fromJS([{
               row: [{
                 v: 23,

@@ -15,10 +15,9 @@
  */
 package com.dremio.exec.store.mock;
 
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractStore;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
@@ -28,24 +27,18 @@ public class MockStorePOP extends AbstractStore {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MockStorePOP.class);
 
   @JsonCreator
-  public MockStorePOP(@JsonProperty("child") PhysicalOperator child) {
-    super(child);
+  public MockStorePOP(@JsonProperty("props") OpProps props, @JsonProperty("child") PhysicalOperator child) {
+    super(props, child);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new MockStorePOP(child);
+    return new MockStorePOP(OpProps.prototype(), child);
   }
 
   @Override
   public int getOperatorType() {
     return Integer.MIN_VALUE;
   }
-
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    return null;
-  }
-
 
 }

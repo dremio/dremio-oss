@@ -43,7 +43,7 @@ describe('downloadDataset saga', () => {
       expect(typeof next.value.RACE.jobDone).to.not.be.undefined;
       expect(typeof next.value.RACE.modalShownAndClosed).to.not.be.undefined;
 
-      next = gen.next({jobDone: true});
+      next = gen.next({jobDone: {payload: {update: {state: 'COMPLETED'}}}});
       expect(next.value.PUT).to.not.be.undefined; // hide modal
       next = gen.next();
       expect(next.value).to.eql(call(handleDownloadFile, { meta: { url: 'fooUrl' }}));
@@ -71,6 +71,25 @@ describe('downloadDataset saga', () => {
       expect(next.value).to.eql(call(handleDownloadFile, { meta: { url: 'fooUrl' }}));
       next = gen.next();
       expect(next.done).to.be.true;
+    });
+    it('should not download job in case websocket returns job error', () => {
+      next = gen.next();
+      expect(next.value.PUT).to.not.be.undefined; //start download
+      next = gen.next();
+      expect(typeof next.value.RACE.response).to.not.be.undefined;
+      const response = {payload: {downloadUrl: 'fooUrl', jobId: {id: 'fooId'}}};
+      next = gen.next({response});
+      expect(next.value).to.eql(call([socket, socket.startListenToJobProgress], 'fooId')); //ws listens
+      next = gen.next(); //ws response jobDone
+      expect(typeof next.value.RACE.jobDone).to.not.be.undefined;
+      expect(typeof next.value.RACE.modalShownAndClosed).to.not.be.undefined;
+
+      next = gen.next({jobDone: {payload: {update: {state: 'ERROR'}}}});
+      expect(next.value.PUT).to.not.be.undefined; // hide modal
+      next = gen.next();
+      expect(next.value.PUT.action.type).to.equal('ADD_NOTIFICATION');
+      next = gen.next();
+      expect(next.done).to.equal(true); //
     });
   });
 });

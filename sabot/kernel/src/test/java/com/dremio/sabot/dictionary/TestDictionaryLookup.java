@@ -122,7 +122,7 @@ public class TestDictionaryLookup extends BaseTestOperator {
 
       BaseTestOperator.testContext.setRegistry(registry);
 
-      DictionaryLookupPOP lookup = new DictionaryLookupPOP(null, null, dictionaryFieldInfoMap);
+      DictionaryLookupPOP lookup = new DictionaryLookupPOP(null, PROPS, null, dictionaryFieldInfoMap);
       Table input = t(
         th("c0", "c1", "c2"),
         tr(0, 1, 2),

@@ -466,14 +466,16 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
       (storedCluster.getClusterConfig().getClusterSpec().getVirtualCoreCount()));
 
     if (request.getClusterSpec().getMemoryMBOnHeap() == null) {
-      clusterSpec.setMemoryMBOnHeap(storedCluster.getClusterConfig()
-        .getClusterSpec().getMemoryMBOnHeap());
       if (request.getClusterSpec().getMemoryMBOffHeap() != null) {
         // only total memory is known
-        clusterSpec.setMemoryMBOffHeap(request.getClusterSpec().getMemoryMBOffHeap() - storedCluster.getClusterConfig()
-          .getClusterSpec().getMemoryMBOnHeap());
+        final int totalMemory = request.getClusterSpec().getMemoryMBOffHeap();
+        final int onHeap = totalMemory < LARGE_SYSTEMS_MIN_MEMORY_MB ? DEFAULT_HEAP_MEMORY_MB : LARGE_SYSTEMS_DEFAULT_HEAP_MEMORY_MB;
+        clusterSpec.setMemoryMBOnHeap(onHeap);
+        clusterSpec.setMemoryMBOffHeap(totalMemory - onHeap);
       } else {
         // means we did not really get it from FE - need to set it from what is stored
+        clusterSpec.setMemoryMBOnHeap(storedCluster.getClusterConfig()
+          .getClusterSpec().getMemoryMBOnHeap());
         clusterSpec.setMemoryMBOffHeap(storedCluster.getClusterConfig()
           .getClusterSpec().getMemoryMBOffHeap());
       }

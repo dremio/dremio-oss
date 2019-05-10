@@ -68,27 +68,14 @@ public class TesSimpleUserService {
     try(final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false)) {
       kvstore.start();
       final SimpleUserService userGroupService = new SimpleUserService(kvstore);
-
+      initUserStore(kvstore, userGroupService);
       User db = SimpleUser.newBuilder().setUserName("DavidBrown").setCreatedAt(System.currentTimeMillis()).
         setEmail("david.brown@dremio.test").setFirstName("David").setLastName("Brown").build();
-
-      User md = SimpleUser.newBuilder().setUserName("MarkDavid").setCreatedAt(System.currentTimeMillis()).
-        setEmail("markdavid@gmail.com").setFirstName("Mark").setLastName("David").build();
-
-      User dw = SimpleUser.newBuilder().setUserName("DavidWilson").setCreatedAt(System.currentTimeMillis()).
-        setEmail("david@dremio.test").setFirstName("David").setLastName("Wilson").build();
-
-      User mj = SimpleUser.newBuilder().setUserName("MarkJohnson").setCreatedAt(System.currentTimeMillis()).
-        setEmail("mark.johnson@dremio.test").setFirstName("Mark").setLastName("Johnson").build();
-
-      db = userGroupService.createUser(db, db.getUserName() + "1");
-      md = userGroupService.createUser(md, md.getUserName() + "1");
-      dw = userGroupService.createUser(dw, dw.getUserName() + "1");
-      mj = userGroupService.createUser(mj, mj.getUserName() + "1");
-
+      userGroupService.createUser(db, db.getUserName() + "1");
       assertEquals(4, Iterables.size(userGroupService.getAllUsers(null)));
       assertEquals(4, Iterables.size(userGroupService.searchUsers(null, null, null, null)));
       assertEquals(3, Iterables.size(userGroupService.searchUsers(null, null, null, 3)));
+
       assertEquals(3, Iterables.size(userGroupService.searchUsers("David", null, null, null)));
       assertEquals(1, Iterables.size(userGroupService.searchUsers("Johnson", null, null, null)));
       assertEquals(2, Iterables.size(userGroupService.searchUsers("Mark", null, null, null)));
@@ -109,9 +96,6 @@ public class TesSimpleUserService {
 
       assertEquals(4, Iterables.size(userGroupService.getAllUsers(null)));
       assertEquals(4, Iterables.size(userGroupService.searchUsers(null, null, null, null)));
-      assertEquals(3, Iterables.size(userGroupService.searchUsers("David", null, null, null)));
-      assertEquals(1, Iterables.size(userGroupService.searchUsers("Johnson", null, null, null)));
-      assertEquals(2, Iterables.size(userGroupService.searchUsers("Mark", null, null, null)));
 
       // login
       userGroupService.authenticate(db.getUserName(), db.getUserName() + "1");
@@ -166,5 +150,56 @@ public class TesSimpleUserService {
       assertEquals(2, Iterables.size(userGroupService.searchUsers("Mark", null, null, null)));
 
     }
+  }
+
+  /**
+   * write now we support a case sensitive search but direct match is not required. So we could search using a substring
+   * See {@code initUserStore} for initial data
+   */
+  @Test
+  public void testSearch() throws Exception {
+    try(final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false)) {
+      kvstore.start();
+      final SimpleUserService userGroupService = new SimpleUserService(kvstore);
+      initUserStore(kvstore, userGroupService);
+
+      // direct match works
+      assertEquals(2, Iterables.size(userGroupService.searchUsers("David", null, null, null))); // first and last name match
+      assertEquals(1, Iterables.size(userGroupService.searchUsers("Johnson", null, null, null))); // last name match
+      assertEquals(2, Iterables.size(userGroupService.searchUsers("Mark", null, null, null))); // first name match
+      // substring search should work
+      assertEquals(2, Iterables.size(userGroupService.searchUsers("avi", null, null, null))); // first and last name match
+      assertEquals(1, Iterables.size(userGroupService.searchUsers("k.j", null, null, null))); // mark.johnson@dremio.test match
+      assertEquals(2, Iterables.size(userGroupService.searchUsers("@dremio", null, null, null))); // email match
+      assertEquals(1, Iterables.size(userGroupService.searchUsers("rkda", null, null, null))); // markdavid@gmail.com match
+      assertEquals(3, Iterables.size(userGroupService.searchUsers("a", null, null, null)));
+    }
+  }
+
+  /**
+   * Init a store with 3 users:
+   * First_Name   Last_Name   Email
+   * Mark         David       markdavid@gmail.com
+   * David        Wilson      david@dremio.test
+   * Mark         Johnson     mark.johnson@dremio.test
+   * @param kvstore
+   * @param userGroupService
+   * @throws Exception
+   */
+  private final void initUserStore(final KVStoreProvider kvstore, final SimpleUserService userGroupService) throws Exception {
+    User md = SimpleUser.newBuilder().setUserName("MarkDavid").setCreatedAt(System.currentTimeMillis()).
+      setEmail("markdavid@gmail.com").setFirstName("Mark").setLastName("David").build();
+
+    User dw = SimpleUser.newBuilder().setUserName("DavidWilson").setCreatedAt(System.currentTimeMillis()).
+      setEmail("david@dremio.test").setFirstName("David").setLastName("Wilson").build();
+
+    User mj = SimpleUser.newBuilder().setUserName("MarkJohnson").setCreatedAt(System.currentTimeMillis()).
+      setEmail("mark.johnson@dremio.test").setFirstName("Mark").setLastName("Johnson").build();
+
+    userGroupService.createUser(md, md.getUserName() + "1");
+    userGroupService.createUser(dw, dw.getUserName() + "1");
+    userGroupService.createUser(mj, mj.getUserName() + "1");
+
+    assertEquals(3, Iterables.size(userGroupService.getAllUsers(null)));
   }
 }

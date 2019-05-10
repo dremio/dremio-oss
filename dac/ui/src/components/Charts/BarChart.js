@@ -107,7 +107,9 @@ export default class BarChart extends Component {
     const left = barRect.left - chartRect.left + rectWidth / 2;
     return {
       position: { top, left },
-      index
+      index,
+      // for case of slider we should use slide coordinates and anchor bar element is not needed here
+      anchorEl: isSliderTop ? null : barShape
     };
   }
 
@@ -265,7 +267,7 @@ export default class BarChart extends Component {
     return (
       <div>
         <div ref='chart' />
-        {showTooltip ? <ChartTooltip position={pos}
+        {showTooltip ? <ChartTooltip position={pos} anchorEl={tooltipInfo.anchorEl}
           content={this.renderTooltipContent(tooltipInfo.index)} /> : null}
       </div>
     );

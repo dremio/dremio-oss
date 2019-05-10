@@ -25,37 +25,44 @@ import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
 
+import com.dremio.common.logical.data.NamedExpression;
+import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.config.Project;
 import com.dremio.exec.planner.common.ProjectRelBase;
 import com.dremio.exec.planner.logical.ParseContext;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.planner.physical.DistributionTrait.DistributionType;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
+@Options
 public class ProjectPrel extends ProjectRelBase implements Prel{
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProjectPrel.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProjectPrel.class);
 
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.project.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.project.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
-  protected ProjectPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<RexNode> exps,
-      RelDataType rowType) {
+  protected ProjectPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<RexNode> exps, RelDataType rowType) {
     super(PHYSICAL, cluster, traits, child, exps, rowType);
   }
 
   @Override
-  public Project copy(RelTraitSet traitSet, RelNode input, List<RexNode> exps, RelDataType rowType) {
-    return ProjectPrel.create(getCluster(), traitSet, input, exps, rowType);
+  public ProjectPrel copy(RelTraitSet traitSet, RelNode input, List<RexNode> exps, RelDataType rowType) {
+    return new ProjectPrel(getCluster(), traitSet, input, exps, rowType);
   }
-
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
@@ -63,9 +70,16 @@ public class ProjectPrel extends ProjectRelBase implements Prel{
 
     PhysicalOperator childPOP = child.getPhysicalOperator(creator);
 
-    com.dremio.exec.physical.config.Project p = new com.dremio.exec.physical.config.Project(
-        this.getProjectExpressions(new ParseContext(PrelUtil.getSettings(getCluster()))), childPOP);
-    return creator.addMetadata(this, p);
+    final BatchSchema childSchema = childPOP.getProps().getSchema();
+    List<NamedExpression> exprs = getProjectExpressions(new ParseContext(PrelUtil.getSettings(getCluster())));
+    final BatchSchema schema = ExpressionTreeMaterializer.materializeFields(exprs, childSchema, creator.getFunctionLookupContext(), true)
+        .setSelectionVectorMode(childSchema.getSelectionVectorMode())
+        .build();
+
+    return new Project(
+        creator.props(this, null, schema, RESERVE, LIMIT),
+        childPOP,
+        exprs);
   }
 
   @Override
@@ -105,12 +119,12 @@ public class ProjectPrel extends ProjectRelBase implements Prel{
    */
   public static ProjectPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<RexNode> exps,
                                    RelDataType rowType) {
-    final RelTraitSet trimmedTraits = trimTraits(cluster, child, exps, traits);
-    return new ProjectPrel(cluster, trimmedTraits, child, exps, rowType);
+    final RelTraitSet adjustedTraits = adjustTraits(cluster, child, exps, traits);
+    return new ProjectPrel(cluster, adjustedTraits, child, exps, rowType);
   }
 
-  protected static RelTraitSet trimTraits(RelOptCluster cluster, RelNode input, List<? extends RexNode> exps, RelTraitSet traits) {
-    return ProjectRelBase.trimTraits(cluster, input, exps, traits)
+  protected static RelTraitSet adjustTraits(RelOptCluster cluster, RelNode input, List<? extends RexNode> exps, RelTraitSet traits) {
+    return ProjectRelBase.adjustTraits(cluster, input, exps, traits)
         .replaceIf(DistributionTraitDef.INSTANCE, () -> {
           final PlannerSettings settings = PrelUtil.getPlannerSettings(cluster.getPlanner());
           if (!settings.shouldPullDistributionTrait()) {

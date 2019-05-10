@@ -27,16 +27,18 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.common.DeferredException;
+import com.dremio.common.types.MinorType;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.MaterializationShuttle;
-import com.dremio.service.accelerator.testing.JobStatusLogger;
+import com.dremio.proto.model.UpdateId;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.google.common.collect.ImmutableList;
@@ -52,12 +54,7 @@ public class TestIncrementalUpdater extends BaseTestServer {
     final AtomicReference<RelNode> logicalPlan = new AtomicReference<>();
     final CountDownLatch latch = new CountDownLatch(1);
     final DeferredException ex = new DeferredException();
-    Job job = jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select n_regionkey, max(n_nationkey) as max_nation from cp.\"tpch/nation.parquet\" group by n_regionkey", SYSTEM_USERNAME))
-        .setQueryType(QueryType.JDBC)
-        .setDatasetPath(datsetPath.toNamespaceKey())
-        .setDatasetVersion(DatasetVersion.newVersion())
-        .build(), new JobStatusLogger() {
+    final JobStatusListener jobStatusListener = new NoOpJobStatusListener() {
       @Override
       public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
         if (phase == PlannerPhase.LOGICAL) {
@@ -82,15 +79,22 @@ public class TestIncrementalUpdater extends BaseTestServer {
         latch.countDown();
       }
 
-    });
+    };
+
+
+    jobsService.submitJob(JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select n_regionkey, max(n_nationkey) as max_nation from cp.\"tpch/nation.parquet\" group by n_regionkey", SYSTEM_USERNAME))
+        .setQueryType(QueryType.JDBC)
+        .setDatasetPath(datsetPath.toNamespaceKey())
+        .setDatasetVersion(DatasetVersion.newVersion())
+        .build(), jobStatusListener);
 
     if(!latch.await(25, TimeUnit.SECONDS)){
       Assert.fail("Acceleration job was not completed within allowed timeout.");
     }
     ex.close();
     long currentTime = System.currentTimeMillis();
-    RelNode newLogicalPlan = logicalPlan.get().accept(new MaterializationShuttle(IncrementalUpdateUtils.UPDATE_COLUMN, currentTime));
+    RelNode newLogicalPlan = logicalPlan.get().accept(new MaterializationShuttle(IncrementalUpdateUtils.UPDATE_COLUMN, new UpdateId().setLongUpdateId(currentTime).setType(MinorType.BIGINT)));
     assertNotNull(newLogicalPlan.getRowType().getField(IncrementalUpdateUtils.UPDATE_COLUMN, false, false));
-    job.getData().close();
   }
 }

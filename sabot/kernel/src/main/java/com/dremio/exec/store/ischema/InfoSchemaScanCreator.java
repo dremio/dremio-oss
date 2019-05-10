@@ -39,9 +39,9 @@ public class InfoSchemaScanCreator implements ProducerOperator.Creator<InfoSchem
             ? InfoSchemaConstants.IS_LEGACY_CATALOG_NAME
             : InfoSchemaConstants.IS_CATALOG_NAME;
     final RecordReader reader =
-        table.asReader(catalogName, config.getUserName(), datasetListing, config.getQuery(), config.getColumns());
+        table.asReader(catalogName, config.getProps().getUserName(), datasetListing, config.getQuery(), config.getColumns());
 
-    return new ScanOperator(fec.getSchemaUpdater(), config, context, Collections.singleton(reader).iterator());
+    return new ScanOperator(config, context, Collections.singleton(reader).iterator());
   }
 
 }

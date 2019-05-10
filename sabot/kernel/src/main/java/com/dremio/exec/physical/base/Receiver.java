@@ -17,7 +17,9 @@ package com.dremio.exec.physical.base;
 
 import java.util.List;
 
-import com.dremio.exec.physical.MinorFragmentEndpoint;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.Options;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -25,14 +27,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * A receiver is one half of an exchange operator. The receiver is responsible for taking in one or more streams from
  * corresponding Senders.  Receivers are a special type of Physical SqlOperatorImpl that are typically only expressed within the execution plan.
  */
+@Options
 public interface Receiver extends FragmentLeaf {
 
   /**
    * A receiver is expecting streams from one or more providing endpoints.
-   * @return List of sender MinorFragmentEndpoints each containing sender fragment MinorFragmentId and endpoint where
-   * it is running.
+   * @return List of sender MinorFragmentIndexEndpoints each containing sender fragment MinorFragmentId and
+   * endpoint index where it is running.
    */
-  List<MinorFragmentEndpoint> getProvidingEndpoints();
+  List<MinorFragmentIndexEndpoint> getProvidingEndpoints();
 
   /**
    * Whether or not this receive supports out of order exchange. This provides a hint for the scheduling node on whether
@@ -44,8 +47,9 @@ public interface Receiver extends FragmentLeaf {
   @JsonIgnore
   boolean supportsOutOfOrderExchange();
 
-  @JsonProperty("sender-major-fragment")
-  int getOppositeMajorFragmentId();
+  int getSenderMajorFragmentId();
+
+  BatchSchema getSchema();
 
   @JsonProperty("spooling")
   boolean isSpooling();

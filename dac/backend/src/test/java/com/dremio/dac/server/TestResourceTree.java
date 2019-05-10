@@ -56,6 +56,11 @@ public class TestResourceTree extends BaseTestServer {
     addSource(ns, "src3");
     addSource(ns, "src4");
 
+    TestNamespaceService.addFolder(ns, "src1.folder1");
+    TestNamespaceService.addDS(ns, "src1.folder1.ds1");
+    TestNamespaceService.addFolder(ns, "src1.folder2");
+    TestNamespaceService.addDS(ns, "src1.folder2.ds1");
+
     TestNamespaceService.addSpace(ns, "space1");
     TestNamespaceService.addSpace(ns, "space2");
     TestNamespaceService.addSpace(ns, "space3");
@@ -418,4 +423,13 @@ public class TestResourceTree extends BaseTestServer {
     assertNull(ds5.getResources());
   }
 
+  @Test
+  public void testExpandingSourceWithFolder() throws Exception {
+    ResourceList resourceList = expectSuccess(getBuilder(getAPIv2().path("resourcetree/src1.folder1/expand")
+      .queryParam("showSources", false)
+      .queryParam("showSpaces", true)
+      .queryParam("showDatasets", true)).buildGet(), ResourceList.class);
+
+    assertEquals(2, resourceList.find("src1", ResourceType.SOURCE).getResources().size());
+  }
 }

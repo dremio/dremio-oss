@@ -105,7 +105,7 @@ public class Wrapper {
   }
 
   public void addAllocation(PhysicalOperator pop) {
-    initialAllocation += pop.getInitialAllocation();
+    initialAllocation += pop.getProps().getMemReserve();
 //    logger.debug("Incrementing initialAllocation by {} to {}. Pop: {}", pop.getInitialAllocation(), initialAllocation, pop);
   }
 

@@ -45,6 +45,7 @@ import org.apache.calcite.sql.type.SqlTypeFamily;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
@@ -218,7 +219,9 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
 
         ){
       data.writeBytes(bytes);
-      JsonReader jsonReader = new JsonReader(bufferManager.getManagedBuffer(), false, false, false);
+      final int sizeLimit = Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+      JsonReader jsonReader = new JsonReader(bufferManager.getManagedBuffer(), sizeLimit,
+        context.getOptions().getOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR), false, false);
       jsonReader.setSource(bytes);
 
         ComplexWriter writer = new ComplexWriterImpl("dummy", vc);

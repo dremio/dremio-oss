@@ -68,7 +68,7 @@ public class SwapHashJoinVisitor extends BasePrelVisitor<Prel, Double, RuntimeEx
       if ( (mq.getRowCount(newJoin.getLeft())
           < (1 + value.doubleValue() ) * mq.getRowCount(newJoin.getRight()) )
           && newJoin.getJoinType() == JoinRelType.INNER) {
-        ( (HashJoinPrel) newJoin).setSwapped(true);
+        return ((HashJoinPrel) newJoin).swap();
       }
     }
 

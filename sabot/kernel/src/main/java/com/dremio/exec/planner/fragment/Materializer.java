@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
 import com.dremio.exec.physical.base.Exchange;
 import com.dremio.exec.physical.base.GroupScan;
@@ -33,12 +32,12 @@ import com.google.common.collect.Lists;
 public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Materializer.IndexedFragmentNode, ExecutionSetupException>{
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Materializer.class);
 
-  private final FunctionLookupContext context;
   private final Map<GroupScan, ListMultimap<Integer, CompleteWork>> splitSets;
+  private EndpointsIndex.Builder indexBuilder;
 
-  Materializer(FunctionLookupContext context, Map<GroupScan, ListMultimap<Integer, CompleteWork>> splitSets) {
-    this.context = context;
+  Materializer(Map<GroupScan, ListMultimap<Integer, CompleteWork>> splitSets, EndpointsIndex.Builder indexBuilder) {
     this.splitSets = splitSets;
+    this.indexBuilder = indexBuilder;
   }
 
   @Override
@@ -48,18 +47,12 @@ public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Mate
 
       // this is a sending exchange.
       PhysicalOperator child = exchange.getChild().accept(this, iNode);
-      PhysicalOperator materializedSender = exchange.getSender(iNode.getMinorFragmentId(), child, context);
-      materializedSender.setOperatorId(0);
-      materializedSender.setCost(exchange.getCost());
-//      logger.debug("Visit sending exchange, materialized {} with child {}.", materializedSender, child);
+      PhysicalOperator materializedSender = exchange.getSender(iNode.getMinorFragmentId(), child, indexBuilder);
       return materializedSender;
 
     }else{
       // receiving exchange.
-      PhysicalOperator materializedReceiver = exchange.getReceiver(iNode.getMinorFragmentId(), context);
-      materializedReceiver.setOperatorId(Short.MAX_VALUE & exchange.getOperatorId());
-//      logger.debug("Visit receiving exchange, materialized receiver: {}.", materializedReceiver);
-      materializedReceiver.setCost(exchange.getCost());
+      PhysicalOperator materializedReceiver = exchange.getReceiver(iNode.getMinorFragmentId(), indexBuilder);
       return materializedReceiver;
     }
   }
@@ -72,10 +65,7 @@ public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Mate
     List<CompleteWork> work = splits.get(iNode.getMinorFragmentId());
     Preconditions.checkNotNull(work);
     PhysicalOperator child = groupScan.getSpecificScan(work);
-    child.setOperatorId(Short.MAX_VALUE & groupScan.getOperatorId());
     iNode.addAllocation(groupScan);
-    child.setCost(groupScan.getCost());
-
     return child;
   }
 
@@ -95,8 +85,6 @@ public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Mate
       children.add(child.accept(this, iNode));
     }
     PhysicalOperator newOp = op.getNewWithChildren(children);
-    newOp.setCost(op.getCost());
-    newOp.setOperatorId(Short.MAX_VALUE & op.getOperatorId());
     return newOp;
   }
 

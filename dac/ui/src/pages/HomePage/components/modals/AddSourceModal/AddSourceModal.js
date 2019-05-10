@@ -22,7 +22,6 @@ import { FormattedMessage, injectIntl } from 'react-intl';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import FormUtils from 'utils/FormUtils/FormUtils';
 import SourceFormJsonPolicy from 'utils/FormUtils/SourceFormJsonPolicy';
-import { getSortedSources, getSortedSpaces } from 'selectors/resources';
 import { createSampleSource, createSource } from 'actions/resources/sources';
 
 import Modal from 'components/Modals/Modal';
@@ -39,7 +38,6 @@ const VIEW_ID = 'ADD_SOURCE_MODAL';
 const TIME_BEFORE_MESSAGE = 5000;
 
 const DEFAULT_VLHF_LIST = require('customData/vlhfList');
-// const DEFAULT_VLHF_DETAIL = require('customData/vlhfDetail');
 
 @injectIntl
 @AddSourceModalMixin
@@ -56,8 +54,6 @@ export class AddSourceModal extends Component {
     source: PropTypes.object,
     updateFormDirtyState: PropTypes.func,
     createSource: PropTypes.func,
-    spaces: PropTypes.instanceOf(Immutable.List).isRequired,
-    sources: PropTypes.instanceOf(Immutable.List).isRequired,
     createSampleSource: PropTypes.func.isRequired,
     intl: PropTypes.object.isRequired
   };
@@ -126,7 +122,7 @@ export class AddSourceModal extends Component {
 
   handleAddSampleSource = () => {
     this.setState({isAddingSampleSource: true});
-    return this.props.createSampleSource(this.props.sources, this.props.spaces, {viewId: VIEW_ID}).then((response) => {
+    return this.props.createSampleSource({viewId: VIEW_ID}).then((response) => {
       if (response && !response.error) {
         const nextSource = ApiUtils.getEntityFromResponse('source', response);
         this.context.router.push(nextSource.getIn(['links', 'self']));
@@ -215,14 +211,7 @@ export class AddSourceModal extends Component {
   }
 }
 
-function mapStateToProps(state) {
-  return {
-    sources: getSortedSources(state),
-    spaces: getSortedSpaces(state)
-  };
-}
-
-export default connect(mapStateToProps, {
+export default connect(null, {
   createSource,
   createSampleSource
 })(FormUnsavedWarningHOC(AddSourceModal));

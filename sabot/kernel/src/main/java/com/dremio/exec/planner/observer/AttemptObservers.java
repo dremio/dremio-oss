@@ -32,6 +32,7 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.QueryWorkUnit;
@@ -55,6 +56,13 @@ public class AttemptObservers implements AttemptObserver {
   public void queryStarted(UserRequest query, String user) {
     for (final AttemptObserver observer : observers) {
       observer.queryStarted(query, user);
+    }
+  }
+
+  @Override
+  public void commandPoolWait(long waitInMillis) {
+    for (final AttemptObserver observer : observers) {
+      observer.commandPoolWait(waitInMillis);
     }
   }
 
@@ -228,16 +236,23 @@ public class AttemptObservers implements AttemptObserver {
   }
 
   @Override
-  public void intermediateFragmentScheduling(long millisTaken) {
+  public void intermediateFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats) {
     for (final AttemptObserver observer : observers) {
-      observer.intermediateFragmentScheduling(millisTaken);
+      observer.intermediateFragmentScheduling(millisTaken, stats);
     }
   }
 
   @Override
-  public void leafFragmentScheduling(long millisTaken) {
+  public void leafFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats) {
     for (final AttemptObserver observer : observers) {
-      observer.leafFragmentScheduling(millisTaken);
+      observer.leafFragmentScheduling(millisTaken, stats);
+    }
+  }
+
+  @Override
+  public void startLeafFragmentFailed(Exception ex) {
+    for (final AttemptObserver observer : observers) {
+      observer.startLeafFragmentFailed(ex);
     }
   }
 

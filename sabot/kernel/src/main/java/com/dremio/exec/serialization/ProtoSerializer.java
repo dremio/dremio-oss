@@ -15,51 +15,11 @@
  */
 package com.dremio.exec.serialization;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-
-import com.dremio.common.utils.ProtostuffUtil;
-import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
+import com.dremio.common.utils.ProtobufUtils;
 import com.google.protobuf.Message;
 
-import io.protostuff.Schema;
-
-public class ProtoSerializer<T, B extends Message.Builder> implements InstanceSerializer<T> {
-  private final Schema<B> readSchema;
-  private final Schema<T> writeSchema;
-
-  public ProtoSerializer(final Schema<B> readSchema, final Schema<T> writeSchema) {
-    this.readSchema = Preconditions.checkNotNull(readSchema);
-    this.writeSchema = Preconditions.checkNotNull(writeSchema);
-  }
-
-  @Override
-  public T deserialize(final byte[] raw) throws IOException {
-    final B builder = readSchema.newMessage();
-    ProtostuffUtil.fromJSON(raw, builder, readSchema, false);
-    return (T)builder.build();
-  }
-
-  @Override
-  public byte[] serialize(final T instance) throws IOException {
-    try(final ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-      ProtostuffUtil.toJSON(out, instance, writeSchema, false);
-      return out.toByteArray();
-    }
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hashCode(readSchema, writeSchema);
-  }
-
-  @Override
-  public boolean equals(final Object obj) {
-    if (obj instanceof ProtoSerializer && obj.getClass().equals(getClass())) {
-      final ProtoSerializer<T, B> other = (ProtoSerializer<T, B>)obj;
-      return Objects.equal(readSchema, other.readSchema) && Objects.equal(writeSchema, other.writeSchema);
-    }
-    return false;
+public class ProtoSerializer {
+  public static <M extends Message> InstanceSerializer<M> of(Class<M> clazz) {
+    return new JacksonSerializer<>(ProtobufUtils.newMapper(), clazz);
   }
 }

@@ -19,9 +19,13 @@ import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator
 import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.KEYINDEX_OFFSET;
 import static com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH;
 
+import java.math.BigDecimal;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
+
+import com.dremio.exec.util.DecimalUtils;
 
 import io.netty.util.internal.PlatformDependent;
 
@@ -308,7 +312,7 @@ public class MaxAccumulators {
         /* get the index of data in input vector */
         final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
         /* get the corresponding data from input vector -- source data for accumulation */
-        java.math.BigDecimal newVal = DecimalAccumulatorUtils.getBigDecimal(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
+        java.math.BigDecimal newVal = DecimalUtils.getBigDecimalFromLEBytes(incomingValue + (incomingIndex * WIDTH_INPUT), valBuf, scale);
         final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
         /* get the hash table batch index */
         final int chunkIndex = tableIndex >>> bitsInChunk;
@@ -320,6 +324,71 @@ public class MaxAccumulators {
         /* store the accumulated values(new max or existing) at the target location of accumulation vector */
         PlatformDependent.putLong(maxAddr, Double.doubleToLongBits(max(Double.longBitsToDouble(PlatformDependent.getLong(maxAddr)), newVal.doubleValue(), bitVal)));
         PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+      }
+    }
+  }
+
+  public static class DecimalMaxAccumulatorV2 extends BaseSingleAccumulator {
+    private static final BigDecimal INIT = DecimalUtils.MIN_DECIMAL;
+    private static final int WIDTH_INPUT = 16;      // decimal inputs
+    private static final int WIDTH_ACCUMULATOR = 16; // decimal accumulators
+
+    public DecimalMaxAccumulatorV2(FieldVector input, FieldVector output,
+                                   FieldVector transferVector, int maxValuesPerBatch,
+                                   BufferAllocator computationVectorAllocator) {
+      super(input, output, transferVector, AccumulatorBuilder.AccumulatorType.MAX, maxValuesPerBatch,
+        computationVectorAllocator);
+    }
+
+    @Override
+    void initialize(FieldVector vector) {
+      setNullAndValue(vector, INIT);
+    }
+
+    public void accumulate(final long memoryAddr, final int count,
+                           final int bitsInChunk, final int chunkOffsetMask) {
+      final long maxMemAddr = memoryAddr + count * PARTITIONINDEX_HTORDINAL_WIDTH;
+      FieldVector inputVector = getInput();
+      final long incomingBit = inputVector.getValidityBufferAddress();
+      final long incomingValue = inputVector.getDataBufferAddress();
+      final long[] bitAddresses = this.bitAddresses;
+      final long[] valueAddresses = this.valueAddresses;
+      final int maxValuesPerBatch = super.maxValuesPerBatch;
+
+      for (long partitionAndOrdinalAddr = memoryAddr; partitionAndOrdinalAddr < maxMemAddr; partitionAndOrdinalAddr += PARTITIONINDEX_HTORDINAL_WIDTH) {
+        /* get the hash table ordinal */
+        final int tableIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + HTORDINAL_OFFSET);
+        /* get the index of data in input vector */
+        final int incomingIndex = PlatformDependent.getInt(partitionAndOrdinalAddr + KEYINDEX_OFFSET);
+        final int bitVal = (PlatformDependent.getByte(incomingBit + ((incomingIndex >>> 3))) >>> (incomingIndex & 7)) & 1;
+        // no point continuing.
+        if (bitVal == 0) {
+          continue;
+        }
+        /* get the corresponding data from input vector -- source data for accumulation */
+        long addressOfInput = incomingValue + (incomingIndex * WIDTH_INPUT);
+        long newValLow = PlatformDependent.getLong(addressOfInput);
+        long newValHigh = PlatformDependent.getLong(addressOfInput + DecimalUtils.LENGTH_OF_LONG);
+        /* get the hash table batch index */
+        final int chunkIndex = tableIndex >>> bitsInChunk;
+        final int chunkOffset = tableIndex & chunkOffsetMask;
+        /* get the target addresses of accumulation vector */
+        final long maxAddr = valueAddresses[chunkIndex] + (chunkOffset) * WIDTH_ACCUMULATOR;
+        final long bitUpdateAddr = bitAddresses[chunkIndex] + ((chunkOffset >>> 5) * 4);
+        final int bitUpdateVal = bitVal << (chunkOffset & 31);
+        /* store the accumulated values(new max or existing) at the target location of accumulation vector */
+        long curValLow = PlatformDependent.getLong(maxAddr);
+        long curValHigh = PlatformDependent.getLong(maxAddr + DecimalUtils.LENGTH_OF_LONG);
+        int compare = DecimalUtils.compareDecimalsAsTwoLongs(newValHigh, newValLow, curValHigh,
+          curValLow);
+
+        if (compare > 0) {
+          /* store the accumulated values(new max or existing) at the target location of
+          accumulation vector */
+          PlatformDependent.putLong(maxAddr, newValLow);
+          PlatformDependent.putLong(maxAddr + DecimalUtils.LENGTH_OF_LONG, newValHigh);
+          PlatformDependent.putInt(bitUpdateAddr, PlatformDependent.getInt(bitUpdateAddr) | bitUpdateVal);
+        }
       }
     }
   }

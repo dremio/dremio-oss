@@ -39,10 +39,6 @@ export default function sourceList(state = getInitialState(), action) {
     const source = state.get(CREATED_SOURCE_NAME).merge(decoratedSource);
     return state.set(CREATED_SOURCE_NAME, source);
   }
-  case AllSourcesActionTypes.SET_SOURCE_PIN_STATE: {
-    localStorageUtils.updatePinnedItemState(action.name, { isActivePin: action.isActivePin }, ENTITY_NAME);
-    return state.setIn(['sourcesById', action.name, 'isActivePin'], action.isActivePin);
-  }
   case AllSourcesActionTypes.SOURCES_LIST_LOAD_START: {
     return state.set('isInProgress', true);
   }

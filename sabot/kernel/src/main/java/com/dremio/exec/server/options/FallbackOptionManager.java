@@ -17,7 +17,6 @@ package com.dremio.exec.server.options;
 
 import java.util.Iterator;
 
-
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidator;

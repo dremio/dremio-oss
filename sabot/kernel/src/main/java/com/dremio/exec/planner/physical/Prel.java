@@ -28,6 +28,10 @@ import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 
 public interface Prel extends RelNode, Iterable<Prel>{
 
+  final long DEFAULT_RESERVE = 1_000_000;
+  final long DEFAULT_LIMIT = Long.MAX_VALUE;
+  final long DEFAULT_LOW_LIMIT = 0;
+
   Convention PHYSICAL = new Convention.Impl("PHYSICAL", Prel.class) {
     @Override
     public boolean canConvertConvention(Convention toConvention) {

@@ -18,7 +18,6 @@ import { connect } from 'react-redux';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
 import CopyButton from 'components/Buttons/CopyButton';
 import Immutable from 'immutable';
 import DocumentTitle from 'react-document-title';
@@ -26,16 +25,15 @@ import { injectIntl } from 'react-intl';
 
 import EllipsedText from 'components/EllipsedText';
 import modelUtils from 'utils/modelUtils';
-import { constructFullPath } from 'utils/pathUtils';
+import { constructFullPath, navigateToExploreDefaultIfNecessary } from 'utils/pathUtils';
 import { formatMessage } from 'utils/locale';
+import { needsTransform, isSqlChanged } from 'sagas/utils';
 
 import { PHYSICAL_DATASET_TYPES } from 'constants/datasetTypes';
 //actions
-import { navigateToNextDataset } from 'actions/explore/dataset/common';
-import { performLoadDataset } from 'actions/explore/dataset/get';
 import { saveDataset, saveAsDataset } from 'actions/explore/dataset/save';
 import { performTransform, transformHistoryCheck } from 'actions/explore/dataset/transform';
-import { runDataset, performTransformAndRun } from 'actions/explore/dataset/run';
+import { performTransformAndRun, runDatasetSql, previewDatasetSql } from 'actions/explore/dataset/run';
 import { showConfirmationDialog } from 'actions/confirmation';
 import { PageTypeButtons } from '@app/pages/ExplorePage/components/PageTypeButtons';
 import { pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
@@ -84,7 +82,6 @@ export class ExploreInfoHeader extends PureComponent {
     history: PropTypes.instanceOf(Immutable.Map),
     queryContext: PropTypes.instanceOf(Immutable.List),
     currentSql: PropTypes.string,
-    initialDatasetVersion: PropTypes.string,
     tableColumns: PropTypes.instanceOf(Immutable.List),
 
     // actions
@@ -92,12 +89,11 @@ export class ExploreInfoHeader extends PureComponent {
     performNextAction: PropTypes.func.isRequired,
     performTransform: PropTypes.func.isRequired,
     performTransformAndRun: PropTypes.func.isRequired,
+    runDatasetSql: PropTypes.func.isRequired,
+    previewDatasetSql: PropTypes.func.isRequired,
     saveDataset: PropTypes.func.isRequired,
     saveAsDataset: PropTypes.func.isRequired,
     startDownloadDataset: PropTypes.func.isRequired,
-    runDataset: PropTypes.func.isRequired,
-    performLoadDataset: PropTypes.func,
-    navigateToNextDataset: PropTypes.func,
     showConfirmationDialog: PropTypes.func
   };
 
@@ -127,10 +123,6 @@ export class ExploreInfoHeader extends PureComponent {
 
     this.doButtonAction = this.doButtonAction.bind(this);
     this.downloadDataset = this.downloadDataset.bind(this);
-
-    this.state = {
-      showMsgForSave: false
-    };
   }
 
   doButtonAction(actionType) {
@@ -138,7 +130,7 @@ export class ExploreInfoHeader extends PureComponent {
     case 'saveAs':
       return this.handleSaveAs();
     case 'run':
-      return this.runDataset();
+      return this.handleRunClick();
     case 'preview':
       return this.handlePreviewClick();
     case 'save':
@@ -148,50 +140,25 @@ export class ExploreInfoHeader extends PureComponent {
     }
   }
 
-  runDataset() {
-    const { dataset, currentSql, queryContext, exploreViewState } = this.props;
-
+  handleRunClick() {
     this.navigateToExploreTableIfNecessary();
-
-    const doTransformAndRun = () => {
-      return this.props.performTransformAndRun({
-        dataset,
-        currentSql,
-        queryContext,
-        viewId: exploreViewState.get('viewId')
-      });
-    };
-
-    if (this.isSqlChanged() || !queryContext.equals(dataset.get('context'))) {
-      this.props.transformHistoryCheck(dataset, doTransformAndRun);
-    } else {
-      doTransformAndRun();
-    }
-  }
-
-  needsTransform() {
-    const { dataset, queryContext } = this.props;
-    const savedContext = dataset && dataset.get('context');
-    const isContextChanged = savedContext && queryContext
-      && constructFullPath(savedContext) !== constructFullPath(queryContext);
-
-    return this.isSqlChanged() || isContextChanged || !dataset.get('datasetVersion');
+    this.props.runDatasetSql();
   }
 
   handlePreviewClick() {
-    this.transformIfNecessary((didTransform, dataset) => {
-      if (didTransform) return;
-      // There was no transform so reload the dataset instead
-
-      // preview should still navigate to table
-      this.navigateToExploreTableIfNecessary();
-
-      const { exploreViewState } = this.props;
-      return this.props.performLoadDataset(dataset, exploreViewState.get('viewId'));
-    });
+    this.navigateToExploreTableIfNecessary();
+    this.props.previewDatasetSql();
   }
 
-  transformIfNecessary(callback) {
+  //TODO: DX-14762 - refactor to use runDatasetSql and performTransform saga;
+  // investigate replacing pathutils.navigateToExploreTableIfNecessary with pageTypeUtils methods
+
+  isTransformNeeded() {
+    const { dataset, queryContext, currentSql } = this.props;
+    return needsTransform(dataset, queryContext, currentSql);
+  }
+
+  transformIfNecessary(callback, forceDataLoad) {
     const { dataset, currentSql, queryContext, exploreViewState } = this.props;
 
     const doPerformTransform = () => {
@@ -200,11 +167,14 @@ export class ExploreInfoHeader extends PureComponent {
         currentSql,
         queryContext,
         viewId: exploreViewState.get('viewId'),
-        callback
+        callback,
+        // forces preview to reload a data if nothing is changed. Primary use case is
+        // when a user clicks a preview button
+        forceDataLoad
       });
     };
 
-    if (this.needsTransform()) {
+    if (this.isTransformNeeded()) {
       // need to navigate before history check
       this.navigateToExploreTableIfNecessary();
       this.props.transformHistoryCheck(dataset, doPerformTransform);
@@ -215,12 +185,7 @@ export class ExploreInfoHeader extends PureComponent {
 
   navigateToExploreTableIfNecessary() {
     const { pageType, location } = this.props;
-    if (pageType !== 'default') {
-      this.context.router.push({
-        ...location,
-        pathname: location.pathname.split('/').slice(0, -1).join('/')
-      });
-    }
+    navigateToExploreDefaultIfNecessary(pageType, location, this.context.router);
   }
 
   showErrorMsgAsModal = (errorTitle, errorMsg, retryCallback) => {
@@ -253,7 +218,7 @@ export class ExploreInfoHeader extends PureComponent {
 
   // Note: similar to but different from ExplorePageControllerComponent#shouldShowUnsavedChangesPopup
   isEditedDataset() {
-    const { dataset, history } = this.props;
+    const { dataset, history, currentSql } = this.props;
     if (!dataset.get('datasetType')) {
       // not loaded yet
       return false;
@@ -268,16 +233,11 @@ export class ExploreInfoHeader extends PureComponent {
       return false;
     }
 
-    if (this.isSqlChanged()) {
+    if (isSqlChanged(dataset.get('sql'), currentSql)) {
       return true;
     }
 
     return history ? history.get('isEdited') : false;
-  }
-
-  isSqlChanged() {
-    const {currentSql, dataset} = this.props;
-    return currentSql !== undefined && currentSql !== dataset.get('sql');
   }
 
   handleSave = () => {
@@ -303,8 +263,6 @@ export class ExploreInfoHeader extends PureComponent {
       () => this.props.saveAsDataset(nextAction)
     );
   };
-
-  handleRequestClose = () => this.setState({showMsgForSave: false});
   handleAnchorChange = (e) => this.setState({anchor: e.currentTarget});
 
   handleShowBI = (nextAction) => {
@@ -325,25 +283,6 @@ export class ExploreInfoHeader extends PureComponent {
   // show acceleration button is hidden or disabled.
   shouldEnableSettingsButton() {
     return this.isCreatedAndNamedDataset() && !this.isEditedDataset();
-  }
-
-  renderMsgForDataset() {
-    return (
-      <Popover
-        style={{overflow: 'visible', marginTop: 7}}
-        useLayerForClickAway={false}
-        open={this.state.showMsgForSave}
-        anchorEl={this.state.anchor}
-        anchorOrigin={{horizontal: 'right', vertical: 'bottom'}}
-        targetOrigin={{horizontal: 'right', vertical: 'top'}}
-        onRequestClose={this.handleRequestClose}
-        animation={PopoverAnimationVertical}>
-        <div style={style.popover}>
-          <div style={style.triangle}/>
-          <div style={{fontSize: 11, margin: 5}}>Dataset is already saved</div>
-        </div>
-      </Popover>
-    );
   }
 
   renderCopyToClipBoard(fullPath) {
@@ -470,7 +409,6 @@ export class ExploreInfoHeader extends PureComponent {
               }
               hideDropdown={mustSaveAs}
               menu={<SaveMenu/>}/>
-            {this.renderMsgForDataset()}
           </div>
           <DropdownButton
             className='run-button'
@@ -497,8 +435,8 @@ function mapStateToProps(state, ownProps) {
   return {
     location: state.routing.locationBeforeTransitions || {},
     history: getHistory(state, ownProps.dataset.get('tipVersion')),
-    currentSql: explorePageState.view.get('currentSql'),
-    queryContext: explorePageState.view.get('queryContext'),
+    currentSql: explorePageState.view.currentSql,
+    queryContext: explorePageState.view.queryContext,
     tableColumns: getTableColumns(state, ownProps.dataset.get('datasetVersion'))
   };
 }
@@ -507,13 +445,12 @@ export default connect(mapStateToProps, {
   transformHistoryCheck,
   performTransform,
   performTransformAndRun,
+  runDatasetSql,
+  previewDatasetSql,
   saveDataset,
   saveAsDataset,
   startDownloadDataset,
   performNextAction,
-  runDataset,
-  performLoadDataset,
-  navigateToNextDataset,
   showConfirmationDialog
 })(ExploreInfoHeader);
 

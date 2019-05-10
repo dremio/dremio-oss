@@ -65,7 +65,7 @@ public class APIFieldDescriber {
 
         generator.writeEndObject();
       } catch (IOException e) {
-        e.printStackTrace();
+        // no op
       }
       return null;
     }
@@ -102,7 +102,7 @@ public class APIFieldDescriber {
 
         generator.writeEndObject();
       } catch (IOException e) {
-        e.printStackTrace();
+        // no op
       }
       return null;
     }
@@ -139,7 +139,7 @@ public class APIFieldDescriber {
 
         generator.writeEndObject();
       } catch (IOException e) {
-        e.printStackTrace();
+        // no op
       }
       return null;
     }
@@ -176,7 +176,7 @@ public class APIFieldDescriber {
 
         generator.writeEndObject();
       } catch (IOException e) {
-        e.printStackTrace();
+        // no op
       }
       return null;
     }
@@ -193,7 +193,7 @@ public class APIFieldDescriber {
       try {
         generator.writeString(name);
       } catch (IOException e) {
-        e.printStackTrace();
+        // no op
       }
       return null;
     }
@@ -269,7 +269,7 @@ public class APIFieldDescriber {
         generator.writeFieldName("scale");
         generator.writeNumber(decimal.getScale());
       } catch (IOException e) {
-        e.printStackTrace();
+        // no op
       }
 
       return null;

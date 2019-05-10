@@ -27,15 +27,17 @@ public interface PluggableFunctionRegistry {
    * The other is addOperatorWithoutInference whose added operators will be used
    * when planner.type_inference.enable is set to false;
    * @param operatorTable
+   * @param isDecimalV2Enabled
    */
-  public void register(OperatorTable operatorTable);
+  public void register(OperatorTable operatorTable, boolean isDecimalV2Enabled);
 
   /**
    * If exists return the function implementation holder matching the given <code>functionCall</code> expression,
    * otherwise null.
    *
    * @param functionCall
+   * @param isDecimalV2Enabled
    * @return
    */
-  public AbstractFunctionHolder getFunction(FunctionCall functionCall);
+  public AbstractFunctionHolder getFunction(FunctionCall functionCall, boolean isDecimalV2Enabled);
 }

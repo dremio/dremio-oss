@@ -29,8 +29,17 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 
+@Options
 public class OrderedPartitionExchangePrel extends ExchangePrel {
+
+  public static final LongValidator SENDER_RESERVE = new PositiveLongValidator("planner.op.orderedpartition.sender.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator SENDER_LIMIT = new PositiveLongValidator("planner.op.orderedpartition.sender.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final LongValidator RECEIVER_RESERVE = new PositiveLongValidator("planner.op.orderedpartition.receiver.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator RECEIVER_LIMIT = new PositiveLongValidator("planner.op.orderedpartition.receiver.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   public OrderedPartitionExchangePrel(RelOptCluster cluster, RelTraitSet traitSet, RelNode input) {
     super(cluster, traitSet, input);

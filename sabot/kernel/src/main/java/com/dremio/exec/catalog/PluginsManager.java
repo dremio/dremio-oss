@@ -38,7 +38,6 @@ import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.util.DebugCheck;
-import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -342,12 +341,15 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
   }
 
   private ManagedStoragePlugin newPlugin(SourceConfig config) {
-    ConnectionConf<?, ?> connectionConf = reader.getConnectionConf(config);
-    IdProvider provider = new IdProvider();
-    StoragePlugin plugin = connectionConf.newPlugin(context, config.getName(), provider);
+    final ConnectionConf<?, ?> connectionConf = reader.getConnectionConf(config);
+    final IdProvider provider = new IdProvider();
+    final StoragePlugin plugin = connectionConf.newPlugin(context, config.getName(), provider);
+    final boolean isVirtualMaster = context.isMaster() ||
+      (context.getDremioConfig().isMasterlessEnabled() && context.isCoordinator());
+
     final ManagedStoragePlugin msp = new ManagedStoragePlugin(
         context,
-        context.getRoles().contains(Role.MASTER),
+        isVirtualMaster,
         scheduler,
         context.getNamespaceService(SystemUser.SYSTEM_USERNAME),
         sourceDataStore,

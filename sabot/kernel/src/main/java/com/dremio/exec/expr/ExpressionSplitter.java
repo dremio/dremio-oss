@@ -71,6 +71,10 @@ public class ExpressionSplitter implements AutoCloseable {
   final String outputFieldPrefix;
   int outputFieldCounter = 0;
 
+  int numExprsInGandiva = 0;
+  int numExprsInJava = 0;
+  int numExprsInBoth = 0;
+
   // execution pipeline
   final List<SplitStageExecutor> execPipeline;
 
@@ -128,6 +132,22 @@ public class ExpressionSplitter implements AutoCloseable {
     }
   }
 
+  public int getNumExprsInGandiva() {
+    return numExprsInGandiva;
+  }
+
+  public int getNumExprsInJava() {
+    return numExprsInJava;
+  }
+
+  public int getNumExprsInBoth() {
+    return numExprsInBoth;
+  }
+
+  public int getNumSplitsInBoth() {
+    return splitExpressions.size() - (numExprsInGandiva + numExprsInJava);
+  }
+
   void log(String s, Object... objects) {
     logger.debug("Expression {}: " + s, instanceCounter, objects);
   }
@@ -161,10 +181,13 @@ public class ExpressionSplitter implements AutoCloseable {
       LogicalExpression finalExpr = split.getNamedExpression().getExpr();
       if (split.getExecutionEngine() == SupportedEngines.Engine.GANDIVA) {
         log("Expression executed entirely in Gandiva {}", finalExpr);
+        numExprsInGandiva++;
       } else {
         log("Expression executed entirely in Java {}", finalExpr);
+        numExprsInJava++;
       }
     } else {
+      numExprsInBoth++;
       // more than one split
       // For debugging, print all splits
       log("Mixed mode execution for expression {}", namedExpression.getExpr());
@@ -266,7 +289,6 @@ public class ExpressionSplitter implements AutoCloseable {
     verifySplitsInGandiva();
     createPipeline();
     projectorSetup(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
-
     return vectorContainer;
   }
 

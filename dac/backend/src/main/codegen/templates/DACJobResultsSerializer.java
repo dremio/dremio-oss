@@ -55,25 +55,19 @@ import com.fasterxml.jackson.core.JsonGenerator;
  * NB: Source code generated using FreeMarker template ${.template_name}
  */
 public class DACJobResultsSerializer extends AbstractRowBasedRecordWriter {
-  private final JsonGenerator jsonGenerator;
   private final SerializationContext currentRowContext;
   private final int recordSizeLimit;
-  private DataJsonOutput gen;
+  private final DataJsonOutput gen;
 
   public DACJobResultsSerializer(final JsonGenerator jsonGenerator, final SerializationContext currentRowContext,
-      final int recordSizeLimit) {
-    this.jsonGenerator = jsonGenerator;
+      final int recordSizeLimit, final boolean convertNumbersToStrings) {
     this.currentRowContext = currentRowContext;
     this.recordSizeLimit = recordSizeLimit;
+    this.gen = new DataJsonOutput(jsonGenerator, convertNumbersToStrings);
   }
 
   public interface SerializationContext {
     String getCellFetchURL(String columnName);
-  }
-
-  @Override
-  public void setup() throws IOException {
-    gen = new DataJsonOutput(jsonGenerator);
   }
 
   @Override
@@ -94,7 +88,7 @@ public class DACJobResultsSerializer extends AbstractRowBasedRecordWriter {
       throw new IllegalStateException();
     }
   }
-  
+
   @Override
   public void abort() throws IOException {
     // no-op: implement in future??

@@ -103,6 +103,14 @@ public class WebServer implements Service {
    */
   public static final String X_DREMIO_HOSTNAME = "x-dremio-hostname";
 
+  /**
+   * Dremio header that forces numbers to be returned as strings for job data
+   *
+   * That header is also hardcoded in {@link /dac/ui/src/utils/apiUtils/apiUtils.js} for client side
+   */
+  public static final String X_DREMIO_JOB_DATA_NUMBERS_AS_STRINGS = "x-dremio-job-data-number-format";
+  public static final String X_DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_SUPPORTED_VALUE = "number-as-string";
+
   // After being created in the start() method a reference to this
   // ResourceConfig for the rest server is maintained so that
   // resources from the SabotNode can be directly injected into it
@@ -185,6 +193,9 @@ public class WebServer implements Service {
 
     // gzip filter.
     servletContextHandler.addFilter(GzipFilter.class.getName(), "/*", EnumSet.of(DispatcherType.REQUEST));
+
+    // security header filters
+    servletContextHandler.addFilter(SecurityHeadersFilter.class.getName(), "/*", EnumSet.of(DispatcherType.REQUEST));
 
     // add the font mime type.
     final MimeTypes mimeTypes = servletContextHandler.getMimeTypes();

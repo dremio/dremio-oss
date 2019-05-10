@@ -70,7 +70,7 @@ public class MaterializationExpander {
     final boolean preStripped = descriptor.getStrippedPlanHash() == null;
     final StrippingFactory factory = new StrippingFactory(parent.getSettings().getOptions(), parent.getConfig());
 
-    StripResult stripResult = preStripped ? StrippingFactory.noStrip(queryRel) : factory.strip(queryRel, descriptor.getReflectionType());
+    StripResult stripResult = preStripped ? StrippingFactory.noStrip(queryRel) : factory.strip(queryRel, descriptor.getReflectionType(), descriptor.getIncrementalUpdateSettings().isIncremental());
 
     // we need to make sure that the persisted version of the plan after applying the stripping is
     // consistent with what we got when materializing. We'll do this again during substitution in

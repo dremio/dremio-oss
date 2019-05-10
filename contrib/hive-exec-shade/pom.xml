@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>3.1.11-201904261857420193-c674472</version>
+    <version>3.2.0-201905102005330382-0598733</version>
   </parent>
 
   <artifactId>dremio-hive-exec-shaded</artifactId>
@@ -152,6 +152,8 @@
                     <exclude>templates/**</exclude>
                     <exclude>org/apache/hadoop/hive/llap/**</exclude>
                     <exclude>org/apache/hadoop/hive/metastore/**</exclude>
+                    <exclude>com/facebook/fb303/**</exclude>
+                    <exclude>java/jdo/**</exclude>
                   </excludes>
                 </filter>
                 <filter>
@@ -165,6 +167,7 @@
                 <filter>
                   <artifact>org.apache.calcite:calcite-avatica</artifact>
                   <excludes>
+                    <exclude>**/*.proto</exclude>
                     <exclude>META-INF/services/java.sql.Driver</exclude>
                   </excludes>
                 </filter>
@@ -181,6 +184,14 @@
                 <relocation>
                   <pattern>org.apache.parquet.</pattern>
                   <shadedPattern>hive.org.apache.parquet.</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>parquet.</pattern>
+                  <shadedPattern>hive.parquet.</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>shaded.</pattern>
+                  <shadedPattern>hive.parquet.shaded.</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.commons.codec.</pattern>

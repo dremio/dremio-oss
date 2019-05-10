@@ -22,17 +22,27 @@ import java.time.temporal.TemporalAdjuster;
 import java.time.temporal.TemporalAmount;
 import java.util.Iterator;
 
+import com.google.common.base.Preconditions;
+
 class BaseSchedule implements Schedule {
   private final TemporalAmount amount;
   private final TemporalAdjuster adjuster;
   private final Instant at;
   private final ZoneId zoneId;
+  private final String taskName;
+  private final Long scheduledOwnershipRelease;
+  private final CleanupListener cleanupListener;
 
-  BaseSchedule(Instant at, TemporalAmount period, TemporalAdjuster adjuster, ZoneId zoneId) {
+
+  BaseSchedule(Instant at, TemporalAmount period, TemporalAdjuster adjuster, ZoneId zoneId,
+               String taskName, Long scheduledOwnershipRelease, CleanupListener cleanupListener) {
     this.amount = period;
     this.adjuster = adjuster;
     this.at = at;
     this.zoneId = zoneId;
+    this.taskName = taskName;
+    this.scheduledOwnershipRelease = scheduledOwnershipRelease;
+    this.cleanupListener = cleanupListener;
   }
 
   @Override
@@ -69,5 +79,22 @@ class BaseSchedule implements Schedule {
         throw new UnsupportedOperationException("Schedule iterator does not support remove operation.");
       }
     };
+  }
+
+  @Override
+  public String getTaskName() {
+    return taskName;
+  }
+
+  @Override
+  public Long getScheduledOwnershipReleaseInMillis() {
+    Preconditions.checkState(taskName != null,
+      "Name of the task for which to release scheduled ownership is missing");
+    return scheduledOwnershipRelease;
+  }
+
+  @Override
+  public CleanupListener getCleanupListener() {
+    return cleanupListener;
   }
 }

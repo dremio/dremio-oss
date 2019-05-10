@@ -17,11 +17,14 @@ package com.dremio.plugins.elastic;
 
 import static com.dremio.plugins.elastic.ElasticsearchType.TEXT;
 
-import com.dremio.exec.store.DatasetRetrievalOptions;
-import com.dremio.service.namespace.SourceTableDefinition;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.exec.catalog.MetadataObjectsUtils;
 
 /* junit imports */
 import static org.junit.Assert.assertTrue;
+
+import java.util.Iterator;
+
 import org.junit.Test;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -67,16 +70,16 @@ public class ITTestHiddenIndices extends ElasticBaseTestQuery {
       load(schema, table, data);
 
       //get all the datasets in the plugin
-      Iterable<SourceTableDefinition> tables = plugin.getDatasets("",
-          DatasetRetrievalOptions.IGNORE_AUTHZ_ERRORS
-      );
-
+      Iterator<? extends DatasetHandle> handles = plugin.listDatasetHandles().iterator();
+      
       //make sure you can find the not hidden schema
       boolean foundNotHidden = false;
 
       //make sure you never find the hidden one
-      for(SourceTableDefinition table : tables){
-        String response = table.getName().getSchemaPath();
+      
+      while(handles.hasNext()){
+        DatasetHandle table = handles.next();
+        String response = MetadataObjectsUtils.toNamespaceKey(table.getDatasetPath()).getSchemaPath();
         assertTrue(!(response.contains(".hidden")));
         if(response.contains("nothidden")) {
           foundNotHidden = true;

@@ -57,6 +57,9 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
   @Tag(6)
   public boolean isInternal = true;
 
+  @Tag(7)
+  public boolean enableAsync = true;
+
   @Override
   public Path getPath() {
     return new Path(path);
@@ -83,6 +86,11 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
   }
 
   @Override
+  public List<String> getConnectionUniqueProperties() {
+    return ImmutableList.of();
+  }
+
+  @Override
   public FileSystemPlugin<InternalFileConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
   }
@@ -90,16 +98,18 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
   public InternalFileConf() {
   }
 
-  public InternalFileConf(String connection, String path, boolean enableImpersonation, List<Property> propertyList, SchemaMutability mutability) {
+  public InternalFileConf(String connection, String path, boolean enableImpersonation, List<Property> propertyList,
+                          SchemaMutability mutability, boolean enableAsync) {
     this.connection = connection;
     this.path = path;
     this.enableImpersonation = enableImpersonation;
     this.propertyList = propertyList;
     this.mutability = mutability;
+    this.enableAsync = enableAsync;
   }
 
   public InternalFileConf(String connection, String path) {
-    this(connection, path, false, ImmutableList.<Property>of(), SchemaMutability.ALL);
+    this(connection, path, false, ImmutableList.<Property>of(), SchemaMutability.ALL, true);
   }
 
   public static SourceConfig create(
@@ -109,10 +119,11 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
       boolean enableImpersonation,
       List<Property> properties,
       SchemaMutability mutability,
-      MetadataPolicy policy
+      MetadataPolicy policy,
+      boolean enableAsync
       ) {
     SourceConfig conf = new SourceConfig();
-    InternalFileConf fc = new InternalFileConf(connection, path, enableImpersonation, properties, mutability);
+    InternalFileConf fc = new InternalFileConf(connection, path, enableImpersonation, properties, mutability, enableAsync);
     conf.setConnectionConf(fc);
     conf.setMetadataPolicy(policy);
     conf.setName(name);
@@ -123,7 +134,8 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
       String name,
       URI path,
       SchemaMutability mutability,
-      MetadataPolicy policy
+      MetadataPolicy policy,
+      boolean enableAsync
       ) {
     SourceConfig conf = new SourceConfig();
     final String connection;
@@ -133,7 +145,7 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
       connection = path.getScheme() + ":///";
     }
 
-    InternalFileConf fc = new InternalFileConf(connection, path.getPath(), false, null, mutability);
+    InternalFileConf fc = new InternalFileConf(connection, path.getPath(), false, null, mutability, enableAsync);
     conf.setConnectionConf(fc);
     conf.setMetadataPolicy(policy);
     conf.setName(name);
@@ -148,5 +160,10 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
   @Override
   public boolean isInternal() {
     return isInternal;
+  }
+
+  @Override
+  public boolean isAsyncEnabled() {
+    return enableAsync;
   }
 }

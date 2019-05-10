@@ -130,7 +130,7 @@ public class RefreshHandler implements SqlToPlanHandler {
 
       if(materialization.getState() != MaterializationState.RUNNING) {
         throw UserException.validationError()
-        .message("Materialization in unexpected state for Reflection {}, Materialization {}. State: {}", reflectionId.getId(), materialization.getId(), materialization.getState())
+        .message("Materialization in unexpected state for Reflection %s, Materialization %s. State: %s", reflectionId.getId(), materialization.getId(), materialization.getState())
         .build(logger);
       }
 

@@ -28,7 +28,7 @@ export default class SubMenu extends Component {
 
   render() {
     return (
-      <Menu style={styles.innerMenuStyle} desktop>
+      <Menu style={styles.innerMenuStyle}>
         {this.props.children}
       </Menu>
     );

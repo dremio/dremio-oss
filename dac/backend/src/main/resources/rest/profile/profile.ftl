@@ -269,6 +269,7 @@
           ${planPhase.getPhaseName()} (${planPhase.getDurationMillis()} ms)<br />
           <#if planPhase.plan?has_content><p><pre>${planPhase.plan}</pre></p></#if>
           <#if planPhase.plannerDump?has_content><p><pre>${planPhase.plannerDump}</pre></p></#if>
+          <#if planPhase.hasSizeStats()><p><pre>${planPhase.sizeStats}</pre></p></#if>
           </p>
         </#list>
       <#else>
@@ -309,6 +310,8 @@
     <dd>${model.getProfile().getForeman().getAddress()}</dd>
     <dt>Threads:</dt>
     <dd>${model.getProfile().getTotalFragments()}</dd>
+    <dt>Command Pool Wait:</dt>
+    <dd>${model.getCommandPoolWaitMillis()}</dd>
     <dt>Planning Time:</dt>
     <dd>${model.getPlanningTime()}</dd>
     <dt>Resource Scheduling Time:</dt>

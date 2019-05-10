@@ -51,6 +51,13 @@ export default class FormUtils {
     return JSON.parse(JSON.stringify(config));
   }
 
+  static addTrailingBrackets(name) {
+    if (name && name.length && !name.endsWith('[]')) {
+      return name + '[]';
+    }
+    return name;
+  }
+
   static dropTrailingBrackets(name) {
     if (name && name.endsWith('[]')) return name.substring(0, name.length - 2);
     return name;

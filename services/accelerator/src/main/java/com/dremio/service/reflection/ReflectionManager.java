@@ -50,6 +50,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.options.OptionManager;
+import com.dremio.proto.model.UpdateId;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
@@ -274,7 +275,7 @@ public class ReflectionManager implements Runnable {
 
     Iterable<ExternalReflection> externalReflections = externalReflectionStore.getExternalReflections();
     for (ExternalReflection externalReflection : externalReflections) {
-      handleDatasetDeletion(externalReflection.getQueryDatasetId(), new ReflectionId(externalReflection.getId()));
+      handleDatasetDeletionForExternalReflection(externalReflection);
     }
   }
 
@@ -429,14 +430,15 @@ public class ReflectionManager implements Runnable {
         }
       }
 
-      final ExternalReflection externalReflection = externalReflectionStore.get(rId.getId());
-      if (externalReflection != null) {
-        externalReflectionStore.deleteExternalReflection(rId.getId());
-        return;
-      }
-
       // something wrong here
       throw new IllegalStateException("no reflection found for an existing reflection entry: " + rId.getId());
+    }
+  }
+
+  private void handleDatasetDeletionForExternalReflection(ExternalReflection externalReflection) {
+    if (namespaceService.findDatasetByUUID(externalReflection.getQueryDatasetId()) == null
+      || namespaceService.findDatasetByUUID(externalReflection.getTargetDatasetId()) == null) {
+      externalReflectionStore.deleteExternalReflection(externalReflection.getId());
     }
   }
 
@@ -712,7 +714,7 @@ public class ReflectionManager implements Runnable {
     final MaterializationMetrics metrics = ReflectionUtils.computeMetrics(job);
     final List<String> refreshPath = ReflectionUtils.getRefreshPath(job.getJobId(), job.getData(), accelerationBasePath);
     final Refresh refresh = ReflectionUtils.createRefresh(materialization.getReflectionId(), refreshPath, seriesId,
-      0, -1, jobDetails, metrics, dataPartitions);
+      0, new UpdateId(), jobDetails, metrics, dataPartitions);
     refresh.setCompacted(true);
 
     // no need to update entry lastSuccessfulRefresh, as it may only cause unnecessary refreshes on dependant reflections

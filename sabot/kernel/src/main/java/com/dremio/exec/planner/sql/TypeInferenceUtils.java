@@ -41,6 +41,7 @@ import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.resolver.FunctionResolver;
 import com.dremio.exec.resolver.FunctionResolverFactory;
+import com.esotericsoftware.kryo.serializers.FieldSerializer;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
@@ -171,22 +172,27 @@ public class TypeInferenceUtils {
    * Give the name and BaseFunctionHolder list, return the inference mechanism.
    */
   public static SqlReturnTypeInference getSqlReturnTypeInference(
-      final String name,
-      final List<BaseFunctionHolder> functions) {
+    final String name,
+    final List<BaseFunctionHolder> functions,
+    final boolean isDecimalV2Enabled) {
 
     final String nameCap = name.toUpperCase();
     if(funcNameToInference.containsKey(nameCap)) {
       return funcNameToInference.get(nameCap);
     } else {
-      return new DefaultSqlReturnTypeInference(functions);
+      return new DefaultSqlReturnTypeInference(functions, isDecimalV2Enabled);
     }
   }
 
   private static class DefaultSqlReturnTypeInference implements SqlReturnTypeInference {
     private final List<BaseFunctionHolder> functions;
+    @FieldSerializer.Optional("ignored")
+    private final boolean isDecimalV2Enabled;
 
-    public DefaultSqlReturnTypeInference(List<BaseFunctionHolder> functions) {
+    // This is created per query, so safe to use decimal setting as a variable.
+    public DefaultSqlReturnTypeInference(List<BaseFunctionHolder> functions, boolean isDecimalV2Enabled) {
       this.functions = functions;
+      this.isDecimalV2Enabled = isDecimalV2Enabled;
     }
 
     @Override
@@ -225,7 +231,7 @@ public class TypeInferenceUtils {
         }
       }
 
-      final BaseFunctionHolder func = resolveFunctionHolder(opBinding, functions);
+      final BaseFunctionHolder func = resolveFunctionHolder(opBinding, functions, isDecimalV2Enabled);
       final RelDataType returnType = getReturnType(opBinding, func);
       return returnType.getSqlTypeName() == SqlTypeName.VARBINARY
           ? createCalciteTypeWithNullability(factory, SqlTypeName.ANY, returnType.isNullable(), null)
@@ -454,10 +460,12 @@ public class TypeInferenceUtils {
     }
   }
 
-  private static BaseFunctionHolder resolveFunctionHolder(final SqlOperatorBinding opBinding, final List<BaseFunctionHolder> functions) {
+  private static BaseFunctionHolder resolveFunctionHolder(final SqlOperatorBinding opBinding,
+                                                          final List<BaseFunctionHolder>  functions,
+                                                          boolean isDecimalV2On) {
     final FunctionCall functionCall = convertSqlOperatorBindingToFunctionCall(opBinding);
     final FunctionResolver functionResolver = FunctionResolverFactory.getResolver(functionCall);
-    final BaseFunctionHolder func = functionResolver.getBestMatch(functions, functionCall);
+    final BaseFunctionHolder func = functionResolver.getBestMatch(functions, functionCall, isDecimalV2On);
 
     // Throw an exception
     // if no BaseFunctionHolder matched for the given list of operand types

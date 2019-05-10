@@ -62,8 +62,12 @@ public final class JobIndexKeys {
       SearchQueryUtils.newTermQuery("QUERY_TYPE", REST.toString()));
 
   public static final SearchQuery UI_EXTERNAL_JOBS_FILTER = SearchQueryUtils.or(
-          UI_JOBS_FILTER,
-          EXTERNAL_JOBS_FILTER);
+      UI_JOBS_FILTER,
+      EXTERNAL_JOBS_FILTER);
+
+  public static final SearchQuery UI_EXTERNAL_RUN_JOBS_FILTER = SearchQueryUtils.or(
+      SearchQueryUtils.newTermQuery("QUERY_TYPE", UI_RUN.toString()),
+      EXTERNAL_JOBS_FILTER);
 
   public static final SearchQuery ACCELERATION_JOBS_FILTER = SearchQueryUtils.or(
       SearchQueryUtils.newTermQuery("QUERY_TYPE", ACCELERATOR_CREATE.toString()),

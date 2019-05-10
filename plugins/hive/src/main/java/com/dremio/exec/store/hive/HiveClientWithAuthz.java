@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive;
 
 import java.util.Collections;
 import java.util.List;
+
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -117,7 +118,7 @@ class HiveClientWithAuthz extends HiveClient {
   }
 
   @Override
-  Table getTable(final String dbName, final String tableName, boolean ignoreAuthzErrors) throws TException {
+  public Table getTable(final String dbName, final String tableName, boolean ignoreAuthzErrors) throws TException {
     try {
       authorizer.authorizeReadTable(dbName, tableName);
     } catch (final HiveAccessControlException e) {

@@ -26,8 +26,8 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.DistributedSemaphore;
 import com.dremio.service.coordinator.ElectionListener;
+import com.dremio.service.coordinator.ElectionRegistrationHandle;
 import com.dremio.service.coordinator.ServiceSet;
-import com.dremio.service.coordinator.ServiceSet.RegistrationHandle;
 import com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -90,7 +90,7 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
   }
 
   @Override
-  public synchronized ServiceSet getOrCreateServiceSet(final String serviceName) {
+  public ServiceSet getOrCreateServiceSet(final String serviceName) {
     return serviceSets.computeIfAbsent(serviceName, s -> {
       final ZKServiceSet newServiceSet = zkClient.newServiceSet(serviceName);
       try {
@@ -102,13 +102,19 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
     });
   }
 
+  // this interface doesn't guarantee the consistency of the registered service names.
+  @Override
+  public Iterable<String> getServiceNames() throws Exception {
+    return zkClient.getServiceNames();
+  }
+
   @Override
   public DistributedSemaphore getSemaphore(String name, int maximumLeases) {
     return zkClient.getSemaphore(name, maximumLeases);
   }
 
   @Override
-  public RegistrationHandle joinElection(String name, ElectionListener listener) {
+  public ElectionRegistrationHandle joinElection(String name, ElectionListener listener) {
     return zkClient.joinElection(name, listener);
   }
 

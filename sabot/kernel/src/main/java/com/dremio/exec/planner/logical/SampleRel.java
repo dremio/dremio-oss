@@ -21,8 +21,6 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.common.logical.data.LogicalOperator;
-import com.dremio.exec.calcite.logical.SampleCrel;
 import com.dremio.exec.planner.common.SampleRelBase;
 
 /**
@@ -37,10 +35,5 @@ public class SampleRel extends SampleRelBase implements Rel {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new SampleRel(getCluster(), traitSet, sole(inputs));
-  }
-
-  @Override
-  public LogicalOperator implement(LogicalPlanImplementor implementor) {
-    throw new UnsupportedOperationException();
   }
 }

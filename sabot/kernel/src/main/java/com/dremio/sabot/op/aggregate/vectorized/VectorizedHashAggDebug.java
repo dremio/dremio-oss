@@ -125,7 +125,6 @@ class VectorizedHashAggDebug {
 
   void setInfoBeforeInit(final long aggAllocatorInitReservation,
                          final long aggAllocatorLimit,
-                         final int batchSize,
                          final int maxVarBlockLength,
                          final int averageVarWidthFieldSize,
                          final int numVarColumns,
@@ -135,7 +134,6 @@ class VectorizedHashAggDebug {
                          final int minHashTableSizePerPartition) {
     this.aggAllocatorInitReservation = aggAllocatorInitReservation;
     this.aggAllocatorLimit = aggAllocatorLimit;
-    this.hashTableBatchSize = batchSize;
     this.maxVarBlockLength = maxVarBlockLength;
     this.averageVarColumnFieldLength = averageVarWidthFieldSize;
     this.numVarColumns = numVarColumns;
@@ -161,8 +159,10 @@ class VectorizedHashAggDebug {
     this.preallocatedMemoryForAuxStructures = amount;
   }
 
-  void setInfoAfterInit(final long totalPreallocatedMemory,
+  void setInfoAfterInit(final int hashTableBatchSize,
+                        final long totalPreallocatedMemory,
                         final BatchSchema outgoing) {
+    this.hashTableBatchSize = hashTableBatchSize;
     this.totalPreallocatedMemory = totalPreallocatedMemory;
     /* BatchSchema.toString() is an expensive operation so don't do it by default */
     this.aggSchema = (detailedEventTracing ? outgoing.toString() : "enable tracing to record schema");
@@ -220,12 +220,12 @@ class VectorizedHashAggDebug {
 
   private static class SpilledPartitionState {
     private final String partitionIdentifier;
-    private final int batchesSpilled;
+    private final long batchesSpilled;
     private final String spillFilePath;
     private final boolean activeSpilled;
 
     SpilledPartitionState(final String id,
-                          final int batches,
+                          final long batches,
                           final String spillFile,
                           final boolean activeSpilled) {
       this.partitionIdentifier = id;
@@ -247,13 +247,13 @@ class VectorizedHashAggDebug {
 
   private static class OOMEvent {
     private final int iterations;
-    private final int spills;
+    private final long spills;
     private final int ooms;
     private final long allocatedMemory;
-    private final int maxBatchesSpilled;
-    private final int totalBatchesSpilled;
-    private final int maxRecordsSpilled;
-    private final int totalRecordsSpilled;
+    private final long maxBatchesSpilled;
+    private final long totalBatchesSpilled;
+    private final long maxRecordsSpilled;
+    private final long totalRecordsSpilled;
     private final SpilledPartitionState[] activeSpilled;
     private final SpilledPartitionState[] onDiskOnly;
 

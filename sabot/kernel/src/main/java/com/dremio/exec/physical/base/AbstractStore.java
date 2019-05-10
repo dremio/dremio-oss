@@ -18,8 +18,8 @@ package com.dremio.exec.physical.base;
 public abstract class AbstractStore extends AbstractSingle implements Store {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractStore.class);
 
-  public AbstractStore(PhysicalOperator child) {
-    super(child);
+  public AbstractStore(OpProps props, PhysicalOperator child) {
+    super(props, child);
   }
 
   @Override

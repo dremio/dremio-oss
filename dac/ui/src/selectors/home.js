@@ -13,29 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {getUserName} from 'selectors/account';
+import { createSelector } from 'reselect';
+import invariant from 'invariant';
 import { getHomePageEntity } from 'selectors/datasets';
 import * as fromWiki from '@app/reducers/home/wiki';
+import { isPinned }  from '@app/reducers/home/pinnedEntities';
+import { humanSorter } from 'utils/sort';
 
 const rootSelector = state => state.home;
-
-export function getHomeForCurrentUser(state) {
-  const userName = getUserName(state);
-
-  const {entities} = state.resources;
-
-  const entry = entities.get('home') && entities.get('home').findEntry((home) => home.get('owner') === userName);
-  if (entry) {
-    return entry[1];
-  }
-  return Immutable.fromJS({
-    id: '/home/"@' + userName + '"',
-    fullPathList: ['@' + userName],
-    links: {
-      self: '/home/"@' + userName + '"'
-    }
-  });
-}
 
 export const isWikiPresent = (state, entityId) => !!fromWiki.getWiki(rootSelector(state).wiki, entityId);
 export const isWikiLoaded = (state, entityId) => fromWiki.isWikiLoaded(rootSelector(state).wiki, entityId);
@@ -47,3 +32,32 @@ export const getCanTagsBeSkipped = (state, urlPath) => {
   const entity = getHomePageEntity(state, urlPath);
   return entity ? entity.getIn(['contents', 'canTagsBeSkipped'], false) : false;
 };
+export const getSidebarSize = (state) => rootSelector(state).sidebarSize;
+export const getPinnedEntitiesState = state => rootSelector(state).pinnedEntities;
+export const isEntityPinned = (state, entityId) => isPinned(getPinnedEntitiesState(state), entityId);
+
+function getSortedResource(resources, pinnedEntities) {
+  return resources.sort((a, b) => {
+    const ret = Number(isPinned(pinnedEntities, b.get('id')) || 0) - Number(isPinned(pinnedEntities, a.get('id')) || 0);
+    return ret !== 0 ? ret : humanSorter(a.get('name'), b.get('name'));
+  }).toList();
+}
+
+export const getSortedResourceSelector = resourceSelectorFn => createSelector(
+  [ resourceSelectorFn, getPinnedEntitiesState ],
+  (spaces, pinnedEntitiesState) => {
+    return getSortedResource(spaces, pinnedEntitiesState);
+  }
+);
+
+export const addPinStateToList = listSelector => createSelector(
+  [ listSelector, getPinnedEntitiesState ],
+  (list, pinnedEntitiesState) => {
+    invariant(list instanceof Immutable.List, 'list must be of type Immutable.List');
+    return list.map(item => {
+      return item.merge({
+        isActivePin: isPinned(pinnedEntitiesState, item.get('id'))
+      });
+    });
+  }
+);

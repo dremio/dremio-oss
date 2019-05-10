@@ -23,7 +23,8 @@ import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.KVStore.FindByRange;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -35,6 +36,14 @@ import com.dremio.service.namespace.space.proto.SpaceConfig;
  * Namespace operations from DAC
  */
 public interface NamespaceService {
+
+  /**
+   * Compression of (multi)splits in the K/V store
+   */
+  enum SplitCompression {
+    UNCOMPRESSED,  // splits stored uncompressed
+    SNAPPY         // splits stored using snappy compression
+  }
 
   // never expire  = Monday, September 1, 3017 9:38:18 PM
   long INFINITE_REFRESH_PERIOD = 33061210698000L ;
@@ -60,11 +69,20 @@ public interface NamespaceService {
 
   void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, NamespaceAttribute... attributes) throws NamespaceException;
 
-  void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, List<DatasetSplit> splits, NamespaceAttribute... attributes) throws NamespaceException;
+  void addOrUpdateDataset(NamespaceKey datasetPath, DatasetConfig dataset, List<PartitionChunk> splits, NamespaceAttribute... attributes) throws NamespaceException;
 
   void addOrUpdateFolder(NamespaceKey folderPath, FolderConfig folderConfig, NamespaceAttribute... attributes) throws NamespaceException;
 
   void addOrUpdateHome(NamespaceKey homePath, HomeConfig homeConfig) throws NamespaceException;
+
+  /**
+   * Create a dataset metadata saver for the given dataset.
+   * @param datasetPath      dataset path
+   * @param datasetId        dataset id
+   * @param splitCompression compression to be used on the (multi-)splits in the K/V store
+   * @return                 dataset metadata saver
+   */
+  DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey datasetPath, EntityId datasetId, SplitCompression splitCompression);
 
   //// GET
   boolean exists(NamespaceKey key, Type type);
@@ -180,17 +198,15 @@ public interface NamespaceService {
   /**
    * Search for splits for given condition.
    */
-  Iterable<Map.Entry<DatasetSplitId, DatasetSplit>> findSplits(FindByCondition condition);
-
-  Iterable<Map.Entry<DatasetSplitId, DatasetSplit>> findSplits(FindByRange<DatasetSplitId> range);
+  Iterable<PartitionChunkMetadata> findSplits(FindByCondition condition);
+  Iterable<PartitionChunkMetadata> findSplits(FindByRange<PartitionChunkId> range);
 
   /**
-   * Count total number of splits for given condition
+   * Count total number of partition chunks for a given condition
    * @param condition
    * @return
    */
-  int getSplitCount(FindByCondition condition);
-
+  int getPartitionChunkCount(FindByCondition condition);
 
   /**
    * Delete any orphaned splits from the Namespace.
@@ -203,13 +219,13 @@ public interface NamespaceService {
    * dataset is initially getting setup, or query errors
    * @return The number of splits deleted.
    */
-  int deleteSplitOrphans(DatasetSplitId.SplitOrphansRetentionPolicy policy);
+  int deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy policy);
 
   /**
    * Delete given splits
    * @param datasetSplits list of split ids to be removed.
    */
-  void deleteSplits(Iterable<DatasetSplitId> datasetSplits);
+  void deleteSplits(Iterable<PartitionChunkId> datasetSplits);
 
   /**
    * finds a dataset using UUID

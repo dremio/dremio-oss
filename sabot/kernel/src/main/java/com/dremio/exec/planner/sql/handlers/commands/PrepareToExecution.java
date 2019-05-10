@@ -16,51 +16,37 @@
 package com.dremio.exec.planner.sql.handlers.commands;
 
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.PhysicalPlanReader;
-import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AttemptObserver;
-import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.resource.ResourceAllocator;
 
 /**
  * Go from prepare to execution.
  */
-public class PrepareToExecution extends AsyncCommand<Object> {
+public class PrepareToExecution extends AsyncCommand {
 
   private final PreparedPlan plan;
-  private final QueryContext context;
   private final AttemptObserver observer;
-  private final PhysicalPlanReader reader;
-  private final CoordToExecTunnelCreator tunnelCreator;
-
-  private ExecutionPlan exec;
 
   public PrepareToExecution(PreparedPlan plan, QueryContext context, AttemptObserver observer,
                             PhysicalPlanReader reader,
                             CoordToExecTunnelCreator tunnelCreator, ResourceAllocator queryResourceManager) {
-    super(context, queryResourceManager, observer);
+    super(context, queryResourceManager, observer, reader, tunnelCreator);
     this.plan = plan;
-    this.context = context;
     this.observer = observer;
-    this.reader = reader;
-    this.tunnelCreator = tunnelCreator;
   }
 
   @Override
-  public double plan() throws Exception {
+  protected PhysicalPlan getPhysicalPlan() {
+    return plan.getPlan();
+  }
+
+  @Override
+  public double plan() {
     plan.replay(observer);
-    final PlanningSet planningSet = allocateResourcesBasedOnPlan(plan.getPlan());
-    exec = ExecutionPlanCreator.getExecutionPlan(context, reader, observer, plan.getPlan(), resourceSet, planningSet);
-    observer.planCompleted(exec);
     return plan.getPlan().getCost();
-  }
-
-  @Override
-  public Object execute() throws Exception {
-    FragmentStarter starter = new FragmentStarter(tunnelCreator, resourceSchedulingDecisionInfo);
-    starter.start(exec, observer);
-    return null;
   }
 
   @Override

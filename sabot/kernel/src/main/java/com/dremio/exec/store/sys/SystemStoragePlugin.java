@@ -16,42 +16,40 @@
 package com.dremio.exec.store.sys;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 
+import com.dremio.connector.metadata.BytesOutput;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetHandleListing;
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetDatasetOption;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
+import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
+import com.dremio.connector.metadata.extensions.SupportsReadSignature;
+import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
-import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 
-import io.protostuff.ByteString;
+public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature, SupportsListingDatasets {
 
-public class SystemStoragePlugin implements StoragePlugin {
-
-  static final ImmutableSet<String> TABLES = FluentIterable.of(SystemTable.values()).transform(new Function<SystemTable, String>(){
-    @Override
-    public String apply(SystemTable input) {
-      return input.getTableName().toLowerCase();
-    }}).toSet();
-
-  public static final ImmutableMap<String, SystemTable> TABLE_MAP = FluentIterable.of(SystemTable.values()).uniqueIndex(new Function<SystemTable, String>(){
-
-    @Override
-    public String apply(SystemTable input) {
-      return input.getTableName().toLowerCase();
-    }});
+  public static final ImmutableMap<String, SystemTable> TABLE_MAP = FluentIterable.of(SystemTable.values())
+      .uniqueIndex(input -> input.getTableName().toLowerCase());
 
   private final SabotContext context;
   private final Predicate<String> userPredicate;
@@ -70,38 +68,6 @@ public class SystemStoragePlugin implements StoragePlugin {
     return context;
   }
 
-  @Override
-  public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions ignored) throws Exception {
-    return FluentIterable.of(SystemTable.values()).transform(new Function<SystemTable, SourceTableDefinition>(){
-      @Override
-      public SourceTableDefinition apply(SystemTable input) {
-        return input.asTableDefinition(null);
-      }});
-  }
-
-  @Override
-  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, DatasetRetrievalOptions ignored) throws Exception {
-    if(datasetPath.size() != 2) {
-      return null;
-    }
-
-    SystemTable table = TABLE_MAP.get(datasetPath.getName().toLowerCase());
-    if(table != null) {
-      return table.asTableDefinition(oldDataset);
-    }
-
-    return null;
-  }
-
-  @Override
-  public boolean containerExists(NamespaceKey key) {
-    return false;
-  }
-
-  @Override
-  public boolean datasetExists(NamespaceKey key) {
-    return key.size() == 2 && TABLES.contains(key.getName().toLowerCase());
-  }
 
   @Override
   public boolean hasAccessPermission(String user, NamespaceKey key, DatasetConfig datasetConfig) {
@@ -129,11 +95,6 @@ public class SystemStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig, DatasetRetrievalOptions ignored) throws Exception {
-    return CheckResult.UNCHANGED;
-  }
-
-  @Override
   public void start() {
   }
 
@@ -141,4 +102,54 @@ public class SystemStoragePlugin implements StoragePlugin {
   public void close() {
   }
 
+  @Override
+  public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) {
+    return () -> Stream.of(SystemTable.values()).iterator();
+  }
+
+  @Override
+  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
+    if(datasetPath.size() != 2) {
+      return Optional.empty();
+    }
+
+    return Optional.ofNullable(TABLE_MAP.get(datasetPath.getName().toLowerCase()));
+  }
+
+  @Override
+  public DatasetMetadata getDatasetMetadata(
+      DatasetHandle datasetHandle,
+      PartitionChunkListing chunkListing,
+      GetMetadataOption... options
+  ) {
+    return datasetHandle.unwrap(SystemTable.class);
+  }
+
+  @Override
+  public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
+    return datasetHandle.unwrap(SystemTable.class);
+  }
+
+  @Override
+  public boolean containerExists(EntityPath containerPath) {
+    return false;
+  }
+
+  @Override
+  public BytesOutput provideSignature(DatasetHandle datasetHandle, DatasetMetadata metadata) {
+    return BytesOutput.NONE;
+  }
+
+  @Override
+  public MetadataValidity validateMetadata(
+      BytesOutput signature,
+      DatasetHandle datasetHandle,
+      DatasetMetadata metadata,
+      ValidateMetadataOption... options
+  ) {
+    // returning INVALID allows us to refresh system source to apply schema updates.
+    // system source is only refreshed once when CatalogService starts up
+    // and won't be refreshed again since its refresh policy is NEVER_REFRESH_POLICY.
+    return MetadataValidity.INVALID;
+  }
 }

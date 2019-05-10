@@ -297,7 +297,8 @@ public class TestVectorizedHashAggPartitionSpillHandler {
       LBlockHashTable sourceHashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000, 10, true, accumulator, MAX_VALUES_PER_BATCH);
       final ArrowBuf buffer = combined.slice(i * VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH * MAX_VALUES_PER_BATCH,
         VectorizedHashAggOperator.PARTITIONINDEX_HTORDINAL_WIDTH * MAX_VALUES_PER_BATCH);
-      VectorizedHashAggPartition hashAggPartition = new VectorizedHashAggPartition(accumulator, sourceHashTable, pivot.getBlockWidth(), "P" + String.valueOf(i), buffer);
+      VectorizedHashAggPartition hashAggPartition = new VectorizedHashAggPartition(accumulator,
+        sourceHashTable, pivot.getBlockWidth(), "P" + String.valueOf(i), buffer, false);
       partitions[i] = hashAggPartition;
     }
     combined.close();

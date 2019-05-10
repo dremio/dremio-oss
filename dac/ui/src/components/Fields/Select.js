@@ -13,98 +13,89 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 
 import PropTypes from 'prop-types';
+import { get } from 'lodash/object';
 
-import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
-import FontIcon from 'components/Icon/FontIcon';
-import Menu from 'material-ui/Menu';
+import { SelectView } from '@app/components/Fields/SelectView';
 import { formDefault } from 'uiTheme/radium/typography';
 import classNames from 'classnames';
 import SelectItem from './SelectItem';
-import { button, disabled as disabledCls, icon as iconCls, label as labelCls, list as listCls } from './Select.less';
+import { button, label as labelCls, list as listCls } from './Select.less';
 
-const MAX_HEIGHT = 250;
-
-@pureRender
-export default class Select extends Component {
+export default class Select extends PureComponent {
   static propTypes = {
-    items: PropTypes.array, // items of {option?, label}
+    items: PropTypes.array, // items of {option?, label, dataQa}
     value: PropTypes.any,
     handle: PropTypes.func, // todo: safe to delete this? - don't see it used in this file (used by parent?)
     disabled: PropTypes.any, // todo: add a #readonly/readOnly(?) and switch existing uses of #disabled as appropriate)
     style: PropTypes.object,
     className: PropTypes.string,
-    iconStyle: PropTypes.object,
-    listStyle: PropTypes.object,
-    menuStyle: PropTypes.object,
+    listClass: PropTypes.string,
     customLabelStyle: PropTypes.object,
     dataQa: PropTypes.string,
     onChange: PropTypes.func,
     comparator: PropTypes.func,
-    itemRenderer: PropTypes.func, // function(item, label) {}
+    //todo change default option to a value
+    valueField: PropTypes.string, // a field name value item holds value. 'option' is a default
+    itemRenderer: PropTypes.func, // function(item) {}
+    selectedValueRenderer: PropTypes.func, // renders a selected value in main button content
     itemClass: PropTypes.string
   };
 
   static defaultProps = {
     items: [],
-    comparator: (a, b) => a === b
+    comparator: (a, b) => a === b,
+    valueField: 'option'
   };
 
-  state = { open: false }
+  state = { anchorEl: null }
 
   getButtonLabel(value) {
-    const current = this.props.items.find(item => {
-      return this.props.comparator(value, this.valueForItem(item));
+    const {
+      items,
+      selectedValueRenderer
+    } = this.props;
+
+    const current = items.find(item => {
+      return this.props.comparator(value, this.getValue(item));
     });
-    return current ? this.labelForItem(current).label : '';
+    if (!current) {
+      return '';
+    }
+    if (selectedValueRenderer) {
+      return selectedValueRenderer(current);
+    }
+    return this.getDisplayValue(current).label;
   }
 
-  handleChange = (e, value) => {
-    this.handleRequestClose();
+  handleChange = (closeDDFn, e, value) => {
+    closeDDFn();
     this.props.onChange && this.props.onChange(value);
   }
 
-  valueForItem(item) {
-    // todo: why do we call this "option" externally and "value" internally?
-    return getIfIn(item, 'option', () => getIfIn(item, 'label', () => item));
+  getValue(item) {
+    return get(item, this.props.valueField, item.label);
   }
 
-  labelForItem(item) {
-    const {
-      itemRenderer
-    } = this.props;
-    const label = getIfIn(item, 'label', () => this.valueForItem(item));
+  getDisplayValue(item) {
+    const { itemRenderer } = this.props;
+    const label = get(item, 'label', this.getValue(item));
     const labelInfo = {
-      dataQA: typeof label === 'string' ? label : '',
+      dataQa: item.dataQa || (typeof label === 'string' ? label : ''),
       label
     };
     if (itemRenderer) {
-      labelInfo.label = itemRenderer(item, label);
+      labelInfo.label = itemRenderer(item);
     }
     return labelInfo;
   }
 
-  handleTouchTap = (event) => {
-    event.preventDefault();
-    if (!this.props.disabled) {
-      this.setState({
-        open: !this.state.open,
-        anchorEl: event.currentTarget
-      });
-    }
-  }
-
-  handleRequestClose = () => {
-    this.setState({ open: false });
-  }
-
-  renderItems(selectedValue) {
+  renderItems(selectedValue, closeDDFn) {
     const { items, itemClass } = this.props;
     return items.map((item, index) => {
-      const val = this.valueForItem(item);
+      const val = this.getValue(item);
       const selected = this.props.comparator(selectedValue, val);
 
       return (
@@ -114,67 +105,42 @@ export default class Select extends Component {
           value={val}
           disabled={item.disabled}
           className={itemClass}
-          {...this.labelForItem(item)}/>
+          onClick={this.handleChange.bind(this, closeDDFn)}
+          {...this.getDisplayValue(item)}/>
       );
     });
-  }
-
-  renderIcon() {
-    const { iconStyle } = this.props;
-    return (<FontIcon type='Arrow-Down-Small' iconClass={iconCls} style={iconStyle}/>);
   }
 
   render() {
     const {
       disabled,
       style,
-      menuStyle,
-      listStyle,
       dataQa,
       customLabelStyle,
-      className
+      className,
+      listClass,
+      value
     } = this.props;
-    const defaultOption = this.props.items.length ? this.valueForItem(this.props.items[0]) : undefined;
-    const selectedValue = getIfIn(this.props, 'value', () => defaultOption);
+
+    const defaultOption = this.props.items.length ? this.getValue(this.props.items[0]) : undefined;
+    const selectedValue = value === undefined || value === null ? defaultOption : value;
     const buttonLabel = this.getButtonLabel(selectedValue);
 
     // TODO: can't easily remove textOverflow in favor of <EllipsedText> because the content comes in externally
     return (
-      <button
-        type='button'
-        data-qa={dataQa}
-        onClick={this.handleTouchTap}
-        className={classNames(['field', button, className, disabled && disabledCls])}
-        style={style}>
-        <span className={labelCls} style={{...customLabelStyle, ...formDefault}}>{buttonLabel}</span>
-        {this.renderIcon()}
-        <Popover
-          open={this.state.open}
-          anchorEl={this.state.anchorEl}
-          anchorOrigin={{horizontal: 'left', vertical: 'bottom'}}
-          targetOrigin={{horizontal: 'left', vertical: 'top'}}
-          onRequestClose={this.handleRequestClose}
-          animation={PopoverAnimationVertical}>
-          <Menu
-            autoWidth={false}
-            style={menuStyle}
-            data-qa='convertTo'
-            onChange={this.handleChange}
-            maxHeight={MAX_HEIGHT}
-            className={listCls}
-            listStyle={{...listStyle}}>
-            {this.renderItems(selectedValue)}
-          </Menu>
-        </Popover>
-      </button>
+      <SelectView
+        content={<span className={labelCls} style={{...customLabelStyle, ...formDefault}}>{buttonLabel}</span>}
+        disabled={disabled}
+        className={classNames(['field', button, className])}
+        style={style}
+        listClass={classNames([listCls, listClass])}
+        dataQa={dataQa}
+        rootAttrs={{ 'aria-role': 'listbox' }}
+      >
+        {
+          ({ closeDD }) => this.renderItems(selectedValue, closeDD)
+        }
+      </SelectView>
     );
   }
-}
-
-// Allow Selects to have options which are falsy
-function getIfIn(obj, key, fallbackFcn) { // use fcn so no eval if not needed like ||
-  if (key in obj) {
-    return obj[key];
-  }
-  return fallbackFcn && fallbackFcn();
 }

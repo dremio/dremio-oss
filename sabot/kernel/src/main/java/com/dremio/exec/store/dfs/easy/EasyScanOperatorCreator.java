@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.dfs.easy;
 
+import java.io.FileNotFoundException;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -23,8 +24,11 @@ import java.util.Set;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.exceptions.InvalidMetadataErrorContext;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfig;
+import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
@@ -36,20 +40,21 @@ import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.dremio.service.namespace.file.proto.EasyDatasetSplitXAttr;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Easy scan batch creator from dataset config.
  */
 public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySubScan>{
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(com.dremio.exec.store.dfs.easy.EasyScanOperatorCreator.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(com.dremio.exec.store.dfs.easy.EasyScanOperatorCreator.class);
 
   private final static Comparator<SplitAndExtended> SPLIT_COMPARATOR = new Comparator<SplitAndExtended>() {
     @Override
@@ -69,14 +74,18 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
   };
 
   private static class SplitAndExtended {
-    private final DatasetSplit split;
+    private final SplitInfo split;
     private final EasyDatasetSplitXAttr extended;
-    public SplitAndExtended(DatasetSplit split) {
+    public SplitAndExtended(SplitInfo split) {
       super();
       this.split = split;
-      this.extended = EasyDatasetXAttrSerDe.EASY_DATASET_SPLIT_XATTR_SERIALIZER.revert(split.getExtendedProperty().toByteArray());
+      try {
+        this.extended = LegacyProtobufSerializer.parseFrom(EasyDatasetSplitXAttr.PARSER, split.getSplitExtendedProperty());
+      } catch (InvalidProtocolBufferException e) {
+        throw new RuntimeException("Could not deserialize split info", e);
+      }
     }
-    public DatasetSplit getSplit() {
+    public SplitInfo getSplit() {
       return split;
     }
     public EasyDatasetSplitXAttr getExtended() {
@@ -89,36 +98,53 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, final OperatorContext context, EasySubScan config) throws ExecutionSetupException {
     final FileSystemPlugin plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
 
-    final FileSystemWrapper fs = plugin.createFS(config.getUserName(), context.getStats());
+    final FileSystemWrapper fs = plugin.createFs(config.getProps().getUserName(), context);
     final FormatPluginConfig formatConfig = PhysicalDatasetUtils.toFormatPlugin(config.getFileConfig(), Collections.<String>emptyList());
     final EasyFormatPlugin<?> formatPlugin = (EasyFormatPlugin<?>) plugin.getFormatPlugin(formatConfig);
 
     FluentIterable<SplitAndExtended> unorderedWork = FluentIterable.from(config.getSplits())
-      .transform(new Function<DatasetSplit, SplitAndExtended>() {
+      .transform(new Function<SplitInfo, SplitAndExtended>() {
         @Override
-        public SplitAndExtended apply(DatasetSplit split) {
+        public SplitAndExtended apply(SplitInfo split) {
           return new SplitAndExtended(split);
         }
       });
 
     final boolean sortReaders = context.getOptions().getOption(ExecConstants.SORT_FILE_BLOCKS);
     final List<SplitAndExtended> workList = sortReaders ?  unorderedWork.toSortedList(SPLIT_COMPARATOR) : unorderedWork.toList();
-    final boolean selectAllColumns = selectsAllColumns(config.getSchema(), config.getColumns());
-    final CompositeReaderConfig readerConfig = CompositeReaderConfig.getCompound(config.getSchema(), config.getColumns(), config.getPartitionColumns());
+    final boolean selectAllColumns = selectsAllColumns(config.getFullSchema(), config.getColumns());
+    final CompositeReaderConfig readerConfig = CompositeReaderConfig.getCompound(config.getFullSchema(), config.getColumns(), config.getPartitionColumns());
     final List<SchemaPath> innerFields = selectAllColumns ? ImmutableList.of(ColumnUtils.STAR_COLUMN) : readerConfig.getInnerColumns();
 
-    FluentIterable<RecordReader> readers = FluentIterable.from(workList).transform(new Function<SplitAndExtended, RecordReader>() {
-      @Override
-      public RecordReader apply(SplitAndExtended input) {
-        try {
-          RecordReader inner = formatPlugin.getRecordReader(context, fs, input.getExtended(), innerFields);
-          return readerConfig.wrapIfNecessary(context.getAllocator(), inner, input.getSplit());
-        } catch (ExecutionSetupException e) {
-          throw new RuntimeException(e);
-        }
-      }});
+    FluentIterable<RecordReader> readers =
+        FluentIterable.from(workList)
+            .transform(
+                new Function<SplitAndExtended, RecordReader>() {
+                  @Override
+                  public RecordReader apply(SplitAndExtended input) {
+                    try {
+                      RecordReader inner =
+                          formatPlugin.getRecordReader(
+                              context, fs, input.getExtended(), innerFields);
+                      return readerConfig.wrapIfNecessary(
+                          context.getAllocator(), inner, input.getSplit());
+                    } catch (ExecutionSetupException e) {
+                      if (e.getCause() instanceof FileNotFoundException) {
+                        throw UserException.invalidMetadataError(e.getCause())
+                            .addContext("File not found")
+                            .addContext("File", input.getExtended().getPath())
+                            .setAdditionalExceptionContext(
+                                new InvalidMetadataErrorContext(
+                                    ImmutableList.copyOf(config.getReferencedTables())))
+                            .build(logger);
+                      } else {
+                        throw new RuntimeException(e);
+                      }
+                    }
+                  }
+                });
 
-    return new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, readers.iterator());
+    return new ScanOperator(config, context, readers.iterator());
   }
 
   /**

@@ -41,24 +41,9 @@ describe('HeaderDropdown', () => {
   });
 
   it('should render name, and Popover and Menu', () => {
-    expect(wrapper.text()).to.contain(commonProps.name);
-    expect(wrapper.find('Popover')).to.have.length(1);
-    expect(wrapper.find('Menu')).to.have.length(1);
-  });
+    const selectViewWrapper = wrapper.find('SelectView');
 
-  describe('#handleClick', () => {
-    it('should set state.open = true', () => {
-      wrapper.instance().handleClick({});
-      expect(wrapper.state().open).to.be.true;
-    });
+    expect(selectViewWrapper).to.have.length(1);
+    expect(shallow(selectViewWrapper.prop('content')).text()).to.contain(commonProps.name);
   });
-
-  describe('#handleRequestClose', () => {
-    it('should set state.open = false', () => {
-      wrapper.setState({open: true});
-      wrapper.instance().handleRequestClose();
-      expect(wrapper.state().open).to.be.false;
-    });
-  });
-
 });

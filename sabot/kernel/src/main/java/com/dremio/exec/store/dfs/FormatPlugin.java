@@ -22,14 +22,15 @@ import org.apache.hadoop.fs.FileStatus;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.physical.base.AbstractWriter;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.file.proto.FileUpdateKey;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 
 /**
  * Similar to a storage engine but built specifically to work within a FileSystem context.
@@ -50,13 +51,14 @@ public interface FormatPlugin {
 
   public FormatMatcher getMatcher();
 
-  public AbstractWriter getWriter(PhysicalOperator child, String userName, String location, FileSystemPlugin plugin, WriterOptions options) throws IOException;
+  public AbstractWriter getWriter(PhysicalOperator child, String location, FileSystemPlugin plugin, WriterOptions options, OpProps props) throws IOException;
 
   public FormatPluginConfig getConfig();
   public String getName();
 
-  FileSystemDatasetAccessor getDatasetAccessor(
-      DatasetConfig oldConfig,
+  FileDatasetHandle getDatasetAccessor(
+      DatasetType type,
+      PreviousDatasetInfo previousInfo,
       FileSystemWrapper fs,
       FileSelection fileSelection,
       FileSystemPlugin fsPlugin,
@@ -67,7 +69,6 @@ public interface FormatPlugin {
 
   /**
    * Get a record reader specifically for the purposes of previews.
-   * Return null if the file has no records.
    */
   public RecordReader getRecordReader(final OperatorContext context, final FileSystemWrapper dfs, final FileStatus status) throws ExecutionSetupException;
 }

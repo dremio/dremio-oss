@@ -25,7 +25,6 @@ import org.apache.arrow.memory.BufferAllocator;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
 import com.dremio.exec.rpc.RpcConnectionHandler.FailureType;
 import com.dremio.exec.rpc.ssl.SSLEngineFactory;
-import com.dremio.exec.rpc.ssl.SSLEngineFactoryImpl;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
@@ -57,8 +56,8 @@ import io.netty.util.concurrent.GenericFutureListener;
  * @param <HS> handshake request type (send type)
  * @param <HR> handshake response type (receive type)
  */
-public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection, HS extends MessageLite,
-    HR extends MessageLite> extends RpcBus<T, R> {
+public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection, HS extends MessageLite, HR extends MessageLite>
+    extends AbstractClient<T, R, HS> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BasicClient.class);
 
   protected static final String PROTOCOL_DECODER = "protocol-decoder";

@@ -39,7 +39,7 @@ class MaxNodesListener implements RelOptListener {
     foundNodes++;
     if(foundNodes > maxEquivalence) {
       throw UserException.resourceError()
-      .message("Planner exceeded maximum memory allowed for planning. Current limit is %d.", maxEquivalence)
+      .message("Job was cancelled because the query went beyond system capacity during query planning. Please simplify the query.")
       .build(logger);
     }
   }

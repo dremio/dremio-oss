@@ -15,8 +15,16 @@
  */
 import { unauthorizedError, LOGIN_USER_FAILURE, noUsersError } from 'actions/account';
 import { push } from 'react-router-redux';
+import {get} from 'lodash/object';
 
 import { LOGIN_PATH, getLoginUrl, SIGNUP_PATH } from 'routes';
+
+export const UNAUTHORIZED_URL_PARAM = 'reason=401';
+
+export const isUnauthorisedReason = (nextLocation) => {
+  const search = get(nextLocation, 'search');
+  return search && search.includes(UNAUTHORIZED_URL_PARAM);
+};
 
 function authMiddleware() {
   return (store) => next => action => {
@@ -27,7 +35,7 @@ function authMiddleware() {
       if (payload.status === 401 && action.type !== LOGIN_USER_FAILURE) {
         const atLogin = window.location.pathname === LOGIN_PATH;
         if (!atLogin) { // avoid pushing twice, resulting in a redirect URL *to* /login (and multiple history entries)
-          next(push(getLoginUrl())); // eslint-disable-line callback-return
+          next(push(`${getLoginUrl()}&${UNAUTHORIZED_URL_PARAM}`)); // eslint-disable-line callback-return
         }
         return next(unauthorizedError());
       }

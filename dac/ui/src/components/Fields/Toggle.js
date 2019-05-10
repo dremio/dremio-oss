@@ -15,15 +15,14 @@
  */
 import { Component } from 'react';
 import PropTypes from 'prop-types';
-import ToggleMaterial from 'material-ui/Toggle';
+import Switch from '@material-ui/core/Switch';
+import FormControlLabel from '@material-ui/core/FormControlLabel';
 
 export default class Toggle extends Component {
   static propTypes = {
     onChange: PropTypes.func,
     value: PropTypes.bool,
-    labelStyle: PropTypes.object,
     label: PropTypes.node,
-    labelPosition: PropTypes.string,
     style: PropTypes.object
   }
 
@@ -32,16 +31,19 @@ export default class Toggle extends Component {
   }
 
   render() {
-    const { onChange, value, label, labelStyle, labelPosition, style } = this.props;
+    const { onChange, value, label, style } = this.props;
     return (
-      <ToggleMaterial
+      <FormControlLabel
+        control={
+          <Switch
+            color='primary'
+            onChange={onChange}
+            checked={value}
+            className='field'
+          />
+        }
         label={label}
-        labelStyle={labelStyle}
-        labelPosition={labelPosition}
-        onToggle={onChange}
-        toggled={value}
-        style={style}
-        className='field'
+        style={{ marginRight: 0, ...style}}
       />
     );
   }

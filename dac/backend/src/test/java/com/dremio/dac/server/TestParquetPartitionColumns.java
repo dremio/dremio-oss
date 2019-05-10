@@ -57,6 +57,17 @@ public class TestParquetPartitionColumns extends BaseTestServer {
 
   }
 
+  // Fixes bug where we were in-correctly using columns for which
+  // stats do not have min-max values to be partition columns.
+  @Test
+  public void testGroupScanStatsWithNoMinMax() throws Exception {
+
+    List<String> partitionColumnList = getPartitionColumnsForDataSet
+      ("datasets/parquet_stats_with_no_min_max");
+
+    Assert.assertEquals(4, partitionColumnList.size());
+  }
+
   @Test
   public void testGroupScanWithPartitionIdentificationOff() throws Exception {
     long defaultValue = ExecConstants.PARQUET_MAX_PARTITION_COLUMNS_VALIDATOR.getDefault().getNumVal();

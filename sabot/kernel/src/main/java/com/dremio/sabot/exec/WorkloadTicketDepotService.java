@@ -27,7 +27,6 @@ import com.dremio.sabot.task.GroupManager;
 import com.dremio.sabot.task.TaskPool;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.Service;
-
 import com.google.common.annotations.VisibleForTesting;
 
 /**

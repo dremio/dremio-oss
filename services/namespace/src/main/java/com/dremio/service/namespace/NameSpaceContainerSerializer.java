@@ -20,6 +20,8 @@ import java.io.IOException;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.Serializer;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
+import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.dremio.service.namespace.source.proto.UpdateMode;
 
 /**
  * Serializer for namespace container.
@@ -37,7 +39,7 @@ final class NameSpaceContainerSerializer extends Serializer<NameSpaceContainer> 
 
   @Override
   public NameSpaceContainer fromJson(String v) throws IOException {
-    return serializer.fromJson(v);
+    return upgrade(serializer.fromJson(v));
   }
 
   @Override
@@ -47,6 +49,30 @@ final class NameSpaceContainerSerializer extends Serializer<NameSpaceContainer> 
 
   @Override
   public NameSpaceContainer revert(byte[] v) {
-    return serializer.revert(v);
+    return upgrade(serializer.revert(v));
+  }
+
+  /**
+   * In-line upgrade of a namespace container
+   */
+  private static NameSpaceContainer upgrade(NameSpaceContainer c) {
+    if (NameSpaceContainer.Type.SOURCE.equals(c.getType()) &&
+        c.getSource() != null) {
+      return upgradeSource(c);
+    }
+    return c;
+  }
+
+  /**
+   * In-line upgrade of a source-type namespace container
+   */
+  private static NameSpaceContainer upgradeSource(NameSpaceContainer c) {
+    SourceConfig sourceConfig = c.getSource();
+    if (sourceConfig.getMetadataPolicy() != null &&
+        sourceConfig.getMetadataPolicy().getDatasetUpdateMode() != null &&
+        sourceConfig.getMetadataPolicy().getDatasetUpdateMode().equals(UpdateMode.INLINE)) {
+      sourceConfig.getMetadataPolicy().setDatasetUpdateMode(UpdateMode.PREFETCH_QUERIED);
+    }
+    return c;
   }
 }

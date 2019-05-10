@@ -28,7 +28,9 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.ViewExpansionContext;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserProtos;
@@ -69,9 +71,10 @@ public class SQLAnalyzerFactory {
       .build();
 
     final ViewExpansionContext viewExpansionContext = new ViewExpansionContext(username);
+    QueryOptionManager optionManager = new QueryOptionManager(session.getOptions());
     final SchemaConfig newSchemaConfig = SchemaConfig.newBuilder(username)
       .defaultSchema(session.getDefaultSchemaPath())
-      .optionManager(new QueryOptionManager(session.getOptions()))
+      .optionManager(optionManager)
       .setViewExpansionContext(viewExpansionContext)
       .exposeInternalSources(session.exposeInternalSources())
       .build();
@@ -80,7 +83,10 @@ public class SQLAnalyzerFactory {
     JavaTypeFactory typeFactory = JavaTypeFactoryImpl.INSTANCE;
     DremioCatalogReader catalogReader = new DremioCatalogReader(catalog, typeFactory);
 
-    OperatorTable opTable = new OperatorTable(sabotContext.getFunctionImplementationRegistry());
+    FunctionImplementationRegistry functionImplementationRegistry = optionManager.getOption
+      (PlannerSettings.ENABLE_DECIMAL_V2_KEY).getBoolVal() ? sabotContext.getDecimalFunctionImplementationRegistry()
+        : sabotContext.getFunctionImplementationRegistry();
+    OperatorTable opTable = new OperatorTable(functionImplementationRegistry);
     SqlOperatorTable chainedOpTable =  new ChainedSqlOperatorTable(ImmutableList.<SqlOperatorTable>of(opTable, catalogReader));
 
     // Create the appropriate implementation depending on intended use of the validator.

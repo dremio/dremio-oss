@@ -44,6 +44,7 @@ message ElasticTableXattr {
   repeated ElasticAnnotation annotation = 2;
   optional string alias_filter = 3;
   optional int32 mapping_hash = 4; // used to confirm a change in mapping.
+  optional bool variation_detected = 5;
 }
 
 message ElasticSplitXattr {

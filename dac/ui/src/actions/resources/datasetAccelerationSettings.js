@@ -24,9 +24,9 @@ export const LOAD_DATASET_ACCELERATION_SETTINGS_START = 'LOAD_DATASET_ACCELERATI
 export const LOAD_DATASET_ACCELERATION_SETTINGS_SUCCESS = 'LOAD_DATASET_ACCELERATION_SETTINGS_SUCCESS';
 export const LOAD_DATASET_ACCELERATION_SETTINGS_FAILURE = 'LOAD_DATASET_ACCELERATION_SETTINGS_FAILURE';
 
-function fetchDatasetAccelerationSettings(dataset, viewId) {
-  const encodedDatasetPath = constructFullPathAndEncode(dataset.get('fullPathList'));
-  const meta = {viewId, dataset};
+export function loadDatasetAccelerationSettings(fullPathList, viewId) {
+  const encodedDatasetPath = constructFullPathAndEncode(fullPathList);
+  const meta = { viewId };
   // TODO: this is a workaround for accelerationSettings not having its own id
   return {
     [CALL_API]: {
@@ -34,7 +34,7 @@ function fetchDatasetAccelerationSettings(dataset, viewId) {
         {type: LOAD_DATASET_ACCELERATION_SETTINGS_START, meta},
         schemaUtils.getSuccessActionTypeWithSchema(LOAD_DATASET_ACCELERATION_SETTINGS_SUCCESS,
           datasetAccelerationSettingsSchema, meta,
-          'datasetResourcePath', constructFullPath(dataset.get('fullPathList'))
+          'datasetResourcePath', constructFullPath(fullPathList)
         ),
         {type: LOAD_DATASET_ACCELERATION_SETTINGS_FAILURE, meta}
       ],
@@ -44,18 +44,12 @@ function fetchDatasetAccelerationSettings(dataset, viewId) {
   };
 }
 
-export function loadDatasetAccelerationSettings(dataset, viewId) {
-  return (dispatch) => {
-    return dispatch(fetchDatasetAccelerationSettings(dataset, viewId));
-  };
-}
-
 export const UPDATE_DATASET_ACCELERATION_SETTINGS_START = 'UPDATE_DATASET_ACCELERATION_SETTINGS_START';
 export const UPDATE_DATASET_ACCELERATION_SETTINGS_SUCCESS = 'UPDATE_DATASET_ACCELERATION_SETTINGS_SUCCESS';
 export const UPDATE_DATASET_ACCELERATION_SETTINGS_FAILURE = 'UPDATE_DATASET_ACCELERATION_SETTINGS_FAILURE';
 
-function putUpdateDatasetAccelerationSettings(dataset, form) {
-  const datasetPath = constructFullPathAndEncode(dataset.get('fullPathList'));
+export function updateDatasetAccelerationSettings(fullPathList, form) {
+  const datasetPath = constructFullPathAndEncode(fullPathList);
   return {
     [CALL_API]: {
       types: [
@@ -68,11 +62,5 @@ function putUpdateDatasetAccelerationSettings(dataset, form) {
       headers: {'Content-Type': 'application/json'},
       endpoint: `${API_URL_V2}/dataset/${datasetPath}/acceleration/settings`
     }
-  };
-}
-
-export function updateDatasetAccelerationSettings(dataset, form) {
-  return (dispatch) => {
-    return dispatch(putUpdateDatasetAccelerationSettings(dataset, form));
   };
 }

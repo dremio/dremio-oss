@@ -31,7 +31,7 @@ function headerMiddleware() {
       const method = action[CALL_API].method;
       const token = localStorageUtils.getAuthToken();
       if (method === 'GET' || method === 'POST' || method === 'PUT' || method === 'DELETE') {
-        headers.Authorization = headers.Authorization || `_dremio${token}`;
+        headers.Authorization = headers.Authorization || token;
 
         return next(action);
       }

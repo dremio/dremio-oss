@@ -17,9 +17,10 @@ package com.dremio.exec.physical.base;
 
 import java.util.List;
 
-import com.dremio.exec.physical.MinorFragmentEndpoint;
+import com.dremio.exec.physical.config.MinorFragmentEndpoint;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.record.BatchSchema;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * A sender is one half of an exchange node operations. It is responsible for subdividing/cloning and sending a local
@@ -29,17 +30,24 @@ public interface Sender extends FragmentRoot {
 
   /**
    * Get the list of destination endpoints that this Sender will be communicating with.
-   * @return List of receiver MinorFragmentEndpoints each containing receiver fragment MinorFragmentId and endpoint
-   * where it is running.
+   * @return List of receiver MinorFragmentIndexEndpoints each containing receiver fragment MinorFragmentId
+   * and endpoint index where it is running.
    */
-  public abstract List<MinorFragmentEndpoint> getDestinations();
+  public abstract List<MinorFragmentIndexEndpoint> getDestinations();
+
+  /**
+   * Get the list of destination endpoints that this Sender will be communicating with.
+   * @param endpointsIndex Index of endpoints.
+   * @return List of receiver MinorFragmentEndpoints each containing receiver fragment MinorFragmentId
+   * and endpoint where it is running.
+   */
+  public abstract List<MinorFragmentEndpoint> getDestinations(EndpointsIndex endpointsIndex);
 
   /**
    * Get the receiver major fragment id that is opposite this sender.
    * @return
    */
-  @JsonProperty("receiver-major-fragment")
-  public int getOppositeMajorFragmentId();
+  public int getReceiverMajorFragmentId();
 
   public PhysicalOperator getChild();
 

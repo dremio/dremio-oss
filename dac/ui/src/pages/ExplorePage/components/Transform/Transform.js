@@ -220,4 +220,4 @@ export default connect(mapStateToProps, {
   loadTransformCardPreview,
   loadTransformValuesPreview,
   resetViewState
-}, null, { withRef: true })(Transform);
+})(Transform);

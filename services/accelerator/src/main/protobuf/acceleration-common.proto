@@ -31,26 +31,6 @@ enum AccelerationMode {
   MANUAL = 2;
 }
 
-// describes state machine for an acceleration instance
-enum AccelerationState {
-  // new admin created acceleration. pipeline is not complete.
-  NEW_ADMIN = 1;
-  // new user created acceleration. pipeline is not complete.
-  NEW_USER = 2;
-  // new system created acceleration. pipeline is not complete.
-  NEW_SYSTEM = 3;
-  // acceleration is requested. pipeline is complete.
-  REQUESTED = 4;
-  // acceleration is enabled by admin. pipeline is complete.
-  ENABLED = 5;
-  // acceleration is disabled by admin. pipeline is complete.
-  DISABLED = 6;
-  // an error occured during processing acceleration
-  ERROR = 7;
-  // acceleration is enabled by system. pipeline is complete.
-  ENABLED_SYSTEM = 8;
-}
-
 enum MaterializationState {
     NEW = 1;
     RUNNING = 2;
@@ -101,11 +81,6 @@ enum MeasureType {
 message RowType {
   // row type of the materialization
   repeated com.dremio.service.namespace.dataset.proto.ViewFieldType field = 1;
-}
-
-enum FieldSortOrder {
-  ASC = 1;
-  DESC = 2;
 }
 
 enum DimensionGranularity {

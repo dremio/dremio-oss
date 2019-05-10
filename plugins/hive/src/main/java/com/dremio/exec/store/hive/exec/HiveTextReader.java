@@ -19,12 +19,14 @@ package com.dremio.exec.store.hive.exec;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
 import org.apache.arrow.vector.ValueVector;
+import org.apache.hadoop.fs.FSError;
 import org.apache.hadoop.hive.metastore.api.hive_metastoreConstants;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDe;
@@ -35,17 +37,19 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters.C
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
-import org.apache.hadoop.mapred.FileSplit;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.ScanFilter;
+import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.google.common.collect.Lists;
 
 public class HiveTextReader extends HiveAbstractReader {
@@ -58,17 +62,22 @@ public class HiveTextReader extends HiveAbstractReader {
   // Converter which converts data from partition schema to table schema.
   protected Converter partTblObjectInspectorConverter;
 
-  public HiveTextReader(final HiveTableXattr tableAttr, final DatasetSplit split,
+  public HiveTextReader(final HiveTableXattr tableAttr, final SplitInfo split,
       final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
       final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
-      final StructObjectInspector partitionOI, final ScanFilter filter) {
-    super(tableAttr, split, projectedColumns, context, jobConf, tableSerDe, tableOI, partitionSerDe, partitionOI, filter);
+      final StructObjectInspector partitionOI, final ScanFilter filter, final Collection<List<String>> referencedTables) {
+    super(tableAttr, split, projectedColumns, context, jobConf, tableSerDe, tableOI, partitionSerDe, partitionOI, filter, referencedTables);
 
   }
 
   @Override
   public void internalInit(InputSplit inputSplit, JobConf jobConf, ValueVector[] vectors) throws IOException {
-    reader = jobConf.getInputFormat().getRecordReader(inputSplit, jobConf, Reporter.NULL);
+    try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {
+      reader = jobConf.getInputFormat().getRecordReader(inputSplit, jobConf, Reporter.NULL);
+    }
+    catch(FSError e) {
+      throw FileSystemWrapper.propagateFSError(e);
+    }
 
     if(logger.isTraceEnabled()) {
       logger.trace("hive reader created: {} for inputSplit {}", reader.getClass().getName(), inputSplit.toString());
@@ -105,7 +114,16 @@ public class HiveTextReader extends HiveAbstractReader {
 
     int recordCount = 0;
 
-    while (recordCount < numRowsPerBatch && reader.next(key, value = skipRecordsInspector.getNextValue())) {
+    while (recordCount < numRowsPerBatch) {
+      try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {
+        boolean hasNext = reader.next(key, value = skipRecordsInspector.getNextValue());
+        if (!hasNext) {
+          break;
+        }
+      }
+      catch(FSError e) {
+        throw FileSystemWrapper.propagateFSError(e);
+      }
       if (skipRecordsInspector.doSkipHeader(recordCount++)) {
         continue;
       }
@@ -125,6 +143,9 @@ public class HiveTextReader extends HiveAbstractReader {
         skipRecordsInspector.incrementActualCount();
       }
       skipRecordsInspector.incrementTempCount();
+    }
+    for (int i = 0; i < selectedStructFieldRefs.length; i++) {
+      vectors[i].setValueCount(skipRecordsInspector.getActualCount());
     }
 
     skipRecordsInspector.updateContinuance();
@@ -151,7 +172,7 @@ public class HiveTextReader extends HiveAbstractReader {
 
     protected SkipRecordsInspector(final long startOffsetOfSplit, final JobConf jobConf, RecordReader reader) {
       /* for file read in multiple splits, header will be skipped only by reader working on first split */
-      this.fileFormats = new HashSet<Object>(Arrays.asList(org.apache.hadoop.mapred.TextInputFormat.class.getName()));
+      this.fileFormats = new HashSet<>(Arrays.asList(org.apache.hadoop.mapred.TextInputFormat.class.getName()));
       this.headerCount = startOffsetOfSplit == 0 ? retrievePositiveIntProperty(jobConf, serdeConstants.HEADER_COUNT, 0) : 0;
       /* todo: fix the skip footer problem with multiple splits */
       this.footerCount = retrievePositiveIntProperty(jobConf, serdeConstants.FOOTER_COUNT, 0);
@@ -267,7 +288,12 @@ public class HiveTextReader extends HiveAbstractReader {
   @Override
   public void close() throws IOException {
     if (reader != null) {
-      reader.close();
+      try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {
+        reader.close();
+      }
+      catch(FSError e) {
+        throw FileSystemWrapper.propagateFSError(e);
+      }
       reader = null;
     }
     this.partTblObjectInspectorConverter = null;

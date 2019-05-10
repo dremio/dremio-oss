@@ -17,7 +17,7 @@ package com.dremio.dac.cmd.upgrade;
 
 import java.util.List;
 
-import com.google.api.client.repackaged.com.google.common.base.Preconditions;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 /**

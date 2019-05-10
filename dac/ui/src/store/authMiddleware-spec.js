@@ -18,7 +18,7 @@ import * as accountActions from 'actions/account';
 
 import * as routes from 'routes';
 
-import authMiddleware from './authMiddleware';
+import authMiddleware, {UNAUTHORIZED_URL_PARAM, isUnauthorisedReason} from './authMiddleware';
 
 
 describe('auth middleware', () => {
@@ -50,7 +50,7 @@ describe('auth middleware', () => {
     const next = sinon.spy();
     middleware(next)(action);
 
-    expect(next.args[0][0]).to.eql(push('/foo'));
+    expect(next.args[0][0]).to.eql(push(`/foo&${UNAUTHORIZED_URL_PARAM}`));
     expect(next.args[1][0]).to.eql(accountActions.unauthorizedError());
 
     routes.getLoginUrl.restore();
@@ -150,4 +150,11 @@ describe('auth middleware', () => {
 
     expect(next).to.have.been.calledTwice;
   });
+
+  it('should detect unauthorized reason in location', () => {
+    expect(isUnauthorisedReason({search: 'abc'})).to.equal(false);
+    expect(isUnauthorisedReason({search: 'abc&reason'})).to.equal(false);
+    expect(isUnauthorisedReason({search: 'abc&reason=401'})).to.equal(true);
+  });
+
 });

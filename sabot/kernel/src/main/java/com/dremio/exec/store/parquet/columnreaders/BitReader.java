@@ -16,7 +16,6 @@
 package com.dremio.exec.store.parquet.columnreaders;
 
 import org.apache.arrow.vector.BitVector;
-
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.format.SchemaElement;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;

@@ -39,9 +39,6 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.KVStore;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.service.accelerator.proto.Acceleration;
-import com.dremio.service.accelerator.proto.AccelerationId;
-import com.dremio.service.accelerator.store.AccelerationStore;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -85,12 +82,8 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
     final KVStore<DatasetVersionMutator.VersionDatasetKey, VirtualDatasetVersion> vdsVersionStore =
       localStore.getStore(DatasetVersionMutator.VersionStoreCreator.class);
 
-    final IndexedStore<AccelerationId, Acceleration> accelStore =
-      localStore.getStore(AccelerationStore.AccelerationStoreCreator.class);
-
     final IndexedStore<byte[], NameSpaceContainer> namespaceStore =
       localStore.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
-
 
     Iterable<Map.Entry<byte[], NameSpaceContainer>> nameSpaces = namespaceStore.find();
     StreamSupport.stream(nameSpaces.spliterator(), false)
@@ -114,21 +107,6 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
       }
       vdv.setDataset(datasetConfig);
       vdsVersionStore.put(vdsEntry.getKey(), vdv);
-    }
-
-    Iterable<Map.Entry<AccelerationId, Acceleration>> accelEntries = accelStore.find();
-
-    for (Map.Entry<AccelerationId, Acceleration> accelEntry : accelEntries) {
-      Acceleration acceleration = accelEntry.getValue();
-      if (acceleration.getContext() == null) {
-        continue;
-      }
-      DatasetConfig datasetConfig = update(acceleration.getContext().getDataset());
-      if (datasetConfig == null) {
-        continue;
-      }
-      acceleration.getContext().setDataset(datasetConfig);
-      accelStore.put(accelEntry.getKey(), acceleration);
     }
   }
 

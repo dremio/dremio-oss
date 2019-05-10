@@ -18,30 +18,39 @@ package com.dremio.exec.catalog;
 import java.util.concurrent.TimeUnit;
 
 import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import com.dremio.service.namespace.NamespaceService;
 
 /**
  * Options related to catalog settings.
  */
 @Options
-public interface CatalogOptions {
+public final class CatalogOptions {
 
   // Check for storage plugin status at time of creation of the plugin
-  BooleanValidator STORAGE_PLUGIN_CHECK_STATE = new BooleanValidator("store.plugin.check_state", true);
+  public static final BooleanValidator STORAGE_PLUGIN_CHECK_STATE = new BooleanValidator("store.plugin.check_state", true);
 
   // Maximum time to wait when creating a storage plugin before failing.
-  LongValidator STORAGE_PLUGIN_CREATE_MAX = new PositiveLongValidator("store.plugin.wait_millis", TimeUnit.HOURS.toMillis(4), TimeUnit.SECONDS.toMillis(120));
+  public static final LongValidator STORAGE_PLUGIN_CREATE_MAX = new PositiveLongValidator("store.plugin.wait_millis", TimeUnit.HOURS.toMillis(4), TimeUnit.SECONDS.toMillis(120));
 
   // Maximum time to wait when creating a storage plugin before failing.
-  LongValidator STARTUP_WAIT_MAX = new PositiveLongValidator("store.start.wait_millis", TimeUnit.HOURS.toMillis(4), TimeUnit.SECONDS.toMillis(15));
+  public static final LongValidator STARTUP_WAIT_MAX = new PositiveLongValidator("store.start.wait_millis", TimeUnit.HOURS.toMillis(4), TimeUnit.SECONDS.toMillis(15));
 
   // When metadata impacting configuration parameter is changed, if old metadata should be kept
-  BooleanValidator STORAGE_PLUGIN_KEEP_METADATA_ON_REPLACE =
+  public static final BooleanValidator STORAGE_PLUGIN_KEEP_METADATA_ON_REPLACE =
       new BooleanValidator("store.plugin.keep_metadata_on_replace", false);
 
   // Maximum number of leaf columns allowed for metadata
-  LongValidator METADATA_LEAF_COLUMN_MAX = new PositiveLongValidator("store.plugin.max_metadata_leaf_columns", Integer.MAX_VALUE, 800);
+  public static final LongValidator METADATA_LEAF_COLUMN_MAX = new PositiveLongValidator("store.plugin.max_metadata_leaf_columns", Integer.MAX_VALUE, 800);
 
+  // How should (multi-)splits be compressed in the K/V store
+  public static final TypeValidators.EnumValidator<NamespaceService.SplitCompression> SPLIT_COMPRESSION_TYPE = new TypeValidators.EnumValidator<>(
+    "store.plugin.split_compression", NamespaceService.SplitCompression.class, NamespaceService.SplitCompression.SNAPPY);
+
+  // Do not instantiate
+  private CatalogOptions() {
+  }
 }

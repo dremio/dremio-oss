@@ -27,7 +27,6 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.util.ColumnUtils;
-import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Preconditions;
 
@@ -63,11 +62,6 @@ public abstract class AbstractRecordReader implements RecordReader {
     if (columns != null) {
       setColumns(columns);
     }
-  }
-
-  @Override
-  public SchemaChangeMutator getSchemaChangeMutator() {
-    return SchemaChangeMutator.DEFAULT;
   }
 
   public long getNumRowsPerBatch() {

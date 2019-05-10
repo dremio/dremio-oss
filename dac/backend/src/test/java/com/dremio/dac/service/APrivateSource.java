@@ -72,6 +72,11 @@ public class APrivateSource extends FileSystemConf<APrivateSource, FileSystemPlu
   }
 
   @Override
+  public List<String> getConnectionUniqueProperties() {
+    return ImmutableList.of();
+  }
+
+  @Override
   public FileSystemPlugin<APrivateSource> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
   }

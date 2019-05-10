@@ -17,7 +17,6 @@ package com.dremio.exec.server;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
@@ -36,6 +35,7 @@ import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.catalog.ViewCreatorFactory.ViewCreator;
 import com.dremio.exec.compile.CodeCompiler;
+import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
@@ -66,6 +66,7 @@ public class SabotContext implements AutoCloseable {
   private final ClusterCoordinator coord;
   private final NodeEndpoint endpoint;
   private final FunctionImplementationRegistry functionRegistry;
+  private final DecimalFunctionImplementationRegistry decimalFunctionImplementationRegistry;
   private final SystemOptionManager systemOptions;
   private final PersistentStoreProvider provider;
   private final Provider<WorkStats> workStatsProvider;
@@ -133,6 +134,7 @@ public class SabotContext implements AutoCloseable {
     this.reader = new PhysicalPlanReader(config, classpathScan, lpPersistence, endpoint, catalogService, this);
     this.systemOptions = new SystemOptionManager(classpathScan, lpPersistence, provider);
     this.functionRegistry = new FunctionImplementationRegistry(config, classpathScan, systemOptions);
+    this.decimalFunctionImplementationRegistry = new DecimalFunctionImplementationRegistry(config, classpathScan, systemOptions);
     this.compiler = new CodeCompiler(config, systemOptions);
 
     this.kvStoreProvider = kvStoreProvider;
@@ -176,7 +178,11 @@ public class SabotContext implements AutoCloseable {
   }
 
   public FunctionImplementationRegistry getFunctionImplementationRegistry() {
-    return functionRegistry;
+    return functionRegistry ;
+  }
+
+  public DecimalFunctionImplementationRegistry getDecimalFunctionImplementationRegistry() {
+    return decimalFunctionImplementationRegistry;
   }
 
   public Set<Role> getRoles() {
@@ -209,18 +215,26 @@ public class SabotContext implements AutoCloseable {
 
   public Optional<NodeEndpoint> getMaster() {
     return Optional.ofNullable(coord.getServiceSet(Role.MASTER).getAvailableEndpoints())
-      .orElse(new ArrayList<>())
-      .stream().findFirst();
+      .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
   }
 
   public Collection<NodeEndpoint> getExecutors() {
     return coord.getServiceSet(ClusterCoordinator.Role.EXECUTOR).getAvailableEndpoints();
   }
 
+  /**
+   * To return task leader nodeEndpoint if masterless mode is on
+   * otherwise return master
+   * @param serviceName
+   * @return
+   */
   public Optional<NodeEndpoint> getServiceLeader(final String serviceName) {
-    return Optional.ofNullable(coord.getOrCreateServiceSet(serviceName).getAvailableEndpoints())
-      .orElse(new ArrayList<>())
-      .stream().findFirst();
+    if (getDremioConfig().isMasterlessEnabled()) {
+      return Optional.ofNullable(
+        coord.getOrCreateServiceSet(serviceName).getAvailableEndpoints())
+        .flatMap(nodeEndpoints -> nodeEndpoints.stream().findFirst());
+    }
+    return getMaster();
   }
 
   public ClusterResourceInformation getClusterResourceInformation() {

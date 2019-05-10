@@ -27,7 +27,6 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.RecordReader;
-import com.dremio.sabot.driver.SchemaChangeMutator;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterables;
@@ -63,11 +62,6 @@ public class AdditionalColumnsRecordReader implements RecordReader {
     for(Populator p : populators){
       p.setup(output);
     }
-  }
-
-  @Override
-  public SchemaChangeMutator getSchemaChangeMutator() {
-    return inner.getSchemaChangeMutator();
   }
 
   @Override

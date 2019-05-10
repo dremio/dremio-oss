@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import { Link } from 'react-router';
 import classNames from 'classnames';
 import Radium from 'radium';
+import Immutable  from 'immutable';
 
 import PropTypes from 'prop-types';
 
+import EntityLink from '@app/pages/HomePage/components/EntityLink';
+import { Popover, MouseEvents } from '@app/components/Popover';
+
 import { getIconStatusDatabase } from 'utils/iconUtils';
+import AllSpacesMenu from 'components/Menus/HomePage/AllSpacesMenu';
+import AllSourcesMenu from 'components/Menus/HomePage/AllSourcesMenu';
+import { ENTITY_TYPES } from '@app/constants/Constants';
 
 import ResourcePin from './ResourcePin';
 import FontIcon from './Icon/FontIcon';
@@ -31,19 +37,58 @@ import './FinderNavItem.less';
 export default class FinderNavItem extends Component {
   static propTypes = {
     item: PropTypes.object.isRequired,
-    toggleActivePin: PropTypes.func,
-    style: PropTypes.object
+    style: PropTypes.object,
+    itemHasContextMenu: PropTypes.bool
   };
+
+  constructor() {
+    super();
+    this.state = {
+      menuOpen: false
+    };
+    this.lastMouseEventPosition = null;
+  }
+
+  handleRightClick = (e) => {
+    if (!this.props.itemHasContextMenu) return;
+
+    e.preventDefault();
+    this.lastMouseEventPosition = this.rightClickPosition(e);
+    this.setState({
+      menuOpen: true,
+      anchorEl: e.currentTarget
+    });
+  };
+
+  // make position string for comparing mouse events
+  rightClickPosition = (e) => `x: ${e.clientX}, y: ${e.clientY}`;
+  clickAwayPosition = (e) => `x: ${e.x}, y: ${e.y}`;
+
+  handleMenuClose = () => {
+    this.setState({menuOpen: false});
+  };
+
+  getMenu = () => {
+    const { item } = this.props;
+    switch (item.entityType) {
+    case ENTITY_TYPES.space:
+      return <AllSpacesMenu item={Immutable.fromJS(item) } closeMenu={this.handleMenuClose}/>;
+    case ENTITY_TYPES.source:
+      return <AllSourcesMenu item={Immutable.fromJS(item)} closeMenu={this.handleMenuClose}/>;
+    default:
+      return null;
+    }
+  };
+
   render() {
-    const { toggleActivePin, style } = this.props;
+    const { style, itemHasContextMenu } = this.props;
     const {
+      id,
       name,
       iconClass,
-      links,
       numberOfDatasets,
       datasetCount,
       readonly,
-      isActivePin,
       active,
       disabled,
       state,
@@ -77,20 +122,26 @@ export default class FinderNavItem extends Component {
     const typeIcon = iconClass && !state ? iconClass : getIconStatusDatabase(state.status);
 
     return (
-      <li className={itemClass} style={[disabled && styles.disabled, style]}>
-        <Link to={links.self} activeClassName='active' className='finder-nav-item-link'>
+      <li className={itemClass} style={[disabled && styles.disabled, style]} onContextMenu={this.handleRightClick}>
+        <EntityLink entityId={id} activeClassName='active' className='finder-nav-item-link'>
           <FontIcon
             type={typeIcon}
             theme={styles.iconStyle}/>
           <EllipsedText text={name} style={{marginRight: 5}} />
           {count !== null && <span title={hoverText} className='count'>{count}</span>}
-          {toggleActivePin && (
-            <ResourcePin
-              name={name}
-              isActivePin={isActivePin || false}
-              toggleActivePin={toggleActivePin} />
-          )}
-        </Link>
+          {id && <ResourcePin entityId={id} />}
+        </EntityLink>
+        {itemHasContextMenu && this.state.menuOpen &&
+          <Popover
+            useLayerForClickAway={false}
+            anchorEl={this.state.menuOpen ? this.state.anchorEl : null}
+            listRightAligned
+            onClose={this.handleMenuClose}
+            clickAwayMouseEvent={MouseEvents.onMouseDown}
+          >
+            {this.getMenu()}
+          </Popover>
+        }
       </li>
     );
   }

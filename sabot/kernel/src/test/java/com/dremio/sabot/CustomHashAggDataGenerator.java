@@ -19,17 +19,23 @@ import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.tr;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
+import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.Float4Vector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.commons.lang3.RandomStringUtils;
 
 import com.dremio.common.AutoCloseables;
@@ -46,43 +52,55 @@ import com.google.common.base.Preconditions;
  * provided by the consumer.
  */
 public class CustomHashAggDataGenerator implements Generator {
+  private final static FieldType decimalFieldType = FieldType.nullable(new ArrowType.Decimal(38, 9));
+  private final static ArrowType.Decimal decimalArrowtype = (ArrowType.Decimal)decimalFieldType.getType();
+  private final static CompleteType decimalCompleteType = new CompleteType(decimalArrowtype, new ArrayList<>());
 
-  /* fixed width dimensions */
-  private static Field FIXKEY1 = CompleteType.INT.toField("FIXKEY1");
-  private static Field FIXKEY2 = CompleteType.BIGINT.toField("FIXKEY2");
+  private final static Field INT_KEY = CompleteType.INT.toField("INT_KEY");
+  private final static Field BIGINT_KEY = CompleteType.BIGINT.toField("BIGINT_KEY");
+  private final static Field VARCHAR_KEY = CompleteType.VARCHAR.toField("VARCHAR_KEY");
+  private final static Field FLOAT_KEY = CompleteType.FLOAT.toField("FLOAT_KEY");
+  private final static Field DOUBLE_KEY = CompleteType.DOUBLE.toField("DOUBLE_KEY");
+  private final static Field BOOLEAN_KEY = CompleteType.BIT.toField("BOOLEAN_KEY");
+  private final static Field DECIMAL_KEY = decimalCompleteType.toField("DECIMAL_KEY");
 
-  /* variable width dimensions */
-  private static Field VARKEY1 = CompleteType.VARCHAR.toField("VARKEY1");
+  private final static Field INT_MEASURE = CompleteType.INT.toField("INT_MEASURE");
+  private final static Field BIGINT_MEASURE = CompleteType.BIGINT.toField("BIGINT_MEASURE");
+  private final static Field FLOAT_MEASURE = CompleteType.FLOAT.toField("FLOAT_MEASURE");
+  private final static Field DOUBLE_MEASURE = CompleteType.DOUBLE.toField("DOUBLE_MEASURE");
+  private final static Field DECIMAL_MEASURE = decimalCompleteType.toField("DECIMAL_MEASURE");
 
-  /* Measures */
-  private static Field MEASURE1 = CompleteType.INT.toField("MEASURE1");
-  private static Field MEASURE2 = CompleteType.BIGINT.toField("MEASURE2");
-  private static Field MEASURE3 = CompleteType.FLOAT.toField("MEASURE3");
-  private static Field MEASURE4 = CompleteType.DOUBLE.toField("MEASURE4");
+  /* arrays on heap that will store column values as we generate data for the schema */
+  private Integer[] intKeyValues;
+  private Long[] bigintKeyValues;
+  private String[] varKeyValues;
+  private Float[] floatKeyValues;
+  private Double[] doubleKeyValues;
+  private Boolean[] booleanKeyValues;
+  private BigDecimal[] decimalKeyValues;
 
-  /* input table */
-  private Integer[] fixKeyValues1;
-  private Long[] fixKeyValues2;
-  private String[] varKeyValues1;
-  private Integer[] measure1;
-  private Long[] measure2;
-  private Float[] measure3;
-  private Double[] measure4;
+  private Integer[] intMeasureValues;
+  private Long[] bigIntMeasureValues;
+  private Float[] floatMeasureValues;
+  private Double[] doubleMeasureValues;
+  private BigDecimal[] decimalMeasureValues;
+
+  /* vectors in the input container to feed the data into operator */
+  private IntVector intKey;
+  private BigIntVector bigintKey;
+  private VarCharVector varcharKey;
+  private Float4Vector floatKey;
+  private Float8Vector doubleKey;
+  private BitVector booleanKey;
+  private DecimalVector decimalKey;
+
+  private IntVector intMeasure;
+  private BigIntVector bigintMeasure;
+  private Float4Vector floatMeasure;
+  private Float8Vector doubleMeasure;
+  private DecimalVector decimalMeasure;
 
   private VectorContainer container;
-
-  /* fixed width key columns  */
-  private IntVector fixkey1;
-  private BigIntVector fixkey2;
-
-  /* variable width key columns */
-  private VarCharVector varkey1;
-
-  /* measure columns */
-  private IntVector m1;
-  private BigIntVector m2;
-  private Float4Vector m3;
-  private Float8Vector m4;
 
   private int position;
   private int batches;
@@ -102,6 +120,9 @@ public class CustomHashAggDataGenerator implements Generator {
   private static final double DOUBLE_BASEVALUE = 12345.25D;
   private static final double DOUBLE_INCREMENT = 100.25D;
   private static final String VARCHAR_BASEVALUE = "Dremio-3.0";
+  private static final Boolean BOOLEAN_BASEVALUE = false;
+  private static final BigDecimal DECIMAL_BASEVALUE = new BigDecimal("10.254567123");
+  private static final BigDecimal DECIMAL_INCREMENT = new BigDecimal("1.0");
   private static final int GROUP_INTERVAL_PER_BATCH = 20;
 
   private int numRows;
@@ -115,6 +136,7 @@ public class CustomHashAggDataGenerator implements Generator {
     this.batches = numRows/BATCH_SIZE;
     this.largeVarChars = largeVarChars;
     createBigSchemaAndInputContainer(allocator);
+    buildInputTableDataAndResultset();
   }
 
   public CustomHashAggDataGenerator(int numRows, BufferAllocator allocator,
@@ -134,28 +156,36 @@ public class CustomHashAggDataGenerator implements Generator {
   }
 
   private void createBigSchemaAndInputContainer(final BufferAllocator allocator) {
-    BatchSchema schema = BatchSchema.newBuilder()
-      .addField(FIXKEY1)
-      .addField(FIXKEY2)
-      .addField(VARKEY1)
-      .addField(MEASURE1)
-      .addField(MEASURE2)
-      .addField(MEASURE3)
-      .addField(MEASURE4)
+    final BatchSchema schema = BatchSchema.newBuilder()
+      .addField(INT_KEY)
+      .addField(BIGINT_KEY)
+      .addField(VARCHAR_KEY)
+      .addField(FLOAT_KEY)
+      .addField(DOUBLE_KEY)
+      .addField(BOOLEAN_KEY)
+      .addField(DECIMAL_KEY)
+      .addField(INT_MEASURE)
+      .addField(BIGINT_MEASURE)
+      .addField(FLOAT_MEASURE)
+      .addField(DOUBLE_MEASURE)
+      .addField(DECIMAL_MEASURE)
       .build();
 
     container = VectorContainer.create(allocator, schema);
-    fixkey1 = container.addOrGet(FIXKEY1);
-    fixkey2 = container.addOrGet(FIXKEY2);
-    varkey1 = container.addOrGet(VARKEY1);
-    m1 = container.addOrGet(MEASURE1);
-    m2 = container.addOrGet(MEASURE2);
-    m3 = container.addOrGet(MEASURE3);
-    m4 = container.addOrGet(MEASURE4);
 
-    this.batches = numRows/BATCH_SIZE;
-    this.largeVarChars = largeVarChars;
-    buildInputDataset(numRows);
+    intKey = container.addOrGet(INT_KEY);
+    bigintKey = container.addOrGet(BIGINT_KEY);
+    varcharKey = container.addOrGet(VARCHAR_KEY);
+    floatKey = container.addOrGet(FLOAT_KEY);
+    doubleKey = container.addOrGet(DOUBLE_KEY);
+    booleanKey = container.addOrGet(BOOLEAN_KEY);
+    decimalKey = container.addOrGet(DECIMAL_KEY);
+
+    intMeasure = container.addOrGet(INT_MEASURE);
+    bigintMeasure = container.addOrGet(BIGINT_MEASURE);
+    floatMeasure = container.addOrGet(FLOAT_MEASURE);
+    doubleMeasure = container.addOrGet(DOUBLE_MEASURE);
+    decimalMeasure = container.addOrGet(DECIMAL_MEASURE);
   }
 
   @Override
@@ -169,27 +199,33 @@ public class CustomHashAggDataGenerator implements Generator {
 
   @Override
   public int next(int records) {
-    if (position == fixKeyValues1.length) {
+    if (position == intKeyValues.length) {
       return 0;
     }
-    records = Math.min(records, fixKeyValues1.length - position);
+    records = Math.min(records, intKeyValues.length - position);
     container.allocateNew();
-
     for (int i = 0; i < records; i++) {
       final int absoluteRecordIndex = position + i;
-      fixkey1.setSafe(i, fixKeyValues1[absoluteRecordIndex]);
-      fixkey2.setSafe(i, fixKeyValues2[absoluteRecordIndex]);
-      byte[] valueBytes = varKeyValues1[absoluteRecordIndex].getBytes();
-      varkey1.setSafe(i, valueBytes, 0, valueBytes.length);
-      m1.setSafe(i, measure1[absoluteRecordIndex]);
-      m2.setSafe(i, measure2[absoluteRecordIndex]);
-      m3.setSafe(i, measure3[absoluteRecordIndex]);
-      m4.setSafe(i, measure4[absoluteRecordIndex]);
+      /* populate vectors in incoming batch vectors for key column data */
+      intKey.setSafe(i, intKeyValues[absoluteRecordIndex]);
+      bigintKey.setSafe(i, bigintKeyValues[absoluteRecordIndex]);
+      byte[] valueBytes = varKeyValues[absoluteRecordIndex].getBytes();
+      varcharKey.setSafe(i, valueBytes, 0, valueBytes.length);
+      floatKey.setSafe(i, floatKeyValues[absoluteRecordIndex]);
+      doubleKey.setSafe(i, doubleKeyValues[absoluteRecordIndex]);
+      booleanKey.setSafe(i, booleanKeyValues[absoluteRecordIndex] ? 1 : 0);
+      decimalKey.setSafe(i, decimalKeyValues[absoluteRecordIndex]);
+
+      /* populate vectors in incoming batch for accumulator column data */
+      intMeasure.setSafe(i, intMeasureValues[absoluteRecordIndex]);
+      bigintMeasure.setSafe(i, bigIntMeasureValues[absoluteRecordIndex]);
+      floatMeasure.setSafe(i, floatMeasureValues[absoluteRecordIndex]);
+      doubleMeasure.setSafe(i, doubleMeasureValues[absoluteRecordIndex]);
+      decimalMeasure.setSafe(i, decimalMeasureValues[absoluteRecordIndex]);
     }
 
     container.setAllCount(records);
     position += records;
-
     return records;
   }
 
@@ -201,17 +237,22 @@ public class CustomHashAggDataGenerator implements Generator {
   /**
    * Currently we generate a simple patter where we fix the number of times
    * a key will repeat and after how many records it will repeat.
-   *
-   * @param numRows total number of rows in desired dataset
    */
-  private void buildInputDataset(int numRows) {
-    fixKeyValues1 = new Integer[numRows];
-    fixKeyValues2 = new Long[numRows];
-    varKeyValues1 = new String[numRows];
-    measure1 = new Integer[numRows];
-    measure2 = new Long[numRows];
-    measure3 = new Float[numRows];
-    measure4 = new Double[numRows];
+  private void buildInputTableDataAndResultset() {
+    intKeyValues = new Integer[numRows];
+    bigintKeyValues = new Long[numRows];
+    varKeyValues = new String[numRows];
+    floatKeyValues = new Float[numRows];
+    doubleKeyValues = new Double[numRows];
+    booleanKeyValues = new Boolean[numRows];
+    decimalKeyValues = new BigDecimal[numRows];
+
+    intMeasureValues = new Integer[numRows];
+    bigIntMeasureValues = new Long[numRows];
+    floatMeasureValues = new Float[numRows];
+    doubleMeasureValues = new Double[numRows];
+    decimalMeasureValues = new BigDecimal[numRows];
+
     int batch = 0;
     /* build batch by batch */
     while (batch != batches) {
@@ -220,19 +261,24 @@ public class CustomHashAggDataGenerator implements Generator {
       for (int i = startPoint; i < (startPoint + BATCH_SIZE); i++) {
         if (i == 0) {
           /* key columns */
-          fixKeyValues1[0] = INT_BASEVALUE;
-          fixKeyValues2[0] = BIGINT_BASEVALUE;
+          intKeyValues[0] = INT_BASEVALUE;
+          bigintKeyValues[0] = BIGINT_BASEVALUE;
           if (largeVarChars && minLargeVarCharLen != 0) {
-            varKeyValues1[0] = RandomStringUtils.randomAlphabetic(minLargeVarCharLen);
+            varKeyValues[0] = RandomStringUtils.randomAlphabetic(minLargeVarCharLen);
           } else {
-            varKeyValues1[0] = VARCHAR_BASEVALUE;
+            varKeyValues[0] = VARCHAR_BASEVALUE;
           }
+          floatKeyValues[0] = FLOAT_BASEVALUE;
+          doubleKeyValues[0] = DOUBLE_BASEVALUE;
+          booleanKeyValues[0] = BOOLEAN_BASEVALUE;
+          decimalKeyValues[0] = DECIMAL_BASEVALUE;
 
           /* measure columns */
-          measure1[0] = INT_BASEVALUE;
-          measure2[0] = BIGINT_BASEVALUE;
-          measure3[0] = FLOAT_BASEVALUE;
-          measure4[0] = DOUBLE_BASEVALUE;
+          intMeasureValues[0] = INT_BASEVALUE;
+          bigIntMeasureValues[0] = BIGINT_BASEVALUE;
+          floatMeasureValues[0] = FLOAT_BASEVALUE;
+          doubleMeasureValues[0] = DOUBLE_BASEVALUE;
+          decimalMeasureValues[0] = DECIMAL_BASEVALUE;
         } else {
           if (i == pos + (GROUP_INTERVAL_PER_BATCH * GROUP_REPEAT_PER_BATCH)) {
             pos = i;
@@ -240,60 +286,75 @@ public class CustomHashAggDataGenerator implements Generator {
 
           /* key columns */
           if (i < pos + GROUP_INTERVAL_PER_BATCH) {
-            /* generate unique column values */
-            fixKeyValues1[i] = fixKeyValues1[i-1] + 1;
-            fixKeyValues2[i] = fixKeyValues2[i-1] + 1L;
+            /* generate unique key column values */
+            intKeyValues[i] = intKeyValues[i-1] + 1;
+            bigintKeyValues[i] = bigintKeyValues[i-1] + 1L;
             if (largeVarChars) {
-              /* length of varchars is directly proportional to the desired
-               * number of rows we have to generate in the dataset.
-               */
-              varKeyValues1[i] = varKeyValues1[i-1] + String.format("%03d", 1);
+              /* length of varchars is directly proportional to the desired number of rows we have to generate in the dataset */
+              varKeyValues[i] = varKeyValues[i - 1] + String.format("%03d", 1);
             } else {
-              varKeyValues1[i] = VARCHAR_BASEVALUE + RandomStringUtils.randomAlphabetic(10);
+              varKeyValues[i] = VARCHAR_BASEVALUE + RandomStringUtils.randomAlphabetic(10);
             }
+            floatKeyValues[i] = floatKeyValues[i - 1] + 1.0f;
+            doubleKeyValues[i] = doubleKeyValues[i - 1] + 1.0D;
+            booleanKeyValues[i] = !booleanKeyValues[i - 1];
+            decimalKeyValues[i] = decimalKeyValues[i - 1].add(DECIMAL_INCREMENT);
           } else {
-            /* generate duplicate column values */
-            fixKeyValues1[i] = fixKeyValues1[i - GROUP_INTERVAL_PER_BATCH];
-            fixKeyValues2[i] = fixKeyValues2[i - GROUP_INTERVAL_PER_BATCH];
-            varKeyValues1[i] = varKeyValues1[i - GROUP_INTERVAL_PER_BATCH];
+            /* generate duplicate key column values */
+            intKeyValues[i] = intKeyValues[i - GROUP_INTERVAL_PER_BATCH];
+            bigintKeyValues[i] = bigintKeyValues[i - GROUP_INTERVAL_PER_BATCH];
+            varKeyValues[i] = varKeyValues[i - GROUP_INTERVAL_PER_BATCH];
+            floatKeyValues[i] = floatKeyValues[i - GROUP_INTERVAL_PER_BATCH];
+            doubleKeyValues[i] = doubleKeyValues[i - GROUP_INTERVAL_PER_BATCH];
+            booleanKeyValues[i] = booleanKeyValues[i - GROUP_INTERVAL_PER_BATCH];
+            decimalKeyValues[i] = decimalKeyValues[i - GROUP_INTERVAL_PER_BATCH];
           }
 
           /* measure columns */
-          measure1[i] = measure1[i-1] + INT_INCREMENT;
-          measure2[i] = measure2[i-1] + BIGINT_INCREMENT;
-          measure3[i] = measure3[i-1] + FLOAT_INCREMENT;
-          measure4[i] = measure4[i-1] + DOUBLE_INCREMENT;
+          intMeasureValues[i] = intMeasureValues[i-1] + INT_INCREMENT;
+          bigIntMeasureValues[i] = bigIntMeasureValues[i-1] + BIGINT_INCREMENT;
+          floatMeasureValues[i] = floatMeasureValues[i-1] + FLOAT_INCREMENT;
+          doubleMeasureValues[i] = doubleMeasureValues[i-1] + DOUBLE_INCREMENT;
+          decimalMeasureValues[i] = decimalMeasureValues[i - 1].add(DECIMAL_INCREMENT);
         }
 
         /* compute the hashagg results as we build the data */
-        final Key k = new Key(fixKeyValues1[i], fixKeyValues2[i], varKeyValues1[i]);
+        final Key k = new Key(intKeyValues[i], bigintKeyValues[i], varKeyValues[i],
+                              Float.floatToIntBits(floatKeyValues[i]), Double.doubleToLongBits(doubleKeyValues[i]),
+                              booleanKeyValues[i], decimalKeyValues[i]);
         Value v = aggregatedResults.get(k);
         if (v == null) {
-          v = new Value(measure1[i], measure1[i], measure1[i], 1,
-                        measure2[i], measure2[i], measure2[i], 1,
-                        measure3[i], measure3[i], measure3[i], 1,
-                        measure4[i], measure4[i], measure4[i], 1);
+          v = new Value(intMeasureValues[i], intMeasureValues[i], intMeasureValues[i], 1,
+                        bigIntMeasureValues[i], bigIntMeasureValues[i], bigIntMeasureValues[i], 1,
+                        floatMeasureValues[i], floatMeasureValues[i], floatMeasureValues[i], 1,
+                        doubleMeasureValues[i], doubleMeasureValues[i], doubleMeasureValues[i], 1,
+                        decimalMeasureValues[i].doubleValue(), decimalMeasureValues[i].doubleValue(), decimalMeasureValues[i].doubleValue(), 1);
           aggregatedResults.put(k, v);
         } else {
-          v.sum_m1 += measure1[i];
-          v.min_m1 = (measure1[i] < v.min_m1) ? measure1[i] : v.min_m1;
-          v.max_m1 = (measure1[i] > v.max_m1) ? measure1[i] : v.max_m1;
-          v.count_m1++;
+          v.sumInt += intMeasureValues[i];
+          v.minInt = (intMeasureValues[i] < v.minInt) ? intMeasureValues[i] : v.minInt;
+          v.maxInt = (intMeasureValues[i] > v.maxInt) ? intMeasureValues[i] : v.maxInt;
+          v.countInt++;
 
-          v.sum_m2 += measure2[i];
-          v.min_m2 = (measure2[i] < v.min_m2) ? measure2[i] : v.min_m2;
-          v.max_m2 = (measure2[i] > v.max_m2) ? measure2[i] : v.max_m2;
-          v.count_m2++;
+          v.sumBigInt += bigIntMeasureValues[i];
+          v.minBigInt = (bigIntMeasureValues[i] < v.minBigInt) ? bigIntMeasureValues[i] : v.minBigInt;
+          v.maxBigInt = (bigIntMeasureValues[i] > v.maxBigInt) ? bigIntMeasureValues[i] : v.maxBigInt;
+          v.countBigInt++;
 
-          v.sum_m3 += measure3[i];
-          v.min_m3 = (measure3[i] < v.min_m3) ? measure3[i] : v.min_m3;
-          v.max_m3 = (measure3[i] > v.max_m3) ? measure3[i] : v.max_m3;
-          v.count_m3++;
+          v.sumFloat += floatMeasureValues[i];
+          v.minFloat = (floatMeasureValues[i] < v.minFloat) ? floatMeasureValues[i] : v.minFloat;
+          v.maxFloat = (floatMeasureValues[i] > v.maxFloat) ? floatMeasureValues[i] : v.maxFloat;
+          v.countFloat++;
 
-          v.sum_m4 += measure4[i];
-          v.min_m4 = (measure4[i] < v.min_m4) ? measure4[i] : v.min_m4;
-          v.max_m4 = (measure4[i] > v.max_m4) ? measure4[i] : v.max_m4;
-          v.count_m4++;
+          v.sumDouble += doubleMeasureValues[i];
+          v.minDouble = (doubleMeasureValues[i] < v.minDouble) ? doubleMeasureValues[i] : v.minDouble;
+          v.maxDouble = (doubleMeasureValues[i] > v.maxDouble) ? doubleMeasureValues[i] : v.maxDouble;
+          v.countDouble++;
+
+          v.sumDecimal += decimalMeasureValues[i].doubleValue();
+          v.minDecimal = decimalMeasureValues[i].doubleValue() < v.minDecimal ? decimalMeasureValues[i].doubleValue() : v.minDecimal;
+          v.maxDecimal = decimalMeasureValues[i].doubleValue() > v.maxDecimal ? decimalMeasureValues[i].doubleValue() : v.maxDecimal;
+          v.countDecimal++;
         }
       }
 
@@ -311,16 +372,20 @@ public class CustomHashAggDataGenerator implements Generator {
       final Map.Entry<Key, Value> pair = (Map.Entry<Key, Value>)iterator.next();
       final Key k = pair.getKey();
       final Value v = pair.getValue();
-      rows[row] = tr(k.fix1, k.fix2, k.var1, v.sum_m1, v.min_m1, v.max_m1,
-                     v.sum_m2, v.min_m2, v.max_m2, v.sum_m3, v.min_m3, v.max_m3,
-                     v.sum_m4, v.min_m4, v.max_m4);
+      rows[row] = tr(k.intKey, k.bigintKey, k.varKey, Float.intBitsToFloat(k.floatKey), Double.longBitsToDouble(k.doubleKey), k.booleanKey, k.decimalKey,
+                     v.sumInt, v.minInt, v.maxInt,
+                     v.sumBigInt, v.minBigInt, v.maxBigInt,
+                     v.sumFloat, v.minFloat, v.maxFloat,
+                     v.sumDouble, v.minDouble, v.maxDouble,
+                     v.sumDecimal, v.minDecimal, v.maxDecimal);
       row++;
     }
-    return t(th("FIXKEY1", "FIXKEY2", "VARKEY1",
-                "SUM_M1", "MIN_M1", "MAX_M1",
-                "SUM_M2", "MIN_M2", "MAX_M2",
-                "SUM_M3", "MIN_M3", "MAX_M3",
-                "SUM_M4", "MIN_M4", "MAX_M4"),
+    return t(th("INT_KEY", "BIGINT_KEY", "VARCHAR_KEY", "FLOAT_KEY", "DOUBLE_KEY", "BOOLEAN_KEY", "DECIMAL_KEY",
+                "SUM_INT", "MIN_INT", "MAX_INT",
+                "SUM_BIGINT", "MIN_BIGINT", "MAX_BIGINT",
+                "SUM_FLOAT", "MIN_FLOAT", "MAX_FLOAT",
+                "SUM_DOUBLE", "MIN_DOUBLE", "MAX_DOUBLE",
+                "SUM_DECIMAL", "MIN_DECIMAL", "MAX_DECIMAL"),
              rows).orderInsensitive();
   }
 
@@ -332,30 +397,42 @@ public class CustomHashAggDataGenerator implements Generator {
       final Map.Entry<Key, Value> pair = (Map.Entry<Key, Value>)iterator.next();
       final Key k = pair.getKey();
       final Value v = pair.getValue();
-      rows[row] = tr(k.fix1, k.fix2, k.var1, v.sum_m1, v.min_m1, v.max_m1, v.count_m1,
-                     v.sum_m2, v.min_m2, v.max_m2, v.count_m2, v.sum_m3, v.min_m3, v.max_m3,
-                     v.count_m3, v.sum_m4, v.min_m4, v.max_m4, v.count_m4);
+      rows[row] = tr(k.intKey, k.bigintKey, k.varKey, Float.intBitsToFloat(k.floatKey), Double.longBitsToDouble(k.doubleKey), k.booleanKey, k.decimalKey,
+                     v.sumInt, v.minInt, v.maxInt, v.countInt,
+                     v.sumBigInt, v.minBigInt, v.maxBigInt, v.countBigInt,
+                     v.sumFloat, v.minFloat, v.maxFloat, v.countFloat,
+                     v.sumDouble, v.minDouble, v.maxDouble, v.countDouble,
+                     v.sumDecimal, v.minDecimal, v.maxDecimal, v.countDecimal);
       row++;
     }
-    return t(th("FIXKEY1", "FIXKEY2", "VARKEY1",
-                "SUM_M1", "MIN_M1", "MAX_M1", "COUNT_M1",
-                "SUM_M2", "MIN_M2", "MAX_M2", "COUNT_M2",
-                "SUM_M3", "MIN_M3", "MAX_M3", "COUNT_M3",
-                "SUM_M4", "MIN_M4", "MAX_M4", "COUNT_M4"),
+    return t(th("INT_KEY", "BIGINT_KEY", "VARCHAR_KEY", "FLOAT_KEY", "DOUBLE_KEY", "BOOLEAN_KEY", "DECIMAL_KEY",
+                "SUM_INT", "MIN_INT", "MAX_INT", "COUNT_INT",
+                "SUM_BIGINT", "MIN_BIGINT", "MAX_BIGINT", "COUNT_BIGINT",
+                "SUM_FLOAT", "MIN_FLOAT", "MAX_FLOAT", "COUNT_FLOAT",
+                "SUM_DOUBLE", "MIN_DOUBLE", "MAX_DOUBLE", "COUNT_DOUBLE",
+                "SUM_DECIMAL", "MIN_DECIMAL", "MAX_DECIMAL", "COUNT_DECIMAL"),
              rows).orderInsensitive();
   }
 
   private static class Key {
-    private final int fix1;
-    private final long fix2;
-    private final String var1;
+    final int intKey;
+    final long bigintKey;
+    final String varKey;
+    final int floatKey;
+    final long doubleKey;
+    final boolean booleanKey;
+    final BigDecimal decimalKey;
 
-    Key(final int fix1,
-        final long fix2,
-        final String var1) {
-      this.fix1 = fix1;
-      this.fix2 = fix2;
-      this.var1 = var1;
+    Key(final int intKey, final long bigintKey, final String varKey,
+        final int floatKey, final long doubleKey, final boolean booleanKey,
+        final BigDecimal decimalKey) {
+      this.intKey = intKey;
+      this.bigintKey = bigintKey;
+      this.varKey = varKey;
+      this.floatKey = floatKey;
+      this.doubleKey = doubleKey;
+      this.booleanKey = booleanKey;
+      this.decimalKey = decimalKey;
     }
 
     @Override
@@ -365,64 +442,76 @@ public class CustomHashAggDataGenerator implements Generator {
       }
 
       final Key k = (Key)other;
-      return (this.fix1 == k.fix1) && (this.fix2 == k.fix2) && (this.var1.equals(k.var1));
+      return (this.intKey == k.intKey) && (this.bigintKey == k.bigintKey) && (this.varKey.equals(k.varKey))
+        && (this.floatKey == ((Key) other).floatKey) && this.doubleKey == ((Key) other).doubleKey
+        && (this.booleanKey == ((Key) other).booleanKey) && (this.decimalKey.compareTo(((Key) other).decimalKey) == 0);
     }
 
-    /**
-     * HashCode implementation guidelines as per E
-     * @return
-     */
     @Override
     public int hashCode() {
       int result = 17;
-      result = 31 * result + fix1;
-      result = 31 * result + (int) (fix2 ^ (fix2 >>> 32));
-      result = 31 * result + var1.hashCode();
+      result = 31 * result + intKey;
+      result = 31 * result + (int) (bigintKey ^ (bigintKey >>> 32));
+      result = 31 * result + varKey.hashCode();
+      result = 31 * result + floatKey;
+      result = 31 * result + (int) (doubleKey ^ (doubleKey >>> 32));
+      result = 31 * result + (booleanKey ? 1 : 0);
+
       return result;
     }
   }
 
   private static class Value {
-    private long sum_m1;
-    private int min_m1;
-    private int max_m1;
-    private long count_m1;
+    private long sumInt;
+    private int minInt;
+    private int maxInt;
+    private long countInt;
 
-    private long sum_m2;
-    private long min_m2;
-    private long max_m2;
-    private long count_m2;
+    private long sumBigInt;
+    private long minBigInt;
+    private long maxBigInt;
+    private long countBigInt;
 
-    private double sum_m3;
-    private float min_m3;
-    private float max_m3;
-    private long count_m3;
+    private double sumFloat;
+    private float minFloat;
+    private float maxFloat;
+    private long countFloat;
 
-    private double sum_m4;
-    private double min_m4;
-    private double max_m4;
-    private long count_m4;
+    private double sumDouble;
+    private double minDouble;
+    private double maxDouble;
+    private long countDouble;
 
-    Value(final long sum_m1, final int min_m1, final int max_m1, final long count_m1,
-          final long sum_m2, final long min_m2, final long max_m2, final long count_m2,
-          final double sum_m3, final float min_m3, final float max_m3, final long count_m3,
-          final double sum_m4, final double min_m4, final double max_m4, final long count_m4) {
-      this.sum_m1 = sum_m1;
-      this.min_m1 = min_m1;
-      this.max_m1 = max_m1;
-      this.count_m1 = count_m1;
-      this.sum_m2 = sum_m2;
-      this.min_m2 = min_m2;
-      this.max_m2 = max_m2;
-      this.count_m2 = count_m2;
-      this.sum_m3 = sum_m3;
-      this.min_m3 = min_m3;
-      this.max_m3 = max_m3;
-      this.count_m3 = count_m3;
-      this.sum_m4 = sum_m4;
-      this.min_m4 = min_m4;
-      this.max_m4 = max_m4;
-      this.count_m4 = count_m4;
+    private double sumDecimal;
+    private double minDecimal;
+    private double maxDecimal;
+    private long countDecimal;
+
+    Value(final long sumInt, final int minInt, final int maxInt, final long countInt,
+          final long sumBigInt, final long minBigInt, final long maxBigInt, final long countBigInt,
+          final double sumFloat, final float minFloat, final float maxFloat, final long countFloat,
+          final double sumDouble, final double minDouble, final double maxDouble, final long countDouble,
+          final double sumDecimal, final double minDecimal, final double maxDecimal, final long countDecimal) {
+      this.sumInt = sumInt;
+      this.maxInt = maxInt;
+      this.minInt = minInt;
+      this.countInt = countInt;
+      this.sumBigInt = sumBigInt;
+      this.maxBigInt = maxBigInt;
+      this.minBigInt = minBigInt;
+      this.countBigInt = countBigInt;
+      this.sumFloat = sumFloat;
+      this.maxFloat = maxFloat;
+      this.minFloat = minFloat;
+      this.countFloat = countFloat;
+      this.sumDouble = sumDouble;
+      this.maxDouble = maxDouble;
+      this.minDouble = minDouble;
+      this.countDouble = countDouble;
+      this.sumDecimal = sumDecimal;
+      this.minDecimal = minDecimal;
+      this.maxDecimal = maxDecimal;
+      this.countDecimal = countDecimal;
     }
   }
 }

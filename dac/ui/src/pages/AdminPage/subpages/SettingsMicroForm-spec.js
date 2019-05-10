@@ -124,11 +124,9 @@ describe('SettingsMicroForm', () => {
 
     it('with non-numeric type', () => {
       const instance = shallow(<SettingsMicroForm {...commonProps} fields={dirtyFields} />).instance();
-      const promise = instance.submit({value: 'foo'}).then(() => {
-        expect(commonProps.getSetting).to.have.been.calledWith('$c', { viewId: 'view-id' });
-      });
+      const promise = instance.submit({value: 'foo'});
       expect(commonProps.putSetting).to.have.been.calledWith(
-        { ...commonProps.setting.toJS(), showOutsideWhitelist: true, value: 'foo' },
+        { ...commonProps.setting.toJS(), value: 'foo' },
         { viewId: 'view-id' }
       );
       return promise;
@@ -138,11 +136,9 @@ describe('SettingsMicroForm', () => {
       commonProps.setting = commonProps.setting.set('type', 'FLOAT');
 
       const instance = shallow(<SettingsMicroForm {...commonProps} fields={dirtyFields} />).instance();
-      const promise = instance.submit({value: '1.1'}).then(() => {
-        expect(commonProps.getSetting).to.have.been.calledWith('$c', { viewId: 'view-id' });
-      });
+      const promise = instance.submit({value: '1.1'});
       expect(commonProps.putSetting).to.have.been.calledWith(
-        { ...commonProps.setting.toJS(), showOutsideWhitelist: true, value: 1.1 },
+        { ...commonProps.setting.toJS(), value: 1.1 },
         { viewId: 'view-id' }
       );
       return promise;

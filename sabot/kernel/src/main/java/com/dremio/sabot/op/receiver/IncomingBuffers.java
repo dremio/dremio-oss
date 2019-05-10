@@ -32,8 +32,11 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.exception.FragmentSetupException;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
+import com.dremio.exec.planner.fragment.PlanFragmentFull;
+import com.dremio.exec.planner.fragment.PlanFragmentsIndex;
 import com.dremio.exec.proto.CoordExecRPC.Collector;
-import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
+import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
@@ -84,27 +87,30 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
       SharedResourceGroup resourceGroup,
       FragmentWorkQueue workQueue,
       TunnelProvider tunnelProvider,
-      PlanFragment fragment,
+      PlanFragmentFull fragment,
       BufferAllocator incomingAllocator,
       SabotConfig config,
       ExecutionControls executionControls,
-      SpillService spillService
+      SpillService spillService,
+      PlanFragmentsIndex planFragmentsIndex
       ) {
     this.deferredException = exception;
     this.resourceGroup = resourceGroup;
 
+    final FragmentHandle handle = fragment.getMajor().getHandle();
     final String allocatorName = String.format("op:%s:incoming",
       QueryIdHelper.getFragmentId(fragment.getHandle()));
     this.allocator = incomingAllocator.newChildAllocator(allocatorName, 0, Long.MAX_VALUE);
 
     final Map<Integer, DataCollector> collectors = Maps.newHashMap();
+    EndpointsIndex endpointsIndex = planFragmentsIndex.getEndpointsIndex();
     try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable(allocator)) {
-      for (int i = 0; i < fragment.getCollectorCount(); i++) {
-        Collector collector = fragment.getCollector(i);
+      for (int i = 0; i < fragment.getMinor().getCollectorCount(); i++) {
+        Collector collector = fragment.getMinor().getCollector(i);
 
         DataCollector newCollector = collector.getSupportsOutOfOrder() ?
-          new MergingCollector(resourceGroup, collector, allocator, config, fragment.getHandle(), workQueue, tunnelProvider, spillService) :
-          new PartitionedCollector(resourceGroup, collector, allocator, config, fragment.getHandle(), workQueue, tunnelProvider, spillService);
+          new MergingCollector(resourceGroup, collector, allocator, config, fragment.getHandle(), workQueue, tunnelProvider, spillService, endpointsIndex) :
+          new PartitionedCollector(resourceGroup, collector, allocator, config, fragment.getHandle(), workQueue, tunnelProvider, spillService, endpointsIndex);
         rollbackCloseable.add(newCollector);
         collectors.put(collector.getOppositeMajorFragmentId(), newCollector);
       }

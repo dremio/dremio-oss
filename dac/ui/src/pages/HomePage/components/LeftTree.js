@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import classNames from 'classnames';
-import pureRender from 'pure-render-decorator';
 import {FormattedMessage, injectIntl} from 'react-intl';
+import Immutable from 'immutable';
 
 import PropTypes from 'prop-types';
-import { mixin, propTypes, mapStateToProps } from 'dyn-load/pages/HomePage/components/LeftTreeMixin';
 
 import FinderNav from 'components/FinderNav';
 import FinderNavItem from 'components/FinderNavItem';
@@ -28,6 +27,7 @@ import ViewStateWrapper from 'components/ViewStateWrapper';
 import LinkButton from 'components/Buttons/LinkButton';
 import SimpleButton from 'components/Buttons/SimpleButton';
 import { EmptyStateContainer } from '@app/pages/HomePage/components/EmptyStateContainer';
+import SpacesSection from '@app/pages/HomePage/components/SpacesSection';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
 
@@ -39,17 +39,22 @@ import Radium from 'radium';
 import { emptyContainer } from './LeftTree.less';
 
 @injectIntl
-@pureRender
 @Radium
-@mixin
-export class LeftTree extends Component {
+export class LeftTree extends PureComponent {
   static contextTypes = {
     location: PropTypes.object,
     loggedInUser: PropTypes.object,
     router: PropTypes.object
   };
 
-  static propTypes = propTypes;
+  static propTypes = {
+    className: PropTypes.string,
+    sources: PropTypes.instanceOf(Immutable.List).isRequired,
+    sourceTypesIncludeS3: PropTypes.bool,
+    sourcesViewState: PropTypes.instanceOf(Immutable.Map).isRequired,
+    createSampleSource: PropTypes.func.isRequired,
+    intl: PropTypes.object.isRequired
+  };
 
   state = {
     isAddingSampleSource: false
@@ -57,7 +62,7 @@ export class LeftTree extends Component {
 
   addSampleSource = () => {
     this.setState({isAddingSampleSource: true});
-    return this.props.createSampleSource(this.props.sources, this.props.spaces).then((response) => {
+    return this.props.createSampleSource().then((response) => {
       if (response && !response.error) {
         const nextSource = ApiUtils.getEntityFromResponse('source', response);
         this.context.router.push(nextSource.getIn(['links', 'self']));
@@ -75,20 +80,6 @@ export class LeftTree extends Component {
       resourcePath: '/home',
       iconClass: 'Home'
     };
-  }
-
-  getInitialSpacesContent() {
-    const addHref = this.getAddSpaceHref();
-    return this.props.spaces.size > 0 ? null : <EmptyStateContainer
-      className={emptyContainer}
-      title={<FormattedMessage id='Space.NoSpaces'/>}>
-      {addHref && <LinkButton
-        buttonStyle='primary'
-        data-qa={'add-spaces'}
-        to={addHref}>
-        <FormattedMessage id='Space.AddSpace'/>
-      </LinkButton>}
-    </EmptyStateContainer>;
   }
 
   getInitialSourcesContent() {
@@ -114,7 +105,7 @@ export class LeftTree extends Component {
       className={emptyContainer}
       title={isEmpty ? <FormattedMessage id='Source.NoSources'/>
         : <FormattedMessage id='Source.AddOwnSource'/>}>
-      {this.getCanAddSource() && isEmpty && <SimpleButton
+      {this.getCanAddSource() && isEmpty && this.props.sourceTypesIncludeS3 && <SimpleButton
         buttonStyle='primary'
         submitting={this.state.isAddingSampleSource}
         style={{padding: '0 12px'}}
@@ -130,10 +121,6 @@ export class LeftTree extends Component {
     </EmptyStateContainer>;
   }
 
-  getAddSpaceHref() {
-    return {...this.context.location, state: {modal: 'SpaceModal'}};
-  }
-
   getCanAddSource() {
     return this.context.loggedInUser.admin;
   }
@@ -144,7 +131,7 @@ export class LeftTree extends Component {
   }
 
   render() {
-    const { className, spaces, sources, spacesViewState, sourcesViewState, intl } = this.props;
+    const { className, sources, sourcesViewState, intl } = this.props;
     const classes = classNames('left-tree', className);
     const homeItem = this.getHomeObject();
 
@@ -156,24 +143,7 @@ export class LeftTree extends Component {
         <ul className='header-block' style={styles.homeWrapper}>
           <FinderNavItem item={homeItem} />
         </ul>
-        <div className='left-tree-wrap' style={{
-          ...styles.columnFlex,
-          flex: '0 0 auto',
-          overflow: 'hidden', // for FF (no worries, subsection will scroll)
-          maxHeight: 'calc(61.8% - 50px)' // ~61.8% (golden ratio :P) of non-headers (doesn't need to be perfectly accurate)
-        }}>
-          <ViewStateWrapper viewState={spacesViewState} style={{...styles.columnFlex}}>
-            <FinderNav
-              navItems={spaces}
-              title={intl.formatMessage({ id: 'Space.Spaces' })}
-              toggleActivePin={this.props.toggleSpacePin}
-              isInProgress={spacesViewState.get('isInProgress')}
-              addHref={this.getAddSpaceHref()}
-              listHref='/spaces/list'
-              children={this.getInitialSpacesContent()}
-            />
-          </ViewStateWrapper>
-        </div>
+        <SpacesSection />
         <div className='left-tree-wrap' style={{
           ...styles.columnFlex,
           flex: '1 1 0%',
@@ -183,7 +153,6 @@ export class LeftTree extends Component {
             <FinderNav
               navItems={sources}
               title={intl.formatMessage({ id: 'Source.Sources' })}
-              toggleActivePin={this.props.toggleSourcePin}
               isInProgress={sourcesViewState.get('isInProgress')}
               addHref={this.getAddSourceHref()}
               listHref='/sources/list'
@@ -196,7 +165,7 @@ export class LeftTree extends Component {
   }
 }
 
-export default connect(mapStateToProps, {createSampleSource})(LeftTree);
+export default connect(null, {createSampleSource})(LeftTree);
 
 const styles = {
   leftTreeHolder: {
@@ -206,6 +175,7 @@ const styles = {
     borderRight: '1px solid rgba(0,0,0,.1)',
     display: 'flex',
     flexDirection: 'column',
+    height: '100%',
     maxHeight: '100%'
   },
   homeWrapper: {

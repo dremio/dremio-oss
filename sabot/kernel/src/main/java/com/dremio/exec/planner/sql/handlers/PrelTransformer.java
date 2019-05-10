@@ -36,7 +36,6 @@ import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.plan.hep.HepPlanner;
 import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.plan.hep.HepProgramBuilder;
-import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.TableModify;
@@ -93,6 +92,7 @@ import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.explain.PrelSequencer;
 import com.dremio.exec.planner.physical.visitor.ComplexToJsonPrelVisitor;
@@ -105,6 +105,7 @@ import com.dremio.exec.planner.physical.visitor.JoinPrelRenameVisitor;
 import com.dremio.exec.planner.physical.visitor.RelUniqifier;
 import com.dremio.exec.planner.physical.visitor.SelectionVectorPrelVisitor;
 import com.dremio.exec.planner.physical.visitor.SimpleLimitExchangeRemover;
+import com.dremio.exec.planner.physical.visitor.SplitCountChecker;
 import com.dremio.exec.planner.physical.visitor.SplitUpComplexExpressions;
 import com.dremio.exec.planner.physical.visitor.StarColumnConverter;
 import com.dremio.exec.planner.physical.visitor.SwapHashJoinVisitor;
@@ -514,6 +515,7 @@ public class PrelTransformer {
     }
     QueryContext context = config.getContext();
     OptionManager queryOptions = context.getOptions();
+    final PlannerSettings plannerSettings = context.getPlannerSettings();
 
     /* Disable distribution trait pulling
      *
@@ -521,7 +523,12 @@ public class PrelTransformer {
      * keep distribution traits consistent anymore (like ExcessiveExchangeIdentifier
      * which would remove hash distribution exchanges if no parallelization will occur).
      */
-    context.getPlannerSettings().pullDistributionTrait(false);
+    plannerSettings.pullDistributionTrait(false);
+
+    /*
+     * Check whether the query is within the required number-of-splits limit(s)
+     */
+    phyRelNode = SplitCountChecker.checkNumSplits(phyRelNode, plannerSettings.getQueryMaxSplitLimit(), plannerSettings.getDatasetMaxSplitLimit());
 
     /* The order of the following transformations is important */
     final Stopwatch finalPrelTimer = Stopwatch.createStarted();
@@ -546,9 +553,8 @@ public class PrelTransformer {
      * 1.2.) Swap left / right for INNER hash join, if left's row count is < (1 + margin) right's row count.
      * We want to have smaller dataset on the right side, since hash table builds on right side.
      */
-    if (context.getPlannerSettings().isHashJoinSwapEnabled()) {
-      phyRelNode = SwapHashJoinVisitor.swapHashJoin(phyRelNode, context.getPlannerSettings()
-          .getHashJoinSwapMarginFactor());
+    if (plannerSettings.isHashJoinSwapEnabled()) {
+      phyRelNode = SwapHashJoinVisitor.swapHashJoin(phyRelNode, plannerSettings.getHashJoinSwapMarginFactor());
     }
 
     /*
@@ -586,7 +592,7 @@ public class PrelTransformer {
      * separating them
      */
     /* DX-2353  should be fixed since it removes necessary exchanges and returns incorrect results. */
-    long targetSliceSize = config.getContext().getPlannerSettings().getSliceTarget();
+    long targetSliceSize = plannerSettings.getSliceTarget();
     phyRelNode = ExcessiveExchangeIdentifier.removeExcessiveEchanges(phyRelNode, targetSliceSize);
 
     /* 4.)
@@ -640,7 +646,7 @@ public class PrelTransformer {
      * 7.6.)
      * Encode columns using dictionary encoding during scans and insert lookup before consuming dictionary ids.
      */
-    if (context.getPlannerSettings().isGlobalDictionariesEnabled()) {
+    if (plannerSettings.isGlobalDictionariesEnabled()) {
       phyRelNode = GlobalDictionaryVisitor.useGlobalDictionaries(phyRelNode);
     }
 
@@ -744,7 +750,7 @@ public class PrelTransformer {
     final boolean leafLimitEnabled = config.getContext().getPlannerSettings().isLeafLimitsEnabled();
 
     { // Set original root in volcano planner for acceleration (in this case, do not inject JdbcCrel or JdbcRel)
-      final VolcanoPlanner volcanoPlanner = (VolcanoPlanner) convertedNodeNotExpanded.getCluster().getPlanner();
+      final DremioVolcanoPlanner volcanoPlanner = (DremioVolcanoPlanner) convertedNodeNotExpanded.getCluster().getPlanner();
 
       final RelNode originalRoot = convertedNodeWithoutRexSubquery.accept(new InjectSample(leafLimitEnabled));
       volcanoPlanner.setOriginalRoot(originalRoot);

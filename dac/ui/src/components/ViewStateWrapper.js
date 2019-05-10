@@ -31,22 +31,22 @@ import classNames from 'classnames';
 
 const TIME_TP_WAIT_BEFORE_SPINNER = 500;
 
-
+export const viewStatePropType = ImmutablePropTypes.contains({
+  isInProgress: PropTypes.bool,
+  isFailed: PropTypes.bool,
+  isWarning: PropTypes.bool,
+  error: PropTypes.shape({
+    message: PropTypes.node
+    //details,
+    //id
+    //dismissed: false
+  })
+});
 
 @Radium
 export class ViewStateWrapper extends Component {
   static propTypes = {
-    viewState: ImmutablePropTypes.contains({
-      isInProgress: PropTypes.bool,
-      isFailed: PropTypes.bool,
-      isWarning: PropTypes.bool,
-      error: PropTypes.shape({
-        message: PropTypes.node
-        //details,
-        //id
-        //dismissed: false
-      })
-    }),
+    viewState: viewStatePropType,
     children: PropTypes.node,
     hideSpinner: PropTypes.bool,
     spinnerDelay: PropTypes.number,
@@ -60,7 +60,10 @@ export class ViewStateWrapper extends Component {
     dismissViewStateError: PropTypes.func,
     onDismissError: PropTypes.func,
     messageIsDismissable: PropTypes.bool,
-    className: PropTypes.string
+    className: PropTypes.string,
+    // is used only for ExploreTable to not bock column headers on loading
+    overlayStyle: PropTypes.object,
+    dataQa: PropTypes.string
   };
 
   static defaultProps = {
@@ -79,6 +82,10 @@ export class ViewStateWrapper extends Component {
     if (props.viewState.get('isInProgress')) {
       this.checkTimer();
     }
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this.timer);
   }
 
   componentWillReceiveProps(nextProps) {
@@ -121,18 +128,26 @@ export class ViewStateWrapper extends Component {
       showMessage,
       progressMessage,
       onDismissError,
-      messageStyle
+      messageStyle,
+      overlayStyle,
+      dataQa
     } = this.props;
+    const resultOverlayStyle = { ...overlay, ...overlayStyle };
+    const commonProps = {
+      style: resultOverlayStyle,
+      'data-qa': dataQa,
+      className: 'view-state-wrapper-overlay'
+    };
     if (viewState.get('isInProgress') && !this.props.hideSpinner) {
       if (this.state.shouldWeSeeSpinner || hideChildrenWhenInProgress) {
-        return <div style={overlay} className='view-state-wrapper-overlay'>
+        return <div {...commonProps}>
           <div style={spinnerStyle}>
             <Spinner/>
             {progressMessage}
           </div>
         </div>;
       }
-      return <div style={overlay} className='view-state-wrapper-overlay'/>;
+      return <div {...commonProps} />;
     }
 
     const handleDismiss = () => {

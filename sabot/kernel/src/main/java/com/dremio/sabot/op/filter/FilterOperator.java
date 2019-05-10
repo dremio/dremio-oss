@@ -127,6 +127,9 @@ public class FilterOperator implements SingleInputOperator {
     AutoCloseables.close(output, splitter);
     context.getStats().addLongStat(Metric.JAVA_EXECUTE_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
     context.getStats().addLongStat(Metric.GANDIVA_EXECUTE_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    context.getStats().addLongStat(Metric.JAVA_EXPRESSIONS, splitter.getNumExprsInJava());
+    context.getStats().addLongStat(Metric.GANDIVA_EXPRESSIONS, splitter.getNumExprsInGandiva());
+    context.getStats().addLongStat(Metric.MIXED_SPLITS, splitter.getNumSplitsInBoth());
     javaCodeGenWatch.reset();
     gandivaCodeGenWatch.reset();
   }

@@ -28,9 +28,12 @@ import org.junit.Test;
 
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.options.OptionValue;
 import com.dremio.service.users.SystemUser;
 
 /**
@@ -44,11 +47,16 @@ public class TestSQLAnalyzerFactory {
     FunctionImplementationRegistry functionImplementationRegistry = mock(FunctionImplementationRegistry.class);
     CatalogService catalogService = mock(CatalogService.class);
     Catalog catalog = mock(Catalog.class);
+    SystemOptionManager mockOptions = mock(SystemOptionManager.class);
 
     // Stub appropriate methods.
     when(sabotContext.getFunctionImplementationRegistry()).thenReturn(functionImplementationRegistry);
     when(sabotContext.getCatalogService()).thenReturn(catalogService);
     when(sabotContext.getCatalogService().getCatalog(any(SchemaConfig.class), anyLong())).thenReturn(catalog);
+    when(sabotContext.getOptionManager()).thenReturn(mockOptions);
+    when(mockOptions.getOption(PlannerSettings.ENABLE_DECIMAL_V2_KEY)).thenReturn(OptionValue
+        .createBoolean(OptionValue.OptionType.SYSTEM, PlannerSettings.ENABLE_DECIMAL_V2_KEY,
+          false));
 
     // Test that the correct concrete implementation is created.
     SQLAnalyzer sqlAnalyzer = SQLAnalyzerFactory.createSQLAnalyzer(SystemUser.SYSTEM_USERNAME, sabotContext, null, true);

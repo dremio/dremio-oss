@@ -26,7 +26,7 @@ import java.lang.UnsupportedOperationException;
 package com.dremio.exec.store;
 
 import com.google.common.collect.Lists;
-import com.dremio.common.exceptions.UserException;
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.BatchSchema;
@@ -59,7 +59,7 @@ public abstract class StringOutputRecordWriter extends AbstractRowBasedRecordWri
   private final int maxCellSize;
 
   protected StringOutputRecordWriter(OperatorContext context) {
-    maxCellSize = (int)context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES);
+    maxCellSize = Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
   }
 
   @Override
@@ -141,14 +141,7 @@ public abstract class StringOutputRecordWriter extends AbstractRowBasedRecordWri
     addField(fieldId, reader.readObject().toString());
 
   <#elseif minor.class == "VarChar" || minor.class == "Var16Char" || minor.class == "VarBinary">
-    if (holder.end - holder.start >= maxCellSize) {
-      throw UserException
-        .unsupportedError()
-        .message("Attempting to write a large value for a column.")
-        .addContext("columnIndex", fieldId)
-        .addContext("Limit", maxCellSize)
-        .build(logger);
-    }
+    FieldSizeLimitExceptionHelper.checkWriteSizeLimit(holder.end - holder.start, maxCellSize, fieldId, logger);
     addField(fieldId, reader.readObject().toString());
   <#else>
     throw new UnsupportedOperationException(String.format("Unsupported field type: %s",

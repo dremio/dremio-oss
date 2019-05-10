@@ -19,9 +19,8 @@ import { getEntityType } from '@app/utils/pathUtils';
 
 import { HOME_SPACE_NAME, RECENT_SPACE_NAME } from 'constants/Constants';
 
-import { getSortedSources, getSortedSpaces, denormalizeFile } from 'selectors/resources';
+import { denormalizeFile } from 'selectors/resources';
 import { getUserName } from 'selectors/account';
-import { getHomeForCurrentUser } from 'selectors/home';
 
 function _getResourceName(resourceName) {
   if (resourceName === 'home' || !resourceName) {
@@ -37,26 +36,6 @@ function _getPageType(pageType) {
     return 'space';
   }
   return pageType;
-}
-
-function _getResource(state, props) {
-  const hash = {
-    source: state.resources.entities.get('source'),
-    space: state.resources.entities.get('space'),
-    home: state.resources.entities.get('space'),
-    recent: state.resources.entities.get('space')
-  };
-  return hash[props.pageType] || hash.home;
-}
-
-function _getDatasetConfigs(state, props) {
-  const resource = _getResource(state, props);
-  return resource.get('datasetConfigs') || Immutable.Map();
-}
-
-function _getAllDatasets(state, props) {
-  const resource = _getResource(state, props);
-  return resource.get('datasets') || Immutable.Map();
 }
 
 function _getDataListToShow(state, props, name) {
@@ -106,12 +85,6 @@ function getResourceProgressState(state, props) {
   const physicalDatasetsSize = resource.get('physicalDatasets') && resource.get('physicalDatasets').size;
   return resource.get('isInProgress') && !filesSize &&
     !folderssSize && !datasetsSize && !physicalDatasetsSize;
-}
-
-function _getHome(state) {
-  const home = getHomeForCurrentUser(state);
-
-  return home.set('entityType', 'home').set('name', 'Home');
 }
 
 // function _getRecentSpace(spaces) {
@@ -168,15 +141,6 @@ function _getTreeNodeFromEntity(state, entity) {
   return createTreeNode(entity);
 }
 
-export function getDatasetsTree(state, currentPath) {
-  const spaces = getSortedSpaces(state).map(space =>
-    _getTreeNodeFromEntity(state, space, currentPath).set('entityType', 'space'));
-  const sources = getSortedSources(state).map(source =>
-    _getTreeNodeFromEntity(state, source, currentPath).set('entityType', 'source'));
-  const home = _getTreeNodeFromEntity(state, _getHome(state), currentPath);
-  return Immutable.List([home]).concat(spaces, sources);
-}
-
 const _getSummaryDataset = (state, fullPath) => {
   return state.resources.entities.getIn(['summaryDataset', fullPath]) || Immutable.Map();
 };
@@ -213,20 +177,6 @@ export const isSpaceContentInProgress = createSelector(
   [ getResourceProgressState ],
   isInProgress => {
     return isInProgress;
-  }
-);
-
-export const getDatasetConfigs = createSelector(
-  [ _getDatasetConfigs ],
-  configs => {
-    return configs;
-  }
-);
-
-export const getAllDatasets = createSelector(
-  [ _getAllDatasets ],
-  configs => {
-    return configs;
   }
 );
 

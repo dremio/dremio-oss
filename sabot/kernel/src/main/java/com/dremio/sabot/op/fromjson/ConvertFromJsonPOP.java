@@ -24,8 +24,8 @@ import java.util.Map;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.expression.CompleteType;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractSingle;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.record.BatchSchema;
@@ -44,20 +44,16 @@ public class ConvertFromJsonPOP extends AbstractSingle {
 
   @JsonCreator
   public ConvertFromJsonPOP(
+      @JsonProperty("props") OpProps props,
       @JsonProperty("child") PhysicalOperator child,
       @JsonProperty("columns") List<ConversionColumn> columns) {
-    super(child);
+    super(props, child);
     this.columns = columns;
   }
 
   @Override
   public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
     return physicalVisitor.visitConvertFromJson(this, value);
-  }
-
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    return getSchema(child.getSchema(context));
   }
 
   @Override
@@ -71,7 +67,7 @@ public class ConvertFromJsonPOP extends AbstractSingle {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new ConvertFromJsonPOP(child, columns);
+    return new ConvertFromJsonPOP(props, child, columns);
   }
 
   public static enum OriginType {

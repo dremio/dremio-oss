@@ -15,8 +15,24 @@
  */
 package com.dremio.exec.store;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
+import com.dremio.connector.metadata.GetDatasetOption;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
+import com.dremio.connector.metadata.MetadataOption;
+import com.dremio.connector.metadata.options.IgnoreAuthzErrors;
+import com.dremio.connector.metadata.options.MaxLeafFieldCount;
+import com.dremio.exec.catalog.AllowAutoPromote;
+import com.dremio.exec.catalog.CurrentSchemaOption;
+import com.dremio.exec.catalog.FileConfigOption;
+import com.dremio.exec.catalog.SortColumnsOption;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.service.namespace.DatasetHelper;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.google.common.base.Preconditions;
 
@@ -76,9 +92,9 @@ public class DatasetRetrievalOptions {
     this.maxMetadataLeafColumns = Optional.ofNullable(maxMetadataLeafColumns);
   }
 
+
   public boolean ignoreAuthzErrors() {
     return ignoreAuthzErrors.orElseGet(() -> fallback.ignoreAuthzErrors());
-
   }
 
   public boolean deleteUnavailableDatasets() {
@@ -161,6 +177,24 @@ public class DatasetRetrievalOptions {
     return new Builder();
   }
 
+  public static DatasetRetrievalOptions of(MetadataOption[] options) {
+
+    Builder b = new Builder();
+
+    for(MetadataOption o : options) {
+      if(o instanceof IgnoreAuthzErrors) {
+        b = b.setIgnoreAuthzErrors(true);
+      }else if(o instanceof AllowAutoPromote) {
+        b.setAutoPromote(true);
+      } else if(o instanceof MaxLeafFieldCount) {
+        b.setMaxMetadataLeafColumns(((MaxLeafFieldCount) o).getValue());
+      }
+    }
+
+    //TODO: better defaults?
+    return b.build().withFallback(DEFAULT);
+  }
+
   /**
    * Convert a {@link MetadataPolicy} to {@link DatasetRetrievalOptions}.
    *
@@ -180,5 +214,61 @@ public class DatasetRetrievalOptions {
         .setIgnoreAuthzErrors(false)
         .setMaxMetadataLeafColumns(DEFAULT_MAX_METADATA_LEAF_COLUMNS)
         .build();
+  }
+
+  public GetDatasetOption[] asGetDatasetOptions(DatasetConfig datasetConfig) {
+    List<GetDatasetOption> options = new ArrayList<>();
+    if (autoPromote()) {
+      options.add(new AllowAutoPromote());
+    }
+
+    if (ignoreAuthzErrors()) {
+      options.add(new IgnoreAuthzErrors());
+    }
+
+    options.add(new MaxLeafFieldCount(maxMetadataLeafColumns()));
+
+    addDatasetOptions(GetDatasetOption.class, datasetConfig, options);
+
+    return options.toArray(new GetDatasetOption[options.size()]);
+  }
+
+  public GetMetadataOption[] asGetMetadataOptions(DatasetConfig datasetConfig) {
+    List<GetMetadataOption> options = new ArrayList<>();
+    options.add(new MaxLeafFieldCount(maxMetadataLeafColumns()));
+
+    addDatasetOptions(GetMetadataOption.class, datasetConfig, options);
+    return options.toArray(new GetMetadataOption[options.size()]);
+  }
+
+  public ListPartitionChunkOption[] asListPartitionChunkOptions(DatasetConfig datasetConfig) {
+    List<ListPartitionChunkOption> options = new ArrayList<>();
+    options.add(new MaxLeafFieldCount(maxMetadataLeafColumns()));
+
+    addDatasetOptions(ListPartitionChunkOption.class, datasetConfig, options);
+    return options.toArray(new ListPartitionChunkOption[options.size()]);
+  }
+
+  private <T extends MetadataOption> void addDatasetOptions(Class<T> clazz, DatasetConfig datasetConfig, List<T> outOptions) {
+    if(datasetConfig == null) {
+      return;
+    }
+
+    List<MetadataOption> options = new ArrayList<>();
+    if(datasetConfig.getPhysicalDataset() != null && datasetConfig.getPhysicalDataset().getFormatSettings() != null) {
+      options.add(new FileConfigOption(datasetConfig.getPhysicalDataset().getFormatSettings()));
+    }
+
+    if(datasetConfig.getReadDefinition() != null && datasetConfig.getReadDefinition().getSortColumnsList() != null) {
+      options.add(new SortColumnsOption(datasetConfig.getReadDefinition().getSortColumnsList()));
+    }
+
+    BatchSchema schema = DatasetHelper.getSchemaBytes(datasetConfig) != null ? BatchSchema.fromDataset(datasetConfig) : null;
+    if(schema != null) {
+      options.add(new CurrentSchemaOption(schema));
+    }
+
+    List<T> addOptions = options.stream().filter(o -> clazz.isAssignableFrom(o.getClass())).map(o -> clazz.cast(o)).collect(Collectors.toList());
+    outOptions.addAll(addOptions);
   }
 }

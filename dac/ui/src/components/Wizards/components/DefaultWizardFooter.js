@@ -71,7 +71,6 @@ export default class DefaultWizardFooter extends Component {
         <SimpleButton
           buttonStyle='primary'
           onClick={this.onButtonClick.bind(this, 'apply')}
-          disabled={submitting && submitType !== 'apply'}
           submitting={submitType === 'apply'}
           className='wizard-apply-button'
         >

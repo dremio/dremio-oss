@@ -17,6 +17,8 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
+import java.util.concurrent.CompletableFuture;
+
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -25,15 +27,21 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.SecurityContext;
 
+import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.explore.model.CreateFromSQL;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.proto.UserBitShared.ExternalId;
+import com.dremio.exec.server.SabotContext;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
+import com.google.common.util.concurrent.Futures;
 
 /**
  * run external sql
@@ -47,6 +55,7 @@ import com.dremio.service.jobs.SqlQuery;
 public class SQLResource {
   private final JobsService jobs;
   private final SecurityContext securityContext;
+  private final SabotContext sabotContext;
 
   /**
    * Query details
@@ -71,20 +80,28 @@ public class SQLResource {
   }
 
   @Inject
-  public SQLResource(JobsService jobs, SecurityContext securityContext) {
+  public SQLResource(JobsService jobs, SecurityContext securityContext, SabotContext sabotContext) {
     this.jobs = jobs;
     this.securityContext = securityContext;
+    this.sabotContext = sabotContext;
   }
 
   @POST
   public QueryDetails runQuery(CreateFromSQL sql) {
     SqlQuery query = new SqlQuery(sql.getSql(), sql.getContext(), securityContext);
 
-    Job job = jobs.submitJob(JobRequest.newBuilder()
-      .setSqlQuery(query)
-      .setQueryType(QueryType.REST)
-      .build(), NoOpJobStatusListener.INSTANCE);
+    final ExternalId externalId = ExternalIdHelper.generateExternalId();
+    final CompletableFuture<Job> jobFuture = jobs.submitJob(externalId,
+      JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .setQueryType(QueryType.REST)
+        .build(), NoOpJobStatusListener.INSTANCE);
 
-    return new QueryDetails(job.getJobId().getId());
+    // if async disabled, wait until job has been submitted then return
+    if (!sabotContext.getOptionManager().getOption(ExecConstants.REST_API_RUN_QUERY_ASYNC)) {
+      Futures.getUnchecked(jobFuture);
+    }
+
+    return new QueryDetails(JobsServiceUtil.getExternalIdAsJobId(externalId).getId());
   }
 }

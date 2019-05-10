@@ -27,6 +27,7 @@ const METHODS_WITH_REQUEST_BODY = new Set(['PUT', 'POST']);
 export default (schemaOrName, {useLegacyPluralization = false} = {}) => {
   const schema = typeof schemaOrName === 'string' ? new Schema(schemaOrName) : schemaOrName;
   const entityName = schema.getKey();
+  const listSchema = { [entityName + 's']: arrayOf(schema) };
   const upper = entityName.toUpperCase();
   const path = entityName.toLowerCase() + (useLegacyPluralization ? '' : 's');
   // const title = entityName.charAt(0).toUpperCase() + entityName.slice(1);
@@ -74,7 +75,11 @@ export default (schemaOrName, {useLegacyPluralization = false} = {}) => {
     };
   };
 
-  const calls = {};
+  const calls = {
+    // add schemas to output to make them re-usable.
+    schema,
+    listSchema
+  };
   for (const call of ['GET', 'POST', 'PUT', 'DELETE']) {
     calls[call.toLowerCase()] = apiCallFactory(call);
   }
@@ -89,7 +94,7 @@ export default (schemaOrName, {useLegacyPluralization = false} = {}) => {
           {type: `${upper}_${method}_START`, meta},
           schemaUtils.getSuccessActionTypeWithSchema(
             `${upper}_${method}_SUCCESS`,
-            {[entityName + 's']: arrayOf(schema)}, // todo: simplify and normalize responses
+            listSchema, // todo: simplify and normalize responses
             successMeta
           ),
           {type: `${upper}_${method}_FAILURE`, meta}

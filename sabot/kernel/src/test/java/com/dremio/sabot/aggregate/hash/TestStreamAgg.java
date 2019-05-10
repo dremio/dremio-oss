@@ -34,12 +34,15 @@ public class TestStreamAgg extends BaseTestOperator {
 
   @Test
   public void oneKeySumCnt() throws Exception {
-    HashAggregate conf = new HashAggregate(null,
+    HashAggregate conf = new HashAggregate(
+        PROPS,
+        null,
         Arrays.asList(n("r_name")),
         Arrays.asList(
             n("sum(r_regionkey)", "sum"),
             n("count(r_regionkey)", "cnt")
             ),
+        false,
         false,
         1f);
 

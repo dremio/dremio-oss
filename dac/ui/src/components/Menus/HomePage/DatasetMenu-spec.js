@@ -21,8 +21,6 @@ describe('DatasetMenu', () => {
 
   let minimalProps;
   let commonProps;
-  let fileProps;
-  let folderProps;
 
   const context = {context: {location: {bar: 2, state: {foo: 1}}}};
   beforeEach(() => {
@@ -51,33 +49,6 @@ describe('DatasetMenu', () => {
       ...minimalProps
     };
 
-    folderProps = {
-      ...commonProps,
-      entityType: 'folder',
-      entity: Immutable.fromJS({
-        fullPathList: ['zig', 'zag'],
-        id: 'the-id',
-        links: {
-          edit: '/foo?bar',
-          self: '/sdc?aws',
-          query: '/vgf?qwe'
-        }
-      })
-    };
-
-    fileProps = {
-      ...commonProps,
-      entityType: 'file',
-      entity: Immutable.fromJS({
-        filePath: 'zig.zag',
-        id: 'the-id',
-        links: {
-          edit: '/foo?bar',
-          self: '/sdc?aws',
-          query: '/vgf?qwe'
-        }
-      })
-    };
   });
 
   it('should render with minimal props without exploding', () => {
@@ -124,6 +95,18 @@ describe('DatasetMenu', () => {
     });
   });
 
+  describe('#getRemoveLocation', () => {
+    it('should return location to UpdateDataset modal with mode=remove, item=entity, and name=datasetName', () => {
+      const instance = shallow(<DatasetMenu {...commonProps} />, context).instance();
+      const result = instance.getRemoveLocation();
+      expect(result.state.modal).to.equal('UpdateDataset');
+      expect(result.state.item).to.equal(commonProps.entity);
+      expect(result.state.query.mode).to.equal('remove');
+      expect(result.state.query.name).to.equal(commonProps.entity.get('datasetName'));
+    });
+
+  });
+
 
   describe('#getSettingsLocation()', () => {
     it('should return location to DatasetSettingsModal with props.entityType and fullPath', () => {
@@ -147,80 +130,24 @@ describe('DatasetMenu', () => {
     });
   });
 
-  describe('#removeFormat()', () => {
-    it('with file', () => {
-      const instance = shallow(<DatasetMenu {...fileProps} />, context).instance();
-      instance.removeFormat();
-      expect(fileProps.removeFileFormat).to.have.been.calledWith(fileProps.entity);
-    });
-
-    it('with folder', () => {
-      const instance = shallow(<DatasetMenu {...folderProps} />, context).instance();
-      instance.removeFormat();
-      expect(folderProps.convertDatasetToFolder).to.have.been.calledWith(
-        folderProps.entity,
-        'toggleFolderPhysicalDataset'
-      );
-    });
-  });
-
-  describe('#handleRemoveFormat()', () => {
+  describe('#handleRemoveFile()', () => {
     it('should show confirmation dialog before remove', () => {
       const instance = shallow(<DatasetMenu {...commonProps} />, context).instance();
-      sinon.stub(instance, 'removeFormat');
-      instance.handleRemoveFormat();
+      instance.handleRemoveFile();
       expect(commonProps.showConfirmationDialog).to.be.called;
       expect(commonProps.closeMenu).to.be.called;
-      expect(instance.removeFormat).to.not.be.called;
+      expect(commonProps.removeFile).to.not.be.called;
     });
 
-    it('should call remove format when confirmed', () => {
+    it('should call remove file when confirmed', () => {
       const props = {
         ...commonProps,
         showConfirmationDialog: (opts) => opts.confirm()
       };
       const instance = shallow(<DatasetMenu {...props} />, context).instance();
-      sinon.stub(instance, 'removeFormat');
-      instance.handleRemoveFormat();
-      expect(instance.removeFormat).to.be.called;
+      instance.handleRemoveFile();
+      expect(commonProps.removeFile).to.be.called;
       expect(props.closeMenu).to.be.called;
-    });
-  });
-
-  describe('#handleRemove()', () => {
-    it('should show confirmation dialog before remove', () => {
-      const instance = shallow(<DatasetMenu {...commonProps} />, context).instance();
-      sinon.stub(instance, 'removeEntity');
-      instance.handleRemove();
-      expect(commonProps.showConfirmationDialog).to.be.called;
-      expect(commonProps.closeMenu).to.be.called;
-      expect(instance.removeEntity).to.not.be.called;
-    });
-
-    it('should call remove entity when confirmed', () => {
-      const props = {
-        ...commonProps,
-        showConfirmationDialog: (opts) => opts.confirm()
-      };
-      const instance = shallow(<DatasetMenu {...props} />, context).instance();
-      sinon.stub(instance, 'removeEntity');
-      instance.handleRemove();
-      expect(instance.removeEntity).to.be.called;
-      expect(props.closeMenu).to.be.called;
-    });
-  });
-
-  describe('#removeEntity()', () => {
-    it('with file', () => {
-      const instance = shallow(<DatasetMenu {...fileProps} />, context).instance();
-      instance.removeEntity();
-      expect(fileProps.removeFile).to.have.been.calledWith(fileProps.entity);
-    });
-
-    it('with folder', () => {
-      const instance = shallow(<DatasetMenu {...folderProps} />, context).instance();
-      instance.removeEntity();
-      expect(folderProps.removeDataset).to.have.been.calledWith(folderProps.entity);
     });
   });
 

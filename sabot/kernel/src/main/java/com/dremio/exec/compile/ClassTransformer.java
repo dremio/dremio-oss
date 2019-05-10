@@ -17,7 +17,6 @@ package com.dremio.exec.compile;
 
 import java.io.IOException;
 
-
 import org.codehaus.commons.compiler.CompileException;
 
 import com.dremio.common.util.DremioStringUtils;

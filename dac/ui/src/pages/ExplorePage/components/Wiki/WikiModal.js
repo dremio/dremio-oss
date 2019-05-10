@@ -153,8 +153,7 @@ export class WikiModalWithSave extends PureComponent {
         body: JSON.stringify({
           text: newValue,
           version: wikiVersion
-        }),
-        headers: {'Content-Type': 'application/json'}
+        })
       }, 3).then((response) => {
         this.resetError();
         this.wikiChanged = false;

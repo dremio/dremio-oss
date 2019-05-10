@@ -18,8 +18,8 @@ package com.dremio.common.collections;
 /**
  * An immutable ordered sequence of two elements
  *
- * @param <F>  first element
- * @param <S>  second element
+ * @param <F> first element
+ * @param <S> second element
  */
 public class Tuple<F, S> {
   public final F first;
@@ -31,7 +31,7 @@ public class Tuple<F, S> {
   }
 
   public static <F, S> Tuple<F, S> of(final F first, final S second) {
-    return new Tuple(first, second);
+    return new Tuple<>(first, second);
   }
 
 }

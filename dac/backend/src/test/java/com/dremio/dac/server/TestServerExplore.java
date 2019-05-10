@@ -190,9 +190,9 @@ import com.dremio.dac.util.DatasetsUtil.ExtractRuleVisitor;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
-import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.jobs.LocalJobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
@@ -1383,12 +1383,11 @@ public class TestServerExplore extends BaseTestServer {
     final String pathName = "space1.v1";
     final DatasetPath numbersJsonPath = new DatasetPath(pathName);
     DatasetUI numbersJsonVD = createDatasetFromSQLAndSave(numbersJsonPath,
-      "select row_number() over (order by a) as rnk, a from cp.\"json/numbers.json\"", asList("cp"));
+      "select row_number() over (order by a) as rnk, a from cp.\"json/numbers.json\"", ImmutableList.of("cp"));
     final SqlQuery query = getQueryFromSQL(String.format("select t1.rnk, t1.a from %s t1 join %s t2 on t1.rnk = t2.rnk+1", pathName, pathName));
-    final Job ctasJob = jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(query)
-        .build(), NoOpJobStatusListener.INSTANCE);
-    ctasJob.getData().loadIfNecessary();
+    JobsServiceUtil.waitForJobCompletion(
+      jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(query).build(), NoOpJobStatusListener.INSTANCE)
+    );
   }
 
   @Test
@@ -1398,12 +1397,11 @@ public class TestServerExplore extends BaseTestServer {
     final String pathName = "space1.v1";
     final DatasetPath datetimePath = new DatasetPath(pathName);
     DatasetUI dateTimeVD = createDatasetFromSQLAndSave(datetimePath,
-      "select timestampdiff(SECOND, datetime1, datetime2) as tsdiff from cp.\"json/datetime.json\"", asList("cp"));
-    final SqlQuery query = getQueryFromSQL(String.format("select * from %s", pathName, pathName));
-    final Job ctasJob = jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(query)
-        .build(), NoOpJobStatusListener.INSTANCE);
-    ctasJob.getData().loadIfNecessary();
+      "select timestampdiff(SECOND, datetime1, datetime2) as tsdiff from cp.\"json/datetime.json\"", ImmutableList.of("cp"));
+    final SqlQuery query = getQueryFromSQL(String.format("select * from %s", pathName));
+    JobsServiceUtil.waitForJobCompletion(
+      jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(query).build(), NoOpJobStatusListener.INSTANCE)
+    );
   }
 
   @Test
@@ -1413,18 +1411,16 @@ public class TestServerExplore extends BaseTestServer {
     final String pathName = "space1.v1";
     final DatasetPath numbersJsonPath = new DatasetPath(pathName);
     DatasetUI numbersJsonVD = createDatasetFromSQLAndSave(numbersJsonPath,
-      "select CASE WHEN a > 2 THEN 'less than 2' ELSE 'greater than 2' END as twoInfo, a from cp.\"json/numbers.json\"", asList("cp"));
+      "select CASE WHEN a > 2 THEN 'less than 2' ELSE 'greater than 2' END as twoInfo, a from cp.\"json/numbers.json\"", ImmutableList.of("cp"));
     final SqlQuery query = getQueryFromSQL(String.format("select * from %s", pathName));
-    final Job ctasJob = jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(query)
-        .build(), NoOpJobStatusListener.INSTANCE);
-    ctasJob.getData().loadIfNecessary();
+    JobsServiceUtil.waitForJobCompletion(
+      jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(query).build(), NoOpJobStatusListener.INSTANCE)
+    );
 
     final SqlQuery query2 = getQueryFromSQL(String.format("select count(*) from %s where a > 2", pathName));
-    final Job ctasJob2 = jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(query)
-        .build(), NoOpJobStatusListener.INSTANCE);
-    ctasJob2.getData().loadIfNecessary();
+    JobsServiceUtil.waitForJobCompletion(
+      jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(query2).build(), NoOpJobStatusListener.INSTANCE)
+    );
   }
 
   @Test

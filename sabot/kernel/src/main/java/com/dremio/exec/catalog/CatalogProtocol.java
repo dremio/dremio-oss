@@ -25,7 +25,6 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.SerializedExecutor;
 import com.dremio.common.config.SabotConfig;
-import com.dremio.concurrent.Runnables;
 import com.dremio.exec.catalog.CatalogServiceImpl.CatalogChangeListener;
 import com.dremio.exec.proto.CatalogRPC.RpcType;
 import com.dremio.exec.proto.CatalogRPC.SourceWrapper;
@@ -40,6 +39,7 @@ import com.dremio.sabot.rpc.Protocols;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.PhysicalConnection;
+import com.google.common.base.MoreObjects;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 
@@ -117,13 +117,13 @@ class CatalogProtocol implements FabricProtocol, AutoCloseable {
 
     case RpcType.REQ_SOURCE_CONFIG_VALUE: {
       final SourceWrapper wrapper = get(pBody, SourceWrapper.PARSER);
-      serializedExecutor.execute(Runnables.combo(new MessageHandler(wrapper, sender, true)));
+      serializedExecutor.execute(new MessageHandler(wrapper, sender, true));
       break;
     }
 
     case RpcType.REQ_DEL_SOURCE_VALUE: {
       final SourceWrapper wrapper = get(pBody, SourceWrapper.PARSER);
-      serializedExecutor.execute(Runnables.combo(new MessageHandler(wrapper, sender, false)));
+      serializedExecutor.execute(new MessageHandler(wrapper, sender, false));
       break;
     }
 
@@ -168,17 +168,28 @@ class CatalogProtocol implements FabricProtocol, AutoCloseable {
       }
     }
 
+    @Override
+    public String toString() {
+      SourceConfig config = new SourceConfig();
+      ProtobufIOUtil.mergeFrom(wrapper.getBytes().toByteArray(), config, SourceConfig.getSchema());
+      return MoreObjects.toStringHelper(MessageHandler.class)
+          .add("config", config)
+          .add("update", update)
+          .toString();
+    }
+
+
   }
 
-  private class SExecutor extends SerializedExecutor {
+  private class SExecutor extends SerializedExecutor<MessageHandler> {
 
     SExecutor(Executor underlyingExecutor) {
-      super("source-synchronization-message-handler", underlyingExecutor);
+      super("source-synchronization-message-handler", underlyingExecutor, false /** events are quick and to string is complex **/);
     }
 
     @Override
-    protected void runException(Runnable runnable, Throwable exception) {
-      logger.error("Exception occurred in catalog synchronization.", exception);
+    protected void runException(MessageHandler runnable, Throwable exception) {
+      logger.error("Exception occurred in catalog synchronization. Message {}", runnable, exception);
     }
 
   }

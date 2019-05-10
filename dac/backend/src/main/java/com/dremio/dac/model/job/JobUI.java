@@ -21,6 +21,7 @@ import static java.lang.String.format;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.proto.model.job.JobAttemptUI;
@@ -35,6 +36,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.Futures;
 
 /**
  * Job represents details of a currently running or completed query on a dataset.
@@ -105,6 +107,14 @@ public class JobUI {
       }
     }
     return false;
+  }
+
+  /**
+   * Wait until submitted job has completed, then return its data
+   */
+  public static JobData getJobData(CompletableFuture<Job> jobFuture) {
+    final Job job = Futures.getUnchecked(jobFuture);
+    return new JobUI(job).getData();
   }
 
   private static JobInfoUI convertJobInfo(JobInfo info) {

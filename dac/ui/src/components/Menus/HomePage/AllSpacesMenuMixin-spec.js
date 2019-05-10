@@ -17,6 +17,8 @@ import { shallow } from 'enzyme';
 
 import { findMenuItemLinkByText, findMenuItemByText } from 'testUtil';
 import {AllSpacesMenu as AllSpacesMenuBase} from 'components/Menus/HomePage/AllSpacesMenu';
+import { getRenderEntityLinkContent } from '@app/pages/HomePage/components/EntityLink-spec';
+import { EntityLinkProvider } from '@app/pages/HomePage/components/EntityLink';
 import AllSpacesMenuMixin from './AllSpacesMenuMixin';
 
 @AllSpacesMenuMixin
@@ -29,14 +31,14 @@ describe('AllSpacesMenuMixin', () => {
   const context = {context: {location: {bar: 2, state: {foo: 1}}}};
   beforeEach(() => { // todo: DRY
     minimalProps = {
-      space: Immutable.fromJS({
+      item: Immutable.fromJS({
         id: 'simpleSpace',
         links: {
           self: '/asd'
         }
       }),
       closeMenu: sinon.stub(),
-      removeSource: sinon.stub(),
+      removeItem: sinon.stub(),
       showConfirmationDialog: sinon.stub()
     };
     commonProps = {
@@ -46,7 +48,8 @@ describe('AllSpacesMenuMixin', () => {
 
   it('should render menu items', () => {
     const wrapper = shallow(<AllSpacesMenu {...commonProps} />, context);
-    expect(findMenuItemLinkByText(wrapper, 'Browse')).to.have.length(1);
+    const browse = getRenderEntityLinkContent(wrapper.find(EntityLinkProvider));
+    expect(browse.props.text).to.be.equal('Browse');
     expect(findMenuItemLinkByText(wrapper, 'Edit Details')).to.have.length(1);
     expect(findMenuItemByText(wrapper, 'Remove Space')).to.have.length(1);
   });

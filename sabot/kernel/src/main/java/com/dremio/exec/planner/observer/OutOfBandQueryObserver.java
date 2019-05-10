@@ -51,10 +51,10 @@ public class OutOfBandQueryObserver extends AbstractQueryObserver {
     });
   }
 
-  private final class Exec extends SerializedExecutor {
+  private final class Exec extends SerializedExecutor<Runnable> {
 
     Exec(Executor underlyingExecutor) {
-      super("out-of-band-observer", underlyingExecutor);
+      super("out-of-band-observer", underlyingExecutor, false);
     }
 
     @Override

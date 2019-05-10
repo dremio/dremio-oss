@@ -20,8 +20,8 @@ import java.util.Iterator;
 import java.util.List;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractBase;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.physical.base.SubScan;
@@ -45,8 +45,10 @@ public class MockSubScanPOP extends AbstractBase implements SubScan {
 
   @JsonCreator
   public MockSubScanPOP(
+      @JsonProperty("props") OpProps props,
       @JsonProperty("url") String url,
       @JsonProperty("entries") List<MockGroupScanPOP.MockScanEntry> readEntries) {
+    super(props);
     this.readEntries = readEntries;
     this.url = url;
   }
@@ -74,7 +76,7 @@ public class MockSubScanPOP extends AbstractBase implements SubScan {
   @JsonIgnore
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
     Preconditions.checkArgument(children.isEmpty());
-    return new MockSubScanPOP(url, readEntries);
+    return new MockSubScanPOP(this.props, url, readEntries);
 
   }
 
@@ -109,13 +111,8 @@ public class MockSubScanPOP extends AbstractBase implements SubScan {
   }
 
   @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    return getSchema();
-  }
-
-  @Override
   @JsonIgnore
-  public BatchSchema getSchema() {
+  public BatchSchema getFullSchema() {
     return MockGroupScanPOP.getSchema(readEntries);
   }
 }

@@ -31,8 +31,13 @@ public class PlugginRepositorySqlReturnTypeInference implements SqlReturnTypeInf
   static final Logger logger = LoggerFactory.getLogger(PlugginRepositorySqlReturnTypeInference.class);
 
   private final PluggableFunctionRegistry registry;
-  public PlugginRepositorySqlReturnTypeInference(PluggableFunctionRegistry registry) {
+  private final boolean isDecimalV2Enabled;
+
+  // This is created per query, so safe to use decimal setting as a variable.
+  public PlugginRepositorySqlReturnTypeInference(PluggableFunctionRegistry registry,
+                                                 boolean isDecimalV2Enabled) {
     this.registry = registry;
+    this.isDecimalV2Enabled = isDecimalV2Enabled;
   }
 
   @Override
@@ -48,7 +53,7 @@ public class PlugginRepositorySqlReturnTypeInference implements SqlReturnTypeInf
     }
 
     final FunctionCall functionCall = TypeInferenceUtils.convertSqlOperatorBindingToFunctionCall(opBinding);
-    final AbstractFunctionHolder funcHolder = registry.getFunction(functionCall);
+    final AbstractFunctionHolder funcHolder = registry.getFunction(functionCall, isDecimalV2Enabled);
     if(funcHolder == null) {
       final StringBuilder operandTypes = new StringBuilder();
       for(int j = 0; j < opBinding.getOperandCount(); ++j) {

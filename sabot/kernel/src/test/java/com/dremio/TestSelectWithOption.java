@@ -76,7 +76,7 @@ public class TestSelectWithOption extends BaseTestQuery {
       fail("query should have failed");
     } catch (UserException e) {
       assertEquals(e.getErrorType(), UserBitShared.DremioPBError.ErrorType.VALIDATION);
-      assertTrue(e.getMessage().contains("Using datasets with more than 2 columns"));
+      assertTrue(e.getMessage().contains("exceeded the maximum number of fields of 2"));
     } finally {
       test("ALTER SESSION RESET \"store.plugin.max_metadata_leaf_columns\"");
     }

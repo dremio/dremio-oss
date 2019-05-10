@@ -24,16 +24,17 @@ import com.dremio.common.Version;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.datastore.KVStore;
 import com.dremio.datastore.KVStore.FindByRange;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.service.namespace.DatasetSplitId;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.PartitionChunkId;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.collect.ImmutableList;
 
@@ -42,6 +43,7 @@ import com.google.common.collect.ImmutableList;
  * as they are using reserved characters
  */
 public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgradeTask {
+
 
   //DO NOT MODIFY
   static final String taskUUID = "d7cb2438-bc97-4c76-8a7a-ff5493e48e5e";
@@ -65,7 +67,7 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
   public void upgrade(UpgradeContext context) throws Exception {
     final KVStoreProvider storeProvider = context.getKVStoreProvider();
     final KVStore<byte[], NameSpaceContainer> namespace = storeProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
-    final KVStore<DatasetSplitId, DatasetSplit> splitsStore = storeProvider.getStore(NamespaceServiceImpl.DatasetSplitCreator.class);
+    final KVStore<PartitionChunkId, PartitionChunk> partitionChunksStore = storeProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
 
     int fixedSplitIds = 0;
     // namespace#find() returns entries ordered by depth, so sources will
@@ -86,36 +88,36 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
         continue;
       }
 
-      if (!DatasetSplitId.mayRequireNewDatasetId(config)) {
+      if (!PartitionChunkId.mayRequireNewDatasetId(config)) {
         // Datasets which do not contain reserved characters are fine
         continue;
       }
 
-      fixSplits(splitsStore, config);
+      fixSplits(partitionChunksStore, config);
     }
 
-    System.out.printf("  Updated %d dataset splits with new ids.%n", fixedSplitIds);
+    AdminLogger.log("  Updated {} dataset splits with new ids.", fixedSplitIds);
   }
 
-  private void fixSplits(final KVStore<DatasetSplitId, DatasetSplit> splitsStore,
+  private void fixSplits(final KVStore<PartitionChunkId, PartitionChunk> partitionChunksStore,
       DatasetConfig config) {
     final long version = config.getReadDefinition().getSplitVersion();
 
     // Get old splits
-    final FindByRange<DatasetSplitId> query = DatasetSplitId.unsafeGetSplitsRange(config);
-    for (Entry<DatasetSplitId, DatasetSplit> entry : splitsStore.find(query)) {
-      final DatasetSplitId oldId = entry.getKey();
-      final DatasetSplit split = entry.getValue();
+    final FindByRange<PartitionChunkId> query = PartitionChunkId.unsafeGetSplitsRange(config);
+    for (Entry<PartitionChunkId, PartitionChunk> entry : partitionChunksStore.find(query)) {
+      final PartitionChunkId oldId = entry.getKey();
+      final PartitionChunk split = entry.getValue();
 
       // Generate new Id and compare with old id
-      final DatasetSplitId newId = DatasetSplitId.of(config, split, version);
+      final PartitionChunkId newId = PartitionChunkId.of(config, split, version);
       if (oldId.equals(newId)) {
         continue;
       }
 
       // Delete the previous entry and add a new one
-      splitsStore.delete(oldId);
-      splitsStore.put(newId, split.setVersion(null));
+      partitionChunksStore.delete(oldId);
+      partitionChunksStore.put(newId, split);
     }
   }
 
@@ -127,13 +129,13 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
    */
   public static void main(String[] args) throws Exception {
     if (args.length != 1) {
-      System.err.println("Require one argument: path to the database");
+      AdminLogger.log("Require one argument: path to the database");
     }
 
     final String dbPath = args[0];
 
     if (!Files.isDirectory(Paths.get(dbPath))) {
-      System.out.println("No database found. Skipping splits check");
+      AdminLogger.log("No database found. Skipping splits check");
       return;
     }
 

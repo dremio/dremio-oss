@@ -22,8 +22,8 @@
 
   <parent>
     <groupId>com.dremio</groupId>
-    <artifactId>dremio-root</artifactId>
-    <version>3.1.11-201904261857420193-c674472</version>
+    <artifactId>dremio-parent</artifactId>
+    <version>3.2.0-201905102005330382-0598733</version>
   </parent>
 
   <artifactId>dremio-common</artifactId>
@@ -191,6 +191,10 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.hubspot.jackson</groupId>
+      <artifactId>jackson-datatype-protobuf</artifactId>
     </dependency>
     <dependency>
       <groupId>com.github.slugify</groupId>

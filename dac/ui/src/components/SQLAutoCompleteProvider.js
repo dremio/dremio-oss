@@ -55,8 +55,7 @@ const getItems = (monaco, sqlContextGetter) => {
     return ApiUtils.fetch('sql/analyze/suggest',
       {
         method: 'POST',
-        body: JSON.stringify(request),
-        headers: {'Content-Type': 'application/json'}
+        body: JSON.stringify(request)
       }, 2).then((data) => {
         const contentType = data.headers.get('content-type');
         if (contentType && contentType.indexOf('application/json') !== -1) {

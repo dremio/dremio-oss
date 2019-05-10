@@ -15,10 +15,16 @@
  */
 package com.dremio.exec.store.hive;
 
+import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
+
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -28,7 +34,6 @@ import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.api.MetaException;
-import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.AccessControlException;
@@ -38,17 +43,39 @@ import org.apache.thrift.TException;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.PathUtils;
+import com.dremio.connector.ConnectorException;
+import com.dremio.connector.metadata.BytesOutput;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetHandleListing;
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetDatasetOption;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
+import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
+import com.dremio.connector.metadata.extensions.SupportsReadSignature;
+import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.store.hive.DatasetBuilder.StatsEstimationParameters;
 import com.dremio.exec.store.hive.exec.HiveReaderProtoUtil;
+import com.dremio.exec.store.hive.metadata.HiveDatasetHandle;
+import com.dremio.exec.store.hive.metadata.HiveDatasetHandleListing;
+import com.dremio.exec.store.hive.metadata.HiveDatasetMetadata;
+import com.dremio.exec.store.hive.metadata.HiveMetadataUtils;
+import com.dremio.exec.store.hive.metadata.HivePartitionChunkListing;
+import com.dremio.exec.store.hive.metadata.MetadataAccumulator;
+import com.dremio.exec.store.hive.metadata.PartitionIterator;
+import com.dremio.exec.store.hive.metadata.StatsEstimationParameters;
+import com.dremio.exec.store.hive.metadata.TableMetadata;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemPartitionUpdateKey;
@@ -56,12 +83,12 @@ import com.dremio.hive.proto.HiveReaderProto.HiveReadSignature;
 import com.dremio.hive.proto.HiveReaderProto.HiveReadSignatureType;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
+import com.dremio.hive.proto.HiveReaderProto.PropertyCollectionType;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.MessageLevel;
 import com.dremio.service.namespace.SourceState.SourceStatus;
-import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.users.SystemUser;
@@ -73,14 +100,12 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import io.protostuff.ByteString;
-
-public class HiveStoragePlugin implements StoragePlugin {
+public class HiveStoragePlugin implements StoragePlugin, SupportsReadSignature, SupportsListingDatasets {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveStoragePlugin.class);
 
   private LoadingCache<String, HiveClient> clientsByUser;
@@ -92,14 +117,14 @@ public class HiveStoragePlugin implements StoragePlugin {
   private final boolean storageImpersonationEnabled;
   private final boolean metastoreImpersonationEnabled;
   private final boolean isCoordinator;
-  private final OptionManager options;
+  private final OptionManager optionManager;
 
   public HiveStoragePlugin(HiveConf hiveConf, SabotContext context, String name) {
     this.isCoordinator = context.isCoordinator();
     this.hiveConf = hiveConf;
     this.name = name;
     this.sabotConfig = context.getConfig();
-    this.options = context.getOptionManager();
+    this.optionManager = context.getOptionManager();
     storageImpersonationEnabled = hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_ENABLE_DOAS);
 
     // Hive Metastore impersonation is enabled if:
@@ -114,19 +139,11 @@ public class HiveStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public boolean containerExists(NamespaceKey key) {
+  public boolean containerExists(EntityPath key) {
     if(key.size() != 2){
       return false;
     }
-    return getClient(SystemUser.SYSTEM_USERNAME).databaseExists(key.getPathComponents().get(1));
-  }
-
-  @Override
-  public boolean datasetExists(NamespaceKey key) {
-    if(key.size() != 3){
-      return false;
-    }
-    return getClient(SystemUser.SYSTEM_USERNAME).tableExists(key.getPathComponents().get(1), key.getPathComponents().get(2));
+    return getClient(SystemUser.SYSTEM_USERNAME).databaseExists(key.getComponents().get(1));
   }
 
   @Override
@@ -144,14 +161,10 @@ public class HiveStoragePlugin implements StoragePlugin {
       return true;
     }
 
-    List<String> path = key.getPathComponents();
     try {
-      Table table = null;
-      if (path.size() == 3) {
-        table = clientsByUser.get(user).getTable(path.get(1), path.get(2), true);
-      } else if (path.size() == 2) {
-        table = clientsByUser.get(user).getTable("default", path.get(1), true);
-      }
+      final HiveMetadataUtils.SchemaComponents schemaComponents = HiveMetadataUtils.resolveSchemaComponents(key.getPathComponents(), true);
+
+      Table table = clientsByUser.get(user).getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), true);
       if (table == null) {
         return false;
       }
@@ -168,17 +181,16 @@ public class HiveStoragePlugin implements StoragePlugin {
       }
       return true;
     } catch (TException | ExecutionException | InvalidProtocolBufferException e) {
-      throw UserException.dataReadError(e).message("Unable to connect to Hive metastore.").build(logger);
+      throw new RuntimeException("Unable to connect to Hive metastore.", e);
     } catch (UncheckedExecutionException e) {
       Throwable cause = e.getCause();
       if (cause instanceof AuthorizerServiceException) {
-        throw UserException.dataReadError(e).message(cause.getMessage()).build(logger);
+        throw e;
       }
     }
 
     return false;
   }
-
 
   @Override
   public SourceCapabilities getSourceCapabilities() {
@@ -192,7 +204,7 @@ public class HiveStoragePlugin implements StoragePlugin {
 
   private boolean hasFSPermission(String user, NamespaceKey key, List<FileSystemPartitionUpdateKey> updateKeys,
                                   HiveTableXattr tableXattr) {
-    List<TimedRunnable<Boolean>> permissionCheckers = Lists.newArrayList();
+    List<TimedRunnable<Boolean>> permissionCheckers = new ArrayList<>();
     for (FileSystemPartitionUpdateKey updateKey : updateKeys) {
       permissionCheckers.add(new FsTask(user, updateKey, tableXattr, TaskType.FS_PERMISSION));
     }
@@ -268,6 +280,7 @@ public class HiveStoragePlugin implements StoragePlugin {
           cachedEntityPath = new Path(updateKey.getPartitionRootDir(), cachedEntity.getPath());
         }
         // Create filesystem for the given user and given path
+        // TODO: DX-16001 - make async configurable for Hive.
         final FileSystemWrapper userFS = ImpersonationUtil.createFileSystem(user, jobConf, cachedEntityPath);
         try {
           if (cachedEntity.getIsDir()) {
@@ -295,7 +308,7 @@ public class HiveStoragePlugin implements StoragePlugin {
       Preconditions.checkArgument(updateKey.getCachedEntitiesCount() > 0, "hive partition update key should contain at least one path");
 
       // create filesystem based on the first path which is root of the partition directory.
-      final FileSystemWrapper fs = FileSystemWrapper.get(new Path(updateKey.getPartitionRootDir()), jobConf);
+      final FileSystemWrapper fs = FileSystemWrapper.get(new Path(updateKey.getPartitionRootDir()), jobConf, null);
       for (FileSystemCachedEntity cachedEntity : updateKey.getCachedEntitiesList()) {
         final Path cachedEntityPath;
         if (cachedEntity.getPath() == null || cachedEntity.getPath().isEmpty()) {
@@ -316,153 +329,122 @@ public class HiveStoragePlugin implements StoragePlugin {
     }
   }
 
-
-
-  private UpdateStatus checkHiveMetadata(Integer tableHash, Integer partitionHash, DatasetConfig datasetConfig) throws TException {
+  private MetadataValidity checkHiveMetadata(Integer tableHash, Integer partitionHash, EntityPath datasetPath, BatchSchema tableSchema) throws TException {
     final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
-    Table table;
-    final String dbName;
-    final String tableName;
-    final List<String> path = datasetConfig.getFullPathList();
 
-    if (path.size() == 3) {
-      dbName = path.get(1);
-      tableName = path.get(2);
-    } else if (path.size() == 2) {
-      dbName = "default";
-      tableName = path.get(1);
-    } else {
-      throw new RuntimeException("Invalid hive table path " + new NamespaceKey(datasetConfig.getFullPathList()));
-    }
+    final HiveMetadataUtils.SchemaComponents schemaComponents = HiveMetadataUtils.resolveSchemaComponents(datasetPath.getComponents(), true);
 
-    table = client.getTable(dbName, tableName, true);
+    Table table = client.getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), true);
 
     if (table == null) { // missing table?
-      return UpdateStatus.DELETED;
+      return MetadataValidity.INVALID;
     }
-    if (DatasetBuilder.getHash(table) != tableHash) {
-      return UpdateStatus.CHANGED;
+    if (HiveMetadataUtils.getHash(table) != tableHash) {
+      return MetadataValidity.INVALID;
     }
 
-    List<Integer> partitionHashes = Lists.newArrayList();
-    for (Partition partition : client.getPartitions(dbName, tableName)) {
-      partitionHashes.add(DatasetBuilder.getHash(partition));
+    int hiveTableHash = HiveMetadataUtils.getBatchSchema(table, hiveConf).hashCode();
+    if (hiveTableHash != tableSchema.hashCode()) {
+      // refresh metadata if converted schema is not same as schema in kvstore
+      return MetadataValidity.INVALID;
+    }
+
+    List<Integer> partitionHashes = new ArrayList<>();
+    PartitionIterator partitionIterator = PartitionIterator.newBuilder()
+      .client(client)
+      .dbName(schemaComponents.getDbName())
+      .tableName(schemaComponents.getTableName())
+      .partitionBatchSize((int) optionManager.getOption(HivePluginOptions.HIVE_PARTITION_BATCH_SIZE_VALIDATOR))
+      .build();
+
+    while (partitionIterator.hasNext()) {
+      partitionHashes.add(HiveMetadataUtils.getHash(partitionIterator.next()));
     }
 
     if (partitionHash == null || partitionHash == 0) {
       if (partitionHashes.isEmpty()) {
-        return UpdateStatus.UNCHANGED;
+        return MetadataValidity.VALID;
       } else {
         // found new partitions
-        return UpdateStatus.CHANGED;
+        return MetadataValidity.INVALID;
       }
     }
 
     Collections.sort(partitionHashes);
     // There were partitions in last read signature.
     if (partitionHash != Objects.hash(partitionHashes)) {
-      return UpdateStatus.CHANGED;
+      return MetadataValidity.INVALID;
     }
 
-    return UpdateStatus.UNCHANGED;
+    return MetadataValidity.VALID;
   }
 
   @Override
-  public CheckResult checkReadSignature(ByteString key, final DatasetConfig datasetConfig, DatasetRetrievalOptions retrievalOptions) throws Exception {
-    boolean newUpdateKey = false;
+  public MetadataValidity validateMetadata(BytesOutput signature, DatasetHandle datasetHandle, DatasetMetadata metadata, ValidateMetadataOption... options) throws ConnectorException {
 
-    if (retrievalOptions.forceUpdate() ||
-        datasetConfig.getReadDefinition() == null ||
-        datasetConfig.getReadDefinition().getReadSignature() == null) {
-      // for non fs tables always return true
-      newUpdateKey = true;
+    if (null == metadata || null == metadata.getExtraInfo() || BytesOutput.NONE == metadata.getExtraInfo() ||
+      null == signature || BytesOutput.NONE == signature) {
+      return MetadataValidity.INVALID;
     } else {
+      try {
+        final HiveTableXattr tableXattr = HiveTableXattr.parseFrom(bytesOutputToByteArray(metadata.getExtraInfo()));
+        BatchSchema tableSchema = new BatchSchema(metadata.getRecordSchema().getFields());
 
-      final HiveTableXattr tableXattr = HiveTableXattr.parseFrom(datasetConfig.getReadDefinition().getExtendedProperty().toByteArray());
+        // check for hive table and partition definition changes
+        MetadataValidity hiveTableStatus = checkHiveMetadata(tableXattr.getTableHash(), tableXattr.getPartitionHash(), datasetHandle.getDatasetPath(), tableSchema);
 
-      // check for hive table and partition definition changes
-      final UpdateStatus hiveTableStatus = checkHiveMetadata(tableXattr.getTableHash(), tableXattr.getPartitionHash(), datasetConfig);
-
-      switch (hiveTableStatus) {
-        case UNCHANGED: {
-          final HiveReadSignature readSignature = HiveReadSignature.parseFrom(datasetConfig.getReadDefinition().getReadSignature().toByteArray());
-          // for now we only support fs based read signatures
-          if (readSignature.getType() == HiveReadSignatureType.FILESYSTEM) {
-            // get list of partition properties from read definition
-            List<TimedRunnable<Boolean>> signatureValidators = Lists.newArrayList();
-            for (FileSystemPartitionUpdateKey updateKey : readSignature.getFsPartitionUpdateKeysList()) {
-              signatureValidators.add(new FsTask(SystemUser.SYSTEM_USERNAME, updateKey, tableXattr, TaskType.FS_VALIDATION));
-            }
-            try {
-              Stopwatch stopwatch = Stopwatch.createStarted();
-              final List<Boolean> validations = TimedRunnable.run("check read signature for " + key, logger, signatureValidators, 16);
-              stopwatch.stop();
-              logger.debug("Checking read signature for {} took {} ms", key, stopwatch.elapsed(TimeUnit.MILLISECONDS));
-              for (Boolean hasChanged : validations) {
-                newUpdateKey |= hasChanged;
+        switch (hiveTableStatus) {
+          case VALID: {
+            final HiveReadSignature readSignature = HiveReadSignature.parseFrom(bytesOutputToByteArray(signature));
+            // for now we only support fs based read signatures
+            if (readSignature.getType() == HiveReadSignatureType.FILESYSTEM) {
+              // get list of partition properties from read definition
+              List<TimedRunnable<Boolean>> signatureValidators = new ArrayList<>();
+              for (FileSystemPartitionUpdateKey updateKey : readSignature.getFsPartitionUpdateKeysList()) {
+                signatureValidators.add(new FsTask(SystemUser.SYSTEM_USERNAME, updateKey, tableXattr, TaskType.FS_VALIDATION));
               }
-            } catch (IOException ioe) {
-              throw UserException.dataReadError(ioe).build(logger);
+
+              Stopwatch stopwatch = Stopwatch.createStarted();
+              final List<Boolean> validations = TimedRunnable.run("check read signature for " +
+                PathUtils.constructFullPath(datasetHandle.getDatasetPath().getComponents()),
+                logger, signatureValidators, 16);
+              stopwatch.stop();
+              logger.debug("Checking read signature for {} took {} ms",
+                PathUtils.constructFullPath(datasetHandle.getDatasetPath().getComponents()),
+                stopwatch.elapsed(TimeUnit.MILLISECONDS));
+
+              for (Boolean hasChanged : validations) {
+                if (hasChanged) {
+                  return MetadataValidity.INVALID;
+                }
+              }
+              // fallback
             }
-            // fallback
           }
-        }
-        break;
+          break;
 
-        case CHANGED: {
-          newUpdateKey = true;
-          // fallback
-        }
-        break;
+          case INVALID: {
+            return MetadataValidity.INVALID;
+          }
 
-        case DELETED: {
-          return CheckResult.DELETED;
+          default:
+            throw UserException.unsupportedError(new IllegalArgumentException("Invalid hive table status " + hiveTableStatus)).build(logger);
         }
-
-        default:
-          throw UserException.unsupportedError(new IllegalArgumentException("Invalid hive table status " + hiveTableStatus)).build(logger);
+      } catch (IOException | TException ioe) {
+        throw new ConnectorException(ioe);
       }
     }
-
-    if (newUpdateKey) {
-      return new CheckResult() {
-
-        @Override
-        public UpdateStatus getStatus() {
-          return UpdateStatus.CHANGED;
-        }
-
-        @Override
-        public SourceTableDefinition getDataset() {
-          final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
-          try {
-            // checkReadSignature() is only called with a datasetConfig coming from the namespace so we can safely
-            // assume it has a canonized path
-            // it may not be safe to always assume so and we should probably figure out a better way to ensure
-            // this assumption in the future
-            return DatasetBuilder.getDatasetBuilder(
-              client,
-              getStorageUser(SystemUser.SYSTEM_USERNAME),
-              new NamespaceKey(datasetConfig.getFullPathList()),
-              true,
-              false,
-              retrievalOptions.maxMetadataLeafColumns(),
-              getStatsParams(),
-              hiveConf,
-              datasetConfig);
-          } catch (TException e) {
-            throw UserException.dataReadError(e).message("Failure while retrieving dataset definition.").build(logger);
-          }
-        }
-      };
-    }
-    return CheckResult.UNCHANGED;
+    return MetadataValidity.VALID;
   }
 
-  private String getStorageUser(String user){
-    if(storageImpersonationEnabled){
-      return getUsername(user);
-    } return SystemUser.SYSTEM_USERNAME;
+  static byte[] bytesOutputToByteArray(BytesOutput signature) throws ConnectorException {
+    final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+    try {
+      signature.writeTo(bos);
+    } catch (IOException e) {
+      throw new ConnectorException(e);
+    }
+    return bos.toByteArray();
   }
 
   protected Boolean isStorageImpersonationEnabled() {
@@ -471,30 +453,36 @@ public class HiveStoragePlugin implements StoragePlugin {
 
   private StatsEstimationParameters getStatsParams() {
     return new StatsEstimationParameters(
-        options.getOption(HivePluginOptions.HIVE_USE_STATS_IN_METASTORE),
-        (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE),
-        (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE)
+        optionManager.getOption(HivePluginOptions.HIVE_USE_STATS_IN_METASTORE),
+        (int) optionManager.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE),
+        (int) optionManager.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE)
     );
   }
 
   @Override
-  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldConfig, DatasetRetrievalOptions retrievalOptions) throws Exception {
-    try {
-      final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
-      return DatasetBuilder.getDatasetBuilder(
-        client,
-        getStorageUser(SystemUser.SYSTEM_USERNAME),
-        datasetPath,
-        false, // we can't assume the path is canonized, so we'll have to hit the source
-        retrievalOptions.ignoreAuthzErrors(),
-        retrievalOptions.maxMetadataLeafColumns(),
-        getStatsParams(),
-        hiveConf,
-        oldConfig);
-    } catch(RuntimeException e){
-      throw e;
-    } catch(Exception e){
-      throw new RuntimeException(e);
+  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
+    final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
+    final HiveMetadataUtils.SchemaComponents schemaComponents =
+        HiveMetadataUtils.resolveSchemaComponents(datasetPath.getComponents(), false);
+    if (schemaComponents == null) {
+      return Optional.empty();
+    }
+
+    final boolean tableExists = client.tableExists(schemaComponents.getDbName(), schemaComponents.getTableName());
+
+    if (tableExists) {
+      logger.debug("Plugin '{}', database '{}', table '{}', DatasetHandle returned.", name,
+        schemaComponents.getDbName(), schemaComponents.getTableName());
+      return Optional.of(
+        HiveDatasetHandle
+          .newBuilder()
+          .datasetpath(new EntityPath(
+            ImmutableList.of(datasetPath.getComponents().get(0), schemaComponents.getDbName(), schemaComponents.getTableName())))
+          .build());
+    } else {
+      logger.warn("Plugin '{}', database '{}', table '{}', DatasetHandle empty, table not found.", name,
+        schemaComponents.getDbName(), schemaComponents.getTableName());
+      return Optional.empty();
     }
   }
 
@@ -513,35 +501,125 @@ public class HiveStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions retrievalOptions) {
-    final HiveClient client = getClient(user);
-    final ImmutableList.Builder<SourceTableDefinition> accessors = ImmutableList.builder();
-    try {
-      for(String dbName : client.getDatabases(retrievalOptions.ignoreAuthzErrors())) {
-        try {
-          for(String table : client.getTableNames(dbName, retrievalOptions.ignoreAuthzErrors())) {
-            DatasetBuilder builder = DatasetBuilder.getDatasetBuilder(
-              client,
-              getStorageUser(user),
-              new NamespaceKey(ImmutableList.of(name, dbName, table)),
-              true, // we got the path from HiveClient so it's safe to assume it's canonized
-              retrievalOptions.ignoreAuthzErrors(),
-              retrievalOptions.maxMetadataLeafColumns(),
-              getStatsParams(),
-              hiveConf,
-              null);
-            if(builder != null){
-              accessors.add(builder);
-            }
-          }
-        } catch(TException e){
-          logger.warn("User {} is unable to retrieve table names for {}.{}.", user, name, dbName, e);
-        }
+  public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) throws ConnectorException {
+    final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
+
+    return new HiveDatasetHandleListing(client, name, HiveMetadataUtils.isIgnoreAuthzErrors(options));
+  }
+
+  @Override
+  public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) throws ConnectorException {
+
+    final HivePartitionChunkListing.Builder builder = HivePartitionChunkListing
+      .newBuilder()
+      .hiveConf(hiveConf)
+      .storageImpersonationEnabled(storageImpersonationEnabled)
+      .statsParams(getStatsParams())
+      .maxInputSplitsPerPartition((int) optionManager.getOption(HivePluginOptions.HIVE_MAX_INPUTSPLITS_PER_PARTITION_VALIDATOR));
+
+    final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
+    final TableMetadata tableMetadata = HiveMetadataUtils.getTableMetadata(
+      client,
+      datasetHandle.getDatasetPath(),
+      HiveMetadataUtils.isIgnoreAuthzErrors(options),
+      HiveMetadataUtils.getMaxLeafFieldCount(options),
+      hiveConf);
+
+    if (!tableMetadata.getPartitionColumns().isEmpty()) {
+      try {
+        builder.partitions(PartitionIterator.newBuilder()
+          .client(client)
+          .dbName(tableMetadata.getTable().getDbName())
+          .tableName(tableMetadata.getTable().getTableName())
+          .partitionBatchSize((int) optionManager.getOption(HivePluginOptions.HIVE_PARTITION_BATCH_SIZE_VALIDATOR))
+          .build());
+      } catch (TException | RuntimeException e) {
+        throw new ConnectorException(e);
       }
-    } catch(TException e){
-      logger.warn("User {} is unable to retrieve database names for Hive source named {}.", user, name, e);
     }
-    return accessors.build();
+
+    return builder
+      .tableMetadata(tableMetadata)
+      .build();
+  }
+
+  @Override
+  public DatasetMetadata getDatasetMetadata(
+      DatasetHandle datasetHandle,
+      PartitionChunkListing chunkListing,
+      GetMetadataOption... options
+  ) throws ConnectorException {
+
+    final HivePartitionChunkListing hivePartitionChunkListing = chunkListing.unwrap(HivePartitionChunkListing.class);
+    final TableMetadata tableMetadata = hivePartitionChunkListing.getTableMetadata();
+
+    final MetadataAccumulator metadataAccumulator = hivePartitionChunkListing.getMetadataAccumulator();
+    final Table table = tableMetadata.getTable();
+    final Properties tableProperties = tableMetadata.getTableProperties();
+
+    final HiveTableXattr.Builder tableExtended = HiveTableXattr.newBuilder();
+
+    accumulateTableMetadata(tableExtended, metadataAccumulator, table, tableProperties);
+
+    tableExtended.setTableHash(HiveMetadataUtils.getHash(table));
+    tableExtended.setPartitionHash(metadataAccumulator.getPartitionHash());
+    tableExtended.setReaderType(metadataAccumulator.getReaderType());
+
+    tableExtended.addAllPartitionProperties(hivePartitionChunkListing.getPartitionProperties(tableExtended));
+
+    tableExtended.addAllInputFormatDictionary(metadataAccumulator.buildInputFormatDictionary());
+    tableExtended.addAllSerializationLibDictionary(metadataAccumulator.buildSerializationLibDictionary());
+    tableExtended.addAllStorageHandlerDictionary(metadataAccumulator.buildStorageHandlerDictionary());
+    tableExtended.addAllPropertyDictionary(metadataAccumulator.buildPropertyDictionary());
+
+    // this is used as an indicator on read to determine if dictionaries are used or if the metadata is from a prior version of Dremio.
+    tableExtended.setPropertyCollectionType(PropertyCollectionType.DICTIONARY);
+
+    return HiveDatasetMetadata.newBuilder()
+      .schema(tableMetadata.getBatchSchema())
+      .partitionColumns(tableMetadata.getPartitionColumns())
+      .sortColumns(FluentIterable.from(table.getSd().getSortCols())
+        .transform(order -> order.getCol())
+        .toList())
+      .metadataAccumulator(metadataAccumulator)
+      .extraInfo(os -> os.write((tableExtended.build().toByteArray())))
+      .build();
+  }
+
+  private void accumulateTableMetadata(HiveTableXattr.Builder tableExtended, MetadataAccumulator metadataAccumulator, Table table, Properties tableProperties) {
+    for(Prop prop: HiveMetadataUtils.fromProperties(tableProperties)) {
+      tableExtended.addTablePropertySubscript(metadataAccumulator.getTablePropSubscript(prop));
+    }
+
+    if (table.getSd().getInputFormat() != null) {
+      tableExtended.setTableInputFormatSubscript(metadataAccumulator.getTableInputFormatSubscript(table.getSd().getInputFormat()));
+    }
+
+    final String storageHandler = table.getParameters().get(META_TABLE_STORAGE);
+    if (storageHandler != null) {
+      tableExtended.setTableStorageHandlerSubscript(metadataAccumulator.getTableStorageHandlerSubscript(storageHandler));
+    }
+
+    tableExtended.setTableSerializationLibSubscript(
+      metadataAccumulator.getTableSerializationLibSubscript(table.getSd().getSerdeInfo().getSerializationLib()));
+  }
+
+  @Override
+  public BytesOutput provideSignature(DatasetHandle datasetHandle, DatasetMetadata metadata) throws ConnectorException {
+    final HiveDatasetMetadata hiveDatasetMetadata = metadata.unwrap(HiveDatasetMetadata.class);
+
+    final MetadataAccumulator metadataAccumulator = hiveDatasetMetadata.getMetadataAccumulator();
+
+    if (metadataAccumulator.allFSBasedPartitions() && !metadataAccumulator.getFileSystemPartitionUpdateKeys().isEmpty()) {
+      return os -> os.write(
+        HiveReadSignature.newBuilder()
+          .setType(HiveReadSignatureType.FILESYSTEM)
+          .addAllFsPartitionUpdateKeys(metadataAccumulator.getFileSystemPartitionUpdateKeys())
+          .build()
+          .toByteArray());
+    } else {
+      return BytesOutput.NONE;
+    }
   }
 
   @Override

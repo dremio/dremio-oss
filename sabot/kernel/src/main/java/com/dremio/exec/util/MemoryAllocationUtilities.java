@@ -26,18 +26,16 @@ import com.dremio.common.util.PrettyPrintUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
-import com.dremio.exec.physical.base.MemoryCalcConsidered;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.ExternalSort;
-import com.dremio.exec.physical.config.HashAggregate;
 import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.fragment.Wrapper;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.options.OptionManager;
-import com.dremio.options.TypeValidators.LongValidator;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 
 public final class MemoryAllocationUtilities {
@@ -71,12 +69,14 @@ public final class MemoryAllocationUtilities {
     // if there are any sorts, compute the maximum allocation, and set it on them
     if (sortList.size() > 0) {
       final long maxWidthPerNode = clusterInfo.getAverageExecutorCores(optionManager);
+      final long avgMemoryPerNode = clusterInfo.getAverageExecutorMemory();
+      Preconditions.checkState(maxWidthPerNode > 0 && avgMemoryPerNode > 0, "No executors are available");
       final long maxAllocPerNode = Math.min(clusterInfo.getAverageExecutorMemory(), memoryAlloc);
       final long maxSortAlloc = maxAllocPerNode / (sortList.size() * maxWidthPerNode);
       logger.debug("Max sort alloc: {}", maxSortAlloc);
 
       for(final ExternalSort externalSort : sortList) {
-        externalSort.setMaxAllocation(maxSortAlloc);
+        externalSort.getProps().setMemLimit(maxSortAlloc);
       }
     }
   }
@@ -103,7 +103,7 @@ public final class MemoryAllocationUtilities {
 
   @VisibleForTesting
   static void setMemory(final OptionManager optionManager, Map<Fragment, Wrapper> fragments, long maxMemoryPerNodePerQuery) {
-    final ArrayListMultimap<NodeEndpoint, MemoryCalcConsidered> consideredOps = ArrayListMultimap.create();
+    final ArrayListMultimap<NodeEndpoint, PhysicalOperator> consideredOps = ArrayListMultimap.create();
     final ArrayListMultimap<NodeEndpoint, PhysicalOperator> nonConsideredOps = ArrayListMultimap.create();
 
     long queryMaxAllocation = Long.MAX_VALUE;
@@ -124,10 +124,10 @@ public final class MemoryAllocationUtilities {
 
     // We now have a list of operators per endpoint.
     for(NodeEndpoint ep : consideredOps.keySet()) {
-      long outsideReserve = nonConsideredOps.get(ep).stream().mapToLong(t -> t.getInitialAllocation()).sum();
+      long outsideReserve = nonConsideredOps.get(ep).stream().mapToLong(t -> t.getProps().getMemReserve()).sum();
 
-      List<MemoryCalcConsidered> ops = consideredOps.get(ep);
-      long consideredOpsReserve = ops.stream().mapToLong(t -> t.getInitialAllocation()).sum();
+      List<PhysicalOperator> ops = consideredOps.get(ep);
+      long consideredOpsReserve = ops.stream().mapToLong(t -> t.getProps().getMemReserve()).sum();
       // sum of initial allocations must not be less than the query limit
       if (outsideReserve + consideredOpsReserve > queryMaxAllocation) {
         throw UserException.resourceError()
@@ -137,7 +137,7 @@ public final class MemoryAllocationUtilities {
           .build(logger);
       }
 
-      final double totalWeights = ops.stream().mapToDouble(t -> t.getMemoryFactor(optionManager)).sum();
+      final double totalWeights = ops.stream().mapToDouble(t -> t.getProps().getMemoryFactor()).sum();
       final long memoryForHeavyOperations = maxMemoryPerNodePerQuery - outsideReserve;
       if(memoryForHeavyOperations < 1) {
         throw UserException.memoryError()
@@ -147,37 +147,24 @@ public final class MemoryAllocationUtilities {
       }
       final double baseWeight = memoryForHeavyOperations/totalWeights;
       ops.stream()
-          .filter(op -> op.shouldBeMemoryBounded(optionManager))
+          .filter(op -> op.getProps().isMemoryBound())
           .forEach(op -> {
-            long targetValue = (long) (baseWeight * op.getMemoryFactor(optionManager));
-            targetValue = Math.max(Math.min(targetValue, op.getMaxAllocation()), op.getInitialAllocation());
-            op.setMaxAllocation(targetValue);
-            });
+            long targetValue = (long) (baseWeight * op.getProps().getMemoryFactor());
+            targetValue = Math.max(Math.min(targetValue, op.getProps().getMemLimit()), op.getProps().getMemReserve());
+            long lowLimit = op.getProps().getMemLowLimit();
+            long highLimit = op.getProps().getMemLimit();
 
-      boundOp(optionManager, ops, HashAggregate.class, HashAggregate.LOWER_LIMIT, HashAggregate.UPPER_LIMIT);
-      boundOp(optionManager, ops, ExternalSort.class, ExternalSort.LOWER_LIMIT, ExternalSort.UPPER_LIMIT);
-
+            op.getProps().setMemLimit(targetValue);
+            if (targetValue < lowLimit) {
+              op.getProps().setMemLimit(lowLimit);
+            }
+            if (targetValue > highLimit) {
+              op.getProps().setMemLimit(highLimit);
+            }
+          });
     }
 
   }
-
-  private static final void boundOp(OptionManager options, List<? extends MemoryCalcConsidered> ops, Class<? extends PhysicalOperator> clazz, LongValidator lowLimitOption, LongValidator highLimitOption) {
-    final long lowLimit = options.getOption(lowLimitOption);
-    final long highLimit = options.getOption(highLimitOption);
-
-    ops.stream()
-    .filter(op -> op.getClass().equals(clazz))
-    .forEach(op -> {
-      if(op.getMaxAllocation() < lowLimit) {
-        op.setMaxAllocation(lowLimit);
-      }
-
-      if(op.getMaxAllocation() > highLimit) {
-        op.setMaxAllocation(highLimit);
-      }
-    });
-  }
-
 
   /**
    * Visit expensive operators and collect them for a particular suboperator tree.
@@ -185,7 +172,7 @@ public final class MemoryAllocationUtilities {
   private static class FindConsideredOperators extends AbstractPhysicalVisitor<Void, Void, RuntimeException> {
 
     private final List<PhysicalOperator> nonConsidered = new ArrayList<>();
-    private final List<MemoryCalcConsidered> considered = new ArrayList<>();
+    private final List<PhysicalOperator> considered = new ArrayList<>();
 
     public FindConsideredOperators() {
     }
@@ -194,14 +181,14 @@ public final class MemoryAllocationUtilities {
       return nonConsidered;
     }
 
-    public List<MemoryCalcConsidered> getConsideredOperators(){
+    public List<PhysicalOperator> getConsideredOperators(){
       return considered;
     }
 
     @Override
     public Void visitOp(PhysicalOperator op, Void value) throws RuntimeException {
-      if(op instanceof MemoryCalcConsidered) {
-        considered.add((MemoryCalcConsidered) op);
+      if( (op.getProps().isMemoryExpensive()) ) {
+        considered.add(op);
       } else {
         nonConsidered.add(op);
       }

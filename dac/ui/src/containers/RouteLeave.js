@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component, createContext } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { createSelector } from 'reselect';
 import uuid from 'uuid';
-import { createContext } from '@app/containers/ReactContext';
+import { isUnauthorisedReason } from 'store/authMiddleware';
 import { showConfirmationDialog } from 'actions/confirmation';
 
 const {
@@ -26,7 +26,7 @@ const {
   Consumer
 // the function below has a following signature
 // (componentId: string, hasChangeCallback: (nextLocation) => bool): removeCallbackHandler () => void;
-} = createContext(null, PropTypes.func);
+} = createContext(/* func */ null);
 
 export class HookProviderView extends Component {
   static propTypes = {
@@ -76,7 +76,7 @@ export class HookProviderView extends Component {
   }
 
   routeWillLeave = (nextLocation) => {
-    if (!this.ignoreUnsavedChanges && this.checkChanges(nextLocation)) {
+    if (!this.ignoreUnsavedChanges && !isUnauthorisedReason(nextLocation) && this.checkChanges(nextLocation)) {
       this.props.showConfirmationDialog({
         title: la('Unsaved Changes'),
         text: la('Are you sure you want to leave without saving changes?'),

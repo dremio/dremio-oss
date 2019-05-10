@@ -26,6 +26,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.FileWriter;
 import java.util.List;
+import java.util.UUID;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
@@ -82,6 +83,7 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
 import com.dremio.service.namespace.file.proto.XlsFileConfig;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.users.SystemUser;
@@ -162,12 +164,14 @@ public class TestHomeFiles extends BaseTestServer {
       SqlUtils.quoteIdentifier(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), fileLocation, file1StagedFormat.toTableOptions()), SampleDataPopulator.DEFAULT_USER_NAME);
 
     doc("querying file");
-    JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(query)
-        .setQueryType(QueryType.UI_PREVIEW)
-        .build(), NoOpJobStatusListener.INSTANCE));
-    job.getData().loadIfNecessary();
-    JobDataFragment truncData = job.getData().truncate(500);
+    JobDataFragment truncData = JobUI.getJobData(
+      jobsService.submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(query)
+          .setQueryType(QueryType.UI_PREVIEW)
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    ).truncate(500);
     assertEquals(1, truncData.getReturnedRowCount());
     assertEquals(2, truncData.getColumns().size());
 
@@ -219,11 +223,13 @@ public class TestHomeFiles extends BaseTestServer {
     assertEquals(FileType.JSON, file2Format.getFileType());
 
     doc("querying file");
-    job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select * from \"" + HOME_NAME + "\".file1", SampleDataPopulator.DEFAULT_USER_NAME))
-        .build(), NoOpJobStatusListener.INSTANCE));
-    job.getData().loadIfNecessary();
-    truncData = job.getData().truncate(500);
+    truncData = JobUI.getJobData(
+      jobsService.submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery("select * from \"" + HOME_NAME + "\".file1", SampleDataPopulator.DEFAULT_USER_NAME))
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    ).truncate(500);
     assertEquals(1, truncData.getReturnedRowCount());
     assertEquals(2, truncData.getColumns().size());
 
@@ -346,12 +352,13 @@ public class TestHomeFiles extends BaseTestServer {
     assertEquals(fileType, file2Format.getFileType());
 
     doc("querying excel file");
-    final JobsService jobsService = l(JobsService.class);
-    JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select * from \"" + HOME_NAME + "\".\"excel\"", SampleDataPopulator.DEFAULT_USER_NAME))
-        .build(), NoOpJobStatusListener.INSTANCE));
-    job.getData().loadIfNecessary();
-    JobDataFragment truncData = job.getData().truncate(500);
+    final JobDataFragment truncData = JobUI.getJobData(
+      l(JobsService.class).submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery("select * from \"" + HOME_NAME + "\".\"excel\"", SampleDataPopulator.DEFAULT_USER_NAME))
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    ).truncate(500);
     assertEquals(6, truncData.getReturnedRowCount());
     assertEquals(5, truncData.getColumns().size());
 
@@ -392,7 +399,7 @@ public class TestHomeFiles extends BaseTestServer {
     fileFormat.setFullPath(filePath.toPathList());
     fileFormat.setName(name);
     fileFormat.setLocation(finalLocation.toString());
-    DatasetConfig datasetConfig = DatasetsUtil.toDatasetConfig(fileFormat.asFileConfig(), DatasetType.PHYSICAL_DATASET_HOME_FILE, null, null);
+    DatasetConfig datasetConfig = DatasetsUtil.toDatasetConfig(fileFormat.asFileConfig(), DatasetType.PHYSICAL_DATASET_HOME_FILE, null, new EntityId(UUID.randomUUID().toString()));
     newCatalogService().getCatalog(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()).createOrUpdateDataset(newNamespaceService(), new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), filePath.toNamespaceKey(), datasetConfig);
   }
 
@@ -405,11 +412,13 @@ public class TestHomeFiles extends BaseTestServer {
       path.add(name);
       filePath = new FilePath(path);
     }
-    final JobsService jobsService = l(JobsService.class);
-    JobUI job = new JobUI(jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(format("select * from %s", filePath.toPathString()), DEFAULT_USER_NAME))
-        .build(), NoOpJobStatusListener.INSTANCE));
-    JobDataFragment truncData = job.getData().truncate(rows + 1);
+    final JobDataFragment truncData = JobUI.getJobData(
+      l(JobsService.class).submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery(format("select * from %s", filePath.toPathString()), DEFAULT_USER_NAME))
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    ).truncate(rows + 1);
     assertEquals(rows, truncData.getReturnedRowCount());
     assertEquals(columns, truncData.getColumns().size());
   }

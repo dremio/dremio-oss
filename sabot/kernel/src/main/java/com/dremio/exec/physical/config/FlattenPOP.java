@@ -17,39 +17,34 @@ package com.dremio.exec.physical.config;
 
 import java.util.Iterator;
 
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.expression.Describer;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractSingle;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.options.Options;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Iterators;
 
+@Options
 @JsonTypeName("flatten")
 public class FlattenPOP extends AbstractSingle {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FlattenPOP.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FlattenPOP.class);
 
-  private SchemaPath column;
+  private final SchemaPath column;
 
   @JsonCreator
   public FlattenPOP(
+      @JsonProperty("props") OpProps props,
       @JsonProperty("child") PhysicalOperator child,
-      @JsonProperty("column") SchemaPath column) {
-    super(child);
+      @JsonProperty("column") SchemaPath column
+      ) {
+    super(props, child);
     this.column = column;
   }
-
 
   @Override
   public Iterator<PhysicalOperator> iterator() {
@@ -67,7 +62,7 @@ public class FlattenPOP extends AbstractSingle {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new FlattenPOP(child, column);
+    return new FlattenPOP(props, child, column);
   }
 
   @Override
@@ -75,47 +70,4 @@ public class FlattenPOP extends AbstractSingle {
     return CoreOperatorType.FLATTEN_VALUE;
   }
 
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    SchemaBuilder builder = BatchSchema.newBuilder();
-    BatchSchema batchSchema = child.getSchema(context);
-    // flatten operator currently puts the flattened field first
-    Field flattenField = batchSchema.findField(column.getAsUnescapedPath());
-    builder.addField(flattenField.getType().accept(new SchemaConverter(flattenField)));
-    for(Field f : batchSchema){
-      if (f.getName().equals(column.getAsUnescapedPath())) {
-        continue;
-      }
-      builder.addField(f.getType().accept(new SchemaConverter(f)));
-    }
-    builder.setSelectionVectorMode(SelectionVectorMode.NONE);
-    return builder.build();
-  }
-
-  private class SchemaConverter extends AbstractSchemaConverter {
-
-    public SchemaConverter(Field field) {
-      super(field);
-    }
-
-    @Override
-    public Field visit(ArrowType.List type) {
-      if(field.getName().equals(column.getAsUnescapedPath())){
-        Field child = field.getChildren().get(0);
-        return new Field(field.getName(), child.isNullable(), child.getType(), child.getChildren());
-      }
-      return field;
-    }
-
-    @Override
-    public Field visitGeneric(ArrowType type) {
-      if(field.getName().equals(column.getAsUnescapedPath())){
-        throw UserException.validationError().message("You're trying to flatten a field that is not a list. The offending field is %s.", Describer.describe(field)).build(logger);
-      }
-      return super.visitGeneric(type);
-    }
-
-
-
-  }
 }

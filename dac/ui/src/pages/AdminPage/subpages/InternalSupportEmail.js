@@ -27,8 +27,8 @@ const InternalSupportEmail = (props) => {
       <div style={props.descriptionStyle}>
         {la('Note: Users will see changes when they next reload.')}
       </div>
-      {props.renderSettings('support.email.addr')}
-      {props.renderSettings('support.email.jobs.subject')}
+      {props.renderSettings('support.email.addr', {allowEmpty : true})}
+      {props.renderSettings('support.email.jobs.subject', {allowEmpty : true})}
     </div>
   );
 };

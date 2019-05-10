@@ -23,10 +23,12 @@ import java.util.Set;
 
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 
 public class ResolverTypePrecedence {
 
   public static final ImmutableMap<MinorType, Integer> PRECEDENCE_MAP;
+  public static final ImmutableMap<MinorType, Integer> PRECEDENCE_MAP_DECIMAL;
   public static final ImmutableMap<MinorType, Set<MinorType>> SECONDARY_IMPLICIT_CAST_RULES;
   public static int MAX_IMPLICIT_CAST_COST;
 
@@ -67,6 +69,15 @@ public class ResolverTypePrecedence {
     precMap.put(MinorType.FIXEDSIZEBINARY, i += 2);
     PRECEDENCE_MAP = ImmutableMap.copyOf(precMap);
     MAX_IMPLICIT_CAST_COST = i;
+
+    // Create a decimal v2 precedence map which shows decimal is of
+    // higher precision than double.
+    Map<MinorType, Integer> precMapDecimal = Maps.newHashMap(precMap);
+    int actualPrecedenceOfDouble = precMapDecimal.get(MinorType.DECIMAL);
+    int actualPrecedenceOfDecimal = precMapDecimal.get(MinorType.FLOAT8);
+    precMapDecimal.put(MinorType.FLOAT8, actualPrecedenceOfDouble);
+    precMapDecimal.put(MinorType.DECIMAL, actualPrecedenceOfDecimal);
+    PRECEDENCE_MAP_DECIMAL = ImmutableMap.copyOf(precMapDecimal);
 
     /* Currently implicit cast follows the precedence rules.
      * It may be useful to perform an implicit cast in

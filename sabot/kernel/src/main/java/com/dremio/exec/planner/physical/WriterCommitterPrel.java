@@ -29,16 +29,24 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 
+@Options
 public class WriterCommitterPrel extends SingleRel implements Prel {
+
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.writercommiter.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.writercommiter.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   private final String tempLocation;
   private final String finalLocation;
-  private final FileSystemPlugin plugin;
+  private final FileSystemPlugin<?> plugin;
   private final String userName;
 
-  public WriterCommitterPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, FileSystemPlugin plugin, String tempLocation, String finalLocation, String userName) {
+  public WriterCommitterPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, FileSystemPlugin<?> plugin, String tempLocation, String finalLocation, String userName) {
     super(cluster, traits, child);
     this.tempLocation = tempLocation;
     this.finalLocation = finalLocation;
@@ -61,8 +69,14 @@ public class WriterCommitterPrel extends SingleRel implements Prel {
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     Prel child = (Prel) this.getInput();
-    PhysicalOperator g = new WriterCommitterPOP(tempLocation, finalLocation, userName, plugin, child.getPhysicalOperator(creator));
-    return creator.addMetadata(this, g);
+    PhysicalOperator childPop = child.getPhysicalOperator(creator);
+    return new WriterCommitterPOP(
+      creator.props(this, userName, RecordWriter.SCHEMA, RESERVE, LIMIT),
+      tempLocation,
+      finalLocation,
+      childPop,
+      (FileSystemPlugin<?>) plugin
+    );
   }
 
   @Override

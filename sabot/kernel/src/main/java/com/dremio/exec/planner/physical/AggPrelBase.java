@@ -16,8 +16,11 @@
 package com.dremio.exec.planner.physical;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
@@ -33,7 +36,9 @@ import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.expr.fn.hll.HyperLogLog;
 import com.dremio.exec.planner.common.AggregateRelBase;
 import com.dremio.exec.planner.logical.RexToExpr;
+import com.dremio.exec.planner.physical.DistributionTrait.DistributionField;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 public abstract class AggPrelBase extends AggregateRelBase implements Prel {
@@ -46,7 +51,7 @@ public abstract class AggPrelBase extends AggregateRelBase implements Prel {
   protected List<NamedExpression> aggExprs;
   protected List<AggregateCall> phase2AggCallList = Lists.newArrayList();
 
-  public AggPrelBase(RelOptCluster cluster,
+  protected AggPrelBase(RelOptCluster cluster,
                      RelTraitSet traits,
                      RelNode child,
                      boolean indicator,
@@ -69,6 +74,7 @@ public abstract class AggPrelBase extends AggregateRelBase implements Prel {
             AggregateCall.create(
               sumAggFun,
               aggCall.e.isDistinct(),
+              false,
               Collections.singletonList(aggExprOrdinal),
               -1,
               aggCall.e.getType(),
@@ -81,6 +87,7 @@ public abstract class AggPrelBase extends AggregateRelBase implements Prel {
             AggregateCall.create(
               hllMergeFunction,
               aggCall.e.isDistinct(),
+              true,
               Collections.singletonList(aggExprOrdinal),
               -1,
               aggCall.getValue().getType(),
@@ -92,6 +99,7 @@ public abstract class AggPrelBase extends AggregateRelBase implements Prel {
               AggregateCall.create(
                   aggCall.e.getAggregation(),
                   aggCall.e.isDistinct(),
+                  aggCall.e.isApproximate(),
                   Collections.singletonList(aggExprOrdinal),
                   -1,
                   aggCall.e.getType(),
@@ -101,6 +109,51 @@ public abstract class AggPrelBase extends AggregateRelBase implements Prel {
         }
       }
     }
+  }
+
+  protected static RelTraitSet adjustTraits(RelTraitSet traits, RelNode child, ImmutableBitSet groupSet) {
+    return adjustTraits(traits)
+        .replaceIf(DistributionTraitDef.INSTANCE, () -> {
+          final PlannerSettings settings = PrelUtil.getPlannerSettings(child.getCluster().getPlanner());
+          if (!settings.shouldPullDistributionTrait()) {
+            // Do not change distribution trait (even if not valid from a planner point of view)
+            return traits.getTrait(DistributionTraitDef.INSTANCE);
+          }
+          // distribution might need to be adjusted to match column remapping
+          DistributionTrait distribution = Optional
+              .ofNullable(child.getTraitSet().getTrait(DistributionTraitDef.INSTANCE)).orElse(DistributionTrait.ANY);
+
+          final ImmutableList<DistributionField> inputFields = distribution.getFields();
+          if (inputFields == null || inputFields.isEmpty()) {
+            // if no distribution fields, no remapping necessary
+            return distribution;
+          }
+
+          // Mapping input fields -> groups
+          final Map<Integer, Integer> mapping = new HashMap<>();
+          int groupIndex = 0;
+          for (int field : groupSet) {
+            mapping.put(field, groupIndex);
+            groupIndex++;
+          }
+
+          final ImmutableList.Builder<DistributionField> builder = ImmutableList.builder();
+          for(DistributionField inputField: inputFields) {
+            Integer target = mapping.get(inputField.getFieldId());
+            if (target == null) {
+              // if target not found, it means not distributed on a group column
+              // so field is not preserved
+              continue;
+            }
+            builder.add(new DistributionField(mapping.get(inputField.getFieldId())));
+          }
+          // If no fields preserved, no point preserving the distribution type
+          final ImmutableList<DistributionField> fields = builder.build();
+          if (fields.isEmpty()) {
+            return DistributionTrait.DEFAULT;
+          }
+          return new DistributionTrait(distribution.getType(), fields);
+        });
   }
 
   public OperatorPhase getOperatorPhase() {

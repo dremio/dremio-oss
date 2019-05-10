@@ -33,7 +33,7 @@ public class EmptyValuesCreator implements ProducerOperator.Creator<EmptyValues>
 
   @Override
   public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, EmptyValues config) throws ExecutionSetupException {
-    return new ScanOperator(fec.getSchemaUpdater(), config, context, Iterators.<RecordReader>singletonIterator(new EmptyRecordReader(context)));
+    return new ScanOperator(config, context, Iterators.<RecordReader>singletonIterator(new EmptyRecordReader(context)));
   }
 
   public static class EmptyRecordReader extends AbstractRecordReader {

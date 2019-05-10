@@ -236,8 +236,10 @@ public class JobDataFragmentWrapper implements JobDataFragment {
 
         SerializationContextImpl context = new SerializationContextImpl(data.getJobId().getId());
 
+        final boolean convertNumbersToStrings = DataJsonOutput.isNumberAsString(provider);
+
         DACJobResultsSerializer jsonWriter =
-            new DACJobResultsSerializer(generator, context, Integer.getInteger(MAX_CELL_SIZE_KEY, 100));
+            new DACJobResultsSerializer(generator, context, Integer.getInteger(MAX_CELL_SIZE_KEY, 100), convertNumbersToStrings);
         jsonWriter.setup();
 
         int currentRowInWriting = data.offsetInJobResults; // row number in complete job results

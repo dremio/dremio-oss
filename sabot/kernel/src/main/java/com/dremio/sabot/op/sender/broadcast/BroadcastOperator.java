@@ -23,8 +23,8 @@ import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.physical.config.BroadcastSender;
+import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
@@ -80,11 +80,11 @@ public class BroadcastOperator extends BaseSender {
     this.handle = context.getFragmentHandle();
     this.stats = context.getStats();
 
-    final List<MinorFragmentEndpoint> destinations = config.getDestinations();
+    final List<MinorFragmentEndpoint> destinations = config.getDestinations(context.getEndpointsIndex());
     final ArrayListMultimap<NodeEndpoint, Integer> dests = ArrayListMultimap.create();
 
     for(MinorFragmentEndpoint destination : destinations) {
-      dests.put(destination.getEndpoint(), destination.getId());
+      dests.put(destination.getEndpoint(), destination.getMinorFragmentId());
     }
 
     int destCount = dests.keySet().size();
@@ -134,7 +134,7 @@ public class BroadcastOperator extends BaseSender {
           .setQueryId(handle.getQueryId())
           .setSendingMajorFragmentId(handle.getMajorFragmentId())
           .setSendingMinorFragmentId(handle.getMinorFragmentId())
-          .setReceivingMajorFragmentId(config.getOppositeMajorFragmentId())
+          .setReceivingMajorFragmentId(config.getReceiverMajorFragmentId())
           .addAllReceivingMinorFragmentId(Ints.asList(receivingMinorFragments[i]))
           .build();
       tunnels[i].sendStreamComplete(completion);
@@ -183,7 +183,7 @@ public class BroadcastOperator extends BaseSender {
           handle.getQueryId(),
           handle.getMajorFragmentId(),
           handle.getMinorFragmentId(),
-          config.getOppositeMajorFragmentId(),
+          config.getReceiverMajorFragmentId(),
           new ArrowRecordBatch(arrowRecordBatch.getLength(), arrowRecordBatch.getNodes(), buffers, false),
           receivingMinorFragments[i]);
       updateStats(batch);

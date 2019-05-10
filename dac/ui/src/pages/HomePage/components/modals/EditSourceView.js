@@ -99,8 +99,7 @@ export class EditSourceView extends Component {
   checkIsMetadataImpacting = (sourceModel) => {
     return ApiUtils.fetch('sources/isMetadataImpacting', {
       method: 'POST',
-      body: JSON.stringify(sourceModel),
-      headers: {'Content-Type': 'application/json'}
+      body: JSON.stringify(sourceModel)
     }, 2)
     .then((response) => response.json())
     .catch((response) => {

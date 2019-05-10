@@ -24,6 +24,8 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.parquet.hadoop.util.HadoopStreams;
+import org.apache.parquet.io.SeekableInputStream;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
@@ -34,6 +36,7 @@ import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.HiveUtilities;
+import com.dremio.exec.store.parquet.BulkInputStream;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
@@ -47,7 +50,7 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
@@ -77,7 +80,7 @@ class ScanWithDremioReader {
     final ParquetReaderFactory readerFactory = UnifiedParquetReader.getReaderFactory(context.getConfig());
 
     if(config.getSplits().isEmpty()) {
-      return new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, Iterators.singletonIterator(new EmptyRecordReader()), readerUGI);
+      return new ScanOperator(config, context, Iterators.singletonIterator(new EmptyRecordReader()), readerUGI);
     }
 
     Iterable<RecordReader> readers = null;
@@ -85,7 +88,7 @@ class ScanWithDremioReader {
       final UserGroupInformation currentUGI = UserGroupInformation.getCurrentUser();
       final List<HiveParquetSplit> sortedSplits = Lists.newArrayList();
 
-      for (DatasetSplit split : config.getSplits()) {
+      for (SplitInfo split : config.getSplits()) {
         sortedSplits.add(new HiveParquetSplit(split));
       }
       Collections.sort(sortedSplits);
@@ -112,24 +115,23 @@ class ScanWithDremioReader {
               final RecordReader innerReader = new FileSplitParquetRecordReader(
                   context,
                   readerFactory,
-                  config.getSchema(),
+                  config.getFullSchema(),
                   compositeReader.getInnerColumns(),
                   conditions,
                   split.getFileSplit(),
                   jobConf,
                   config.getReferencedTables(),
                   vectorize,
-                  config.getSchema(),
+                  config.getFullSchema(),
                   enableDetailedTracing
               );
-
               return compositeReader.wrapIfNecessary(context.getAllocator(), innerReader, split.getDatasetSplit());
             }
           });
 
         }});
 
-      return new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, readers.iterator(), readerUGI);
+      return new ScanOperator(config, context, readers.iterator(), readerUGI);
 
     } catch (final Exception e) {
       if(readers != null) {
@@ -140,14 +142,14 @@ class ScanWithDremioReader {
   }
 
   private static class HiveParquetSplit implements Comparable {
-    private final DatasetSplit datasetSplit;
+    private final SplitInfo datasetSplit;
     private final FileSplit fileSplit;
     private final int partitionId;
 
-    HiveParquetSplit(DatasetSplit datasetSplit) {
+    HiveParquetSplit(SplitInfo datasetSplit) {
       this.datasetSplit = datasetSplit;
       try {
-        final HiveSplitXattr splitAttr = HiveSplitXattr.parseFrom(datasetSplit.getExtendedProperty().toByteArray());
+        final HiveSplitXattr splitAttr = HiveSplitXattr.parseFrom(datasetSplit.getSplitExtendedProperty());
         final FileSplit fullFileSplit = (FileSplit) HiveUtilities.deserializeInputSplit(splitAttr.getInputSplit());
         // make a copy of file split, we only need file path, start and length, throw away hosts
         this.fileSplit = new FileSplit(fullFileSplit.getPath(), fullFileSplit.getStart(), fullFileSplit.getLength(), (String[])null);
@@ -161,7 +163,7 @@ class ScanWithDremioReader {
       return partitionId;
     }
 
-    DatasetSplit getDatasetSplit() {
+    SplitInfo getDatasetSplit() {
       return datasetSplit;
     }
 

@@ -34,6 +34,7 @@ import com.dremio.exec.planner.sql.handlers.commands.PreparedStatementProvider;
 import com.dremio.exec.planner.sql.handlers.commands.ServerMetaProvider;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
+import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
 import com.dremio.exec.proto.UserBitShared.RpcEndpointInfos;
@@ -153,9 +154,9 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
       try {
         final RunQuery query = RunQuery.PARSER.parseFrom(pBody);
         UserRequest request = new UserRequest(RpcType.RUN_QUERY, query);
-        final QueryId queryId = ExternalIdHelper.toQueryId(worker.submitWork(connection.getSession(),
-            new UserConnectionResponseHandler(connection), request, registry));
-        responseSender.send(new Response(RpcType.QUERY_HANDLE, queryId));
+        final ExternalId externalId = ExternalIdHelper.generateExternalId();
+        worker.submitWork(externalId, connection.getSession(), new UserConnectionResponseHandler(connection), request, registry);
+        responseSender.send(new Response(RpcType.QUERY_HANDLE, ExternalIdHelper.toQueryId(externalId)));
         break;
       } catch (InvalidProtocolBufferException e) {
         throw new RpcException("Failure while decoding RunQuery body.", e);

@@ -74,7 +74,7 @@ public class TestTopN extends BaseTestOperator {
       tr(15)
     );
 
-    TopN topn = new TopN(null, Collections.singletonList(ordering("c0", Direction.ASCENDING, NullDirection.FIRST)), false, 4);
+    TopN topn = new TopN(PROPS, null, 4, Collections.singletonList(ordering("c0", Direction.ASCENDING, NullDirection.FIRST)), false);
     validateSingle(topn, TopNOperator.class, input, output);
   }
 
@@ -104,7 +104,7 @@ public class TestTopN extends BaseTestOperator {
       tr(15)
     );
 
-    TopN topn = new TopN(null, Collections.singletonList(ordering("c0", Direction.ASCENDING, NullDirection.FIRST)), false, 4);
+    TopN topn = new TopN(PROPS, null, 4, Collections.singletonList(ordering("c0", Direction.ASCENDING, NullDirection.FIRST)), false);
     validateSingle(topn, TopNOperator.class, input, output);
   }
 

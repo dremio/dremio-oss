@@ -17,7 +17,6 @@ package com.dremio.plugins.s3.store;
 
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 
 import java.net.URI;
 
@@ -26,6 +25,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.Test;
 
+import com.dremio.BaseTestQuery;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.server.SabotContext;
@@ -34,7 +34,7 @@ import com.google.common.collect.ImmutableList;
 /**
  * Check that external s3 buckets can be listed without an access key.
  */
-public class TestExternalBucket {
+public class TestExternalBucket extends BaseTestQuery {
 
   @Test
   public void ensureExternalBucketsWork() throws Exception {
@@ -45,7 +45,7 @@ public class TestExternalBucket {
       s3.externalBucketList = ImmutableList.of("landsat-pds", "commoncrawl");
       s3.credentialType = AWSAuthenticationType.NONE;
 
-      SabotContext context = mock(SabotContext.class);
+      SabotContext context = getSabotContext();
       S3StoragePlugin plugin = s3.newPlugin(context, "test-plugin", null);
       for(Property e : plugin.getProperties()){
         config.set(e.name, e.value);

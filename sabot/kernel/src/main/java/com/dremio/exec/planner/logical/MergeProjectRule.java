@@ -95,6 +95,7 @@ public class MergeProjectRule extends RelOptRule {
     final RelNode input = bottomProject.getInput();
     if (RexUtil.isIdentity(newProjects, input.getRowType()) && uniqueFlattens == 0) {
       call.transformTo(input);
+      return;
     }
 
     // replace the two projects with a combined projection

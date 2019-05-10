@@ -42,6 +42,7 @@ import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
@@ -83,6 +84,7 @@ import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
@@ -524,30 +526,46 @@ public class TestServer extends BaseTestServer {
     DatasetUI ds3 = createDatasetFromParentAndSave(datasetPath3, "cp.\"tpch/supplier.parquet\"");
 
     doc("run jobs");
-    l(JobsService.class).submitJob(JobRequest.newBuilder()
-      .setSqlQuery(getQueryFromConfig(ds1))
-      .setQueryType(QueryType.UI_RUN)
-      .setDatasetPath(datasetPath1.toNamespaceKey())
-      .setDatasetVersion(ds1.getDatasetVersion())
-      .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
-    l(JobsService.class).submitJob(JobRequest.newBuilder()
-      .setSqlQuery(getQueryFromConfig(ds2))
-      .setQueryType(QueryType.UI_RUN)
-      .setDatasetPath(datasetPath2.toNamespaceKey())
-      .setDatasetVersion(ds2.getDatasetVersion())
-      .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
-    l(JobsService.class).submitJob(JobRequest.newBuilder()
-      .setSqlQuery(getQueryFromConfig(ds3))
-      .setQueryType(QueryType.UI_RUN)
-      .setDatasetPath(datasetPath3.toNamespaceKey())
-      .setDatasetVersion(ds3.getDatasetVersion())
-      .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
-    l(JobsService.class).submitJob(JobRequest.newBuilder()
-      .setSqlQuery(getQueryFromConfig(ds2))
-      .setQueryType(QueryType.UI_RUN)
-      .setDatasetPath(datasetPath2.toNamespaceKey())
-      .setDatasetVersion(ds2.getDatasetVersion())
-      .build(), NoOpJobStatusListener.INSTANCE).getData().loadIfNecessary();
+    JobsServiceUtil.waitForJobCompletion(
+      l(JobsService.class).submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(getQueryFromConfig(ds1))
+          .setQueryType(QueryType.UI_RUN)
+          .setDatasetPath(datasetPath1.toNamespaceKey())
+          .setDatasetVersion(ds1.getDatasetVersion())
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    );
+    JobsServiceUtil.waitForJobCompletion(
+      l(JobsService.class).submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(getQueryFromConfig(ds2))
+          .setQueryType(QueryType.UI_RUN)
+          .setDatasetPath(datasetPath2.toNamespaceKey())
+          .setDatasetVersion(ds2.getDatasetVersion())
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    );
+    JobsServiceUtil.waitForJobCompletion(
+      l(JobsService.class).submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(getQueryFromConfig(ds3))
+          .setQueryType(QueryType.UI_RUN)
+          .setDatasetPath(datasetPath3.toNamespaceKey())
+          .setDatasetVersion(ds3.getDatasetVersion())
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    );
+    JobsServiceUtil.waitForJobCompletion(
+      l(JobsService.class).submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(getQueryFromConfig(ds2))
+          .setQueryType(QueryType.UI_RUN)
+          .setDatasetPath(datasetPath2.toNamespaceKey())
+          .setDatasetVersion(ds2.getDatasetVersion())
+          .build(),
+        NoOpJobStatusListener.INSTANCE)
+    );
 
     doc("get home");
     Home home = expectSuccess(getBuilder(getAPIv2().path("home/@" + DEFAULT_USERNAME)).buildGet(), Home.class);
@@ -660,5 +678,17 @@ public class TestServer extends BaseTestServer {
     assertEquals(query, runResponse.getDataset().getSql());
     assertNull(runResponse.getDataset().getJobCount());
 
+  }
+
+  @Test
+  public void testHeaders() throws Exception {
+    final Response invoke = getBuilder(getPublicAPI(3).path("catalog")).buildGet().invoke();
+    final MultivaluedMap<String, Object> headers = invoke.getHeaders();
+    assertTrue(headers.containsKey("x-content-type-options"));
+    assertTrue(headers.containsKey("x-frame-options"));
+    assertTrue(headers.containsKey("x-xss-protection"));
+
+    // no CSP header by default
+    assertFalse(headers.containsKey("content-security-policy"));
   }
 }

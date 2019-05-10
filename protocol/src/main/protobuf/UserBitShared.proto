@@ -189,6 +189,13 @@ message DremioPBError{
      * Source in bad state
      */
     SOURCE_BAD_STATE = 1017;
+
+    /* JSON field change exception
+     * This is mainly used for re-attempting the query
+     * This is a new error type not present in Apache Drill
+     */
+    JSON_FIELD_CHANGE = 1018;
+
   }
   optional string error_id = 1; // for debug tracing purposes
   optional NodeEndpoint endpoint = 2;
@@ -327,6 +334,7 @@ message QueryProfile {
   optional CoreOperatorTypeMetricsMap operator_type_metrics_map = 33;
   optional ResourceSchedulingProfile resource_scheduling_profile = 34;
   optional string cancel_reason = 35;
+  optional int64 command_pool_wait_millis = 36;
 }
 
 message ResourceSchedulingProfile {
@@ -417,6 +425,7 @@ message PlanPhaseProfile {
   optional int64 duration_millis = 2;
   optional string plan = 3;
   optional string planner_dump = 4;
+  optional FragmentRpcSizeStats size_stats = 5;
 }
 
 message MajorFragmentProfile {
@@ -577,4 +586,22 @@ message MetricsDef {
 message CoreOperatorTypeMetricsMap {
   // underlying data structure is list with index as operator type and value as MetricsDef
   repeated MetricsDef metrics_def = 1;
+}
+
+// Stats about the rpc size when sending fragments to executor nodes.
+message FragmentRpcSizeStats {
+  optional int32 size_per_node = 1;
+  repeated FragmentRpcSizeByMajor fragments = 2;
+  repeated FragmentRpcSizeByAttr minor_specific_attrs = 3;
+}
+
+message FragmentRpcSizeByMajor {
+  optional int32 major_id = 1;
+  optional int32 major_portion_size = 2;
+  optional int32 minor_portion_size = 3;
+}
+
+message FragmentRpcSizeByAttr {
+  optional string name = 1;
+  optional int32 size = 2;
 }

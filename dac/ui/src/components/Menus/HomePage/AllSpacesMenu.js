@@ -14,26 +14,34 @@
  * limitations under the License.
  */
 import { Component } from 'react';
+import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
+import { showConfirmationDialog } from 'actions/confirmation';
+import menuUtils from 'utils/menuUtils';
 
+import { removeSpace } from 'actions/resources/spaces';
 import AllSpacesMenuMixin from 'dyn-load/components/Menus/HomePage/AllSpacesMenuMixin';
 
 @AllSpacesMenuMixin
 export class AllSpacesMenu extends Component {
+
+  static propTypes = {
+    item: PropTypes.instanceOf(Immutable.Map).isRequired,
+    closeMenu: PropTypes.func,
+    removeItem: PropTypes.func,
+    showConfirmationDialog: PropTypes.func.isRequired
+  }
   static contextTypes = {
     location: PropTypes.object.isRequired
   }
 
-  static propTypes = {
-    space: PropTypes.instanceOf(Immutable.Map).isRequired,
-    closeMenu: PropTypes.func,
-    removeSpace: PropTypes.func
-  }
-
   handleRemoveSpace = () => {
-    const {space, closeMenu} = this.props;
-    this.props.removeSpace(space);
-    closeMenu();
+    menuUtils.showConfirmRemove(this.props);
   }
 }
+
+export default connect(null, {
+  removeItem: removeSpace,
+  showConfirmationDialog
+})(AllSpacesMenu);

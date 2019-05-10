@@ -34,6 +34,7 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.QueryWorkUnit;
@@ -47,271 +48,156 @@ import com.dremio.resource.ResourceSchedulingDecisionInfo;
  * ensures two things:
  * - any blocking commands don't block the underlying thread
  * - any exceptions don't bleed into the caller.
+ *
+ * Additionally, the observer will report back all exceptions thrown in the callbacks to the delegate
+ * {@link #attemptCompletion(UserResult)} callback
  */
 public class OutOfBandAttemptObserver implements AttemptObserver {
 
-  private final SerializedExecutor serializedExec;
+  private final SerializedExecutor<Runnable> serializedExec;
   private final AttemptObserver innerObserver;
   private final DeferredException deferred = new DeferredException();
 
-  public OutOfBandAttemptObserver(AttemptObserver innerObserver, SerializedExecutor serializedExec) {
-    super();
+  OutOfBandAttemptObserver(AttemptObserver innerObserver, SerializedExecutor<Runnable> serializedExec) {
     this.serializedExec = serializedExec;
     this.innerObserver = innerObserver;
   }
 
   @Override
   public void queryStarted(final UserRequest query, final String user) {
-    serializedExec.execute(new DeferredRunnable(){
-      @Override
-      public void doRun() {
-        innerObserver.queryStarted(query, user);
-      }});
+    execute(() -> innerObserver.queryStarted(query, user));
+  }
+
+  @Override
+  public void commandPoolWait(long waitInMillis) {
+    execute(() -> innerObserver.commandPoolWait(waitInMillis));
   }
 
   @Override
   public void planText(final String text, final long millisTaken) {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      public void doRun() {
-        innerObserver.planText(text, millisTaken);
-      }
-    });
+    execute(() -> innerObserver.planText(text, millisTaken));
   }
 
   @Override
   public void finalPrel(final Prel prel) {
-    serializedExec.execute(new DeferredRunnable() {
-        @Override
-        public void doRun() {
-          innerObserver.finalPrel(prel);
-        }
-      });
+    execute(() -> innerObserver.finalPrel(prel));
   }
 
   @Override
   public void recordExtraInfo(final String name, final byte[] bytes) {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      public void doRun() {
-        innerObserver.recordExtraInfo(name, bytes);
-      }
-    });
+    execute(() -> innerObserver.recordExtraInfo(name, bytes));
   }
 
   @Override
   public void planRelTransform(final PlannerPhase phase, final RelOptPlanner planner, final RelNode before, final RelNode after, final long millisTaken) {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      public void doRun() {
-        innerObserver.planRelTransform(phase, planner, before, after, millisTaken);
-      }
-    });
+    execute(() -> innerObserver.planRelTransform(phase, planner, before, after, millisTaken));
   }
 
   @Override
   public void planParallelStart() {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      public void doRun() {
-        innerObserver.planParallelStart();
-      }
-    });
+    execute(innerObserver::planParallelStart);
   }
 
   @Override
   public void planParallelized(final PlanningSet planningSet) {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      public void doRun() {
-        innerObserver.planParallelized(planningSet);
-      }
-    });
+    execute(() -> innerObserver.planParallelized(planningSet));
   }
 
   @Override
   public void planFindMaterializations(final long millisTaken) {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      public void doRun() {
-        innerObserver.planFindMaterializations(millisTaken);
-      }
-    });
+    execute(() -> innerObserver.planFindMaterializations(millisTaken));
   }
 
   @Override
   public void planNormalized(final long millisTaken, final List<RelNode> normalizedQueryPlans) {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      public void doRun() {
-        innerObserver.planNormalized(millisTaken, normalizedQueryPlans);
-      }
-    });
+    execute(() -> innerObserver.planNormalized(millisTaken, normalizedQueryPlans));
   }
 
   @Override
   public void planSubstituted(final DremioMaterialization materialization,
                               final List<RelNode> substitutions,
                               final RelNode target, final long millisTaken) {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      public void doRun() {
-        innerObserver.planSubstituted(materialization, substitutions, target, millisTaken);
-      }
-    });
+    execute(() -> innerObserver.planSubstituted(materialization, substitutions, target, millisTaken));
   }
 
   @Override
   public void substitutionFailures(Iterable<String> errors) {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      void doRun() {
-        innerObserver.substitutionFailures(errors);
-      }
-    });
+    execute(() -> innerObserver.substitutionFailures(errors));
   }
 
   @Override
   public void planAccelerated(final SubstitutionInfo info) {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      public void doRun() {
-        innerObserver.planAccelerated(info);
-      }
-    });
+    execute(() -> innerObserver.planAccelerated(info));
   }
 
   @Override
   public void planCompleted(final ExecutionPlan plan) {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      public void doRun() {
-        innerObserver.planCompleted(plan);
-      }
-    });  }
+    execute(() -> innerObserver.planCompleted(plan));
+  }
 
   @Override
   public void execStarted(final QueryProfile profile) {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      public void doRun() {
-        innerObserver.execStarted(profile);
-      }
-    });
+    execute(() -> innerObserver.execStarted(profile));
   }
 
   @Override
   public void execDataArrived(final RpcOutcomeListener<Ack> outcomeListener, final QueryWritableBatch result) {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      public void doRun() {
-        innerObserver.execDataArrived(outcomeListener, result);
-      }
-    });
+    execute(() -> innerObserver.execDataArrived(outcomeListener, result));
   }
 
   @Override
   public void planJsonPlan(final String text) {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      public void doRun() {
-        innerObserver.planJsonPlan(text);
-      }
-    });
+    execute(() -> innerObserver.planJsonPlan(text));
   }
 
   @Override
   public void planStart(final String rawPlan) {
-    serializedExec.execute(new DeferredRunnable(){
-      @Override
-      public void doRun() {
-        innerObserver.planStart(rawPlan);
-      }});
+    execute(() -> innerObserver.planStart(rawPlan));
   }
 
   @Override
   public void planValidated(final RelDataType rowType, final SqlNode node, final long millisTaken) {
-    serializedExec.execute(new DeferredRunnable(){
-      @Override
-      public void doRun() {
-        innerObserver.planValidated(rowType, node, millisTaken);
-      }});
+    execute(() -> innerObserver.planValidated(rowType, node, millisTaken));
   }
 
   @Override
   public void planSerializable(final RelNode serializable) {
-    serializedExec.execute(new DeferredRunnable(){
-      @Override
-      public void doRun() {
-        innerObserver.planSerializable(serializable);
-      }});
+    execute(() -> innerObserver.planSerializable(serializable));
   }
 
   @Override
   public void planConvertedToRel(final RelNode converted, final long millisTaken) {
-    serializedExec.execute(new DeferredRunnable(){
-      @Override
-      public void doRun() {
-        innerObserver.planConvertedToRel(converted, millisTaken);
-      }});
+    execute(() -> innerObserver.planConvertedToRel(converted, millisTaken));
   }
 
   @Override
   public void planConvertedScan(final RelNode converted, final long millisTaken) {
-    serializedExec.execute(new DeferredRunnable(){
-      @Override
-      public void doRun() {
-        innerObserver.planConvertedScan(converted, millisTaken);
-      }});
+    execute(() -> innerObserver.planConvertedScan(converted, millisTaken));
   }
 
   @Override
   public void planExpandView(final RelRoot expanded, final List<String> schemaPath, final int nestingLevel, final String sql) {
-    serializedExec.execute(new DeferredRunnable(){
-      @Override
-      public void doRun() {
-        innerObserver.planExpandView(expanded, schemaPath, nestingLevel, sql);
-      }});
+    execute(() -> innerObserver.planExpandView(expanded, schemaPath, nestingLevel, sql));
   }
 
   @Override
   public void plansDistributionComplete(final QueryWorkUnit unit) {
-    serializedExec.execute(new DeferredRunnable(){
-      @Override
-      public void doRun() {
-        innerObserver.plansDistributionComplete(unit);
-      }});
+    execute(() -> innerObserver.plansDistributionComplete(unit));
   }
-
-  private abstract class DeferredRunnable implements Runnable {
-    public void run(){
-      try {
-        doRun();
-      } catch (Throwable ex) {
-        deferred.addThrowable(ex);
-      }
-    }
-
-    abstract void doRun();
-  }
-
 
   @Override
   public void attemptCompletion(final UserResult result) {
     // make sure we have correct ordering (this should come after all previous observations).
     final CountDownLatch cd = new CountDownLatch(1);
-    serializedExec.execute(new Runnable() {
-      @Override
-      public void run() {
-        try {
-          UserResult finalResult = result;
-          if(deferred.hasException()){
-            finalResult = finalResult.withException(deferred.getAndClear());
-          }
-          innerObserver.attemptCompletion(finalResult);
-        } finally {
-          cd.countDown();
+    serializedExec.execute(() -> {
+      try {
+        UserResult finalResult = result;
+        if (deferred.hasException()) {
+          finalResult = finalResult.withException(deferred.getAndClear());
         }
+        innerObserver.attemptCompletion(finalResult);
+      } finally {
+        cd.countDown();
       }
     });
     try{
@@ -324,55 +210,49 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
 
   @Override
   public void planGenerationTime(final long millisTaken) {
-    serializedExec.execute(new DeferredRunnable(){
-      @Override
-      public void doRun() {
-        innerObserver.planGenerationTime(millisTaken);
-      }});
+    execute(() -> innerObserver.planGenerationTime(millisTaken));
   }
 
   @Override
   public void planAssignmentTime(final long millisTaken) {
-    serializedExec.execute(new DeferredRunnable(){
-      @Override
-      public void doRun() {
-        innerObserver.planAssignmentTime(millisTaken);
-      }});
+    execute(() -> innerObserver.planAssignmentTime(millisTaken));
   }
 
   @Override
-  public void intermediateFragmentScheduling(final long millisTaken) {
-    serializedExec.execute(new DeferredRunnable(){
-      @Override
-      public void doRun() {
-        innerObserver.intermediateFragmentScheduling(millisTaken);
-      }});
+  public void intermediateFragmentScheduling(final long millisTaken, FragmentRpcSizeStats stats) {
+    execute(() -> innerObserver.intermediateFragmentScheduling(millisTaken, stats));
   }
 
   @Override
-  public void leafFragmentScheduling(final long millisTaken) {
-    serializedExec.execute(new DeferredRunnable(){
-      @Override
-      public void doRun() {
-        innerObserver.leafFragmentScheduling(millisTaken);
-      }});
+  public void leafFragmentScheduling(final long millisTaken, FragmentRpcSizeStats stats) {
+    execute(() -> innerObserver.leafFragmentScheduling(millisTaken, stats));
+  }
+
+  @Override
+  public void startLeafFragmentFailed(Exception ex) {
+    execute(() -> innerObserver.startLeafFragmentFailed(ex));
   }
 
   @Override
   public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
-    serializedExec.execute(new DeferredRunnable(){
-      @Override
-      public void doRun() {
-        innerObserver.resourcesScheduled(resourceSchedulingDecisionInfo);
-      }});
+    execute(() -> innerObserver.resourcesScheduled(resourceSchedulingDecisionInfo));
   }
 
   @Override
   public void tablesCollected(Iterable<DremioTable> tables) {
-    serializedExec.execute(new DeferredRunnable() {
-      @Override
-      void doRun() {
-        innerObserver.tablesCollected(tables);
+    execute(() -> innerObserver.tablesCollected(tables));
+  }
+
+  /**
+   * Wraps the runnable so that any exception thrown will eventually cause the attempt
+   * to fail when handling the {@link #attemptCompletion(UserResult)} callback
+   */
+  private void execute(Runnable runnable) {
+    serializedExec.execute(() -> {
+      try {
+        runnable.run();
+      } catch (Throwable ex) {
+        deferred.addThrowable(ex);
       }
     });
   }

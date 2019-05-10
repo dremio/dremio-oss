@@ -15,42 +15,41 @@
  */
 package com.dremio.exec.store.ischema;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
+import com.dremio.connector.metadata.BytesOutput;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetHandleListing;
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetDatasetOption;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
+import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
+import com.dremio.connector.metadata.extensions.SupportsReadSignature;
+import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
-import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 
-import io.protostuff.ByteString;
-
-public class InfoSchemaStoragePlugin implements StoragePlugin {
+public class InfoSchemaStoragePlugin implements StoragePlugin, SupportsReadSignature, SupportsListingDatasets {
   public static String NAME = "INFORMATION_SCHEMA";
 
-  static final ImmutableSet<String> TABLES = FluentIterable.of(InfoSchemaTable.values()).transform(new Function<InfoSchemaTable, String>(){
-    @Override
-    public String apply(InfoSchemaTable input) {
-      return input.name().toLowerCase();
-    }}).toSet();
-
-  static final ImmutableMap<String, InfoSchemaTable> TABLE_MAP = FluentIterable.<InfoSchemaTable>of(InfoSchemaTable.values()).uniqueIndex(new Function<InfoSchemaTable, String>(){
-    @Override
-    public String apply(InfoSchemaTable input) {
-      return input.name().toLowerCase();
-    }});
+  static final ImmutableMap<String, InfoSchemaTable> TABLE_MAP = FluentIterable.from(InfoSchemaTable.values())
+      .uniqueIndex(input -> input.name().toLowerCase());
 
   private final SabotContext context;
 
@@ -61,39 +60,6 @@ public class InfoSchemaStoragePlugin implements StoragePlugin {
 
   SabotContext getSabotContext() {
     return context;
-  }
-
-  @Override
-  public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions ignored) throws Exception {
-    return FluentIterable.of(InfoSchemaTable.values()).transform(new Function<InfoSchemaTable, SourceTableDefinition>(){
-      @Override
-      public SourceTableDefinition apply(InfoSchemaTable input) {
-        return input.asTableDefinition(null);
-      }});
-  }
-
-  @Override
-  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, DatasetRetrievalOptions ignored) throws Exception {
-    if(datasetPath.size() != 2) {
-      return null;
-    }
-
-    InfoSchemaTable table = TABLE_MAP.get(datasetPath.getName().toLowerCase());
-    if(table != null) {
-      return table.asTableDefinition(oldDataset);
-    }
-
-    return null;
-  }
-
-  @Override
-  public boolean containerExists(NamespaceKey key) {
-    return false;
-  }
-
-  @Override
-  public boolean datasetExists(NamespaceKey key) {
-    return key.size() == 2 && TABLES.contains(key.getName().toLowerCase());
   }
 
   @Override
@@ -117,12 +83,7 @@ public class InfoSchemaStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig, DatasetRetrievalOptions ignored) throws Exception {
-    return CheckResult.UNCHANGED;
-  }
-
-  @Override
-  public void close(){
+  public void close() {
   }
 
   @Override
@@ -134,4 +95,56 @@ public class InfoSchemaStoragePlugin implements StoragePlugin {
     return SourceCapabilities.NONE;
   }
 
+  @Override
+  public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) {
+    return () -> Arrays.stream(InfoSchemaTable.values()).iterator();
+  }
+
+  @Override
+  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
+    if (datasetPath.size() != 2) {
+      return Optional.empty();
+    }
+
+    final InfoSchemaTable table = TABLE_MAP.get(datasetPath.getName().toLowerCase());
+    if (table == null) {
+      return Optional.empty();
+    }
+
+    return Optional.of(table);
+  }
+
+  @Override
+  public DatasetMetadata getDatasetMetadata(
+      DatasetHandle datasetHandle,
+      PartitionChunkListing chunkListing,
+      GetMetadataOption... options
+  ) {
+    return datasetHandle.unwrap(InfoSchemaTable.class);
+  }
+
+  @Override
+  public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
+    return datasetHandle.unwrap(InfoSchemaTable.class);
+  }
+
+  @Override
+  public boolean containerExists(EntityPath containerPath) {
+    return false;
+  }
+
+  @Override
+  public BytesOutput provideSignature(DatasetHandle datasetHandle, DatasetMetadata metadata) {
+    return BytesOutput.NONE;
+  }
+
+  @Override
+  public MetadataValidity validateMetadata(
+      BytesOutput signature,
+      DatasetHandle datasetHandle,
+      DatasetMetadata metadata,
+      ValidateMetadataOption... options
+  ) {
+    return MetadataValidity.VALID;
+  }
 }

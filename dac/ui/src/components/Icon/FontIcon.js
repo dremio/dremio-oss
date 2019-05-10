@@ -139,12 +139,14 @@ const DEFAULT_STYLES = {
   },
   [FOLDER_CONVERT]: {
     'Icon': {
+      'margin-top': -2,
       'width': 55,
       'height': 24
     }
   },
   [FILE_CONVERT]: {
     'Icon': {
+      'margin-top': -2,
       'width': 55,
       'height': 24
     }
@@ -174,7 +176,7 @@ const DEFAULT_STYLES = {
  * This component consist of two parts Icon and Container in which Icon is placed.
  */
 
-// todo: stop using a "font icon" component to display custom things that aren't in an icon font
+// TODO: stop using a "font icon" component to display custom things that aren't in an icon font
 
 @Radium
 @PureRender

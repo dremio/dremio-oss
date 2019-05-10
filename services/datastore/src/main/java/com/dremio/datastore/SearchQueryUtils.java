@@ -215,6 +215,33 @@ public final class SearchQueryUtils {
   }
 
   /**
+   * Creates a contains term query
+   * @param field the field to scan
+   * @param value a value to look for
+   * @return a query instance
+   */
+  public static final SearchQuery newContainsTerm(String field, String value) {
+    final SearchQuery.Contains.Builder valueBuilder = SearchQuery.Contains.newBuilder()
+      .setField(field)
+      .setValue(value);
+
+    return SearchQuery.newBuilder()
+      .setType(SearchQuery.Type.CONTAINS)
+      .setContainsText(valueBuilder)
+      .build();
+  }
+
+  /**
+   * Creates a contains term query
+   * @param indexKey the index key to scan
+   * @param value a value to look for
+   * @return a query instance
+   */
+  public static final SearchQuery newContainsTerm(IndexKey indexKey, String value) {
+    return newContainsTerm(indexKey.getIndexFieldName(), value);
+  }
+
+  /**
    * Create a range query based on int values
    *
    * @param field the field to scan

@@ -17,10 +17,10 @@ package com.dremio.exec.store.dfs;
 
 import java.math.BigDecimal;
 
-import org.apache.arrow.vector.util.DateUtility;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
+import com.dremio.common.util.JodaDateUtility;
 import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestParquetPartitionPruning extends PlanTestBase {
@@ -32,7 +32,7 @@ public class TestParquetPartitionPruning extends PlanTestBase {
       .sqlQuery(sql)
       .unOrdered()
       .baselineColumns("ts")
-      .baselineValues(DateUtility.formatTimeStampMilli.parseLocalDateTime("2008-10-05 05:13:14.000"))
+      .baselineValues(JodaDateUtility.formatTimeStampMilli.parseLocalDateTime("2008-10-05 05:13:14.000"))
       .go();
   }
 

@@ -24,6 +24,14 @@ import com.dremio.exec.proto.UserBitShared.ExternalId;
 public interface LocalQueryExecutor {
 
   /**
+   * Should be called as early as possible before submitting a new query, this allows the coordinator to protect itself
+   * from running out of resources
+   *
+   * @return true if the local query executor can accept more work
+   */
+  boolean canAcceptWork();
+
+  /**
    * Will submit a query locally without going through the client.
    * @param observer QueryObserver used to get notifications about the queryJob.
    *                    Overrides the use of QueryObserverFactory defined in the context

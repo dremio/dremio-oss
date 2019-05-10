@@ -123,8 +123,6 @@ final class TextReader implements AutoCloseable {
     final byte newLine = this.newLine;
     final TextInput input = this.input;
 
-    input.mark();
-
     fieldIndex = 0;
     if (isWhite(ch) && ignoreLeadingWhitespace) {
       skipWhitespace();

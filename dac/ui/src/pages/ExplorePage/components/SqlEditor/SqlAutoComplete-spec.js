@@ -71,7 +71,8 @@ describe('SqlAutoComplete', () => {
 
   it('renders DragTarget wrapper, .sql-autocomplete, CodeMirror component', () => {
     expect(wrapper.type()).to.eql(DragTarget);
-    expect(wrapper.find('SQLEditor')).to.have.length(1);
+    // finding SQLEditor after it's been connected to redux
+    expect(wrapper.find('Connect(SQLEditor)')).to.have.length(1);
     expect(wrapper.find('Modal')).to.have.length(0);
   });
 

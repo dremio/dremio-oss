@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNotNull;
 
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -46,6 +47,7 @@ import org.junit.Assert;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.common.util.DremioGetObject;
 import com.dremio.exec.HyperVectorValueIterator;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.proto.UserBitShared;
@@ -307,6 +309,10 @@ public class DremioTestWrapper {
 
   }
 
+  private static Object getVectorObject(ValueVector vector, int index) {
+    return DremioGetObject.getObject(vector, index);
+  }
+
   /**
    * @param batches
    * @return
@@ -359,7 +365,7 @@ public class DremioTestWrapper {
             int complexIndex = sv4.get(j);
             int batchIndex = complexIndex >> 16;
             int recordIndexInBatch = complexIndex & 65535;
-            Object obj = vectors[batchIndex].getObject(recordIndexInBatch);
+            Object obj = getVectorObject(vectors[batchIndex], recordIndexInBatch);
             if (obj != null) {
               if (obj instanceof Text) {
                 obj = obj.toString();
@@ -377,7 +383,7 @@ public class DremioTestWrapper {
               } else {
                 index = j;
               }
-              Object obj = vv.getObject(index);
+              Object obj = getVectorObject(vv, index);
               if (obj != null) {
                 if (obj instanceof Text) {
                   obj = obj.toString();
@@ -628,7 +634,7 @@ public class DremioTestWrapper {
       for (int j = 0; j < loader.getRecordCount(); j++) {
         Map<String, Object> record = new LinkedHashMap<>();
         for (VectorWrapper<?> w : loader) {
-          Object obj = w.getValueVector().getObject(j);
+          Object obj = getVectorObject(w.getValueVector(), j);
           if (obj != null) {
             if (obj instanceof Text) {
               obj = obj.toString();
@@ -723,6 +729,11 @@ public class DremioTestWrapper {
       Period actualValue = ((Period) actual).normalizedStandard();
       Period expectedValue = ((Period) expected).normalizedStandard();
       return actualValue.equals(expectedValue);
+    }
+    if (actual instanceof BigDecimal && expected instanceof BigDecimal) {
+      // equals returns false for 2.0 and 2.00.
+      // hard to test for values with differing number of digits in the input file.
+      return ((BigDecimal) actual).compareTo((BigDecimal) expected) == 0;
     }
     if (!expected.equals(actual)) {
       return false;

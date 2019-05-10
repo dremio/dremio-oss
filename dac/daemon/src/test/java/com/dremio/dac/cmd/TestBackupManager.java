@@ -57,7 +57,6 @@ import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
-import com.dremio.service.accelerator.proto.Acceleration;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceNotFoundException;
@@ -229,7 +228,6 @@ public class TestBackupManager extends BaseTestServer {
     checkPoint.users = Arrays.asList(Iterables.toArray(userService.getAllUsers(10000), User.class));
     checkPoint.datasets = Lists.newArrayList();
     checkPoint.virtualDatasetVersions = Lists.newArrayList();
-    checkPoint.accelerations = Lists.newArrayList();
 
     /** DX-4498
     for (NamespaceKey ds : namespaceService.getAllDatasets(new NamespaceKey(""))) {
@@ -254,7 +252,6 @@ public class TestBackupManager extends BaseTestServer {
     private List<? extends User> users;
     private List<VirtualDatasetUI> virtualDatasetVersions;
     private List<Job> jobs;
-    private List<Acceleration> accelerations;
 
     private void checkEquals(CheckPoint o) {
       assertTrue(CollectionUtils.isEqualCollection(sources, o.sources));
@@ -264,7 +261,6 @@ public class TestBackupManager extends BaseTestServer {
       assertTrue(CollectionUtils.isEqualCollection(users, o.users));
       assertTrue(CollectionUtils.isEqualCollection(virtualDatasetVersions, o.virtualDatasetVersions));
       assertTrue(CollectionUtils.isEqualCollection(jobs, o.jobs));
-      assertTrue(CollectionUtils.isEqualCollection(accelerations, o.accelerations));
     }
   }
 

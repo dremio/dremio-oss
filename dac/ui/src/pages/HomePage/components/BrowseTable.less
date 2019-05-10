@@ -15,6 +15,32 @@
  */
 @import '~@app/components/colors.less';
 @import '~@app/uiTheme/less/mixins.less';
+@import "~@app/uiTheme/less/variables.complex.less";
+@import "~@app/uiTheme/less/color-schema.less";
+
+// we should show a spliter/border on the left and add a padding for wiki button
+.wiki-collapsed {
+  composes: sidebar-border from '@app/pages/HomePage/components/Columns.less';
+  padding-left: 10px;
+}
+
+.slider {
+  position: absolute;
+  top: 0;
+  //use right, as on resize I am going to replace right property with distance from cursor position to right edge of sidebar
+  right: 100%;
+  bottom: 0;
+  width: 11px;
+  transform: translateX(50%);
+  background: @TABLE_BORDER;
+  cursor: col-resize;
+  opacity: 0;
+  z-index: 100;
+
+  &:hover {
+    opacity: 1;
+  }
+}
 
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
@@ -90,11 +116,13 @@
         .sort-icon() {
           position: absolute;
           left: 100%;
+          top: 50%;
           display: block;
           background-image: url(../../../components/Icon/icons/Arrow-Down-Small.svg);
           content: '';
           width: 24px;
           height: 24px;
+          transform: translateY(-50%)
         }
 
         .sort-asc, .sort-desc {
@@ -110,7 +138,7 @@
         .sort-desc{
           &::after{
             .sort-icon();
-            transform: rotate(180deg);
+            transform: translateY(-50%) rotate(180deg);
           }
         }
       }
@@ -135,7 +163,6 @@
     .browse-table-viewer-header {
       overflow: hidden;
       background: #e4f2f7;
-      padding: 0 10px;
       height: 38px;
       flex-shrink: 0;
 

@@ -115,13 +115,13 @@ public class StreamingAggOperator implements SingleInputOperator  {
 
     final ClassGenerator<StreamingAggregator> cg = context.getClassProducer().createGenerator(StreamingAggTemplate.TEMPLATE_DEFINITION).getRoot();
 
-    final LogicalExpression[] keyExprs = new LogicalExpression[config.getKeys().size()];
-    final LogicalExpression[] valueExprs = new LogicalExpression[config.getExprs().size()];
-    final TypedFieldId[] keyOutputIds = new TypedFieldId[config.getKeys().size()];
+    final LogicalExpression[] keyExprs = new LogicalExpression[config.getGroupByExprs().size()];
+    final LogicalExpression[] valueExprs = new LogicalExpression[config.getAggrExprs().size()];
+    final TypedFieldId[] keyOutputIds = new TypedFieldId[config.getGroupByExprs().size()];
 
 
     for (int i = 0; i < keyExprs.length; i++) {
-      final NamedExpression ne = config.getKeys().get(i);
+      final NamedExpression ne = config.getGroupByExprs().get(i);
       final LogicalExpression expr = context.getClassProducer().materialize(ne.getExpr(), onDeckInput);
       if (expr == null) {
         continue;
@@ -133,7 +133,7 @@ public class StreamingAggOperator implements SingleInputOperator  {
     }
 
     for (int i = 0; i < valueExprs.length; i++) {
-      final NamedExpression ne = config.getExprs().get(i);
+      final NamedExpression ne = config.getAggrExprs().get(i);
       final LogicalExpression expr = context.getClassProducer().materialize(ne.getExpr(), onDeckInput);
       if (expr instanceof IfExpression) {
         throw UserException.unsupportedError().message("Union type not supported in aggregate functions").build(logger);
@@ -229,7 +229,7 @@ public class StreamingAggOperator implements SingleInputOperator  {
     if(done){
       state = State.DONE;
       if (consumedCount == 0) {
-        if(config.getExprs().size() == outgoing.getNumberOfColumns()){
+        if(config.getAggrExprs().size() == outgoing.getNumberOfColumns()){
           // no group by.
           constructSpecialBatch();
           state = State.DONE;
@@ -280,7 +280,7 @@ public class StreamingAggOperator implements SingleInputOperator  {
    */
   private void constructSpecialBatch() {
     outgoing.allocateNew();
-    List<NamedExpression> exprs = config.getExprs();
+    List<NamedExpression> exprs = config.getAggrExprs();
     if(outgoing.getNumberOfColumns() != exprs.size()){
       throw new IllegalStateException();
     }

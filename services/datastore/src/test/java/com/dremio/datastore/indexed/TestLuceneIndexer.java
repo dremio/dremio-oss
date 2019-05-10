@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -127,6 +128,45 @@ public class TestLuceneIndexer {
       assertEquals(2, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils.newExistsQuery("foo"))));
       assertEquals(1, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils.newDoesNotExistQuery("foo"))));
     }
+  }
+
+  @Test
+  public void testContainsQuery() throws IOException {
+    try (LuceneSearchIndex index = new LuceneSearchIndex(null, "test", true, CommitWrapper.NO_OP)) {
+      int id = 1;
+      for (String docName : Arrays.asList("James", "Jamile", "amanda", "Ja*mes", "Jam?es", "Jame\\s")) {
+        addSimpleDocument(index, docName, Integer.toString(id++));
+      }
+
+      assertEquals(4, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newContainsTerm(documentNameField, "Jam"))));
+      assertEquals(5, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newContainsTerm(documentNameField, "am"))));
+      assertEquals(1, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newContainsTerm(documentNameField, "*"))));
+      assertEquals(1, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newContainsTerm(documentNameField, "?"))));
+      assertEquals(1, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newContainsTerm(documentNameField, "\\"))));
+      assertEquals(3, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newContainsTerm(documentNameField, "es"))));
+      assertEquals(0, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newContainsTerm(documentNameField, "amal"))));
+      assertEquals(0, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newContainsTerm(documentNameField, "ama*"))));
+      assertEquals(0, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newContainsTerm(documentNameField, "ama?"))));
+      assertEquals(0, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newContainsTerm(documentNameField, "Ja\\*"))));
+    }
+  }
+
+  private final String documentNameField = "name";
+  private void addSimpleDocument(LuceneSearchIndex index, String docName, String id) {
+    final Document document = new Document();
+    document.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef(id), Store.YES));
+    document.add(new StringField(documentNameField, docName, Store.YES));
+    index.add(document);
   }
 
   private class Writer extends Thread implements Runnable {

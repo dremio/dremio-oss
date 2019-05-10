@@ -18,7 +18,6 @@ package com.dremio.exec.planner.physical.visitor;
 import java.util.Collections;
 import java.util.List;
 
-
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;

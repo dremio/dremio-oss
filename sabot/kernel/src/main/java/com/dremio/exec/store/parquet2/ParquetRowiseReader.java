@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.store.parquet2;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -247,6 +246,10 @@ public class ParquetRowiseReader extends AbstractParquetReader {
                               MinorType.INT.getType(), null),
                       (Class<? extends ValueVector>) TypeHelper.getValueVectorClass(MinorType.INT)));
           }
+          if (output.isSchemaChanged()) {
+            logger.info("Detected schema change. Not initializing further readers.");
+            return;
+          }
         }
         if(columnsNotFound.size()==getColumns().size()){
           noColumnsFound=true;
@@ -255,27 +258,28 @@ public class ParquetRowiseReader extends AbstractParquetReader {
 
       logger.debug("Requesting schema {}", projection);
 
-      Map<ColumnPath, ColumnChunkMetaData> paths = new HashMap<>();
-
-      for (ColumnChunkMetaData md : footer.getBlocks().get(rowGroupIndex).getColumns()) {
-        paths.put(md.getPath(), md);
-      }
-
-      Path filePath = new Path(path);
-
-      BlockMetaData blockMetaData = footer.getBlocks().get(rowGroupIndex);
-
-      recordCount = blockMetaData.getRowCount();
-
-      boolean schemaOnly = operatorContext == null;
+      boolean schemaOnly = (operatorContext == null) || (footer.getBlocks().size() == 0);
 
       if (!schemaOnly) {
-        pageReadStore = new ColumnChunkIncReadStore(recordCount,
-                CodecFactory.createDirectCodecFactory(fileSystem.getConf(),
-                        new ParquetDirectByteBufferAllocator(operatorContext.getAllocator()), 0), operatorContext.getAllocator(),
-                fileSystem, filePath, inputStreamProvider);
 
-        for (String[] path : schema.getPaths()) {
+        Map<ColumnPath, ColumnChunkMetaData> paths = new HashMap<>();
+
+        for (ColumnChunkMetaData md : footer.getBlocks().get(rowGroupIndex).getColumns()) {
+          paths.put(md.getPath(), md);
+        }
+
+        Path filePath = new Path(path);
+
+        BlockMetaData blockMetaData = footer.getBlocks().get(rowGroupIndex);
+
+        recordCount = blockMetaData.getRowCount();
+
+        pageReadStore = new ColumnChunkIncReadStore(recordCount,
+          CodecFactory.createDirectCodecFactory(fileSystem.getConf(),
+            new ParquetDirectByteBufferAllocator(operatorContext.getAllocator()), 0), operatorContext.getAllocator(),
+          fileSystem, filePath, inputStreamProvider);
+
+        for (String[] path : projection.getPaths()) {
           Type type = schema.getType(path);
           if (type.isPrimitive()) {
             ColumnChunkMetaData md = paths.get(ColumnPath.get(path));
@@ -284,6 +288,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         }
 
       }
+
       if(!noColumnsFound) {
         ColumnIOFactory factory = new ColumnIOFactory(false);
         MessageColumnIO columnIO = factory.getColumnIO(projection, schema);
@@ -392,7 +397,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         pageReadStore.close();
         pageReadStore = null;
       }
-    } catch (IOException e) {
+    } catch (Exception e) {
       logger.warn("Failure while closing PageReadStore", e);
     }
   }

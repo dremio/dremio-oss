@@ -137,7 +137,7 @@ describe('Message', () => {
       const instance = shallow(<Message {...commonProps}
         message={Immutable.Map({message: 'foo', stackTrace: ['a', 'b']})}
       />).instance();
-      expect(shallow(instance.renderDetails()).text()).to.eql('a b');
+      expect(shallow(instance.renderDetails()).text()).to.eql('a\nb');
     });
     it('should render with stackTrace as string', function() {
       const instance = shallow(<Message {...commonProps}

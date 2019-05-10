@@ -44,9 +44,9 @@ public class StrippingFactory {
     this.config = config;
   }
 
-  public StripResult strip(RelNode query, ReflectionType type) {
+  public StripResult strip(RelNode query, ReflectionType type, boolean isIncremental) {
     NodeStripper stripper = config.getInstance(NODE_STRIPPER, NodeStripper.class, NO_OP_STRIPPER);
-    return stripper.apply(options, type, query);
+    return stripper.apply(options, type, query, isIncremental);
   }
 
   /**
@@ -64,14 +64,14 @@ public class StrippingFactory {
   private static final class PassThruNodeStripper implements NodeStripper {
 
     @Override
-    public StripResult apply(OptionManager options, ReflectionType reflectionType, RelNode node) {
+    public StripResult apply(OptionManager options, ReflectionType reflectionType, RelNode node, boolean isIncremental) {
       return noStrip(node);
     }
 
   }
 
   public interface NodeStripper {
-    public StripResult apply(OptionManager options, ReflectionType reflectionType, RelNode node);
+    public StripResult apply(OptionManager options, ReflectionType reflectionType, RelNode node, boolean isIncremental);
   }
 
   public static class StripResult {

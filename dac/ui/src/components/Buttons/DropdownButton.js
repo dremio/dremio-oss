@@ -16,9 +16,9 @@
 import React, { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
-import { Popover, PopoverAnimationVertical } from 'material-ui/Popover';
 import deepEqual from 'deep-equal';
 
+import { SelectView } from '@app/components/Fields/SelectView';
 import { SECONDARY, SECONDARY_BORDER, BLUE } from 'uiTheme/radium/colors';
 import FontIcon from 'components/Icon/FontIcon';
 
@@ -48,18 +48,6 @@ export default class DropdownButton extends Component {
     hideDropdown: false
   }
 
-  state = {
-    open: false,
-    anchorOrigin: {
-      horizontal: 'right',
-      vertical: 'bottom'
-    },
-    targetOrigin: {
-      horizontal: 'right',
-      vertical: 'top'
-    }
-  }
-
   componentWillMount() {
     this.receiveProps(this.props);
   }
@@ -77,7 +65,7 @@ export default class DropdownButton extends Component {
     }
   }
 
-  doAction = (item) => {
+  doAction = (closeDD, item) => {
     if (this.props.shouldSwitch) {
       this.setState({
         text: item.label,
@@ -85,24 +73,9 @@ export default class DropdownButton extends Component {
       });
     }
 
-    this.handleClose();
+    closeDD();
     this.props.action(item.name);
   }
-
-  handleClose = () => {
-    this.setState({
-      open: false
-    });
-  };
-
-  handleOpen = (event) => {
-    if (!this.props.disabled) {
-      this.setState({
-        open: true,
-        anchorEl: event.currentTarget
-      });
-    }
-  };
 
   action = (e) => {
     if (!this.props.disabled) {
@@ -148,34 +121,38 @@ export default class DropdownButton extends Component {
             </span>
           </div>
         </div>
-        {!hideDropdown && <div
-          style={[styles.toggler, isTogglerHovered && hoverStyle, cursorStyle]}
-          key='toggler'
-          onClick={this.handleOpen.bind(this)}>
-          <div style={[styles.divider, dividerStyle, divider]} />
-          <FontIcon
-            type={toggleIcontype}
-            theme={{Container: {width: 24, height: 24}}}
-            onClick={disabled ? undefined : this.toggleDropdown}/>
-        </div>}
-        <Popover
-          style={{overflow: 'visible', marginTop: 7}}
-          useLayerForClickAway={false}
-          open={this.state.open}
-          anchorEl={this.state.anchorEl}
-          anchorOrigin={this.state.anchorOrigin}
-          targetOrigin={this.state.targetOrigin}
-          onRequestClose={this.handleClose}
-          animation={PopoverAnimationVertical}>
-          <div style={styles.popover}>
-            <div style={styles.triangle}/>
-            {
-              React.cloneElement(this.props.menu, {
-                action: this.doAction
-              })
+        {
+          !hideDropdown && <SelectView
+            listStyle={{overflow: 'visible', marginTop: 7}}
+            content={
+              <div
+                style={[styles.toggler, isTogglerHovered && hoverStyle, cursorStyle]}
+                key='toggler'>
+                <div style={[styles.divider, dividerStyle, divider]} />
+                <FontIcon
+                  type={toggleIcontype}
+                  theme={{Container: {width: 24, height: 24}}}
+                  onClick={disabled ? undefined : this.toggleDropdown}/>
+              </div>
             }
-          </div>
-        </Popover>
+            hideExpandIcon
+            listRightAligned
+            useLayerForClickAway={false}
+          >
+            {
+              ({ closeDD }) => (
+                <div style={styles.popover}>
+                  <div style={styles.triangle}/>
+                  {
+                    React.cloneElement(this.props.menu, {
+                      action: this.doAction.bind(this, closeDD)
+                    })
+                  }
+                </div>
+              )
+            }
+          </SelectView>
+        }
       </div>
     );
   }

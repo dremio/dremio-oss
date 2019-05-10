@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -73,6 +74,7 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
+import com.dremio.service.scheduler.ScheduleUtils;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
 import com.dremio.services.fabric.ProxyConnection;
@@ -117,6 +119,8 @@ public class CatalogServiceImpl implements CatalogService {
     }
   };
 
+  private static final String LOCAL_TASK_LEADER_NAME = "catalogservice";
+
   public static final String CATALOG_SOURCE_DATA_NAMESPACE = "catalog-source-data";
 
   private final Provider<SabotContext> context;
@@ -158,24 +162,45 @@ public class CatalogServiceImpl implements CatalogService {
     this.protocol =  new CatalogProtocol(allocator, new CatalogChangeListener(), context.getConfig());
     tunnelFactory = fabric.get().registerProtocol(protocol);
 
-    if(context.getRoles().contains(Role.MASTER)) {
-      if(createSourceIfMissing(new SourceConfig()
-            .setConfig(new InfoSchemaConf().toBytesString())
-            .setName("INFORMATION_SCHEMA")
-            .setType("INFORMATION_SCHEMA")
-            .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY))) {
-        logger.debug("Refreshing 'INFORMATION_SCHEMA' source");
-        refreshSource(new NamespaceKey("INFORMATION_SCHEMA"), CatalogService.NEVER_REFRESH_POLICY, UpdateType.FULL);
-      };
+    boolean isDistributedCoordinator = context.getDremioConfig().isMasterlessEnabled()
+      && context.getRoles().contains(Role.COORDINATOR);
+    if(context.getRoles().contains(Role.MASTER) || isDistributedCoordinator) {
+      final CountDownLatch wasRun = new CountDownLatch(1);
+      final Cancellable task = scheduler.get().schedule(ScheduleUtils.scheduleToRunOnceNow(
+        LOCAL_TASK_LEADER_NAME), () -> {
+          try {
+            if (createSourceIfMissing(new SourceConfig()
+              .setConfig(new InfoSchemaConf().toBytesString())
+              .setName("INFORMATION_SCHEMA")
+              .setType("INFORMATION_SCHEMA")
+              .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY))) {
+              logger.debug("Refreshing 'INFORMATION_SCHEMA' source");
+              try {
+                refreshSource(new NamespaceKey("INFORMATION_SCHEMA"), CatalogService.NEVER_REFRESH_POLICY, UpdateType.FULL);
+              } catch (NamespaceException e) {
+                throw new RuntimeException(e);
+              }
+            }
 
-      if(createSourceIfMissing(new SourceConfig()
-          .setConnectionConf(sysTableConfProvider.get().get())
-          .setName("sys")
-          .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY))) {
-        logger.debug("Refreshing 'sys' source");
-        refreshSource(new NamespaceKey("sys"), CatalogService.NEVER_REFRESH_POLICY, UpdateType.FULL);
-      };
+            createSourceIfMissing(new SourceConfig()
+                    .setConnectionConf(sysTableConfProvider.get().get())
+                    .setName("sys")
+                    .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY));
 
+            logger.debug("Refreshing 'sys' source");
+            try {
+              refreshSource(new NamespaceKey("sys"), CatalogService.NEVER_REFRESH_POLICY, UpdateType.FULL);
+            } catch (NamespaceException e) {
+              throw new RuntimeException(e);
+            }
+          } finally {
+            wasRun.countDown();
+          }
+      });
+      if (!task.isDone()) {
+        // wait till task is done only if task leader
+        wasRun.await();
+      }
     }
 
 
@@ -635,7 +660,7 @@ public class CatalogServiceImpl implements CatalogService {
             }
           } catch (Exception e) {
             plugins.deleteSource(config);
-            throw UserException.connectionError(e).message("Failure while configuring source [%s]", config.getName())
+            throw UserException.connectionError(e).message("Failure while configuring source [%s].", config.getName())
               .build(logger);
           }
 
@@ -798,7 +823,7 @@ public class CatalogServiceImpl implements CatalogService {
     long millis = 15_000;
     DistributedLease lease = context.get().getClusterCoordinator().getSemaphore("-source-" + sourceName.toLowerCase(), 1).acquire(millis, TimeUnit.MILLISECONDS);
     if(lease == null) {
-      throw UserException.resourceError().message("Unable to aquire source change lock for source [%s] within timeout.", sourceName).build(logger);
+      throw UserException.resourceError().message("Unable to acquire source change lock for source [%s] within timeout.", sourceName).build(logger);
     }
     return lease;
   }
@@ -904,14 +929,15 @@ public class CatalogServiceImpl implements CatalogService {
 
     @Override
     public ManagedStoragePlugin getPlugin(String name, boolean synchronizeOnMissing) {
+      final String pluginName = (name.startsWith("@")) ? "__home" : name;
       // Preconditions.checkState(isCoordinator);
 
       if (!synchronizeOnMissing) {
         // get from in-memory
-        return plugins.get(name);
+        return plugins.get(pluginName);
       }
       // if plugin is missing in-memory, we will synchronize to kvstore
-      return CatalogServiceImpl.this.getPlugin(name, true);
+      return CatalogServiceImpl.this.getPlugin(pluginName, true);
     }
 
   }

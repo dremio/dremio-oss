@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner;
 
+import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.ACCELERATOR_STORAGEPLUGIN_NAME;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -145,7 +147,7 @@ public class CheapestPlanWithReflectionVisitor {
     if (p.getInputs().size() == 0) {
       RelOptCost cost = p.getCluster().getMetadataQuery().getNonCumulativeCost(p);
 
-      if (p instanceof TableScan && p.getTable().getQualifiedName().get(0).equals("__accelerator")) {
+      if (p instanceof TableScan && p.getTable().getQualifiedName().get(0).equals(ACCELERATOR_STORAGEPLUGIN_NAME)) {
         TableScan tableScan = (TableScan) p;
         String reflection = tableScan.getTable().getQualifiedName().get(1);
         result = new Result(tableScan, cost, ImmutableMap.of(reflection, RelCostPair.of(p, cost)));

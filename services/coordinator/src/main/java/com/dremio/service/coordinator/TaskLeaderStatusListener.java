@@ -71,6 +71,7 @@ public class TaskLeaderStatusListener implements NodeStatusListener, AutoCloseab
     synchronized (taskLeaderLock) {
       taskLeaderLock.notifyAll();
     }
+    clusterCoordinator.get().getOrCreateServiceSet(taskName).removeNodeStatusListener(this);
     logger.info("Stopped TaskLeaderStatusListener for: {}", taskName);
   }
 
@@ -101,18 +102,18 @@ public class TaskLeaderStatusListener implements NodeStatusListener, AutoCloseab
   public void nodesRegistered(Set<CoordinationProtos.NodeEndpoint> registeredNodes) {
     Iterator<CoordinationProtos.NodeEndpoint> iterator = registeredNodes.iterator();
     if (!iterator.hasNext()) {
-      logger.warn("Received empty node registration");
+      logger.warn("Received empty node registration for {}", taskName);
       return;
     }
 
     CoordinationProtos.NodeEndpoint endpoint = iterator.next();
     synchronized(taskLeaderLock) {
       if (taskLeaderNode != null && !taskLeaderNode.equals(endpoint)) {
-        logger.info("TaskLeader node for {} changed. Previous was {}:{}, new is {}:{}", taskName,
+        logger.info("Leader for task {} for node changed. Previous was {}:{}, new is {}:{}", taskName,
           taskLeaderNode.getAddress(),
           taskLeaderNode.getFabricPort(), endpoint.getAddress(), endpoint.getFabricPort());
       } else {
-        logger.info("New TaskLeader node for {} {}:{} registered itself.", taskName,
+        logger.info("New Leader node for task {} {}:{} registered itself.", taskName,
           endpoint.getAddress(), endpoint.getFabricPort());
       }
       taskLeaderNode = endpoint;
@@ -127,7 +128,7 @@ public class TaskLeaderStatusListener implements NodeStatusListener, AutoCloseab
     long waitTimeInSecs = 0;
     while (!shutdown && !isTaskLeaderUp()) {
       if (waitTimeInSecs % 60 == 0) { // log once every minute
-        logger.info("Waiting for TaskLeader for {}", taskName);
+        logger.info("Waiting for leader for task {}", taskName);
       }
       waitTimeInSecs += 5;
       synchronized (taskLeaderLock) {

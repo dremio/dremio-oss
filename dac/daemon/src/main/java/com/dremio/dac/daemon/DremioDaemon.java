@@ -94,7 +94,7 @@ public class DremioDaemon {
       if (config.isMaster) {
         // Try autoupgrade before starting daemon
         AutoUpgrade autoUpgrade = new AutoUpgrade(config, classPathScan);
-        autoUpgrade.run();
+        autoUpgrade.run(false);
       }
 
       final DACModule module = sabotConfig.getInstance(DAEMON_MODULE_CLASS, DACModule.class, DACDaemonModule.class);

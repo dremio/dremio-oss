@@ -24,22 +24,24 @@ import java.util.concurrent.Executor;
  * queueing capability for a single target that requires any commands that
  * execute against it to be serialized.
  */
-public abstract class SerializedExecutor implements Executor {
+public abstract class SerializedExecutor<R extends Runnable> {
 
   private boolean isProcessing = false;
-  private final LinkedList<Runnable> queuedRunnables = new LinkedList<>();
+  private final LinkedList<R> queuedRunnables = new LinkedList<>();
   private final Executor underlyingExecutor;
   private final String name;
+  private final boolean useRunnableToStringForName;
 
   /**
-   * Constructor.
    *
-   * @param underlyingExecutor
-   *          underlying executor to use to execute commands submitted to this
+   * @param name
+   * @param underlyingExecutor underlying executor to use to execute commands submitted to this
    *          SerializedExecutor
+   * @param runnableClass Runnable types.
    */
-  public SerializedExecutor(String name, Executor underlyingExecutor) {
+  public SerializedExecutor(String name, Executor underlyingExecutor, boolean useRunnableToStringForName) {
     this.underlyingExecutor = underlyingExecutor;
+    this.useRunnableToStringForName = useRunnableToStringForName;
     this.name = name;
   }
 
@@ -65,13 +67,13 @@ public abstract class SerializedExecutor implements Executor {
    * @param t
    *          the exception
    */
-  protected abstract void runException(Runnable command, Throwable t);
+  protected abstract void runException(R command, Throwable t);
 
   private class RunnableProcessor implements Runnable {
 
-    private Runnable command;
+    private R command;
 
-    public RunnableProcessor(Runnable command) {
+    public RunnableProcessor(R command) {
       this.command = command;
     }
 
@@ -79,10 +81,17 @@ public abstract class SerializedExecutor implements Executor {
     public void run() {
       final Thread currentThread = Thread.currentThread();
       final String originalThreadName = currentThread.getName();
-      currentThread.setName(name);
+
+      if(!useRunnableToStringForName) {
+        currentThread.setName(name);
+      }
 
       try {
         while (true) {
+          if(useRunnableToStringForName) {
+            currentThread.setName(command.toString());
+          }
+
           try {
             command.run();
           } catch (Throwable e) {
@@ -107,17 +116,16 @@ public abstract class SerializedExecutor implements Executor {
     }
   }
 
-  @Override
-  public void execute(Runnable command) {
+  public void execute(R r) {
     synchronized (queuedRunnables) {
       if (isProcessing) {
-        queuedRunnables.addLast(command);
+        queuedRunnables.addLast(r);
         return;
       }
 
       isProcessing = true;
     }
 
-    underlyingExecutor.execute(new RunnableProcessor(command));
+    underlyingExecutor.execute(new RunnableProcessor(r));
   }
 }

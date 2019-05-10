@@ -94,4 +94,14 @@ export class ModuleStateView extends Component {
 
 
 const ModuleStateContainer = connect(mapStateToProps, mapDispatchToProps)(ModuleStateView);
-export const createDynamicStateContainer = (moduleKey, reducer) => props => <ModuleStateContainer moduleKey={moduleKey} reducer={reducer} {...props} />;
+export const moduleStateHOC = (moduleKey, reducer) => ComponentToWrap => {
+  return class ModuleStateHOC extends Component {
+    render() {
+      return (
+        <ModuleStateContainer moduleKey={moduleKey} reducer={reducer}>
+          <ComponentToWrap {...this.props} />
+        </ModuleStateContainer>
+      );
+    }
+  };
+};

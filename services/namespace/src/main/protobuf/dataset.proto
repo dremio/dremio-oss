@@ -69,13 +69,14 @@ message DatasetConfig {
   optional VirtualDataset virtualDataset = 9;
   optional PhysicalDataset physicalDataset = 10;
   repeated DatasetField dataset_fields = 11;
-  
+
   // cached metadata for this dataset.
-  optional ReadDefinition read_definition = 12; 
-  optional int32 schema_version = 13 [default = 0]; 
+  optional ReadDefinition read_definition = 12;
+  optional int32 schema_version = 13 [default = 0];
   optional bytes record_schema = 14; // batch schema
   optional int64 lastModified = 15;
   optional string tag = 16;
+  optional int32 total_num_splits = 17; // recomputed every time metadata is fetched from connector
 }
 
 // view info
@@ -112,52 +113,6 @@ message VirtualDataset {
 
   // The fields of the dataset from a View perspective. This is generated from the view's rowType
   repeated ViewFieldType calcite_fields = 9;
-}
-
-message Affinity {
-  optional string host = 1;
-  optional double factor = 2;
-}
-
-enum PartitionValueType {
-  UNKNOWN = 0;
-  
-  // always present
-  VISIBLE = 1;
-  
-  // implicit columns dir0, part of the table
-  IMPLICIT = 2;
-  
-  // invisible columns such as mod time (enabled only when added to projection list)
-  INVISIBLE = 3;
-}
-
-message PartitionValue {
-  option (extends_class) = "com.dremio.service.namespace.AbstractNonNullSerializer";
-
-  optional PartitionValueType type = 1;
-  
-  // The column name.
-  optional string column = 2;
-  optional bool bitValue = 3;
-  optional int32 intValue = 4;
-  optional int64 longValue = 5;
-  optional float floatValue = 6;
-  optional double doubleValue = 7;
-  optional bytes binaryValue = 8;
-  optional string stringValue = 9;
-}
-
-message DatasetSplit {
-  optional int64 version = 1 [deprecated = true]; // occ version
-  optional int64 size = 2; // size in bytes
-  optional int64 rowCount = 3; // number of rows
-  repeated Affinity affinities = 4; // locality for this split
-  repeated PartitionValue partitionValues = 5;
-  optional string splitKey = 6; // unique key provided by storage plugin which is indexed along with dataset id
-  optional bytes extendedProperty = 7; // source specific information about this split
-  optional int64 splitVersion = 8; // increasing number assigned to map read definition to its latest splits
-  optional string tag = 9;
 }
 
 enum SortOrder {

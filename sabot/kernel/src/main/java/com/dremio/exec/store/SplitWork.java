@@ -25,22 +25,24 @@ import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.fragment.ExecutionNodeMap;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.schedule.CompleteWork;
-import com.dremio.service.namespace.dataset.proto.Affinity;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
+import com.dremio.service.namespace.PartitionChunkMetadata;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.Affinity;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
+import com.google.common.collect.FluentIterable;
 
 public class SplitWork implements CompleteWork {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SplitWork.class);
 
-  private final DatasetSplit split;
+  private final PartitionChunkMetadata partitionChunk;
+  private final DatasetSplit datasetSplit;
   private final ExecutionNodeMap nodeMap;
   private final DistributionAffinity affinityType;
 
-  public SplitWork(DatasetSplit split, ExecutionNodeMap nodeMap, DistributionAffinity affinityType) {
+  public SplitWork(PartitionChunkMetadata partitionChunk, DatasetSplit datasetSplit, ExecutionNodeMap nodeMap, DistributionAffinity affinityType) {
     super();
-    this.split = split;
+    this.partitionChunk = partitionChunk;
+    this.datasetSplit = datasetSplit;
     this.nodeMap = nodeMap;
     this.affinityType = affinityType;
   }
@@ -52,22 +54,28 @@ public class SplitWork implements CompleteWork {
 
   @Override
   public long getTotalBytes() {
-    return split.getSize();
+    return partitionChunk.getSize();
   }
 
-
-  public DatasetSplit getSplit() {
-    return split;
+  public SplitInfo getSplitInfo() {
+    // some attributes from partitionChunk and some from datasetSplit
+    return SplitInfo.newBuilder()
+        .setSplitKey(partitionChunk.getSplitKey())
+        .setSize(partitionChunk.getSize())
+        .addAllPartitionValues(partitionChunk.getPartitionValues())
+        .setPartitionExtendedProperty(partitionChunk.getPartitionExtendedProperty())
+        .addAllAffinities(datasetSplit.getAffinitiesList())
+        .setSplitExtendedProperty(datasetSplit.getSplitExtendedProperty())
+        .build();
+  }
+  public DatasetSplit getDatasetSplit() {
+    return datasetSplit;
   }
 
   @Override
   public List<EndpointAffinity> getAffinity() {
-    if(split.getAffinitiesList() == null){
-      return ImmutableList.<EndpointAffinity>of();
-    }
-
     List<EndpointAffinity> endpoints = new ArrayList<>();
-    for(Affinity a : split.getAffinitiesList()){
+    for(Affinity a : datasetSplit.getAffinitiesList()){
       NodeEndpoint endpoint = nodeMap.getEndpoint(a.getHost());
       if(endpoint != null){
         endpoints.add(new EndpointAffinity(endpoint, a.getFactor(), affinityType == DistributionAffinity.HARD, affinityType == DistributionAffinity.HARD ? 1 : Integer.MAX_VALUE));
@@ -86,12 +94,11 @@ public class SplitWork implements CompleteWork {
     return endpoints;
   }
 
-  public static Iterator<SplitWork> transform(Iterator<DatasetSplit> splits, final ExecutionNodeMap nodeMap, final DistributionAffinity affinityType){
-    return Iterators.transform(splits, new Function<DatasetSplit, SplitWork>(){
-      @Override
-      public SplitWork apply(DatasetSplit split) {
-        return new SplitWork(split, nodeMap, affinityType);
-      }});
+  public static Iterator<SplitWork> transform(Iterator<PartitionChunkMetadata> splits, final ExecutionNodeMap nodeMap, final DistributionAffinity affinityType) {
+    return FluentIterable.from(() -> splits)
+      .transformAndConcat(partitionChunk -> FluentIterable.from(partitionChunk.getDatasetSplits())
+        .transform(datasetSplit -> new SplitWork(partitionChunk, datasetSplit, nodeMap, affinityType)))
+      .iterator();
   }
 
   public static Iterator<SplitWork> transform(final TableMetadata dataset, ExecutionNodeMap nodeMap, DistributionAffinity affinityType){

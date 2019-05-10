@@ -33,8 +33,10 @@ import org.apache.commons.lang3.text.StrTokenizer;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
@@ -48,6 +50,7 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.server.NodeDebugContextProvider;
+import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
 import com.dremio.exec.store.pojo.PojoDataType;
 import com.dremio.exec.store.pojo.PojoRecordReader;
@@ -202,9 +205,8 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
     final CreateTableEntry createTableEntry = context.getCatalog()
         .resolveCatalog(SystemUser.SYSTEM_USERNAME)
         .createNewTable(new NamespaceKey(storeTable), WriterOptions.DEFAULT, storageOptions);
-    return createTableEntry.getWriter(null);
+    return createTableEntry.getWriter(new OpProps(0, SystemUser.SYSTEM_USERNAME, 0, Long.MAX_VALUE, 0, 0, false, 4095, RecordWriter.SCHEMA, false, 0.0d, false), null);
   }
-
 
   @Override
   public String toString() {
@@ -232,7 +234,8 @@ public class DirectWriterCommand<T> implements CommandRunner<Object> {
         NodeDebugContextProvider.NOOP,
         60000,
         null,
-        ImmutableList.of());
+        ImmutableList.of(),
+        new EndpointsIndex());
     return oc;
   }
 }

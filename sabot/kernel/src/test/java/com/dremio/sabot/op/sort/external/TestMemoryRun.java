@@ -32,6 +32,7 @@ import org.mockito.stubbing.Answer;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.expr.ClassProducer;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.selection.SelectionVector4;
@@ -44,7 +45,7 @@ import com.dremio.sabot.op.copier.CopierOperator;
 public class TestMemoryRun extends BaseTestOperator {
 
   private final ExternalSort externalSort =
-    new ExternalSort(null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+    new ExternalSort(OpProps.prototype(), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
 
   private BufferAllocator allocator;
   private BufferManager bufferManager;
@@ -65,18 +66,40 @@ public class TestMemoryRun extends BaseTestOperator {
   }
 
   @Test
-  public void testCloseToCopier() throws Exception {
+  public void testQuickSorterCloseToCopier() throws Exception {
     final ExternalSortTracer tracer = new ExternalSortTracer();
-    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer, 2)) {
+    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer,
+      2, false)) {
       int totalAdded = addBatches(memoryRun);
       validateCloseToCopier(memoryRun, 100, totalAdded);
     }
   }
 
   @Test
-  public void testCloseToDisk() throws Exception {
+  public void testQuickSorterCloseToDisk() throws Exception {
     final ExternalSortTracer tracer = new ExternalSortTracer();
-    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer, 2)) {
+    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer,
+      2, false)) {
+      int totalAdded = addBatches(memoryRun);
+      validateCloseToDisk(memoryRun, totalAdded);
+    }
+  }
+
+  @Test
+  public void testSplayTreeCloseToCopier() throws Exception {
+    final ExternalSortTracer tracer = new ExternalSortTracer();
+    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer,
+      2, true)) {
+      int totalAdded = addBatches(memoryRun);
+      validateCloseToCopier(memoryRun, 100, totalAdded);
+    }
+  }
+
+  @Test
+  public void testSplayTreeCloseToDisk() throws Exception {
+    final ExternalSortTracer tracer = new ExternalSortTracer();
+    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer,
+      2, true)) {
       int totalAdded = addBatches(memoryRun);
       validateCloseToDisk(memoryRun, totalAdded);
     }

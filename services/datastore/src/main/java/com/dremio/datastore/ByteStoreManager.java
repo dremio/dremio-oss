@@ -16,6 +16,7 @@
 package com.dremio.datastore;
 
 import static com.dremio.datastore.MetricUtils.COLLECT_METRICS;
+import static com.dremio.datastore.RocksDBStore.FILTER_SIZE_IN_BYTES;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.File;
@@ -23,6 +24,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -48,10 +50,13 @@ import org.rocksdb.TransactionLogIterator;
 import com.dremio.common.DeferredException;
 import com.dremio.datastore.CoreStoreProviderImpl.ForcedMemoryMode;
 import com.dremio.datastore.MetricUtils.MetricSetBuilder;
+import com.dremio.datastore.RocksDBStore.BlobNotFoundException;
+import com.dremio.datastore.RocksDBStore.RocksBlobManager;
 import com.dremio.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.StandardSystemProperty;
 import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -71,10 +76,14 @@ class ByteStoreManager implements AutoCloseable {
   private static final String DEFAULT = "default";
   private static final int STRIPE_COUNT = 16;
   private static final long ROCKSDB_OPEN_SLEEP_MILLIS = 100L;
+  // TODO: (DX-16211) this is a temporary hack for a blob whitelist
+  static final String BLOB_WHITELIST_STORE = "dac-namespace";
+  private static final Set<String> BLOB_WHITELIST = Collections.singleton(BLOB_WHITELIST_STORE);
 
   static final String CATALOG_STORE_NAME = "catalog";
 
   private final boolean inMemory;
+  private final boolean noDBOpenRetry;
   private final int stripeCount;
   private final String baseDirectory;
 
@@ -101,9 +110,14 @@ class ByteStoreManager implements AutoCloseable {
       });
 
   public ByteStoreManager(String baseDirectory, boolean inMemory) {
+    this(baseDirectory, inMemory, false);
+  }
+
+  public ByteStoreManager(String baseDirectory, boolean inMemory, boolean noDBOpenRetry) {
     this.stripeCount = STRIPE_COUNT;
     this.baseDirectory = baseDirectory;
     this.inMemory = inMemory;
+    this.noDBOpenRetry = noDBOpenRetry;
   }
 
   private ByteStore newStore(String name) throws RocksDBException {
@@ -114,7 +128,44 @@ class ByteStoreManager implements AutoCloseable {
       ColumnFamilyHandle handle = db.createColumnFamily(columnFamilyDescriptor);
       handleIdToNameMap.put(handle.getID(), name);
       metadataManager.createEntry(name, false);
-      return new RocksDBStore(name, columnFamilyDescriptor, handle, db, stripeCount);
+
+      return newRocksDBStore(name, columnFamilyDescriptor, handle);
+    }
+  }
+
+  private RocksDBStore newRocksDBStore(String name, ColumnFamilyDescriptor columnFamilyDescriptor,
+                                       ColumnFamilyHandle handle) {
+    if (BLOB_WHITELIST.contains(name)) {
+      final RocksBlobManager rocksBlobManager = new RocksBlobManager(baseDirectory, name, FILTER_SIZE_IN_BYTES);
+      return new RocksDBStore(name, columnFamilyDescriptor, handle, db, stripeCount, rocksBlobManager);
+    }
+    return new RocksDBStore(name, columnFamilyDescriptor, handle, db, stripeCount);
+  }
+
+  // Validates that the first file found in the DB directory is owned by the currently running user.
+  // Throws a DatastoreException if it's not.
+  private void verifyDBOwner(File dbDirectory) throws IOException {
+    // Skip file owner check if running on Windows
+    if (StandardSystemProperty.OS_NAME.value().contains("Windows")) {
+      return;
+    }
+
+    String procUser = StandardSystemProperty.USER_NAME.value();
+    File[] dbFiles = dbDirectory.listFiles();
+    for (File dbFile : dbFiles) {
+      if (dbFile.isDirectory()) {
+        continue;
+      }
+
+      String dbOwner = Files.getOwner(dbFile.toPath()).getName();
+      if (!procUser.equals(dbOwner)) {
+        throw new DatastoreException(
+          String.format("Process user (%s) doesn't match local catalog db owner (%s).  Please run process as %s.",
+            procUser, dbOwner, dbOwner));
+      }
+
+      // Break once verified, we assume the rest are owned by the same user.
+      break;
     }
   }
 
@@ -133,6 +184,10 @@ class ByteStoreManager implements AutoCloseable {
         throw new DatastoreException(
             String.format("Invalid path %s for local catalog db, not a directory.", dbDirectory.getAbsolutePath()));
       }
+
+      // If there are any files that exist within the dbDirectory, verify that the first file in the directory is
+      // owned by the process user.
+      verifyDBOwner(dbDirectory);
     } else {
       if (!dbDirectory.mkdirs()) {
         throw new DatastoreException(
@@ -183,7 +238,7 @@ class ByteStoreManager implements AutoCloseable {
         String name = new String(family, UTF_8);
         final ColumnFamilyHandle handle = familyHandles.get(i);
         handleIdToNameMap.put(handle.getID(), name);
-        RocksDBStore store = new RocksDBStore(name, new ColumnFamilyDescriptor(family), handle, db, stripeCount);
+        RocksDBStore store = newRocksDBStore(name, new ColumnFamilyDescriptor(family), handle);
         maps.put(name, store);
       }
     }
@@ -226,9 +281,16 @@ class ByteStoreManager implements AutoCloseable {
           throw e;
         }
 
+        // Don't retry if request came from a CLI command (noDBOpenRetry = true)
+        if (noDBOpenRetry) {
+          LOGGER.error("Lock file to RocksDB is currently held by another process.  Stop other process before retrying.");
+          System.out.println("Lock file to RocksDB is currently held by another process.  Stop other process before retrying.");
+          throw e;
+        }
+
         if (printLockMessage) {
-          LOGGER.info("Lock file to RocksDB is currently hold by another process. Will wait until lock is freed.");
-          System.out.println("Lock file to RocksDB is currently hold by another process. Will wait until lock is freed.");
+          LOGGER.info("Lock file to RocksDB is currently held by another process. Will wait until lock is freed.");
+          System.out.println("Lock file to RocksDB is currently held by another process. Will wait until lock is freed.");
           printLockMessage = false;
         }
       }
@@ -279,13 +341,47 @@ class ByteStoreManager implements AutoCloseable {
     }
 
     LOGGER.info("Replaying updates from {}", lowest);
+
     replaySince(lowest, replayHandler);
     return true;
   }
 
+  // We override the ReplayHandler to ensure that we resolve blob pointers stored in RocksDB.  This won't get called
+  // on other stores (like the in memory one) so its safe to require a RocksDBStore.
+  private class ReplayHandlerWithPtrResolution implements ReplayHandler {
+    private final ReplayHandler replayHandler;
+
+    ReplayHandlerWithPtrResolution(ReplayHandler replayHandler) {
+      super();
+      this.replayHandler = replayHandler;
+    }
+
+    @Override
+    public void put(String tableName, byte[] key, byte[] ptrOrValue) {
+      ByteStore store = getStore(tableName);
+      Preconditions.checkState(store instanceof RocksDBStore);
+      try {
+        final byte[] value = ((RocksDBStore) store).resolvePtrOrValue(ptrOrValue);
+        replayHandler.put(tableName, key, value);
+      } catch (BlobNotFoundException e) {
+        // Could not find the blob file when resolving a ptr.  This could be because the replayed event's pointer is no
+        // longer on disk since another event modified the entry (updated or deleted).  In this case just skip replaying
+        // the event.
+        LOGGER.trace("Replaying could not resolve ptr.", e);
+      }
+    }
+
+    @Override
+    public void delete(String tableName, byte[] key) {
+      replayHandler.delete(tableName, key);
+    }
+  }
+
   void replaySince(final long transactionNumber, ReplayHandler replayHandler) {
+    final ReplayHandlerWithPtrResolution replayHandlerWrapper = new ReplayHandlerWithPtrResolution(replayHandler);
+
     try (ReplayHandlerAdapter handler =
-             new ReplayHandlerAdapter(db.getDefaultColumnFamily().getID(), replayHandler, handleIdToNameMap);
+             new ReplayHandlerAdapter(db.getDefaultColumnFamily().getID(), replayHandlerWrapper, handleIdToNameMap);
          TransactionLogIterator iterator = db.getUpdatesSince(transactionNumber)) {
       while (iterator.isValid()) {
         iterator.status();

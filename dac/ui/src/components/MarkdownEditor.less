@@ -160,14 +160,18 @@
 
     .max-width() {
       max-width: 800px;
-      margin: 0 auto;
     }
 
     .editor-preview, .editor-preview-side {
       overflow-x: hidden; // to avoid horizontal scroll in IE.
-      margin: 0 !important;
       padding: @vert-padding @horiz-padding;
-      .max-width();
+
+      // need apply max width to all children, not to a preview, as preview is a single div, which is absolutely
+      // positioned above code mirror. If width more tham 800 code mirror become visible, especcially
+      // it's scroll
+      > * {
+        .max-width();
+      }
     }
 
     .CodeMirror-lines { // paddding for edit mode

@@ -16,8 +16,8 @@
 
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 
-const DEFAULT_HEIGHT_SQL = localStorageUtils.getDefaultSqlHeight() || 206; // 11 lines of text
-//const DEFAULT_HEIGHT_SUBPAGE = 220;
+const DEFAULT_HEIGHT_SQL = 206; // 11 lines of text
+const NEW_QUERY_DEFAULT_SQL_HEIGHT = 466; // 25 lines
 const DEFAULT_HEIGHT_SORT = 293;
 const LARGE_HEIGHT_SUBPAGE = 252;
 const DEFAULT_HEIGHT_CALCULATED = 228;
@@ -27,7 +27,8 @@ const HEIGHT_CLEAN_MIXED = 436;
 const JOIN = 330;
 
 export const hashHeightTopSplitter = {
-  default: DEFAULT_HEIGHT_SQL,
+  getDefaultSqlHeight: () => localStorageUtils.getDefaultSqlHeight() || DEFAULT_HEIGHT_SQL,
+  getNewQueryDefaultSqlHeight: () => localStorageUtils.getDefaultSqlHeight() || NEW_QUERY_DEFAULT_SQL_HEIGHT,
   transformCards: LARGE_HEIGHT_SUBPAGE,
   transform: LARGE_HEIGHT_SUBPAGE,
   MULTIPLE: DEFAULT_HEIGHT_SORT,

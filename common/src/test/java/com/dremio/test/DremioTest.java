@@ -58,6 +58,7 @@ public class DremioTest {
   private static final Properties TEST_CONFIGURATIONS = new Properties() {
     {
       put("dremio.exec.http.enabled", "false");
+      put("dremio.test.parquet.schema.fallback.disabled", "true");
     }
   };
   public static final SabotConfig DEFAULT_SABOT_CONFIG = SabotConfig.create(TEST_CONFIGURATIONS);

@@ -29,21 +29,31 @@ class SentryUtil {
     if (config.isReleaseBuild && !config.outsideCommunicationDisabled) {
       Raven.config('https://2592b22bfefa49b3b5b1e72393f84194@sentry.io/66750', {
         release: getVersionWithEdition(),
-        serverName: config.clusterId
+        serverName: config.clusterId,
+        // extra info that could be used to search an error.
+        // example: sessionUUID:"1ac6a0bb-6582-4532-81c3-5b2ac479dcab"
+        tags: {
+          sessionUUID: this.sessionUUID
+        }
       }).install();
-      Raven.setExtraContext({
-        sessionUUID: this.sessionUUID
-      });
     }
   }
 
   logException(ex, context) {
+    let eventId = null;
+
     if (config.isReleaseBuild && !config.outsideCommunicationDisabled) {
-      Raven.captureException(ex, {
+      eventId = Raven.captureException(ex, {
         extra: context
       });
       global.console && console.error && console.error(ex, context);
     }
+
+    return eventId;
+  }
+
+  getEventId() {
+    return Raven.lastEventId();
   }
 }
 

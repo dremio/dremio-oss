@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.plan.Context;
@@ -23,6 +24,7 @@ import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rex.RexExecutor;
 
 import com.dremio.common.exceptions.UserException;
@@ -42,6 +44,8 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
   private final SubstitutionProvider substitutionProvider;
 
   private final CancelFlag cancelFlag;
+
+  private RelNode originalRoot;
   private PlannerPhase phase;
   private MaxNodesListener listener;
 
@@ -99,10 +103,10 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
     try {
       result.stream().forEach(substitution -> {
         count.value++;
-          if (!isRegistered(substitution.getReplacement())) {
-            RelNode equiv = substitution.considerThisRootEquivalent() ? getRoot() : substitution.getEquivalent();
-            register(substitution.getReplacement(), ensureRegistered(equiv, null));
-          }
+        if (!isRegistered(substitution.getReplacement())) {
+          RelNode equiv = substitution.considerThisRootEquivalent() ? getRoot() : substitution.getEquivalent();
+          register(substitution.getReplacement(), ensureRegistered(equiv, null));
+        }
       });
     } catch (Exception | AssertionError e) {
       result.failure(e);
@@ -124,5 +128,28 @@ public class DremioVolcanoPlanner extends VolcanoPlanner {
       throw builder.build(logger);
     }
     super.checkCancel();
+  }
+
+  @Override
+  public RelNode getOriginalRoot() {
+    return originalRoot;
+  }
+
+  @Override
+  public void setOriginalRoot(RelNode originalRoot) {
+    this.originalRoot = originalRoot;
+  }
+
+  @Override
+  public void setRoot(RelNode rel) {
+    if (originalRoot == null) {
+      originalRoot = rel;
+    }
+    super.setRoot(rel);
+  }
+
+  @Override
+  public void registerMetadataProviders(List<RelMetadataProvider> list) {
+    // Do nothing - in practice, prevent VolcanoRelMetadataProvider to be registered
   }
 }

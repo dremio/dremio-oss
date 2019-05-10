@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Fragment, PureComponent } from 'react';
 import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
-import Popover from 'material-ui/Popover';
 import { DateRange } from 'react-date-range';
 import moment from 'moment';
 
+import { SelectView } from '@app/components/Fields/SelectView';
 import FontIcon from 'components/Icon/FontIcon';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
@@ -29,8 +28,7 @@ import { dateTypeToFormat, TIME, DATE } from 'constants/DataTypes';
 import TimePicker from './TimePicker';
 
 @Radium
-@pureRender
-export default class DateInput extends Component {
+export default class DateInput extends PureComponent {
 
   static propTypes = {
     onChange: PropTypes.func,
@@ -50,16 +48,7 @@ export default class DateInput extends Component {
     super(props);
 
     this.state = {
-      value: props.value,
-      anchorEl: null,
-      anchorOrigin: {
-        horizontal: 'left',
-        vertical: 'bottom'
-      },
-      targetOrigin: {
-        horizontal: 'left',
-        vertical: 'top'
-      }
+      value: props.value
     };
   }
 
@@ -81,7 +70,7 @@ export default class DateInput extends Component {
       return styles.dateTimePopover;
     }
   }
-  handleCalendarSelect = (date) => {
+  handleCalendarSelect = (closeDD, date) => {
     const { onChange, value, type } = this.props;
 
     const dateMoment = date.startDate;
@@ -89,19 +78,8 @@ export default class DateInput extends Component {
     if (onChange && newValue !== value) {
       const currentMoment = moment(value, dateTypeToFormat[type]);
       onChange(DateInput.mergeDateWithTime(dateMoment, currentMoment, type));
-      this.handleRequestClose();
+      closeDD();
     }
-  }
-  showCalendar = () => {
-    this.setState({
-      isOpen: true,
-      anchorEl: this.refs.input
-    });
-  }
-  handleRequestClose = () => {
-    this.setState({
-      isOpen: false
-    });
   }
   handleTimeChange = (timeMoment) => {
     const { onChange, value, type } = this.props;
@@ -121,7 +99,7 @@ export default class DateInput extends Component {
       onChange(value);
     }
   }
-  renderCalendar() {
+  renderCalendar(closeDD) {
     const { value, type } = this.props;
     const showTimePicker = type !== DATE;
     const showCalendar = type !== TIME;
@@ -131,16 +109,17 @@ export default class DateInput extends Component {
     return (
       <div>
         {showTimePicker
-          ? <TimePicker columnType={type} value={time} onBlur={this.handleTimeChange} />
+          ? <TimePicker key='time-picker' columnType={type} value={time} onBlur={this.handleTimeChange} />
           : null}
         {showCalendar
           ? <DateRange
+            key='date-range'
             calendars='3'
             linkedCalendars
             format={dateTypeToFormat[type]}
             theme={calendarTheme}
             classNames={{ dayToday: 'today' }}
-            onChange={this.handleCalendarSelect}
+            onChange={this.handleCalendarSelect.bind(this, closeDD)}
             startDate={date}
             endDate={date}
           />
@@ -154,35 +133,38 @@ export default class DateInput extends Component {
     const popoverStyle = this.getPopoverStyle();
 
     return (
-      <div className='field' style={styles.base}>
-        <input
-          ref='input'
-          style={[styles.input, props.style]}
-          type='text'
-          value={state.value}
-          onChange={this.handleInputChange}
-          onBlur={this.handleInputBlur}
-        />
-        <FontIcon
-          onClick={this.showCalendar}
-          type='TypeDateTime'
-          theme={styles.icon}
-        />
-        <Popover
-          ref='menu'
-          useLayerForClickAway={false}
-          open={state.isOpen}
-          canAutoPosition
-          anchorEl={state.anchorEl}
-          anchorOrigin={state.anchorOrigin}
-          targetOrigin={state.targetOrigin}
-          onRequestClose={this.handleRequestClose}
-        >
-          <div style={popoverStyle}>
-            {this.renderCalendar()}
-          </div>
-        </Popover>
-      </div>
+      <SelectView
+        content={
+          <Fragment>
+            <input
+              key='date-input'
+              ref='input'
+              style={[styles.input, props.style]}
+              type='text'
+              value={state.value}
+              onChange={this.handleInputChange}
+              onBlur={this.handleInputBlur}
+            />
+            <FontIcon
+              key='date-icon'
+              type='TypeDateTime'
+              theme={styles.icon}
+            />
+          </Fragment>
+        }
+        hideExpandIcon
+        className='field'
+        style={styles.base}
+        useLayerForClickAway={false}
+      >
+        {
+          ({ closeDD }) => (
+            <div style={popoverStyle}>
+              {this.renderCalendar(closeDD)}
+            </div>
+          )
+        }
+      </SelectView>
     );
   }
 }
@@ -283,12 +265,13 @@ const styles = {
   icon: {
     Container: {
       position: 'relative',
-      width:34,
+      width: 34,
       right: 40,
       cursor: 'pointer'
     },
     Icon: {
-      width: 30
+      width: 30,
+      height: 24
     }
   }
 };

@@ -29,13 +29,13 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import javax.inject.Provider;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.s3a.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,15 +46,13 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.plugins.s3.store.copy.S3Constants;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
-import com.dremio.service.namespace.SourceTableDefinition;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 
@@ -87,8 +85,8 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     finalProperties.add(new Property("fs.dremioS3.impl", S3FileSystem.class.getName()));
     finalProperties.add(new Property(MAXIMUM_CONNECTIONS, String.valueOf(DEFAULT_MAX_CONNECTIONS)));
     finalProperties.add(new Property(FAST_UPLOAD, "true"));
-    finalProperties.add(new Property(S3Constants.FAST_UPLOAD_BUFFER, "disk"));
-    finalProperties.add(new Property(S3Constants.FAST_UPLOAD_ACTIVE_BLOCKS, "4")); // 256mb (so a single parquet file should be able to flush at once).
+    finalProperties.add(new Property(Constants.FAST_UPLOAD_BUFFER, "disk"));
+    finalProperties.add(new Property(Constants.FAST_UPLOAD_ACTIVE_BLOCKS, "4")); // 256mb (so a single parquet file should be able to flush at once).
     finalProperties.add(new Property(MAX_THREADS, "24"));
     finalProperties.add(new Property(MULTIPART_SIZE, "67108864")); // 64mb
     finalProperties.add(new Property(MAX_TOTAL_TASKS, "30"));
@@ -102,13 +100,13 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
         }
         finalProperties.add(new Property(ACCESS_KEY, config.accessKey));
         finalProperties.add(new Property(SECRET_KEY, config.accessSecret));
-        finalProperties.add(new Property(S3Constants.AWS_CREDENTIALS_PROVIDER, ACCESS_KEY_PROVIDER));
+        finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, ACCESS_KEY_PROVIDER));
         break;
       case EC2_METADATA:
-        finalProperties.add(new Property(S3Constants.AWS_CREDENTIALS_PROVIDER, EC2_METADATA_PROVIDER));
+        finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, EC2_METADATA_PROVIDER));
         break;
       case NONE:
-        finalProperties.add(new Property(S3Constants.AWS_CREDENTIALS_PROVIDER, NONE_PROVIDER));
+        finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, NONE_PROVIDER));
         break;
       default:
         throw new RuntimeException("Failure creating S3 connection. Invalid credentials type.");
@@ -131,6 +129,11 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     }
 
     return finalProperties;
+  }
+
+  @Override
+  public boolean supportsColocatedReads() {
+    return false;
   }
 
   @Override
@@ -168,14 +171,6 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
   }
 
   @Override
-  public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions ignored) throws Exception {
-    // have to do it to set correct FS_DEFAULT_NAME
-    ensureDefaultName();
-
-    return Collections.emptyList(); // file system does not know about physical datasets
-  }
-
-  @Override
   public CreateTableEntry createNewTable(
       SchemaConfig config,
       NamespaceKey key,
@@ -207,5 +202,10 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     }
 
     return entry;
+  }
+
+  @Override
+  protected boolean isAsyncEnabledForQuery(OperatorContext context) {
+    return context != null && context.getOptions().getOption(S3Options.ASYNC);
   }
 }

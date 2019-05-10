@@ -15,6 +15,8 @@
  */
 package com.dremio.common.expression;
 
+import static org.apache.arrow.vector.complex.BaseRepeatedValueVector.DATA_VECTOR_NAME;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -154,6 +156,8 @@ public class CompleteType {
   public static final CompleteType TIMESTAMP = new CompleteType(new ArrowType.Timestamp(TimeUnit.MILLISECOND, null));
   public static final CompleteType VARCHAR = new CompleteType(ArrowType.Utf8.INSTANCE);
   public static final CompleteType FIXEDSIZEBINARY = new CompleteType(new ArrowType.FixedSizeBinary(128));
+  public static final CompleteType DECIMAL = new CompleteType(new ArrowType.Decimal(38,
+    38));
 
   private static final String LIST_DATA_NAME = ListVector.DATA_VECTOR_NAME;
   private final ArrowType type;
@@ -270,6 +274,8 @@ public class CompleteType {
     case LATE:
       return LATE;
 
+    case DECIMAL:
+      return DECIMAL;
     // types that need additional information
     case UNION:
     case LIST:
@@ -293,7 +299,6 @@ public class CompleteType {
     case FIXED16CHAR:
     case FIXEDSIZEBINARY:
     case FIXEDCHAR:
-    case DECIMAL:
     case DECIMAL9:
     case DECIMAL18:
     case DECIMAL28DENSE:
@@ -981,4 +986,50 @@ public class CompleteType {
     return CalciteTypeMaps.MINOR_TO_CALCITE_TYPE_MAPPING.get(type);
   }
 
+  /**
+   * Convert arrow type to the arrow type supported by dremio
+   * @param arrowType original arrow type
+   * @return the arrow type supported by dremio
+   */
+  private static ArrowType convertToSupportedArrowType(ArrowType arrowType) {
+    switch (arrowType.getTypeID()) {
+      case Int:
+        ArrowType.Int arrowInt = (ArrowType.Int)arrowType;
+        return (arrowInt.getBitWidth() < 32) ? CompleteType.INT.getType() : arrowType;
+      case Date:
+        // We don't support DateDay, so we should convert it to DataMilli.
+        return CompleteType.DATE.getType();
+      case Timestamp:
+        // We always treat timezone as null.
+        return CompleteType.TIMESTAMP.getType();
+      default:
+        return arrowType;
+    }
+  }
+
+  /**
+   * Return DATA_VECTOR_NAME as field name if fieldName is null.
+   * @param fieldName original field name
+   * @return field name after conversion
+   */
+  private static String convertFieldName(String fieldName) {
+    return fieldName == null ? DATA_VECTOR_NAME : fieldName;
+  }
+
+  /**
+   * Convert arrow fields to dremio fields that are supported in dremio.
+   * @param arrowFields arrow fields
+   * @return dremio fields
+   */
+  public static List<Field> convertToDremioFields(List<Field> arrowFields) {
+    if (arrowFields == null) {
+      return null;
+    }
+    List<Field> dremioFields = new ArrayList<>();
+    for (Field field : arrowFields) {
+      dremioFields.add(new Field(convertFieldName(field.getName()), true,
+        convertToSupportedArrowType(field.getType()), convertToDremioFields(field.getChildren())));
+    }
+    return dremioFields;
+  }
 }

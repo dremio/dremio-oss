@@ -15,6 +15,7 @@
  */
 package com.dremio.datastore;
 
+import static com.dremio.datastore.RocksDBStore.BLOB_FILTER_DEFAULT;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -26,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -40,6 +42,8 @@ import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
+import org.rocksdb.RocksDBException;
+import org.rocksdb.Status;
 
 import com.google.common.collect.Lists;
 
@@ -156,7 +160,8 @@ public class TestByteStoreManager {
     try (ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
       bsm.start();
 
-      final String storeName = "test-store";
+      // We reuse a whitelist blob value to ensure that we get the blobbing behavior
+      final String storeName = ByteStoreManager.BLOB_WHITELIST_STORE;
       ByteStore bs = bsm.getStore(storeName);
       final long txn = bsm.getMetadataManager()
           .getLatestTransactionNumber();
@@ -168,6 +173,13 @@ public class TestByteStoreManager {
       bs.put(two, getBytes("3"));
       bs.put(two, getBytes("3"));
       bs.delete(one);
+
+      // create a big value that gets blobbed
+      final byte[] three = getBytes("three");
+      final byte[] bigValue = new byte[(int) BLOB_FILTER_DEFAULT + 1];
+      final Random r = new Random(123);
+      r.nextBytes(bigValue);
+      bs.put(three, bigValue);
 
       final List<ReplayType> updates = Lists.newArrayList();
       final List<Map.Entry<byte[], byte[]>> entries = Lists.newArrayList();
@@ -187,8 +199,8 @@ public class TestByteStoreManager {
         }
       });
 
-      assertEquals(updates.size(), 5);
-      assertEquals(entries.size(), 5);
+      assertEquals(updates.size(), 6);
+      assertEquals(entries.size(), 6);
 
       assertEquals(updates.get(0), ReplayType.ADD);
       assertArrayEquals(entries.get(0).getKey(), one);
@@ -209,6 +221,11 @@ public class TestByteStoreManager {
       assertEquals(updates.get(4), ReplayType.DELETE);
       assertArrayEquals(entries.get(4).getKey(), one);
       assertEquals(entries.get(4).getValue(), null);
+
+      assertEquals(updates.get(5), ReplayType.ADD);
+      assertArrayEquals(entries.get(5).getKey(), three);
+      // the big value should be returned and not the blob pointer
+      assertArrayEquals(entries.get(5).getValue(), bigValue);
     }
   }
 
@@ -294,6 +311,22 @@ public class TestByteStoreManager {
         public void delete(String tableName, byte[] key) {
         }
       });
+    }
+  }
+
+  @Test
+  public void testNoDBOpenRetry() throws Exception {
+    String dbPath = temporaryFolder.newFolder().getAbsolutePath();
+
+    try (ByteStoreManager bsm = new ByteStoreManager(dbPath, false)) {
+      bsm.start();
+      ByteStoreManager bsm2 = new ByteStoreManager(dbPath, false, true);
+      bsm2.start();
+
+      fail("ByteStoreManager shouldn't have been able to open a locked instance");
+    } catch (RocksDBException e) {
+      assertTrue("RocksDBException isn't IOError type", Status.Code.IOError.equals(e.getStatus().getCode()));
+      assertTrue("Incorrect error message", e.getStatus().getState().contains("While lock"));
     }
   }
 }

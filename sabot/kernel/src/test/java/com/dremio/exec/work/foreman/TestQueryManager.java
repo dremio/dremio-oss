@@ -33,10 +33,13 @@ import org.mockito.MockitoAnnotations;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.MetadataStatsCollector;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.Screen;
+import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
-import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
+import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
+import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMinor;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared;
@@ -102,12 +105,15 @@ public class TestQueryManager extends DremioTest {
     QueryManager queryManager = new QueryManager(queryId, context, null, completionListener, new Pointer<>(), observers, true, true, catalog);
 
     final NodeEndpoint endpoint = NodeEndpoint.newBuilder().setAddress("host1").setFabricPort(12345).build();
-    PlanFragment fragment = PlanFragment.newBuilder()
-        .setAssignment(endpoint)
+    PlanFragmentFull fragment = new PlanFragmentFull(
+      PlanFragmentMajor.newBuilder()
         .setHandle(FragmentHandle.newBuilder().setMajorFragmentId(0).setQueryId(queryId).build())
-        .build();
+        .build(),
+      PlanFragmentMinor.newBuilder()
+        .setAssignment(endpoint)
+        .build());
 
-    ExecutionPlan executionPlan = new ExecutionPlan(new Screen(null), 0, Collections.singletonList(fragment));
+    ExecutionPlan executionPlan = new ExecutionPlan(new Screen(OpProps.prototype(), null), 0, Collections.singletonList(fragment), null);
     observers.planCompleted(executionPlan);
 
     // Notify node is dead

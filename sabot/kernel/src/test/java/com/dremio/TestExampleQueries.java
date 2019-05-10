@@ -17,6 +17,7 @@ package com.dremio;
 
 import static com.dremio.TestBuilder.listOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.PrintStream;
@@ -1109,6 +1110,63 @@ public class TestExampleQueries extends PlanTestBase {
         .build().run();
   }
 
+  @Test
+  public void testBadQuerySyntax() throws Exception {
+    try {
+      testBuilder()
+        .sqlQuery("select employee_id from cp.\"employee.json\" where employee_id = (90, 100)")
+        .unOrdered()
+        .baselineColumns("employee_id")
+        .baselineValues(100)
+        .build().run();
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("Cannot apply '=' to arguments of type '<BIGINT> = <RECORDTYPE(INTEGER EXPR$0, INTEGER EXPR$1)"));
+    }
+
+  }
+
+  @Test // DX-15425: GreenPlum query
+  public void testQueryWithoutFrom() throws Exception {
+    try {
+      testBuilder()
+        .sqlQuery("select 1 union (select distinct CAST(null AS INTEGER) union select '10')")
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(1)
+        .baselineValues(10)
+        .baselineValues(null)
+        .build().run();
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("From line 1, column 33 to line 1, column 53: Type mismatch in column 1 of UNION"));
+    }
+  }
+
+  @Test // DX-15425: GreenPlum query
+  public void testQuery1WithoutFrom() throws Exception {
+    testBuilder()
+      .sqlQuery("select 1 union (select distinct CAST(null AS INTEGER) union select 10)")
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(1)
+      .baselineValues(10)
+      .baselineValues(null)
+      .build().run();
+  }
+
+  @Test // DX-15425: GreenPlum query
+  public void testQuery2WithoutFrom() throws Exception {
+    try {
+      testBuilder()
+        .sqlQuery("select 1 union (select distinct '10' from (select 1, 3.0 union select distinct 2, CAST(null AS INTEGER)) as foo)")
+        .unOrdered()
+        .baselineColumns("employee_id")
+        .baselineValues(100)
+        .build().run();
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("At line 1, column 8: Type mismatch in column 1 of UNION"));
+    }
+  }
+
   @Test // DRILL-2094
   public void testOrderbyArrayElement() throws Exception {
     String root = FileUtils.getResourceAsFile("/store/json/orderByArrayElement.json").toURI().getPath().toString();
@@ -1600,5 +1658,38 @@ public class TestExampleQueries extends PlanTestBase {
       .baselineValues("Bh" + largeString)
       .build()
       .run();
+  }
+
+  @Test // DX-11559
+  public void testValuesPrelParallelization() throws Exception {
+    // test preview query
+    testNoResult("set planner.leaf_limit_enable = true");
+
+    // allow parallelization
+    testNoResult("set planner.width.max_per_node = 10");
+    testNoResult("set planner.width.max_per_query = 10");
+    testNoResult("set planner.slice_target = 1");
+
+    final List<QueryDataBatch> results = testSqlWithResults("SELECT FLATTEN(MAPPIFY(CONVERT_FROM('{\"1\":3,\"2\":4}', 'JSON')))");
+    try {
+      int numRows = results.stream().map(q -> q.getHeader().getRowCount()).reduce((first, second) ->  first + second).get();
+      Assert.assertEquals(numRows, 2);
+    } finally {
+      for (QueryDataBatch batch : results) {
+        batch.close();
+      }
+    }
+  }
+
+  @Test // DX-13843
+  public void testGreenPlumQuery() throws Exception {
+    testBuilder()
+      .sqlQuery("select (select count(*) from (values (1)) t0(inner_c)) from (values (2),(3)) t1(outer_c)")
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(1L)
+      .baselineValues(1L)
+      .build().
+      run();
   }
 }

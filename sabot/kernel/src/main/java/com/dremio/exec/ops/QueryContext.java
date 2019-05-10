@@ -99,6 +99,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   private final Catalog catalog;
   private final NamespaceService namespaceService;
   private final SubstitutionProviderFactory substitutionProviderFactory;
+  private final FunctionImplementationRegistry functionImplementationRegistry;
 
   /* Stores constants and their holders by type */
   private final Map<String, Map<MinorType, ValueHolder>> constantValueHolderCache;
@@ -138,7 +139,10 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     this.plannerSettings = new PlannerSettings(sabotContext.getConfig(), queryOptions,
         sabotContext.getClusterResourceInformation());
     this.plannerSettings.setNumEndPoints(sabotContext.getExecutors().size());
-    this.table = new OperatorTable(sabotContext.getFunctionImplementationRegistry());
+    functionImplementationRegistry = this.queryOptions.getOption(PlannerSettings
+      .ENABLE_DECIMAL_V2)? sabotContext.getDecimalFunctionImplementationRegistry() : sabotContext
+      .getFunctionImplementationRegistry();
+    this.table = new OperatorTable(functionImplementationRegistry);
 
     this.queryPriority = priority;
     this.workloadType = Utilities.getWorkloadType(queryPriority, session.getClientInfos());
@@ -148,7 +152,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
 
     this.allocator = sabotContext.getQueryPlanningAllocator()
         .newChildAllocator("query-planning:" + QueryIdHelper.getQueryId(queryId),
-            PlannerSettings.getInitialPlanningMemorySize(),
+            plannerSettings.getInitialPlanningMemorySize(),
             plannerSettings.getPlanningMemoryLimit());
     this.bufferManager = new BufferManagerImpl(allocator);
 
@@ -260,7 +264,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
 
   @Override
   public FunctionImplementationRegistry getFunctionRegistry() {
-    return sabotContext.getFunctionImplementationRegistry();
+    return functionImplementationRegistry;
   }
 
   public boolean isUserAuthenticationEnabled() {

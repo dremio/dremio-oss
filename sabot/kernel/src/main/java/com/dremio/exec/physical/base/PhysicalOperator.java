@@ -15,14 +15,12 @@
  */
 package com.dremio.exec.physical.base;
 
-import java.util.Collection;
 import java.util.List;
-import java.util.Map.Entry;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.graph.GraphValue;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
-import com.dremio.exec.record.BatchSchema;
+import com.dremio.common.graph.GraphVisitor;
+import com.dremio.options.Options;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -31,11 +29,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
-import com.google.protobuf.ByteString;
+import com.google.common.base.Preconditions;
 
+@Options
 @JsonInclude(Include.NON_NULL)
-@JsonPropertyOrder({ "@id" })
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "@id")
+@JsonPropertyOrder({ "id" })
+@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "pop")
 public interface PhysicalOperator extends GraphValue<PhysicalOperator> {
 
@@ -55,48 +54,35 @@ public interface PhysicalOperator extends GraphValue<PhysicalOperator> {
   @JsonIgnore
   PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException;
 
-  /**
-   * @return The memory to preallocate for this operator
-   */
-  long getInitialAllocation();
+  default void accept(GraphVisitor<PhysicalOperator> visitor) {
+    visitor.enter(this);
+    if (this.iterator() == null) {
+      throw new IllegalArgumentException("Null iterator for pop." + this);
+    }
+    for (PhysicalOperator o : this) {
+      Preconditions.checkNotNull(o, String.format("Null in iterator for pop %s.", this));
+      o.accept(visitor);
+    }
+    visitor.leave(this);
+  }
+
+  @JsonProperty("id")
+  default int getId() {
+    return getProps().getOperatorId();
+  }
 
   /**
-   * @return The maximum memory this operator can allocate
+   * Exists only to help jackson.
+   * @param id
    */
-  long getMaxAllocation();
+  @Deprecated
+  default void setId(int id) {
+    //
+    assert getProps().getOperatorId() == id;
+  }
 
-  @JsonProperty("@id")
-  int getOperatorId();
-
-  @JsonProperty("@id")
-  void setOperatorId(int id);
-
-  @JsonProperty("cost")
-  void setCost(double cost);
-
-  @JsonProperty("cost")
-  double getCost();
-
-  @JsonIgnore
-  BatchSchema getSchema(FunctionLookupContext context);
-
-  void setAsSingle();
-
-  @JsonIgnore
-  boolean isSingle();
-
-  /**
-   * Name of the user whom to impersonate while setting up the implementation (RecordBatch) of this
-   * PhysicalOperator. Default value is "null" in which case we impersonate as user who launched the query.
-   * @return
-   */
-  @JsonProperty("userName")
-  public String getUserName();
+  public OpProps getProps();
 
   @JsonIgnore
   public int getOperatorType();
-
-
-  @JsonIgnore
-  Collection<Entry<String, ByteString>> getSharedData();
 }

@@ -58,6 +58,11 @@ public class TestSpillService {
         public boolean isCancelled() {
           return true;
         }
+
+        @Override
+        public boolean isDone() {
+          return false;
+        }
       };
     }
 

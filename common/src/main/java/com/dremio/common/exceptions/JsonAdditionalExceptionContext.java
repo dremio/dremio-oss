@@ -40,6 +40,11 @@ public abstract class JsonAdditionalExceptionContext implements AdditionalExcept
    * @return A new AdditionalExceptionContext of the serialized type.
    */
   protected static <T extends AdditionalExceptionContext> T fromUserException(Class<T> clazz, UserException ex) {
+    if (ex.getRawAdditionalExceptionContext() == null) {
+      logger.debug("missing additional context in UserException");
+      return null;
+    }
+
     try {
       return ProtobufByteStringSerDe.readValue(contextMapper.readerFor(clazz),
           ex.getRawAdditionalExceptionContext(), ProtobufByteStringSerDe.Codec.NONE, logger);

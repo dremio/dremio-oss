@@ -20,18 +20,21 @@ import java.util.List;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.AbstractGroupScan;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
+import com.dremio.exec.proto.CoordExecRPC.HBaseSubScanSpec;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
+import com.google.protobuf.ByteString;
 
 /**
  * HBase group scan.
@@ -42,12 +45,13 @@ public class HBaseGroupScan extends AbstractGroupScan {
   private final long rowCountEstimate;
 
   public HBaseGroupScan(
+      OpProps props,
       HBaseScanSpec spec,
       TableMetadata table,
       List<SchemaPath> columns,
       long rowCountEstimate
       ) {
-    super(table, columns);
+    super(props, table, columns);
     this.spec = spec;
     this.rowCountEstimate = rowCountEstimate;
   }
@@ -62,28 +66,34 @@ public class HBaseGroupScan extends AbstractGroupScan {
     List<HBaseSubScanSpec> splitWork = FluentIterable.from(work).transform(new Function<SplitWork, HBaseSubScanSpec>(){
       @Override
       public HBaseSubScanSpec apply(SplitWork input) {
-        return toSubScan(input.getSplit());
+        return toSubScan(input.getDatasetSplit());
       }}).toList();
 
     return new HBaseSubScan(
+        props,
         getDataset().getStoragePluginId(),
-        getUserName(),
         splitWork,
         getColumns(),
-        getSchema(),
+        props.getSchema(),
         Iterables.getOnlyElement(getReferencedTables())
         );
   }
 
   private HBaseSubScanSpec toSubScan(DatasetSplit split) {
     KeyRange range = KeyRange.fromSplit(split).intersection(spec.getKeyRange());
-    return new HBaseSubScanSpec(spec.getTableName().getNamespaceAsString(), spec.getTableName().getQualifierAsString(),
-        range.getStart(), range.getStop(), spec.getSerializedFilter());
-  }
-
-  @Override
-  public DistributionAffinity getDistributionAffinity() {
-    return DistributionAffinity.SOFT;
+    HBaseSubScanSpec.Builder builder = HBaseSubScanSpec.newBuilder()
+      .setNamespace(spec.getTableName().getNamespaceAsString())
+      .setTableName(spec.getTableName().getQualifierAsString());
+    if (range.getStart() != null) {
+      builder.setStartRow(ByteString.copyFrom(range.getStart()));
+    }
+    if (range.getStop() != null) {
+      builder.setStopRow(ByteString.copyFrom(range.getStop()));
+    }
+    if (spec.getSerializedFilter() != null) {
+      builder.setSerializedFilter(ByteString.copyFrom(spec.getSerializedFilter()));
+    }
+    return builder.build();
   }
 
   @Override

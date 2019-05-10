@@ -33,17 +33,12 @@
  * NB: Source code generated using FreeMarker template ${.template_name}
  */
 public class APIJobResultsSerializer extends AbstractRowBasedRecordWriter {
-  private final JsonGenerator jsonGenerator;
-  private DataJsonOutput gen;
+  private final DataJsonOutput gen;
 
-  public APIJobResultsSerializer(final JsonGenerator jsonGenerator) {
-    this.jsonGenerator = jsonGenerator;
+  public APIJobResultsSerializer(final JsonGenerator jsonGenerator, final boolean convertNumbersToStrings) {
+    this.gen = new DataJsonOutput(jsonGenerator, convertNumbersToStrings);
   }
 
-  @Override
-  public void setup() throws IOException {
-    gen = new DataJsonOutput(jsonGenerator);
-  }
 
   @Override
   public void startRecord() throws IOException {

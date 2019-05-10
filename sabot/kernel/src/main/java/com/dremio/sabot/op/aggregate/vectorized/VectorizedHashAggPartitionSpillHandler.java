@@ -98,14 +98,14 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
   private final SpillManager spillManager;
   private final PartitionToLoadSpilledData loadingPartition;
   private SpilledPartitionIterator spilledPartitionIterator;
-  private int maxBatchesSpilled;
-  private int totalBatchesSpilled;
-  private int maxRecordsSpilled;
-  private int totalRecordsSpilled;
+  private long maxBatchesSpilled;
+  private long totalBatchesSpilled;
+  private long maxRecordsSpilled;
+  private long totalRecordsSpilled;
   private long maxSpilledDataSize;
   private long totalSpilledDataSize;
-  private int numPartitionsSpilled; /* number of partitions or subpartitions spilled */
-  private int spills;
+  private long numPartitionsSpilled; /* number of partitions or subpartitions spilled */
+  private long spills;
   private final boolean minimizeSpilledPartitions;
   private static final int THRESHOLD_BLOCKS = 2;
   private VectorizedHashAggPartitionSerializable inProgressSpill;
@@ -388,7 +388,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
    * Get number of times we have spilled
    * @return  number of times {@link VectorizedHashAggOperator} has spilled
    */
-  int getNumberOfSpills() {
+  long getNumberOfSpills() {
     return spills;
   }
 
@@ -415,8 +415,8 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
     /* downsize the partition to minimum memory (ideally zeroed out for single batch) we would still like to keep allocated */
     victimPartition.resetToMinimumSize();
 
-    final int batchesSpilled = partitionSerializable.getNumBatchesSpilled();
-    final int recordsSpilled = partitionSerializable.getNumRecordsSpilled();
+    final long batchesSpilled = partitionSerializable.getNumBatchesSpilled();
+    final long recordsSpilled = partitionSerializable.getNumRecordsSpilled();
     final long spilledDataSize = partitionSerializable.getSpilledDataSize();
     updateLocalStats(batchesSpilled, recordsSpilled, spilledDataSize);
 
@@ -448,7 +448,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
   private void updatePartitionSpillState(final VectorizedHashAggPartition victimPartition,
                                          final SpillFile partitionSpillFile,
                                          final FSDataOutputStream partitionSpillFileStream,
-                                         final int batchesSpilled) {
+                                         final long batchesSpilled) {
     final boolean isPartitionSpilled = victimPartition.isSpilled();
     VectorizedHashAggDiskPartition partitionSpillInfo = victimPartition.getSpillInfo();
     if (!isPartitionSpilled) {
@@ -559,7 +559,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
    * Get number of partitions spilled
    * @return number of partitions spilled
    */
-  int getNumPartitionsSpilled() {
+  long getNumPartitionsSpilled() {
     return numPartitionsSpilled;
   }
 
@@ -572,8 +572,8 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
    * @param recordsSpilled records spilled
    * @param spilledDataSize total size (in bytes) of data spilled for a partition
    */
-  private void updateLocalStats(final int batchesSpilled,
-                                final int recordsSpilled,
+  private void updateLocalStats(final long batchesSpilled,
+                                final long recordsSpilled,
                                 final long spilledDataSize) {
     totalBatchesSpilled += batchesSpilled;
     totalRecordsSpilled += recordsSpilled;
@@ -597,7 +597,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
    * Note: these batches are the hashtable (and accumulator)
    * blocks/batches and not operator's incoming batches.
    */
-  int getMaxBatchesSpilled() {
+  long getMaxBatchesSpilled() {
     return maxBatchesSpilled;
   }
 
@@ -609,7 +609,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
    * Note: these batches are the hashtable (and accumulator)
    * blocks/batches and not operator's incoming batches.
    */
-  int getTotalBatchesSpilled() {
+  long getTotalBatchesSpilled() {
     return totalBatchesSpilled;
   }
 
@@ -618,7 +618,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
    * done by the operator.
    * @return maximum number of records spilled.
    */
-  int getMaxRecordsSpilled() {
+  long getMaxRecordsSpilled() {
     return maxRecordsSpilled;
   }
 
@@ -627,7 +627,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
    * done by the operator.
    * @return total number of records spilled.
    */
-  int getTotalRecordsSpilled() {
+  long getTotalRecordsSpilled() {
     return totalRecordsSpilled;
   }
 
@@ -810,8 +810,8 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
       spills++;
       /* downsize the partition to minimum memory (ideally zeroed out for single batch) we would still like to keep allocated */
       inmemoryPartition.resetToMinimumSize();
-      final int batchesSpilled = partitionSerializable.getNumBatchesSpilled();
-      final int recordsSpilled = partitionSerializable.getNumRecordsSpilled();
+      final long batchesSpilled = partitionSerializable.getNumBatchesSpilled();
+      final long recordsSpilled = partitionSerializable.getNumRecordsSpilled();
       final long spilledDataSize = partitionSerializable.getSpilledDataSize();
       updateLocalStats(batchesSpilled, recordsSpilled, spilledDataSize);
       partitionToSpill.addNewSpilledBatches(batchesSpilled);
@@ -834,7 +834,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
    * algorithm.
    */
   public class SpilledPartitionIterator implements AutoCloseable {
-    private final int batchCount;
+    private final long batchCount;
     private final FSDataInputStream inputStream;
     private final VectorizedHashAggDiskPartition diskPartition;
     private int currentBatchIndex;
@@ -896,7 +896,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
     Iterator<VectorizedHashAggDiskPartition> iterator = spilledPartitions.iterator();
     while (iterator.hasNext()) {
       VectorizedHashAggDiskPartition spilledPartition = iterator.next();
-      final int batches = spilledPartition.getNumberOfBatches();
+      final long batches = spilledPartition.getNumberOfBatches();
       final String name = spilledPartition.getIdentifier();
       final SpillFile spillFile = spilledPartition.getSpillFile();
       logger.debug("Spilled partition info, ID:{}, batches:{}, file:{}", name, batches, spillFile.getPath());

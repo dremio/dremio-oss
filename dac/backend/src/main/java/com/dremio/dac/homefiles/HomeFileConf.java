@@ -66,13 +66,19 @@ public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemSto
   @Tag(1)
   public String location;
 
+  @Tag(2)
+  public boolean enableAsync = true;
+
   public HomeFileConf() {
 
   }
 
   public HomeFileConf(DremioConfig config) {
     this(config.getString(DremioConfig.UPLOADS_PATH_STRING));
+    final boolean enableAsyncForUploads = !config.hasPath(DremioConfig.DEBUG_UPLOADS_ASYNC_ENABLED)
+      || config.getBoolean(DremioConfig.DEBUG_UPLOADS_ASYNC_ENABLED);
     hostname = config.getThisNode();
+    enableAsync = enableAsyncForUploads;
   }
 
   public HomeFileConf(String location) {
@@ -120,6 +126,11 @@ public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemSto
   }
 
   @Override
+  public List<String> getConnectionUniqueProperties() {
+    return ImmutableList.of();
+  }
+
+  @Override
   public HomeFileSystemStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new HomeFileSystemStoragePlugin(this, context, name, pluginIdProvider);
   }
@@ -137,7 +148,7 @@ public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemSto
   }
 
   public FileSystemWrapper getFilesystemAndCreatePaths(String hostname) throws IOException {
-    FileSystemWrapper fs = FileSystemWrapper.get(uri.get(), new Configuration());
+    FileSystemWrapper fs = FileSystemWrapper.get(uri.get(), new Configuration(), enableAsync);
     fs.mkdirs(getPath(), HomeFileSystemStoragePlugin.DEFAULT_PERMISSIONS);
     fs.mkdirs(getInnerUploads(), HomeFileSystemStoragePlugin.DEFAULT_PERMISSIONS);
 
@@ -155,5 +166,10 @@ public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemSto
   @Override
   public boolean isInternal() {
     return true;
+  }
+
+  @Override
+  public boolean isAsyncEnabled() {
+    return enableAsync;
   }
 }

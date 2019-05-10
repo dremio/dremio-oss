@@ -15,14 +15,13 @@
  */
 package com.dremio.dac.cmd;
 
-import static java.lang.String.format;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.util.BackupRestoreUtil;
@@ -52,7 +51,17 @@ public class Restore {
 
     public static BackupManagerOptions parse(String[] cliArgs) {
       BackupManagerOptions args = new BackupManagerOptions();
-      JCommander jc = new JCommander(args, cliArgs);
+      JCommander jc = JCommander.newBuilder().addObject(args).build();
+      jc.setProgramName("dremio-admin restore");
+
+      try {
+        jc.parse(cliArgs);
+      } catch (ParameterException p) {
+        AdminLogger.log(p.getMessage());
+        jc.usage();
+        System.exit(1);
+      }
+
       if(args.help){
         jc.usage();
         System.exit(0);
@@ -75,17 +84,17 @@ public class Restore {
       if (options.restore) {
         action = "restore";
         BackupStats backupStats =  BackupRestoreUtil.restore(fs, backupDir, dacConfig);
-        System.out.println(format("Restored from backup at %s, dremio tables %d, uploaded files %d", backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles()));
+        AdminLogger.log("Restored from backup at {}, dremio tables {}, uploaded files {}", backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
       } else if (options.verify) {
         action = "verify";
         BackupRestoreUtil.validateBackupDir(fs, backupDir);
-        System.out.println(format("Verified checksum for backup at ", fs.makeQualified(backupDir).toString()));
+        AdminLogger.log("Verified checksum for backup at {}", fs.makeQualified(backupDir).toString());
+
       } else {
         throw new IllegalArgumentException("Missing option restore (-r) or verify (-v)");
       }
     } catch (Exception e) {
-      e.printStackTrace();
-      System.err.println(action + " failed " + e);
+      AdminLogger.log("{} failed", action, e);
       System.exit(1);
     }
   }

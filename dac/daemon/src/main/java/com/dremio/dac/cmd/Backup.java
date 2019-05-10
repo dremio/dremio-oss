@@ -15,8 +15,6 @@
  */
 package com.dremio.dac.cmd;
 
-import static java.lang.String.format;
-
 import java.io.IOException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
@@ -82,10 +80,24 @@ public class Backup {
     final DACConfig dacConfig = DACConfig.newConfig();
     final BackupManagerOptions options = new BackupManagerOptions();
     JCommander jc = JCommander.newBuilder().addObject(options).build();
-    jc.parse(args);
+    jc.setProgramName("dremio-admin backup");
+
+    try {
+      jc.parse(args);
+    } catch (ParameterException p) {
+      AdminLogger.log(p.getMessage());
+      jc.usage();
+      System.exit(1);
+    }
+
     if(options.help) {
       jc.usage();
       System.exit(0);
+    }
+
+    if(options.userName != null && options.password == null) {
+      char[] pwd = System.console().readPassword("password: ");
+      options.password = new String(pwd);
     }
 
     try {
@@ -107,14 +119,11 @@ public class Backup {
         throw new ParameterException("User credential is required.");
       }
       BackupStats backupStats = createBackup(dacConfig, options.userName, options.password, !options.acceptAll, target);
-      System.out.println(format("Backup created at %s, dremio tables %d, uploaded files %d",
-        backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles()));
+      AdminLogger.log("Backup created at {}, dremio tables {}, uploaded files {}",
+        backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
 
-    } catch(IOException e) {
-      System.err.println(format("Failed to create backup at %s: %s ", options.backupDir, e.getMessage()));
-      System.exit(1);
     } catch (Exception e) {
-      System.err.println(format("Failed to create backup at %s: %s ", options.backupDir, e));
+      AdminLogger.log("Failed to create backup at {}:", options.backupDir, e);
       System.exit(1);
     }
   }

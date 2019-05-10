@@ -71,6 +71,7 @@ public class InfoSchemaScanPrel extends ScanPrelBase {
     return 1;
   }
 
+  @Override
   public boolean hasFilter() {
     return query != null;
   }
@@ -108,8 +109,12 @@ public class InfoSchemaScanPrel extends ScanPrelBase {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    return creator.addMetadata(this,
-        new InfoSchemaGroupScan(getTableMetadata().getUser(), table, query, getProjectedColumns(), pluginId));
+    return new InfoSchemaGroupScan(
+        creator.props(this, getTableMetadata().getUser(), getTableMetadata().getSchema().maskAndReorder(getProjectedColumns())),
+        table,
+        getProjectedColumns(),
+        query,
+        pluginId);
   }
 
   @Override

@@ -16,6 +16,7 @@
 package com.dremio.plugins.elastic;
 
 import static com.dremio.plugins.elastic.ElasticsearchType.DATE;
+import static com.dremio.plugins.elastic.ElasticsearchType.KEYWORD;
 
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;
@@ -45,6 +46,14 @@ public class ITTestDateTimePushdown extends ElasticBaseTestQuery {
             {"20140211105042"},
             {"20140210105042"},
             {"90140210105042"}
+        }),
+        new ElasticsearchCluster.ColumnData("stringDate", KEYWORD, new Object[][]{
+            {"2015-02-10 10:50:42"},
+            {null},
+            {"2015-02-10 10:50:42"},
+            {"2014-02-11 10:50:42"},
+            {"2014-02-10 10:50:42"},
+            {"9013-02-10 10:50:42"}
         })
     };
 
@@ -104,10 +113,33 @@ public class ITTestDateTimePushdown extends ElasticBaseTestQuery {
   }
 
   @Test
-  @Ignore("DX-7869")
   public void testTimestampWithImplicitConversion() throws Exception {
 
     String sql = String.format("select datefield from elasticsearch.%s.%s where datefield < '2014-02-12 00:00:00'", schema, table);
+    verifyJsonInPlan(sql, new String[] {
+      "[{\n" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"range\" : {\n" +
+        "      \"datefield\" : {\n" +
+        "        \"from\" : null,\n" +
+        "        \"to\" : \"2014-02-12T00:00:00.000Z\",\n" +
+        "        \"include_lower\" : true,\n" +
+        "        \"include_upper\" : false,\n" +
+        "        \"format\" : \"date_time\",\n" +
+        "        \"boost\" : 1.0\n" +
+        "      }\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"datefield\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
+    });
     testBuilder()
       .sqlQuery(sql)
       .unOrdered()
@@ -115,6 +147,37 @@ public class ITTestDateTimePushdown extends ElasticBaseTestQuery {
       .baselineValues(formatter.parseLocalDateTime("2014-02-10 10:50:42"))
       .baselineValues(formatter.parseLocalDateTime("2014-02-11 10:50:42"))
       .baselineValues(formatter.parseLocalDateTime("2014-02-10 10:50:42"))
+      .go();
+  }
+
+  @Test
+  public void testTimestampColumnWithImplicitConversion() throws Exception {
+
+    String sql = String.format("select datefield from elasticsearch.%s.%s where datefield < stringDate", schema, table);
+    verifyJsonInPlan(sql, new String[] {
+      "[{\n" +
+        "  \"from\" : 0,\n" +
+        "  \"size\" : 4000,\n" +
+        "  \"query\" : {\n" +
+        "    \"match_all\" : {\n" +
+        "      \"boost\" : 1.0\n" +
+        "    }\n" +
+        "  },\n" +
+        "  \"_source\" : {\n" +
+        "    \"includes\" : [\n" +
+        "      \"datefield\",\n" +
+        "      \"stringDate\"\n" +
+        "    ],\n" +
+        "    \"excludes\" : [ ]\n" +
+        "  }\n" +
+        "}]"
+    });
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("datefield")
+      .baselineValues(formatter.parseLocalDateTime("2014-02-10 10:50:42"))
+      .baselineValues(formatter.parseLocalDateTime("2014-02-12 10:50:42"))
       .go();
   }
 }

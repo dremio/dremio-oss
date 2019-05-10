@@ -20,6 +20,7 @@ import java.io.IOException;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.dac.explore.model.APIJobResultsSerializer;
+import com.dremio.dac.explore.model.DataJsonOutput;
 import com.dremio.exec.store.EventBasedRecordWriter;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobDataFragment;
@@ -84,8 +85,9 @@ public class JobData {
 
       generator.writeFieldName("rows");
       generator.writeStartArray();
+      final boolean convertNumbersToStrings = DataJsonOutput.isNumberAsString(serializerProvider);
 
-      final APIJobResultsSerializer jsonWriter = new APIJobResultsSerializer(generator);
+      final APIJobResultsSerializer jsonWriter = new APIJobResultsSerializer(generator, convertNumbersToStrings);
       jsonWriter.setup();
 
       for(RecordBatchHolder batchHolder : jobData.delegate.getRecordBatches()) {

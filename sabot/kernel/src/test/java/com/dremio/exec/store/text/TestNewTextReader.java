@@ -303,7 +303,7 @@ public class TestNewTextReader extends BaseTestQuery {
     Path path = new Path("/notExist");
     try (BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
          OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), sampleAllocator, optionManager, 1000);
-         FileSystemWrapper dfs = FileSystemWrapper.get(path, new Configuration());
+         FileSystemWrapper dfs = FileSystemWrapper.get(path, new Configuration(), null);
          SampleMutator mutator = new SampleMutator(sampleAllocator);
          CompliantTextRecordReader reader = new CompliantTextRecordReader(split, dfs, operatorContext, settings, columns);
     ){
@@ -314,5 +314,55 @@ public class TestNewTextReader extends BaseTestQuery {
     }
 
     allocator.close();
+  }
+
+  @Test
+  public void testRefreshOnFileNotFound() throws Exception {
+    setEnableReAttempts(true);
+    try {
+      // create directory
+      File testDir = tempDir.newFolder("testRefreshOnFileNotFound");
+
+      // Create 2 text files in the directory.
+      for (int i = 0; i < 2; ++i) {
+        File testFile = new File(testDir, i + ".csv");
+        PrintStream p = new PrintStream(testFile);
+
+        p.write(ByteOrderMark.UTF_8.getBytes(), 0, ByteOrderMark.UTF_8.length());
+        p.print("3,4\n");
+        p.print("5,7\n");
+        p.close();
+      }
+
+      // query on both files.
+      testBuilder()
+        .sqlQuery(String.format("select count(*) as c from dfs.\"%s\"", testDir.getAbsolutePath()))
+        .unOrdered()
+        .baselineColumns("c")
+        .baselineValues(4L)
+        .build()
+        .run();
+
+      // TODO(DX-15645): remove this sleep
+      Thread.sleep(1000L); // fs modification times have second precision so read signature might be valid
+
+      // delete the second file.
+      File testFile = new File(testDir, "1.csv");
+      testFile.delete();
+
+      // TODO(DX-15645): remove this sleep
+      Thread.sleep(1000L); // fs modification times have second precision so read signature might be valid
+
+      // re-run the query. Should trigger a metadata refresh and succeed.
+      testBuilder()
+        .sqlQuery(String.format("select count(*) as c from dfs.\"%s\"", testDir.getAbsolutePath()))
+        .unOrdered()
+        .baselineColumns("c")
+        .baselineValues(2L)
+        .build()
+        .run();
+    } finally {
+      setEnableReAttempts(false);
+    }
   }
 }

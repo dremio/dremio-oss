@@ -14,93 +14,71 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import Radium from 'radium';
 import PropTypes from 'prop-types';
+import classNames from 'classnames';
 import SourceIcon from 'components/Icon/SourceIcon';
-import { DIVIDER } from 'uiTheme/radium/colors';
+import {
+  buttonBase,
+  buttonDisabled,
+  buttonClickable,
+  connectionLabel,
+  pill,
+  pillBeta,
+  pillCommunity
+} from './SelectConnectionButton.less';
 
-@Radium
 export default class SelectConnectionButton extends Component {
   static propTypes = {
     label: PropTypes.string.isRequired,
     iconType: PropTypes.string.isRequired,
     icon: PropTypes.string,
     pillText: PropTypes.string,
+    isCommunity: PropTypes.bool,
     disabled: PropTypes.bool,
     onClick: PropTypes.func
-  }
+  };
 
   static defaultProps = {
     disabled: false
-  }
+  };
 
   render() {
-    const { label, iconType, icon, pillText, disabled, onClick } = this.props;
+    const { label, iconType, icon, pillText, disabled, isCommunity, onClick } = this.props;
     // if icon is provided, use it, otherwise use iconType as an icon file name
     let src = icon;
     if (!src) {
       src = (iconType === 'sources/NETEZZA') ? `${iconType}.png` : `${iconType}.svg`;
     }
-
+    const buttonClass = classNames({
+      [buttonBase]: true,
+      [buttonDisabled]: disabled,
+      [buttonClickable]: !disabled
+    });
     return <button
       disabled={disabled}
-      style={[styles.base, disabled ? styles.disabled : styles.clickable]}
+      className={buttonClass}
       onClick={!disabled ? onClick : undefined}
       data-qa={iconType}
       key={iconType}
     >
       <SourceIcon src={src} alt='' style={styles.iconStyle} />
-      <h3 style={styles.label}>
+      <h3 className={connectionLabel}>
         {label}
       </h3>
-      {pillText && <div className='whiteText' style={{...styles.comingBetaLabelWrapper }}>{pillText}</div>}
+      {pillText && <div
+        className={classNames({
+          [pill]: true,
+          [pillBeta]: !isCommunity,
+          [pillCommunity]: isCommunity
+        })}
+      >
+        {pillText}
+      </div>}
     </button>;
   }
 }
 
 const styles = {
-  base: {
-    position: 'relative',
-    display: 'flex',
-    margin: '10px 10px 10px 0',
-    border: `1px solid ${DIVIDER}`,
-    borderRadius: 2,
-    width: 230,
-    backgroundColor: 'white',
-    alignContent: 'center',
-    padding: '4px 10px'
-  },
-  disabled: {
-    opacity: 0.5
-  },
-  label: {
-    fontSize: 14,
-    height: 60,
-    display: 'flex',
-    flex: 1,
-    alignItems: 'center',
-    marginLeft: 10,
-    textAlign: 'left'
-  },
-  clickable: {
-    ':hover': {
-      border: '1px solid #C0E9F5',
-      boxShadow: '0 0 5px 0 rgba(0, 0, 0, 0.10)'
-    }
-  },
-  comingBetaLabelWrapper: {
-    fontSize: 10,
-    fontWeight: 500,
-    height: 16,
-    position: 'absolute',
-    left: '50%',
-    bottom: 0,
-    transform: 'translate(-50%, 50%)',
-    padding: '3px 5px',
-    borderRadius: 8,
-    background: '#999999',
-    textTransform: 'uppercase'
-  },
   iconStyle: {
     width: 60,
     height: 60

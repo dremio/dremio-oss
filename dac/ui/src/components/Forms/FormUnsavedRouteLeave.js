@@ -17,6 +17,7 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { showUnsavedChangesConfirmDialog } from 'actions/confirmation';
+import { isUnauthorisedReason } from 'store/authMiddleware';
 import { withRouter } from 'react-router';
 
 /**
@@ -68,7 +69,7 @@ export function wrapUnsavedChangesWithForm(FormController) {
     }
 
     routeWillLeave = (nextLocation) => {
-      if (this.state.isFormDirty && !this.state.ignoreUnsavedChanges) {
+      if (this.state.isFormDirty && !isUnauthorisedReason(nextLocation) && !this.state.ignoreUnsavedChanges) {
         this.props.showUnsavedChangesConfirmDialog({
           confirm: () => this.leaveConfirmed(nextLocation)
         });

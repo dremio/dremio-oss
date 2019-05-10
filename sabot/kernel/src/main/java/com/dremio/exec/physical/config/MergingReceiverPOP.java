@@ -18,14 +18,17 @@ package com.dremio.exec.physical.config;
 import java.util.List;
 
 import com.dremio.common.logical.data.Order.Ordering;
-import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.physical.base.AbstractReceiver;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Preconditions;
 
 // The goal of this operator is to produce outgoing batches with records
 // ordered according to the supplied expression.  Each incoming batch
@@ -36,14 +39,19 @@ public class MergingReceiverPOP extends AbstractReceiver {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MergingReceiverPOP.class);
 
   private final List<Ordering> orderings;
+  private final List<MinorFragmentIndexEndpoint> senders;
 
   @JsonCreator
-  public MergingReceiverPOP(@JsonProperty("sender-major-fragment") int oppositeMajorFragmentId,
-                            @JsonProperty("senders") List<MinorFragmentEndpoint> senders,
-                            @JsonProperty("orderings") List<Ordering> orderings,
-                            @JsonProperty("spooling") boolean spooling,
-                            @JsonProperty("schema") BatchSchema schema) {
-    super(oppositeMajorFragmentId, senders, spooling, schema);
+  public MergingReceiverPOP(
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("schema") BatchSchema schema,
+      @JsonProperty("senderMajorFragmentId") int senderMajorFragmentId,
+      @JsonProperty("senders") List<MinorFragmentIndexEndpoint> senders,
+      @JsonProperty("spooling") boolean spooling,
+      @JsonProperty("orderings") List<Ordering> orderings
+      ) {
+    super(props, schema, senderMajorFragmentId, spooling);
+    this.senders = senders;
     this.orderings = orderings;
   }
 
@@ -57,6 +65,13 @@ public class MergingReceiverPOP extends AbstractReceiver {
     return physicalVisitor.visitMergingReceiver(this, value);
   }
 
+  @Override
+  public final PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
+    Preconditions.checkArgument(children.isEmpty());
+    //rewriting is unnecessary since the inputs haven't changed.
+    return this;
+  }
+
   public List<Ordering> getOrderings() {
     return orderings;
   }
@@ -65,4 +80,10 @@ public class MergingReceiverPOP extends AbstractReceiver {
   public int getOperatorType() {
     return CoreOperatorType.MERGING_RECEIVER_VALUE;
   }
+
+  @JsonProperty("senders")
+  public List<MinorFragmentIndexEndpoint> getProvidingEndpoints() {
+    return senders;
+  }
+
 }

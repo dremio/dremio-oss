@@ -159,6 +159,30 @@ public class TestCTAS extends PlanTestBase {
     }
   }
 
+  @Test // DX - 16118
+  public void testParquetComplexWithNull() throws Exception {
+    final String newTblName = "parquetComplexWithNull";
+
+    try {
+      final String ctasQuery = String.format("CREATE TABLE %s.%s AS SELECT index from " +
+          "dfs.\"${WORKING_PATH}/src/test/resources/complex_with_null.parquet\" where play_name is not null",
+        TEMP_SCHEMA, newTblName);
+
+      test(ctasQuery);
+
+      final String selectFromCreatedTable = String.format("select count(*) as cnt from %s.%s where index is null", TEMP_SCHEMA, newTblName);
+      testBuilder()
+        .sqlQuery(selectFromCreatedTable)
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(111396l)
+        .build()
+        .run();
+    } finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), newTblName));
+    }
+  }
+
   @Test // DRILL-3374
   public void partitionByCtasFromView() throws Exception {
     final String newTblName = "partitionByCtasColList2";

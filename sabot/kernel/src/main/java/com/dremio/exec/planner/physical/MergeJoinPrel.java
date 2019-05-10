@@ -18,11 +18,11 @@ package com.dremio.exec.planner.physical;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
@@ -34,28 +34,36 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.MergeJoinPOP;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.sabot.op.join.JoinUtils;
+import com.dremio.exec.record.SchemaBuilder;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
 import com.google.common.collect.Lists;
 
+@Options
 public class MergeJoinPrel  extends JoinPrel {
 
-  /** Creates a MergeJoiPrel. */
-  public MergeJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-      JoinRelType joinType) throws InvalidRelException {
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.mergejoin.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.mergejoin.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+
+  /** Creates a MergeJoinPrel. */
+  private MergeJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
+      JoinRelType joinType) {
     super(cluster, traits, left, right, condition, joinType);
-    joincategory = JoinUtils.getJoinCategory(left, right, condition, leftKeys, rightKeys, filterNulls);
   }
 
+  public static MergeJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
+      JoinRelType joinType) {
+    final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
+    return new MergeJoinPrel(cluster, adjustedTraits, left, right, condition, joinType);
+  }
 
   @Override
   public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
-    try {
-      return new MergeJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType);
-    }catch (InvalidRelException e) {
-      throw new AssertionError(e);
-    }
+    return new MergeJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType);
   }
 
   @Override
@@ -63,7 +71,7 @@ public class MergeJoinPrel  extends JoinPrel {
     if(PrelUtil.getSettings(getCluster()).useDefaultCosting()) {
       return super.computeSelfCost(planner).multiplyBy(.1);
     }
-    if (joincategory == JoinCategory.CARTESIAN || joincategory == JoinCategory.INEQUALITY) {
+    if (joinCategory == JoinCategory.CARTESIAN || joinCategory == JoinCategory.INEQUALITY) {
       return ((Factory)planner.getCostFactory()).makeInfiniteCost();
     }
     double leftRowCount = mq.getRowCount(this.getLeft());
@@ -93,9 +101,22 @@ public class MergeJoinPrel  extends JoinPrel {
 
     buildJoinConditions(conditions, leftFields, rightFields, leftKeys, rightKeys);
 
-    MergeJoinPOP mjoin = new MergeJoinPOP(leftPop, rightPop, conditions, jtype);
-    return creator.addMetadata(this, mjoin);
+    SchemaBuilder b = BatchSchema.newBuilder();
+    for (Field f : rightPop.getProps().getSchema()) {
+      b.addField(f);
+    }
+    for (Field f : leftPop.getProps().getSchema()) {
+      b.addField(f);
+    }
+    BatchSchema schema = b.build();
 
+    return new MergeJoinPOP(
+        creator.props(this, null, schema, RESERVE, LIMIT),
+        leftPop,
+        rightPop,
+        conditions,
+        jtype
+        );
   }
 
   @Override

@@ -18,7 +18,7 @@ import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
 import Immutable from 'immutable';
-import Popover from 'material-ui/Popover';
+import { Popover } from '@app/components/Popover';
 
 import FontIcon from 'components/Icon/FontIcon';
 
@@ -70,15 +70,7 @@ class DragAreaColumn extends Component {
     this.state = {
       fieldDisabled: false,
       isOpen: false,
-      pattern: '',
-      anchorOrigin: {
-        horizontal: 'left',
-        vertical: 'bottom'
-      },
-      targetOrigin: {
-        horizontal: 'left',
-        vertical: 'top'
-      }
+      pattern: ''
     };
   }
 
@@ -200,7 +192,6 @@ class DragAreaColumn extends Component {
   renderContent() {
     const { item, index, type } = this.props;
     const column = item;
-    const width = this.state.anchorEl && this.state.anchorEl.offsetWidth;
     if (this.checkDropPosibility()) {
       return (
         <div
@@ -227,15 +218,11 @@ class DragAreaColumn extends Component {
             <FontIcon type='Search' theme={styles.icon}/>
           </div>
           <Popover
-            ref='menu'
-            style={{marginTop: 2, marginLeft: 0, width}}
             useLayerForClickAway={false}
-            open={this.state.isOpen}
-            canAutoPosition
-            anchorEl={this.state.anchorEl}
-            anchorOrigin={this.state.anchorOrigin}
-            targetOrigin={this.state.targetOrigin}
-            onRequestClose={this.handleRequestClose}>
+            anchorEl={this.state.isOpen ? this.state.anchorEl : null }
+            onClose={this.handleRequestClose}
+            listWidthSameAsAnchorEl
+          >
             <div style={styles.popover} data-qa='popover'>
               {this.renderColumns()}
             </div>

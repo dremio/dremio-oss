@@ -141,6 +141,15 @@ describe('RouteLeave.js', () => {
         instance.routeWillLeave(); // simulate route change
         expect(confirmFn).to.be.not.called; // should not be called as the reset of handlers does not have changes
       });
+
+      it('should not be called if redirect reason is unauthorized', () => {
+        const hasChangesCallback = sinon.stub();
+        instance.addCallback('test id', hasChangesCallback);
+
+        hasChangesCallback.returns(true); // change the result
+        instance.routeWillLeave({search: 'abc&reason=401'}); // simulate route change
+        expect(confirmFn).to.be.not.called;
+      });
     });
 
   });

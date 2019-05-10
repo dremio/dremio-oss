@@ -74,11 +74,22 @@ export class FileFormatController extends Component {
     }
   }
 
+  getFileFormatForSubmit = (entity) => {
+    let fileFormat = entity.get('fileFormat');
+    if (!fileFormat) {
+      // replace /file/ in 'id' with /file_format/ to make self link
+      const selfLink = entity.get('id').replace('/file/', '/file_format/');
+      fileFormat = Immutable.fromJS({links: {self: selfLink}});
+    }
+    return fileFormat;
+  };
+
   onSubmitFormat = (values) => {
     const {entity} = this.props;
     const queryUrl = entity.getIn(['links', 'query']);
+    // saveFileFormat needs link url in 1st argument. If entity.fileFormat is not ready, make it up with entityId
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.saveFileFormat(entity.get('fileFormat'), values)
+      this.props.saveFileFormat(this.getFileFormatForSubmit(entity), values)
     ).then(() => {
       if (this.props.query && this.props.query.then === 'query') {
         this.context.router.replace(queryUrl);

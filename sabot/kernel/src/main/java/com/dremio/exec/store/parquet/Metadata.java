@@ -22,7 +22,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -41,6 +40,7 @@ import org.apache.parquet.schema.Type;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.TimedRunnable;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.util.ImpersonationUtil;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -60,8 +60,8 @@ public class Metadata {
    * @throws IOException
    */
   public static ParquetTableMetadata getParquetTableMetadata(FileStatus status, FileSystem fs,
-      ParquetFormatConfig formatConfig, Configuration fsConf) throws IOException {
-    Metadata metadata = new Metadata(formatConfig, fsConf);
+      ParquetFormatConfig formatConfig, FileSystemPlugin<?> plugin) throws IOException {
+    Metadata metadata = new Metadata(formatConfig, plugin);
     return metadata.getParquetTableMetadata(ImmutableList.of(status));
   }
 
@@ -73,13 +73,14 @@ public class Metadata {
    * @throws IOException
    */
   public static ParquetTableMetadata getParquetTableMetadata(
-    List<FileStatus> fileStatuses, ParquetFormatConfig formatConfig, Configuration fsConf) throws IOException {
-    Metadata metadata = new Metadata(formatConfig, fsConf);
+    List<FileStatus> fileStatuses, ParquetFormatConfig formatConfig, FileSystemPlugin<?> plugin) throws IOException {
+    Metadata metadata = new Metadata(formatConfig, plugin);
     return metadata.getParquetTableMetadata(fileStatuses);
   }
 
-  private Metadata(ParquetFormatConfig formatConfig, Configuration fsConf) {
-    this.fs = ImpersonationUtil.createFileSystem(ImpersonationUtil.getProcessUserName(), fsConf);
+  private Metadata(ParquetFormatConfig formatConfig, FileSystemPlugin<?> plugin) {
+    this.fs = ImpersonationUtil.createFileSystem(ImpersonationUtil.getProcessUserName(),
+      plugin.getFsConf(), false);
     this.formatConfig = formatConfig;
   }
 
@@ -184,7 +185,12 @@ public class Metadata {
       for (ColumnChunkMetaData col : rowGroup.getColumns()) {
         ColumnMetadata columnMetadata;
 
-        boolean statsAvailable = (col.getStatistics() != null && !col.getStatistics().isEmpty());
+        // statistics might just have the non-null counts with no min/max they might be
+        // initialized to zero instead of null.
+        // check statistics actually have non null values (or) column has all nulls.
+        boolean statsAvailable = (col.getStatistics() != null && !col.getStatistics().isEmpty()
+          && (col.getStatistics().hasNonNullValue()) || col.getStatistics().getNumNulls() ==
+          rowGroup.getRowCount());
 
         Statistics<?> stats = col.getStatistics();
         String[] columnName = col.getPath().toArray();

@@ -139,7 +139,9 @@ public class JSONRecordReader extends AbstractRecordReader {
       if (isSkipQuery()) {
         this.jsonReader = new CountingJsonReader();
       } else {
-        this.jsonReader = new JsonReader(context.getManagedBuffer(), ImmutableList.copyOf(getColumns()), enableAllTextMode, true, readNumbersAsDouble);
+        final int sizeLimit = Math.toIntExact(this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+        this.jsonReader = new JsonReader(
+          context.getManagedBuffer(), ImmutableList.copyOf(getColumns()), sizeLimit, enableAllTextMode, true, readNumbersAsDouble);
       }
       setupParser();
     }catch(final Exception e){

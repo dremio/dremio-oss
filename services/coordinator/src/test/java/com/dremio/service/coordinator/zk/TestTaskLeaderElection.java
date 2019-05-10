@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -33,8 +34,10 @@ import org.junit.rules.Timeout;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.TaskLeaderChangeListener;
 import com.dremio.service.coordinator.TaskLeaderElection;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 /**
@@ -52,7 +55,7 @@ public class TestTaskLeaderElection {
 
   @Test
   public void testElectionsWithRegistration() throws Exception {
-    try(ZKClusterCoordinator coordinator = new ZKClusterCoordinator(
+    try (ZKClusterCoordinator coordinator = new ZKClusterCoordinator(
       DEFAULT_SABOT_CONFIG,
       String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
     ) {
@@ -84,8 +87,7 @@ public class TestTaskLeaderElection {
         new TaskLeaderElection(
           SERVICE_NAME,
           DirectProvider.wrap(coordinator),
-      1000*60*60L, // 1 hour
-          1000*60*60L, // 1 hour
+          1000 * 60 * 60L, // 1 hour
           DirectProvider.wrap(nodeEndpoint1),
           Executors.newSingleThreadScheduledExecutor()
         );
@@ -94,8 +96,7 @@ public class TestTaskLeaderElection {
         new TaskLeaderElection(
           SERVICE_NAME,
           DirectProvider.wrap(coordinator),
-          1000*60*60L, // 1 hour
-          1000*60*60L, // 1 hour
+          1000 * 60 * 60L, // 1 hour
           DirectProvider.wrap(nodeEndpoint2),
           Executors.newSingleThreadScheduledExecutor()
         );
@@ -104,14 +105,13 @@ public class TestTaskLeaderElection {
         new TaskLeaderElection(
           SERVICE_NAME,
           DirectProvider.wrap(coordinator),
-          1000*60*60L, // 1 hour
-          1000*60*60L, // 1 hour
+          1000 * 60 * 60L, // 1 hour
           DirectProvider.wrap(nodeEndpoint3),
           Executors.newSingleThreadScheduledExecutor()
         );
 
       List<TaskLeaderElection> taskLeaderElectionList =
-        ImmutableList.of(
+        Lists.newArrayList(
           taskLeaderElection1,
           taskLeaderElection2,
           taskLeaderElection3);
@@ -125,7 +125,7 @@ public class TestTaskLeaderElection {
       });
 
       // wait for a leader
-      while(taskLeaderElectionList.stream().noneMatch(TaskLeaderElection::isTaskLeader)) {
+      while (taskLeaderElectionList.stream().noneMatch(TaskLeaderElection::isTaskLeader)) {
         Thread.sleep(100);
       }
 
@@ -134,8 +134,9 @@ public class TestTaskLeaderElection {
       // stop leader
       assertNotNull(leader);
       leader.close();
+      taskLeaderElectionList.remove(leader);
 
-      while(taskLeaderElectionList.stream().noneMatch(TaskLeaderElection::isTaskLeader)) {
+      while (taskLeaderElectionList.stream().noneMatch(TaskLeaderElection::isTaskLeader)) {
         Thread.sleep(100);
       }
 
@@ -148,8 +149,9 @@ public class TestTaskLeaderElection {
       // stop second leader
       assertNotNull(secondLeader);
       secondLeader.close();
+      taskLeaderElectionList.remove(secondLeader);
 
-      while(taskLeaderElectionList.stream().noneMatch(TaskLeaderElection::isTaskLeader)) {
+      while (taskLeaderElectionList.stream().noneMatch(TaskLeaderElection::isTaskLeader)) {
         Thread.sleep(100);
       }
 
@@ -160,7 +162,7 @@ public class TestTaskLeaderElection {
       assertTrue(!leader.getCurrentEndPoint().equals(thirdLeader.getCurrentEndPoint()));
       assertTrue(!secondLeader.getCurrentEndPoint().equals(thirdLeader.getCurrentEndPoint()));
 
-      // stop second leader
+      // stop third leader
       assertNotNull(thirdLeader);
       thirdLeader.close();
     }
@@ -168,7 +170,7 @@ public class TestTaskLeaderElection {
 
   @Test
   public void testGivingUpLeadership() throws Exception {
-    try(ZKClusterCoordinator coordinator = new ZKClusterCoordinator(
+    try (ZKClusterCoordinator coordinator = new ZKClusterCoordinator(
       DEFAULT_SABOT_CONFIG,
       String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
     ) {
@@ -193,7 +195,6 @@ public class TestTaskLeaderElection {
           SERVICE_NAME,
           DirectProvider.wrap(coordinator),
           1000 * 5L, // 5 sec.
-          1000 * 5L, // 5 sec.
           DirectProvider.wrap(nodeEndpoint1),
           Executors.newSingleThreadScheduledExecutor()
         );
@@ -202,7 +203,6 @@ public class TestTaskLeaderElection {
         new TaskLeaderElection(
           SERVICE_NAME,
           DirectProvider.wrap(coordinator),
-          1000 * 5L, // 5 sec.
           1000 * 5L, // 5 sec.
           DirectProvider.wrap(nodeEndpoint2),
           Executors.newSingleThreadScheduledExecutor()
@@ -251,30 +251,162 @@ public class TestTaskLeaderElection {
     }
   }
 
-  private TaskLeaderElection getCurrentLeader(List<TaskLeaderElection> taskLeaderElectionMap) {
-    List<TaskLeaderElection> leaders = taskLeaderElectionMap
-      .stream()
-      .map( v -> {
-        if (v.isTaskLeader()) {
-          assertEquals(v.getCurrentEndPoint(), v.getTaskLeader());
-        } else {
-          assertNotEquals(v.getCurrentEndPoint(), v.getTaskLeader());
+  @Test
+  public void testTaskLeaderChangeListener () throws Exception {
+    try (ZKClusterCoordinator coordinator = new ZKClusterCoordinator(
+      DEFAULT_SABOT_CONFIG,
+      String.format("%s/dremio/test/test-cluster-id", zooKeeperServer.getConnectString()))
+    ) {
+      coordinator.start();
+
+      CoordinationProtos.NodeEndpoint nodeEndpoint1 = CoordinationProtos.NodeEndpoint.newBuilder()
+        .setAddress("host1")
+        .setFabricPort(1234)
+        .setUserPort(2345)
+        .setRoles(ClusterCoordinator.Role.toEndpointRoles(Sets.newHashSet(ClusterCoordinator.Role.COORDINATOR)))
+        .build();
+
+      CoordinationProtos.NodeEndpoint nodeEndpoint2 = CoordinationProtos.NodeEndpoint.newBuilder()
+        .setAddress("host2")
+        .setFabricPort(1235)
+        .setUserPort(2346)
+        .setRoles(ClusterCoordinator.Role.toEndpointRoles(Sets.newHashSet(ClusterCoordinator.Role.COORDINATOR)))
+        .build();
+
+      CountDownLatch gained1 = new CountDownLatch(1);
+      CountDownLatch lost1 = new CountDownLatch(1);
+      CountDownLatch relinquished1 = new CountDownLatch(1);
+
+      TaskLeaderChangeListener taskLeaderChangeListener1 = new TaskLeaderChangeListener() {
+        @Override
+        public void onLeadershipGained() {
+          gained1.countDown();
         }
-        logger.info("endpoint: {}, lead endpoint: {}", v.getCurrentEndPoint(), v.getTaskLeader());
-        return v;
-      }).filter(TaskLeaderElection::isTaskLeader).collect(Collectors.toList());
-    assertEquals(1, leaders.size());
-    return leaders.get(0);
+
+        @Override
+        public void onLeadershipLost() {
+          lost1.countDown();
+        }
+
+        @Override
+        public void onLeadershipRelinquished() {
+          relinquished1.countDown();
+        }
+      };
+
+      TaskLeaderElection taskLeaderElectionService1 =
+        new TaskLeaderElection(
+          SERVICE_NAME,
+          DirectProvider.wrap(coordinator),
+          1000 * 5L, // 5 sec.
+          DirectProvider.wrap(nodeEndpoint1),
+          Executors.newSingleThreadScheduledExecutor()
+        );
+
+      taskLeaderElectionService1.addListener(taskLeaderChangeListener1);
+
+      CountDownLatch gained2 = new CountDownLatch(1);
+      CountDownLatch lost2 = new CountDownLatch(1);
+      CountDownLatch relinquished2 = new CountDownLatch(1);
+
+      TaskLeaderChangeListener taskLeaderChangeListener2 = new TaskLeaderChangeListener() {
+        @Override
+        public void onLeadershipGained() {
+          gained2.countDown();
+        }
+
+        @Override
+        public void onLeadershipLost() {
+          lost2.countDown();
+        }
+
+        @Override
+        public void onLeadershipRelinquished() {
+          relinquished2.countDown();
+        }
+      };
+
+      TaskLeaderElection taskLeaderElectionService2 =
+        new TaskLeaderElection(
+          SERVICE_NAME,
+          DirectProvider.wrap(coordinator),
+          1000 * 5L, // 5 sec.
+          DirectProvider.wrap(nodeEndpoint2),
+          Executors.newSingleThreadScheduledExecutor()
+        );
+
+      taskLeaderElectionService2.addListener(taskLeaderChangeListener2);
+
+      List<TaskLeaderElection> taskLeaderElectionServiceList =
+        ImmutableList.of(
+          taskLeaderElectionService1,
+          taskLeaderElectionService2);
+
+
+      taskLeaderElectionServiceList.forEach(v -> {
+        try {
+          v.start();
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      });
+
+      while (taskLeaderElectionServiceList.stream().noneMatch(TaskLeaderElection::isTaskLeader)) {
+        Thread.sleep(50);
+      }
+
+      // may not really be a leader by the time it comes back
+      TaskLeaderElection leader = getCurrentLeaderFilter(taskLeaderElectionServiceList);
+      assertNotNull(leader);
+
+      CoordinationProtos.NodeEndpoint leadEndPoint = leader.getTaskLeader();
+      CoordinationProtos.NodeEndpoint taskEndPpoint = leader.getCurrentEndPoint();
+
+      while (leadEndPoint.equals(taskEndPpoint)) {
+        Thread.sleep(100);
+        leadEndPoint = leader.getTaskLeader();
+        taskEndPpoint = leader.getCurrentEndPoint();
+      }
+
+      assertEquals(0, gained1.getCount());
+      assertEquals(0, gained2.getCount());
+      assertEquals(1, lost1.getCount());
+      assertEquals(1, lost2.getCount());
+      assertTrue(relinquished1.getCount() == 0 || relinquished2.getCount() == 0);
+
+      taskLeaderElectionServiceList.forEach(
+        v -> {
+          try {
+            v.close();
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        });
+
+    }
   }
 
-  private TaskLeaderElection getCurrentLeaderFilter(List<TaskLeaderElection>
-                                                      taskLeaderElectionMap) {
-    List<TaskLeaderElection> leaders = taskLeaderElectionMap
-      .stream()
-      .filter(TaskLeaderElection::isTaskLeader).collect(Collectors.toList());
-    assertEquals(1, leaders.size());
-    return leaders.get(0);
+  private TaskLeaderElection getCurrentLeader(List<TaskLeaderElection> taskLeaderElectionMap) {
+      List<TaskLeaderElection> leaders = taskLeaderElectionMap
+        .stream()
+        .peek(v -> {
+          if (v.isTaskLeader()) {
+            assertEquals(v.getCurrentEndPoint(), v.getTaskLeader());
+          } else {
+            assertNotEquals(v.getCurrentEndPoint(), v.getTaskLeader());
+          }
+          logger.info("endpoint: {}, lead endpoint: {}", v.getCurrentEndPoint(), v.getTaskLeader());
+        }).filter(TaskLeaderElection::isTaskLeader).collect(Collectors.toList());
+      assertEquals(1, leaders.size());
+      return leaders.get(0);
   }
 
+  private TaskLeaderElection getCurrentLeaderFilter(List <TaskLeaderElection> taskLeaderElectionMap) {
+      List<TaskLeaderElection> leaders = taskLeaderElectionMap
+        .stream()
+        .filter(TaskLeaderElection::isTaskLeader).collect(Collectors.toList());
+      assertEquals(1, leaders.size());
+      return leaders.get(0);
+  }
 }
 

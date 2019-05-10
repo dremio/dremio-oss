@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.planner.physical;
 
+import static java.lang.Math.max;
+import static java.lang.Math.min;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -23,15 +26,24 @@ import com.dremio.common.logical.PlanProperties;
 import com.dremio.common.logical.PlanProperties.Generator.ResultMode;
 import com.dremio.common.logical.PlanProperties.PlanPropertiesBuilder;
 import com.dremio.common.logical.PlanProperties.PlanType;
+import com.dremio.common.util.Numbers;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.physical.explain.PrelSequencer.OpId;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.options.OptionManager;
+import com.dremio.options.TypeValidators.LongValidator;
 import com.google.common.collect.Lists;
 
 
+/**
+ * Carries common state and utility methods for generating a physical plan.
+ */
 public class PhysicalPlanCreator {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PhysicalPlanCreator.class);
 
   private final Map<Prel, OpId> opIdMap;
 
@@ -49,13 +61,66 @@ public class PhysicalPlanCreator {
     return context;
   }
 
-  public PhysicalOperator addMetadata(Prel originalPrel, PhysicalOperator op){
-    op.setOperatorId(opIdMap.get(originalPrel).getAsSingleInt());
-    op.setCost(originalPrel.getCostForParallelization());
-    if (originalPrel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE) == DistributionTrait.SINGLETON) {
-      op.setAsSingle();
-    }
-    return op;
+  public FunctionLookupContext getFunctionLookupContext() {
+    return context.getFunctionRegistry();
+  }
+
+  public OptionManager getOptionManager() {
+    return context.getOptions();
+  }
+
+  private int getId(Prel originalPrel){
+    return opIdMap.get(originalPrel).getAsSingleInt();
+
+  }
+
+  public OpProps props(int operatorId, Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption, double cost) {
+    return props(operatorId, username, schema, reserveOption, limitOption, cost, null,
+      prel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE) == DistributionTrait.SINGLETON);
+  }
+
+  public OpProps props(Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption, double cost) {
+    return props(prel, username, schema, reserveOption, limitOption, cost, null);
+  }
+
+  public OpProps props(Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption) {
+    return props(prel, username, schema, reserveOption, limitOption, prel.getCostForParallelization(), null);
+  }
+
+  public OpProps props(Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption, LongValidator lowLimitOption) {
+    return props(prel, username, schema, reserveOption, limitOption, prel.getCostForParallelization(), lowLimitOption);
+  }
+
+  private OpProps props(Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption, double cost, LongValidator lowLimitOption) {
+    return props(getId(prel), username, schema, reserveOption, limitOption, cost, lowLimitOption,
+      prel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE) == DistributionTrait.SINGLETON);
+  }
+
+  private OpProps props(int operatorId,
+                        String username,
+                        BatchSchema schema,
+                        LongValidator reserveOption,
+                        LongValidator limitOption,
+                        double cost,
+                        LongValidator lowLimitOption,
+                        boolean singleStream) {
+    return new OpProps(
+      operatorId,
+      username,
+      reserveOption == null ? Prel.DEFAULT_RESERVE : context.getOptions().getOption(reserveOption),
+      limitOption == null ? Prel.DEFAULT_LIMIT : context.getOptions().getOption(limitOption),
+      lowLimitOption == null ? Prel.DEFAULT_LOW_LIMIT: context.getOptions().getOption(lowLimitOption),
+      cost,
+      singleStream,
+      calculateTargetRecordSize(schema),
+      schema,
+      false,
+      0.0d,
+      false);
+  }
+
+  public OpProps props(Prel prel, String username, BatchSchema schema) {
+    return props(prel, username, schema, null, null);
   }
 
   public PhysicalPlan build(Prel rootPrel, boolean forceRebuild) {
@@ -86,6 +151,55 @@ public class PhysicalPlanCreator {
     }
 
     return plan;
+  }
+
+  private int estimateRecordSize(BatchSchema schema, OptionManager options) {
+    final int listSizeEstimate = (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
+    final int varFieldSizeEstimate = (int) options.getOption(ExecConstants.BATCH_VARIABLE_FIELD_SIZE_ESTIMATE);
+    final int estimatedRecordSize = schema.estimateRecordSize(listSizeEstimate, varFieldSizeEstimate);
+    return estimatedRecordSize;
+  }
+
+  private final int calculateTargetRecordSize(BatchSchema schema) {
+    final int estimatedRecordSize = estimateRecordSize(schema, context.getOptions());
+    OptionManager options = context.getOptions();
+    return calculateBatchCountFromRecordSize(options, estimatedRecordSize);
+  }
+
+  public static int calculateBatchCountFromRecordSize(OptionManager options, int estimatedRecordSize) {
+
+    if (estimatedRecordSize == 0) {
+      // If the estimated row size is zero (possible when schema is not known initially for queries containing
+      // convert_from), fall back to max size
+      return optimizeBatchSizeForAllocs((int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX));
+    }
+
+    final int minTargetBatchCount = (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MIN);
+    final int maxTargetBatchCount = (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
+
+    final int maxBatchSizeBytes = (int) options.getOption(ExecConstants.TARGET_BATCH_SIZE_BYTES);
+
+    final int targetBatchSize = max(minTargetBatchCount,
+      min(maxTargetBatchCount, maxBatchSizeBytes / estimatedRecordSize));
+
+    return optimizeBatchSizeForAllocs(targetBatchSize);
+  }
+
+  public static int optimizeBatchSizeForAllocs(final int batchSize) {
+    /*
+     * The allocators anyway round-up to a power of 2. So, no point in allocating less.
+     */
+    final int targetCount = Numbers.nextPowerOfTwo(batchSize);
+
+    /*
+     * To reduce the heap overhead, we allocate the data-buffer and bitmap-buffer in a single
+     * allocation. However, the combined allocation should be close (<=) to a power of 2, to avoid
+     * wastage. The overhead of the bitmap is 1-bit for each element. The smallest element is an
+     * int which is 4-bytes (other than booleans). So, the overhead would be 1 in every 32 elements.
+     *
+     * eg. if the batch-size is 4096, we will trim it by 4096/32, making it 3968.
+     */
+    return max(1, targetCount - targetCount / 32);
   }
 
 }

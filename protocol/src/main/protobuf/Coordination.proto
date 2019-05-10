@@ -31,7 +31,7 @@ message NodeEndpoint {
   optional int32 fabric_port  = 3;
 //  optional int32 __unused = 4;
   optional Roles roles = 5;
-  optional int64 startTime = 101;
+  optional int64 start_time = 101;
   optional string provision_id = 102;
   // direct memory capacity in bytes
   optional int64 max_direct_memory = 103;
@@ -41,7 +41,7 @@ message NodeEndpoint {
 
 message DremioServiceInstance {
   optional string id = 1;
-  optional int64 registrationTimeUTC = 2;
+  optional int64 registration_time_UTC = 2;
   optional NodeEndpoint endpoint = 3;
   optional string name = 4;
 }

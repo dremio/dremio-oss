@@ -16,6 +16,7 @@
 import { CALL_API } from 'redux-api-middleware';
 
 import { API_URL_V2 } from 'constants/Api';
+import apiUtils from '@app/utils/apiUtils/apiUtils';
 
 export const PAGE_SIZE = 100;
 
@@ -23,23 +24,25 @@ export const LOAD_NEXT_ROWS_START = 'LOAD_NEXT_ROWS_START';
 export const LOAD_NEXT_ROWS_SUCCESS = 'LOAD_NEXT_ROWS_SUCCESS';
 export const LOAD_NEXT_ROWS_FAILURE = 'LOAD_NEXT_ROWS_FAILURE';
 
-const fetchNextRows = (datasetVersion, paginationUrl, offset, viewId) => {
+const fetchNextRows = (datasetVersion, paginationUrl, offset) => {
   const href = `${paginationUrl}?offset=${offset}&limit=${PAGE_SIZE}`;
   return {
     [CALL_API]: {
       types: [
         LOAD_NEXT_ROWS_START,
-        {type: LOAD_NEXT_ROWS_SUCCESS, meta: { datasetVersion, offset, viewId }},
-        {type: LOAD_NEXT_ROWS_FAILURE, meta: { viewId }}
+        {type: LOAD_NEXT_ROWS_SUCCESS, meta: { datasetVersion, offset }},
+        // empty meta to not break existing functionality
+        {type: LOAD_NEXT_ROWS_FAILURE, meta: { }}
       ],
       method: 'GET',
+      headers: apiUtils.getJobDataNumbersAsStringsHeader(),
       endpoint: `${API_URL_V2}${href}`
     }
   };
 };
 
-export const loadNextRows = (datasetVersion, paginationUrl, offset, viewId) => (dispatch) => {
-  return dispatch(fetchNextRows(datasetVersion, paginationUrl, offset, viewId));
+export const loadNextRows = (datasetVersion, paginationUrl, offset) => (dispatch) => {
+  return dispatch(fetchNextRows(datasetVersion, paginationUrl, offset));
 };
 
 export const DELETE_TABLE_DATA = 'DELETE_TABLE_DATA';
@@ -57,7 +60,7 @@ export const LOAD_FULL_CELL_VALUE_FAILURE = 'LOAD_FULL_CELL_VALUE_FAILURE';
 export const CLEAR_FULL_CELL_VALUE = 'CLEAR_FULL_CELL_VALUE';
 
 
-const fetchFullCellValue = ({href}) => {
+export const loadFullCellValue = ({ href }) => {
   const meta = { viewId: FULL_CELL_VIEW_ID };
   return {
     [CALL_API]: {
@@ -72,7 +75,33 @@ const fetchFullCellValue = ({href}) => {
   };
 };
 
-export const loadFullCellValue = ({ href }) => (dispatch) =>
-  dispatch(fetchFullCellValue({ href }));
+export const clearFullCellValue = () => (dispatch) => dispatch({ type: CLEAR_FULL_CELL_VALUE });
 
-export const clearFullCallValue = () => (dispatch) => dispatch({ type: CLEAR_FULL_CELL_VALUE });
+export const EXPLORE_PAGE_LISTENER_START = 'EXPLORE_PAGE_LISTENER_START';
+export const EXPLORE_PAGE_LISTENER_STOP = 'EXPLORE_PAGE_LISTENER_STOP';
+export const EXPLORE_PAGE_LOCATION_CHANGED = 'EXPLORE_PAGE_LOCATION_CHANGED';
+export const EXPLORE_PAGE_EXIT = 'EXPLORE_PAGE_EXIT';
+/**
+ * Starts explore page change listener, that tries to load data for a current dataset
+ * @param {bool} doInitialLoad - pass true if you like to try load data for current page
+ */
+export const startExplorePageListener = (doInitialLoad) => ({ type: EXPLORE_PAGE_LISTENER_START, doInitialLoad });
+/**
+ * Stops explore page change listener
+ */
+export const stopExplorePageListener = () => ({ type: EXPLORE_PAGE_LISTENER_STOP });
+
+export const explorePageExit = () => ({ type: EXPLORE_PAGE_EXIT });
+
+/**
+ * Action that notifies that explore page location was changed and provides previous and new state of route.
+ * For description {@see prevState} and {@see nextState} definition see react-router v3 api
+ * {@link https://github.com/ReactTraining/react-router/blob/v3/docs/API.md#onchangeprevstate-nextstate-replace-callback}
+ *
+ * @param {object} newRouteState - nextState argument of route's onChange callback
+ * @returns a redux action
+ */
+export const explorePageLocationChanged = (newRouteState) => ({
+  type: EXPLORE_PAGE_LOCATION_CHANGED,
+  newRouteState
+});

@@ -32,13 +32,22 @@ import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.exec.store.dfs.PruneableScan;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.google.common.base.Objects;
 
 /**
  * Convert scan prel to parquet group scan.
  */
-public class ParquetScanPrel extends ScanPrelBase {
+@Options
+public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
+
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.scan.parquet.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.scan.parquet.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   private final ParquetScanFilter filter;
   private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
@@ -90,13 +99,25 @@ public class ParquetScanPrel extends ScanPrelBase {
     return super.deriveRowType();
   }
 
+  @Override
+  public boolean hasFilter() {
+    return filter != null;
+  }
+
   public ParquetScanFilter getFilter() {
     return filter;
   }
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    return creator.addMetadata(this, new ParquetGroupScan(tableMetadata, projectedColumns, filter, globalDictionaryEncodedColumns, cachedRelDataType));
+    final BatchSchema schema = cachedRelDataType == null ? getTableMetadata().getSchema().maskAndReorder(getProjectedColumns()):  BatchSchema.fromCalciteRowType(cachedRelDataType);
+    return new ParquetGroupScan(
+        creator.props(this, getTableMetadata().getUser(), schema, RESERVE, LIMIT),
+        getTableMetadata(),
+        getProjectedColumns(),
+        filter,
+        globalDictionaryEncodedColumns,
+        cachedRelDataType);
   }
 
   @Override
@@ -104,6 +125,13 @@ public class ParquetScanPrel extends ScanPrelBase {
     return new ParquetScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection, observedRowcountAdjustment, filter);
   }
 
+  @Override
+  public ParquetScanPrel applyDatasetPointer(TableMetadata newDatasetPointer) {
+    return new ParquetScanPrel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer, projectedColumns,
+        observedRowcountAdjustment, filter, globalDictionaryEncodedColumns, cachedRelDataType);
+  }
+
+  @Override
   protected double getFilterReduction(){
     if(filter != null){
       double selectivity = 0.15d;

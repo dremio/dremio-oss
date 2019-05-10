@@ -18,6 +18,7 @@ package com.dremio.exec.store.hive;
 import com.dremio.options.OptionValidator;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
+import com.dremio.options.TypeValidators.RangeLongValidator;
 
 /**
  * Dremio advanced configuration options for Hive storage plugin
@@ -46,4 +47,18 @@ public interface HivePluginOptions {
    */
   String HIVE_USE_STATS_IN_METASTORE_KEY = "store.hive.use_stats_in_metastore";
   BooleanValidator HIVE_USE_STATS_IN_METASTORE = new BooleanValidator(HIVE_USE_STATS_IN_METASTORE_KEY, false);
+
+  /**
+   * Partition batch size override, used mainly for testing.
+   */
+  String HIVE_PARTITION_BATCH_SIZE_KEY = "store.hive.partition_batch_size";
+  RangeLongValidator HIVE_PARTITION_BATCH_SIZE_VALIDATOR =
+    new RangeLongValidator(HIVE_PARTITION_BATCH_SIZE_KEY, 1, Integer.MAX_VALUE, 1000);
+
+  /**
+   * Maximum number of input splits per partition override, used mainly for testing.
+   */
+  String HIVE_MAX_INPUTSPLITS_PER_PARTITION_KEY = "store.hive.max_inputsplits_per_partition";
+  RangeLongValidator HIVE_MAX_INPUTSPLITS_PER_PARTITION_VALIDATOR =
+    new RangeLongValidator(HIVE_MAX_INPUTSPLITS_PER_PARTITION_KEY, 1, Integer.MAX_VALUE, 500);
 }

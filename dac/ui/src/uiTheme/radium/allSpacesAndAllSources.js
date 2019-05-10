@@ -13,25 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PALE_NAVY } from './colors';
-
-export const main = {
-  width: '100%'
-};
 
 export const height = {
   height: '100%'
-};
-
-export const headerRightPadding = 5;
-export const header = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  height: 38,
-  padding: `0 ${headerRightPadding}px 0 10px`,
-  flexShrink: 0,
-  background: PALE_NAVY
 };
 
 export const addButton = {

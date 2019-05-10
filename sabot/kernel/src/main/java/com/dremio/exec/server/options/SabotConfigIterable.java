@@ -18,7 +18,6 @@ package com.dremio.exec.server.options;
 import java.util.Iterator;
 import java.util.Map.Entry;
 
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;

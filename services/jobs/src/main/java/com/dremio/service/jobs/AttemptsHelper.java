@@ -29,6 +29,17 @@ import com.dremio.service.job.proto.ResourceSchedulingInfo;
 public class AttemptsHelper {
 
   /**
+   * @return wait before planning in milliseconds
+   */
+  public static long getCommandPoolWaitTime(JobAttempt jobAttempt) {
+    final JobInfo jobInfo = jobAttempt.getInfo();
+    if (jobInfo == null) {
+      return 0;
+    }
+
+    return Optional.ofNullable(jobInfo.getCommandPoolWaitMillis()).orElse(0L);
+  }
+  /**
    * @return computed enqueued duration in milliseconds,
    *         null if {@link ResourceSchedulingInfo} is missing from the {@link JobInfo}
    */
@@ -55,9 +66,16 @@ public class AttemptsHelper {
     } else if (jobAttempt.getState() == JobState.FAILED) {
       // if the query failed during planning it is possible for schedulingEnd to be 0
       schedulingEnd = Math.max(schedulingStart, schedulingEnd);
+    } else if (jobAttempt.getState() == JobState.CANCELED) {
+      // if the query was canceled by workload manager it is possible for schedulingEnd to be 0
+      schedulingEnd = Math.max(schedulingStart, schedulingEnd);
     }
 
     return schedulingEnd - schedulingStart;
+  }
+
+  public static long getPoolWaitTime(JobAttempt jobAttempt) {
+    return Optional.ofNullable(jobAttempt.getInfo().getCommandPoolWaitMillis()).orElse(0L);
   }
 
   public static long getPlanningTime(JobAttempt jobAttempt) {

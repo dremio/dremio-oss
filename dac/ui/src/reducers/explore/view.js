@@ -15,68 +15,67 @@
  */
 import Immutable  from 'immutable';
 
-import * as ActionTypes from 'actions/explore/view';
-
-import { RUN_TABLE_TRANSFORM_START, RUN_TABLE_TRANSFORM_SUCCESS } from 'actions/explore/dataset/common';
+import { SET_CURRENT_SQL, RESET_NEW_QUERY, SET_QUERY_CONTEXT, FOCUS_EDITOR,
+  datasetMetadataActions } from 'actions/explore/view';
+import { RUN_TABLE_TRANSFORM_SUCCESS } from 'actions/explore/dataset/common';
 import { LOAD_EXPLORE_ENTITIES_SUCCESS } from 'actions/explore/dataset/get';
 import { RUN_DATASET_SUCCESS } from 'actions/explore/dataset/run';
+import { isLoaded } from '@app/reducers/reducerFactories';
+import { combineReducers } from 'redux';
 
 export const EXPLORE_VIEW_ID = 'EXPLORE_VIEW_ID';
 export const EXPLORE_TABLE_ID = 'EXPLORE_TABLE_ID';
 
-const initialState = Immutable.fromJS({
-  queryContext: Immutable.List(),
-  currentSql: undefined, // currentSql === undefined means sql has not been changed
-  sqlBoxSize: 0,
-  isResizeInProgress: false,
-  isTransformWarningModalVisible: false,
-  tables: {},
-  isPreviewMode: true,
-  sqlEditorFocusKey: 0 // number
-});
-
-export default function view(state = initialState, action) {
-  switch (action.type) {
-
-  case ActionTypes.SET_CURRENT_SQL: {
-    return state.set('currentSql', action.sql);
-  }
-
-  case ActionTypes.SET_QUERY_CONTEXT: {
-    return state.set('queryContext', action.context);
-  }
-
-  case ActionTypes.RESET_NEW_QUERY: {
-    return state.set('currentSql', undefined);
-  }
-
-  case RUN_TABLE_TRANSFORM_START: {
-    return state.setIn(['transform', action.meta.href], Immutable.Map());
-  }
-
-  case RUN_DATASET_SUCCESS: {
-    return state.set('isPreviewMode', false);
-  }
-
-  case LOAD_EXPLORE_ENTITIES_SUCCESS:
-  case RUN_TABLE_TRANSFORM_SUCCESS: {
-    const version = action.payload && action.payload.get && action.payload.get('result');
-    const tables = action.payload && action.payload.getIn && action.payload.getIn(['entities', 'table']);
-    const nextState = state.merge({
-      activeTransformationHref: '',
-      isPreviewMode: true
-    });
-    if (!tables) {
-      return nextState;
-    }
-    return nextState.setIn(['tables', version, 'columns'], tables.getIn([version, 'columns']));
-  }
-
-  case ActionTypes.FOCUS_EDITOR: {
-    return state.set('sqlEditorFocusKey', (new Date()).getTime()); // todo replace with a key provider as reducer should be a pure function
-  }
-
+// currentSql === null means sql has not been changed
+const currentSql = (state = null, { type, sql }) => {
+  switch (type) {
+  case SET_CURRENT_SQL:
+    return sql === undefined ? null : sql;
+  case RESET_NEW_QUERY:
+    return null;
   default:
     return state;
   }
-}
+};
+
+const queryContext = (state = Immutable.List(), { type, context }) => {
+  switch (type) {
+  case SET_QUERY_CONTEXT: {
+    return context;
+  }
+  default:
+    return state;
+  }
+};
+
+const isPreviewMode = (state = true, { type }) => {
+  switch (type) {
+  case RUN_DATASET_SUCCESS:
+    return false;
+  case LOAD_EXPLORE_ENTITIES_SUCCESS:
+  case RUN_TABLE_TRANSFORM_SUCCESS:
+    return true;
+  default:
+    return state;
+  }
+};
+
+const sqlEditorFocusKey = (state = 0, { type }) => {
+  switch (type) {
+  case FOCUS_EDITOR:
+    return new Date().getTime(); // todo replace with a key provider as reducer should be a pure function
+  default:
+    return state;
+  }
+};
+
+export default combineReducers({
+  queryContext,
+  currentSql,
+  isPreviewMode,
+  sqlEditorFocusKey,
+  // DX-14650 as of now this filed is used to indicate whether or not disable headers in the table
+  // on explore page. Metadata here includes sql, query context, table columns, history. Data is not
+  // included.
+  isDatasetMetadataLoaded: isLoaded(datasetMetadataActions)
+});

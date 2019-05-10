@@ -33,6 +33,7 @@ import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.HashAggregate;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
@@ -55,14 +56,14 @@ public class TestHashAgg extends BaseTestOperator {
 
   private void validateAgg(HashAggregate conf, TpchTable table, double scale, Fixtures.Table expectedResult) throws Exception {
     /* test with row-wise hashagg operator */
-    HashAggregate vanillaConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, conf.getCardinality());
+    HashAggregate vanillaConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, false, conf.getCardinality());
     validateSingle(vanillaConf, HashAggOperator.class, table, scale, expectedResult);
 
     /* test with vectorized hashagg operator that supports spilling */
     try (AutoCloseable options1 = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       for (int i = 0; i <= 5; i++) {
         try (AutoCloseable options2 = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_NUMPARTITIONS, 1 << i)) {
-          HashAggregate vectorizedConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, conf.getCardinality());
+          HashAggregate vectorizedConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, true, conf.getCardinality());
           validateSingle(vectorizedConf, VectorizedHashAggOperator.class, table, scale, expectedResult);
         }
       }
@@ -70,21 +71,21 @@ public class TestHashAgg extends BaseTestOperator {
 
     /* test with old vectorized hashagg operator -- that does not support spilling */
     try (AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, false)) {
-      HashAggregate vectorizedConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, conf.getCardinality());
+      HashAggregate vectorizedConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, false, conf.getCardinality());
       validateSingle(vectorizedConf, VectorizedHashAggOperatorNoSpill.class, table, scale, expectedResult);
     }
   }
 
   private void validateAgg(HashAggregate conf, Fixtures.Table input, Fixtures.Table expectedResult) throws Exception {
     /* test with row-wise hashagg operator */
-    HashAggregate vanillaConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, conf.getCardinality());
+    HashAggregate vanillaConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, false, conf.getCardinality());
     validateSingle(vanillaConf, HashAggOperator.class, input, expectedResult);
 
     /* test with vectorized hashagg operator that supports spilling */
     try (AutoCloseable options1 = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       for (int i = 0; i <= 5; i++) {
         try (AutoCloseable options2 = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_NUMPARTITIONS, 1 << i)) {
-          HashAggregate vectorizedConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, conf.getCardinality());
+          HashAggregate vectorizedConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, true, conf.getCardinality());
           validateSingle(vectorizedConf, VectorizedHashAggOperator.class, input, expectedResult);
         }
       }
@@ -92,21 +93,21 @@ public class TestHashAgg extends BaseTestOperator {
 
     /* test with old vectorized hashagg operator -- that does not support spilling */
     try (AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, false)) {
-      HashAggregate vectorizedConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, conf.getCardinality());
+      HashAggregate vectorizedConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, true, conf.getCardinality());
       validateSingle(vectorizedConf, VectorizedHashAggOperatorNoSpill.class, input, expectedResult);
     }
   }
 
   private void validateAggGenerated(HashAggregate conf, Fixtures.Table input, Fixtures.Table expectedResult) throws Exception {
     /* test with row-wise hashagg operator */
-    HashAggregate vanillaConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, conf.getCardinality());
+    HashAggregate vanillaConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, false, conf.getCardinality());
     validateSingle(vanillaConf, HashAggOperator.class, input.toGenerator(allocator), expectedResult, 1000);
 
     /* test with vectorized hashagg operator that supports spilling */
     try (AutoCloseable options1 = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       for (int i = 0; i <= 5; i++) {
         try (AutoCloseable options2 = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_NUMPARTITIONS, 1 << i)) {
-          HashAggregate vectorizedConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, conf.getCardinality());
+          HashAggregate vectorizedConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, true, conf.getCardinality());
           validateSingle(vectorizedConf, VectorizedHashAggOperator.class, input.toGenerator(allocator), expectedResult, 1000);
         }
       }
@@ -114,19 +115,20 @@ public class TestHashAgg extends BaseTestOperator {
 
     /* test with old vectorized hashagg operator -- that does not support spilling */
     try (AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, false)) {
-      HashAggregate vectorizedConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, conf.getCardinality());
+      HashAggregate vectorizedConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, false, conf.getCardinality());
       validateSingle(vectorizedConf, VectorizedHashAggOperatorNoSpill.class, input.toGenerator(allocator), expectedResult, 1000);
     }
   }
 
   @Test
   public void oneKeySumCnt() throws Exception {
-    HashAggregate conf = new HashAggregate(null,
+    HashAggregate conf = new HashAggregate(OpProps.prototype(), null,
                                            Arrays.asList(n("r_name")),
                                            Arrays.asList(
                                              n("sum(r_regionkey)", "sum"),
                                              n("count(r_regionkey)", "cnt")
                                            ),
+                                           false,
                                            false,
                                            1f);
 
@@ -145,12 +147,13 @@ public class TestHashAgg extends BaseTestOperator {
 
   @Test
   public void oneKeySumCntVectorized() throws Exception {
-    HashAggregate conf = new HashAggregate(null,
+    HashAggregate conf = new HashAggregate(OpProps.prototype(), null,
                                            Arrays.asList(n("r_name")),
                                            Arrays.asList(
                                              n("sum(r_regionkey)", "sum"),
                                              n("count(r_regionkey)", "cnt")
                                            ),
+                                           true,
                                            true,
                                            1f);
 
@@ -174,12 +177,13 @@ public class TestHashAgg extends BaseTestOperator {
 
   @Test
   public void booleanWork() throws Exception {
-    HashAggregate conf = new HashAggregate(null,
+    HashAggregate conf = new HashAggregate(OpProps.prototype(), null,
                                            Arrays.asList(n("boolean_col")),
                                            Arrays.asList(
                                              n("sum(int_col)", "sum_int_col"),
                                              n("sum(bigint_col)", "sum_bigint_col")
                                            ),
+                                           true,
                                            true,
                                            1f);
 
@@ -210,7 +214,7 @@ public class TestHashAgg extends BaseTestOperator {
 
   @Test
   public void intWork() throws Exception {
-    HashAggregate conf = new HashAggregate(null,
+    HashAggregate conf = new HashAggregate(OpProps.prototype(), null,
                                            Arrays.asList(n("gb")),
                                            Arrays.asList(
                                              n("sum(myint)", "sum"),
@@ -219,6 +223,7 @@ public class TestHashAgg extends BaseTestOperator {
                                              n("min(myint)", "min"),
                                              n("max(myint)", "max")
                                            ),
+                                           true,
                                            true,
                                            1f);
 
@@ -234,7 +239,7 @@ public class TestHashAgg extends BaseTestOperator {
 
   @Test
   public void intWork1() throws Exception {
-    HashAggregate conf = new HashAggregate(null,
+    HashAggregate conf = new HashAggregate(OpProps.prototype(), null,
                                            Arrays.asList(n("gb")),
                                            Arrays.asList(
                                              n("sum(d1)", "sum-d1"),
@@ -248,6 +253,7 @@ public class TestHashAgg extends BaseTestOperator {
                                              n("min(d2)", "min-d2"),
                                              n("max(d2)", "max-d2")
                                            ),
+                                           true,
                                            true,
                                            1f);
 
@@ -276,7 +282,7 @@ public class TestHashAgg extends BaseTestOperator {
 
   @Test
   public void bigintWork() throws Exception {
-    HashAggregate conf = new HashAggregate(null,
+    HashAggregate conf = new HashAggregate(OpProps.prototype(), null,
                                            Arrays.asList(n("gb")),
                                            Arrays.asList(
                                              n("sum(mybigint)", "sum"),
@@ -285,6 +291,7 @@ public class TestHashAgg extends BaseTestOperator {
                                              n("min(mybigint)", "min"),
                                              n("max(mybigint)", "max")
                                            ),
+                                           true,
                                            true,
                                            1f);
 
@@ -304,7 +311,7 @@ public class TestHashAgg extends BaseTestOperator {
 
   @Test
   public void bigintWork1() throws Exception {
-    HashAggregate conf = new HashAggregate(null,
+    HashAggregate conf = new HashAggregate(OpProps.prototype(), null,
                                            Arrays.asList(n("gb")),
                                            Arrays.asList(
                                              n("sum(d1)", "sum-d1"),
@@ -318,6 +325,7 @@ public class TestHashAgg extends BaseTestOperator {
                                              n("min(d2)", "min-d2"),
                                              n("max(d2)", "max-d2")
                                            ),
+                                           true,
                                            true,
                                            1f);
 
@@ -346,7 +354,7 @@ public class TestHashAgg extends BaseTestOperator {
 
   @Test
   public void floatWork() throws Exception {
-    HashAggregate conf = new HashAggregate(null,
+    HashAggregate conf = new HashAggregate(OpProps.prototype(), null,
                                            Arrays.asList(n("gb")),
                                            Arrays.asList(
                                              n("sum(myfloat)", "sum"),
@@ -355,6 +363,7 @@ public class TestHashAgg extends BaseTestOperator {
                                              n("min(myfloat)", "min"),
                                              n("max(myfloat)", "max")
                                            ),
+                                           true,
                                            true,
                                            1f);
 
@@ -370,7 +379,7 @@ public class TestHashAgg extends BaseTestOperator {
 
   @Test
   public void floatWork1() throws Exception {
-    HashAggregate conf = new HashAggregate(null,
+    HashAggregate conf = new HashAggregate(OpProps.prototype(), null,
                                            Arrays.asList(n("gb")),
                                            Arrays.asList(
                                              n("sum(d1)", "sum-d1"),
@@ -384,6 +393,7 @@ public class TestHashAgg extends BaseTestOperator {
                                              n("min(d2)", "min-d2"),
                                              n("max(d2)", "max-d2")
                                            ),
+                                           true,
                                            true,
                                            1f);
 
@@ -413,7 +423,7 @@ public class TestHashAgg extends BaseTestOperator {
 
   @Test
   public void doubleWork() throws Exception {
-    HashAggregate conf = new HashAggregate(null,
+    HashAggregate conf = new HashAggregate(OpProps.prototype(), null,
                                            Arrays.asList(n("gb")),
                                            Arrays.asList(
                                              n("sum(mydouble)", "sum"),
@@ -422,6 +432,7 @@ public class TestHashAgg extends BaseTestOperator {
                                              n("min(mydouble)", "min"),
                                              n("max(mydouble)", "max")
                                            ),
+                                           true,
                                            true,
                                            1f);
 
@@ -437,7 +448,7 @@ public class TestHashAgg extends BaseTestOperator {
 
   @Test
   public void doubleWork1() throws Exception {
-    HashAggregate conf = new HashAggregate(null,
+    HashAggregate conf = new HashAggregate(OpProps.prototype(), null,
                                            Arrays.asList(n("gb")),
                                            Arrays.asList(
                                              n("sum(d1)", "sum-d1"),
@@ -451,6 +462,7 @@ public class TestHashAgg extends BaseTestOperator {
                                              n("min(d2)", "min-d2"),
                                              n("max(d2)", "max-d2")
                                            ),
+                                           true,
                                            true,
                                            1f);
 
@@ -479,11 +491,12 @@ public class TestHashAgg extends BaseTestOperator {
 
   @Test
   public void count1() throws Exception {
-    HashAggregate conf = new HashAggregate(null,
+    HashAggregate conf = new HashAggregate(OpProps.prototype(), null,
                                            Arrays.asList(n("gb")),
                                            Arrays.asList(
                                              n("count(1)", "cnt")
                                            ),
+                                           true,
                                            true,
                                            1f);
 
@@ -530,7 +543,7 @@ public class TestHashAgg extends BaseTestOperator {
       tr("FURNITURE", 13425917787L, 29968L))
       .orderInsensitive();
 
-    final HashAggregate conf = new HashAggregate(null, dim, measure, true, 1f);
+    final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, true, true,1f);
     try(AutoCloseable options1 = with(ExecConstants.MIN_HASH_TABLE_SIZE, 1);
         AutoCloseable options2 = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       /* test with vectorized hashagg that supports spilling */
@@ -541,7 +554,7 @@ public class TestHashAgg extends BaseTestOperator {
       }
 
       /* test with row-wise hashagg */
-      final HashAggregate conf2 = new HashAggregate(null, dim, measure, false, 1f);
+      final HashAggregate conf2 = new HashAggregate(OpProps.prototype(), null, dim, measure, false, false,1f);
       validateSingle(conf2, HashAggOperator.class, TpchGenerator.singleGenerator(TpchTable.CUSTOMER, 1, allocator), expected, 1000);
 
       /* test with vectorized hashagg that does not support spilling */
@@ -555,12 +568,12 @@ public class TestHashAgg extends BaseTestOperator {
   public void decimalWork() throws Exception {
     final Table inputData = t(
       th("dec_x", "dec_y", "str_z"),
-      tr(new BigDecimal(10.0), new BigDecimal(2.0), "a"),
-      tr(new BigDecimal(20.0), new BigDecimal(3.0), "b"),
-      tr(new BigDecimal(30.0), new BigDecimal(4.0), "c"),
-      tr(new BigDecimal(20.0), new BigDecimal(5.0), "d"),
-      tr(new BigDecimal(20.0), new BigDecimal(6.0), "e"),
-      tr(new BigDecimal(10.0), new BigDecimal(7.0), "f")
+      tr(BigDecimal.valueOf(10.0), BigDecimal.valueOf(2.0), "a"),
+      tr(BigDecimal.valueOf(20.0), BigDecimal.valueOf(3.0), "b"),
+      tr(BigDecimal.valueOf(30.0), BigDecimal.valueOf(4.0), "c"),
+      tr(BigDecimal.valueOf(20.0), BigDecimal.valueOf(5.0), "d"),
+      tr(BigDecimal.valueOf(20.0), BigDecimal.valueOf(6.0), "e"),
+      tr(BigDecimal.valueOf(10.0), BigDecimal.valueOf(7.0), "f")
     );
 
     final List<NamedExpression> dim = Arrays.asList(n("dec_x"));
@@ -574,12 +587,12 @@ public class TestHashAgg extends BaseTestOperator {
 
     final Table expected = t(
       th("dec_x", "sum_y", "cnt", "sum0", "min", "max"),
-      tr(new BigDecimal(10.0), 9.0d, 2L, 9.0d, 2.0d, 7.0d),
-      tr(new BigDecimal(20.0), 14.0d, 3L, 14.0d, 3.0d, 6.0d),
-      tr(new BigDecimal(30.0), 4.0d, 1L, 4.0d, 4.0d,4.0d))
+      tr(BigDecimal.valueOf(10.0), 9.0d, 2L, 9.0d, 2.0d, 7.0d),
+      tr(BigDecimal.valueOf(20.0), 14.0d, 3L, 14.0d, 3.0d, 6.0d),
+      tr(BigDecimal.valueOf(30.0), 4.0d, 1L, 4.0d, 4.0d,4.0d))
       .orderInsensitive();
 
-    final HashAggregate conf = new HashAggregate(null, dim, measure, true, 1f);
+    final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, true, true,1f);
     validateAggGenerated(conf, inputData, expected);
   }
 
@@ -587,12 +600,12 @@ public class TestHashAgg extends BaseTestOperator {
   public void decimalSumVsSum0() throws Exception {
     final Table inputData = t(
       th("dec_x", "dec_y", "str_z"),
-      tr(new BigDecimal(10.0), Fixtures.NULL_DECIMAL, "a"),
-      tr(new BigDecimal(20.0), new BigDecimal(2.0), "b"),
-      tr(new BigDecimal(30.0), Fixtures.NULL_DECIMAL, "c"),
-      tr(new BigDecimal(20.0), Fixtures.NULL_DECIMAL, "d"),
-      tr(new BigDecimal(20.0), new BigDecimal(5.0), "e"),
-      tr(new BigDecimal(10.0), Fixtures.NULL_DECIMAL, "f")
+      tr(BigDecimal.valueOf(10.0), Fixtures.NULL_DECIMAL, "a"),
+      tr(BigDecimal.valueOf(20.0), BigDecimal.valueOf(2), "b"),
+      tr(BigDecimal.valueOf(30.0), Fixtures.NULL_DECIMAL, "c"),
+      tr(BigDecimal.valueOf(20.0), Fixtures.NULL_DECIMAL, "d"),
+      tr(BigDecimal.valueOf(20.0), BigDecimal.valueOf(5), "e"),
+      tr(BigDecimal.valueOf(10.0), Fixtures.NULL_DECIMAL, "f")
     );
 
     final List<NamedExpression> dim = Arrays.asList(n("dec_x"));
@@ -603,12 +616,12 @@ public class TestHashAgg extends BaseTestOperator {
 
     final Table expected = t(
       th("dec_x", "sum_y", "sum0"),
-      tr(new BigDecimal(10.0), Fixtures.NULL_DOUBLE, 0.0d),
-      tr(new BigDecimal(20.0), 7.0d, 7.0d),
-      tr(new BigDecimal(30.0), Fixtures.NULL_DOUBLE, 0.0d))
+      tr(BigDecimal.valueOf(10.0), Fixtures.NULL_DOUBLE, 0.0d),
+      tr(BigDecimal.valueOf(20.0), 7.0d, 7.0d),
+      tr(BigDecimal.valueOf(30.0), Fixtures.NULL_DOUBLE, 0.0d))
       .orderInsensitive();
 
-    final HashAggregate conf = new HashAggregate(null, dim, measure, true, 1f);
+    final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, true, true,1f);
     validateAggGenerated(conf, inputData, expected);
   }
 
@@ -666,7 +679,7 @@ public class TestHashAgg extends BaseTestOperator {
       tr(13, 1l, true, true))
       .orderInsensitive();
 
-    final HashAggregate conf = new HashAggregate(null, dim, measure, true, 1f);
+    final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, true, true,1f);
     validateAggGenerated(conf, inputData, expected);
   }
 
@@ -736,22 +749,22 @@ public class TestHashAgg extends BaseTestOperator {
       tr(Fixtures.NULL_BOOLEAN))
       .orderInsensitive();
 
-    final HashAggregate conf = new HashAggregate(null, dim, measure, true, 1f);
+    final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, true, true,1f);
     try (BitGenerator generator = new BitGenerator(allocator, column)) {
-      HashAggregate vanillaConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, conf.getCardinality());
+      HashAggregate vanillaConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, false, conf.getCardinality());
       validateSingle(vanillaConf, HashAggOperator.class, generator, expected, 1000);
     }
 
     try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       try (BitGenerator generator = new BitGenerator(allocator, column)) {
-        HashAggregate vectorizedConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, conf.getCardinality());
+        HashAggregate vectorizedConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, true, conf.getCardinality());
         validateSingle(vectorizedConf, VectorizedHashAggOperator.class, generator, expected, 1000);
       }
     }
 
     try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, false)) {
       try (BitGenerator generator = new BitGenerator(allocator, column)) {
-        HashAggregate vectorizedConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, conf.getCardinality());
+        HashAggregate vectorizedConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), true, true, conf.getCardinality());
         validateSingle(vectorizedConf, VectorizedHashAggOperatorNoSpill.class, generator, expected, 1000);
       }
     }
@@ -785,7 +798,7 @@ public class TestHashAgg extends BaseTestOperator {
       tr(7, 2l, Fixtures.date("2017-11-30"), Fixtures.date("2017-12-1")))
       .orderInsensitive();
 
-    final HashAggregate conf = new HashAggregate(null, dim, measure, true, 1f);
+    final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, true, true,1f);
     validateAggGenerated(conf, inputData, expected);
   }
 
@@ -822,7 +835,7 @@ public class TestHashAgg extends BaseTestOperator {
          Fixtures.interval_year(0, 7), Fixtures.interval_year(0, 7)))
       .orderInsensitive();
 
-    final HashAggregate conf = new HashAggregate(null, dim, measure, true, 1f);
+    final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, true, true,1f);
     validateAggGenerated(conf, inputData, expected);
   }
 
@@ -854,7 +867,7 @@ public class TestHashAgg extends BaseTestOperator {
       tr(7, 2l, Fixtures.time("09:00"), Fixtures.time("09:00")))
       .orderInsensitive();
 
-    final HashAggregate conf = new HashAggregate(null, dim, measure, true, 1f);
+    final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, true, true,1f);
     validateAggGenerated(conf, inputData, expected);
   }
 
@@ -885,7 +898,7 @@ public class TestHashAgg extends BaseTestOperator {
       tr(7, 2l, Fixtures.ts("2017-11-30T21:00"), Fixtures.ts("2017-12-1T07:00")))
       .orderInsensitive();
 
-    final HashAggregate conf = new HashAggregate(null, dim, measure, false, 1f);
+    final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, false, false,1f);
     validateAggGenerated(conf, inputData, expected);
   }
 
@@ -915,17 +928,17 @@ public class TestHashAgg extends BaseTestOperator {
       tr(3, 2l, "a3", "b3"))
       .orderInsensitive();
 
-    final HashAggregate conf = new HashAggregate(null, dim, measure, false, 1f);
+    final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, false, false,1f);
 
     // String min/max only applies to the row-wise hashagg operator
     try (AutoCloseable options = with(HashAggOperator.HASHAGG_MINMAX_CARDINALITY_LIMIT, 10)) {
-      HashAggregate vanillaConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, conf.getCardinality());
+      HashAggregate vanillaConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, false, conf.getCardinality());
       validateSingle(vanillaConf, HashAggOperator.class, inputData, expected);
     }
 
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.FUNCTION, "low-cardinality aggregations"));
     try (AutoCloseable options = with(HashAggOperator.HASHAGG_MINMAX_CARDINALITY_LIMIT, 1)) {
-      HashAggregate vanillaConf = new HashAggregate(conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, conf.getCardinality());
+      HashAggregate vanillaConf = new HashAggregate(OpProps.prototype(), conf.getChild(), conf.getGroupByExprs(), conf.getAggrExprs(), false, false, conf.getCardinality());
       validateSingle(vanillaConf, HashAggOperator.class, inputData, expected);
     }
   }

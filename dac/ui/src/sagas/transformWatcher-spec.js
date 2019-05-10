@@ -13,21 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { put } from 'redux-saga/effects';
+import { put, call } from 'redux-saga/effects';
 import { delay } from 'redux-saga';
 import { CALL_API } from 'redux-api-middleware';
 
 import { SHOW_CONFIRMATION_DIALOG } from 'actions/confirmation';
 import { cancelTransform } from 'actions/explore/dataset/transform';
 import { hideConfirmationDialog } from 'actions/confirmation';
+import { startDatasetMetadataLoad, completeDatasetMetadataLoad } from '@app/actions/explore/view';
+import { stopExplorePageListener, startExplorePageListener } from '@app/actions/explore/dataset/data';
 
 import { unwrapAction } from './utils';
 
 import {
+  transformThenNavigate,
   performWatchedTransform,
   cancelTransformWithModal,
   TransformCanceledError,
-  TransformCanceledByLocationChangeError
+  TransformCanceledByLocationChangeError,
+  TransformFailedError
 } from './transformWatcher';
 
 describe('transformWatcher saga', () => {
@@ -39,13 +43,60 @@ describe('transformWatcher saga', () => {
     }
   };
 
+  beforeEach(() => {
+    gen = transformThenNavigate('action', 'viewId');
+    // dispatch metadata load start action
+    next = gen.next();
+    expect(next.value).to.be.eql(put(startDatasetMetadataLoad()));
+
+    next = gen.next();
+    expect(next.value).to.eql(call(performWatchedTransform, 'action', 'viewId'));
+  });
+
+  describe('transformThenNavigate', () => {
+    it('should performWatchedTransform, then navigate, and return response', () => {
+      const response = {
+        payload: Immutable.fromJS({})
+      };
+      next = gen.next(response);
+      // we should stop data load listener to not do extra data load call
+      expect(next.value).to.be.eql(put(stopExplorePageListener()));
+      next = gen.next();
+      expect(next.value.PUT).to.not.be.undefined; // navigateToNextDataset
+      //finally block before return
+      next = gen.next();
+      // we should resume data load listener after navigation
+      expect(next.value).to.be.eql(put(startExplorePageListener(false)));
+      next = gen.next();
+      expect(next.value).to.be.eql(put(completeDatasetMetadataLoad()));
+
+      //check return statement
+      next = gen.next();
+      expect(next.value).to.equal(response);
+    });
+
+    it('should throw if response.error', () => {
+      const response = {
+        error: true
+      };
+      expect(() => {
+        next = gen.next(response); // forces to go to a finally block as exception would be thrown
+        // we should resume data load listener after navigation
+        expect(next.value).to.be.eql(put(startExplorePageListener(false)));
+        next = gen.next();
+        expect(next.value).to.be.eql(put(completeDatasetMetadataLoad()));
+        next = gen.next();
+      }).to.throw(TransformFailedError);
+    });
+
+  });
+
   describe('performWatchedTransform', () => {
     beforeEach(() => {
       gen = performWatchedTransform(apiAction, 'viewId');
       next = gen.next();
       expect(next.value).to.eql(put(apiAction));
       next = gen.next(new Promise(() => {}));
-      next = gen.next(() => true); // getExplorePageLocationChangePredicate
       expect(next.value.RACE).to.not.be.undefined;
     });
 

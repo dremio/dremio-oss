@@ -22,8 +22,9 @@ import PropTypes from 'prop-types';
  */
 export class KeyChangeTrigger extends PureComponent {
   static propTypes = {
-    keyValue: PropTypes.string,
-    onChange: PropTypes.func.isRequired
+    keyValue: PropTypes.oneOfType([PropTypes.string, PropTypes.bool, PropTypes.number]),
+    onChange: PropTypes.func.isRequired,
+    children: PropTypes.any
   };
 
   onChange() {
@@ -41,6 +42,6 @@ export class KeyChangeTrigger extends PureComponent {
   }
 
   render() {
-    return null;
+    return this.props.children || null;
   }
 }

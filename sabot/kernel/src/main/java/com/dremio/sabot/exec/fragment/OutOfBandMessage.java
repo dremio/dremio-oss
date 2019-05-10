@@ -37,6 +37,7 @@ public class OutOfBandMessage {
   private final int operatorId;
   private final int sendingMinorFragmentId;
   private final Payload payload;
+  private final boolean isOptional;
 
   public QueryId getQueryId() {
     return queryId;
@@ -74,6 +75,8 @@ public class OutOfBandMessage {
     return payload;
   }
 
+  public boolean getIsOptional() { return isOptional; }
+
   public OutOfBandMessage(OOBMessage message) {
     queryId = message.getQueryId();
     operatorId = message.getReceivingOperatorId();
@@ -82,6 +85,7 @@ public class OutOfBandMessage {
     targetMinorFragmentIds = message.getReceivingMinorFragmentIdList();
 
     payload = new Payload(message.getType(), message.getData().toByteArray());
+    isOptional = message.hasIsOptional() ? message.getIsOptional() : true;
   }
 
   public OOBMessage toProtoMessage() {
@@ -95,11 +99,12 @@ public class OutOfBandMessage {
 
     builder.setData(ByteString.copyFrom(payload.bytes));
     builder.setType(payload.type);
+    builder.setIsOptional(isOptional);
     return builder.build();
   }
 
   public OutOfBandMessage(QueryId queryId, int majorFragmentId, List<Integer> targetMinorFragmentIds, int operatorId,
-      int sendingMinorFragmentId, Payload payload) {
+      int sendingMinorFragmentId, Payload payload, boolean isOptional) {
     super();
     this.queryId = queryId;
     this.majorFragmentId = majorFragmentId;
@@ -107,6 +112,7 @@ public class OutOfBandMessage {
     this.operatorId = operatorId;
     this.sendingMinorFragmentId = sendingMinorFragmentId;
     this.payload = payload;
+    this.isOptional = isOptional;
   }
 
   public static class Payload {

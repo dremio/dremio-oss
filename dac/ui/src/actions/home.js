@@ -21,6 +21,7 @@ import ApiUtils from 'utils/apiUtils/apiUtils';
 import folderSchema from 'schemas/folder';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import actionUtils from 'utils/actionUtils/actionUtils';
+import { sidebarMinWidth } from '@app/pages/HomePage/components/Columns.less';
 
 export const CONVERT_FOLDER_TO_DATASET_START = 'CONVERT_FOLDER_TO_DATASET_START';
 export const CONVERT_FOLDER_TO_DATASET_SUCCESS = 'CONVERT_FOLDER_TO_DATASET_SUCCESS';
@@ -145,3 +146,9 @@ export const wikiSaved = (entityId, text, version) => ({
   version
 });
 
+export const MIN_SIDEBAR_WIDTH = parseInt(sidebarMinWidth, 10);
+export const SET_SIDEBAR_SIZE = 'SET_SIDEBAR_SIZE';
+export const setSidebarSize = size => ({
+  type: SET_SIDEBAR_SIZE,
+  size: Math.max(MIN_SIDEBAR_WIDTH, size)
+});

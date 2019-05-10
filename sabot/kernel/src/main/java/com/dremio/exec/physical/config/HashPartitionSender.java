@@ -18,35 +18,55 @@ package com.dremio.exec.physical.config;
 import java.util.List;
 
 import com.dremio.common.expression.LogicalExpression;
-import com.dremio.exec.physical.MinorFragmentEndpoint;
 import com.dremio.exec.physical.base.AbstractSender;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.base.OpWithMinorSpecificAttrs;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
+import com.dremio.exec.planner.fragment.MinorDataReader;
+import com.dremio.exec.planner.fragment.MinorDataWriter;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 @JsonTypeName("hash-partition-sender")
-public class HashPartitionSender extends AbstractSender {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HashPartitionSender.class);
+public class HashPartitionSender extends AbstractSender implements OpWithMinorSpecificAttrs {
+  private static final String DESTINATIONS_ATTRIBUTE_KEY = "hash-partition-sender-destinations";
 
+  private List<MinorFragmentIndexEndpoint> destinations;
   private final LogicalExpression expr;
 
-  @JsonCreator
-  public HashPartitionSender(@JsonProperty("receiver-major-fragment") int oppositeMajorFragmentId,
-                             @JsonProperty("child") PhysicalOperator child,
-                             @JsonProperty("expr") LogicalExpression expr,
-                             @JsonProperty("destinations") List<MinorFragmentEndpoint> endpoints,
-                             @JsonProperty("schema") BatchSchema schema) {
-    super(oppositeMajorFragmentId, child, endpoints, schema);
+  public HashPartitionSender(
+    OpProps props,
+    BatchSchema schema,
+    PhysicalOperator child,
+    int receiverMajorFragmentId,
+    List<MinorFragmentIndexEndpoint> destinations,
+    LogicalExpression expr
+  ) {
+    super(props, schema, child, receiverMajorFragmentId);
+    this.destinations = destinations;
     this.expr = expr;
+  }
+
+  @JsonCreator
+  public HashPartitionSender(
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("schema") BatchSchema schema,
+      @JsonProperty("child") PhysicalOperator child,
+      @JsonProperty("receiverMajorFragmentId") int receiverMajorFragmentId,
+      @JsonProperty("expr") LogicalExpression expr
+      ) {
+    this(props, schema, child, receiverMajorFragmentId, null, expr);
   }
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new HashPartitionSender(oppositeMajorFragmentId, child, expr, destinations, schema);
+    return new HashPartitionSender(props, schema, child, receiverMajorFragmentId, destinations, expr);
   }
 
   public LogicalExpression getExpr() {
@@ -58,9 +78,24 @@ public class HashPartitionSender extends AbstractSender {
     return physicalVisitor.visitHashPartitionSender(this, value);
   }
 
+  @JsonIgnore
+  @Override
+  public List<MinorFragmentIndexEndpoint> getDestinations() {
+    return destinations;
+  }
+
   @Override
   public int getOperatorType() {
     return CoreOperatorType.HASH_PARTITION_SENDER_VALUE;
   }
 
+  @Override
+  public void collectMinorSpecificAttrs(MinorDataWriter writer) {
+    writer.writeMinorFragmentIndexEndpoints(this, DESTINATIONS_ATTRIBUTE_KEY, destinations);
+  }
+
+  @Override
+  public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
+    this.destinations = reader.readMinorFragmentIndexEndpoints(this, DESTINATIONS_ATTRIBUTE_KEY);
+  }
 }

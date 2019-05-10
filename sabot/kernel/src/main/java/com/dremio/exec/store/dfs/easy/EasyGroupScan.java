@@ -20,37 +20,41 @@ import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.physical.base.AbstractGroupScan;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
-import com.dremio.exec.store.dfs.AbstractFileGroupScan;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.dremio.service.namespace.file.proto.FileType;
 
 /**
  * New easy group scan
  */
-public class EasyGroupScan extends AbstractFileGroupScan {
+public class EasyGroupScan extends AbstractGroupScan {
 
-  public EasyGroupScan(TableMetadata dataset, List<SchemaPath> columns) {
-    super(dataset, columns);
+  public EasyGroupScan(
+      OpProps props,
+      TableMetadata dataset,
+      List<SchemaPath> columns) {
+    super(props, dataset, columns);
   }
 
   @Override
   public SubScan getSpecificScan(List<SplitWork> work) throws ExecutionSetupException {
-    final List<DatasetSplit> splits = new ArrayList<>(work.size());
-    final BatchSchema schema = getDataset().getSchema();
+    final List<SplitInfo> splits = new ArrayList<>(work.size());
+    final BatchSchema fullSchema = getDataset().getSchema();
     for(SplitWork split : work){
-      splits.add(split.getSplit());
+      splits.add(split.getSplitInfo());
     }
 
     return new EasySubScan(
+        props,
         getDataset().getFormatSettings(),
         splits,
-        getUserName(),
-        schema,
+        fullSchema,
         getDataset().getName().getPathComponents(),
         dataset.getStoragePluginId(),
         columns,

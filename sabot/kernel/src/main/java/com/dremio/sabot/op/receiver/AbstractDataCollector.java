@@ -23,8 +23,9 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC.Collector;
-import com.dremio.exec.proto.CoordExecRPC.IncomingMinorFragment;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FinishedReceiver;
@@ -40,7 +41,6 @@ import com.google.common.base.Throwables;
 
 public abstract class AbstractDataCollector implements DataCollector {
 
-  // private final List<MinorFragmentEndpoint> incoming;
   private final int oppositeMajorFragmentId;
   private final int incomingStreams;
   protected final RawBatchBuffer[] buffers;
@@ -68,12 +68,14 @@ public abstract class AbstractDataCollector implements DataCollector {
     FragmentHandle handle,
     FragmentWorkQueue workQueue,
     TunnelProvider tunnelProvider,
-    SpillService spillService) {
+    SpillService spillService,
+    EndpointsIndex endpointsIndex) {
     Preconditions.checkNotNull(collector);
+    Preconditions.checkNotNull(endpointsIndex);
     this.config = collector;
     this.handle = handle;
     this.tunnelProvider = tunnelProvider;
-    this.incomingStreams = collector.getIncomingMinorFragmentCount();
+    this.incomingStreams = collector.getIncomingMinorFragmentIndexCount();
     this.oppositeMajorFragmentId = collector.getOppositeMajorFragmentId();
     this.completionMessages = new CompletionMessageSender[incomingStreams];
 
@@ -81,31 +83,33 @@ public abstract class AbstractDataCollector implements DataCollector {
     // We use this mapping to find objects belonging to the fragment in buffers and remainders arrays.
     fragmentMap = new ArrayWrappedIntIntMap();
     int index = 0;
-    for (IncomingMinorFragment fragment: collector.getIncomingMinorFragmentList()) {
-      fragmentMap.put(fragment.getMinorFragment(), index);
+    for (MinorFragmentIndexEndpoint fragment: collector.getIncomingMinorFragmentIndexList()) {
+      fragmentMap.put(fragment.getMinorFragmentId(), index);
 
       // save completion messages for later.
-      completionMessages[index] = new CompletionMessageSender(fragment.getEndpoint(), fragment.getMinorFragment());
+      NodeEndpoint endpoint = endpointsIndex.getNodeEndpoint(fragment.getEndpointIndex());
+      completionMessages[index] = new CompletionMessageSender(endpoint, fragment.getMinorFragmentId());
       index++;
     }
 
     final boolean spooling = collector.getIsSpooling();
 
     if (isDiscrete) {
-      buffers = new RawBatchBuffer[collector.getIncomingMinorFragmentCount()];
-      List<IncomingMinorFragment> fragments = collector.getIncomingMinorFragmentList();
+      buffers = new RawBatchBuffer[collector.getIncomingMinorFragmentIndexCount()];
+      List<MinorFragmentIndexEndpoint> fragments = collector.getIncomingMinorFragmentIndexList();
       try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable()){
-        for (IncomingMinorFragment fragment : fragments) {
-          final String name = String.format("nway-recv-%s-%s:%d:%d", spooling ? "spool" : "mem", fragment.getEndpoint().getAddress(), collector.getOppositeMajorFragmentId(), fragment.getMinorFragment());
+        for (MinorFragmentIndexEndpoint fragment : fragments) {
+          NodeEndpoint endpoint = endpointsIndex.getNodeEndpoint(fragment.getEndpointIndex());
+          final String name = String.format("nway-recv-%s-%s:%d:%d", spooling ? "spool" : "mem", endpoint.getAddress(), collector.getOppositeMajorFragmentId(), fragment.getMinorFragmentId());
           final SharedResource resource = resourceGroup.createResource(name, spooling ? SharedResourceType.NWAY_RECV_SPOOL_BUFFER : SharedResourceType.NWAY_RECV_MEM_BUFFER);
           final RawBatchBuffer buffer;
           if (spooling) {
-            buffer = new SpoolingRawBatchBuffer(resource, config, workQueue, handle, spillService, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), fragment.getMinorFragment());
+            buffer = new SpoolingRawBatchBuffer(resource, config, workQueue, handle, spillService, allocator, bufferCapacity, collector.getOppositeMajorFragmentId(), fragment.getMinorFragmentId());
           } else {
             buffer = new UnlimitedRawBatchBuffer(resource, config, handle, allocator, bufferCapacity, collector.getOppositeMajorFragmentId());
           }
           rollbackCloseable.add(buffer);
-          buffers[fragment.getMinorFragment()] = buffer;
+          buffers[fragment.getMinorFragmentId()] = buffer;
         }
         rollbackCloseable.commit();
       } catch (Exception e) {

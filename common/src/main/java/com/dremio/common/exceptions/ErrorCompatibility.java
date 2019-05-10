@@ -26,6 +26,7 @@ import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
  * Converts newly added error types to types compatible with the existing C or ODBC clients.
  * <p>
  * <ul>
+ * <li>{@link ErrorType#JSON_FIELD_CHANGE} to {@link ErrorType#DATA_READ}</li>
  * <li>{@link ErrorType#SCHEMA_CHANGE} to {@link ErrorType#DATA_READ}</li>
  * <li>{@link ErrorType#OUT_OF_MEMORY} to {@link ErrorType#RESOURCE}</li>
  * <li>{@link ErrorType#IO_EXCEPTION} to {@link ErrorType#RESOURCE}</li>
@@ -43,7 +44,8 @@ public class ErrorCompatibility {
           ErrorType.CONCURRENT_MODIFICATION,
           ErrorType.INVALID_DATASET_METADATA,
           ErrorType.REFLECTION_ERROR,
-          ErrorType.SOURCE_BAD_STATE);
+          ErrorType.SOURCE_BAD_STATE,
+          ErrorType.JSON_FIELD_CHANGE);
 
   private static boolean needsConversion(final DremioPBError error) {
     return incompatibleErrorTypes.contains(error.getErrorType());
@@ -55,6 +57,7 @@ public class ErrorCompatibility {
     }
 
     switch (error.getErrorType()) {
+      case JSON_FIELD_CHANGE:
       case SCHEMA_CHANGE:
       case SOURCE_BAD_STATE:
         return DremioPBError.newBuilder(error).setErrorType(ErrorType.DATA_READ).build();

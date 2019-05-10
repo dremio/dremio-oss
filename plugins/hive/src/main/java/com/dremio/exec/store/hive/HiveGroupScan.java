@@ -15,71 +15,51 @@
  */
 package com.dremio.exec.store.hive;
 
-import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map.Entry;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.AbstractGroupScan;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
-import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.hive.exec.HiveSubScan;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
-import com.google.protobuf.ByteString;
 
 public class HiveGroupScan extends AbstractGroupScan {
 
   private final ScanFilter filter;
 
-  public static final String HIVE_ATTRIBUTE_KEY = "HiveTableXattr";
-
   public HiveGroupScan(
+      OpProps props,
       TableMetadata dataset,
       List<SchemaPath> columns,
       ScanFilter filter) {
-    super(dataset, columns);
+    super(props, dataset, columns);
     this.filter = filter;
   }
 
   @Override
-  public SubScan getSpecificScan(List<SplitWork> work) throws ExecutionSetupException {
-    List<DatasetSplit> splits = new ArrayList<>(work.size());
+  public SubScan getSpecificScan(List<SplitWork> work) {
+    List<SplitInfo> splits = new ArrayList<>(work.size());
     BatchSchema schema = getDataset().getSchema();
     for(SplitWork split : work){
-      splits.add(split.getSplit());
+      splits.add(split.getSplitInfo());
     }
     final ReadDefinition readDefinition = dataset.getReadDefinition();
-    return new HiveSubScan(splits, getUserName(), schema, dataset.getName().getPathComponents(), filter, dataset.getStoragePluginId(), columns,
-        readDefinition.getPartitionColumnsList());
-  }
-
-  @Override
-  public DistributionAffinity getDistributionAffinity() {
-    return DistributionAffinity.SOFT;
+    return new HiveSubScan(props, splits, schema, dataset.getName().getPathComponents(), filter, dataset.getStoragePluginId(), columns,
+        readDefinition.getPartitionColumnsList(), readDefinition.getExtendedProperty().toByteArray());
   }
 
   @Override
   public int getOperatorType() {
     return CoreOperatorType.HIVE_SUB_SCAN_VALUE;
-  }
-
-  @Override
-  public List<Entry<String, ByteString>> getSharedData() {
-    return Collections.singletonList(
-      new SimpleEntry<>(
-        HIVE_ATTRIBUTE_KEY,
-        ByteString.copyFrom(dataset.getReadDefinition().getExtendedProperty().asReadOnlyByteBuffer())
-      )
-    );
   }
 
 }

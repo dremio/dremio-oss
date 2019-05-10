@@ -68,7 +68,7 @@ export class NewQueryButton extends Component {
       return;
     }
     if (location.pathname === '/new_query') {
-      if (currentSql !== undefined && currentSql.trim()) {
+      if (currentSql && currentSql.trim()) {
         this.props.showConfirmationDialog({
           title: intl.formatMessage({id: 'Common.UnsavedWarning'}),
           text: [
@@ -106,7 +106,7 @@ function mapStateToProps(state, ownProps) {
   const explorePage = getExploreState(state); //todo explore page state should not be here
   return {
     location: getLocation(state),
-    currentSql: explorePage ? explorePage.view.get('currentSql') : null
+    currentSql: explorePage ? explorePage.view.currentSql : null
   };
 }
 

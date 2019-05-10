@@ -205,6 +205,8 @@ DREMIO_NICENESS="${DREMIO_NICENESS:-0}"
 thiscmd=$0
 args=$@
 
+mkdir -p "${DREMIO_LOG_DIR}"
+
 case $startStopStatus in
 
 (start)

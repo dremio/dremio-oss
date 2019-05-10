@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -47,8 +46,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.PhysicalPlanReader;
-import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
+import com.dremio.exec.proto.CoordExecRPC.PlanFragmentSet;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared;
@@ -92,12 +90,10 @@ import com.dremio.sabot.rpc.user.UserRpcUtils;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.DistributedSemaphore;
 import com.dremio.service.coordinator.ElectionListener;
+import com.dremio.service.coordinator.ElectionRegistrationHandle;
 import com.dremio.service.coordinator.ServiceSet;
-import com.dremio.service.coordinator.ServiceSet.RegistrationHandle;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.AbstractCheckedFuture;
@@ -149,12 +145,17 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     }
 
     @Override
+    public Iterable<String> getServiceNames() throws Exception {
+      return clusterCoordinator.getServiceNames();
+    }
+
+    @Override
     public DistributedSemaphore getSemaphore(String name, int maximumLeases) {
       throw new UnsupportedOperationException("registerService is not supported in client");
     }
 
     @Override
-    public RegistrationHandle joinElection(String name, ElectionListener listener) {
+    public ElectionRegistrationHandle joinElection(String name, ElectionListener listener) {
       throw new UnsupportedOperationException("registerService is not supported in client");
     }
 
@@ -534,31 +535,15 @@ public class DremioClient implements Closeable, ConnectionThrottle {
    * @param resultsListener
    * @throws RpcException
    */
-  public void runQuery(QueryType type, List<PlanFragment> planFragments, UserResultsListener resultsListener)
+  public void runQuery(QueryType type, PlanFragmentSet planFragments, UserResultsListener resultsListener)
       throws RpcException {
     // QueryType can be only executional
     checkArgument((QueryType.EXECUTION == type), "Only EXECUTION type query is supported with PlanFragments");
-    // setting Plan on RunQuery will be used for logging purposes and therefore can not be null
-    // since there is no Plan string provided we will create a JsonArray out of individual fragment Plans
-    ArrayNode jsonArray = objectMapper.createArrayNode();
-    for (PlanFragment fragment : planFragments) {
-      try {
-        jsonArray.add(objectMapper.readTree(PhysicalPlanReader.toInputStream(fragment.getFragmentJson(), fragment.getFragmentCodec())));
-      } catch (IOException e) {
-        logger.error("Exception while trying to read PlanFragment JSON for %s", fragment.getHandle().getQueryId(), e);
-        throw new RpcException(e);
-      }
-    }
-    final String fragmentsToJsonString;
-    try {
-      fragmentsToJsonString = objectMapper.writeValueAsString(jsonArray);
-    } catch (JsonProcessingException e) {
-      logger.error("Exception while trying to get JSONString from Array of individual Fragments Json for %s", e);
-      throw new RpcException(e);
-    }
-    final UserProtos.RunQuery query = newBuilder().setType(type).addAllFragments(planFragments)
-        .setPlan(fragmentsToJsonString)
-        .setResultsMode(STREAM_FULL).build();
+
+    final UserProtos.RunQuery query = newBuilder().setType(type)
+      .setFragmentSet(planFragments)
+      .setResultsMode(STREAM_FULL)
+      .build();
     client.submitQuery(resultsListener, query);
   }
 

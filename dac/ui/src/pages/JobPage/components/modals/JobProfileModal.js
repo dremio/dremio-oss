@@ -45,8 +45,10 @@ export default class JobProfileModal extends Component {
         size='large'
         title={la('Job Profile')}
         isOpen={isOpen}
-        hide={hide}>
+        hide={hide}
+      >
         <iframe
+          id='profile_frame'
           src={profileUrl}
           style={{ height: '100%', width: '100%', border: 'none' }}
           ref='iframe'

@@ -47,6 +47,7 @@ import com.dremio.dac.model.job.ReleaseAfterSerialization;
 import com.dremio.dac.service.errors.PhysicalDatasetNotFoundException;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.CatalogOptions;
+import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.ContextService;
@@ -315,10 +316,6 @@ public class FormatTools {
           // when added to RecordBatchData.
           RecordReader reader = formatPlugin.getRecordReader(opCtxt, filesystem, status)) {
 
-          if (reader == null) {
-            continue;
-          }
-
           reader.setup(mutator);
 
           int output = 0;
@@ -337,9 +334,9 @@ public class FormatTools {
             if (first) {
               first = false;
               container.buildSchema();
-              if (container.getSchema().getTotalFieldCount() > maxLeafColumns) {
+              if (container.getSchema().getTotalFieldCount() >= maxLeafColumns) {
                 throw UserException.validationError()
-                    .message("Using datasets with more than %d columns is currently disabled.", maxLeafColumns)
+                    .message(ColumnCountTooLargeException.MESSAGE, format.getName(), maxLeafColumns)
                     .build(logger);
               }
 
@@ -352,13 +349,13 @@ public class FormatTools {
               }
             }
 
-            if (output == 0) {
-              break;
-            }
-
             container.setRecordCount(output);
             records += output;
             batches.add();
+
+            if(output == 0) {
+              break;
+            }
           }
         }
       }

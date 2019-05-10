@@ -14,9 +14,20 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
+import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
 import FilterSelectMenu from './FilterSelectMenu';
+
+// this component is needed to test test a content rendering. As enzyme could work only with components
+// not with standard component (span, div)
+const TestRenderer = ({ children }) => <div>{children}</div>;
+TestRenderer.propTypes = {
+  children: PropTypes.any
+};
+const getSelectViewContent = wrapper => {
+  return shallow(<TestRenderer>{wrapper.find('SelectView').prop('content')}</TestRenderer>);
+};
 
 describe('FilterSelectMenu', () => {
 
@@ -43,16 +54,16 @@ describe('FilterSelectMenu', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render Popover', () => {
+  it('should render SelectView', () => {
     const wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
-    expect(wrapper.find('Popover')).to.have.length(1);
+    expect(wrapper.find('SelectView')).to.have.length(1);
   });
 
   it('should render label prop when nothing selected', () => {
     const wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
-    expect(wrapper.find('span').first().text()).to.eql('');
+    expect(getSelectViewContent(wrapper).find('span').first().text()).to.eql('');
     wrapper.setProps({selectedValues: Immutable.List()});
-    expect(wrapper.find('span').first().text()).to.eql(commonProps.label);
+    expect(getSelectViewContent(wrapper).find('span').first().text()).to.eql(commonProps.label);
   });
 
   it('should render SearchField only when there are unselected items', () => {
@@ -113,12 +124,12 @@ describe('FilterSelectMenu', () => {
   describe('renderSelectedLabel', () => {
     it('should render values in label', () => {
       const wrapper = shallow(<FilterSelectMenu {...commonProps}/>);
-      expect(wrapper.find('.filter-select-label').props().text).to.eql('item3, item2');
+      expect(getSelectViewContent(wrapper).find('.filter-select-label').props().text).to.eql('item3, item2');
     });
 
     it('should render All if none selected', () => {
       const wrapper = shallow(<FilterSelectMenu {...commonProps} selectedValues={Immutable.List()}/>);
-      expect(wrapper.find('.filter-select-label').props().text).to.eql(': {"0":{"id":"Common.All"}}');
+      expect(getSelectViewContent(wrapper).find('.filter-select-label').props().text).to.eql(': {"0":{"id":"Common.All"}}');
     });
   });
 

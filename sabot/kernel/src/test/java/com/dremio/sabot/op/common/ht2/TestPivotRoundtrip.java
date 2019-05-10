@@ -213,7 +213,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
         if ((i / WORD_BITS) % 3 == 0) {
           // all set
           for (int j = 0; j < WORD_BITS; j++) {
-            BigDecimal val = new BigDecimal(i + j + ((double) (i + j) / count)).setScale(0, RoundingMode.HALF_UP);
+            BigDecimal val = BigDecimal.valueOf(i + j + ((double) (i + j) / count)).setScale(0, RoundingMode.HALF_UP);
             DecimalUtility.writeBigDecimalToArrowBuf(val, tempBuf, 0);
             in.set(i + j, tempBuf);
           }
@@ -221,7 +221,7 @@ public class TestPivotRoundtrip extends BaseTestWithAllocator {
           // every 3rd one set: 0, 3, 6, ...
           for (int j = 0; j < WORD_BITS; j++) {
             if (j % 3 == 0) {
-              BigDecimal val = new BigDecimal(i + j + ((double) (i + j) / count)).setScale(0, RoundingMode.HALF_UP);
+              BigDecimal val = BigDecimal.valueOf(i + j + ((double) (i + j) / count)).setScale(0, RoundingMode.HALF_UP);
               DecimalUtility.writeBigDecimalToArrowBuf(val, tempBuf, 0);
               in.set(i + j, tempBuf);
             }

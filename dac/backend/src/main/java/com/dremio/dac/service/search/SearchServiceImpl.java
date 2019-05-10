@@ -23,6 +23,7 @@ import static com.dremio.datastore.SearchQueryUtils.newBoost;
 import static com.dremio.datastore.SearchQueryUtils.newTermQuery;
 import static com.dremio.datastore.SearchQueryUtils.newWildcardQuery;
 import static com.dremio.datastore.SearchQueryUtils.or;
+import static com.dremio.exec.ExecConstants.SEARCH_SERVICE_RELEASE_LEADERSHIP_MS;
 import static com.dremio.service.namespace.NamespaceServiceImpl.DAC_NAMESPACE;
 import static com.dremio.service.scheduler.ScheduleUtils.scheduleForRunningOnceAt;
 
@@ -33,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -64,6 +66,8 @@ public class SearchServiceImpl implements SearchService {
 
   static final int MAX_SEARCH_RESULTS = 50;
 
+  public static final String LOCAL_TASK_LEADER_NAME = "searchservice";
+
   private final Provider<SabotContext> sabotContext;
   private final Provider<KVStoreProvider> storeProvider;
   private final Provider<SchedulerService> schedulerService;
@@ -89,6 +93,7 @@ public class SearchServiceImpl implements SearchService {
   @Override
   public void start() throws Exception {
     KVStoreProvider kvStoreProvider = storeProvider.get();
+    // TODO DX-14433 - should have better way to deal with Local/Remote KVStore
     if (!(kvStoreProvider instanceof LocalKVStoreProvider)) {
       logger.warn("Search search could not start as kv store is not local");
       return;
@@ -100,15 +105,18 @@ public class SearchServiceImpl implements SearchService {
     manager = new SearchIndexManager(sabotContext.get(), collaborationTagStore, configurationStore, searchIndex);
     wakeupHandler = new WakeupHandler(executorService, manager);
 
-    schedulerService.get().schedule(scheduleForRunningOnceAt(getNextRefreshTimeInMillis()),
+    schedulerService.get().schedule(scheduleForRunningOnceAt(
+      getNextRefreshTimeInMillis(),
+      LOCAL_TASK_LEADER_NAME, getNextReleaseLeadership(), TimeUnit.MILLISECONDS),
       new Runnable() {
         @Override
         public void run() {
           wakeupManager("periodic refresh");
-          schedulerService.get().schedule(scheduleForRunningOnceAt(getNextRefreshTimeInMillis()), this);
+          schedulerService.get().schedule(scheduleForRunningOnceAt(
+            getNextRefreshTimeInMillis(),
+            LOCAL_TASK_LEADER_NAME, getNextReleaseLeadership(), TimeUnit.MILLISECONDS),this);
         }
-      }
-    );
+      });
   }
 
   @Override
@@ -219,6 +227,10 @@ public class SearchServiceImpl implements SearchService {
   private Instant getNextRefreshTimeInMillis() {
     long option = sabotContext.get().getOptionManager().getOption(ExecConstants.SEARCH_MANAGER_REFRESH_MILLIS);
     return Instant.ofEpochMilli(System.currentTimeMillis() + option);
+  }
+
+  private long getNextReleaseLeadership() {
+    return sabotContext.get().getOptionManager().getOption(SEARCH_SERVICE_RELEASE_LEADERSHIP_MS);
   }
 
   @Override

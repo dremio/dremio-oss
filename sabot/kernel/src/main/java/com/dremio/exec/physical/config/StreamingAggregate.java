@@ -15,18 +15,14 @@
  */
 package com.dremio.exec.physical.config;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import com.dremio.common.logical.data.NamedExpression;
-import com.dremio.exec.expr.ExpressionTreeMaterializer;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractSingle;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
@@ -34,27 +30,35 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeName("streaming-aggregate")
 public class StreamingAggregate extends AbstractSingle {
 
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StreamingAggregate.class);
-
-  private final List<NamedExpression> keys;
-  private final List<NamedExpression> exprs;
+  private final List<NamedExpression> groupByExprs;
+  private final List<NamedExpression> aggrExprs;
 
   private final float cardinality;
 
   @JsonCreator
-  public StreamingAggregate(@JsonProperty("child") PhysicalOperator child, @JsonProperty("keys") List<NamedExpression> keys, @JsonProperty("exprs") List<NamedExpression> exprs, @JsonProperty("cardinality") float cardinality) {
-    super(child);
-    this.keys = keys;
-    this.exprs = exprs;
+  public StreamingAggregate(
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("child") PhysicalOperator child,
+      @JsonProperty("groupByExprs") List<NamedExpression> groupByExprs,
+      @JsonProperty("aggrExprs") List<NamedExpression> aggrExprs,
+      @JsonProperty("cardinality") float cardinality
+      ) {
+    super(props, child);
+    this.groupByExprs = groupByExprs;
+    this.aggrExprs = aggrExprs;
     this.cardinality = cardinality;
   }
 
-  public List<NamedExpression> getKeys() {
-    return keys;
+  public List<NamedExpression> getGroupByExprs() {
+    return groupByExprs;
   }
 
-  public List<NamedExpression> getExprs() {
-    return exprs;
+  public List<NamedExpression> getAggrExprs() {
+    return aggrExprs;
+  }
+
+  public float getCardinality() {
+    return cardinality;
   }
 
   @Override
@@ -63,24 +67,13 @@ public class StreamingAggregate extends AbstractSingle {
   }
 
   @Override
-  protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new StreamingAggregate(child, keys, exprs, cardinality);
+  protected StreamingAggregate getNewWithChild(PhysicalOperator child) {
+    return new StreamingAggregate(props, child, groupByExprs, aggrExprs, cardinality);
   }
 
   @Override
   public int getOperatorType() {
     return CoreOperatorType.STREAMING_AGGREGATE_VALUE;
-  }
-
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    final BatchSchema childSchema = child.getSchema(context);
-    List<NamedExpression> exprs = new ArrayList<>();
-    exprs.addAll(this.keys);
-    exprs.addAll(this.exprs);
-    return ExpressionTreeMaterializer.materializeFields(exprs, childSchema, context)
-        .setSelectionVectorMode(SelectionVectorMode.NONE)
-        .build();
   }
 
 }

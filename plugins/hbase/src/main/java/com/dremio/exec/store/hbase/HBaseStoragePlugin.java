@@ -16,32 +16,41 @@
 package com.dremio.exec.store.hbase;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
-import org.apache.hadoop.hbase.HTableDescriptor;
+import java.util.Optional;
+
 import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 
+import com.dremio.connector.ConnectorException;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetHandleListing;
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetDatasetOption;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
+import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
+import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
-import com.dremio.service.Service;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
-import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import io.protostuff.ByteString;
 
-public class HBaseStoragePlugin implements StoragePlugin, Service {
+public class HBaseStoragePlugin implements StoragePlugin, SupportsListingDatasets {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HBaseStoragePlugin.class);
 
@@ -59,18 +68,6 @@ public class HBaseStoragePlugin implements StoragePlugin, Service {
     this.connection = new HBaseConnectionManager(storeConfig.getHBaseConf());
   }
 
-  @Override
-  public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions ignored) throws Exception {
-    try (Admin admin = connection.getConnection().getAdmin()) {
-      return FluentIterable.of(admin.listTableNames()).transform(new Function<TableName, SourceTableDefinition>(){
-        @Override
-        public SourceTableDefinition apply(TableName input) {
-          final NamespaceKey key = new NamespaceKey(ImmutableList.<String>of(name, input.getNamespaceAsString(), input.getQualifierAsString()));
-          return new HBaseTableBuilder(key, null, connection, storeConfig.isSizeCalcEnabled, context);
-        }});
-    }
-  }
-
   public HBaseConf getConfig() {
     return storeConfig;
   }
@@ -85,15 +82,78 @@ public class HBaseStoragePlugin implements StoragePlugin, Service {
   }
 
   @Override
-  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset, DatasetRetrievalOptions ignored) throws Exception {
-    if(!datasetExists(datasetPath)) {
-      return null;
+  public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) throws ConnectorException {
+    final Admin admin;
+    final TableName[] tableNames;
+    try {
+      admin = connection.getConnection().getAdmin();
+      tableNames = admin.listTableNames();
+    } catch (IOException e) {
+      throw new ConnectorException(e);
     }
-    return new HBaseTableBuilder(datasetPath, oldDataset, connection, storeConfig.isSizeCalcEnabled, context);
+
+    return new DatasetHandleListing() {
+      @Override
+      public Iterator<? extends DatasetHandle> iterator() {
+        return Arrays.stream(tableNames).map(tableName -> {
+          final EntityPath entityPath = new EntityPath(ImmutableList.of(name, tableName.getNamespaceAsString(),
+              tableName.getQualifierAsString()));
+          return new HBaseTableBuilder(entityPath, connection, storeConfig.isSizeCalcEnabled, context);
+        }).iterator();
+      }
+
+      @Override
+      public void close() {
+        try {
+          admin.close();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    };
   }
 
   @Override
-  public boolean containerExists(NamespaceKey key) {
+  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
+    if (!(datasetPath.size() == 3 || datasetPath.size() == 2)) {
+      return Optional.empty();
+    }
+    if (datasetPath.getName().indexOf((TableName.NAMESPACE_DELIM)) != -1) {
+      // ensure the table name does not have ":"
+      return Optional.empty();
+    }
+
+    try (Admin admin = connection.getConnection().getAdmin()) {
+      if (admin.getTableDescriptor(TableNameGetter.getTableName(datasetPath)) == null) {
+        return Optional.empty();
+      }
+    } catch (IOException e) {
+      logger.warn("Failure while checking for HBase table {}.", datasetPath, e);
+      return Optional.empty();
+    }
+
+    return Optional.of(new HBaseTableBuilder(datasetPath, connection, storeConfig.isSizeCalcEnabled, context));
+  }
+
+  @Override
+  public DatasetMetadata getDatasetMetadata(
+      DatasetHandle datasetHandle,
+      PartitionChunkListing chunkListing,
+      GetMetadataOption... options
+  ) throws ConnectorException {
+    final BatchSchema oldSchema = CurrentSchemaOption.getSchema(options);
+    return datasetHandle.unwrap(HBaseTableBuilder.class).getDatasetMetadata(oldSchema);
+  }
+
+  @Override
+  public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options)
+      throws ConnectorException {
+    final BatchSchema oldSchema = CurrentSchemaOption.getSchema(options);
+    return datasetHandle.unwrap(HBaseTableBuilder.class).listPartitionChunks(oldSchema);
+  }
+
+  @Override
+  public boolean containerExists(EntityPath key) {
     if(key.size() != 2) {
       return false;
     }
@@ -106,25 +166,6 @@ public class HBaseStoragePlugin implements StoragePlugin, Service {
       return descriptor != null;
     } catch (IOException e) {
       logger.warn("Failure while checking for HBase Namespace {}.", key, e);
-    }
-    return false;
-  }
-
-  @Override
-  public boolean datasetExists(NamespaceKey key) {
-    if (!(key.size() == 3 || key.size() == 2)) {
-      return false;
-    }
-    if (key.getLeaf().indexOf((TableName.NAMESPACE_DELIM)) != -1) {
-      // ensure the table name does not have ":"
-      return false;
-    }
-
-    try(Admin admin = connection.getConnection().getAdmin()) {
-      HTableDescriptor descriptor = admin.getTableDescriptor(TableNameGetter.getTableName(key));
-      return descriptor != null;
-    } catch (IOException e) {
-      logger.warn("Failure while checking for HBase table {}.", key, e);
     }
     return false;
   }
@@ -152,25 +193,6 @@ public class HBaseStoragePlugin implements StoragePlugin, Service {
   @Override
   public Class<? extends StoragePluginRulesFactory> getRulesFactoryClass() {
     return HBaseRulesFactory.class;
-  }
-
-  @Override
-  public CheckResult checkReadSignature(ByteString key, final DatasetConfig datasetConfig, DatasetRetrievalOptions ignored) throws Exception {
-    final NamespaceKey namespaceKey = new NamespaceKey(datasetConfig.getFullPathList());
-    if(!datasetExists(namespaceKey)) {
-      return CheckResult.DELETED;
-    }
-
-    return new CheckResult(){
-      @Override
-      public UpdateStatus getStatus() {
-        return UpdateStatus.CHANGED;
-      }
-
-      @Override
-      public SourceTableDefinition getDataset() {
-        return new HBaseTableBuilder(namespaceKey, datasetConfig, connection, storeConfig.isSizeCalcEnabled, context);
-      }};
   }
 
   @Override

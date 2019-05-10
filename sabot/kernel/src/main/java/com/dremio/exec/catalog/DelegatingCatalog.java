@@ -22,9 +22,11 @@ import java.util.Map;
 
 import org.apache.calcite.schema.Function;
 
+import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
@@ -160,7 +162,7 @@ public class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public StoragePlugin.UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions) {
+  public UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions) {
     return delegate.refreshDataset(key, retrievalOptions);
   }
 
@@ -177,6 +179,16 @@ public class DelegatingCatalog implements Catalog {
   @Override
   public boolean createOrUpdateDataset(NamespaceService userNamespaceService, NamespaceKey source, NamespaceKey datasetPath, DatasetConfig datasetConfig, NamespaceAttribute... attributes) throws NamespaceException {
     return delegate.createOrUpdateDataset(userNamespaceService, source, datasetPath, datasetConfig, attributes);
+  }
+
+  @Override
+  public void updateDatasetSchema(NamespaceKey datasetKey, BatchSchema newSchema) {
+    delegate.updateDatasetSchema(datasetKey, newSchema);
+  }
+
+  @Override
+  public void updateDatasetField(NamespaceKey datasetKey, String originField, CompleteType fieldSchema) {
+    delegate.updateDatasetField(datasetKey, originField, fieldSchema);
   }
 
   @Override

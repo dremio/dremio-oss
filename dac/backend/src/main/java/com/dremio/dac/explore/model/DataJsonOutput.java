@@ -19,6 +19,7 @@ import static com.dremio.common.util.MajorTypeHelper.getMinorTypeFromArrowMinorT
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.Map;
 
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -26,10 +27,14 @@ import org.apache.arrow.vector.util.Text;
 import org.joda.time.format.DateTimeFormatter;
 
 import com.dremio.common.types.TypeProtos.MinorType;
+import com.dremio.common.util.Closeable;
 import com.dremio.common.util.DateTimes;
 import com.dremio.common.util.DremioStringUtils;
+import com.dremio.common.util.JodaDateUtility;
 import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.DatabindContext;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.collect.ImmutableMap;
 
 /**
@@ -43,6 +48,7 @@ public class DataJsonOutput {
   public static final DateTimeFormatter FORMAT_DATE = DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD").withZoneUTC();
   public static final DateTimeFormatter FORMAT_TIMESTAMP = DateFunctionsUtils.getSQLFormatterForFormatString("YYYY-MM-DD HH24:MI:SS.FFF").withZoneUTC();
   public static final DateTimeFormatter FORMAT_TIME = DateFunctionsUtils.getSQLFormatterForFormatString("HH24:MI:SS").withZoneUTC();
+  public static final String DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_ATTRIBUTE = "DREMIO_JOB_DATA_NUMBERS_AS_STRINGS";
 
   /**
    * Lets go with a constant length value for primitive types. Finding the exact length for primitive types
@@ -55,6 +61,25 @@ public class DataJsonOutput {
    */
   private static final int NULL_VALUE_LENGTH = 4;
 
+  private boolean convertNumbersToStringsEnabled;
+
+  private final class NumberAsStringDisabler implements Closeable {
+    private boolean resetOnClose;
+
+    private NumberAsStringDisabler() {
+      // if the feature was already disabled. we should not enable it, as there is some parent call that should handle this
+      resetOnClose = convertNumbersToStringsEnabled;
+      convertNumbersToStringsEnabled = false;
+    }
+
+    @Override
+    public void close() {
+      if (resetOnClose) {
+        convertNumbersToStringsEnabled = true;
+      }
+    }
+  }
+
   /**
    * Interface that implements writing a specific type value in UnionVector. Instead of having a switch on current value
    * type, create objects which can be found in hash map {@link #UNION_FIELD_WRITERS} and executed to write the
@@ -62,6 +87,15 @@ public class DataJsonOutput {
    */
   private interface UnionFieldWriter {
     void write(DataJsonOutput output, FieldReader reader, JsonOutputContext context) throws IOException;
+  }
+
+  public static final ObjectWriter setNumbersAsStrings(ObjectWriter writer, boolean isEnabled) {
+    return writer.withAttribute(DataJsonOutput.DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_ATTRIBUTE, isEnabled);
+  }
+
+  public static final boolean isNumberAsString(DatabindContext context) {
+    Object attr = context.getAttribute(DataJsonOutput.DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_ATTRIBUTE);
+    return attr instanceof Boolean && ((Boolean)attr).booleanValue();
   }
 
   private static final Map<MinorType, UnionFieldWriter> UNION_FIELD_WRITERS =
@@ -204,8 +238,9 @@ public class DataJsonOutput {
 
   private final JsonGenerator gen;
 
-  DataJsonOutput(JsonGenerator gen) {
+  DataJsonOutput(JsonGenerator gen, boolean convertNumbersToStrings) {
     this.gen = checkNotNull(gen);
+    this.convertNumbersToStringsEnabled = convertNumbersToStrings;
   }
 
   public void writeStartArray() throws IOException {
@@ -238,7 +273,12 @@ public class DataJsonOutput {
 
   public void writeDecimal(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeNumber(reader.readBigDecimal());
+      final BigDecimal value = reader.readBigDecimal();
+      if (convertNumbersToStringsEnabled) {
+        gen.writeString(value.toPlainString());
+      } else {
+        gen.writeNumber(value);
+      }
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -247,7 +287,12 @@ public class DataJsonOutput {
 
   public void writeTinyInt(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeNumber(reader.readByte());
+      final Byte value = reader.readByte();
+      if (convertNumbersToStringsEnabled) {
+        gen.writeString(value.toString());
+      } else {
+        gen.writeNumber(value);
+      }
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -256,7 +301,12 @@ public class DataJsonOutput {
 
   public void writeSmallInt(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeNumber(reader.readShort());
+      final Short value = reader.readShort();
+      if (convertNumbersToStringsEnabled) {
+        gen.writeString(value.toString());
+      } else {
+        gen.writeNumber(value);
+      }
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -265,7 +315,12 @@ public class DataJsonOutput {
 
   public void writeInt(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeNumber(reader.readInteger());
+      final Integer value = reader.readInteger();
+      if (convertNumbersToStringsEnabled) {
+        gen.writeString(value.toString());
+      } else {
+        gen.writeNumber(value);
+      }
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -274,7 +329,12 @@ public class DataJsonOutput {
 
   public void writeBigInt(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeNumber(reader.readLong());
+      final Long value = reader.readLong();
+      if (convertNumbersToStringsEnabled) {
+        gen.writeString(value.toString());
+      } else {
+        gen.writeNumber(value);
+      }
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -283,7 +343,12 @@ public class DataJsonOutput {
 
   public void writeFloat(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeNumber(reader.readFloat());
+      final Float value = reader.readFloat();
+      if (convertNumbersToStringsEnabled) {
+        gen.writeString(value.toString());
+      } else {
+        gen.writeNumber(value);
+      }
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -292,7 +357,12 @@ public class DataJsonOutput {
 
   public void writeDouble(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeNumber(reader.readDouble());
+      final Double value = reader.readDouble();
+      if (convertNumbersToStringsEnabled) {
+        gen.writeString(value.toString());
+      } else {
+        gen.writeNumber(value);
+      }
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -354,7 +424,8 @@ public class DataJsonOutput {
 
   public void writeDate(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeString(FORMAT_DATE.print(DateTimes.toMillis(reader.readLocalDateTime())));
+      gen.writeString(FORMAT_DATE.print(DateTimes.toMillis(
+        JodaDateUtility.readLocalDateTime(reader))));
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -367,7 +438,8 @@ public class DataJsonOutput {
 
   public void writeTime(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeString(FORMAT_TIME.print(DateTimes.toMillis(reader.readLocalDateTime())));
+      gen.writeString(FORMAT_TIME.print(DateTimes.toMillis(
+        JodaDateUtility.readLocalDateTime(reader))));
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -376,7 +448,8 @@ public class DataJsonOutput {
 
   public void writeTimeStampMilli(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeString(FORMAT_TIMESTAMP.print(DateTimes.toMillis(reader.readLocalDateTime())));
+      gen.writeString(FORMAT_TIMESTAMP.print(DateTimes.toMillis(
+        JodaDateUtility.readLocalDateTime(reader))));
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -385,7 +458,8 @@ public class DataJsonOutput {
 
   public void writeIntervalYear(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeString(DremioStringUtils.formatIntervalYear(reader.readPeriod()));
+      gen.writeString(DremioStringUtils.formatIntervalYear(
+        JodaDateUtility.readPeriodInYears(reader)));
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -394,7 +468,8 @@ public class DataJsonOutput {
 
   public void writeIntervalDay(FieldReader reader, JsonOutputContext context) throws IOException {
     if (reader.isSet()) {
-      gen.writeString(DremioStringUtils.formatIntervalDay(reader.readPeriod()));
+      gen.writeString(DremioStringUtils
+        .formatIntervalDay(JodaDateUtility.readPeriodInDays(reader)));
       context.used(PRIMITIVE_FIXED_LENGTH);
     } else {
       writeNull(context);
@@ -411,38 +486,42 @@ public class DataJsonOutput {
   }
 
   public void writeMap(FieldReader reader, JsonOutputContext context) throws IOException {
-    if (reader.isSet()) {
-      writeStartObject();
-      for (String name : reader) {
-        FieldReader childReader = reader.reader(name);
-        if (childReader.isSet()) {
-          if (!context.okToWrite()) {
-            context.setTruncated();
-            break;
+    try (final NumberAsStringDisabler disabler = new NumberAsStringDisabler()) {
+      if (reader.isSet()) {
+        writeStartObject();
+        for (String name : reader) {
+          FieldReader childReader = reader.reader(name);
+          if (childReader.isSet()) {
+            if (!context.okToWrite()) {
+              context.setTruncated();
+              break;
+            }
+            writeFieldName(name);
+            writeUnion(childReader, context);
           }
-          writeFieldName(name);
-          writeUnion(childReader, context);
         }
+        writeEndObject();
+      } else {
+        writeNull(context);
       }
-      writeEndObject();
-    } else {
-      writeNull(context);
     }
   }
 
   public void writeList(FieldReader reader, JsonOutputContext context) throws IOException {
-    if (reader.isSet()) {
-      writeStartArray();
-      while (reader.next()) {
-        if (!context.okToWrite()) {
-          context.setTruncated();
-          break;
+    try (final NumberAsStringDisabler disabler = new NumberAsStringDisabler()) {
+      if (reader.isSet()) {
+        writeStartArray();
+        while (reader.next()) {
+          if (!context.okToWrite()) {
+            context.setTruncated();
+            break;
+          }
+          writeUnion(reader.reader(), context);
         }
-        writeUnion(reader.reader(), context);
+        writeEndArray();
+      } else {
+        writeNull(context);
       }
-      writeEndArray();
-    } else {
-      writeNull(context);
     }
   }
 }

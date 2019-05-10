@@ -95,7 +95,7 @@ Bool
   ;
 
 Number
-  :  Int ('.' Digit*)? (('e' | 'E') ('+' | '-')? Digit*)? ('d'|'l'|'f'|'i')?
+  :  Int ('.' Digit*)? (('e' | 'E') ('+' | '-')? Digit*)? ('d'|'l'|'f'|'i'|'m')?
   ;
 
 //Float

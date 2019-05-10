@@ -16,24 +16,36 @@
 package com.dremio.exec.store.easy;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
-import static java.lang.String.format;
 
-import java.io.IOException;
-import java.util.Collection;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.annotation.Nullable;
-
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.hadoop.fs.FileStatus;
 
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
+import com.dremio.connector.ConnectorException;
+import com.dremio.connector.metadata.BytesOutput;
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.DatasetSplit;
+import com.dremio.connector.metadata.DatasetSplitAffinity;
+import com.dremio.connector.metadata.DatasetStats;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
+import com.dremio.connector.metadata.PartitionChunk;
+import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.connector.metadata.PartitionValue;
+import com.dremio.connector.metadata.PartitionValue.PartitionValueType;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
+import com.dremio.exec.catalog.FileConfigMetadata;
+import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -43,206 +55,237 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SampleMutator;
 import com.dremio.exec.store.dfs.CompleteFileWork;
+import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
-import com.dremio.exec.store.dfs.FileSystemDatasetAccessor;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.FormatPlugin;
-import com.dremio.exec.store.dfs.MetadataUtils;
-import com.dremio.exec.store.dfs.easy.EasyDatasetXAttrSerDe;
+import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
+import com.dremio.exec.store.dfs.PreviousDatasetInfo;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyGroupScanUtils;
 import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader;
 import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
 import com.dremio.exec.store.dfs.implicit.NameValuePair;
+import com.dremio.exec.store.file.proto.FileProtobuf.FileSystemCachedEntity;
+import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
+import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
+import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetXAttr;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.Affinity;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.service.namespace.dataset.proto.PartitionValue;
-import com.dremio.service.namespace.dataset.proto.PartitionValueType;
-import com.dremio.service.namespace.dataset.proto.ReadDefinition;
-import com.dremio.service.namespace.file.proto.EasyDatasetSplitXAttr;
-import com.dremio.service.namespace.file.proto.EasyDatasetXAttr;
-import com.dremio.service.namespace.file.proto.FileSystemCachedEntity;
-import com.dremio.service.namespace.file.proto.FileUpdateKey;
+import com.dremio.service.namespace.file.proto.FileConfig;
 import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import io.protostuff.ByteString;
-
 /**
  * Dataset accessor for text/avro/json.. file formats
  */
-public class EasyFormatDatasetAccessor extends FileSystemDatasetAccessor {
+public class EasyFormatDatasetAccessor implements FileDatasetHandle {
 
-  private ReadDefinition cachedMetadata;
-  private List<DatasetSplit> cachedSplits;
-  private boolean builtAll = false;
+  private final DatasetType type;
+  private final FileSystemWrapper fs;
+  private final FileSelection fileSelection;
+  private final FileSystemPlugin<?> fsPlugin;
+  private final NamespaceKey tableSchemaPath;
+  private final FileUpdateKey updateKey;
+  private final FormatPlugin formatPlugin;
+  private final PreviousDatasetInfo oldConfig;
+  private final int maxLeafColumns;
+
+  private List<PartitionChunk> cachedSplits;
+  private long recordCount;
+  private EasyDatasetXAttr extended;
+  private List<String> partitionColumns;
 
   public EasyFormatDatasetAccessor(
-      FileSystemWrapper fs,
-      FileSelection fileSelection,
-      FileSystemPlugin fsPlugin,
-      NamespaceKey tableSchemaPath,
-      FileUpdateKey updateKey,
-      FormatPlugin formatPlugin,
-      DatasetConfig oldConfig,
-      int maxLeafColumns
-  ) {
-    super(fs, fileSelection, fsPlugin, tableSchemaPath, updateKey, formatPlugin, oldConfig, maxLeafColumns);
+      DatasetType type,
+      FileSystemWrapper fs, FileSelection fileSelection, FileSystemPlugin<?> fsPlugin,
+      NamespaceKey tableSchemaPath, FileUpdateKey updateKey, FormatPlugin formatPlugin, PreviousDatasetInfo oldConfig,
+      int maxLeafColumns) {
+    this.type = type;
+    this.fs = fs;
+    this.fileSelection = fileSelection;
+    this.fsPlugin = fsPlugin;
+    this.tableSchemaPath = tableSchemaPath;
+    this.updateKey = updateKey;
+    this.formatPlugin = formatPlugin;
+    this.oldConfig = oldConfig;
+    this.maxLeafColumns = maxLeafColumns;
   }
 
   @Override
-  public Collection<DatasetSplit> buildSplits() throws Exception {
-    if (!builtAll) {
-      buildDataset();
+  public EntityPath getDatasetPath() {
+    return MetadataObjectsUtils.toEntityPath(tableSchemaPath);
+  }
+
+  @Override
+  public FileConfigMetadata getDatasetMetadata(GetMetadataOption... options) throws ConnectorException {
+    final BatchSchema schema;
+
+    try {
+      schema = getBatchSchema(oldConfig != null ? oldConfig.getSchema() : null, fileSelection, fs);
+    } catch (Exception ex) {
+      Throwables.propagateIfPossible(ex, ConnectorException.class);
+      throw new ConnectorException(ex);
     }
-    return cachedSplits;
+
+    return new FileConfigMetadata() {
+      @Override
+      public DatasetStats getDatasetStats() {
+        return DatasetStats.of(recordCount, ScanCostFactor.EASY.getFactor());
+      }
+
+      @Override
+      public Schema getRecordSchema() {
+        return schema;
+      }
+
+      @Override
+      public List<String> getSortColumns() {
+        if(oldConfig == null) {
+          return Collections.emptyList();
+        }
+
+        return oldConfig.getSortColumns() == null ? Collections.emptyList() : oldConfig.getSortColumns();
+      }
+
+      @Override
+      public List<String> getPartitionColumns() {
+        return partitionColumns;
+      }
+
+      @Override
+      public BytesOutput getExtraInfo() {
+        return os -> extended.writeTo(os);
+      }
+
+      @Override
+      public FileConfig getFileConfig() {
+        return PhysicalDatasetUtils.toFileFormat(formatPlugin).asFileConfig().setLocation(fileSelection.getSelectionRoot());
+      }
+    };
   }
 
   @Override
-  public ReadDefinition buildMetadata() throws Exception {
-    if (!builtAll) {
-      buildDataset();
+  public PartitionChunkListing listPartitionChunks(ListPartitionChunkOption... options) throws ConnectorException {
+    try {
+      buildIfNecessary();
+    } catch (Exception e) {
+      Throwables.propagateIfPossible(e, ConnectorException.class);
+      throw new ConnectorException(e);
     }
-    return cachedMetadata;
+
+    return () -> cachedSplits.iterator();
   }
 
   @Override
-  public DatasetConfig buildDataset() throws Exception {
-    final DatasetConfig datasetConfig = getDatasetInternal(fs, fileSelection, datasetPath.getPathComponents());
-    buildAll(datasetConfig);
-    return datasetConfig;
+  public BytesOutput provideSignature(DatasetMetadata metadata) {
+    return updateKey::writeTo;
   }
 
-  @Override
-  public BatchSchema getBatchSchema(final FileSelection selection, final FileSystemWrapper dfs) throws Exception {
+  private BatchSchema getBatchSchema(BatchSchema oldSchema, final FileSelection selection, final FileSystemWrapper dfs) throws Exception {
     final SabotContext context = formatPlugin.getContext();
     try (
-      BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
-      OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), sampleAllocator, context.getOptionManager(), 1000);
-      SampleMutator mutator = new SampleMutator(sampleAllocator)
-    ){
+        BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
+        OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), sampleAllocator, context.getOptionManager(), 1000);
+        SampleMutator mutator = new SampleMutator(sampleAllocator)
+    ) {
       final ImplicitFilesystemColumnFinder explorer = new ImplicitFilesystemColumnFinder(context.getOptionManager(), dfs, GroupScan.ALL_COLUMNS);
 
-      Optional<FileStatus> fileName = Iterables.tryFind(selection.getStatuses(), new Predicate<FileStatus>() {
-        @Override
-        public boolean apply(@Nullable FileStatus input) {
-          return input.getLen() > 0;
-        }
-      });
+      Optional<FileStatus> fileName = Iterables.tryFind(selection.getStatuses(), input -> input.getLen() > 0);
 
       final FileStatus file = fileName.or(selection.getStatuses().get(0));
 
-      EasyDatasetSplitXAttr dataset = new EasyDatasetSplitXAttr();
-      dataset.setStart(0l);
-      dataset.setLength(Long.MAX_VALUE);
-      dataset.setPath(file.getPath().toString());
-      try(RecordReader reader = new AdditionalColumnsRecordReader(((EasyFormatPlugin)formatPlugin).getRecordReader(operatorContext, dfs, dataset, GroupScan.ALL_COLUMNS), explorer.getImplicitFieldsForSample(selection))) {
+      EasyDatasetSplitXAttr dataset = EasyDatasetSplitXAttr.newBuilder()
+          .setStart(0l)
+          .setLength(Long.MAX_VALUE)
+          .setPath(file.getPath().toString())
+          .build();
+      try (RecordReader reader = new AdditionalColumnsRecordReader(((EasyFormatPlugin) formatPlugin)
+          .getRecordReader(operatorContext, dfs, dataset, GroupScan.ALL_COLUMNS), explorer.getImplicitFieldsForSample(selection))) {
         reader.setup(mutator);
         Map<String, ValueVector> fieldVectorMap = new HashMap<>();
         int i = 0;
         for (VectorWrapper<?> vw : mutator.getContainer()) {
           fieldVectorMap.put(vw.getField().getName(), vw.getValueVector());
           if (++i > maxLeafColumns) {
-            throw new ColumnCountTooLargeException(
-                String.format("Using datasets with more than %d columns is currently disabled.", maxLeafColumns));
+            throw new ColumnCountTooLargeException(tableSchemaPath.getLeaf(), maxLeafColumns);
           }
         }
         reader.allocate(fieldVectorMap);
         reader.next();
         mutator.getContainer().buildSchema(BatchSchema.SelectionVectorMode.NONE);
-        return mutator.getContainer().getSchema();
+        BatchSchema newSchema = mutator.getContainer().getSchema();
+        return oldSchema != null ? oldSchema.merge(newSchema) : newSchema;
       }
     }
   }
 
-  private void buildAll(DatasetConfig datasetConfig) throws Exception {
+  private void buildIfNecessary() throws Exception {
+    if (cachedSplits != null) {
+      return;
+    }
     final EasyGroupScanUtils easyGroupScanUtils = ((EasyFormatPlugin) formatPlugin).getGroupScan(SYSTEM_USERNAME, fsPlugin, fileSelection, GroupScan.ALL_COLUMNS);
+    extended = EasyDatasetXAttr.newBuilder().setSelectionRoot(fileSelection.getSelectionRoot()).build();
+    recordCount = easyGroupScanUtils.getScanStats().getRecordCount();
 
-    cachedMetadata = new ReadDefinition()
-      .setLastRefreshDate(System.currentTimeMillis())
-      .setScanStats(MetadataUtils.fromPojoScanStats(easyGroupScanUtils.getScanStats()).setScanFactor(ScanCostFactor.EASY.getFactor()))
-      .setReadSignature(ByteString.copyFrom(FILE_UPDATE_KEY_SERIALIZER.serialize(updateKey)))
-      .setPartitionColumnsList(MetadataUtils.getStringColumnNames(easyGroupScanUtils.getPartitionColumns()))
-      .setExtendedProperty(
-          ByteString.copyFrom(EasyDatasetXAttrSerDe.EASY_DATASET_XATTR_SERIALIZER.serialize(
-        new EasyDatasetXAttr().setSelectionRoot(fileSelection.getSelectionRoot()))));
-
-    //cachedMetadata.setSortColumnsList(easyGroupScanUtils.getSortColumns()); // TODO(AH) probably not needed since they are set in layout info?
-
-    // compute splits
-    this.cachedSplits = getSplits(datasetConfig, easyGroupScanUtils);
-    this.builtAll = true;
-  }
-
-  private List<DatasetSplit> getSplits(DatasetConfig datasetConfig, EasyGroupScanUtils easyGroupScanUtils) throws IOException {
-    final List<DatasetSplit> splits = Lists.newArrayList();
-
-    final ImplicitFilesystemColumnFinder finder = new  ImplicitFilesystemColumnFinder(getFsPlugin().getContext().getOptionManager(), fs, GroupScan.ALL_COLUMNS);
+    final List<PartitionChunk> splits = Lists.newArrayList();
+    final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(fsPlugin.getContext().getOptionManager(), fs, GroupScan.ALL_COLUMNS);
     final List<CompleteFileWork> work = easyGroupScanUtils.getChunks();
     final List<List<NameValuePair<?>>> pairs = finder.getImplicitFields(easyGroupScanUtils.getSelectionRoot(), work);
     final Set<String> allImplicitColumns = Sets.newLinkedHashSet();
 
-    for(int i =0; i < easyGroupScanUtils.getChunks().size(); i++){
+    for (int i = 0; i < easyGroupScanUtils.getChunks().size(); i++) {
       final CompleteFileWork completeFileWork = work.get(i);
-      final DatasetSplit split = new DatasetSplit();
-      split.setSize(completeFileWork.getTotalBytes());
+
+      final long size = completeFileWork.getTotalBytes();
       final String pathString = completeFileWork.getStatus().getPath().toString();
-      split.setSplitKey(format("%s:[%d-%d]", pathString, completeFileWork.getStart(), completeFileWork.getLength()));
-      final List<Affinity> affinities = Lists.newArrayList();
-      final Iterator<ObjectLongCursor<CoordinationProtos.NodeEndpoint>> nodeEndpointIterator = completeFileWork.getByteMap().iterator();
-      while (nodeEndpointIterator.hasNext()) {
-        CoordinationProtos.NodeEndpoint endpoint = nodeEndpointIterator.next().key;
-        affinities.add(new Affinity().setHost(endpoint.getAddress()).setFactor((double) completeFileWork.getTotalBytes()));
+
+      final List<DatasetSplitAffinity> affinities = new ArrayList<>();
+      for (ObjectLongCursor<CoordinationProtos.NodeEndpoint> item : completeFileWork.getByteMap()) {
+        affinities.add(DatasetSplitAffinity.of(item.key.getAddress(), completeFileWork.getTotalBytes()));
       }
-      split.setAffinitiesList(affinities);
 
-      split.setExtendedProperty(ByteString.copyFrom(EasyDatasetXAttrSerDe.EASY_DATASET_SPLIT_XATTR_SERIALIZER.serialize(
-        new EasyDatasetSplitXAttr()
-        .setPath(pathString)
-        .setStart(completeFileWork.getStart())
-        .setLength(completeFileWork.getLength())
-        .setUpdateKey(new FileSystemCachedEntity()
-            .setPath(pathString)
-            .setLastModificationTime(completeFileWork.getStatus().getModificationTime()))
-        )));
+      EasyDatasetSplitXAttr splitExtended = EasyDatasetSplitXAttr.newBuilder()
+          .setPath(pathString)
+          .setStart(completeFileWork.getStart())
+          .setLength(completeFileWork.getLength())
+          .setUpdateKey(FileSystemCachedEntity.newBuilder()
+              .setPath(pathString)
+              .setLastModificationTime(completeFileWork.getStatus().getModificationTime()))
+          .build();
 
-      final List<PartitionValue> partitionValues = Lists.newArrayList();
+      List<PartitionValue> partitionValues = new ArrayList<>();
+
       // add implicit fields
-      for(NameValuePair<?> p : pairs.get(i)) {
+      for (NameValuePair<?> p : pairs.get(i)) {
         Object obj = p.getValue();
-        if(obj == null || obj instanceof String){
-          partitionValues.add(new PartitionValue().setColumn(p.getName()).setStringValue( (String) obj).setType(PartitionValueType.IMPLICIT));
-        }else if(obj instanceof Long){
-          partitionValues.add(new PartitionValue().setColumn(p.getName()).setLongValue((Long) obj).setType(PartitionValueType.IMPLICIT));
-        }else{
+        if (obj == null) {
+          partitionValues.add(PartitionValue.of(p.getName(), PartitionValueType.IMPLICIT));
+        } else if (obj instanceof String) {
+          partitionValues.add(PartitionValue.of(p.getName(), (String) obj, PartitionValueType.IMPLICIT));
+        } else if (obj instanceof Long) {
+          partitionValues.add(PartitionValue.of(p.getName(), (long) obj, PartitionValueType.IMPLICIT));
+        } else {
           throw new UnsupportedOperationException(String.format("Unable to handle value %s of type %s.", obj, obj.getClass().getName()));
         }
         allImplicitColumns.add(p.getName());
       }
-      split.setPartitionValuesList(partitionValues);
-
-      splits.add(split);
+      long splitRecordCount = 0; // unknown.
+      DatasetSplit split = DatasetSplit.of(affinities, size, splitRecordCount, splitExtended::writeTo);
+      splits.add(PartitionChunk.of(partitionValues, Collections.singletonList(split)));
     }
-    cachedMetadata.setPartitionColumnsList(Lists.newArrayList(allImplicitColumns));
-    return splits;
+    partitionColumns = ImmutableList.copyOf(allImplicitColumns);
+    this.cachedSplits = splits;
   }
 
   @Override
-  public boolean isSaveable() {
-    return true;
-  }
-
-  @Override
-  public DatasetType getType() {
-    // TODO: update to correctly detect file verus folder type.
-    return DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER;
+  public DatasetType getDatasetType() {
+    return type;
   }
 }

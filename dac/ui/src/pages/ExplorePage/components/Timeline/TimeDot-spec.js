@@ -15,7 +15,7 @@
  */
 import { shallow } from 'enzyme';
 
-import TimeDot from './TimeDot';
+import { TimeDot } from './TimeDot';
 
 describe('TimeDot', () => {
 
@@ -23,12 +23,14 @@ describe('TimeDot', () => {
   let commonProps;
   let wrapper;
   let instance;
+  let link;
   beforeEach(() => {
     minimalProps = {
       location: {},
       tipVersion: '12345',
       activeVersion: '12345',
-      datasetPathname: '/space/foo/ds1'
+      datasetPathname: '/space/foo/ds1',
+      navigateToHistory: sinon.stub()
     };
     commonProps = {
       ...minimalProps,
@@ -44,11 +46,13 @@ describe('TimeDot', () => {
       onClick: sinon.spy(),
       hideDelay: 0,
       location: {
+        pathname: 'orignal/path/name',
         query: {jobId: 123}
       }
     };
     wrapper = shallow(<TimeDot {...commonProps}/>);
     instance = wrapper.instance();
+    link = wrapper.find('Link');
   });
 
   it('should render with minimal props without exploding', () => {
@@ -57,7 +61,7 @@ describe('TimeDot', () => {
   });
 
   it('should render main Link', () => {
-    expect(wrapper.find('Link')).to.have.length(1);
+    expect(link).to.have.length(1);
   });
 
   it('should not render Link when at current version', () => {
@@ -66,8 +70,8 @@ describe('TimeDot', () => {
   });
 
   describe('#getLinkLocation', () => {
-    it('should have pathname=props.datasetPathname', () => {
-      expect(instance.getLinkLocation().pathname).to.equal(commonProps.datasetPathname);
+    it('should take a pathname from location', () => {
+      expect(instance.getLinkLocation().pathname).to.equal(commonProps.location.pathname);
     });
 
     it('should have query.tipVersion from props.tipVersion and version from historyItem.datasetVersion', () => {
@@ -90,55 +94,53 @@ describe('TimeDot', () => {
   });
 
   describe('popover show/hide', () => {
-
-    let target;
-    let popover;
     const mockEvent = {target: {getBoundingClientRect: () => ({top: 0, height: 0})}};
-
-    beforeEach(() => {
-      target = wrapper.find('[data-qa="time-dot-target"]');
-      popover = wrapper.find('[data-qa="time-dot-popover"]');
-    });
+    /**
+     * Returns a wrapper for a popover.
+     * This method must be called when popover is shown, after mouseenter
+     * event for dot element
+     */
+    const getPopover = () => wrapper.find('Tooltip');
 
     it('should show on mouse enter', () => {
-      target.simulate('mouseenter', mockEvent);
-      expect(wrapper.find('Overlay').props().show).to.be.true;
-      target.simulate('mouseleave');
+      link.simulate('mouseenter', mockEvent);
+      wrapper.update();
+      expect(wrapper.state('open')).to.be.true;
+      link.simulate('mouseleave');
     });
 
     it('should show hide after a delay on mouseleave', (done) => {
-      target.simulate('mouseenter', mockEvent);
-      target.simulate('mouseleave');
-      expect(wrapper.find('Overlay').props().show).to.be.true;
+      link.simulate('mouseenter', mockEvent);
+      link.simulate('mouseleave');
+      expect(wrapper.state('open')).to.be.true;
       setTimeout(() => {
         wrapper.update();
-        expect(wrapper.find('Overlay').props().show).to.be.false;
+        expect(wrapper.state('open')).to.be.false;
         done();
       }, 1);
     });
 
     it('should hide popover if cursor is moved to a popover', (done) => {
-      target.simulate('mouseenter', mockEvent);
-      target.simulate('mouseleave');
+      link.simulate('mouseenter', mockEvent);
+      const popover = getPopover();
+      link.simulate('mouseleave');
       popover.simulate('mouseenter', mockEvent);
 
       setTimeout(() => {
         wrapper.update();
-        expect(wrapper.find('Overlay').props().show).to.be.false;
+        expect(wrapper.state('open')).to.be.false;
         done();
       }, 1);
     });
 
     it('should still show popover if mouse moves back to target', (done) => {
-      target.simulate('mouseenter', mockEvent);
-      target.simulate('mouseleave');
-      popover.simulate('mouseenter', mockEvent);
-      popover.simulate('mouseleave');
-      target.simulate('mouseenter', mockEvent);
+      link.simulate('mouseenter', mockEvent);
+      link.simulate('mouseleave');
+      link.simulate('mouseenter', mockEvent);
 
       setTimeout(() => {
         wrapper.update();
-        expect(wrapper.find('Overlay').props().show).to.be.true;
+        expect(wrapper.state('open')).to.be.true;
         done();
       }, 1);
     });

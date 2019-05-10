@@ -35,7 +35,9 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
@@ -58,6 +60,8 @@ import com.google.common.io.ByteStreams;
 
 public class HiveUtilities {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveUtilities.class);
+  public static final String MAP_KEY_FIELD_NAME = "key";
+  public static final String MAP_VALUE_FIELD_NAME = "value";
 
   private static final String ERROR_MSG = "Unsupported Hive data type %s. \n"
       + "Following Hive data types are supported in Dremio for querying: "
@@ -169,10 +173,31 @@ public class HiveUtilities {
         return typeBuilder.build();
       }
 
-      case LIST:
-      case MAP:
-      case STRUCT:
-      case UNION:
+      case LIST: {
+        MinorType minorType = MinorType.LIST;
+        MajorType.Builder typeBuilder = MajorType.newBuilder().setMinorType(getMinorTypeFromArrowMinorType(minorType))
+          .setMode(DataMode.OPTIONAL);
+        return typeBuilder.build();
+      }
+      case STRUCT:  {
+        MinorType minorType = MinorType.STRUCT;
+        MajorType.Builder typeBuilder = MajorType.newBuilder().setMinorType(getMinorTypeFromArrowMinorType(minorType))
+          .setMode(DataMode.OPTIONAL);
+        return typeBuilder.build();
+      }
+      case MAP: {
+        // Treating hive map datatype as a "list of structs" datatype in arrow.
+        MinorType minorType = MinorType.LIST;
+        MajorType.Builder typeBuilder = MajorType.newBuilder().setMinorType(getMinorTypeFromArrowMinorType(minorType))
+          .setMode(DataMode.OPTIONAL);
+        return typeBuilder.build();
+      }
+      case UNION: {
+        MinorType minorType = MinorType.UNION;
+        MajorType.Builder typeBuilder = MajorType.newBuilder().setMinorType(getMinorTypeFromArrowMinorType(minorType))
+            .setMode(DataMode.OPTIONAL);
+        return typeBuilder.build();
+      }
       default:
         throwUnsupportedHiveDataTypeError(typeInfo.getCategory().toString());
     }

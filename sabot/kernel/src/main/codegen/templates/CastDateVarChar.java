@@ -41,7 +41,7 @@ import com.dremio.exec.expr.annotations.Workspace;
 import org.apache.arrow.vector.holders.*;
 import org.joda.time.DateTimeZone;
 import org.joda.time.DateMidnight;
-import org.apache.arrow.vector.util.DateUtility;
+import com.dremio.common.util.JodaDateUtility;
 
 /**
  * generated from ${.template_name} ${type.from} ${type.to} ${type.major}
@@ -62,9 +62,9 @@ public class Cast${type.from}To${type.to} implements SimpleFunction {
     <#if type.from == "TimeMilli">
     format = org.joda.time.format.ISODateTimeFormat.dateTime().withZoneUTC();
     <#elseif type.from == "DateMilli">
-    format = org.apache.arrow.vector.util.DateUtility.formatDate.withZoneUTC();
+    format = com.dremio.common.util.JodaDateUtility.formatDate.withZoneUTC();
     <#else>
-    format = org.apache.arrow.vector.util.DateUtility.format${type.from}.withZoneUTC();
+    format = com.dremio.common.util.JodaDateUtility.format${type.from}.withZoneUTC();
     </#if>
   }
 

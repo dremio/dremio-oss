@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -61,6 +62,9 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.store.RecordWriter.OutputEntryListener;
 import com.dremio.exec.store.RecordWriter.WriteStatsListener;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
@@ -495,12 +499,18 @@ public class TestArrowFileReader {
 
   /** Helper method that write the given batches to a file with given name and returns the file metadata */
   private ArrowFileMetadata writeArrowFile(VectorContainer... batches) throws Exception {
-    OperatorContext opContext = Mockito.mock(OperatorContext.class);
+    final OperatorContext opContext = Mockito.mock(OperatorContext.class);
     when(opContext.getFragmentHandle()).thenReturn(FragmentHandle.newBuilder().setMajorFragmentId(2323).setMinorFragmentId(234234).build());
 
-    EasyWriter writerConf = mock(EasyWriter.class);
+    final EasyWriter writerConf = mock(EasyWriter.class);
     when(writerConf.getFsConf()).thenReturn(FS_CONF);
     when(writerConf.getLocation()).thenReturn(dateGenFolder.getRoot().toString());
+
+    final EasyFormatPlugin formatPlugin = mock(EasyFormatPlugin.class);
+    final FileSystemPlugin fsPlugin = mock(FileSystemPlugin.class);
+    when(fsPlugin.getFileSystem((Configuration) notNull(), (OperatorContext) notNull())).thenReturn(new FileSystemWrapper(FS_CONF));
+    when(writerConf.getFormatPlugin()).thenReturn(formatPlugin);
+    when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);
 
     ArrowRecordWriter writer = new ArrowRecordWriter(
         opContext,

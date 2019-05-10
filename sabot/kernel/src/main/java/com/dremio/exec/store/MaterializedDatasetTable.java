@@ -16,6 +16,7 @@
 package com.dremio.exec.store;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptTable;
@@ -35,10 +36,10 @@ import com.dremio.exec.catalog.TableMetadataImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.NamespaceTable.StatisticImpl;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.QuietAccessor;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
+import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -46,12 +47,19 @@ import com.google.common.collect.ImmutableList;
  */
 public class MaterializedDatasetTable implements TranslatableTable {
 
-  private final QuietAccessor datasetAccessor;
+  private final Supplier<DatasetConfig> datasetConfig;
+  private final Supplier<List<PartitionChunk>> partitionChunks;
   private final FileSystemPlugin plugin;
   private final String user;
 
-  public MaterializedDatasetTable(FileSystemPlugin plugin, String user, QuietAccessor datasetAccessor) {
-    this.datasetAccessor = datasetAccessor;
+  public MaterializedDatasetTable(
+      FileSystemPlugin plugin,
+      String user,
+      Supplier<DatasetConfig> datasetConfig,
+      Supplier<List<PartitionChunk>> partitionChunks
+  ) {
+    this.datasetConfig = datasetConfig;
+    this.partitionChunks = partitionChunks;
     this.plugin = plugin;
     this.user = user;
   }
@@ -62,7 +70,7 @@ public class MaterializedDatasetTable implements TranslatableTable {
         context.getCluster(),
         context.getCluster().traitSetOf(Convention.NONE),
         plugin.getId(),
-        new MaterializedTableMetadata(plugin.getId(), datasetAccessor.getDataset(), user, datasetAccessor.getSplits()),
+        new MaterializedTableMetadata(plugin.getId(), datasetConfig.get(), user, partitionChunks.get()),
         null,
         1.0d,
         true);
@@ -70,7 +78,8 @@ public class MaterializedDatasetTable implements TranslatableTable {
 
   @Override
   public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-    return BatchSchema.fromDataset(datasetAccessor.getDataset()).toCalciteRecordType(typeFactory, NamespaceTable.SYSTEM_COLUMNS);
+    return BatchSchema.fromDataset(datasetConfig.get())
+        .toCalciteRecordType(typeFactory, NamespaceTable.SYSTEM_COLUMNS);
   }
 
   @Override
@@ -78,7 +87,7 @@ public class MaterializedDatasetTable implements TranslatableTable {
     return new StatisticImpl() {
       @Override
       public Double getRowCount() {
-        return (double) datasetAccessor.getDataset().getReadDefinition().getScanStats().getRecordCount();
+        return (double) datasetConfig.get().getReadDefinition().getScanStats().getRecordCount();
       }
 
       @Override
@@ -100,18 +109,20 @@ public class MaterializedDatasetTable implements TranslatableTable {
     public MaterializedTableMetadata(StoragePluginId plugin,
                                       DatasetConfig config,
                                       String user,
-                                      List<DatasetSplit> splits) {
-      super(plugin, config, user, MaterializedSplitsPointer.of(splits, splits.size()));
+                                      List<PartitionChunk> splits) {
+      super(plugin, config, user, MaterializedSplitsPointer.oldObsoleteOf(getSplitVersion(config), splits, splits.size()));
     }
 
-    /**
-     * Don't prune based on lucene query
-     * @param partitionFilterQuery
-     * @return
-     * @throws NamespaceException
-     */
+    private static long getSplitVersion(DatasetConfig datasetConfig) {
+      return Optional.ofNullable(datasetConfig)
+          .map(DatasetConfig::getReadDefinition)
+          .map(ReadDefinition::getSplitVersion)
+          .orElse(0L);
+    }
+
     @Override
-    public TableMetadata prune(SearchTypes.SearchQuery partitionFilterQuery) throws NamespaceException {
+    public TableMetadata prune(SearchTypes.SearchQuery partitionFilterQuery) {
+      // Don't prune based on lucene query
       return this;
     }
   }

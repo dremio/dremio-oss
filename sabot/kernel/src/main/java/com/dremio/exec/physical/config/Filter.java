@@ -16,13 +16,11 @@
 package com.dremio.exec.physical.config;
 
 import com.dremio.common.expression.LogicalExpression;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.AbstractSingle;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
@@ -30,14 +28,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeName("filter")
 public class Filter extends AbstractSingle {
 
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Filter.class);
-
   private final LogicalExpression expr;
   private final float selectivity;
 
   @JsonCreator
-  public Filter(@JsonProperty("child") PhysicalOperator child, @JsonProperty("expr") LogicalExpression expr, @JsonProperty("selectivity") float selectivity) {
-    super(child);
+  public Filter(
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("child") PhysicalOperator child,
+      @JsonProperty("expr") LogicalExpression expr,
+      @JsonProperty("selectivity") float selectivity) {
+    super(props, child);
     this.expr = expr;
     this.selectivity = selectivity;
   }
@@ -53,18 +53,12 @@ public class Filter extends AbstractSingle {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new Filter(child, expr, selectivity);
-  }
-
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    return child.getSchema(context).clone(SelectionVectorMode.TWO_BYTE);
+    return new Filter(props, child, expr, selectivity);
   }
 
   @Override
   public int getOperatorType() {
     return CoreOperatorType.FILTER_VALUE;
   }
-
 
 }

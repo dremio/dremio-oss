@@ -2,6 +2,7 @@
 .checkstyle
 .classpath
 .idea/
+.vscode/
 .project
 .mvn/wrapper/maven-wrapper.jar
 .profiler

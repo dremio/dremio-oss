@@ -189,6 +189,25 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
     public void add(RawFragmentBatchWrapper batchWrapper) {
       buffer.add(batchWrapper);
     }
+
+    @Override
+    public void clear() {
+      RawFragmentBatchWrapper batchWrapper;
+      RawFragmentBatch batch;
+      while (!buffer.isEmpty()) {
+        batchWrapper = buffer.poll();
+        if (batchWrapper.isWaitingToSpill()) {
+          logger.debug("unspilled buffer, sending ack");
+          batchWrapper.batch.sendOk();
+        }
+        if(batchWrapper.state != BatchState.SPILLED) {
+          batch = batchWrapper.get();
+          if (batch.getBody() != null) {
+            batch.getBody().release();
+          }
+        }
+      }
+    }
   }
 
   private boolean isCurrentlySpooling() {
@@ -254,6 +273,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
     final AutoCloseable superCloser = new AutoCloseable(){
       @Override
       public void close() throws Exception {
+        bufferQueue.clear();
         SpoolingRawBatchBuffer.super.close();
       }};
 

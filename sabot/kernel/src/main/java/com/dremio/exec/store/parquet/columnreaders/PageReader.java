@@ -25,7 +25,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.bytes.BytesInput;
@@ -42,6 +41,8 @@ import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
+import org.apache.parquet.hadoop.util.HadoopStreams;
+import org.apache.parquet.io.SeekableInputStream;
 import org.apache.parquet.schema.PrimitiveType;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -99,7 +100,7 @@ public class PageReader {
 
   int currentPageCount = -1;
 
-  private FSDataInputStream inputStream;
+  private SeekableInputStream inputStream;
 
   // These need to be held throughout reading of the entire column chunk
   List<ByteBuf> allocatedDictionaryBuffers;
@@ -108,7 +109,7 @@ public class PageReader {
 
   private final ParquetReaderStats stats;
 
-  PageReader(ColumnReader<?> parentStatus, FSDataInputStream inputStream, Path path, ColumnChunkMetaData columnChunkMetaData) throws ExecutionSetupException {
+  PageReader(ColumnReader<?> parentStatus, SeekableInputStream inputStream, Path path, ColumnChunkMetaData columnChunkMetaData) throws ExecutionSetupException {
     this.parentColumnReader = parentStatus;
     allocatedDictionaryBuffers = new ArrayList<ByteBuf>();
     codecFactory = parentColumnReader.parentReader.getCodecFactory();
@@ -129,9 +130,9 @@ public class PageReader {
     this(parentStatus, openFile(fs, path), path, columnChunkMetaData);
   }
 
-  private static FSDataInputStream openFile(FileSystem fs, Path path) throws ExecutionSetupException {
+  private static SeekableInputStream openFile(FileSystem fs, Path path) throws ExecutionSetupException {
     try {
-      return fs.open(path);
+      return HadoopStreams.wrap(fs.open(path));
     } catch (IOException e) {
       throw new ExecutionSetupException("Error opening or reading metadata for parquet file at location: "
         + path.getName(), e);
@@ -148,7 +149,7 @@ public class PageReader {
   }
 
   private void loadDictionaryIfExists(final ColumnReader<?> parentStatus,
-      final ColumnChunkMetaData columnChunkMetaData, final FSDataInputStream f) throws IOException {
+      final ColumnChunkMetaData columnChunkMetaData, final SeekableInputStream f) throws IOException {
     Stopwatch timer = Stopwatch.createUnstarted();
     if (columnChunkMetaData.getDictionaryPageOffset() > 0) {
       f.seek(columnChunkMetaData.getDictionaryPageOffset());

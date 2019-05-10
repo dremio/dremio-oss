@@ -15,9 +15,8 @@
  */
 package com.dremio;
 
-
-import static org.apache.arrow.vector.util.DateUtility.formatDate;
-import static org.apache.arrow.vector.util.DateUtility.formatTimeStampMilli;
+import static com.dremio.common.util.JodaDateUtility.formatDate;
+import static com.dremio.common.util.JodaDateUtility.formatTimeStampMilli;
 import static org.joda.time.DateTimeZone.UTC;
 
 import java.math.BigDecimal;
@@ -66,6 +65,18 @@ public class TestFunctionsQuery extends BaseTestQuery {
   public void testContains() throws Exception {
     String query = "select * from cp.\"employee.json\" where contains(first_name:ABCDE)";
     errorMsgWithTypeTestHelper(query, ErrorType.UNSUPPORTED_OPERATION, "Contains operator is not supported for the table");
+  }
+
+  @Test
+  public void testDecimalPartitionColumns() throws Exception{
+    String query = "select region_plan_profile_id, plan_profile_id from cp" +
+      ".\"parquet/decimalPartitionColumns.parquet\"";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("region_plan_profile_id", "plan_profile_id")
+      .baselineValues(BigDecimal.valueOf(987654321), BigDecimal.valueOf(987654321))
+      .go();
   }
 
   @Test

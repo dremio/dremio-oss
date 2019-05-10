@@ -24,12 +24,14 @@ import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ops.QueryContext;
+import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.handlers.commands.AsyncCommand;
 import com.dremio.exec.planner.sql.handlers.commands.CommandCreator;
 import com.dremio.exec.planner.sql.handlers.commands.CommandRunner;
+import com.dremio.exec.planner.sql.handlers.commands.CommandRunner.CommandType;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
@@ -57,6 +59,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.resource.exception.ResourceUnavailableException;
 import com.dremio.service.Pointer;
+import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
@@ -103,6 +106,7 @@ public class AttemptManager implements Runnable {
   private final AttemptObservers observers;
   private final Pointer<QueryId> prepareId;
   private final ResourceAllocator queryResourceManager;
+  private final CommandPool commandPool;
   private CommandRunner<?> command;
 
   /**
@@ -120,7 +124,8 @@ public class AttemptManager implements Runnable {
     final CoordToExecTunnelCreator tunnelCreator,
     final Cache<Long, PreparedPlan> plans,
     final QueryContext queryContext,
-    final ResourceAllocator queryResourceManager
+    final ResourceAllocator queryResourceManager,
+    final CommandPool commandPool
   ) {
     this.attemptId = attemptId;
     this.queryId = attemptId.toQueryId();
@@ -129,11 +134,13 @@ public class AttemptManager implements Runnable {
     this.sabotContext = context;
     this.tunnelCreator = tunnelCreator;
     this.queryResourceManager = queryResourceManager;
+    this.commandPool = commandPool;
     this.plans = plans;
     this.prepareId = new Pointer<>();
 
     this.queryContext = queryContext;
     this.observers = AttemptObservers.of(observer);
+    this.observers.add(new LeafFragementAttemptObserver());
 
     final OptionManager optionManager = this.queryContext.getOptions();
     if(options != null){
@@ -147,6 +154,13 @@ public class AttemptManager implements Runnable {
     recordNewState(QueryState.ENQUEUED);
   }
 
+  private class LeafFragementAttemptObserver extends AbstractAttemptObserver {
+
+    @Override
+    public void startLeafFragmentFailed(Exception ex) {
+      fail(ex);
+    }
+  }
 
   private class CompletionListenerImpl implements CompletionListener {
 
@@ -177,7 +191,7 @@ public class AttemptManager implements Runnable {
     queryManager.getNodeStatusListener().nodesRegistered(registeredNodes);
   }
 
-  public void dataFromScreenArrived(QueryData header, ByteBuf data, ResponseSender sender) throws RpcException {
+  public void dataFromScreenArrived(QueryData header, ByteBuf data, ResponseSender sender) {
     if(data != null){
       // we're going to send this some place, we need increment to ensure this is around long enough to send.
       data.retain();
@@ -259,12 +273,6 @@ public class AttemptManager implements Runnable {
     queryContext.getExecutionControls().unpauseAll();
   }
 
-  /**
-   * Called by execution pool to do query setup, and kick off remote execution.
-   *
-   * <p>Note that completion of this function is not necessarily the end of the AttemptManager's role
-   * in the query's lifecycle.
-   */
   @Override
   public void run() {
     // rename the thread we're using for debugging purposes
@@ -276,36 +284,34 @@ public class AttemptManager implements Runnable {
     try {
       injector.injectChecked(queryContext.getExecutionControls(), "run-try-beginning", ForemanException.class);
 
-      observers.queryStarted(queryRequest, queryContext.getSession().getCredentials().getUserName());
+      // planning is done in the command pool
+      commandPool.submit(CommandPool.Priority.LOW, attemptId.toString() + ":foreman-planning",
+        (waitInMillis) -> {
+          observers.commandPoolWait(waitInMillis);
+          observers.queryStarted(queryRequest, queryContext.getSession().getCredentials().getUserName());
+          plan();
+          return null;
+        }).get();
 
-      CommandCreator creator = newCommandCreator(queryContext, observers, prepareId);
-      command = creator.toCommand();
-      logger.debug("Using command: {}.", command);
+      if (command.getCommandType() == CommandType.ASYNC_QUERY) {
 
-      switch (command.getCommandType()) {
-      case ASYNC_QUERY:
-        Preconditions.checkState(command instanceof AsyncCommand, "Asynchronous query must be an AsyncCommand");
-        command.plan();
+        AsyncCommand asyncCommand = (AsyncCommand) command;
+
         moveToState(QueryState.STARTING, null);
-        extraResultData = command.execute();
-        break;
 
-      case SYNC_QUERY:
-        moveToState(QueryState.STARTING, null);
-        command.plan();
-        extraResultData = command.execute();
-        addToEventQueue(QueryState.COMPLETED, null);
-        break;
+        // allocate execution resources on the calling thread, as this will most likely block
+        asyncCommand.allocateResources();
 
-      case SYNC_RESPONSE:
-        moveToState(QueryState.STARTING, null);
-        command.plan();
-        extraResultData = command.execute();
-        addToEventQueue(QueryState.COMPLETED, null);
-        break;
+        // do execution planning in the bound pool
+        commandPool.submit(CommandPool.Priority.MEDIUM,
+          attemptId.toString() + ":execution-planning",
+          (waitInMillis) -> {
+            observers.commandPoolWait(waitInMillis);
+            asyncCommand.planExecution();
+            return null;
+          }).get();
 
-      default:
-        throw new IllegalStateException("unhandled command type.");
+        asyncCommand.startFragments();
       }
 
       moveToState(QueryState.RUNNING, null);
@@ -326,11 +332,11 @@ public class AttemptManager implements Runnable {
          * die here, they should get notified about that, and cancel themselves; we don't have to attempt to notify
          * them, which might not work under these conditions.
          */
-        ProcessExit.exitHeap(e, 1);
+        ProcessExit.exitHeap(e);
       }
     } catch (Throwable ex) {
       moveToState(QueryState.FAILED,
-          new ForemanException("Unexpected exception during fragment initialization: " + ex.getMessage(), ex));
+        new ForemanException("Unexpected exception during fragment initialization: " + ex.getMessage(), ex));
 
     } finally {
       /*
@@ -366,21 +372,35 @@ public class AttemptManager implements Runnable {
      */
   }
 
+  private void plan() throws Exception {
+    CommandCreator creator = newCommandCreator(queryContext, observers, prepareId);
+    command = creator.toCommand();
+    logger.debug("Using command: {}.", command);
+
+    switch (command.getCommandType()) {
+      case ASYNC_QUERY:
+        Preconditions.checkState(command instanceof AsyncCommand, "Asynchronous query must be an AsyncCommand");
+        command.plan();
+        break;
+
+      case SYNC_QUERY:
+      case SYNC_RESPONSE:
+        moveToState(QueryState.STARTING, null);
+        command.plan();
+        extraResultData = command.execute();
+        addToEventQueue(QueryState.COMPLETED, null);
+        break;
+
+      default:
+        throw new IllegalStateException(
+          String.format("command type %s not supported in plan()", command.getCommandType()));
+    }
+  }
+
   protected CommandCreator newCommandCreator(QueryContext queryContext, AttemptObserver observer, Pointer<QueryId> prepareId) {
     return new CommandCreator(this.sabotContext, queryContext, tunnelCreator, queryRequest,
       observer, plans, prepareId, attemptId.getAttemptNum(), queryResourceManager);
   }
-
-//  private void log(final PhysicalPlan plan) {
-//    if (logger.isDebugEnabled()) {
-//      try {
-//        final String planText = queryContext.getLpPersistence().getMapper().writeValueAsString(plan);
-//        logger.debug("Physical {}", planText);
-//      } catch (final IOException e) {
-//        logger.warn("Error while attempting to log physical plan.", e);
-//      }
-//    }
-//  }
 
   /**
    * Manages the end-state processing for AttemptManager.

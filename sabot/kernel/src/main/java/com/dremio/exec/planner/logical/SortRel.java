@@ -15,84 +15,34 @@
  */
 package com.dremio.exec.planner.logical;
 
-import java.util.List;
-import java.util.Map;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelCollation;
-import org.apache.calcite.rel.RelCollationImpl;
-import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rex.RexNode;
 
-import com.dremio.common.expression.FieldReference;
-import com.dremio.common.logical.data.LogicalOperator;
-import com.dremio.common.logical.data.Order;
-import com.dremio.common.logical.data.Order.Ordering;
-import com.dremio.exec.planner.torel.ConversionContext;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.dremio.exec.planner.common.SortRelBase;
 
 /**
  * Sort implemented in Dremio.
  */
-public class SortRel extends Sort implements Rel {
-
-  /** Creates a SortRel. */
-  public SortRel(RelOptCluster cluster, RelTraitSet traits, RelNode input, RelCollation collation) {
-    super(cluster, traits, input, collation);
-  }
-
+public class SortRel extends SortRelBase implements Rel {
   /** Creates a SortRel with offset and fetch. */
-  public SortRel(RelOptCluster cluster, RelTraitSet traits, RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
+  private SortRel(RelOptCluster cluster, RelTraitSet traits, RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
     super(cluster, traits, input, collation, offset, fetch);
   }
 
   @Override
   public SortRel copy(RelTraitSet traitSet, RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
-    return new SortRel(getCluster(), traitSet, input, collation, offset, fetch);
+    return SortRel.create(getCluster(), traitSet, input, collation, offset, fetch);
   }
 
-  @Override
-  public LogicalOperator implement(LogicalPlanImplementor implementor) {
-    final Order.Builder builder = Order.builder();
-    builder.setInput(implementor.visitChild(this, 0, getInput()));
-
-    final List<String> childFields = getInput().getRowType().getFieldNames();
-    for(RelFieldCollation fieldCollation : this.collation.getFieldCollations()){
-      builder.addOrdering(fieldCollation.getDirection(),
-          new FieldReference(childFields.get(fieldCollation.getFieldIndex())),
-          fieldCollation.nullDirection);
-    }
-    return builder.build();
+  public static SortRel create(RelOptCluster cluster, RelTraitSet traits, RelNode input, RelCollation collation) {
+    return create(cluster, traits, input, collation, null, null);
   }
 
-
-  public static RelNode convert(Order order, ConversionContext context) throws InvalidRelException{
-
-    // if there are compound expressions in the order by, we need to convert into projects on either side.
-    RelNode input = context.toRel(order.getInput());
-    List<String> fields = input.getRowType().getFieldNames();
-
-    // build a map of field names to indices.
-    Map<String, Integer> fieldMap = Maps.newHashMap();
-    int i =0;
-    for(String field : fields){
-      fieldMap.put(field, i);
-      i++;
-    }
-
-    List<RelFieldCollation> collations = Lists.newArrayList();
-
-    for(Ordering o : order.getOrderings()){
-      String fieldName = ExprHelper.getFieldName(o.getExpr());
-      int fieldId = fieldMap.get(fieldName);
-      RelFieldCollation c = new RelFieldCollation(fieldId, o.getDirection(), o.getNullDirection());
-    }
-    return new SortRel(context.getCluster(), context.getLogicalTraits(), input, RelCollationImpl.of(collations));
+  public static SortRel create(RelOptCluster cluster, RelTraitSet traits, RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
+    final RelTraitSet adjustedTraits = adjustTraits(traits, collation);
+    return new SortRel(cluster, adjustedTraits, input, collation, offset, fetch);
   }
-
 }

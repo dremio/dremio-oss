@@ -33,6 +33,7 @@ import org.apache.curator.x.discovery.details.ServiceCacheListener;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.AbstractServiceSet;
+import com.dremio.service.coordinator.RegistrationHandle;
 import com.google.common.base.Function;
 
 final class ZKServiceSet extends AbstractServiceSet implements Service {

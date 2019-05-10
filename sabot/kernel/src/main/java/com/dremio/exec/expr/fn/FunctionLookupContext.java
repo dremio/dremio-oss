@@ -17,6 +17,7 @@ package com.dremio.exec.expr.fn;
 
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.exec.resolver.FunctionResolver;
+import com.dremio.options.OptionManager;
 
 public interface FunctionLookupContext {
 
@@ -42,4 +43,8 @@ public interface FunctionLookupContext {
    * @return
    */
   public AbstractFunctionHolder findNonFunction(FunctionCall functionCall);
+
+  public OptionManager getOptionManager();
+
+  public boolean isDecimalV2Enabled();
 }

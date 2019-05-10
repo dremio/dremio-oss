@@ -42,8 +42,8 @@ import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators.TimeMilliName
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators.TimeStampMilliNameValuePair;
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators.VarBinaryNameValuePair;
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators.VarCharNameValuePair;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.dremio.service.namespace.dataset.proto.PartitionValue;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -63,7 +63,7 @@ public class CompositeReaderConfig {
     return innerColumns;
   }
 
-  public RecordReader wrapIfNecessary(BufferAllocator allocator, RecordReader innerReader, DatasetSplit split){
+  public RecordReader wrapIfNecessary(BufferAllocator allocator, RecordReader innerReader, SplitInfo split){
     if(partitionFieldMap.isEmpty()){
       return innerReader;
     } else {
@@ -140,38 +140,59 @@ public class CompositeReaderConfig {
     final CompleteType type = CompleteType.fromField(field);
     switch(type.toMinorType()){
     case BIGINT:
-      return new BigIntNameValuePair(field.getName(), partitionValue.getLongValue()).createPopulator();
+      return new BigIntNameValuePair(field.getName(), getLong(partitionValue)).createPopulator();
     case BIT:
-      return new BitNameValuePair(field.getName(), partitionValue.getBitValue()).createPopulator();
+      return new BitNameValuePair(field.getName(), getBit(partitionValue)).createPopulator();
     case DATE:
-      return new DateMilliNameValuePair(field.getName(), partitionValue.getLongValue()).createPopulator();
+      return new DateMilliNameValuePair(field.getName(), getLong(partitionValue)).createPopulator();
     case FLOAT4:
-      return new Float4NameValuePair(field.getName(), partitionValue.getFloatValue()).createPopulator();
+      return new Float4NameValuePair(field.getName(), getFloat(partitionValue)).createPopulator();
     case FLOAT8:
-      return new Float8NameValuePair(field.getName(), partitionValue.getDoubleValue()).createPopulator();
+      return new Float8NameValuePair(field.getName(), getDouble(partitionValue)).createPopulator();
     case INT:
-      return new IntNameValuePair(field.getName(), partitionValue.getIntValue()).createPopulator();
+      return new IntNameValuePair(field.getName(), getInt(partitionValue)).createPopulator();
     case TIME:
-      return new TimeMilliNameValuePair(field.getName(), partitionValue.getIntValue()).createPopulator();
+      return new TimeMilliNameValuePair(field.getName(), getInt(partitionValue)).createPopulator();
     case TIMESTAMP:
-      return new TimeStampMilliNameValuePair(field.getName(), partitionValue.getLongValue()).createPopulator();
+      return new TimeStampMilliNameValuePair(field.getName(), getLong(partitionValue)).createPopulator();
     case DECIMAL:
       return new TwosComplementValuePair(allocator, field, getByteArray(partitionValue)).createPopulator();
     case VARBINARY:
       return new VarBinaryNameValuePair(field.getName(), getByteArray(partitionValue)).createPopulator();
     case VARCHAR:
-      return new VarCharNameValuePair(field.getName(), partitionValue.getStringValue()).createPopulator();
+      return new VarCharNameValuePair(field.getName(), getString(partitionValue)).createPopulator();
     default:
       throw new UnsupportedOperationException("Unable to return partition field: "  + Describer.describe(field));
 
     }
   }
 
-  private static byte[] getByteArray(PartitionValue partitionValue) {
-    if (partitionValue.getBinaryValue() == null) {
-      return null;
-    }
 
-    return partitionValue.getBinaryValue().toByteArray();
+  private static Boolean getBit(PartitionValue partitionValue) {
+    return partitionValue.hasBitValue() ? partitionValue.getBitValue() : null;
+  }
+
+  private static byte[] getByteArray(PartitionValue partitionValue) {
+    return partitionValue.hasBinaryValue() ? partitionValue.getBinaryValue().toByteArray() : null;
+  }
+
+  private static Double getDouble(PartitionValue partitionValue) {
+    return partitionValue.hasDoubleValue() ? partitionValue.getDoubleValue() : null;
+  }
+
+  private static Float getFloat(PartitionValue partitionValue) {
+    return partitionValue.hasFloatValue() ? partitionValue.getFloatValue() : null;
+  }
+
+  private static Integer getInt(PartitionValue partitionValue) {
+    return partitionValue.hasIntValue()? partitionValue.getIntValue() : null;
+  }
+
+  private static Long getLong(PartitionValue partitionValue) {
+    return partitionValue.hasLongValue() ? partitionValue.getLongValue() : null;
+  }
+
+  private static String getString(PartitionValue partitionValue) {
+    return partitionValue.hasStringValue() ? partitionValue.getStringValue() : null;
   }
 }

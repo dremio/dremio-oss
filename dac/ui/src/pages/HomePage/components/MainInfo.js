@@ -35,7 +35,6 @@ import FontIcon from 'components/Icon/FontIcon';
 import { ENTITY_TYPES } from 'constants/Constants';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 import Art from '@app/components/Art';
-import { WikiButton } from '@app/pages/HomePage/components/WikiButton';
 import { TagsAlert } from '@app/pages/HomePage/components/TagsAlert';
 
 import { tableStyles } from '../tableStyles';
@@ -319,12 +318,6 @@ export class MainInfoView extends Component {
       rootEntityType={getRootEntityType(entity.getIn(['links', 'self']))}
       rightTreeVisible={this.props.rightTreeVisible}
       toggleVisibility={this.toggleRightTree}
-      isWikiShown={this.state.isWikiShown}
-      onWiki={this.toggleWikiShow}
-      additionalButton={showWiki && <WikiButton key='wikiButton'
-        isSelected={this.state.isWikiShown}
-        onClick={this.toggleWikiShow}
-      />}
     />;
 
     return (
@@ -335,6 +328,7 @@ export class MainInfoView extends Component {
         columns={this.getTableColumns()}
         rightSidebar={showWiki ? <WikiView item={entity} /> : null}
         rightSidebarExpanded={this.state.isWikiShown}
+        toggleSidebar={this.toggleWikiShow}
         tableData={this.getTableData()}
         viewState={viewState}
       >

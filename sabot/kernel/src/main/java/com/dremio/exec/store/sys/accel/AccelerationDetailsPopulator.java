@@ -21,7 +21,6 @@ import org.apache.calcite.rel.RelNode;
 
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
-import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 
 /**
@@ -51,10 +50,6 @@ public interface AccelerationDetailsPopulator {
    */
   void planAccelerated(SubstitutionInfo info);
 
-  void finalPrel(Prel prel);
-
-  Prel getFinalPrel();
-
   void attemptCompleted(QueryProfile profile);
 
   byte[] computeAcceleration();
@@ -70,15 +65,6 @@ public interface AccelerationDetailsPopulator {
 
     @Override
     public void planAccelerated(SubstitutionInfo info) {
-    }
-
-    @Override
-    public void finalPrel(Prel prel) {
-    }
-
-    @Override
-    public Prel getFinalPrel() {
-      return null;
     }
 
     @Override

@@ -27,10 +27,14 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.HashAggregate;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.CustomHashAggDataGenerator;
+import com.dremio.sabot.CustomHashAggDataGeneratorDecimal;
 import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggSpillStats;
@@ -41,24 +45,46 @@ public class TestSpillingHashAgg extends BaseTestOperator {
   @Rule
   public final TestRule TIMEOUT = TestTools.getTimeoutRule(1000, TimeUnit.SECONDS);
 
-  private HashAggregate getHashAggregate() {
-    return new HashAggregate(null,
-                             Arrays.asList(n("FIXKEY1"), n("FIXKEY2"), n("VARKEY1")),
-                             Arrays.asList(n("sum(MEASURE1)", "SUM_M1"),
-                                           n("min(MEASURE1)", "MIN_M1"),
-                                           n("max(MEASURE1)", "MAX_M1"),
-                                           n("sum(MEASURE2)", "SUM_M2"),
-                                           n("min(MEASURE2)", "MIN_M2"),
-                                           n("max(MEASURE2)", "MAX_M2"),
-                                           n("sum(MEASURE3)", "SUM_M3"),
-                                           n("min(MEASURE3)", "MIN_M3"),
-                                           n("max(MEASURE3)", "MAX_M3"),
-                                           n("sum(MEASURE4)", "SUM_M4"),
-                                           n("min(MEASURE4)", "MIN_M4"),
-                                           n("max(MEASURE4)", "MAX_M4")
+  private HashAggregate getHashAggregate(long reserve, long max) {
+    OpProps props = PROPS.cloneWithNewReserve(reserve).cloneWithMemoryExpensive(true);
+    props.setMemLimit(max);
+    return new HashAggregate(props, null,
+                             Arrays.asList(n("INT_KEY"), n("BIGINT_KEY"), n("VARCHAR_KEY"),
+                                           n("FLOAT_KEY"), n("DOUBLE_KEY"), n("BOOLEAN_KEY"), n("DECIMAL_KEY")),
+                             Arrays.asList(n("sum(INT_MEASURE)", "SUM_INT"),
+                                           n("min(INT_MEASURE)", "MIN_INT"),
+                                           n("max(INT_MEASURE)", "MAX_INT"),
+                                           n("sum(BIGINT_MEASURE)", "SUM_BIGINT"),
+                                           n("min(BIGINT_MEASURE)", "MIN_BIGINT"),
+                                           n("max(BIGINT_MEASURE)", "MAX_BIGINT"),
+                                           n("sum(FLOAT_MEASURE)", "SUM_FLOAT"),
+                                           n("min(FLOAT_MEASURE)", "MIN_FLOAT"),
+                                           n("max(FLOAT_MEASURE)", "MAX_FLOAT"),
+                                           n("sum(DOUBLE_MEASURE)", "SUM_DOUBLE"),
+                                           n("min(DOUBLE_MEASURE)", "MIN_DOUBLE"),
+                                           n("max(DOUBLE_MEASURE)", "MAX_DOUBLE"),
+                                           n("sum(DECIMAL_MEASURE)", "SUM_DECIMAL"),
+                                           n("min(DECIMAL_MEASURE)", "MIN_DECIMAL"),
+                                           n("max(DECIMAL_MEASURE)", "MAX_DECIMAL")
                              ),
                              true,
+                             true,
                              1f);
+  }
+
+  private HashAggregate getHashAggregateDecimal(long reserve, long max) {
+    OpProps props = PROPS.cloneWithNewReserve(reserve).cloneWithMemoryExpensive(true);
+    props.setMemLimit(max);
+    return new HashAggregate(props, null,
+      Arrays.asList(n("DECIMAL_KEY")),
+      Arrays.asList(n("sum(DECIMAL_MEASURE)", "SUM_DECIMAL"),
+        n("min(DECIMAL_MEASURE)", "MIN_DECIMAL"),
+        n("max(DECIMAL_MEASURE)", "MAX_DECIMAL"),
+        n("$sum0(DECIMAL_MEASURE)", "SUM0_DECIMAL")
+      ),
+      true,
+      true,
+      1f);
   }
 
   /**
@@ -67,9 +93,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
    */
   @Test
   public void testNoSpill() throws Exception {
-    final HashAggregate agg = getHashAggregate();
-    agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(4_000_000);
+    final HashAggregate agg = getHashAggregate(1_000_000, 12_000_000);
     try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2000, getTestAllocator(), true)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
@@ -89,29 +113,26 @@ public class TestSpillingHashAgg extends BaseTestOperator {
    */
   @Test
   public void testVeryLargeVarcharKey() throws Exception {
-    final HashAggregate agg = getHashAggregate();
-    agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(12_000_000);
+    HashAggregate agg = getHashAggregate(1_000_000, 12_000_000);
 
     boolean exceptionThrown = false;
 
 
-    final int shortLen = (30 * 1024);
-    final int largeLen = (32 * 1024);
+    final int shortLen = (120 * 1024);
+    final int largeLen = (128 * 1024);
 
-    //30k size must not fail, any subsequent 32k inserts would fail
-    boolean shortLenSucess = false;
+    //shortLen size must not fail, any subsequent largeLen inserts would fail
+    boolean shortLenSuccess = false;
     try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1000, getTestAllocator(), shortLen)) {
         try (CustomHashAggDataGenerator generator1 = new CustomHashAggDataGenerator(1000, getTestAllocator(), largeLen)) {
           Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
           validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 1000);
 
-          //30k key size should have worked. must reach here!
-          Assert.assertEquals(0, 0);
+          //shortLen key size should have worked. must reach here!
+          shortLenSuccess = true;
 
-          shortLenSucess = true;
-          //add some 32k keys
+          //add some largeLen keys
           Fixtures.Table table1 = generator1.getExpectedGroupsAndAggregations();
           validateSingle(agg, VectorizedHashAggOperator.class, generator1, table1, 1000);
 
@@ -121,12 +142,15 @@ public class TestSpillingHashAgg extends BaseTestOperator {
       }
     } catch (StringIndexOutOfBoundsException userExp) {
       exceptionThrown = true;
-      Assert.assertEquals(true, shortLenSucess);
-    } finally {
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    finally {
+      Assert.assertEquals(true, shortLenSuccess);
       Assert.assertEquals(true, exceptionThrown);
     }
 
-    //fails to pivot with 32k key size
+    //fails to pivot with largeLen key size
     try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1000, getTestAllocator(), largeLen)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
@@ -141,11 +165,13 @@ public class TestSpillingHashAgg extends BaseTestOperator {
       Assert.assertEquals(true, exceptionThrown);
     }
 
-    //passes 32k key size with increased batch of 2k
+    //passes largeLen key size with increased batch size.
+    agg = getHashAggregate(1_000_000, 24_000_000);
     exceptionThrown = false;
     try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
         try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1000, getTestAllocator(), largeLen);
-          AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_BATCHSIZE, 2048)) {
+             AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES, 2048 * 1024);
+             AutoCloseable options2 = with(ExecConstants.TARGET_BATCH_RECORDS_MAX, 8192)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 1000);
       }
@@ -160,7 +186,8 @@ public class TestSpillingHashAgg extends BaseTestOperator {
     //should fail with 1MB key size
     try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1000, getTestAllocator(), (1024 * 1024));
-           AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_BATCHSIZE, 4096)) {
+           AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES, 2048 * 1024);
+           AutoCloseable options2 = with(ExecConstants.TARGET_BATCH_RECORDS_MAX, 8192)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 1000);
       }
@@ -178,9 +205,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
    */
   @Test
   public void testSetupFailureForHashTableInit() throws Exception {
-    final HashAggregate agg = getHashAggregate();
-    agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(2_000_000);
+    final HashAggregate agg = getHashAggregate(1_000_000, 2_100_000);
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
                                                     "Query was cancelled because it exceeded the memory limits set by the administrator.",
                                                     VectorizedHashAggOperator.PREALLOC_FAILURE_PARTITIONS));
@@ -199,9 +224,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
 
   @Test
   public void testSetupFailureForPreallocation() throws Exception {
-    final HashAggregate agg = getHashAggregate();
-    agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(2_100_000);
+    final HashAggregate agg = getHashAggregate(1_000_000, 5_000_000);
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
                                                     "Query was cancelled because it exceeded the memory limits set by the administrator.",
                                                     VectorizedHashAggOperator.PREALLOC_FAILURE_PARTITIONS));
@@ -220,9 +243,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
 
   @Test
   public void testSetupFailureForExtraPartition() throws Exception {
-    final HashAggregate agg = getHashAggregate();
-    agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(2_400_000);
+    final HashAggregate agg = getHashAggregate(1_000_000, 8_100_000);
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
                                                     "Query was cancelled because it exceeded the memory limits set by the administrator.",
                                                     VectorizedHashAggOperator.PREALLOC_FAILURE_LOADING_PARTITION));
@@ -241,9 +262,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
 
   @Test
   public void testSetupFailureForAuxStructures() throws Exception {
-    final HashAggregate agg = getHashAggregate();
-    agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(2_500_000);
+    final HashAggregate agg = getHashAggregate(1_000_000, 8_900_000);
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.OUT_OF_MEMORY,
                                                     "Query was cancelled because it exceeded the memory limits set by the administrator.",
                                                     VectorizedHashAggOperator.PREALLOC_FAILURE_AUX_STRUCTURES));
@@ -284,21 +303,22 @@ public class TestSpillingHashAgg extends BaseTestOperator {
 
   /**
    * Test spill of 3K rows -- no recursive spilling
+   * Setting the VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES to 128K limits the hastable batch size to 1K.
    * @throws Exception
    */
   @Test
   public void testSpill3K() throws Exception {
-    final HashAggregate agg = getHashAggregate();
-    agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(4_000_000);
-    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
+    final HashAggregate agg = getHashAggregate(1_000_000, 4_000_000);
+    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true);
+         AutoCloseable maxHashTableBatchSizeBytes = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES, 128 * 1024)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(3000, getTestAllocator(), true);
            AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 3000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertTrue(stats.getOoms() >= 2);
-        assertTrue(stats.getSpills() >= 2);
+        assertEquals(12, stats.getSpills());
+        assertEquals(6, stats.getOoms());
+        assertEquals(7, stats.getIterations());
         assertEquals(1, stats.getRecursionDepth());
       }
       /* run with allocator limit same as minimum reservation */
@@ -316,26 +336,69 @@ public class TestSpillingHashAgg extends BaseTestOperator {
     }
   }
 
-  private HashAggregate getHashAggregateWithCount() {
-    return new HashAggregate(null,
-                             Arrays.asList(n("FIXKEY1"), n("FIXKEY2"), n("VARKEY1")),
-                             Arrays.asList(n("sum(MEASURE1)", "SUM_M1"),
-                                           n("min(MEASURE1)", "MIN_M1"),
-                                           n("max(MEASURE1)", "MAX_M1"),
-                                           n("count(MEASURE1)", "COUNT_M1"),
-                                           n("sum(MEASURE2)", "SUM_M2"),
-                                           n("min(MEASURE2)", "MIN_M2"),
-                                           n("max(MEASURE2)", "MAX_M2"),
-                                           n("count(MEASURE2)", "COUNT_M2"),
-                                           n("sum(MEASURE3)", "SUM_M3"),
-                                           n("min(MEASURE3)", "MIN_M3"),
-                                           n("max(MEASURE3)", "MAX_M3"),
-                                           n("count(MEASURE3)", "COUNT_M3"),
-                                           n("sum(MEASURE4)", "SUM_M4"),
-                                           n("min(MEASURE4)", "MIN_M4"),
-                                           n("max(MEASURE4)", "MAX_M4"),
-                                           n("count(MEASURE4)", "COUNT_M4")
+  /*
+   * Setting the VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES to 64K limits the hastable batch size to 1K.
+   */
+  @Test
+  public void testSpill50KDecimal() throws Exception {
+    //final HashAggregate agg = getHashAggregate(1_000_000, 1_100_000);
+    final HashAggregate agg = getHashAggregateDecimal(1_000_000, 2_100_000);
+    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true);
+         AutoCloseable maxHashTableBatchSizeBytes = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES, 64 * 1024)) {
+      try (CustomHashAggDataGeneratorDecimal generator = new CustomHashAggDataGeneratorDecimal
+        (50000, getTestAllocator(), true);
+           AutoCloseable options = with(VectorizedHashAggOperator
+             .VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false);
+           AutoCloseable optionsDecimals = with(PlannerSettings.ENABLE_DECIMAL_V2, true)) {
+        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
+        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 3000);
+        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
+        assertEquals(8, stats.getSpills());
+      }
+      /* run with allocator limit same as minimum reservation */
+      try (CustomHashAggDataGeneratorDecimal generator = new CustomHashAggDataGeneratorDecimal(50000, getTestAllocator(), true);
+           AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_MINIMUM_AS_LIMIT, true);
+           AutoCloseable optionsDecimals = with(PlannerSettings.ENABLE_DECIMAL_V2, true)) {
+        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
+        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 3000);
+      }
+      /* run with micro spilling disabled */
+      try (CustomHashAggDataGeneratorDecimal generator = new CustomHashAggDataGeneratorDecimal(50000, getTestAllocator(), true);
+           AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_ENABLE_MICRO_SPILLS, false);
+           AutoCloseable optionsDecimals = with(PlannerSettings.ENABLE_DECIMAL_V2, true)) {
+        Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
+        validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 3000);
+      }
+    }
+  }
+  private HashAggregate getHashAggregateWithCount(long reserve, long max) {
+    OpProps props = PROPS.cloneWithNewReserve(reserve);
+    props.setMemLimit(max);
+    return new HashAggregate(props, null,
+                             Arrays.asList(n("INT_KEY"), n("BIGINT_KEY"), n("VARCHAR_KEY"),
+                                           n("FLOAT_KEY"), n("DOUBLE_KEY"), n("BOOLEAN_KEY"), n("DECIMAL_KEY")),
+                             Arrays.asList(n("sum(INT_MEASURE)", "SUM_INT"),
+                                           n("min(INT_MEASURE)", "MIN_INT"),
+                                           n("max(INT_MEASURE)", "MAX_INT"),
+                                           n("count(INT_MEASURE)", "COUNT_INT"),
+                                           n("sum(BIGINT_MEASURE)", "SUM_BIGINT"),
+                                           n("min(BIGINT_MEASURE)", "MIN_BIGINT"),
+                                           n("max(BIGINT_MEASURE)", "MAX_BIGINT"),
+                                           n("count(BIGINT_MEASURE)", "COUNT_BIGINT"),
+                                           n("sum(FLOAT_MEASURE)", "SUM_FLOAT"),
+                                           n("min(FLOAT_MEASURE)", "MIN_FLOAT"),
+                                           n("max(FLOAT_MEASURE)", "MAX_FLOAT"),
+                                           n("count(FLOAT_MEASURE)", "COUNT_FLOAT"),
+                                           n("sum(DOUBLE_MEASURE)", "SUM_DOUBLE"),
+                                           n("min(DOUBLE_MEASURE)", "MIN_DOUBLE"),
+                                           n("max(DOUBLE_MEASURE)", "MAX_DOUBLE"),
+                                           n("count(DOUBLE_MEASURE)", "COUNT_DOUBLE"),
+                                           n("sum(DECIMAL_MEASURE)", "SUM_DECIMAL"),
+                                           n("min(DECIMAL_MEASURE)", "MIN_DECIMAL"),
+                                           n("max(DECIMAL_MEASURE)", "MAX_DECIMAL"),
+                                           n("count(DECIMAL_MEASURE)", "COUNT_DECIMAL")
                              ),
+                             true,
                              true,
                              1f);
   }
@@ -343,22 +406,19 @@ public class TestSpillingHashAgg extends BaseTestOperator {
   /**
    * Same as (number of rows, memory) previous test but with count accumulator
    * resulting in slightly more spilling
+   * Setting the VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES to 128K limits the hastable batch size to 1K.
    * @throws Exception
    */
   @Test
   public void testSpill3KWithCount() throws Exception {
-    final HashAggregate agg = getHashAggregateWithCount();
-    agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(4_000_000);
-    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
+    final HashAggregate agg = getHashAggregateWithCount(1_000_000, 4_000_000);
+    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true);
+         AutoCloseable maxHashTableBatchSizeBytes = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES, 128 * 1024)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(3000, getTestAllocator(), true);
            AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregationsWithCount();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 3000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertTrue(stats.getSpills() >= 4);
-        assertTrue(stats.getOoms() >= 4);
-        assertEquals(1, stats.getRecursionDepth());
       }
       /* run with allocator limit same as minimum reservation */
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(3000, getTestAllocator(), true);
@@ -377,21 +437,22 @@ public class TestSpillingHashAgg extends BaseTestOperator {
 
   /**
    * Test spill of 4K rows -- no recursive spilling
+   * Setting the VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES to 128K limits the hastable batch size to 1K.
    * @throws Exception
    */
   @Test
   public void testSpill4K() throws Exception {
-    final HashAggregate agg = getHashAggregate();
-    agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(4_000_000);
-    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
+    final HashAggregate agg = getHashAggregate(1_000_000, 4_000_000);
+    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true);
+         AutoCloseable maxHashTableBatchSizeBytes = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES, 128 * 1024)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(4000, getTestAllocator(), true);
            AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertTrue(stats.getOoms() >= 6);
-        assertTrue(stats.getSpills() >= 6);
+        assertEquals(20, stats.getSpills());
+        assertEquals(12, stats.getOoms());
+        assertEquals(9, stats.getIterations());
         assertEquals(1, stats.getRecursionDepth());
       }
       /* run with allocator limit same as minimum reservation */
@@ -416,9 +477,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
    */
   @Test
   public void testSpill20K() throws Exception {
-    final HashAggregate agg = getHashAggregate();
-    agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(4_000_000);
+    final HashAggregate agg = getHashAggregate(1_000_000, 12_000_000);
     try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(20000, getTestAllocator(), true);
            AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false)) {
@@ -432,9 +491,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
          * partition being spilled multiple times and recursive spilling
          */
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertTrue(stats.getOoms() >= 370);
-        assertTrue(stats.getSpills() >= 370);
-        assertEquals(2, stats.getRecursionDepth());
+        assertTrue(stats.getSpills() > 0);
       }
       /* run with allocator limit same as minimum reservation */
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(20000, getTestAllocator(), true);
@@ -454,21 +511,22 @@ public class TestSpillingHashAgg extends BaseTestOperator {
   /**
    * Test spill of 100K rows -- reasonably sized varchars so no
    * recursive spilling
+   * Setting the VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES to 128K limits the hastable batch size to 1K.
    * @throws Exception
    */
   @Test
   public void testSpill100K() throws Exception {
-    final HashAggregate agg = getHashAggregate();
-    agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(4_000_000);
-    try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
+    final HashAggregate agg = getHashAggregate(1_000_000, 4_000_000);
+      try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true);
+           AutoCloseable maxHashTableBatchSizeBytes = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES, 128 * 1024)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(100000, getTestAllocator(), false);
            AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertTrue(stats.getOoms() >= 3);
-        assertTrue(stats.getSpills() >= 3);
+        assertEquals(14, stats.getSpills());
+        assertEquals(7, stats.getOoms());
+        assertEquals(8, stats.getIterations());
         assertEquals(1, stats.getRecursionDepth());
       }
       /* run with allocator limit same as minimum reservation */
@@ -493,18 +551,13 @@ public class TestSpillingHashAgg extends BaseTestOperator {
    */
   @Test
   public void testSpill1M() throws Exception {
-    final HashAggregate agg = getHashAggregate();
-    agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(8_000_000);
+    final HashAggregate agg = getHashAggregate(1_000_000, 12_000_000);
     try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1_000_000, getTestAllocator(), false);
            AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
         final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertTrue(stats.getOoms() >= 15);
-        assertTrue(stats.getSpills() >= 15);
-        assertEquals(1, stats.getRecursionDepth());
       }
       /* run with allocator limit same as minimum reservation */
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1_000_000, getTestAllocator(), false);
@@ -528,18 +581,12 @@ public class TestSpillingHashAgg extends BaseTestOperator {
    */
   @Test
   public void testSpill2M() throws Exception {
-    final HashAggregate agg = getHashAggregate();
-    agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(8_000_000);
+    final HashAggregate agg = getHashAggregate(1_000_000, 12_000_000);
     try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2_000_000, getTestAllocator(), false);
            AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_MINIMIZE_DISTINCT_SPILLED_PARTITIONS, false)) {
         Fixtures.Table table = generator.getExpectedGroupsAndAggregations();
         validateSingle(agg, VectorizedHashAggOperator.class, generator, table, 2000);
-        final VectorizedHashAggSpillStats stats = agg.getSpillStats();
-        assertTrue(stats.getOoms() >= 50);
-        assertTrue(stats.getSpills() >= 50);
-        assertEquals(2, stats.getRecursionDepth());
       }
       /* run with allocator limit same as minimum reservation */
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(2_000_000, getTestAllocator(), false);
@@ -558,9 +605,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
 
   @Test
   public void testSpillWithDifferentAllocationThresholds() throws Exception {
-    final HashAggregate agg = getHashAggregate();
-    agg.setInitialAllocation(1_000_000);
-    agg.setMaxAllocation(8_000_000);
+    final HashAggregate agg = getHashAggregate(1_000_000, 12_000_000);
     try (AutoCloseable useSpillingAgg = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_USE_SPILLING_OPERATOR, true)) {
       try (CustomHashAggDataGenerator generator = new CustomHashAggDataGenerator(1_000_000, getTestAllocator(), false);
            AutoCloseable options = with(VectorizedHashAggOperator.VECTORIZED_HASHAGG_JOINT_ALLOCATION_MAX, 16*1024)) {

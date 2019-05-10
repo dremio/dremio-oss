@@ -47,10 +47,9 @@ public class UIMetadataPolicy {
 
     public static UIUpdateMode of(UpdateMode mode){
       switch(mode){
-      case INLINE:
-        return INLINE;
       case PREFETCH:
         return PREFETCH;
+      case INLINE: // Note: DX-16127: INLINE is obsolete, and should not be produced by the backend code
       case PREFETCH_QUERIED:
       case UNKNOWN:
       default:
@@ -61,7 +60,8 @@ public class UIMetadataPolicy {
     public UpdateMode asUpdateMode(){
       switch(this){
       case INLINE:
-        return UpdateMode.INLINE;
+        // Note: DX-16127: INLINE is obsolete, and is replaced with PREFETCH_QUERIED
+        return UpdateMode.PREFETCH_QUERIED;
       case PREFETCH:
         return UpdateMode.PREFETCH;
       case PREFETCH_QUERIED:

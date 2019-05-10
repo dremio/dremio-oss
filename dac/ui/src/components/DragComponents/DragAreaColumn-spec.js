@@ -54,8 +54,10 @@ describe('DragAreaColumn', () => {
 
   describe('#selectColumn', () => {
     it('should call field.onChange with column name', () => {
+      const closeDD = sinon.stub();
       const instance = shallow(<DragAreaColumn {...commonProps}/>).instance();
-      instance.selectColumn({columnName: 'col1'});
+      instance.selectColumn({columnName: 'col1'}, closeDD);
+      expect(closeDD).to.be.called;
       expect(commonProps.field.onChange).to.have.been.calledWith('col1');
     });
 

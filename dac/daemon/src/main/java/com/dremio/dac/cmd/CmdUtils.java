@@ -40,6 +40,19 @@ public final class CmdUtils {
    */
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan)
     throws FileNotFoundException {
+    return getKVStoreProvider(dremioConfig, classPathScan, true);
+  }
+
+  /**
+   * returns store provider, if data exists. Null if there is no data.
+   * @param dremioConfig
+   * @param classPathScan
+   * @param noDBOpenRetry
+   * @return store provider
+   * @throws FileNotFoundException
+   */
+  public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan, boolean noDBOpenRetry)
+    throws FileNotFoundException {
     final String dbDir = dremioConfig.getString(DremioConfig.DB_PATH_STRING);
     final File dbFile = new File(dbDir);
 
@@ -48,13 +61,13 @@ public final class CmdUtils {
     }
 
     String[] listFiles = dbFile.list();
-    // An empty array means no file in the directory, so do not try to upgrade
-    // A null value means dbFile is not a directory. Let the upgrade task handle it.
+    // An empty array means no file in the directory, so do not try to open it.
+    // A null value means dbFile is not a directory. Let the caller handle it.
     if (listFiles != null && listFiles.length == 0) {
       return Optional.empty();
     }
 
-    return Optional.of(new LocalKVStoreProvider(classPathScan, dbDir, false, true));
+    return Optional.of(new LocalKVStoreProvider(classPathScan, dbDir, false, true, true, false, noDBOpenRetry));
   }
 
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig)

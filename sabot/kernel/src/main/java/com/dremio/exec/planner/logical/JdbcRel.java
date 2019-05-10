@@ -23,7 +23,6 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 
-import com.dremio.common.logical.data.LogicalOperator;
 import com.dremio.exec.planner.common.JdbcRelBase;
 
 public class JdbcRel extends JdbcRelBase implements Rel, CopyToCluster {
@@ -35,11 +34,6 @@ public class JdbcRel extends JdbcRelBase implements Rel, CopyToCluster {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> ignored /* inputs */) {
     return new JdbcRel(getCluster(), traitSet, jdbcSubTree);
-  }
-
-  @Override
-  public LogicalOperator implement(LogicalPlanImplementor implementor) {
-    throw new UnsupportedOperationException();
   }
 
   @Override

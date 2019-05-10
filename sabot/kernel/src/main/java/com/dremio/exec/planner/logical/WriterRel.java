@@ -22,8 +22,6 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.common.logical.data.LogicalOperator;
-import com.dremio.common.logical.data.Writer;
 import com.dremio.exec.planner.common.WriterRelBase;
 
 public class WriterRel extends WriterRelBase implements Rel {
@@ -38,16 +36,6 @@ public class WriterRel extends WriterRelBase implements Rel {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new WriterRel(getCluster(), traitSet, sole(inputs), getCreateTableEntry(), expectedInboundRowType);
-  }
-
-  @Override
-  public LogicalOperator implement(LogicalPlanImplementor implementor) {
-    LogicalOperator childOp = implementor.visitChild(this, 0, getInput());
-    return Writer
-        .builder()
-        .setInput(childOp)
-        .setCreateTableEntry(getCreateTableEntry())
-        .build();
   }
 
   public RelDataType getExpectedInboundRowType() {

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 @import "~@app/uiTheme/less/variables.less";
-@import "~@app/components/Fields/Select.mixins.less";
 
 .base {
   composes: row-margin row-of-inputs table-row-content-padding-left from '@app/uiTheme/less/forms.less';
@@ -34,5 +33,5 @@
 }
 .select {
   width: 200px;
-  .select-height(@row-element-height);
+  height: @row-element-height;
 }

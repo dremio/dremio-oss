@@ -13,11 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import pureRender from 'pure-render-decorator';
+import { Fragment, PureComponent } from 'react';
 import PropTypes from 'prop-types';
-import Radium from 'radium';
-import { Popover } from 'material-ui/Popover';
 import Immutable from 'immutable';
 import { injectIntl } from 'react-intl';
 
@@ -26,6 +23,7 @@ import EllipsedText from 'components/EllipsedText';
 import FontIcon from 'components/Icon/FontIcon';
 import Checkbox from 'components/Fields/Checkbox';
 import { SearchField } from 'components/Fields';
+import { SelectView } from './SelectView';
 
 FilterSelectMenuItem.propTypes = {
   item: PropTypes.object.isRequired,
@@ -42,15 +40,13 @@ export function FilterSelectMenuItem({item, onChange, checked}) {
         item.label
       ]}
       checked={checked}
-      dataQa={item.id + '-filter-item'}
+      dataQa={getDataQaForFilterItem(item.id)}
     />
   </div>);
 }
 
 @injectIntl
-@pureRender
-@Radium
-export default class FilterSelectMenu extends Component {
+export default class FilterSelectMenu extends PureComponent {
 
   static propTypes = {
     items: PropTypes.array, // [{label: string, id: string, icon: component}]
@@ -80,19 +76,11 @@ export default class FilterSelectMenu extends Component {
 
   constructor(props) {
     super(props);
-    this.state = {
-      isPopoverOpened: false,
-      anchorEl: null,
-      anchorOrigin: {
-        horizontal: 'right',
-        vertical: 'bottom'
-      },
-      targetOrigin: {
-        horizontal: 'right',
-        vertical: 'top'
-      }
-    };
     this.updateValueIsSelected(props);
+  }
+
+  state = {
+    pattern: ''
   }
 
   componentWillReceiveProps(nextProps) {
@@ -146,21 +134,9 @@ export default class FilterSelectMenu extends Component {
     }
   }
 
-  handleRequestClose = () => {
+  beforeDDClose = () => {
     this.setState({
-      isPopoverOpened: false,
       pattern: ''
-    });
-    // TODO uncomment when API is done
-    // if (this.props.loadItemsForFilter) {
-    //   this.props.loadItemsForFilter();
-    // }
-  }
-
-  handleRequestOpen = () => {
-    this.setState({
-      isPopoverOpened: true,
-      anchorEl: this.refs.target
     });
   }
 
@@ -178,7 +154,7 @@ export default class FilterSelectMenu extends Component {
   renderDivider() {
     return this.props.selectedValues.size && this.getUnselectedItems().length ||
            (this.state.pattern && this.props.selectedValues.size)
-      ? <div style={[styles.divider]}/>
+      ? <div style={styles.divider}/>
       : null;
   }
 
@@ -227,32 +203,31 @@ export default class FilterSelectMenu extends Component {
     }
     const { label, name } = this.props;
     return (
-      <div
-        ref='target'
-        data-qa={name + '-filter'}
-        onClick={this.handleRequestOpen}
-        style={[styles.base]}
-        className='filter-select-menu field'>
-        <span>{this.props.preventSelectedLabel || !this.props.selectedValues.size ? label : ''}</span>
-        {this.renderSelectedLabel()}
-        <FontIcon type='ArrowDownSmall' theme={styles.arrow}/>
-        <Popover
-          style={styles.popover}
-          useLayerForClickAway
-          canAutoPosition
-          animated={false}
-          open={this.state.isPopoverOpened}
-          anchorEl={this.state.anchorEl}
-          anchorOrigin={this.state.anchorOriginType}
-          targetOrigin={this.state.targetOriginType}
-          onRequestClose={this.handleRequestClose}
-        >
-          {this.renderItemList(this.props.selectedToTop)}
-        </Popover>
-      </div>
+      <SelectView
+        content={
+          <Fragment>
+            <span>{this.props.preventSelectedLabel || !this.props.selectedValues.size ? label : ''}</span>
+            {this.renderSelectedLabel()}
+          </Fragment>
+        }
+        beforeClose={this.beforeDDClose}
+        className='filter-select-menu field'
+        dataQa={name + '-filter'}
+      >
+        {this.renderItemList(this.props.selectedToTop)}
+      </SelectView>
     );
   }
 }
+
+/**
+ * Generates data-qa attribute for filters on Jobs page.
+ *
+ * E2e test are build in assumption that FilterSelectMenu and {@see JobsFilters} have the same shape
+ * of data-qa attributes. This method is created to explicitly define that relation
+ * @param {string|number} id - filter id
+ */
+export const getDataQaForFilterItem = (id) => id + '-filter-item';
 
 const styles = {
   base: {

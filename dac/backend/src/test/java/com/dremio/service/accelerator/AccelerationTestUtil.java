@@ -90,7 +90,7 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
 
   public void addCPSource(boolean createFolder) throws Exception {
 
-    getSourceService().registerSourceWithRuntime(InternalFileConf.create(TEST_SOURCE, new URI("classpath:///acceleration/"), SchemaMutability.ALL, CatalogService.DEFAULT_METADATA_POLICY));
+    getSourceService().registerSourceWithRuntime(InternalFileConf.create(TEST_SOURCE, new URI("classpath:///acceleration/"), SchemaMutability.ALL, CatalogService.DEFAULT_METADATA_POLICY, true));
 
     final NamespaceService nsService = getNamespaceService();
     final SpaceConfig config = new SpaceConfig().setName(TEST_SPACE);

@@ -391,7 +391,7 @@ class ExploreUtils {
   getHrefForTransform({ resourceId, tableId }, location) {
     // TODO this should be moved into dataset decorator
     const { version } = location.query;
-    const fullPath = location.query.mode === 'edit' ? `${resourceId}.${tableId}` : 'tmp.UNTITLED';
+    const fullPath = location.query.mode === 'edit' ? `${encodeURIComponent(resourceId)}.${encodeURIComponent(tableId)}` : 'tmp.UNTITLED';
     const resourcePath = `dataset/${fullPath}`;
     return `/${resourcePath}/version/${version}`;
   }
@@ -409,7 +409,7 @@ class ExploreUtils {
   };
 
   getPreviewTransformationLink(dataset, newVersion) {
-    const end = `transformAndPreview?newVersion=${newVersion}&limit=${ROWS_LIMIT}`;
+    const end = `transformAndPreview?newVersion=${newVersion}&limit=0`;
     return `${dataset.getIn(['apiLinks', 'self'])}/${end}`;
   }
 
@@ -424,11 +424,11 @@ class ExploreUtils {
   }
 
   getUntitledSqlHref({newVersion}) {
-    return `/datasets/new_untitled_sql?newVersion=${newVersion}`;
+    return `/datasets/new_untitled_sql?newVersion=${newVersion}&limit=0`;
   }
 
   getUntitledSqlAndRunHref({newVersion}) {
-    return `/datasets/new_untitled_sql_and_run?newVersion=${newVersion}`;
+    return `/datasets/new_untitled_sql_and_run?newVersion=${newVersion}`; // does not need limit=0 as does not return data in all cases
   }
 
   getMappedDataForTransform(item, detailsType) {
@@ -508,6 +508,33 @@ class ExploreUtils {
   }
   escapeFieldNameForSQL(value) {
     return `"${value.replace(/"/g, '""')}"`;
+  }
+
+  isFilterIncludedInColumnName(column, filter) {
+    if (!column) return false;
+    const name = column.get('name');
+    // empty string is treated as included, null or undefined filter - not.
+    return name && name.toUpperCase().includes(filter.toUpperCase());
+  }
+
+  getFilteredColumns(columns, columnFilter) {
+    if (!columns || !columns.size || !columnFilter) return columns;
+
+    return columns.filter((column) => {
+      return this.isFilterIncludedInColumnName(column, columnFilter);
+    });
+  }
+
+  getFilteredColumnCount(columns, columnFilter) {
+    if (!columns) return 0;
+    if (!columnFilter) return columns.size;
+
+    return columns.reduce((count, column) => {
+      if (this.isFilterIncludedInColumnName(column, columnFilter)) {
+        count += 1;
+      }
+      return count;
+    }, 0);
   }
 }
 

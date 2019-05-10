@@ -19,7 +19,8 @@ import java.util.List;
 import java.util.Set;
 
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.exec.physical.MinorFragmentEndpoint;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
+import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.google.common.collect.Lists;
 
@@ -43,11 +44,11 @@ public class PhysicalOperatorUtil {
    *                  fragment that is assigned to the endpoint.
    * @return
    */
-  public static List<MinorFragmentEndpoint> getIndexOrderedEndpoints(List<NodeEndpoint> endpoints) {
-    List<MinorFragmentEndpoint> destinations = Lists.newArrayList();
+  public static List<MinorFragmentIndexEndpoint> getIndexOrderedEndpoints(List<NodeEndpoint> endpoints, EndpointsIndex.Builder builder) {
+    List<MinorFragmentIndexEndpoint> destinations = Lists.newArrayList();
     int minorFragmentId = 0;
     for(NodeEndpoint endpoint : endpoints) {
-      destinations.add(new MinorFragmentEndpoint(minorFragmentId, endpoint));
+      destinations.add(builder.addFragmentEndpoint(minorFragmentId, endpoint));
       minorFragmentId++;
     }
 

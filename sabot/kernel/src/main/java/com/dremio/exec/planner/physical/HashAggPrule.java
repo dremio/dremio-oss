@@ -67,19 +67,22 @@ public class HashAggPrule extends AggPruleBase {
         createTransformRequest(call, aggregate, input, traits);
       } else {
         // hash distribute on all grouping keys
+        DistributionTrait inputDistOnAllKeys =
+            new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
+              ImmutableList.copyOf(getInputDistributionField(aggregate, true /* get all grouping keys */)));
         DistributionTrait distOnAllKeys =
           new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
             ImmutableList.copyOf(getDistributionField(aggregate, true /* get all grouping keys */)));
 
-        traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distOnAllKeys);
+        traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(inputDistOnAllKeys);
         createTransformRequest(call, aggregate, input, traits);
 
         // hash distribute on single grouping key
-        DistributionTrait distOnOneKey =
+        DistributionTrait inputDistOnOneKey =
           new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
-            ImmutableList.copyOf(getDistributionField(aggregate, false /* get single grouping key */)));
+            ImmutableList.copyOf(getInputDistributionField(aggregate, false /* get single grouping key */)));
 
-        traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(distOnOneKey);
+        traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(inputDistOnOneKey);
         createTransformRequest(call, aggregate, input, traits);
 
         // if the call supports creating a two phase plan, also create and transform to the two-phase version of plan
@@ -115,7 +118,7 @@ public class HashAggPrule extends AggPruleBase {
       RelTraitSet traits = newTraitSet(Prel.PHYSICAL, input.getTraitSet().getTrait(DistributionTraitDef.INSTANCE));
       RelNode newInput = convert(input, traits);
 
-      HashAggPrel phase1Agg = new HashAggPrel(
+      HashAggPrel phase1Agg = HashAggPrel.create(
           aggregate.getCluster(),
           traits,
           newInput,
@@ -129,7 +132,7 @@ public class HashAggPrule extends AggPruleBase {
           new HashToRandomExchangePrel(phase1Agg.getCluster(), phase1Agg.getTraitSet().plus(Prel.PHYSICAL).plus(distOnAllKeys),
               phase1Agg, ImmutableList.copyOf(getDistributionField(aggregate, true)));
 
-      HashAggPrel phase2Agg =  new HashAggPrel(
+      HashAggPrel phase2Agg =  HashAggPrel.create(
           aggregate.getCluster(),
           exch.getTraitSet(),
           exch,
@@ -147,7 +150,7 @@ public class HashAggPrule extends AggPruleBase {
 
     final RelNode convertedInput = convert(input, PrelUtil.fixTraits(call, traits));
 
-    HashAggPrel newAgg = new HashAggPrel(
+    HashAggPrel newAgg = HashAggPrel.create(
         aggregate.getCluster(),
         traits,
         convertedInput,

@@ -29,11 +29,15 @@ import com.dremio.exec.planner.common.ScreenRelBase;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.visitor.PrelVisitor;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.LongValidator;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 
+@Options
 public class ScreenPrel extends ScreenRelBase implements Prel, HasDistributionAffinity {
 
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScreenPrel.class);
-
+  public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.screen.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
+  public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.screen.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
 
   public ScreenPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child) {
     super(Prel.PHYSICAL, cluster, traits, child);
@@ -48,10 +52,11 @@ public class ScreenPrel extends ScreenRelBase implements Prel, HasDistributionAf
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
     Prel child = (Prel) this.getInput();
 
-    PhysicalOperator childPOP = child.getPhysicalOperator(creator);
+    PhysicalOperator childPop = child.getPhysicalOperator(creator);
 
-    Screen s = new Screen(childPOP);
-    return creator.addMetadata(this, s);
+    return new Screen(
+        creator.props(this, null, childPop.getProps().getSchema(), RESERVE, LIMIT),
+        childPop);
   }
 
   @Override

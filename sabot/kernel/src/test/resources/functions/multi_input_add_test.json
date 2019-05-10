@@ -9,22 +9,25 @@
   },
          graph:[
          {
-             @id:1,
+             id:1,
              pop:"mock-scan",
              url: "http://apache.org",
              entries:[
                  {records: 1, types: [
                    {name: "blue", type: "BIGINT", mode: "REQUIRED"}
                  ]}
-             ]
+             ],
+             props : {"operatorId": 1 }
          }, {
     pop : "project",
-    @id : 2,
+    id : 2,
     exprs : [ { ref : "INTADD", expr : " 1 + 2 + 3 + 4" } ],
-    child : 1
+    child : 1,
+    props : {"operatorId": 2, "schemaHashCode": 2036277447}
   }, {
     pop : "screen",
-    @id : 3,
-    child : 2
+    id : 3,
+    child : 2,
+    props : {"operatorId": 3, "schemaHashCode": 2036277447 }
   } ]
 }

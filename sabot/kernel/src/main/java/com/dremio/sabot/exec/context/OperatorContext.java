@@ -20,12 +20,13 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.util.Numbers;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.record.VectorContainer;
@@ -53,6 +54,8 @@ public abstract class OperatorContext {
   public abstract BufferAllocator getAllocator();
 
   public abstract BufferAllocator getFragmentOutputAllocator();
+
+  public abstract BufferManager getBufferManager();
 
   /**
    * Create a vector container to be used for the output of this operator
@@ -105,6 +108,7 @@ public abstract class OperatorContext {
 
   public abstract List<FragmentAssignment> getAssignments();
 
+  public abstract EndpointsIndex getEndpointsIndex();
 
   public static int getChildCount(PhysicalOperator popConfig) {
     Iterator<PhysicalOperator> iter = popConfig.iterator();
@@ -124,20 +128,4 @@ public abstract class OperatorContext {
     public OperatorContext newOperatorContext(PhysicalOperator popConfig) throws Exception;
   }
 
-  public static int optimizeBatchSizeForAllocs(final int batchSize) {
-    /*
-     * The allocators anyway round-up to a power of 2. So, no point in allocating less.
-     */
-    final int targetCount = Numbers.nextPowerOfTwo(batchSize);
-
-    /*
-     * To reduce the heap overhead, we allocate the data-buffer and bitmap-buffer in a single
-     * allocation. However, the combined allocation should be close (<=) to a power of 2, to avoid
-     * wastage. The overhead of the bitmap is 1-bit for each element. The smallest element is an
-     * int which is 4-bytes (other than booleans). So, the overhead would be 1 in every 32 elements.
-     *
-     * eg. if the batch-size is 4096, we will trim it by 4096/32, making it 3968.
-     */
-    return Math.max(1, targetCount - targetCount / 32);
-  }
 }

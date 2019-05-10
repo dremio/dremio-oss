@@ -29,8 +29,9 @@ export const SPACES_LIST_LOAD_START = 'SPACES_LIST_LOAD_START';
 export const SPACES_LIST_LOAD_SUCCESS = 'SPACES_LIST_LOAD_SUCCESS';
 export const SPACES_LIST_LOAD_FAILURE = 'SPACES_LIST_LOAD_FAILURE';
 
-function fetchSpaceListData() {
-  const meta = {viewId: 'AllSpaces', mergeEntities: true};
+export const ALL_SPACES_VIEW_ID = 'AllSpaces';
+export function loadSpaceListData() {
+  const meta = {viewId: ALL_SPACES_VIEW_ID, mergeEntities: true};
   return {
     [CALL_API]: {
       types: [
@@ -44,24 +45,6 @@ function fetchSpaceListData() {
   };
 }
 
-export function loadSpaceListData() {
-  return (dispatch) => {
-    return dispatch(fetchSpaceListData());
-  };
-}
-
-export const SET_SPACE_PIN_STATE = 'SET_SPACE_PIN_STATE';
-
-export function setSpacePin(spaceName, isActivePin) {
-  return (dispatch) => {
-    dispatch({
-      type: SET_SPACE_PIN_STATE,
-      name: spaceName,
-      isActivePin
-    });
-  };
-}
-
 export const ADD_NEW_SPACE_START = 'ADD_NEW_SPACE_START';
 export const ADD_NEW_SPACE_SUCCESS = 'ADD_NEW_SPACE_SUCCESS';
 export const ADD_NEW_SPACE_FAILURE = 'ADD_NEW_SPACE_FAILURE';
@@ -69,7 +52,7 @@ export const ADD_NEW_SPACE_FAILURE = 'ADD_NEW_SPACE_FAILURE';
 function putSpace(space, isCreate) {
 
   const meta = {
-    invalidateViewIds: ['AllSpaces'],
+    invalidateViewIds: [ALL_SPACES_VIEW_ID], // cause data reload. See SpacesLoader
     mergeEntities: true,
     notification: {
       message: isCreate ? la('Successfully created.') : la('Successfully updated.'),
@@ -92,23 +75,24 @@ function putSpace(space, isCreate) {
 }
 
 export function createNewSpace(values) {
-  return (dispatch) => {
-    return dispatch(putSpace(values, true));
-  };
+  return putSpace(values, true);
 }
 
 export function updateSpace(values) {
-  return (dispatch) => {
-    return dispatch(putSpace(values, false));
-  };
+  return putSpace(values, false);
 }
 
 export const REMOVE_SPACE_START = 'REMOVE_SPACE_START';
 export const REMOVE_SPACE_SUCCESS = 'REMOVE_SPACE_SUCCESS';
 export const REMOVE_SPACE_FAILURE = 'REMOVE_SPACE_FAILURE';
 
-function fetchRemoveSpace(space) {
-  const meta = { name, id: space.get('id'), invalidateViewIds: ['AllSpaces'] };
+
+export function removeSpace(space) {
+  const meta = {
+    name,
+    id: space.get('id'),
+    invalidateViewIds: [ALL_SPACES_VIEW_ID] // cause data reload. See SpacesLoader
+  };
   const errorMessage = la('There was an error removing the space.');
   const entityRemovePaths = [['space', space.get('id')]];
 
@@ -132,44 +116,5 @@ function fetchRemoveSpace(space) {
       method: 'DELETE',
       endpoint: `${API_URL_V2}${space.getIn(['links', 'self'])}?version=${space.get('version')}`
     }
-  };
-}
-
-export function removeSpace(space) {
-  return (dispatch) => {
-    return dispatch(fetchRemoveSpace(space));
-  };
-}
-
-export const RENAME_SPACE_START = 'RENAME_SPACE_START';
-export const RENAME_SPACE_SUCCESS = 'RENAME_SPACE_SUCCESS';
-export const RENAME_SPACE_FAILURE = 'RENAME_SPACE_FAILURE';
-
-function fetchRenameSpace(oldName, newName) {
-  return {
-    [CALL_API]: {
-      types: [
-        {
-          type: RENAME_SPACE_START,
-          meta: { oldName, newName }
-        },
-        {
-          type: RENAME_SPACE_SUCCESS,
-          meta: { oldName }
-        },
-        {
-          type: RENAME_SPACE_FAILURE,
-          meta: { oldName }
-        }
-      ],
-      method: 'POST',
-      endpoint: `${API_URL_V2}/space/${oldName}/rename?renameTo=${newName}`
-    }
-  };
-}
-
-export function renameSpace(oldName, newName) {
-  return (dispatch) => {
-    return dispatch(fetchRenameSpace(oldName, newName)).then(() => dispatch(loadSpaceListData()));
   };
 }

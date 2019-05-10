@@ -29,8 +29,6 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.List;
 
-import javax.annotation.Nullable;
-
 import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -42,12 +40,11 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.schedule.CompleteWork;
-import com.dremio.service.namespace.dataset.proto.Affinity;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.google.common.base.Function;
+import com.dremio.service.namespace.LegacyPartitionChunkMetadata;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 public class TestHardAffinityFragmentParallelizer {
@@ -129,21 +126,13 @@ public class TestHardAffinityFragmentParallelizer {
     stats.addCost(cost);
     stats.addMinWidth(minWidth);
     stats.addMaxWidth(maxWidth);
-    DatasetSplit dataSplit = new DatasetSplit();
-    Iterable<Affinity> affinities = Iterables.transform(
-        epAffs,
-        new Function<EndpointAffinity, Affinity>() {
-          @Override
-          public Affinity apply(@Nullable EndpointAffinity endpointAffinity) {
-            return new Affinity()
-                .setFactor(endpointAffinity.getAffinity())
-                .setHost(endpointAffinity.getEndpoint()
-                .getAddress());
-          }
-        }
-    );
-    dataSplit.setAffinitiesList(Lists.newArrayList(affinities));
-    SplitWork splitWork = new SplitWork(dataSplit, execNodeMap, DistributionAffinity.HARD);
+    final PartitionChunk partitionChunk = PartitionChunk.newBuilder().build();
+    final DatasetSplit.Builder dataSplit = DatasetSplit.newBuilder();
+    epAffs.forEach(endpointAffinity -> dataSplit.addAffinitiesBuilder()
+        .setFactor(endpointAffinity.getAffinity())
+        .setHost(endpointAffinity.getEndpoint().getAddress()));
+
+    SplitWork splitWork = new SplitWork(new LegacyPartitionChunkMetadata(partitionChunk), dataSplit.build(), execNodeMap, DistributionAffinity.HARD);
 
     GroupScan groupScan = Mockito.mock(GroupScan.class);
     when(groupScan.getDistributionAffinity()).thenReturn(DistributionAffinity.HARD);

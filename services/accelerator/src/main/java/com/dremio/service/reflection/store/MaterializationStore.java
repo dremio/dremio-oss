@@ -40,6 +40,7 @@ import javax.annotation.Nullable;
 import javax.inject.Provider;
 
 
+import com.dremio.common.types.MinorType;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.KVStoreProvider;
@@ -51,6 +52,7 @@ import com.dremio.datastore.StoreBuildingFactory;
 import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.indexed.IndexKey;
+import com.dremio.proto.model.UpdateId;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.MaterializationMetrics;
@@ -168,7 +170,7 @@ public class MaterializationStore {
     return FluentIterable.from(refreshStore.get().find(condition)).transform(new Function<Entry<RefreshId, Refresh>, Refresh>() {
       @Override
       public Refresh apply(Entry<RefreshId, Refresh> refreshIdRefreshEntry) {
-        return refreshIdRefreshEntry.getValue();
+        return inlineUpgrade(refreshIdRefreshEntry.getValue());
       }
     });
   }
@@ -190,7 +192,17 @@ public class MaterializationStore {
       return null;
     }
 
-    return entry.getValue();
+    return inlineUpgrade(entry.getValue());
+  }
+
+  private Refresh inlineUpgrade(Refresh old) {
+    if ((old.getUpdateId() == null) && (old.getLegacyUpdateId() != null)) { // Do inline upgrade for updateId field
+      UpdateId updateId = new UpdateId();
+      updateId.setLongUpdateId(old.getLegacyUpdateId());
+      updateId.setType(MinorType.BIGINT);
+      old.setUpdateId(updateId);
+    }
+    return old;
   }
 
   public FluentIterable<Refresh> getRefreshesByReflectionId(ReflectionId reflectionId) {
@@ -201,7 +213,7 @@ public class MaterializationStore {
     return FluentIterable.from(refreshStore.get().find(condition)).transform(new Function<Entry<RefreshId, Refresh>, Refresh>() {
       @Override
       public Refresh apply(Entry<RefreshId, Refresh> refreshIdRefreshEntry) {
-        return refreshIdRefreshEntry.getValue();
+        return inlineUpgrade(refreshIdRefreshEntry.getValue());
       }
     });
   }
@@ -246,7 +258,7 @@ public class MaterializationStore {
 
         @Override
         public Refresh apply(Entry<RefreshId, Refresh> input) {
-          return input.getValue();
+          return inlineUpgrade(input.getValue());
         }});
   }
 
@@ -268,7 +280,7 @@ public class MaterializationStore {
     return FluentIterable.from(refreshStore.get().find()).transform(new Function<Entry<RefreshId, Refresh>, Refresh>() {
       @Override
       public Refresh apply(Entry<RefreshId, Refresh> refreshIdRefreshEntry) {
-        return refreshIdRefreshEntry.getValue();
+        return inlineUpgrade(refreshIdRefreshEntry.getValue());
       }
     });
   }

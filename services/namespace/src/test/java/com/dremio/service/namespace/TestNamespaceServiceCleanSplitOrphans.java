@@ -15,7 +15,7 @@
  */
 package com.dremio.service.namespace;
 
-import static com.dremio.service.namespace.DatasetSplitId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY;
+import static com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -40,13 +40,13 @@ import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.SearchQueryUtils;
-import com.dremio.service.namespace.DatasetSplitId.SplitOrphansRetentionPolicy;
-import com.dremio.service.namespace.dataset.proto.Affinity;
+import com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.service.namespace.dataset.proto.PartitionValue;
-import com.dremio.service.namespace.dataset.proto.PartitionValueType;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.Affinity;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValueType;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.proto.EntityId;
@@ -55,12 +55,10 @@ import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.test.DremioTest;
-import com.google.common.collect.Lists;
-
-import io.protostuff.ByteString;
+import com.google.protobuf.ByteString;
 
 /**
- * Test for {@code NamespaceServiceImpl#deleteSplitOrphans(com.dremio.service.namespace.DatasetSplitId.SplitOrphansRetentionPolicy)}
+ * Test for {@code NamespaceServiceImpl#deleteSplitOrphans(com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy)}
  */
 public class TestNamespaceServiceCleanSplitOrphans {
   private static final long REFRESH_PERIOD_MS = TimeUnit.HOURS.toMillis(24);
@@ -72,7 +70,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
   private LocalKVStoreProvider kvstore;
   private NamespaceService namespaceService;
   private IndexedStore<byte[], NameSpaceContainer> namespaceStore;
-  private IndexedStore<DatasetSplitId, DatasetSplit> splitsStore;
+  private IndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore;
 
   private long now;
 
@@ -83,7 +81,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
 
     namespaceService = new NamespaceServiceImpl(kvstore);
     namespaceStore = kvstore.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
-    splitsStore = kvstore.getStore(NamespaceServiceImpl.DatasetSplitCreator.class);
+    partitionChunksStore = kvstore.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);
 
     now = System.currentTimeMillis();
 
@@ -116,7 +114,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
 
     // Assert the total number of splits
     assertThat(
-        StreamSupport.stream(splitsStore.find().spliterator(), false).count(),
+        StreamSupport.stream(partitionChunksStore.find().spliterator(), false).count(),
         is((long) 10 + 20 + 29 * 100 + 1000 + 12 * 25 + 29 * 100));
   }
 
@@ -129,26 +127,26 @@ public class TestNamespaceServiceCleanSplitOrphans {
   public void testKeepCurrentVersion() throws Exception {
     namespaceService.deleteSplitOrphans(KEEP_CURRENT_VERSION_ONLY);
     assertThat(
-        namespaceService.getSplitCount(new FindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())),
+        namespaceService.getPartitionChunkCount(new FindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())),
         is(10 + 20 + 100 + 1000 + 100));
 
 
     DatasetConfig dataset1 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset1")));
-    generateSplits(now, 100).forEach(split -> {
-      DatasetSplitId id = DatasetSplitId.of(dataset1, split, now);
-      assertThat(splitsStore.get(id), is(split));
+    generatePartitionChunks(now, 100).forEach(split -> {
+      PartitionChunkId id = PartitionChunkId.of(dataset1, split, now);
+      assertThat(partitionChunksStore.get(id), is(split));
     });
 
     DatasetConfig dataset2 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset2")));
-    generateSplits(now, 1000).forEach(split -> {
-      DatasetSplitId id = DatasetSplitId.of(dataset2, split, now);
-      assertThat(splitsStore.get(id), is(split));
+    generatePartitionChunks(now, 1000).forEach(split -> {
+      PartitionChunkId id = PartitionChunkId.of(dataset2, split, now);
+      assertThat(partitionChunksStore.get(id), is(split));
     });
 
     DatasetConfig dataset4 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("other", "dataset4")));
-    generateSplits(now, 100).forEach(split -> {
-      DatasetSplitId id = DatasetSplitId.of(dataset4, split, now);
-      assertThat(splitsStore.get(id), is(split));
+    generatePartitionChunks(now, 100).forEach(split -> {
+      PartitionChunkId id = PartitionChunkId.of(dataset4, split, now);
+      assertThat(partitionChunksStore.get(id), is(split));
     });
   }
 
@@ -156,29 +154,29 @@ public class TestNamespaceServiceCleanSplitOrphans {
   public void testKeepValidSplits() throws Exception {
     namespaceService.deleteSplitOrphans(SplitOrphansRetentionPolicy.KEEP_VALID_SPLITS);
     assertThat(
-        namespaceService.getSplitCount(new FindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())),
+        namespaceService.getPartitionChunkCount(new FindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())),
         is(10 + 20 + 24 * 100 + 1000 + 24 * 100));
     DatasetConfig dataset1 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset1")));
     for(int i = 23; i >= 0; i--) {
       final long splitVersion = now - TimeUnit.HOURS.toMillis(i);
-      generateSplits(splitVersion, 100).forEach(split -> {
-        DatasetSplitId id = DatasetSplitId.of(dataset1, split, splitVersion);
-        assertThat(splitsStore.get(id), is(split));
+      generatePartitionChunks(splitVersion, 100).forEach(split -> {
+        PartitionChunkId id = PartitionChunkId.of(dataset1, split, splitVersion);
+        assertThat(partitionChunksStore.get(id), is(split));
       });
     }
 
     DatasetConfig dataset2 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset2")));
-    generateSplits(now, 1000).forEach(split -> {
-      DatasetSplitId id = DatasetSplitId.of(dataset2, split, now);
-      assertThat(splitsStore.get(id), is(split));
+    generatePartitionChunks(now, 1000).forEach(split -> {
+      PartitionChunkId id = PartitionChunkId.of(dataset2, split, now);
+      assertThat(partitionChunksStore.get(id), is(split));
     });
 
     DatasetConfig dataset4 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("other", "dataset4")));
     for(int i = 23; i >= 0; i--) {
       final long splitVersion = now - TimeUnit.HOURS.toMillis(i);
-      generateSplits(splitVersion, 100).forEach(split -> {
-        DatasetSplitId id = DatasetSplitId.of(dataset4, split, splitVersion);
-        assertThat(splitsStore.get(id), is(split));
+      generatePartitionChunks(splitVersion, 100).forEach(split -> {
+        PartitionChunkId id = PartitionChunkId.of(dataset4, split, splitVersion);
+        assertThat(partitionChunksStore.get(id), is(split));
       });
     }
   }
@@ -218,8 +216,8 @@ public class TestNamespaceServiceCleanSplitOrphans {
         .setSplitVersion(splitVersion);
 
     final DatasetConfig datasetConfig = saveDataset(path, type, config -> config.setReadDefinition(readDefinition));
-    generateSplits(splitVersion, count)
-        .forEach(split -> splitsStore.put(DatasetSplitId.of(datasetConfig, split, splitVersion), split));
+    generatePartitionChunks(splitVersion, count)
+        .forEach(split -> partitionChunksStore.put(PartitionChunkId.of(datasetConfig, split, splitVersion), split));
   }
 
   public void saveVirtualDataset(List<String> path) throws NamespaceException {
@@ -250,18 +248,17 @@ public class TestNamespaceServiceCleanSplitOrphans {
     return datasetConfig;
   }
 
-  private Stream<DatasetSplit> generateSplits(long splitVersion, int count) {
+  private Stream<PartitionChunk> generatePartitionChunks(long splitVersion, int count) {
     return IntStream.range(0, count)
         .mapToObj(i ->
-          new DatasetSplit()
-          .setRowCount((long) i)
-          .setTag("0")
-          .setSize((long) i)
-          .setAffinitiesList(Arrays.asList(new Affinity().setHost("node" + i)))
-          .setPartitionValuesList(Lists.newArrayList(new PartitionValue().setColumn("column" + i).setIntValue(i).setType(PartitionValueType.IMPLICIT)))
-          .setExtendedProperty(ByteString.copyFrom(String.valueOf(i).getBytes()))
+          PartitionChunk.newBuilder()
+          .setRowCount(i)
+          .setSize(i)
+          .addAffinities(Affinity.newBuilder().setHost("node" + i))
+          .addPartitionValues(PartitionValue.newBuilder().setColumn("column" + i).setIntValue(i).setType(PartitionValueType.IMPLICIT))
+          .setPartitionExtendedProperty(ByteString.copyFromUtf8(String.valueOf(i)))
           .setSplitKey(String.valueOf(i))
-          .setSplitVersion(splitVersion)
+          .build()
         );
   }
 

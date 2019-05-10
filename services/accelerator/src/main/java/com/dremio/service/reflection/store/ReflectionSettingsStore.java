@@ -23,7 +23,6 @@ import com.dremio.datastore.StoreBuildingFactory;
 import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.exec.catalog.CatalogSourceDataCreator;
-import com.dremio.service.accelerator.store.serializer.SchemaSerializer;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.google.common.base.Preconditions;

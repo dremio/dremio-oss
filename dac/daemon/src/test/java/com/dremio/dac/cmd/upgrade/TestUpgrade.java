@@ -365,6 +365,53 @@ public class TestUpgrade extends DremioTest {
 
     List<? extends UpgradeTask> tasks = upgrade.getUpgradeTasks();
 
+    // Get MapR profile variable from Maven surfire plugin
+    boolean isMapr = Boolean.valueOf(System.getProperty("dremio.mapr.profile"));
+
+    // Dremio build contains S3 plugin, UpdateS3CredentialType is included in the list of
+    // upgrade tasks. The Dremio MapR distribution does not include S3 plugin, therefore UpdateS3CredentialType
+    // should not be included in the list of upgrade tasks. UpdateDatasetSplitIdTask has two children,
+    // which are UpdateS3CredentialType and MigrateAccelerationMeasures. However UpdateS3CredentialType
+    // should not be included as an upgrade task in the MapR distribution. We want to first determine whether
+    // UpdateDatasetSplitIdTask, UpdateS3CredentialType and MigrateAccelerationMeasures are in the list of tasks,
+    // then test accordingly.
+    boolean containsS3Task = false;
+    int s3TaskIndex = 0;
+    boolean containsDatasetSplitTask = false;
+    int datasetSplitTaskIndex = 0;
+    boolean containsMigrateTask = false;
+    int migrateTaskIndex = 0;
+
+    for (int i = 0; i < tasks.size(); i++) {
+      String taskName = tasks.get(i).getClass().getName();
+      if ("com.dremio.dac.cmd.upgrade.UpdateS3CredentialType".equals(taskName)) {
+        containsS3Task = true;
+        s3TaskIndex = i;
+      } else if ("com.dremio.dac.cmd.upgrade.UpdateDatasetSplitIdTask".equals(taskName)) {
+        containsDatasetSplitTask = true;
+        datasetSplitTaskIndex = i;
+      } else if ("com.dremio.dac.cmd.upgrade.MigrateAccelerationMeasures".equals(taskName)) {
+        containsMigrateTask = true;
+        migrateTaskIndex = i;
+      }
+    }
+
+    if (isMapr) {
+      assertFalse(containsS3Task);
+    } else {
+      // Following conditions must be satisfied to ensure correct upgrade tasks ordering.
+      // 1. All three tasks are in the list of tasks
+      assertTrue(containsDatasetSplitTask);
+      assertTrue(containsS3Task);
+      assertTrue(containsMigrateTask);
+      // 2. Both child tasks are successive of UpdateDatasetSplitIdTask
+      assertTrue(s3TaskIndex > datasetSplitTaskIndex);
+      assertTrue(migrateTaskIndex > datasetSplitTaskIndex);
+      // Remove UpdateS3CredentialType from the list, so vanilla and MapR distribution can be
+      // tested with the same upgrade task list
+      tasks.remove(s3TaskIndex);
+    }
+
     // WHEN creating new UpgradeTask - please add it to the list
     // in order to get taskUUID you can run
     // testNoDuplicateUUID() test - it will generate one
@@ -376,15 +423,7 @@ public class TestUpgrade extends DremioTest {
         instanceOf(DatasetConfigUpgrade.class),
         instanceOf(ReIndexAllStores.class),
         instanceOf(UpdateDatasetSplitIdTask.class),
-        instanceOf(UpdateS3CredentialType.class),
         instanceOf(MigrateAccelerationMeasures.class),
-        instanceOf(SetDatasetExpiry.class),
-        instanceOf(SetAccelerationRefreshGrace.class),
-        instanceOf(MarkOldMaterializationsAsDeprecated.class),
-        instanceOf(MoveFromAccelerationsToReflections.class),
-        instanceOf(DeleteInternalSources.class),
-        instanceOf(MoveFromAccelerationSettingsToReflectionSettings.class),
-        instanceOf(ConvertJoinInfo.class),
         instanceOf(CompressHiveTableAttrs.class),
         instanceOf(DeleteHistoryOfRenamedDatasets.class),
         instanceOf(DeleteHive121BasedInputSplits.class),
@@ -429,6 +468,54 @@ public class TestUpgrade extends DremioTest {
     Upgrade upgrade = new Upgrade(dacConfig, CLASSPATH_SCAN_RESULT, false);
 
     List<? extends UpgradeTask> tasks = upgrade.getUpgradeTasks();
+
+    // Get MapR profile variable from Maven surfire plugin
+    boolean isMapr = Boolean.valueOf(System.getProperty("dremio.mapr.profile"));
+
+    // Dremio build contains S3 plugin, UpdateS3CredentialType is included in the list of
+    // upgrade tasks. The Dremio MapR distribution does not include S3 plugin, therefore UpdateS3CredentialType
+    // should not be included in the list of upgrade tasks. UpdateDatasetSplitIdTask has two children,
+    // which are UpdateS3CredentialType and MigrateAccelerationMeasures. However UpdateS3CredentialType
+    // should not be included as an upgrade task in the MapR distribution. We want to first determine whether
+    // UpdateDatasetSplitIdTask, UpdateS3CredentialType and MigrateAccelerationMeasures are in the list of tasks,
+    // then test accordingly.
+    boolean containsS3Task = false;
+    int s3TaskIndex = 0;
+    boolean containsDatasetSplitTask = false;
+    int datasetSplitTaskIndex = 0;
+    boolean containsMigrateTask = false;
+    int migrateTaskIndex = 0;
+
+    for (int i = 0; i < tasks.size(); i++) {
+      String taskName = tasks.get(i).getClass().getName();
+      if ("com.dremio.dac.cmd.upgrade.UpdateS3CredentialType".equals(taskName)) {
+        containsS3Task = true;
+        s3TaskIndex = i;
+      } else if ("com.dremio.dac.cmd.upgrade.UpdateDatasetSplitIdTask".equals(taskName)) {
+        containsDatasetSplitTask = true;
+        datasetSplitTaskIndex = i;
+      } else if ("com.dremio.dac.cmd.upgrade.MigrateAccelerationMeasures".equals(taskName)) {
+        containsMigrateTask = true;
+        migrateTaskIndex = i;
+      }
+    }
+
+    if (isMapr) {
+      assertFalse(containsS3Task);
+    } else {
+      // Following conditions must be satisfied to ensure correct upgrade tasks ordering.
+      // 1. All three tasks are in the list of tasks
+      assertTrue(containsDatasetSplitTask);
+      assertTrue(containsS3Task);
+      assertTrue(containsMigrateTask);
+      // 2. Both child tasks are successive of UpdateDatasetSplitIdTask
+      assertTrue(s3TaskIndex > datasetSplitTaskIndex);
+      assertTrue(migrateTaskIndex > datasetSplitTaskIndex);
+      // Remove UpdateS3CredentialType from the list, so vanilla and MapR distribution can be
+      // tested with the same upgrade task list
+      tasks.remove(s3TaskIndex);
+    }
+
     Collections.shuffle(tasks);
     UpgradeTaskDependencyResolver upgradeTaskDependencyResolver = new UpgradeTaskDependencyResolver(tasks);
     List<UpgradeTask> resolvedTasks = upgradeTaskDependencyResolver.topologicalTasksSort();
@@ -444,15 +531,7 @@ public class TestUpgrade extends DremioTest {
       instanceOf(DatasetConfigUpgrade.class),
       instanceOf(ReIndexAllStores.class),
       instanceOf(UpdateDatasetSplitIdTask.class),
-      instanceOf(UpdateS3CredentialType.class),
       instanceOf(MigrateAccelerationMeasures.class),
-      instanceOf(SetDatasetExpiry.class),
-      instanceOf(SetAccelerationRefreshGrace.class),
-      instanceOf(MarkOldMaterializationsAsDeprecated.class),
-      instanceOf(MoveFromAccelerationsToReflections.class),
-      instanceOf(DeleteInternalSources.class),
-      instanceOf(MoveFromAccelerationSettingsToReflectionSettings.class),
-      instanceOf(ConvertJoinInfo.class),
       instanceOf(CompressHiveTableAttrs.class),
       instanceOf(DeleteHistoryOfRenamedDatasets.class),
       instanceOf(DeleteHive121BasedInputSplits.class),

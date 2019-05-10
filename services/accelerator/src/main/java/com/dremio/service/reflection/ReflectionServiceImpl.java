@@ -36,7 +36,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import javax.annotation.Nullable;
 import javax.inject.Provider;
@@ -98,6 +101,7 @@ import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.dremio.service.reflection.store.RefreshRequestsStore;
+import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.SchedulerService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -117,6 +121,8 @@ import com.google.common.collect.Sets;
  */
 public class ReflectionServiceImpl extends BaseReflectionService {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReflectionServiceImpl.class);
+
+  public static final String LOCAL_TASK_LEADER_NAME = "reflectionsrefresh";
 
   public static final String ACCELERATOR_STORAGEPLUGIN_NAME = "__accelerator";
 
@@ -264,38 +270,42 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
     // only start the managers on the master node
     if (isMaster) {
-
-      dependencyManager = new DependencyManager(reflectionSettings, materializationStore, internalStore, requestsStore, dependenciesStore);
-      dependencyManager.start();
-
-      final ReflectionManager manager = new ReflectionManager(
-        sabotContext.get(),
-        jobsService.get(),
-        namespaceService.get(),
-        getOptionManager(),
-        userStore,
-        internalStore,
-        externalReflectionStore,
-        materializationStore,
-        dependencyManager,
-        new DescriptorCacheImpl(),
-        reflectionsToUpdate,
-        new ReflectionManager.WakeUpCallback() {
-          @Override
-          public void wakeup(String reason) {
-            wakeupManager(reason);
+      if (sabotContext.get().getDremioConfig().isMasterlessEnabled()) {
+        final CountDownLatch wasRun = new CountDownLatch(1);
+        final Cancellable task = schedulerService.get()
+        .schedule(scheduleForRunningOnceAt(Instant.now(),
+          LOCAL_TASK_LEADER_NAME, () -> {
+              // set to null
+              // this is needed if we encounter lost ZK connection
+              // and we bounce back and force
+              logger.info("Reflections cleanup");
+              wakeupHandler = null;
+              dependencyManager = null;
+          }),
+          () -> {
+            masterInit();
+            wasRun.countDown();
+          });
+        if (!task.isDone()) {
+          try {
+            wasRun.await();
+          } catch (InterruptedException e) {
+            logger.warn("InterruptedExeption while waiting for reflections initialization");
+            Thread.currentThread().interrupt();
           }
-        },
-        expansionHelper);
-      wakeupHandler = new WakeupHandler(executorService, manager);
-
-      // sends a wakeup event every reflection_manager_refresh_delay
-      schedulerService.get().schedule(scheduleForRunningOnceAt(getNextRefreshTimeInMillis()),
+        }
+      } else {
+        // if it is masterful mode just init
+        masterInit();
+      }
+       // sends a wakeup event every reflection_manager_refresh_delay
+      schedulerService.get().schedule(scheduleForRunningOnceAt(getNextRefreshTimeInMillis(), LOCAL_TASK_LEADER_NAME),
         new Runnable() {
           @Override
           public void run() {
+            logger.debug("periodic refresh");
             wakeupManager("periodic refresh", true);
-            schedulerService.get().schedule(scheduleForRunningOnceAt(getNextRefreshTimeInMillis()), this);
+            schedulerService.get().schedule(scheduleForRunningOnceAt(getNextRefreshTimeInMillis(), LOCAL_TASK_LEADER_NAME), this);
           }
         }
       );
@@ -317,6 +327,37 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
     schedulerService.get().schedule(scheduleForRunningOnceAt(ofEpochMilli(System.currentTimeMillis() + cacheUpdateDelay)),
       refresher);
+  }
+
+  /**
+   * Helper to keep together logic needed
+   * for init on "master/distributed master" node
+   */
+  private void masterInit() {
+    logger.info("Reflections masterInit");
+    dependencyManager = new DependencyManager(reflectionSettings, materializationStore, internalStore, requestsStore, dependenciesStore);
+    dependencyManager.start();
+
+    final ReflectionManager manager = new ReflectionManager(
+      sabotContext.get(),
+      jobsService.get(),
+      namespaceService.get(),
+      getOptionManager(),
+      userStore,
+      internalStore,
+      externalReflectionStore,
+      materializationStore,
+      dependencyManager,
+      new DescriptorCacheImpl(),
+      reflectionsToUpdate,
+      new ReflectionManager.WakeUpCallback() {
+        @Override
+        public void wakeup(String reason) {
+          wakeupManager(reason);
+        }
+      },
+      expansionHelper);
+    wakeupHandler = new WakeupHandler(executorService, manager);
   }
 
   public RefreshHelper getRefreshHelper() {
@@ -727,8 +768,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   }
 
   @Override
-  public void wakeupManager(String reason) {
-    wakeupManager(reason,false);
+  public Future<?> wakeupManager(String reason) {
+    return wakeupManager(reason,false);
   }
 
   @Override
@@ -745,11 +786,12 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     return sabotContext.get().getOptionManager();
   }
 
-  private void wakeupManager(String reason, boolean periodic) {
+  private Future<?> wakeupManager(String reason, boolean periodic) {
     final boolean periodicWakeupOnly = getOptionManager().getOption(REFLECTION_PERIODIC_WAKEUP_ONLY);
     if (wakeupHandler != null && (!periodicWakeupOnly || periodic)) {
-      wakeupHandler.handle(reason);
+      return wakeupHandler.handle(reason);
     }
+    return CompletableFuture.completedFuture(null);
   }
 
   private MaterializationDescriptor getDescriptor(Materialization materialization) throws CacheException {

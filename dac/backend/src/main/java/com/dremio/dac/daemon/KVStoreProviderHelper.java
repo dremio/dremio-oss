@@ -33,6 +33,7 @@ import com.dremio.dac.server.DACConfig;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.KVStoreProviderType;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.NoopKVStoreProvider;
 import com.dremio.datastore.RemoteKVStoreProvider;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.BootStrapContext;
@@ -46,6 +47,8 @@ import com.dremio.services.fabric.api.FabricService;
  */
 public class KVStoreProviderHelper {
   private static final Logger logger = LoggerFactory.getLogger(KVStoreProviderHelper.class);
+  private static final String KVSTORE_TYPE_TEST_PROPERTY_NAME = "dremio_test_kvstore_type";
+  private static final String KVSTORE_HOSTNAME_TEST_PROPERTY_NAME = "dremio_test_kvstore_hostname";
   private static final String DEFAULT_DB = "default";
   private static final String TEST_CLUSTER_DB = "TestClusterDB";
 
@@ -54,12 +57,24 @@ public class KVStoreProviderHelper {
                                                    Provider<FabricService> fabricService,
                                                    Provider<NodeEndpoint> endPoint) {
     DremioConfig dremioConfig = dacConfig.getConfig();
-    String datastoreType = DEFAULT_DB;
     Map<String, Object> config = new HashMap<>();
     String thisNode = dremioConfig.getThisNode();
 
-    // add in-memory debug flag to config
+    // instantiate NoopKVStoreProvider on all non-coordinator nodes.
+    boolean isCoordinator = dremioConfig.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL);
+    if (!isCoordinator) {
+      return new NoopKVStoreProvider(bootstrap.getClasspathScan(), fabricService, endPoint, bootstrap.getAllocator(), config);
+    }
+
+    // Configure the default KVStore
+    String datastoreType = System.getProperty(KVSTORE_TYPE_TEST_PROPERTY_NAME, DEFAULT_DB);
     config.put(DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL, dacConfig.inMemoryStorage);
+    config.put(LocalKVStoreProvider.CONFIG_DISABLEOCC, "false");
+    config.put(LocalKVStoreProvider.CONFIG_VALIDATEOCC, "true");
+    config.put(LocalKVStoreProvider.CONFIG_TIMED, "true");
+    config.put(LocalKVStoreProvider.CONFIG_BASEDIRECTORY, dremioConfig.getString(DremioConfig.DB_PATH_STRING));
+    config.put(LocalKVStoreProvider.CONFIG_HOSTNAME, System.getProperty(KVSTORE_HOSTNAME_TEST_PROPERTY_NAME, thisNode));
+    config.put(RemoteKVStoreProvider.HOSTNAME, thisNode);
 
     // find the appropriate KVStoreProvider from path
     // first check for the default behavior (if services.datastore.type is set to "default")
@@ -68,14 +83,9 @@ public class KVStoreProviderHelper {
     switch (datastoreType) {
       case DEFAULT_DB:
         config.put(LocalKVStoreProvider.CONFIG_HOSTNAME, thisNode);
-        config.put(LocalKVStoreProvider.CONFIG_DISABLEOCC, "false");
-        config.put(LocalKVStoreProvider.CONFIG_VALIDATEOCC, "true");
-        config.put(LocalKVStoreProvider.CONFIG_TIMED, "true");
-        config.put(LocalKVStoreProvider.CONFIG_BASEDIRECTORY, dremioConfig.getString(DremioConfig.DB_PATH_STRING));
-        // fall through to TEST_CLUSTER_DB
+       // fall through to TEST_CLUSTER_DB
       case TEST_CLUSTER_DB:
-        boolean isCoordinator = dremioConfig.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL);
-        boolean isMasterless = dremioConfig.getBoolean(DremioConfig.ENABLE_MASTERLESS_BOOL);
+        boolean isMasterless = dremioConfig.isMasterlessEnabled();
         boolean isMaster = isCoordinator && dremioConfig.getBoolean(DremioConfig.ENABLE_MASTER_BOOL) && !isMasterless;
         isMaster = isMaster || (isMasterless && thisNode.equals(config.get(LocalKVStoreProvider.CONFIG_HOSTNAME)));
 

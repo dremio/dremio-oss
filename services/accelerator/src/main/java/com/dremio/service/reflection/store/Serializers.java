@@ -15,7 +15,6 @@
  */
 package com.dremio.service.reflection.store;
 
-import com.dremio.service.accelerator.store.serializer.SchemaSerializer;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;

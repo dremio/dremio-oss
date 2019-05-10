@@ -122,7 +122,7 @@ public class TestDremioPlanners {
     planner.addRule(new LoopRule());
     RelOptCluster cluster = RelOptCluster.create(planner, new RexBuilder(SqlTypeFactoryImpl.INSTANCE));
     RelNode root = new NoneRel(cluster);
-    expectedException.expectMessage("Planner exceeded maximum memory allowed for planning.");
+    expectedException.expectMessage("Job was cancelled because the query went beyond system capacity during query planning.");
     planner.setRoot(root);
     planner.findBestExp();
   }

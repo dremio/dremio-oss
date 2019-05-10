@@ -126,5 +126,36 @@ describe('Tests for time utils', () => {
       expect(TimeUtils.durationWithZero(duration)).to.equal('2h:20m:02s');
     });
   });
+
+  describe('formatTime', () => {
+    const unixTimestamp = +new Date(2019, 1, 15, 20, 0, 1, 0);
+
+    it('should return invalid message', () => {
+      expect(TimeUtils.formatTime('')).to.equal('Invalid date');
+    });
+    it('should use MM/DD/YYYY HH:mm:ss for american english locale', () => {
+      expect(TimeUtils.formatTime(unixTimestamp, 'Invalid', 'en-US')).to.equal('02/15/2019 20:00:01');
+      // assuming default locale is en-US in our build/test environment
+      expect(TimeUtils.formatTime(unixTimestamp)).to.equal('02/15/2019 20:00:01');
+    });
+    it('should use localized format for non en-US', () => {
+      expect(TimeUtils.formatTime(unixTimestamp, 'Invalid', 'en-GB')).to.equal('15/02/2019 20:00:01');
+    });
+  });
+
+  describe('formatTimeDiff', () => {
+    it('should format min and sec', () => {
+      expect(TimeUtils.formatTimeDiff(1000, 'mm:ss')).to.equal('00:01');
+      expect(TimeUtils.formatTimeDiff(100000, 'mm:ss')).to.equal('01:40');
+      expect(TimeUtils.formatTimeDiff( 61 * 60000, 'mm:ss')).to.equal('01:00');
+    });
+    it('should format hrs min and sec', () => {
+      expect(TimeUtils.formatTimeDiff(1000)).to.equal('0:00:01');
+      expect(TimeUtils.formatTimeDiff(100000)).to.equal('0:01:40');
+      expect(TimeUtils.formatTimeDiff(61 * 60000)).to.equal('1:01:00');
+    });
+
+  });
+
 });
 

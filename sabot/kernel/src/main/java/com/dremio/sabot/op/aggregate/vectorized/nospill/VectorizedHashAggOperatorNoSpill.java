@@ -32,6 +32,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.physical.config.HashAggregate;
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -72,11 +73,14 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
   private int outputBatchCount;
   private VectorAccessible incoming;
   private State state = State.NEEDS_SETUP;
+  private final boolean decimalCompleteEnabled;
 
   public VectorizedHashAggOperatorNoSpill(HashAggregate popConfig, OperatorContext context) throws ExecutionSetupException {
     this.context = context;
     this.outgoing = new VectorContainer(context.getAllocator());
     this.popConfig = popConfig;
+    this.decimalCompleteEnabled = context.getOptions().getOption(PlannerSettings
+      .ENABLE_DECIMAL_V2);
   }
 
   @Override
@@ -84,7 +88,8 @@ public class VectorizedHashAggOperatorNoSpill implements SingleInputOperator {
     state.is(State.NEEDS_SETUP);
     this.incoming = accessible;
     this.pivot = createPivot();
-    this.accumulator = AccumulatorBuilderNoSpill.getAccumulator(context.getAllocator(), context.getClassProducer(), popConfig.getAggrExprs(), incoming, outgoing);
+    this.accumulator = AccumulatorBuilderNoSpill.getAccumulator(context.getAllocator(), context
+      .getClassProducer(), popConfig.getAggrExprs(), incoming, outgoing, decimalCompleteEnabled, context.getBufferManager());
     this.outgoing.buildSchema();
     this.table = new LBlockHashTableNoSpill(HashConfig.getDefault(), pivot, context.getAllocator(), (int)context.getOptions().getOption(ExecConstants.MIN_HASH_TABLE_SIZE), INITIAL_VAR_FIELD_AVERAGE_SIZE, accumulator);
 

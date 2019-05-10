@@ -20,6 +20,7 @@ import java.io.IOException;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.catalog.MutablePlugin;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -93,12 +94,12 @@ public class GenericCreateTableEntry implements CreateTableEntry {
     return plugin;
   }
 
-  @Override
-  public Writer getWriter(PhysicalOperator child) throws IOException {
-    return plugin.getWriter(child, userName, location, options);
-  }
-
   public WriterOptions getOptions() {
     return options;
+  }
+
+  @Override
+  public Writer getWriter(OpProps props, PhysicalOperator child) throws IOException {
+    return plugin.getWriter(child, location, options, props);
   }
 }

@@ -107,7 +107,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
         settings.setParseUnescapedQuotes(false);
         output = new TextCountOutput();
       } else {
-        final int sizeLimit = (int)this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES);
+        final int sizeLimit = Math.toIntExact(this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
         // setup Output using OutputMutator
         if (settings.isHeaderExtractionEnabled()) {
           //extract header and use that to setup a set of VarCharVectors
@@ -150,7 +150,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
     try (HeaderOutputMutator hOutputMutator = new HeaderOutputMutator();
          ArrowBuf readBufferInReader = this.context.getAllocator().buffer(READ_BUFFER);
          ArrowBuf whitespaceBufferInReader = this.context.getAllocator().buffer(WHITE_SPACE_BUFFER)) {
-      final int sizeLimit = (int)this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES);
+      final int sizeLimit = Math.toIntExact(this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
       final RepeatedVarCharOutput hOutput = new RepeatedVarCharOutput(hOutputMutator, getColumns(), true, sizeLimit);
       this.allocate(hOutputMutator.fieldVectorMap);
 

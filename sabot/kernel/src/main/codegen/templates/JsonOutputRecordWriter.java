@@ -20,9 +20,13 @@
 
 package com.dremio.exec.store;
 
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
-import org.apache.arrow.vector.complex.reader.FieldReader;
 import com.dremio.exec.vector.complex.fn.JsonOutput;
+import com.dremio.sabot.exec.context.OperatorContext;
+import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.util.Text;
 
 import java.io.IOException;
 import java.lang.UnsupportedOperationException;
@@ -39,8 +43,13 @@ import java.util.List;
  * NB: Source code generated using FreeMarker template ${.template_name}
  */
 public abstract class JSONOutputRecordWriter extends AbstractRowBasedRecordWriter {
-
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JSONOutputRecordWriter.class);
   protected JsonOutput gen;
+  private final int maxCellSize;
+
+  protected JSONOutputRecordWriter(OperatorContext context) {
+    maxCellSize = Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+  }
 
 <#list vv.types as type>
   <#list type.minor as minor>
@@ -130,7 +139,25 @@ public abstract class JSONOutputRecordWriter extends AbstractRowBasedRecordWrite
   <#if typeName == "unsupported">
     throw new UnsupportedOperationException("Unable to currently write ${minor.class} type to JSON.");
   <#else>
+    <#if typeName == "VarChar">
+    if (reader.isSet()) {
+      final Text varValue = reader.readText();
+      FieldSizeLimitExceptionHelper.checkWriteSizeLimit(varValue.getLength(), maxCellSize, fieldId, logger);
+      gen.writeVarChar(varValue.toString());
+    } else {
+      gen.writeVarcharNull();
+    }
+    <#elseif typeName == "Binary">
+    if (reader.isSet()) {
+      final byte[] varValue = reader.readByteArray();
+      FieldSizeLimitExceptionHelper.checkWriteSizeLimit(varValue.length, maxCellSize, fieldId, logger);
+      gen.writeBinary(varValue);
+    } else {
+      gen.writeBinaryNull();
+    }
+    <#else>
     gen.write${typeName}(reader);
+    </#if>
   </#if>
 
     }

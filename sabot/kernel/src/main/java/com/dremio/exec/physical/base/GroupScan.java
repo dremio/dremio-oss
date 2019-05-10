@@ -68,7 +68,6 @@ public interface GroupScan<T extends CompleteWork> extends Scan {
    */
   int getMinParallelizationWidth();
 
-
   /**
    * Get the type of distribution expected by this operation.
    * @return HARD, SOFT or NONE.

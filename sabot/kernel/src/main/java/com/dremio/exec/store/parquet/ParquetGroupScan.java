@@ -20,50 +20,72 @@ import java.util.stream.Collectors;
 
 import org.apache.calcite.rel.type.RelDataType;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.utils.ProtostuffUtil;
+import com.dremio.datastore.LegacyProtobufSerializer;
+import com.dremio.exec.physical.base.AbstractGroupScan;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
-import com.dremio.exec.store.dfs.AbstractFileGroupScan;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
-import com.dremio.service.namespace.file.proto.ParquetDatasetSplitScanXAttr;
-import com.dremio.service.namespace.file.proto.ParquetDatasetSplitXAttr;
-
-import io.protostuff.ByteString;
+import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
+import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitXAttr;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
+import com.google.common.collect.ImmutableList;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Group scan for file system based tables
  */
-public class ParquetGroupScan extends AbstractFileGroupScan {
+public class ParquetGroupScan extends AbstractGroupScan {
+
   private final ParquetScanFilter filter;
   private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final RelDataType cachedRelDataType;
 
-  public ParquetGroupScan(TableMetadata dataset, List<SchemaPath> columns, ParquetScanFilter filter,
-                          List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns, RelDataType cachedRelDataType) {
-    super(dataset, columns);
+  public ParquetGroupScan(
+      OpProps props,
+      TableMetadata dataset,
+      List<SchemaPath> columns,
+      ParquetScanFilter filter,
+      List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
+      RelDataType cachedRelDataType) {
+    super(props, dataset, columns);
     this.filter = filter;
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.cachedRelDataType = cachedRelDataType;
   }
 
   @Override
-  public SubScan getSpecificScan(List<SplitWork> work) throws ExecutionSetupException {
+  public SubScan getSpecificScan(List<SplitWork> work) {
     final BatchSchema schema = cachedRelDataType == null ? getDataset().getSchema():  BatchSchema.fromCalciteRowType(cachedRelDataType);
 
-    // Create an abridged version of the splits to save network bytes.
-    List<DatasetSplit> splits = work.stream().map(
-        workSplit -> ProtostuffUtil.copy(workSplit.getSplit())
-            .setExtendedProperty(convertToScanXAttr(workSplit.getSplit().getExtendedProperty()))
-    ).collect(Collectors.toList());
+    List<SplitInfo> splits = work.stream()
+        .map(SplitWork::getSplitInfo)
+        .map(split -> {
+          // Create an abridged version of the splits to save network bytes.
+          // NOTE: probably not a good idea to reuse an opaque field to store 2 different objects
+          final ParquetDatasetSplitXAttr fullXAttr;
+          try {
+            fullXAttr = LegacyProtobufSerializer.parseFrom(ParquetDatasetSplitXAttr.PARSER, split.getSplitExtendedProperty());
+          } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException("Could not deserialize Parquet dataset split info", e);
+          }
+          return SplitInfo.newBuilder(split)
+              .setSplitExtendedProperty(convertToScanXAttr(fullXAttr).toByteString())
+              .build();
+        })
+        .collect(Collectors.toList());
 
-    return new ParquetSubScan(dataset.getFormatSettings(), splits, getUserName(), schema,
-        getDataset().getName().getPathComponents(), filter == null ? null : filter.getConditions(),
+    return new ParquetSubScan(
+        getProps(),
+        dataset.getFormatSettings(),
+        splits,
+        schema,
+        ImmutableList.of(getDataset().getName().getPathComponents()),
+        filter == null ? null : filter.getConditions(),
         dataset.getStoragePluginId(), columns, dataset.getReadDefinition().getPartitionColumnsList(),
         globalDictionaryEncodedColumns, dataset.getReadDefinition().getExtendedProperty());
   }
@@ -71,16 +93,14 @@ public class ParquetGroupScan extends AbstractFileGroupScan {
   /*
    * Copy from a full xattr to a scan xattr.
    */
-  private ByteString convertToScanXAttr(ByteString xattrFullSerialized) {
-    ParquetDatasetSplitXAttr fullXAttr = ParquetDatasetXAttrSerDe.PARQUET_DATASET_SPLIT_XATTR_SERIALIZER.revert(xattrFullSerialized.toByteArray());;
-
-    ParquetDatasetSplitScanXAttr scanXAttr = new ParquetDatasetSplitScanXAttr();
-    scanXAttr.setPath(fullXAttr.getPath());
-    scanXAttr.setFileLength(fullXAttr.getUpdateKey().getLength());
-    scanXAttr.setStart(fullXAttr.getStart());
-    scanXAttr.setLength(fullXAttr.getLength());
-    scanXAttr.setRowGroupIndex(fullXAttr.getRowGroupIndex());
-    return ByteString.copyFrom(ParquetDatasetXAttrSerDe.PARQUET_DATASET_SPLIT_SCAN_XATTR_SERIALIZER.serialize(scanXAttr));
+  private ParquetDatasetSplitScanXAttr convertToScanXAttr(ParquetDatasetSplitXAttr fullXAttr) {
+    return ParquetDatasetSplitScanXAttr.newBuilder()
+        .setPath(fullXAttr.getPath())
+        .setFileLength(fullXAttr.getUpdateKey().getLength())
+        .setStart(fullXAttr.getStart())
+        .setLength(fullXAttr.getLength())
+        .setRowGroupIndex(fullXAttr.getRowGroupIndex())
+        .build();
   }
 
   public ParquetScanFilter getFilter() {

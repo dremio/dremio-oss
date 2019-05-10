@@ -46,7 +46,7 @@ export class FolderMenu extends Component {
     const {folder, closeMenu} = this.props;
     this.props.showConfirmationDialog({
       title: la('Remove Folder'),
-      text: la('Are you sure you want to remove this folder?'),
+      text: la(`Are you sure you want to remove "${folder.get('name')}"?`),
       confirmText: la('Remove'),
       confirm: () => this.props.removeSpaceFolder(folder)
     });

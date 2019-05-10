@@ -33,8 +33,8 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
-import com.dremio.service.namespace.dataset.proto.Affinity;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.Affinity;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
@@ -50,16 +50,17 @@ public class ElasticScanCreator implements ProducerOperator.Creator<Elasticsearc
   public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, ElasticsearchSubScan subScan) throws ExecutionSetupException {
     try {
 
-      final ElasticsearchStoragePlugin plugin = (ElasticsearchStoragePlugin) fec.getStoragePlugin(subScan.getPluginId());
+      final ElasticsearchStoragePlugin plugin = fec.getStoragePlugin(subScan.getPluginId());
       List<RecordReader> readers = new ArrayList<>();
       ElasticsearchScanSpec spec = subScan.getSpec();
       ElasticTableXattr tableAttributes = ElasticTableXattr.parseFrom(subScan.getExtendedProperty().toByteArray());
       final WorkingBuffer workingBuffer = new WorkingBuffer(context.getManagedBuffer());
       final boolean useEdgeProject = context.getOptions().getOption(ExecConstants.ELASTIC_RULES_EDGE_PROJECT);
       final ImmutableMap<SchemaPath, FieldAnnotation> annotations = FieldAnnotation.getAnnotationMap(tableAttributes.getAnnotationList());
-      final FieldReadDefinition readDefinition = FieldReadDefinition.getTree(subScan.getSchema(), annotations, workingBuffer);
+      final int maxCellSize = Math.toIntExact(context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+      final FieldReadDefinition readDefinition = FieldReadDefinition.getTree(subScan.getFullSchema(), annotations, workingBuffer, maxCellSize);
 
-      for (DatasetSplit split : subScan.getSplits()) {
+      for (SplitInfo split : subScan.getSplits()) {
 
         final ElasticConnection connection = plugin.getConnection(FluentIterable.from(split.getAffinitiesList()).transform(new Function<Affinity, String>(){
           @Override
@@ -82,7 +83,7 @@ public class ElasticScanCreator implements ProducerOperator.Creator<Elasticsearc
             ));
       }
 
-      return new ScanOperator(fec.getSchemaUpdater(), subScan, context, readers.iterator());
+      return new ScanOperator(subScan, context, readers.iterator());
     } catch (InvalidProtocolBufferException e) {
       throw new ExecutionSetupException(e);
     }

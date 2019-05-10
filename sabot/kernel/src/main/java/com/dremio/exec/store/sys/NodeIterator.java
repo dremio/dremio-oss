@@ -73,7 +73,6 @@ public class NodeIterator implements Iterator<Object> {
     final WorkStats stats = dbContext.getWorkStatsProvider().get();
     i.cluster_load = stats.getClusterLoad();
     i.configured_max_width = (int)dbContext.getClusterResourceInformation().getAverageExecutorCores(dbContext.getOptionManager());
-
     i.actual_max_width = (int) Math.max(1, i.configured_max_width * stats.getMaxWidthFactor());
     return i;
   }

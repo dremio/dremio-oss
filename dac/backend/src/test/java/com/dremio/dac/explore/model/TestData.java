@@ -27,9 +27,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -64,6 +66,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.dac.model.job.JobData;
@@ -97,6 +101,7 @@ import io.netty.buffer.ArrowBuf;
  *   <li>providing URL to fetch the complete cell value for truncated cell values in results</li>
  * </ul>
  */
+@RunWith(Parameterized.class)
 public class TestData {
   private static final JobId TEST_JOB_ID = new JobId("testJobId");
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -117,6 +122,11 @@ public class TestData {
   private static final String MAP_COL = "nMapCol";
   private static final String UNION_COL = "nUnionCol";
 
+  @Parameterized.Parameters(name = "numbers as strings = {0}")
+  public static Collection<Object> data() {
+    return asList(new Object[] { true, false, null });
+  }
+
   @BeforeClass
   public static void setMaxCellLength() {
     // For testing purposes set the value to 30
@@ -131,6 +141,19 @@ public class TestData {
     }
   }
 
+  private final boolean convertNumbersToStrings;
+
+  public TestData(Boolean convertNumbersToStrings) {
+    this.convertNumbersToStrings = convertNumbersToStrings == null ? false : convertNumbersToStrings.booleanValue();
+    if (convertNumbersToStrings == null) {
+      OBJECT_MAPPER.setConfig(OBJECT_MAPPER.getSerializationConfig()
+        .withoutAttribute(DataJsonOutput.DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_ATTRIBUTE));
+    } else {
+      OBJECT_MAPPER.setConfig(OBJECT_MAPPER.getSerializationConfig()
+        .withAttribute(DataJsonOutput.DREMIO_JOB_DATA_NUMBERS_AS_STRINGS_ATTRIBUTE, convertNumbersToStrings.booleanValue()));
+    }
+  }
+
   @Test
   public void serializeBoolean() throws Exception {
     helper(testBitVector(0, 0), "colBit", false, false);
@@ -138,32 +161,32 @@ public class TestData {
 
   @Test
   public void serializeTinyInt() throws Exception {
-    helper(testTinyIntVector(0, 0), "colTinyInt", false, false);
+    helper(testTinyIntVector(), "colTinyInt", false, false);
   }
 
   @Test
   public void serializeSmallInt() throws Exception {
-    helper(testSmallIntVector(0, 0), "colSmallInt", false, false);
+    helper(testSmallIntVector(), "colSmallInt", false, false);
   }
 
   @Test
   public void serializeInt() throws Exception {
-    helper(testIntVector(0, 0), "colInt", false, false);
+    helper(testIntVector(), "colInt", false, false);
   }
 
   @Test
   public void serializeBigInt() throws Exception {
-    helper(testBigIntVector(0, 0), "colBigInt", false, false);
+    helper(testBigIntVector(), "colBigInt", false, false);
   }
 
   @Test
   public void serializeFloat4() throws Exception {
-    helper(testFloat4Vector(0, 0), "colFloat4", false, false);
+    helper(testFloat4Vector(), "colFloat4", false, false);
   }
 
   @Test
   public void serializeFloat8() throws Exception {
-    helper(testFloat8Vector(0, 0), "colFloat8", false, false);
+    helper(testFloat8Vector(), "colFloat8", false, false);
   }
 
   @Test
@@ -193,7 +216,7 @@ public class TestData {
 
   @Test
   public void serializeDecimal() throws Exception {
-    helper(testDecimalVector(0, 0), "colDecimal", false, false);
+    helper(testDecimalVector(), "colDecimal", false, false);
   }
 
   @Test
@@ -225,18 +248,18 @@ public class TestData {
   public void serializeAllTypesAtOnce() throws Exception {
     List<Pair<? extends ValueVector, ResultVerifier>> pairs = Lists.newArrayList();
     pairs.add(testBitVector(0, 0));
-    pairs.add(testTinyIntVector(0, 0));
-    pairs.add(testSmallIntVector(0, 0));
-    pairs.add(testIntVector(0, 0));
-    pairs.add(testBigIntVector(0, 0));
-    pairs.add(testFloat4Vector(0, 0));
-    pairs.add(testFloat8Vector(0, 0));
+    pairs.add(testTinyIntVector());
+    pairs.add(testSmallIntVector());
+    pairs.add(testIntVector());
+    pairs.add(testBigIntVector());
+    pairs.add(testFloat4Vector());
+    pairs.add(testFloat8Vector());
     pairs.add(testDateMilliVector(0, 0));
     pairs.add(testTimeVector(0, 0));
     pairs.add(testTimeStampVector(0, 0));
     pairs.add(testIntervalYearVector(0, 0));
     pairs.add(testIntervalDayVector(0, 0));
-    pairs.add(testDecimalVector(0, 0));
+    pairs.add(testDecimalVector());
     pairs.add(testVarCharVector(0, 0));
     pairs.add(testVarBinaryVector(0, 0));
     pairs.add(testMapVector(0, 0));
@@ -329,148 +352,192 @@ public class TestData {
     return Pair.of(colBitV, verifier);
   }
 
-  private static Pair<TinyIntVector, ResultVerifier> testTinyIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    TinyIntVector colTinyIntV = new TinyIntVector("colTinyInt", allocator);
-    colTinyIntV.allocateNew(5);
-    colTinyIntV.set(0, 0);
-    colTinyIntV.set(1, -1);
-    colTinyIntV.set(2, 1);
-    colTinyIntV.setNull(3);
-    colTinyIntV.set(4, -54);
-
-    ResultVerifier verifier = new ResultVerifier() {
-      @Override
-      public void verify(DataPOJO output) {
-        int index = startIndexInCurrentOutput;
-        assertEquals(0, ((Integer)output.extractValue("colTinyInt", index++)).intValue());
-        assertEquals(-1, ((Integer)output.extractValue("colTinyInt", index++)).intValue());
-        assertEquals(1, ((Integer)output.extractValue("colTinyInt", index++)).intValue());
-        assertNull(output.extractValue("colTinyInt", index++));
-        assertEquals(-54, ((Integer)output.extractValue("colTinyInt", index++)).intValue());
-      }
-    };
-
-    return Pair.of(colTinyIntV, verifier);
+  private Object getExpectedNumber(Number value) {
+    if (value == null) {
+      return null;
+    }
+    if (convertNumbersToStrings) {
+      return value.toString();
+    }
+    return value;
   }
 
-  private static Pair<SmallIntVector, ResultVerifier> testSmallIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    SmallIntVector colSmallIntV = new SmallIntVector("colSmallInt", allocator);
-    colSmallIntV.allocateNew(5);
-    colSmallIntV.set(0, 20);
-    colSmallIntV.setNull(1);
-    colSmallIntV.set(2, -2000);
-    colSmallIntV.set(3, 32700);
-    colSmallIntV.set(4, 0);
+  private <T extends Number> void verifyIntValues(List<T> values, DataPOJO output, String colName) {
+    for (int i = 0; i < values.size(); i++) {
+      T value = values.get(i);
 
-    ResultVerifier verifier = new ResultVerifier() {
-      @Override
-      public void verify(DataPOJO output) {
-        int index = startIndexInCurrentOutput;
-        assertEquals(20, ((Integer)output.extractValue("colSmallInt", 0)).intValue());
-        assertNull(output.extractValue("colSmallInt", 1));
-        assertEquals(-2000, ((Integer)output.extractValue("colSmallInt", 2)).intValue());
-        assertEquals(32700, ((Integer)output.extractValue("colSmallInt", 3)).intValue());
-        assertEquals(0, ((Integer)output.extractValue("colSmallInt", 4)).intValue());
+      if (value == null) {
+        assertNull(output.extractValue(colName, i));
+      } else {
+        // always compare as strings, as there could be type mismatches. For example, if we send (byte)0 or 0L, returned
+        // type would be integer
+        assertEquals(value.toString(), output.extractValue(colName, i).toString());
       }
-    };
-
-    return Pair.of(colSmallIntV, verifier);
+    }
   }
 
-  private static Pair<IntVector, ResultVerifier> testIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    IntVector colIntV = new IntVector("colInt", allocator);
-    colIntV.allocateNew(5);
-    colIntV.set(0, 20);
-    colIntV.set(1, 50);
-    colIntV.set(2, -2000);
-    colIntV.set(3, 327345);
-    colIntV.setNull(4);
+  private <T extends Number> void verifyDoubleValues(List<T> values, DataPOJO output, String colName, double accuracy) {
+    for (int i = 0; i < values.size(); i++) {
+      T value = values.get(i);
 
-    ResultVerifier verifier = new ResultVerifier() {
-      @Override
-      public void verify(DataPOJO output) {
-        int index = startIndexInCurrentOutput;
-        assertEquals(20, ((Integer)output.extractValue("colInt", 0)).intValue());
-        assertEquals(50, ((Integer)output.extractValue("colInt", 1)).intValue());
-        assertEquals(-2000, ((Integer)output.extractValue("colInt", 2)).intValue());
-        assertEquals(327345, ((Integer)output.extractValue("colInt", 3)).intValue());
-        assertNull(output.extractValue("colInt", 4));
+      if (value == null) {
+        assertNull(output.extractValue(colName, i));
+      } else {
+        verifyDoubleValue(value, output, colName, i, accuracy);
       }
-    };
-
-    return Pair.of(colIntV, verifier);
+    }
   }
 
-  private static Pair<BigIntVector, ResultVerifier> testBigIntVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    BigIntVector colBigIntV = new BigIntVector("colBigInt", allocator);
-    colBigIntV.allocateNew(5);
-    colBigIntV.setNull(0);
-    colBigIntV.set(1, 50);
-    colBigIntV.set(2, -2000);
-    colBigIntV.set(3, 327345234234L);
-    colBigIntV.set(4, 0);
-
-    ResultVerifier verifier = new ResultVerifier() {
-      @Override
-      public void verify(DataPOJO output) {
-        int index = startIndexInCurrentOutput;
-        assertNull(output.extractValue("colBigInt", index++));
-        assertEquals(50, ((Integer)output.extractValue("colBigInt", index++)).intValue());
-        assertEquals(-2000, ((Integer)output.extractValue("colBigInt", index++)).intValue());
-        assertEquals(327345234234L, ((Long)output.extractValue("colBigInt", index++)).longValue());
-        assertEquals(0, ((Integer)output.extractValue("colBigInt", index++)).intValue());
-      }
-    };
-
-    return Pair.of(colBigIntV, verifier);
+  private <T extends Number> void verifyDoubleValue(T expectedValue, DataPOJO output, String colName, int index, double accuracy) {
+    final Object actualValue = output.extractValue(colName, index);
+    if (convertNumbersToStrings) {
+      assertEquals(expectedValue.toString(), actualValue.toString());
+    } else {
+      assertEquals(expectedValue.doubleValue(), ((Double)actualValue).doubleValue(), accuracy);
+    }
   }
 
-  private static Pair<Float4Vector, ResultVerifier> testFloat4Vector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    Float4Vector colFloat4V = new Float4Vector("colFloat4", allocator);
-    colFloat4V.allocateNew(5);
-    colFloat4V.set(0, 20.0f);
-    colFloat4V.set(1, 50.023f);
-    colFloat4V.set(2, -238423f);
-    colFloat4V.setNull(3);
-    colFloat4V.set(4, 0f);
+  private Pair<TinyIntVector, ResultVerifier> testTinyIntVector() {
+    final String colName = "colTinyInt";
+    final List<Byte> values =  asList((byte)0, (byte)-1, (byte)1, null, (byte)-54);
+
+    TinyIntVector valuesVector = new TinyIntVector(colName, allocator);
+    valuesVector.allocateNew(values.size());
+    for (int i = 0; i < values.size(); i++) {
+      if (values.get(i) == null) {
+        valuesVector.setNull(i);
+      } else {
+        valuesVector.set(i, values.get(i));
+      }
+    }
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
       public void verify(DataPOJO output) {
-        int index = startIndexInCurrentOutput;
-        assertEquals(20.0d, ((Double)output.extractValue("colFloat4", index++)).doubleValue(), 0.01f);
-        assertEquals(50.023d, ((Double)output.extractValue("colFloat4", index++)).doubleValue(), 0.01f);
-        assertEquals(-238423d, ((Double)output.extractValue("colFloat4", index++)).doubleValue(), 0.01f);
-        assertNull(output.extractValue("colFloat4", index++));
-        assertEquals(0d, ((Double)output.extractValue("colFloat4", index++)).doubleValue(), 0.01f);
+        verifyIntValues(values, output, colName);
       }
     };
 
-    return Pair.of(colFloat4V, verifier);
+    return Pair.of(valuesVector, verifier);
   }
 
-  private static Pair<Float8Vector, ResultVerifier> testFloat8Vector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    Float8Vector colFloat8V = new Float8Vector("colFloat8", allocator);
-    colFloat8V.allocateNew(5);
-    colFloat8V.set(0, 20.2345234d);
-    colFloat8V.set(1, 503453.023d);
-    colFloat8V.set(2, -238423.3453453d);
-    colFloat8V.set(3, 3273452.345324563245d);
-    colFloat8V.setNull(4);
+  private Pair<SmallIntVector, ResultVerifier> testSmallIntVector() {
+    final String colName = "colSmallInt";
+    final List<Integer> values =  asList(20, null, -2000, 32700, 0);
+
+    SmallIntVector valuesVector = new SmallIntVector(colName, allocator);
+    valuesVector.allocateNew(values.size());
+    for (int i = 0; i < values.size(); i++) {
+      if (values.get(i) == null) {
+        valuesVector.setNull(i);
+      } else {
+        valuesVector.set(i, values.get(i));
+      }
+    }
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
       public void verify(DataPOJO output) {
-        int index = startIndexInCurrentOutput;
-        assertEquals(20.2345234d, ((Double)output.extractValue("colFloat8", index++)).doubleValue(), 0.01f);
-        assertEquals(503453.023d, ((Double)output.extractValue("colFloat8", index++)).doubleValue(), 0.01f);
-        assertEquals(-238423.3453453d, ((Double)output.extractValue("colFloat8", index++)).doubleValue(), 0.01f);
-        assertEquals(3273452.345324563245d, ((Double)output.extractValue("colFloat8", index++)).doubleValue(), 0.01f);
-        assertNull(output.extractValue("colFloat8", 4));
+        verifyIntValues(values, output, colName);
       }
     };
 
-    return Pair.of(colFloat8V, verifier);
+    return Pair.of(valuesVector, verifier);
+  }
+
+  private Pair<IntVector, ResultVerifier> testIntVector() {
+    final String colName = "colInt";
+    final List<Integer> values =  asList(20, 50, -2000, 327345, null);
+
+    IntVector valuesVector = new IntVector(colName, allocator);
+    valuesVector.allocateNew(values.size());
+    for (int i = 0; i < values.size(); i++) {
+      if (values.get(i) == null) {
+        valuesVector.setNull(i);
+      } else {
+        valuesVector.set(i, values.get(i));
+      }
+    }
+
+    ResultVerifier verifier = new ResultVerifier() {
+      @Override
+      public void verify(DataPOJO output) {
+        verifyIntValues(values, output, colName);
+      }
+    };
+
+    return Pair.of(valuesVector, verifier);
+  }
+
+  private Pair<BigIntVector, ResultVerifier> testBigIntVector() {
+    final String colName = "colBigInt";
+    final List<Long> values = asList(null, 50L, -2000L, 327345234234L, 0L);
+
+    BigIntVector valuesVector = new BigIntVector(colName, allocator);
+    valuesVector.allocateNew(values.size());
+    for (int i = 0; i < values.size(); i++) {
+      if (values.get(i) == null) {
+        valuesVector.setNull(i);
+      } else {
+        valuesVector.set(i, values.get(i));
+      }
+    }
+
+    ResultVerifier verifier = new ResultVerifier() {
+      @Override
+      public void verify(DataPOJO output) {
+        verifyIntValues(values, output, colName);
+      }
+    };
+
+    return Pair.of(valuesVector, verifier);
+  }
+
+  private Pair<Float4Vector, ResultVerifier> testFloat4Vector() {
+    final String colName = "colFloat4";
+    final List<Float> values = asList(20.0f, 50.023f, -238423f, null, 0f);
+
+    Float4Vector valuesVector = new Float4Vector(colName, allocator);
+    valuesVector.allocateNew(values.size());
+    for (int i = 0; i < values.size(); i++) {
+      if (values.get(i) == null) {
+        valuesVector.setNull(i);
+      } else {
+        valuesVector.set(i, values.get(i));
+      }
+    }
+
+    ResultVerifier verifier = new ResultVerifier() {
+      @Override
+      public void verify(DataPOJO output) {
+        verifyDoubleValues(values, output, colName, 0.01f);
+      }
+    };
+
+    return Pair.of(valuesVector, verifier);
+  }
+
+  private Pair<Float8Vector, ResultVerifier> testFloat8Vector() {
+    final String colName = "colFloat8";
+    final List<Double> values = asList(20.2345234d, 503453.023d, -238423.3453453d, 3273452.345324563245d, null);
+    Float8Vector valuesVector = new Float8Vector(colName, allocator);
+    valuesVector.allocateNew(values.size());
+    for (int i = 0; i < values.size(); i++) {
+      if (values.get(i) == null) {
+        valuesVector.setNull(i);
+      } else {
+        valuesVector.set(i, values.get(i));
+      }
+    }
+
+    ResultVerifier verifier = new ResultVerifier() {
+      @Override
+      public void verify(DataPOJO output) {
+        verifyDoubleValues(values, output, colName, 0.01f);
+      }
+    };
+
+    return Pair.of(valuesVector, verifier);
   }
 
   private static Pair<DateMilliVector, ResultVerifier> testDateMilliVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
@@ -593,32 +660,49 @@ public class TestData {
     return Pair.of(colIntervalDayV, verifier);
   }
 
-  private static Pair<DecimalVector, ResultVerifier> testDecimalVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    DecimalVector colDecimalV = new DecimalVector("colDecimal", allocator, 10, 10);
-    colDecimalV.allocateNew(5);
-    DecimalUtility.writeBigDecimalToArrowBuf(new BigDecimal(25.03).setScale(5, RoundingMode.HALF_UP), tempBuf, 0);
-    colDecimalV.set(0, tempBuf);
-    DecimalUtility.writeBigDecimalToArrowBuf(new BigDecimal(2524324.034534), tempBuf, 0);
-    colDecimalV.set(1, tempBuf);
-    colDecimalV.setNull(2);
-    DecimalUtility.writeBigDecimalToArrowBuf(new BigDecimal(2523423423424234243234.235), tempBuf, 0);
-    colDecimalV.set(3, tempBuf);
-    DecimalUtility.writeBigDecimalToArrowBuf(new BigDecimal(2523423423424234243234.23524324234234), tempBuf, 0);
-    colDecimalV.set(4, tempBuf);
+  private Pair<DecimalVector, ResultVerifier> testDecimalVector() {
+    final int scale = 10;
+    final String colName = "colDecimal";
+    final List<BigDecimal> values =  asList(
+      "0.0002503",
+      "2524324.034534",
+      null,
+      "2523423423424234243234.235",
+      "2523423423424234243234.0123456789"
+    ).stream()
+      .map(decimalString -> decimalString == null ? null : new BigDecimal(decimalString).setScale(scale))
+      .collect(Collectors.toList());
+
+    DecimalVector valuesVector = new DecimalVector(colName, allocator, 10, scale);
+    valuesVector.allocateNew(values.size());
+    for (int i = 0; i < values.size(); i++) {
+      if (values.get(i) == null) {
+        valuesVector.setNull(i);
+      } else {
+        DecimalUtility.writeBigDecimalToArrowBuf(values.get(i), tempBuf, 0);
+        valuesVector.set(i, tempBuf);
+      }
+    }
 
     ResultVerifier verifier = new ResultVerifier() {
       @Override
       public void verify(DataPOJO output) {
-        int index = startIndexInCurrentOutput;
-        assertEquals(2.503E-4, ((Double)output.extractValue("colDecimal", index++)).doubleValue(), 0.001f);
-        assertEquals(2.524324034534E23, ((Double)output.extractValue("colDecimal", index++)).doubleValue(), 0.001f);
-        assertNull(output.extractValue("colDecimal", index++));
-        assertEquals(2.523423423424234E11, ((Double)output.extractValue("colDecimal", index++)).doubleValue(), 0.001f);
-        assertEquals(2.523423423424234E11, ((Double)output.extractValue("colDecimal", index++)).doubleValue(), 0.001f);
+        for (int i = 0; i < values.size(); i++) {
+          BigDecimal value = values.get(i);
+          if (value == null) {
+            assertNull(output.extractValue(colName, i));
+          } else {
+            if (convertNumbersToStrings) {
+              assertEquals(value.toPlainString(), output.extractValue(colName, i));
+            } else {
+              assertEquals(value.doubleValue(), ((Double)output.extractValue(colName, i)).doubleValue(), 0.000f);
+            }
+          }
+        }
       }
     };
 
-    return Pair.of(colDecimalV, verifier);
+    return Pair.of(valuesVector, verifier);
   }
 
   private static Pair<VarCharVector, ResultVerifier> testVarCharVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
@@ -822,7 +906,7 @@ public class TestData {
     return Pair.of(colListV, verifier);
   }
 
-  private static Pair<UnionVector, ResultVerifier> testUnionVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
+  private Pair<UnionVector, ResultVerifier> testUnionVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
     UnionVector colUnionV = new UnionVector("colUnion", allocator, null);
 
     UnionWriter unionWriter = new UnionWriter(colUnionV);
@@ -848,22 +932,22 @@ public class TestData {
         int index = startIndexInCurrentOutput;
         int uIndex = startIndexInJob;
         assertEquals(DataType.INTEGER, output.extractType("colUnion", index));
-        assertEquals(0, ((Integer)output.extractValue("colUnion", index)).intValue());
+        assertEquals(getExpectedNumber(0), output.extractValue("colUnion", index));
         assertNull(output.extractUrl("colUnion", index++));
         uIndex++;
 
         assertEquals(DataType.FLOAT, output.extractType("colUnion", index));
-        assertEquals(1.0d, ((Double)output.extractValue("colUnion", index)).doubleValue(), 0.01f);
+        verifyDoubleValue(1d, output, "colUnion", index, 0.01f);
         assertNull(output.extractUrl("colUnion", index++));
         uIndex++;
 
         assertEquals(DataType.INTEGER, output.extractType("colUnion", index));
-        assertEquals(index, ((Integer)output.extractValue("colUnion", index)).intValue());
+        assertEquals(getExpectedNumber(index), output.extractValue("colUnion", index));
         assertNull(output.extractUrl("colUnion", index++));
         uIndex++;
 
         assertEquals(DataType.FLOAT, output.extractType("colUnion", index));
-        assertEquals(3.0d, ((Double)output.extractValue("colUnion", index)).doubleValue(), 0.01f);
+        verifyDoubleValue(3d, output, "colUnion", index, 0.01f);
         assertNull(output.extractUrl("colUnion", index++));
         uIndex++;
 
@@ -902,7 +986,7 @@ public class TestData {
         ))
     );
 
-    try (JobData dataInput = new JobDataWrapper(new JobDataImpl(jobLoader, TEST_JOB_ID))) {
+    try (JobData dataInput = new JobDataWrapper(new JobDataImpl(jobLoader, TEST_JOB_ID, new CountDownLatch(0)))) {
       JobDataFragment truncDataInput = dataInput.truncate(10);
       DataPOJO dataOutput = OBJECT_MAPPER.readValue(OBJECT_MAPPER.writeValueAsString(truncDataInput), DataPOJO.class);
       assertEquals(truncDataInput.getColumns().toString(), dataOutput.getColumns().toString());
@@ -937,7 +1021,7 @@ public class TestData {
         ))
     );
 
-    try (JobData dataInput = new JobDataWrapper(new JobDataImpl(jobLoader, TEST_JOB_ID))) {
+    try (JobData dataInput = new JobDataWrapper(new JobDataImpl(jobLoader, TEST_JOB_ID, new CountDownLatch(0)))) {
       JobDataFragment rangeDataInput = dataInput.range(5, 10);
       DataPOJO dataOutput = OBJECT_MAPPER.readValue(OBJECT_MAPPER.writeValueAsString(rangeDataInput), DataPOJO.class);
       assertEquals(rangeDataInput.getColumns().toString(), dataOutput.getColumns().toString());
@@ -994,7 +1078,7 @@ public class TestData {
           newRecordBatchHolder(data3, 0, 4)
         ))
       );
-      try (JobData dataInput = new JobDataWrapper(new JobDataImpl(jobLoader, TEST_JOB_ID))) {
+      try (JobData dataInput = new JobDataWrapper(new JobDataImpl(jobLoader, TEST_JOB_ID, new CountDownLatch(0)))) {
         JobDataFragment rangeDataInput = dataInput.range(5, 10); // those numbers do not matter, mock holds all the truth
         value = rangeDataInput.extractString("colVarChar", 0); // should be element #2 from first batch
         assertEquals("long long long long value", value);

@@ -172,7 +172,7 @@ public class StringFunctionHelpers {
         if (currentByte >= 0x30 && currentByte <= 0x39) { // 0-9
           // noop
         } else if (currentByte >= 0x41 && currentByte <= 0x5A) { // A-Z
-          currentByte -= 0x20; // Lowercase this character
+          currentByte += 0x20; // Lowercase this character
         } else if (currentByte >= 0x61 && currentByte <= 0x7A) { // a-z
           // noop
         } else { // whitespace
@@ -254,6 +254,8 @@ public class StringFunctionHelpers {
     int[] dateFields = new int[3];
     int dateIndex = 0;
     int value = 0;
+    int yearStrLen = 0;
+    final int yearIndex = 0;
 
     while (dateIndex < 3 && index < endIndex) {
       digit = Character.digit(PlatformDependent.getByte(index++), RADIX);
@@ -263,6 +265,9 @@ public class StringFunctionHelpers {
         value = 0;
       } else {
         value = (value * 10) + digit;
+        if (dateIndex == yearIndex) {
+          yearStrLen++;
+        }
       }
     }
 
@@ -275,8 +280,10 @@ public class StringFunctionHelpers {
      * Follow convention as done by Oracle, Postgres
      * If range of two digits is between 70 - 99 then year = 1970 - 1999
      * Else if two digits is between 00 - 69 = 2000 - 2069
+     * If it a four digit year, consider it same. Ex : 0069 should be considered
+     * as 69 not as 2069
      */
-    if (dateFields[0] < 100) {
+    if (dateFields[0] < 100 && yearStrLen < 4) {
       if (dateFields[0] < 70) {
         dateFields[0] += 2000;
       } else {

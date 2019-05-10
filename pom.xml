@@ -21,11 +21,11 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.dremio</groupId>
-  <artifactId>dremio-root</artifactId>
-  <version>3.1.11-201904261857420193-c674472</version>
+  <artifactId>dremio-parent</artifactId>
+  <version>3.2.0-201905102005330382-0598733</version>
   <packaging>pom</packaging>
 
-  <name>Dremio - Root</name>
+  <name>Dremio - Parent</name>
   <description>Dremio will enable organizations to unlock the value of their data</description>
   <url>https://github.com/dremio/dremio-oss</url>
 
@@ -38,14 +38,15 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.13.0-20190415141600-7833cd13b9-dremio</arrow.version>
+    <arrow.version>0.14.0-20190501072746-e32c0b3279-dremio</arrow.version>
     <avatica.version>1.11.0</avatica.version>
-    <calcite.version>1.16.0-201903092216140708-286e252</calcite.version>
+    <calcite.version>1.16.0-201903212056540689-0081cbc</calcite.version>
     <db2jcc.version>4.23.42</db2jcc.version>
+    <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
     <fmpp.version>0.9.15</fmpp.version>
-    <freemarker.version>2.3.26-incubating</freemarker.version>
+    <freemarker.version>2.3.28</freemarker.version>
     <!-- Currently Hive storage plugin only supports Apache Hive 1.2 or vendor
       specific variants of the Apache Hive 1.2. If the version is changed, make
       sure the jars and their dependencies are updated. -->
@@ -53,21 +54,21 @@
     <hbase.version>1.1.3</hbase.version>
     <hadoop.version>2.8.3</hadoop.version>
     <hsqldb.version>2.3.1</hsqldb.version>
-    <jackson.version>2.9.7</jackson.version>
+    <jackson.version>2.9.8</jackson.version>
     <jersey.version>2.25.1</jersey.version>
-    <jetty.version>9.2.26.v20180806</jetty.version>
+    <jetty.version>9.4.15.v20190215</jetty.version>
     <javax.ws.rs-api.version>2.0.1</javax.ws.rs-api.version>
     <junit.version>4.12</junit.version>
     <lilith.version>0.9.44</lilith.version>
     <!--  Careful, 1.1.6 & 1.1.7 break a weird validate debug feature in Calcite... -->
     <logback.version>1.1.3</logback.version>
     <metrics.version>4.0.2</metrics.version>
-    <mariadb.connector.version>1.6.2</mariadb.connector.version>
+    <mariadb.connector.version>2.3.0</mariadb.connector.version>
     <netty.version>4.1.22.Final</netty.version>
     <!-- latest is 2.0.17.Final as of 10/28/18, but we run into this https://github.com/line/armeria/pull/1278 -->
     <netty.boringssl.version>2.0.10.Final</netty.boringssl.version>
-    <parquet.version>1.8.1-fast-201810222024530884-012b95c</parquet.version>
-    <postgresql.version>42.1.1.jre7</postgresql.version>
+    <parquet.version>1.12.0-201812210311360288-a86293f</parquet.version>
+    <postgresql.version>42.2.5</postgresql.version>
     <protobuf.version>2.5.0</protobuf.version>
     <protostuff.version>1.4.4</protostuff.version>
     <scott-data-hsqldb.version>0.1</scott-data-hsqldb.version>
@@ -96,6 +97,7 @@
     <!-- Default intercom app id -->
     <dremio.ui.intercom.appid>z8apq4co</dremio.ui.intercom.appid>
     <npm.registry.url>https://registry.npmjs.org</npm.registry.url>
+    <dremio.mapr.distribution>nonmapr</dremio.mapr.distribution>
     <dremio.release>false</dremio.release>
   </properties>
 
@@ -104,7 +106,7 @@
       <id>with-extras-module</id>
       <activation>
         <file>
-          <exists>extras</exists>
+          <exists>../extras</exists>
         </file>
         <property>
           <name>dremio.oss-only</name>
@@ -112,7 +114,7 @@
         </property>
       </activation>
       <modules>
-        <module>extras</module>
+        <module>../extras</module>
       </modules>
     </profile>
     <profile>
@@ -124,23 +126,27 @@
       </activation>
       <properties>
         <hive.version>2.1.1-mapr-1803-201811301818250596-387f43d</hive.version>
-        <hbase.version>1.1.8-mapr-1703</hbase.version>
-        <hadoop.version>2.7.0-mapr-1703</hadoop.version>
-        <maprfs.version>5.2.2.201801021050-mapr</maprfs.version>
+        <hbase.version>1.1.8-mapr-1710</hbase.version>
+        <hadoop.version>2.7.0-mapr-1803</hadoop.version>
+        <!-- This maprfs jar is taken from MapR 6.0.1 client package directly.
+          The 6.0.1 maprfs jars from MapR's maven repo have issues with native libraries versioning.
+          The jar is originally from here http://package.mapr.com/releases/v6.0.1/redhat/mapr-client-6.0.1.20180404222005.GA-1.x86_64.rpm -->
+        <maprfs.version>6.0.1-mapr-client-dremio</maprfs.version>
         <!-- This jar is a dependency of com.mapr.hadoop:maprfs jar.
              For some reason it is not packaged by the assembly plugin. Include it explicitly. -->
         <org.json.version>20080701</org.json.version>
-        <zookeeper.version>3.4.5-mapr-1604</zookeeper.version>
+        <zookeeper.version>3.4.5-mapr-1710</zookeeper.version>
         <surefire.extra.argLine>
-              -Djava.security.auth.login.config=${WORKSPACE}/common/src/test/resources/maprtest/testconfig/login.conf
+              -Djava.security.auth.login.config=${WORKSPACE}/oss/common/src/test/resources/maprtest/testconfig/login.conf
               -Dzookeeper.sasl.clientconfig=Client_simple
               -Dzookeeper.saslprovider=com.mapr.security.simplesasl.SimpleSaslProvider
               -Dzookeeper.sasl.serverconfig=Server_simple
               -Dzookeeper.authProvider.1=org.apache.zookeeper.server.auth.SASLAuthenticationProvider
               -Dzookeeper.authMech=SIMPLE-SECURITY
-              -Dmapr.home.dir=${WORKSPACE}/common/src/test/resources/maprtest/testconfig
+              -Dmapr.home.dir=${WORKSPACE}/oss/common/src/test/resources/maprtest/testconfig
               -Ddremio.mapr.profile=true
         </surefire.extra.argLine>
+        <dremio.mapr.distribution>mapr</dremio.mapr.distribution>
       </properties>
       <repositories>
         <repository>
@@ -175,8 +181,8 @@
       <dependencyManagement>
         <dependencies>
           <dependency>
-            <groupId>com.dremio.extras.sabot</groupId>
-            <artifactId>dremio-extra-sabot-kernel</artifactId>
+            <groupId>com.dremio.community.sabot</groupId>
+            <artifactId>dremio-ce-sabot-kernel</artifactId>
             <version>${project.version}</version>
           </dependency>
         </dependencies>
@@ -191,7 +197,7 @@
   </profiles>
 
   <build>
-	<extensions>
+    <extensions>
       <extension>
         <groupId>kr.motd.maven</groupId>
         <artifactId>os-maven-plugin</artifactId>
@@ -232,7 +238,7 @@
             <artifactId>dremio-build-tools</artifactId>
             <version>${project.version}</version>
           </dependency>
-        </dependencies>        
+        </dependencies>
         <executions>
           <execution>
             <id>checkstyle-verification</id>
@@ -663,7 +669,7 @@ limitations under the License.
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.19.1</version>
+          <version>3.0.0-M3</version>
           <configuration>
             <argLine>
               -Xms512M
@@ -675,9 +681,6 @@ limitations under the License.
             <enableAssertions>true</enableAssertions>
             <forkCount>${forkCount}</forkCount>
             <reuseForks>true</reuseForks>
-            <additionalClasspathElements>
-              <additionalClasspathElement>./exec/jdbc/src/test/resources/storage-plugins.json</additionalClasspathElement>
-            </additionalClasspathElements>
             <systemPropertyVariables>
               <dremio.exec.compile.cache_max_size>50</dremio.exec.compile.cache_max_size>
               <dremio.exec.http.enabled>false</dremio.exec.http.enabled>
@@ -692,7 +695,7 @@ limitations under the License.
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-failsafe-plugin</artifactId>
-          <version>2.18.1</version>
+          <version>3.0.0-M3</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -745,7 +748,7 @@ limitations under the License.
         <plugin>
           <groupId>org.owasp</groupId>
           <artifactId>dependency-check-maven</artifactId>
-          <version>3.3.1</version>
+          <version>4.0.2</version>
           <dependencies>
             <dependency>
               <groupId>com.dremio.tools</groupId>
@@ -754,6 +757,7 @@ limitations under the License.
             </dependency>
           </dependencies>
           <configuration>
+            <skipSystemScope>true</skipSystemScope>
             <suppressionFiles>
               <suppressionFile>dremio-owasp/suppressions.xml</suppressionFile>
             </suppressionFiles>
@@ -781,8 +785,8 @@ limitations under the License.
                 <goal>install-node-and-npm</goal>
               </goals>
               <configuration>
-                <nodeVersion>v8.9.3</nodeVersion>
-                <npmVersion>5.5.1</npmVersion>
+                <nodeVersion>v10.4.0</nodeVersion>
+                <npmVersion>6.1.0</npmVersion>
               </configuration>
             </execution>
           </executions>
@@ -1060,11 +1064,16 @@ limitations under the License.
         <version>${project.version}</version>
       </dependency>
       <dependency>
+        <groupId>com.dremio</groupId>
+        <artifactId>dremio-connector</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
         <groupId>com.dremio.contrib</groupId>
         <artifactId>dremio-hive-exec-shaded</artifactId>
         <version>${project.version}</version>
         <exclusions>
-          <!-- Bug in maven assembly plugin forces us to be declarative 
+          <!-- Bug in maven assembly plugin forces us to be declarative
                for the exclusions. See MASSEMBLY-675
           <exclusion>
             <groupId>*</groupId>
@@ -1116,6 +1125,11 @@ limitations under the License.
       <dependency>
         <groupId>com.dremio.services</groupId>
         <artifactId>dremio-services-accelerator</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.services</groupId>
+        <artifactId>dremio-services-commandpool</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -1198,22 +1212,22 @@ limitations under the License.
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dremio.plugin</groupId>
+        <groupId>com.dremio.plugins</groupId>
         <artifactId>dremio-hive-plugin</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dremio.plugin</groupId>
+        <groupId>com.dremio.plugins</groupId>
         <artifactId>dremio-hbase-plugin</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dremio.plugin</groupId>
+        <groupId>com.dremio.plugins</groupId>
         <artifactId>dremio-jdbc-plugin</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dremio.plugin</groupId>
+        <groupId>com.dremio.plugins</groupId>
         <artifactId>dremio-pdfs-plugin</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1289,12 +1303,6 @@ limitations under the License.
          <artifactId>zkclient</artifactId>
          <version>${zkclient.version}</version>
        </dependency>
-      <!--- MAKE SURE TO CHECK ON LICENSE -->
-      <dependency>
-        <groupId>com.dremio.jdbc</groupId>
-        <artifactId>db2jcc4</artifactId>
-        <version>${db2jcc.version}</version>
-      </dependency>
       <dependency>
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>annotations</artifactId>
@@ -1316,34 +1324,11 @@ limitations under the License.
         <version>${protobuf.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-annotations</artifactId>
+        <groupId>com.fasterxml.jackson</groupId>
+        <artifactId>jackson-bom</artifactId>
         <version>${jackson.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-core</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-databind</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson.dataformat</groupId>
-        <artifactId>jackson-dataformat-yaml</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson.jaxrs</groupId>
-        <artifactId>jackson-jaxrs-json-provider</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson.module</groupId>
-        <artifactId>jackson-module-afterburner</artifactId>
-        <version>${jackson.version}</version>
+        <scope>import</scope>
+        <type>pom</type>
       </dependency>
       <dependency>
         <groupId>com.github.slugify</groupId>
@@ -1388,6 +1373,11 @@ limitations under the License.
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-codec</artifactId>
+        <version>${netty.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-codec-http</artifactId>
         <version>${netty.version}</version>
       </dependency>
       <dependency>
@@ -1455,6 +1445,16 @@ limitations under the License.
         <groupId>org.antlr</groupId>
         <artifactId>antlr-runtime</artifactId>
         <version>3.4</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpclient</artifactId>
+        <version>4.5.5</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpcore</artifactId>
+        <version>4.4.9</version>
       </dependency>
       <dependency>
         <groupId>org.apache.arrow</groupId>
@@ -1557,6 +1557,11 @@ limitations under the License.
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
         <version>3.4</version>
+      </dependency>
+      <dependency>
+        <groupId>org.asynchttpclient</groupId>
+        <artifactId>async-http-client</artifactId>
+        <version>2.7.0</version>
       </dependency>
       <dependency>
         <groupId>com.amazonaws</groupId>
@@ -2328,6 +2333,10 @@ limitations under the License.
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-shims</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>org.apache.derby</groupId>
+            <artifactId>derby</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -2441,7 +2450,7 @@ limitations under the License.
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpkix-jdk15on</artifactId>
-        <version>1.52</version>
+        <version>1.61</version>
       </dependency>
       <dependency>
         <groupId>org.hamcrest</groupId>
@@ -2452,11 +2461,6 @@ limitations under the License.
         <groupId>org.hamcrest</groupId>
         <artifactId>hamcrest-all</artifactId>
         <version>1.3</version>
-      </dependency>
-      <dependency>
-        <groupId>org.glassfish.jersey.containers</groupId>
-        <artifactId>jersey-container-jetty-servlet</artifactId>
-        <version>${jersey.version}</version>
       </dependency>
       <dependency>
         <groupId>org.hsqldb</groupId>
@@ -2541,7 +2545,7 @@ limitations under the License.
       <dependency>
         <groupId>xerces</groupId>
         <artifactId>xercesImpl</artifactId>
-        <version>2.11.0</version>
+        <version>2.12.0</version>
       </dependency>
       <dependency>
         <groupId>xalan</groupId>
@@ -2562,6 +2566,41 @@ limitations under the License.
         <groupId>net.java.dev.jna</groupId>
         <artifactId>jna-platform</artifactId>
         <version>4.5.0</version>
+      </dependency>
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>s3</artifactId>
+        <version>2.5.37</version>
+        <exclusions>
+          <exclusion>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-azure</artifactId>
+        <version>2.8.5-dremio-r2</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-common</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-azure-datalake</artifactId>
+        <version>${hadoop.version}</version>
       </dependency>
       <!-- azure-data-lake-store-sdk is used by hadoop-azure in apache hadoop,
           upgrade it to a new version in which some bugs were fixed-->
@@ -2585,11 +2624,56 @@ limitations under the License.
           </exclusion>
         </exclusions>
       </dependency>
+      <dependency>
+        <groupId>org.apache.derby</groupId>
+        <artifactId>derby</artifactId>
+        <version>${derby.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.derby</groupId>
+        <artifactId>derbyclient</artifactId>
+        <version>${derby.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.derby</groupId>
+        <artifactId>derbynet</artifactId>
+        <version>${derby.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.hubspot.jackson</groupId>
+        <artifactId>jackson-datatype-protobuf</artifactId>
+        <version>0.9.10-jackson2.9-proto2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.thrift</groupId>
+        <artifactId>libthrift</artifactId>
+        <version>0.9.3-1</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-bom</artifactId>
+        <version>${jetty.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.glassfish.jersey</groupId>
+        <artifactId>jersey-bom</artifactId>
+        <version>${jersey.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>1.1.4</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
   <modules>
     <module>common</module>
+    <module>connector</module>
     <module>client</module>
     <module>provision</module>
     <module>contrib</module>

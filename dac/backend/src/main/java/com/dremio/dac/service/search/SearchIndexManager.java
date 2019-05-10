@@ -145,7 +145,12 @@ public class SearchIndexManager implements Runnable {
       DatasetConfig dataset = nameSpaceContainer.getDataset();
 
       // if system owned dataset, skip
-      return dataset.getOwner() == null || !dataset.getOwner().equals(SystemUser.SYSTEM_USERNAME);
+      final String connectorName = input.getKey().getRoot().toLowerCase();
+      // TODO(DX-15663): fix this filter
+      return !"sys".equals(connectorName) &&
+          !"information_schema".equals(connectorName) &&
+          !connectorName.startsWith("__") &&
+          (dataset.getOwner() == null || !dataset.getOwner().equals(SystemUser.SYSTEM_USERNAME));
     }).forEach(input -> {
       final NameSpaceContainer nameSpaceContainer = input.getValue();
 

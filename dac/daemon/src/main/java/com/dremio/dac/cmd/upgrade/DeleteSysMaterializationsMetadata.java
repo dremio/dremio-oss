@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.cmd.upgrade;
 
+import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -28,6 +29,7 @@ import com.google.common.collect.ImmutableList;
  * Upgrade task that deletes all system tables.
  */
 public class DeleteSysMaterializationsMetadata extends UpgradeTask {
+
   static final String taskUUID = "0f5c698a-55c9-45e7-84fe-c5f737e30432";
 
   public DeleteSysMaterializationsMetadata() {
@@ -51,7 +53,7 @@ public class DeleteSysMaterializationsMetadata extends UpgradeTask {
       // no metadata was found for sys.materializations
       // most likely the table was never queried
       // nothing more to do
-      System.out.println("  'sys.materializations' metadata not found...skipping");
+      AdminLogger.log("  'sys.materializations' metadata not found...skipping");
     } catch (NamespaceException e) {
       throw new RuntimeException("Failed to delete metadata for 'sys.materialization'", e);
     }

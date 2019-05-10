@@ -25,7 +25,7 @@ import com.dremio.common.ProcessExit;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ElectionListener;
-import com.dremio.service.coordinator.ServiceSet.RegistrationHandle;
+import com.dremio.service.coordinator.ElectionRegistrationHandle;
 import com.google.common.base.Preconditions;
 
 /**
@@ -38,7 +38,7 @@ public class MasterElectionService implements Service {
 
   private final Provider<ClusterCoordinator> clusterCoordinator;
 
-  private RegistrationHandle registrationHandle = null;
+  private ElectionRegistrationHandle registrationHandle = null;
 
   public MasterElectionService(Provider<ClusterCoordinator> clusterCoordinator) {
     this.clusterCoordinator = Preconditions.checkNotNull(clusterCoordinator);

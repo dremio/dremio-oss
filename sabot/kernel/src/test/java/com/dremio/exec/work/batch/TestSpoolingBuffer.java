@@ -193,6 +193,57 @@ public class TestSpoolingBuffer extends ExecTest {
 
   }
 
+  @Test
+  public void testBufferCloseOrdering() throws Exception {
+    SharedResource resource = mock(SharedResource.class);
+    QueryId queryId = ExternalIdHelper.toQueryId(ExternalIdHelper.generateExternalId());
+    FragmentHandle handle = FragmentHandle.newBuilder().setMajorFragmentId(0).setMinorFragmentId(0).setQueryId(queryId).build();
+    FragmentWorkQueue queue = mock(FragmentWorkQueue.class);
+    // Use ThreadPoolExecutor instead of Executors to be able to specify a BlockingQueue that can tell the count of
+    // active items still pending.  This count is required to be able to wait for the queue to drain before reading
+    // the buffers in each without shutting down the ExecutorService completely.
+    final ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0L,
+      TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+    doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
+        Runnable work = invocationOnMock.getArgumentAt(0, Runnable.class);
+        executorService.submit(work);
+        return null;
+      }
+    }).when(queue).put(any(Runnable.class));
+
+    SabotConfig config = SabotConfig.create();
+    final SchedulerService schedulerService = mock(SchedulerService.class);
+    final SpillService spillService = new SpillServiceImpl(DremioConfig.create(null, config), new DefaultSpillServiceOptions(),
+      new Provider<SchedulerService>() {
+        @Override
+        public SchedulerService get() {
+          return schedulerService;
+        }
+      });
+
+    try (BufferAllocator spoolingAllocator = new RootAllocator(Long.MAX_VALUE);
+      SpoolingRawBatchBuffer buffer = new SpoolingRawBatchBuffer(resource, config, queue, handle, spillService, spoolingAllocator, 1, 0, 0)) {
+      RawFragmentBatch nextReadBatch;
+      int nBatches = 0, readCount;
+
+      for (int iter = 0; iter < numIterations; iter++) {
+        for (int i = 0; i < numBatchesToEnqueuePerIteration; i++) {
+          try (RawFragmentBatch nextEnqueueBatch = newBatch(iter * numBatchesToEnqueuePerIteration + i)) {
+            buffer.enqueue(nextEnqueueBatch);
+            nextEnqueueBatch.sendOk();
+          }
+        }
+      }
+      executorService.shutdown();
+      if (!executorService.awaitTermination(45, TimeUnit.SECONDS)) {
+        Assert.fail("Timed out while waiting for executor termination");
+      }
+    }
+
+  }
+
   private AckSender ackSender = mock(AckSender.class);
 
   private RawFragmentBatch newBatch(int index) {

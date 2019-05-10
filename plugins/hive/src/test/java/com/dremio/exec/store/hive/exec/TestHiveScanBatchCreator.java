@@ -21,6 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.dremio.exec.physical.base.OpProps;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.Test;
 
@@ -41,8 +42,10 @@ public class TestHiveScanBatchCreator {
     final FragmentExecutionContext fragmentExecutionContext = mock(FragmentExecutionContext.class);
     when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(plugin);
 
+    final OpProps props = mock(OpProps.class);
     final HiveSubScan hiveSubScan = mock(HiveSubScan.class);
-    when(hiveSubScan.getUserName()).thenReturn(originalName);
+    when(hiveSubScan.getProps()).thenReturn(props);
+    when(hiveSubScan.getProps().getUserName()).thenReturn(originalName);
 
     final UserGroupInformation ugi = creator.getUGI(plugin, hiveSubScan);
     verify(plugin).getUsername(originalName);

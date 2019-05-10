@@ -102,8 +102,7 @@ public final class DACDaemon implements AutoCloseable {
         .withSabotValue(ExecConstants.INITIAL_USER_PORT, incomingConfig.getString(DremioConfig.CLIENT_PORT_INT))
         .withSabotValue(ExecConstants.SPILL_DIRS, incomingConfig.getList(DremioConfig.SPILLING_PATH_STRING))
         .withSabotValue(ExecConstants.REGISTRATION_ADDRESS, incomingConfig.getString(DremioConfig.REGISTRATION_ADDRESS))
-        .withSabotValue(ExecConstants.ZK_SESSION_TIMEOUT, incomingConfig.getString(DremioConfig.ZK_CLIENT_SESSION_TIMEOUT))
-        .withSabotValue(ExecConstants.MASTERLESS_MODE, incomingConfig.getBoolean(DremioConfig.ENABLE_MASTERLESS_BOOL));
+        .withSabotValue(ExecConstants.ZK_SESSION_TIMEOUT, incomingConfig.getString(DremioConfig.ZK_CLIENT_SESSION_TIMEOUT));
 
     // This should be the first thing to do.
     setupHadoopUserUsingKerberosKeytab(config);
@@ -112,7 +111,7 @@ public final class DACDaemon implements AutoCloseable {
     setupDefaultHttpsSSLSocketFactory();
 
     this.dacConfig = new DACConfig(config);
-    this.isMasterless = config.getBoolean(DremioConfig.ENABLE_MASTERLESS_BOOL);
+    this.isMasterless = config.isMasterlessEnabled();
     // master and masterless are mutually exclusive
     this.isMaster = (dacConfig.isMaster && !isMasterless);
     this.isCoordinator = config.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL);

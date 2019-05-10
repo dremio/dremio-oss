@@ -25,6 +25,8 @@ import schemaUtils from 'utils/apiUtils/schemaUtils';
 import jobDetailsSchema from 'schemas/jobDetails';
 import { renderQueryState, renderQueryStateForServer } from 'utils/jobsQueryState';
 import { addNotification } from 'actions/notification';
+import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
+import { addParameterToUrl } from '@app/utils/urlUtils';
 
 export const UPDATE_JOB_DETAILS = 'UPDATE_JOB_DETAILS';
 
@@ -238,7 +240,8 @@ export function showJobProfile(profileUrl) {
     return dispatch(
       push({...location, state: {
         modal: 'JobProfileModal',
-        profileUrl: `${API_URL_V2}${profileUrl}`
+        profileUrl: `${API_URL_V2}${addParameterToUrl(profileUrl, 'Authorization',
+          localStorageUtils.getAuthToken())}`
       }})
     );
   };

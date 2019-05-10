@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.work.foreman;
 
-import java.util.Collections;
 import java.util.List;
 
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.Root;
-import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
-import com.dremio.exec.proto.CoordExecRPC.SharedData;
+import com.dremio.exec.planner.fragment.PlanFragmentFull;
+import com.dremio.exec.planner.fragment.PlanFragmentsIndex;
 import com.google.common.base.Preconditions;
 
 /**
@@ -30,30 +29,33 @@ import com.google.common.base.Preconditions;
 public class ExecutionPlan {
   private final double cost;
   private final Root rootOperator;
-  private final List<PlanFragment> fragments;
+  private final List<PlanFragmentFull> fragments;
+  private final PlanFragmentsIndex.Builder indexBuilder;
 
-  private final List<SharedData> sharedData;
+  public ExecutionPlan(final PhysicalPlan physicalPlan, final List<PlanFragmentFull> fragments,
+    PlanFragmentsIndex.Builder indexBuilder) {
 
-  public ExecutionPlan(final PhysicalPlan physicalPlan, final List<PlanFragment> fragments, final List<SharedData> sharedData) {
     Preconditions.checkNotNull(physicalPlan, "physical plan is required");
     this.rootOperator = physicalPlan.getRoot();
     this.fragments = Preconditions.checkNotNull(fragments, "work unit is required");
+    this.indexBuilder = indexBuilder;
     this.cost = physicalPlan.getCost();
-    this.sharedData = sharedData;
   }
 
-  public ExecutionPlan(final Root rootOperator, final double cost, final List<PlanFragment> fragments) {
+  public ExecutionPlan(final Root rootOperator,final double cost, final List<PlanFragmentFull> fragments,
+    PlanFragmentsIndex.Builder indexBuilder) {
+
     this.rootOperator = Preconditions.checkNotNull(rootOperator, "Root operator is required");
     this.fragments = Preconditions.checkNotNull(fragments, "work unit is required");
+    this.indexBuilder = indexBuilder;
     this.cost = cost;
-    this.sharedData = Collections.emptyList();
   }
 
   public double getCost(){
     return cost;
   }
 
-  public List<PlanFragment> getFragments() {
+  public List<PlanFragmentFull> getFragments() {
     return fragments;
   }
 
@@ -61,9 +63,7 @@ public class ExecutionPlan {
     return rootOperator;
   }
 
-  public List<SharedData> getSharedData() {
-    return sharedData;
-  }
+  public PlanFragmentsIndex.Builder getIndexBuilder() { return indexBuilder; }
 
   @Override
   public int hashCode() {

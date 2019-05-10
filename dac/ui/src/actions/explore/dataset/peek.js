@@ -22,6 +22,7 @@ import schemaUtils from 'utils/apiUtils/schemaUtils';
 import exploreUtils from 'utils/explore/exploreUtils';
 
 import previewTableSchema from 'schemas/previewTable';
+import apiUtils from '@app/utils/apiUtils/apiUtils';
 
 export const TRANSFORM_PEEK_START   = 'TRANSFORM_PEEK_START';
 export const TRANSFORM_PEEK_SUCCESS = 'TRANSFORM_PEEK_SUCCESS';
@@ -45,7 +46,10 @@ function transformPeekFetch(dataset, values, detailType, viewId, submitType) {
         { type: TRANSFORM_PEEK_FAILURE, meta }
       ],
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        ...apiUtils.getJobDataNumbersAsStringsHeader()
+      },
       body: JSON.stringify(body),
       endpoint: `${API_URL_V2}${href}`
     }

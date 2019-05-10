@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.Optional;
 
 import javax.inject.Provider;
 
@@ -68,7 +69,6 @@ import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.NodeRegistration;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.PDFSService;
 import com.dremio.exec.store.dfs.PDFSService.PDFSMode;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
@@ -103,6 +103,8 @@ import com.dremio.sabot.task.TaskPool;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.accelerator.AccelerationListManagerImpl;
+import com.dremio.service.commandpool.CommandPool;
+import com.dremio.service.commandpool.CommandPoolFactory;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
@@ -145,7 +147,7 @@ public class DACDaemonModule implements DACModule {
   @Override
   public void bootstrap(final Runnable shutdownHook, final SingletonRegistry bootstrapRegistry, ScanResult scanResult, DACConfig dacConfig, boolean isMaster) {
     final DremioConfig config = dacConfig.getConfig();
-    final boolean isMasterless = config.getBoolean(DremioConfig.ENABLE_MASTERLESS_BOOL);
+    final boolean isMasterless = config.isMasterlessEnabled();
     final boolean embeddedZookeeper = config.getBoolean(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL);
 
     bootstrapRegistry.bindSelf(new BootStrapContext(config, scanResult));
@@ -205,10 +207,11 @@ public class DACDaemonModule implements DACModule {
     final SabotConfig sabotConfig = config.getSabotConfig();
     final BootStrapContext bootstrap = bootstrapRegistry.lookup(BootStrapContext.class);
 
-    final boolean isMasterless = config.getBoolean(DremioConfig.ENABLE_MASTERLESS_BOOL);
+    final boolean isMasterless = config.isMasterlessEnabled();
     final boolean isCoordinator = config.getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL);
     final boolean isExecutor = config.getBoolean(DremioConfig.ENABLE_EXECUTOR_BOOL);
     final boolean isDistributedCoordinator = isMasterless && isCoordinator;
+    final boolean isDistributedMaster = isDistributedCoordinator || isMaster;
 
     final Provider<NodeEndpoint> masterEndpoint = new Provider<NodeEndpoint>() {
       private final Provider<MasterStatusListener> masterStatusListener =
@@ -242,9 +245,6 @@ public class DACDaemonModule implements DACModule {
 
     // copy bootstrap bindings to the main registry.
     bootstrapRegistry.copyBindings(registry);
-
-    // Periodic task scheduler service
-    registry.bind(SchedulerService.class, new LocalSchedulerService(config.getInt(DremioConfig.SCHEDULER_SERVICE_THREAD_COUNT)));
 
     { // persistent store provider
       final PersistentStoreProvider storeProvider;
@@ -300,23 +300,26 @@ public class DACDaemonModule implements DACModule {
     final boolean isInternalUGS = setupUserService(registry, dacConfig.getConfig(),
         registry.provider(SabotContext.class));
     registry.bind(NamespaceService.Factory.class, NamespaceServiceImpl.Factory.class);
-    if (isMaster) {
-      // Companion service to clean split orphans
-      registry.bind(SplitOrphansCleanerService.class, new SplitOrphansCleanerService(
-        registry.provider(SchedulerService.class),
-        registry.provider(NamespaceService.Factory.class)));
-    }
     final DatasetListingService localListing;
-    if (isMaster || isDistributedCoordinator) {
+    if (isDistributedMaster) {
       localListing = new DatasetListingServiceImpl(registry.provider(NamespaceService.Factory.class));
     } else {
       localListing = DatasetListingService.UNSUPPORTED;
     }
+
+    final Provider<NodeEndpoint> searchEndPoint = () -> {
+      // will return master endpoint if it's masterful mode
+      Optional<NodeEndpoint> serviceEndPoint =
+        registry.provider(SabotContext.class).get().getServiceLeader(SearchServiceImpl.LOCAL_TASK_LEADER_NAME);
+      return serviceEndPoint.orElse(null);
+    };
+
+
     // this is the delegate service for localListing (calls start/close internally)
     registry.bind(DatasetListingService.class,
         new DatasetListingInvoker(
-            isMaster || isDistributedCoordinator,
-            masterEndpoint,
+          isDistributedMaster,
+          searchEndPoint,
             registry.provider(FabricService.class),
             bootstrap.getAllocator(),
             localListing));
@@ -366,6 +369,21 @@ public class DACDaemonModule implements DACModule {
         roles
         ));
 
+    Provider<NodeEndpoint> currentEndPoint =
+      () -> registry.provider(SabotContext.class).get().getEndpoint();
+
+    // Periodic task scheduler service
+    registry.bind(SchedulerService.class, new LocalSchedulerService(
+      config.getInt(DremioConfig.SCHEDULER_SERVICE_THREAD_COUNT),
+      registry.provider(ClusterCoordinator.class), currentEndPoint, isDistributedCoordinator));
+
+    if (isDistributedMaster) {
+      // Companion service to clean split orphans
+      registry.bind(SplitOrphansCleanerService.class, new SplitOrphansCleanerService(
+        registry.provider(SchedulerService.class),
+        registry.provider(NamespaceService.Factory.class)));
+    }
+
     if(isExecutor) {
       registry.bind(SpillService.class, new SpillServiceImpl(
           config,
@@ -397,20 +415,20 @@ public class DACDaemonModule implements DACModule {
 
     registry.bindSelf(new InitializerRegistry(bootstrap.getClasspathScan(), registry.getBindingProvider()));
 
+    registry.bind(CommandPool.class, CommandPoolFactory.INSTANCE.newPool(config));
+
     registry.bind(JobsService.class,
         new LocalJobsService(
             registry.getBindingCreator(),
             registry.provider(KVStoreProvider.class),
             bootstrap.getAllocator(),
-            new Provider<FileSystemPlugin>() {
-              @Override
-              public FileSystemPlugin get() {
-                try {
-                  CatalogService storagePluginRegistry = registry.provider(CatalogService.class).get();
-                  return (FileSystemPlugin) storagePluginRegistry.getSource(JOBS_STORAGEPLUGIN_NAME);
-                } catch(Exception e) {
-                  throw Throwables.propagate(e);
-                }
+            () -> {
+              try {
+                final CatalogService storagePluginRegistry = registry.provider(CatalogService.class).get();
+                return storagePluginRegistry.getSource(JOBS_STORAGEPLUGIN_NAME);
+              } catch(Exception e) {
+                Throwables.throwIfUnchecked(e);
+                throw new RuntimeException(e);
               }
             },
             registry.provider(LocalQueryExecutor.class),
@@ -418,8 +436,9 @@ public class DACDaemonModule implements DACModule {
             registry.provider(ForemenTool.class),
             registry.provider(SabotContext.class),
             registry.provider(SchedulerService.class),
+            registry.provider(CommandPool.class),
             new JobResultToLogEntryConverter(),
-            isMaster
+          isDistributedMaster
             )
         );
     registry.bind(ResourceAllocator.class, new BasicResourceAllocator(registry.provider(ClusterCoordinator
@@ -431,6 +450,7 @@ public class DACDaemonModule implements DACModule {
               registry.provider(FabricService.class),
               registry.provider(SabotContext.class),
               registry.provider(ResourceAllocator.class),
+              registry.provider(CommandPool.class),
               registry.getBindingCreator()
               )
           );
@@ -476,7 +496,7 @@ public class DACDaemonModule implements DACModule {
         registry.provider(ReflectionStatusService.class),
         bootstrap.getExecutor(),
         registry.getBindingCreator(),
-        isMaster
+        isDistributedMaster
       ));
       registry.bind(ReflectionStatusService.class, new ReflectionStatusServiceImpl(
         registry.provider(SabotContext.class),
@@ -497,9 +517,9 @@ public class DACDaemonModule implements DACModule {
       registry.provider(FabricService.class),
       registry.getBindingCreator()));
 
-    if(isCoordinator){
+    if(isCoordinator) {
       final Provider<ClusterCoordinator> coordProvider = registry.provider(ClusterCoordinator.class);
-      final NodeProvider executionNodeProvider = new NodeProvider(){
+      final NodeProvider executionNodeProvider = new NodeProvider() {
         @Override
         public Collection<NodeEndpoint> getNodes() {
           return coordProvider.get().getServiceSet(ClusterCoordinator.Role.EXECUTOR).getAvailableEndpoints();
@@ -513,16 +533,18 @@ public class DACDaemonModule implements DACModule {
           bootstrap.getClasspathScan()
           ));
 
-      registry.bind(SupportService.class, new SupportService(
-        dacConfig,
-        registry.provider(KVStoreProvider.class),
-        registry.provider(JobsService.class),
-        registry.provider(UserService.class),
-        registry.provider(SabotContext.class),
-        registry.provider(CatalogService.class)));
-
       registry.bindSelf(new ServerHealthMonitor(registry.provider(MasterStatusListener.class)));
     }
+
+    registry.bind(SupportService.class, new SupportService(
+      dacConfig,
+      registry.provider(KVStoreProvider.class),
+      registry.provider(JobsService.class),
+      registry.provider(UserService.class),
+      registry.provider(SabotContext.class),
+      registry.provider(CatalogService.class),
+      registry.provider(FabricService.class),
+      bootstrap.getAllocator()));
 
     registry.bindSelf(new NodeRegistration(
         registry.provider(SabotContext.class),
@@ -548,7 +570,7 @@ public class DACDaemonModule implements DACModule {
 
       // search
       final SearchService searchService;
-      if (isMaster || isDistributedCoordinator) {
+      if (isDistributedMaster) {
         searchService = new SearchServiceImpl(
           registry.provider(SabotContext.class),
           registry.provider(KVStoreProvider.class),
@@ -560,8 +582,8 @@ public class DACDaemonModule implements DACModule {
       }
 
       registry.bind(SearchService.class, new SearchServiceInvoker(
-        isMaster || isDistributedCoordinator,
-        masterEndpoint,
+        isDistributedMaster,
+        registry.provider(SabotContext.class),
         registry.provider(FabricService.class),
         bootstrap.getAllocator(),
         searchService
@@ -595,7 +617,8 @@ public class DACDaemonModule implements DACModule {
       registry.bind(TokenManager.class, new TokenManagerImpl(
           registry.provider(KVStoreProvider.class),
           registry.provider(SchedulerService.class),
-          isMaster,
+          registry.provider(SabotContext.class),
+          isDistributedMaster,
           dacConfig));
     }
 

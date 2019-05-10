@@ -17,12 +17,6 @@ package com.dremio.dac.explore;
 
 import static com.dremio.dac.explore.DatasetTool.TMP_DATASET_PATH;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalTime;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import javax.annotation.security.RolesAllowed;
@@ -62,7 +56,6 @@ import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.model.spaces.SpacePath;
-import com.dremio.dac.proto.model.dataset.AccelerationData;
 import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.FromTable;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
@@ -76,7 +69,6 @@ import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.file.FilePath;
 import com.dremio.file.SourceFilePath;
-import com.dremio.service.accelerator.proto.Materialization;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.NamespaceException;
@@ -168,13 +160,8 @@ public class DatasetsResource {
       @QueryParam("limit") Integer limit,
       /* body */ CreateFromSQL sql)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
-    try {
-      Preconditions.checkNotNull(newVersion, "newVersion should not be null");
-      return newUntitled(new FromSQL(sql.getSql()).setAlias("nested_0"), newVersion, sql.getContext(), null, limit);
-    }catch (Exception e) {
-      e.printStackTrace();
-      throw e;
-    }
+    Preconditions.checkNotNull(newVersion, "newVersion should not be null");
+    return newUntitled(new FromSQL(sql.getSql()).setAlias("nested_0"), newVersion, sql.getContext(), null, limit);
   }
 
   @POST @Path("new_untitled_sql_and_run")
@@ -332,32 +319,4 @@ public class DatasetsResource {
   protected Space newSpace(SpaceConfig spaceConfig, int datasetCount) throws Exception {
     return Space.newInstance(spaceConfig, null, datasetCount);
   }
-
-  protected AccelerationData.Info newInfo(final Materialization materialization) {
-    final com.dremio.service.accelerator.proto.JobDetails details = materialization.getJob();
-    final Long jobStart = details.getJobStart();
-    final Long jobEnd = details.getJobEnd();
-
-    final AccelerationData.Info info = new AccelerationData.Info();
-    if (jobStart != null) {
-      info.setStart(DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.ofInstant(Instant.ofEpochMilli(jobStart), ZoneOffset.UTC)));
-    }
-    if (jobEnd != null) {
-      info.setEnd(DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.ofInstant(Instant.ofEpochMilli(jobEnd), ZoneOffset.UTC)));
-    }
-
-    if (jobStart != null && jobEnd != null) {
-      final Duration duration = Duration.ofMillis(jobEnd - jobStart);
-      info.setDuration(DateTimeFormatter.ISO_LOCAL_TIME.format(LocalTime.MIDNIGHT.plus(duration)));
-    }
-
-    info.setJobId(details.getJobId())
-      .setInputBytes(details.getInputBytes())
-      .setInputRecords(details.getInputRecords())
-      .setOutputBytes(details.getOutputBytes())
-      .setOutputRecords(details.getOutputRecords());
-
-    return info;
-  }
-
 }

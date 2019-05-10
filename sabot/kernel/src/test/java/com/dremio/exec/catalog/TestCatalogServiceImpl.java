@@ -23,8 +23,12 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
@@ -33,9 +37,10 @@ import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.calcite.util.Util;
+import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.AutoCloseables;
@@ -43,6 +48,20 @@ import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
+import com.dremio.config.DremioConfig;
+import com.dremio.connector.metadata.BytesOutput;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetHandleListing;
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.DatasetSplit;
+import com.dremio.connector.metadata.DatasetStats;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetDatasetOption;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
+import com.dremio.connector.metadata.PartitionChunk;
+import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.catalog.conf.ConnectionConf;
@@ -54,7 +73,6 @@ import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
@@ -65,18 +83,14 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.listing.DatasetListingServiceImpl;
-import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.SourceState;
-import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
-import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
-import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.UpdateMode;
@@ -85,18 +99,17 @@ import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
-import com.google.common.base.Function;
-import com.google.common.base.Objects;
-import com.google.common.collect.FluentIterable;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import io.protostuff.ByteString;
-
 /**
  * Unit tests for {@link CatalogServiceImpl}.
+ *
+ * NOTE: MetadataSynchronizer does not support prefetch for new datasets. So metadata is refreshed twice in some cases.
+ * First time to add the names, and the second time to force refresh.
  */
 public class TestCatalogServiceImpl {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestCatalogServiceImpl.class);
@@ -119,7 +132,10 @@ public class TestCatalogServiceImpl {
   private NamespaceKey mockUpKey;
   private CatalogService catalogService;
 
-  private final List<SourceTableDefinition> mockDatasets =
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
+
+  private final List<DatasetHandle> mockDatasets =
       ImmutableList.of(
           newDataset(MOCK_UP + ".fld1.ds11"),
           newDataset(MOCK_UP + ".fld1.ds12"),
@@ -130,7 +146,10 @@ public class TestCatalogServiceImpl {
 
   @Before
   public void setup() throws Exception {
+    properties.set("dremio_masterless", "false");
     final SabotConfig sabotConfig = SabotConfig.create();
+    final DremioConfig dremioConfig = DremioConfig.create();
+
     final SabotContext sabotContext = mock(SabotContext.class);
 
     storeProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false);
@@ -163,6 +182,8 @@ public class TestCatalogServiceImpl {
         .thenReturn(storeProvider);
     when(sabotContext.getConfig())
         .thenReturn(DremioTest.DEFAULT_SABOT_CONFIG);
+    when(sabotContext.getDremioConfig())
+      .thenReturn(dremioConfig);
 
     allocator = RootAllocatorFactory.newRoot(sabotConfig);
     when(sabotContext.getAllocator())
@@ -204,7 +225,7 @@ public class TestCatalogServiceImpl {
         .setCtime(100L)
         .setConnectionConf(new MockUpConfig());
 
-    doMockDatasets(mockUpPlugin, ImmutableList.<SourceTableDefinition>of());
+    doMockDatasets(mockUpPlugin, ImmutableList.of());
     ((CatalogServiceImpl) catalogService).getSystemUserCatalog().createSource(mockUpConfig);
   }
 
@@ -216,7 +237,7 @@ public class TestCatalogServiceImpl {
 
   @Test
   public void refreshSourceMetadata_EmptySource() throws Exception {
-    doMockDatasets(mockUpPlugin, ImmutableList.<SourceTableDefinition>of());
+    doMockDatasets(mockUpPlugin, ImmutableList.of());
     catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
 
     // make sure the namespace has no datasets under mockUpKey
@@ -229,6 +250,7 @@ public class TestCatalogServiceImpl {
   @Test
   public void refreshSourceMetadata_FirstTime() throws Exception {
     doMockDatasets(mockUpPlugin, mockDatasets);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
     catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin
@@ -246,17 +268,19 @@ public class TestCatalogServiceImpl {
   public void refreshSourceMetadata_FirstTime_UpdateWithNewDatasets() throws Exception {
     doMockDatasets(mockUpPlugin, mockDatasets);
     catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
 
     List<NamespaceKey> actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(5, actualDatasetKeys.size());
 
-    List<SourceTableDefinition> testDatasets = Lists.newArrayList(mockDatasets);
+    List<DatasetHandle> testDatasets = Lists.newArrayList(mockDatasets);
     testDatasets.add(newDataset(MOCK_UP + ".ds4"));
     testDatasets.add(newDataset(MOCK_UP + ".fld1.ds13"));
     testDatasets.add(newDataset(MOCK_UP + ".fld2.fld21.ds212"));
     testDatasets.add(newDataset(MOCK_UP + ".fld5.ds51"));
 
     doMockDatasets(mockUpPlugin, testDatasets);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
     catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
@@ -275,8 +299,9 @@ public class TestCatalogServiceImpl {
   public void refreshSourceMetadata_FirstTime_MultipleUpdatesWithNewDatasetsDeletedDatasets() throws Exception {
     doMockDatasets(mockUpPlugin, mockDatasets);
     catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
 
-    List<SourceTableDefinition> testDatasets = Lists.newArrayList();
+    List<DatasetHandle> testDatasets = Lists.newArrayList();
     testDatasets.add(newDataset(MOCK_UP + ".fld1.ds11"));
     testDatasets.add(newDataset(MOCK_UP + ".fld2.fld22.ds222"));
     testDatasets.add(newDataset(MOCK_UP + ".fld2.ds22"));
@@ -284,6 +309,7 @@ public class TestCatalogServiceImpl {
     testDatasets.add(newDataset(MOCK_UP + ".fld5.ds51"));
 
     doMockDatasets(mockUpPlugin, testDatasets);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
     catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
@@ -308,6 +334,7 @@ public class TestCatalogServiceImpl {
 
     doMockDatasets(mockUpPlugin, testDatasets);
     catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
     actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
@@ -329,7 +356,7 @@ public class TestCatalogServiceImpl {
 
     assertEquals(5, Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey)).size());
 
-    List<SourceTableDefinition> testDatasets = Lists.newArrayList(mockDatasets);
+    List<DatasetHandle> testDatasets = Lists.newArrayList(mockDatasets);
     testDatasets.add(newDataset(MOCK_UP + ".fld1.ds13"));
     testDatasets.add(newDataset(MOCK_UP + ".fld2.fld21.ds212"));
     testDatasets.add(newDataset(MOCK_UP + ".fld2.ds23"));
@@ -356,24 +383,24 @@ public class TestCatalogServiceImpl {
     mockUpPlugin.setThrowAtStart();
 
     MetadataPolicy rapidRefreshPolicy = new MetadataPolicy()
-      .setAuthTtlMs(1L)
-      .setDatasetUpdateMode(UpdateMode.PREFETCH)
-      .setNamesRefreshMs(1L)
-      .setDatasetDefinitionRefreshAfterMs(1L)
-      .setDatasetDefinitionExpireAfterMs(1L);
+        .setAuthTtlMs(1L)
+        .setDatasetUpdateMode(UpdateMode.PREFETCH)
+        .setNamesRefreshMs(1L)
+        .setDatasetDefinitionRefreshAfterMs(1L)
+        .setDatasetDefinitionExpireAfterMs(1L);
 
     final SourceConfig mockUpConfig = new SourceConfig()
-      .setName(pluginName)
-      .setMetadataPolicy(rapidRefreshPolicy)
-      .setCtime(100L)
-      .setConnectionConf(new MockUpConfig());
+        .setName(pluginName)
+        .setMetadataPolicy(rapidRefreshPolicy)
+        .setCtime(100L)
+        .setConnectionConf(new MockUpConfig());
 
     boolean testPassed = false;
     try {
       ((CatalogServiceImpl) catalogService).getSystemUserCatalog().createSource(mockUpConfig);
     } catch (UserException ue) {
       assertEquals(UserBitShared.DremioPBError.ErrorType.RESOURCE, ue.getErrorType());
-      ManagedStoragePlugin msp = ((CatalogServiceImpl)catalogService).getManagedSource(pluginName);
+      ManagedStoragePlugin msp = ((CatalogServiceImpl) catalogService).getManagedSource(pluginName);
       assertEquals(null, msp);
       testPassed = true;
     }
@@ -384,11 +411,11 @@ public class TestCatalogServiceImpl {
   public void testConcurrencyErrors() throws Exception {
     // different etag
     SourceConfig mockUpConfig = new SourceConfig()
-      .setName(MOCK_UP)
-      .setCtime(100L)
-      .setTag("4")
-      .setConfigOrdinal(0L)
-      .setConnectionConf(new MockUpConfig());
+        .setName(MOCK_UP)
+        .setCtime(100L)
+        .setTag("4")
+        .setConfigOrdinal(0L)
+        .setConnectionConf(new MockUpConfig());
 
     boolean testPassed = false;
     try {
@@ -400,11 +427,11 @@ public class TestCatalogServiceImpl {
 
     // different version
     mockUpConfig = new SourceConfig()
-      .setName(MOCK_UP)
-      .setCtime(100L)
-      .setTag("0")
-      .setConfigOrdinal(2L)
-      .setConnectionConf(new MockUpConfig());
+        .setName(MOCK_UP)
+        .setCtime(100L)
+        .setTag("0")
+        .setConfigOrdinal(2L)
+        .setConnectionConf(new MockUpConfig());
 
     testPassed = false;
     try {
@@ -415,50 +442,48 @@ public class TestCatalogServiceImpl {
     assertTrue(testPassed);
   }
 
-  private static SourceTableDefinition newDataset(final String dsPath) {
-    final List<String> path = SqlUtils.parseSchemaPath(dsPath);
-
-    SourceTableDefinition ret = mock(SourceTableDefinition.class);
-    NamespaceKey datasetName = new NamespaceKey(path);
-    when(ret.getName()).thenReturn(datasetName);
-
-    BatchSchema schema = BatchSchema.newBuilder()
-        .addField(new Field("string", FieldType.nullable(ArrowType.Utf8.INSTANCE), null))
-        .build();
-    DatasetConfig dsConfig = new DatasetConfig()
-        .setName(Util.last(path))
-        .setFullPathList(path)
-        .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
-        .setRecordSchema(ByteString.EMPTY)
-        .setPhysicalDataset(
-            new PhysicalDataset()
-                .setFormatSettings(null))
-        .setSchemaVersion(DatasetHelper.CURRENT_VERSION)
-        .setRecordSchema(schema.toByteString())
-        .setReadDefinition(new ReadDefinition());
-    try {
-      when(ret.getDataset()).thenReturn(dsConfig);
-    } catch (Exception ignored) {
-    }
-
-    when(ret.getType()).thenReturn(DatasetType.PHYSICAL_DATASET_SOURCE_FILE);
-
-    when(ret.isSaveable()).thenReturn(true);
-    return ret;
+  private static abstract class DatasetImpl implements DatasetTypeHandle, DatasetMetadata, PartitionChunkListing {
   }
 
-  private void doMockDatasets(StoragePlugin plugin, final List<SourceTableDefinition> datasets) throws Exception {
+  private static DatasetImpl newDataset(final String dsPath) {
+    return new DatasetImpl() {
+      @Override
+      public Iterator<? extends PartitionChunk> iterator() {
+        return Collections.singleton(PartitionChunk.of(DatasetSplit.of(0,0))).iterator();
+      }
+
+      @Override
+      public DatasetType getDatasetType() {
+        return DatasetType.PHYSICAL_DATASET_SOURCE_FILE;
+      }
+
+      @Override
+      public EntityPath getDatasetPath() {
+        return new EntityPath(SqlUtils.parseSchemaPath(dsPath));
+      }
+
+      @Override
+      public DatasetStats getDatasetStats() {
+        return DatasetStats.of(0, 0);
+      }
+
+      @Override
+      public Schema getRecordSchema() {
+        return BatchSchema.newBuilder()
+            .addField(new Field("string", FieldType.nullable(ArrowType.Utf8.INSTANCE), null))
+            .build();
+      }
+    };
+  }
+
+  private void doMockDatasets(StoragePlugin plugin, final List<DatasetHandle> datasets) throws Exception {
     ((MockUpPlugin) plugin).setDatasets(datasets);
   }
 
-  private static void assertDatasetsAreEqual(List<SourceTableDefinition> expDatasets, List<NamespaceKey> actualDatasetKeys) {
-    final Set<NamespaceKey> expDatasetKeys = FluentIterable.from(expDatasets)
-        .transform(new Function<SourceTableDefinition, NamespaceKey>() {
-          @Override
-          public NamespaceKey apply(SourceTableDefinition input) {
-            return input.getName();
-          }
-        }).toSet();
+  private static void assertDatasetsAreEqual(List<DatasetHandle> expDatasets, List<NamespaceKey> actualDatasetKeys) {
+    final Set<NamespaceKey> expDatasetKeys = expDatasets.stream()
+        .map(input -> new NamespaceKey(input.getDatasetPath().getComponents()))
+        .collect(Collectors.toSet());
     assertEquals(expDatasetKeys, Sets.newHashSet(actualDatasetKeys));
   }
 
@@ -515,43 +540,12 @@ public class TestCatalogServiceImpl {
     }
   }
 
-  public static class MockUpPlugin implements StoragePlugin {
-    private List<SourceTableDefinition> datasets;
+  public static class MockUpPlugin implements ExtendedStoragePlugin {
+    private List<DatasetHandle> datasets;
     boolean throwAtStart = false;
 
-    public void setDatasets(List<SourceTableDefinition> datasets) {
+    public void setDatasets(List<DatasetHandle> datasets) {
       this.datasets = datasets;
-    }
-
-    @Override
-    public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions retrievalOptions) {
-      return datasets;
-    }
-
-    @Override
-    public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldDataset,
-                                            DatasetRetrievalOptions retrievalOptions) {
-      for (SourceTableDefinition definition : datasets) {
-        if (Objects.equal(datasetPath, definition.getName())) {
-          return definition;
-        }
-      }
-      return null;
-    }
-
-    @Override
-    public boolean containerExists(NamespaceKey key) {
-      return false;
-    }
-
-    @Override
-    public boolean datasetExists(NamespaceKey key) {
-      for (SourceTableDefinition definition : datasets) {
-        if (definition.getName().equals(key)) {
-          return true;
-        }
-      }
-      return false;
     }
 
     @Override
@@ -580,11 +574,6 @@ public class TestCatalogServiceImpl {
     }
 
     @Override
-    public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig, DatasetRetrievalOptions retrievalOptions) {
-      return CheckResult.UNCHANGED;
-    }
-
-    @Override
     public void close() {
     }
 
@@ -598,8 +587,51 @@ public class TestCatalogServiceImpl {
     public void setThrowAtStart() {
       throwAtStart = true;
     }
-    public void unsetThrowAtStart() {
-      throwAtStart = false;
+
+    @Override
+    public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) {
+      return () -> datasets.iterator();
+    }
+
+    @Override
+    public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
+      return datasets.stream()
+          .filter(dataset -> dataset.getDatasetPath().equals(datasetPath))
+          .findFirst();
+    }
+
+    @Override
+    public DatasetMetadata getDatasetMetadata(
+        DatasetHandle datasetHandle,
+        PartitionChunkListing chunkListing,
+        GetMetadataOption... options
+    ) {
+      return datasetHandle.unwrap(DatasetImpl.class);
+    }
+
+    @Override
+    public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
+      return datasetHandle.unwrap(DatasetImpl.class);
+    }
+
+    @Override
+    public boolean containerExists(EntityPath containerPath) {
+      return false;
+    }
+
+    @Override
+    public BytesOutput provideSignature(DatasetHandle datasetHandle, DatasetMetadata metadata) {
+      return BytesOutput.NONE;
+    }
+
+    @Override
+    public MetadataValidity validateMetadata(
+        BytesOutput signature,
+        DatasetHandle datasetHandle,
+        DatasetMetadata metadata,
+        ValidateMetadataOption... options
+    ) {
+      return MetadataValidity.INVALID;
     }
   }
 }

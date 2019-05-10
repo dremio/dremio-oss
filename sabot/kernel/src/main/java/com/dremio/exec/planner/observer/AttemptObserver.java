@@ -31,6 +31,7 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.QueryWorkUnit;
@@ -47,6 +48,12 @@ public interface AttemptObserver {
    * @param user User.
    */
   void queryStarted(UserRequest query, String user);
+
+  /**
+   * Called to report the wait in the command pool.
+   * May be called multiple times during a query lifetime, as often as the query's tasks are put into the command pool
+   */
+  void commandPoolWait(long waitInMillis);
 
   /**
    * Planning started using provided plan.
@@ -228,13 +235,19 @@ public interface AttemptObserver {
    * Time taken for sending intermediate fragments to all nodes.
    * @param millisTaken
    */
-  void intermediateFragmentScheduling(long millisTaken);
+  void intermediateFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats);
 
   /**
    * Time taken for sending leaf fragments to all nodes.
    * @param millisTaken
    */
-  void leafFragmentScheduling(long millisTaken);
+  void leafFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats);
+
+  /**
+   * Failed to start leaf fragment.
+   * @param ex
+   */
+  void startLeafFragmentFailed(Exception ex);
 
   /**
    * ResourceScheduling related information

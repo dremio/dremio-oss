@@ -24,6 +24,7 @@ import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 
+import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.MinorType;
@@ -49,15 +50,44 @@ import com.google.common.collect.Multimap;
  * in Elastic should be provided by this file.
  */
 public class FieldReadDefinition {
+  static class VariableFieldReadDefinition extends FieldReadDefinition {
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FieldReadDefinition.class);
+    private final int maxCellSize;
 
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FieldReadDefinition.class);
+    private VariableFieldReadDefinition(
+      SchemaPath path,
+      String name,
+      CompleteType type,
+      int maxCellSize,
+      boolean isList,
+      boolean geo,
+      WriteHolder holder,
+      ImmutableMap<String, FieldReadDefinition> children) {
+      super(path, name, type, maxCellSize, isList, geo, holder, children);
+      this.maxCellSize = maxCellSize;
+    }
 
-  private final String name;
+    @Override
+    public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
+      final int stringLength = parser.getValueAsString().length();
+      FieldSizeLimitExceptionHelper.checkReadSizeLimit(stringLength, maxCellSize, name, logger);
+      holder.writeList(writer, token, parser);
+    }
+
+    @Override
+    public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
+      final int stringLength = parser.getValueAsString().length();
+      FieldSizeLimitExceptionHelper.checkReadSizeLimit(stringLength, maxCellSize, name, logger);
+      holder.writeMap(writer, token, parser);
+    }
+  }
+
+  protected final String name;
   private final boolean isList;
   private final CompleteType type;
   private final boolean geo;
   private final ImmutableMap<String, FieldReadDefinition> children;
-  private final WriteHolder holder;
+  protected final WriteHolder holder;
   private final FieldReadDefinition noList;
   private final boolean hidden;
 
@@ -81,12 +111,11 @@ public class FieldReadDefinition {
       SchemaPath path,
       final String name,
       CompleteType type,
+      int maxCellSize,
       boolean isList,
       boolean geo,
       WriteHolder holder,
-      ImmutableMap<String, FieldReadDefinition> children
-      ) {
-    super();
+      ImmutableMap<String, FieldReadDefinition> children) {
     this.type = type;
     this.name = name;
     this.isList = isList;
@@ -94,11 +123,28 @@ public class FieldReadDefinition {
     this.holder = holder;
     this.children = children;
     this.hidden = false;
-    if(isList){
-      noList = new FieldReadDefinition(path, name, type, false, geo, holder, children);
+
+    if (isList) {
+      noList = createFieldReadDefinition(path, name, type, maxCellSize, false, geo, holder, children);
     } else {
       noList = null;
     }
+  }
+
+  private static FieldReadDefinition createFieldReadDefinition(
+    SchemaPath path,
+    final String name,
+    CompleteType type,
+    int maxCellSize,
+    boolean isList,
+    boolean geo,
+    WriteHolder holder,
+    ImmutableMap<String, FieldReadDefinition> children) {
+    if (holder instanceof WriteHolders.VarCharWriteHolder || holder instanceof WriteHolders.VarBinaryWriteHolder) {
+      return new VariableFieldReadDefinition(path, name, type, maxCellSize, isList, geo, holder, children);
+    }
+
+    return new FieldReadDefinition(path, name, type, maxCellSize, isList, geo, holder, children);
   }
 
   public boolean isHidden(){
@@ -122,13 +168,13 @@ public class FieldReadDefinition {
   }
 
   public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
-    if(parser.getValueAsString().length() != 0 || holder instanceof WriteHolders.VarCharWriteHolder || holder instanceof WriteHolders.VarBinaryWriteHolder) {
+    if (parser.getValueAsString().length() != 0) {
       holder.writeList(writer, token, parser);
     }
   }
 
   public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
-    if(parser.getValueAsString().length() != 0 || holder instanceof WriteHolders.VarCharWriteHolder || holder instanceof WriteHolders.VarBinaryWriteHolder) {
+    if (parser.getValueAsString().length() != 0) {
       holder.writeMap(writer, token, parser);
     }
   }
@@ -136,7 +182,8 @@ public class FieldReadDefinition {
   public static FieldReadDefinition getTree(
       final BatchSchema schema,
       final Map<SchemaPath, FieldAnnotation> annotationMap,
-      final WorkingBuffer buffer){
+      final WorkingBuffer buffer,
+      final int maxCellSize) {
 
     // for all hidden fields, create a list for each parent of the children where we should create field read definition that mark data as hidden.
     ImmutableListMultimap.Builder<SchemaPath, String> hiddenFieldsB = ImmutableListMultimap.builder();
@@ -154,25 +201,15 @@ public class FieldReadDefinition {
     final ImmutableListMultimap<SchemaPath, String> hiddenFields = hiddenFieldsB.build();
     final ImmutableList<String> topLevelHiddenFields = topLevelHiddenFieldsB.build();
 
-    return new FieldReadDefinition(null, null, null, false, false, new WriteHolders.InvalidWriteHolder(),
+    return createFieldReadDefinition(null, null, null, 0, false, false, new WriteHolders.InvalidWriteHolder(),
         FluentIterable.from(schema.getFields())
 
-        .transform(new Function<Field, FieldReadDefinition>() {
-          @Override
-          public FieldReadDefinition apply(Field input) {
-            return getDefinition(null, input, annotationMap, hiddenFields, buffer, false);
-          }
-        })
+        .transform(input -> getDefinition(null, input, maxCellSize, annotationMap, hiddenFields, buffer, false))
 
         // add hidden fields.
         .append(getHiddenFields(topLevelHiddenFields))
 
-        .uniqueIndex(new Function<FieldReadDefinition, String>() {
-          @Override
-          public String apply(FieldReadDefinition input) {
-            return input.name;
-          }
-        }));
+        .uniqueIndex(input -> input.name));
   }
 
   private static Iterable<FieldReadDefinition> getHiddenFields(Iterable<String> names){
@@ -183,7 +220,9 @@ public class FieldReadDefinition {
       }});
   }
 
-  private static FieldReadDefinition getDefinition(final SchemaPath parent, final Field field, final Map<SchemaPath, FieldAnnotation> annotations, final Multimap<SchemaPath, String> hiddenFields, final WorkingBuffer buffer, boolean incomingIsGeoShape){
+  private static FieldReadDefinition getDefinition(final SchemaPath parent, final Field field, int maxCellSize,
+      final Map<SchemaPath, FieldAnnotation> annotations, final Multimap<SchemaPath, String> hiddenFields,
+      final WorkingBuffer buffer, boolean incomingIsGeoShape){
 
     CompleteType type = CompleteType.fromField(field);
     final boolean isList = type.isList();
@@ -198,14 +237,14 @@ public class FieldReadDefinition {
     final WriteHolder holder = getWriteHolder(field.getName(), isList, type.toMinorType(), formats, path, buffer, isGeoShape);
 
     if(isGeoShape && type.isUnion() && ElasticsearchConstants.GEO_SHAPE_COORDINATES.equals(field.getName())){
-      return new FieldReadDefinition(path, field.getName(), type, true, isGeoShape, holder, ImmutableMap.<String, FieldReadDefinition>of());
+      return createFieldReadDefinition(path, field.getName(), type, maxCellSize, true, isGeoShape, holder, ImmutableMap.<String, FieldReadDefinition>of());
     }
 
-    return new FieldReadDefinition(path, field.getName(), type, isList, isGeoShape, holder,
+    return createFieldReadDefinition(path, field.getName(), type, maxCellSize, isList, isGeoShape, holder,
         FluentIterable.from(type.getChildren()).transform(new Function<Field, FieldReadDefinition>() {
           @Override
           public FieldReadDefinition apply(Field input) {
-            return getDefinition(path, input, annotations, hiddenFields, buffer, isGeoShape);
+            return getDefinition(path, input, maxCellSize, annotations, hiddenFields, buffer, isGeoShape);
           }
         }).append(getHiddenFields(hiddenFields.get(path)))
         .uniqueIndex(new Function<FieldReadDefinition, String>() {
@@ -229,33 +268,33 @@ public class FieldReadDefinition {
     }
 
     // special handling for multi-dimensional geo shape types.
-    if(isGeoShape && ElasticsearchConstants.GEO_SHAPE_COORDINATES.equals(name)){
+    if (isGeoShape && ElasticsearchConstants.GEO_SHAPE_COORDINATES.equals(name)) {
       return new WriteHolders.DoubleWriteHolder(name);
     }
 
-    switch(type){
-    case BIGINT:
-      return new WriteHolders.BigIntWriteHolder(name);
-    case BIT:
-        return new WriteHolders.BitWriteHolder(name);
-    case DATE:
-      return new WriteHolders.DateWriteHolder(name, path, formatterAndType);
-    case FLOAT4:
-      return new WriteHolders.FloatWriteHolder(name);
-    case FLOAT8:
-      return new WriteHolders.DoubleWriteHolder(name);
-    case INT:
-      return new WriteHolders.IntWriteHolder(name);
-    case TIME:
-      return new WriteHolders.TimeWriteHolder(name, path, formatterAndType);
-    case TIMESTAMP:
-      return new WriteHolders.TimestampWriteHolder(name, path, formatterAndType);
-    case VARBINARY:
-      return new WriteHolders.VarBinaryWriteHolder(name, buffer);
-    case VARCHAR:
-      return new WriteHolders.VarCharWriteHolder(name, buffer);
-    default:
-      return new WriteHolders.InvalidWriteHolder();
+    switch(type) {
+      case BIGINT:
+        return new WriteHolders.BigIntWriteHolder(name);
+      case BIT:
+          return new WriteHolders.BitWriteHolder(name);
+      case DATE:
+        return new WriteHolders.DateWriteHolder(name, path, formatterAndType);
+      case FLOAT4:
+        return new WriteHolders.FloatWriteHolder(name);
+      case FLOAT8:
+        return new WriteHolders.DoubleWriteHolder(name);
+      case INT:
+        return new WriteHolders.IntWriteHolder(name);
+      case TIME:
+        return new WriteHolders.TimeWriteHolder(name, path, formatterAndType);
+      case TIMESTAMP:
+        return new WriteHolders.TimestampWriteHolder(name, path, formatterAndType);
+      case VARBINARY:
+        return new WriteHolders.VarBinaryWriteHolder(name, buffer);
+      case VARCHAR:
+        return new WriteHolders.VarCharWriteHolder(name, buffer);
+      default:
+        return new WriteHolders.InvalidWriteHolder();
     }
   }
 
@@ -264,6 +303,4 @@ public class FieldReadDefinition {
     return MoreObjects.toStringHelper(this).add("name", name).add("isList", isList).add("type", type)
         .add("children", children).add("holder", holder).toString();
   }
-
-
 }

@@ -41,6 +41,7 @@ import com.dremio.exec.planner.physical.HashPrelUtil;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.common.hashtable.HashTable.BatchAddedListener;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.sun.codemodel.JConditional;
@@ -131,8 +132,8 @@ public class ChainedHashTable {
     this.listener = listener;
   }
 
-  public HashTable createAndSetupHashTable(TypedFieldId[] outKeyFieldIds) throws ClassTransformationException,
-      IOException, SchemaChangeException {
+  public HashTable createAndSetupHashTable(TypedFieldId[] outKeyFieldIds, OptionManager optionManager) throws
+    ClassTransformationException, IOException, SchemaChangeException {
     final CodeGenerator<HashTable> codeGenerator = producer.createGenerator(HashTable.TEMPLATE_DEFINITION);
     final ClassGenerator<HashTable> hashTableGen = codeGenerator.getRoot();
     final ClassGenerator<HashTable> batchHolderGen = hashTableGen.getInnerGenerator("BatchHolder");
@@ -170,7 +171,8 @@ public class ChainedHashTable {
         keyExprsProbe[i] = expr;
         i++;
       }
-      JoinUtils.addLeastRestrictiveCasts(keyExprsProbe, incomingProbe, keyExprsBuild, incomingBuild, producer);
+      JoinUtils.addLeastRestrictiveCasts(keyExprsProbe, incomingProbe, keyExprsBuild,
+        incomingBuild, producer, optionManager);
     }
 
     i = 0;

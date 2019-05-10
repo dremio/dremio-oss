@@ -36,6 +36,6 @@ public class MockScanCreator implements ProducerOperator.Creator<MockSubScanPOP>
     for(final MockScanEntry e : entries) {
       readers.add(new MockRecordReader(context, e));
     }
-    return new ScanOperator(fragmentExecContext.getSchemaUpdater(), config, context, readers.iterator());
+    return new ScanOperator(config, context, readers.iterator());
   }
 }

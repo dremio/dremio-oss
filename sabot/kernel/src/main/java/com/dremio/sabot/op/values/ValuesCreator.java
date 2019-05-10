@@ -34,6 +34,6 @@ public class ValuesCreator implements ProducerOperator.Creator<Values> {
   public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, Values config) throws ExecutionSetupException {
     final JSONRecordReader reader = new JSONRecordReader(context, config.getContent().asNode(), null, Collections.singletonList(SchemaPath.getSimplePath("*")));
 
-    return new ScanOperator(fec.getSchemaUpdater(), config, context, Iterators.singletonIterator((RecordReader) reader));
+    return new ScanOperator(config, context, Iterators.singletonIterator((RecordReader) reader));
   }
 }

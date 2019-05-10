@@ -23,11 +23,10 @@ package com.dremio.exec.catalog;
 public class ColumnCountTooLargeException extends DatasetMetadataTooLargeException {
   private static final long serialVersionUID = 7765148243332604247L;
 
-  public ColumnCountTooLargeException(String message) {
-    super(message);
+  public static final String MESSAGE = "Number of fields in dataset '%s' exceeded the maximum number of fields of %d";
+
+  public ColumnCountTooLargeException(String datasetName, int limit) {
+    super(String.format(MESSAGE, datasetName, limit));
   }
 
-  public ColumnCountTooLargeException(String message, Throwable cause) {
-    super(message, cause);
-  }
 }

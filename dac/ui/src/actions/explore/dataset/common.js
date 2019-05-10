@@ -22,26 +22,29 @@ import { getPathPart, changePageTypeInUrl } from '@app/pages/ExplorePage/pageTyp
 
 import { API_URL_V2 } from 'constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
+import apiUtils from '@app/utils/apiUtils/apiUtils';
 
 export const RUN_TABLE_TRANSFORM_START   = 'RUN_TABLE_TRANSFORM_START';
 export const RUN_TABLE_TRANSFORM_SUCCESS = 'RUN_TABLE_TRANSFORM_SUCCESS';
 export const RUN_TABLE_TRANSFORM_FAILURE = 'RUN_TABLE_TRANSFORM_FAILURE';
 
-export const runTableTransformActionTypes = [
-  RUN_TABLE_TRANSFORM_START,
-  RUN_TABLE_TRANSFORM_SUCCESS,
-  RUN_TABLE_TRANSFORM_FAILURE
-];
-
 /**
  * common helper for different table operations
  */
 export function postDatasetOperation({
-  href, schema, viewId, dataset, uiPropsForEntity, invalidateViewIds, body, type,
-  notificationMessage, metas = [], nextTable, replaceNav
+  href,
+  schema,
+  viewId,
+  dataset,
+  uiPropsForEntity,
+  invalidateViewIds,
+  body,
+  notificationMessage,
+  metas = [],
+  nextTable
 }) {
   const meta = {
-    viewId, invalidateViewIds, dataset, entity: dataset, nextTable, href, type, replaceNav
+    viewId, invalidateViewIds, dataset, entity: dataset, nextTable, href
   };
   const successMeta = notificationMessage ? {
     ...meta,
@@ -61,7 +64,10 @@ export function postDatasetOperation({
         { type: RUN_TABLE_TRANSFORM_FAILURE, meta: {...meta, ...metas[2]} }
       ],
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        ...apiUtils.getJobDataNumbersAsStringsHeader()
+      },
       body: body && JSON.stringify(body),
       endpoint: `${API_URL_V2}${href}`
     }
@@ -74,8 +80,19 @@ export function _getNextJobId(fullDataset) {
   return fullDataset.get('approximate') ? undefined : newJobId;
 }
 
-export function navigateToNextDataset(response, {replaceNav, linkName, isSaveAs, preserveTip} = {}) {
+export function navigateToNextDataset(response, {
+    replaceNav,
+    linkName,
+    isSaveAs,
+    preserveTip,
+    // we need to change a pathname only in the following cases
+    // 1) Save as
+    // 2) Edit original sql // handled by navigateAfterReapply
+    // 3) When we write a new query and click Preview/Run to navigate to newUntitled page
+    changePathname
+  } = {}) {
   return (dispatch, getStore) => {
+    changePathname = isSaveAs || changePathname;
     const location = getStore().routing.locationBeforeTransitions;
     const { tipVersion } = location.query || {};
     let targetPageType = PageTypes.default;
@@ -113,7 +130,7 @@ export function navigateToNextDataset(response, {replaceNav, linkName, isSaveAs,
 
     const mode = isSaveAs ? 'edit' : location.query && location.query.mode;
     const jobId = _getNextJobId(fullDataset);
-    const pathname = changePageTypeInUrl(parsedLink.pathname, targetPageType);
+    const pathname = changePageTypeInUrl(changePathname ? parsedLink.pathname : location.pathname, targetPageType);
     const query = {
       ...(keepQuery ? location.query : {}), // Initial dataset request will navigate. Need to not clobber graph query params.
       ...parsedLink.query,
@@ -123,6 +140,7 @@ export function navigateToNextDataset(response, {replaceNav, linkName, isSaveAs,
       tipVersion: preserveTip ? tipVersion || nextVersion : nextVersion
     };
     const action = replaceNav ? replace : push;
-    return dispatch(action({ pathname, query, state: {}}));
+    const state = isSaveAs ? { afterDatasetSave: true } : {};
+    return dispatch(action({ pathname, query, state }));
   };
 }

@@ -18,11 +18,10 @@ import { UPDATE_HISTORY_WITH_JOB_STATE } from 'actions/explore/history';
 export default function data(state, action) {
   switch (action.type) {
   case UPDATE_HISTORY_WITH_JOB_STATE: {
-    const { dataset, jobState } = action.meta;
-    const version = dataset.get('datasetVersion');
-    const historyItem = state.getIn(['historyItem', version]);
+    const { datasetVersion, jobState } = action.meta;
+    const historyItem = state.getIn(['historyItem', datasetVersion]);
     if (historyItem) {
-      return state.setIn(['historyItem', version, 'state'], jobState);
+      return state.setIn(['historyItem', datasetVersion, 'state'], jobState);
     }
     return state;
   }

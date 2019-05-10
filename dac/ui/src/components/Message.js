@@ -223,7 +223,7 @@ export default class Message extends Component {
 
   renderShowMoreToggle() {
     return <span
-      onTouchTap={this.showMoreToggle}
+      onClick={this.showMoreToggle}
       onMouseUp={this.prevent}
       style={{...styles.showMoreLink, marginRight: this.props.isDismissable ? 30 : 5 }}>
 

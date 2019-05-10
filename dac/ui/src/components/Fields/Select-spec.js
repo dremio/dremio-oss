@@ -15,6 +15,7 @@
  */
 import { shallow } from 'enzyme';
 import Select from './Select';
+
 describe('Select', () => {
   let minimalProps;
   let commonProps;
@@ -38,10 +39,12 @@ describe('Select', () => {
     const wrapperMinProps = shallow(<Select {...minimalProps}/>);
     expect(wrapperMinProps).to.have.length(1);
   });
-  it('should render 3 SelectItem components, Menu, Popover', () => {
-    expect(wrapper.find('SelectItem')).to.have.length(3);
-    expect(wrapper.find('Popover')).to.have.length(1);
-    expect(wrapper.find('Menu')).to.have.length(1);
+
+  it('should render SelectView and 3 SelectItem', () => {
+    const selectViewWrapper = wrapper.find('SelectView');
+
+    expect(selectViewWrapper).to.have.length(1);
+    expect(selectViewWrapper.prop('children')({})).to.have.length(3);
   });
 
   describe('#getButtonLabel', () => {
@@ -56,69 +59,32 @@ describe('Select', () => {
 
   describe('#handleChange', () => {
     it('should call handleRequestClose and onChange if it exists', () => {
-      sinon.spy(instance, 'handleRequestClose');
-      instance.handleChange(null, 'name');
-      expect(instance.handleRequestClose).to.be.called;
+      const closeDDFn = sinon.stub();
+      instance.handleChange(closeDDFn, null, 'name');
+      expect(closeDDFn).to.be.called;
       expect(commonProps.onChange).to.be.calledWith('name');
     });
   });
 
-  describe('#valueForItem', () => {
+  describe('#getValue', () => {
     it('should return option property if it exists', () => {
       const item = {
         option: 'option',
         label: 'label'
       };
-      expect(instance.valueForItem(item)).to.eql(item.option);
+      expect(instance.getValue(item)).to.eql(item.option);
     });
     it('should return label property if it exists and option is not exists', () => {
       const item = {
         label: 'label'
       };
-      expect(instance.valueForItem(item)).to.eql(item.label);
+      expect(instance.getValue(item)).to.eql(item.label);
     });
-    it('should return argument if it does not have option or label', () => {
+    it('should return undefined if it does not have option or label', () => {
       const item = {
         prop: 'label'
       };
-      expect(instance.valueForItem(item)).to.eql(item);
-    });
-  });
-
-  describe('#handleTouchTap', () => {
-    it('should set open and anchorEl properties on components state', () => {
-      const prevState = wrapper.state();
-      const e = {
-        preventDefault: sinon.spy(),
-        currentTarget: { target: 't' }
-      };
-      instance.handleTouchTap(e);
-      const nextState = wrapper.state();
-      expect(e.preventDefault).to.be.called;
-      expect(nextState.open).to.eql(!prevState.open);
-      expect(nextState.anchorEl).to.eql(e.currentTarget);
-    });
-
-    it('should not open menu when disabled from props is true', () => {
-      const prevState = wrapper.state();
-      const e = {
-        preventDefault: sinon.spy(),
-        currentTarget: { target: 't' }
-      };
-      wrapper.setProps({disabled: true});
-      instance.handleTouchTap(e);
-      const nextState = wrapper.state();
-      expect(e.preventDefault).to.be.called;
-      expect(nextState.open).to.eql(prevState.open);
-      expect(nextState.anchorEl).to.eql(undefined);
-    });
-  });
-
-  describe('#handleRequestClose', () => {
-    it('should reset open to false', () => {
-      wrapper.setState({ open: true });
-      instance.handleRequestClose();
-      expect(wrapper.state('open')).to.be.false;
+      expect(instance.getValue(item)).to.be.undefined;
     });
   });
 });

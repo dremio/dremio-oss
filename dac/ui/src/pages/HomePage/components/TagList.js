@@ -31,30 +31,6 @@ export class TagListView extends Component {
     onMainContainerRef: PropTypes.func
   };
 
-  state = {
-    modalIsOpen: false,
-    anchorEl: null
-  };
-
-  openModal = (e) => {
-    e.preventDefault();
-    this.setState({
-      modalIsOpen: true
-    });
-  };
-
-  closeModal = () => {
-    this.setState({
-      modalIsOpen: false
-    });
-  }
-
-  onRef = (moreBtn) => {
-    this.setState({
-      anchorEl: moreBtn
-    });
-  };
-
   render() {
     const {
       tags,
@@ -70,22 +46,20 @@ export class TagListView extends Component {
     const modalTags = showModal ? tags.slice(visibleTagsNumber) : null;
     return (
       <div ref={onMainContainerRef} className={className} style={style}>
-        {visible.map(tag => <Tag key={tag}
-          onClick={onTagClick ? () => onTagClick(tag) : null}
-          className={tagClass}
-          text={tag}
-          title />)}
-        {showModal &&
-          [
-            <Tag key='moreTags' text='...' className={tagClass} onClick={this.openModal} onRef={this.onRef} />,
-            <TagsModal key='tagsModal'
-              isOpen={this.state.modalIsOpen}
-              hide={this.closeModal}
-              tags={modalTags.toJS()}
-              anchorEl={this.state.anchorEl}
-              onTagClick={onTagClick}
-            />
-          ]
+        {
+          visible.map(tag => <Tag key={tag}
+            onClick={onTagClick ? () => onTagClick(tag) : null}
+            className={tagClass}
+            text={tag}
+            title
+          />)
+        }
+        {
+          showModal && <TagsModal key='tagsModal'
+            tags={modalTags.toJS()}
+            onTagClick={onTagClick}
+            mainTagClass={tagClass}
+          />
         }
       </div>
     );

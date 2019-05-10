@@ -18,7 +18,7 @@ package com.dremio.exec.store.hbase;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import com.dremio.hbase.proto.HBasePluginProto.HBaseSplitXattr;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
@@ -61,7 +61,7 @@ public class KeyRange {
   }
 
   public static KeyRange fromSplit(DatasetSplit input) {
-    byte[] prop = input.getExtendedProperty().toByteArray();
+    ByteString prop = input.getSplitExtendedProperty();
     try {
       HBaseSplitXattr split = HBaseSplitXattr.parseFrom(prop);
       return getRange(split.getStart(), split.getStop());

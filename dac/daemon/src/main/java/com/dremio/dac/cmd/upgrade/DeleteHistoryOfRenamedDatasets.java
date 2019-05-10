@@ -18,6 +18,7 @@ package com.dremio.dac.cmd.upgrade;
 import java.util.Map;
 
 import com.dremio.common.Version;
+import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.proto.model.dataset.NameDatasetRef;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetVersion;
 import com.dremio.dac.service.datasets.DatasetVersionMutator.VersionDatasetKey;
@@ -31,6 +32,7 @@ import com.google.common.collect.Maps;
  * to null.
  */
 public class DeleteHistoryOfRenamedDatasets extends UpgradeTask implements  LegacyUpgradeTask {
+
 
   //DO NOT MODIFY
   static final String taskUUID = "149b8d09-9099-4eba-8902-0edf103a441c";
@@ -63,7 +65,8 @@ public class DeleteHistoryOfRenamedDatasets extends UpgradeTask implements  Lega
       }
     }
 
-    System.out.printf("Found [%d] renamed entries. Remove their previous version links.\n", renamedDatasets.size());
+    AdminLogger.log("Found {} renamed entries. Remove their previous version links.", renamedDatasets.size());
+
     for (final Map.Entry<VersionDatasetKey, VirtualDatasetVersion> datasetVersion : renamedDatasets.entrySet()) {
       final VirtualDatasetVersion newValue = datasetVersion.getValue()
           .setPreviousVersion(null);

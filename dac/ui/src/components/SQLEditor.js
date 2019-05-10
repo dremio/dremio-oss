@@ -15,11 +15,13 @@
  */
 import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
+import { connect } from 'react-redux';
 import MonacoEditor from 'react-monaco-editor';
 import Immutable from 'immutable';
 import * as SQLLanguage from 'monaco-editor/dev/vs/basic-languages/src/sql';
 
 import {RESERVED_WORDS} from 'utils/pathUtils';
+import { runDatasetSql, previewDatasetSql } from 'actions/explore/dataset/run';
 import { SQLAutoCompleteProvider } from './SQLAutoCompleteProvider';
 import './SQLEditor.less';
 
@@ -38,7 +40,9 @@ const staticPropTypes = {
   maxHeight: PropTypes.number, // is only applicable for fitHeightToContent case
   contextMenu: PropTypes.bool,
   autoCompleteEnabled: PropTypes.bool,
-  sqlContext: PropTypes.instanceOf(Immutable.List)
+  sqlContext: PropTypes.instanceOf(Immutable.List),
+  runDatasetSql: PropTypes.func,
+  previewDatasetSql: PropTypes.func
 };
 
 const checkHeightAndFitHeightToContentFlags = (props, propName, componentName) => {
@@ -51,7 +55,7 @@ const checkHeightAndFitHeightToContentFlags = (props, propName, componentName) =
   }
 };
 
-export default class SQLEditor extends PureComponent {
+export class SQLEditor extends PureComponent {
   static propTypes = {
     ...staticPropTypes,
     height: checkHeightAndFitHeightToContentFlags // pass-thru
@@ -269,6 +273,7 @@ export default class SQLEditor extends PureComponent {
 
       // todo:
       // limit operators to /[*+\-<>!=&|/~]/
+      tokenProvider.tokenizer.comments.push([/\/\/+.*/, 'comment']);
 
       monaco.languages.register({ id: language });
       monaco.languages.setMonarchTokensProvider(language, tokenProvider);
@@ -294,7 +299,37 @@ export default class SQLEditor extends PureComponent {
     if (this._focusOnMount) {
       this.focus();
     }
-  }
+    this.addKeyboardShortcuts(editor);
+  };
+
+  onKbdPreview = (editor) => {
+    this.props.previewDatasetSql();
+  };
+
+  onKbdRun = (editor) => {
+    this.props.runDatasetSql();
+  };
+
+  addKeyboardShortcuts = (editor) => {
+    const monaco = this.monaco;
+    editor.addAction({
+      id: 'keys-preview',
+      label: 'Preview',
+      keybindings: [ monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter ], // eslint-disable-line no-bitwise
+      precondition: null,
+      keybindingContext: null,
+      run: this.onKbdPreview
+    });
+    editor.addAction({
+      id: 'keys-run',
+      label: 'Run',
+      keybindings: [ monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter ], // eslint-disable-line no-bitwise
+      precondition: null,
+      keybindingContext: null,
+      run: this.onKbdRun
+    });
+
+  };
 
   insertSnippet() {
     SnippetController.get(this.monacoEditorComponent.editor).insert(...arguments);
@@ -335,3 +370,8 @@ export default class SQLEditor extends PureComponent {
     />;
   }
 }
+
+export default connect(null, {
+  runDatasetSql,
+  previewDatasetSql
+}, null, {forwardRef: true})(SQLEditor);

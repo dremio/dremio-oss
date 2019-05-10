@@ -35,7 +35,6 @@ import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.PlannerPhase;
-import com.dremio.exec.planner.RootSchemaFinder;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObserver;
@@ -140,7 +139,7 @@ public final class QueryParser {
         final SqlHandlerConfig config = new SqlHandlerConfig(context, converter, observer, null);
         NormalHandler handler = new NormalHandler();
         PhysicalPlan pp = handler.getPlan(config, query.getSql(), sqlNode);
-        builder.addBatchSchema(pp.getRoot().getSchema(sabotContext.getFunctionImplementationRegistry()));
+        builder.addBatchSchema(pp.getRoot().getProps().getSchema());
         return builder.build();
 
       } catch(ValidationException e) {
@@ -180,8 +179,7 @@ public final class QueryParser {
     public void planCompleted(ExecutionPlan plan) {
       if (plan != null) {
         try {
-          builder.addBatchSchema(RootSchemaFinder.getSchema(plan.getRootOperator(),
-              sabotContext.getFunctionImplementationRegistry()));
+          builder.addBatchSchema(plan.getRootOperator().getProps().getSchema());
         } catch (Exception e) {
           throw new RuntimeException("Failure in finding schema", e);
         }

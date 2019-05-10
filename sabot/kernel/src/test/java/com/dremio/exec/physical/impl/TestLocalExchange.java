@@ -42,11 +42,12 @@ import com.dremio.exec.physical.config.UnorderedDeMuxExchange;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.planner.fragment.Fragment.ExchangeFragmentPair;
+import com.dremio.exec.planner.fragment.PlanFragmentFull;
+import com.dremio.exec.planner.fragment.PlanFragmentsIndex;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.fragment.SimpleParallelizer;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.pop.PopUnitTestBase;
-import com.dremio.exec.proto.CoordExecRPC.PlanFragment;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared;
@@ -62,6 +63,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+
 /**
  * This test starts a Drill cluster with CLUSTER_SIZE nodes and generates data for test tables.
  *
@@ -414,16 +416,18 @@ public class TestLocalExchange extends PlanTestBase {
     findFragmentsWithPartitionSender(rootFragment, planningSet, deMuxFragments, htrFragments);
 
     final QueryContextInformation queryContextInfo = Utilities.createQueryContextInfo("dummySchemaName");
-    List<PlanFragment> fragments = PARALLELIZER.getFragments(new OptionList(), sabotContext.getEndpoint(),
+    List<PlanFragmentFull> fragments = PARALLELIZER.getFragments(new OptionList(), sabotContext.getEndpoint(),
         QueryId.getDefaultInstance(),
-        sabotContext.getExecutors(), planReader, rootFragment, USER_SESSION, queryContextInfo, Mockito.mock(FunctionLookupContext.class));
+        sabotContext.getExecutors(), planReader, rootFragment,
+        new PlanFragmentsIndex.Builder(),
+        USER_SESSION, queryContextInfo, Mockito.mock(FunctionLookupContext.class));
 
     // Make sure the number of minor fragments with HashPartitioner within a major fragment is not more than the
     // number of SabotNodes in cluster
     ArrayListMultimap<Integer, NodeEndpoint> partitionSenderMap = ArrayListMultimap.create();
-    for(PlanFragment planFragment : fragments) {
+    for(PlanFragmentFull planFragment : fragments) {
       // Our parallelizer doesn't compress fragments
-      if (planFragment.getFragmentJson().toStringUtf8().contains("hash-partition-sender")) {
+      if (planFragment.getMajor().getFragmentJson().toStringUtf8().contains("hash-partition-sender")) {
         int majorFragmentId = planFragment.getHandle().getMajorFragmentId();
         NodeEndpoint assignedEndpoint = planFragment.getAssignment();
         partitionSenderMap.get(majorFragmentId).add(assignedEndpoint);

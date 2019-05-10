@@ -17,6 +17,7 @@ package com.dremio.service.reflection.materialization;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 import javax.inject.Provider;
 
@@ -25,23 +26,38 @@ import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.connector.ConnectorException;
+import com.dremio.connector.metadata.BytesOutput;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetDatasetOption;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
+import com.dremio.connector.metadata.options.MaxLeafFieldCount;
 import com.dremio.datastore.KVStoreProvider;
+import com.dremio.exec.catalog.CurrentSchemaOption;
+import com.dremio.exec.catalog.FileConfigOption;
+import com.dremio.exec.catalog.SortColumnsOption;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePluginRulesFactory;
+import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.PreviousDatasetInfo;
+import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.SourceTableDefinition;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.file.proto.FileUpdateKey;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
+import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.reflection.ReflectionServiceImpl;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
@@ -54,8 +70,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-
-import io.protostuff.ByteString;
 
 /**
  * A custom FileSystemPlugin that only works with Parquet files and generates file selections based on Refreshes as opposed to path.
@@ -150,66 +164,60 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
   }
 
   @Override
-  public SourceTableDefinition getDataset(
-      NamespaceKey datasetPath,
-      DatasetConfig oldConfig,
-      DatasetRetrievalOptions options
-  ) throws Exception {
-    FluentIterable<Refresh> refreshes = getSlices(datasetPath.getPathComponents());
+  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) throws ConnectorException {
+    FluentIterable<Refresh> refreshes = getSlices(datasetPath.getComponents());
     if(refreshes == null) {
-      return null;
+      return Optional.empty();
     }
 
     final String selectionRoot = new Path(getConfig().getPath(), refreshes.first().get().getReflectionId().getId()).toString();
 
-    ImmutableList<FileStatus> allStatus = refreshes.transformAndConcat(new Function<Refresh, Iterable<FileStatus>>(){
-      @Override
-      public Iterable<FileStatus> apply(Refresh input) {
-        try {
-          FileSelection selection = FileSelection.create(getSystemUserFS(), resolveTablePathToValidPath(input.getPath()));
-          if(selection != null) {
-            return selection.minusDirectories().getFileStatuses();
-          }
-          throw new IllegalStateException("Unable to retrieve selection for path." + input.getPath());
-        } catch (IOException e) {
-          throw Throwables.propagate(e);
+    ImmutableList<FileStatus> allStatus = refreshes.transformAndConcat((Function<Refresh, Iterable<FileStatus>>) input -> {
+      try {
+        FileSelection selection = FileSelection.create(getSystemUserFS(), resolveTablePathToValidPath(input.getPath()));
+        if(selection != null) {
+          return selection.minusDirectories().getFileStatuses();
         }
-      }}).toList();
+        throw new IllegalStateException("Unable to retrieve selection for path." + input.getPath());
+      } catch (IOException e) {
+        throw Throwables.propagate(e);
+      }
+    }).toList();
+
+    BatchSchema currentSchema = CurrentSchemaOption.getSchema(options);
+    FileConfig fileConfig = FileConfigOption.getFileConfig(options);
+    List<String> sortColumns = SortColumnsOption.getSortColumns(options);
+    Integer fieldCount = MaxLeafFieldCount.getCount(options);
 
     FileSelection selection = FileSelection.createFromExpanded(allStatus, selectionRoot);
-    return new ParquetFormatDatasetAccessor(oldConfig, getSystemUserFS(), selection, this, datasetPath, EMPTY, formatPlugin,
-        options.maxMetadataLeafColumns());
+
+    final PreviousDatasetInfo pdi = new PreviousDatasetInfo(fileConfig, currentSchema, sortColumns);
+    return Optional.of(new ParquetFormatDatasetAccessor(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, getSystemUserFS(), selection,
+        this, new NamespaceKey(datasetPath.getComponents()), EMPTY, formatPlugin, pdi, 800 /* TODO */));
   }
 
   @Override
-  public CheckResult checkReadSignature(
-      ByteString key,
-      DatasetConfig oldConfig,
-      DatasetRetrievalOptions retrievalOptions
-  ) throws Exception {
+  public DatasetMetadata getDatasetMetadata(
+      DatasetHandle datasetHandle,
+      PartitionChunkListing chunkListing,
+      GetMetadataOption... options
+  ) throws ConnectorException {
+    return datasetHandle.unwrap(FileDatasetHandle.class).getDatasetMetadata(options);
+  }
 
-    final SourceTableDefinition definition = getDataset(
-        new NamespaceKey(oldConfig.getFullPathList()),
-        oldConfig,
-        retrievalOptions.toBuilder()
-            .setIgnoreAuthzErrors(true)
-            .build());
+  @Override
+  public BytesOutput provideSignature(DatasetHandle datasetHandle, DatasetMetadata metadata) {
+    return BytesOutput.NONE;
+  }
 
-    if(definition == null) {
-      return CheckResult.DELETED;
-    }
-
-    return new CheckResult() {
-
-      @Override
-      public UpdateStatus getStatus() {
-        return UpdateStatus.CHANGED;
-      }
-
-      @Override
-      public SourceTableDefinition getDataset() {
-        return definition;
-      }};
+  @Override
+  public MetadataValidity validateMetadata(
+      BytesOutput signature,
+      DatasetHandle datasetHandle,
+      DatasetMetadata metadata,
+      ValidateMetadataOption... options
+  ) {
+    return MetadataValidity.INVALID;
   }
 
   @Override
@@ -267,5 +275,4 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
       }
     }
   }
-
 }

@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.dremio.exec.physical.base.OpProps;
 import org.apache.calcite.plan.RelOptTable;
 import org.elasticsearch.action.Action;
 import org.elasticsearch.action.ActionFuture;
@@ -62,8 +63,8 @@ public class ScanBuilder {
   private ElasticsearchScanSpec spec;
   private ElasticIntermediateScanPrel scan;
 
-  public GroupScan<SplitWork> toGroupScan(long estimatedRowCount){
-    return new ElasticsearchGroupScan(spec, scan.getTableMetadata(), scan.getProjectedColumns(), estimatedRowCount);
+  public GroupScan<SplitWork> toGroupScan(OpProps props, long estimatedRowCount){
+    return new ElasticsearchGroupScan(props, spec, scan.getTableMetadata(), scan.getProjectedColumns(), estimatedRowCount);
   }
 
   public String getResource(){
@@ -158,7 +159,7 @@ public class ScanBuilder {
     }
 
     if (filter != null) {
-      QueryBuilder filterQuery = PredicateAnalyzer.analyze(scan, filter.getCondition());
+      QueryBuilder filterQuery = PredicateAnalyzer.analyze(scan, filter.getCondition(), tableAttributes.getVariationDetected());
       if (b != null) {
         b = QueryBuilders.boolQuery().must(filterQuery).must(b);
       } else {

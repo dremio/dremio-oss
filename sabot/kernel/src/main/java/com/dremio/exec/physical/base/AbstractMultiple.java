@@ -21,12 +21,13 @@ import java.util.List;
 /**
  * Describes an operator that expects more than one children operators as its input.
  */
-public abstract class AbstractMultiple extends AbstractBase{
+public abstract class AbstractMultiple extends AbstractBase {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractMultiple.class);
 
   protected final List<PhysicalOperator> children;
 
-  protected AbstractMultiple(List<PhysicalOperator> children) {
+  public AbstractMultiple(OpProps props, List<PhysicalOperator> children) {
+    super(props);
     this.children = children;
   }
 

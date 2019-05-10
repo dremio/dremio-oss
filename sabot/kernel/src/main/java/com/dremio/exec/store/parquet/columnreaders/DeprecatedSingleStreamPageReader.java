@@ -17,9 +17,9 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.io.IOException;
 
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
+import org.apache.parquet.io.SeekableInputStream;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 
@@ -27,10 +27,10 @@ import com.dremio.common.exceptions.ExecutionSetupException;
  * Single stream page reader that saves position in input stream between each read call
  */
 class DeprecatedSingleStreamPageReader extends PageReader {
-  private final FSDataInputStream inputStream;
+  private final SeekableInputStream inputStream;
   private long lastPosition;
 
-  DeprecatedSingleStreamPageReader(ColumnReader<?> parentStatus, FSDataInputStream inputStream, Path path, ColumnChunkMetaData columnChunkMetaData) throws ExecutionSetupException {
+  DeprecatedSingleStreamPageReader(ColumnReader<?> parentStatus, SeekableInputStream inputStream, Path path, ColumnChunkMetaData columnChunkMetaData) throws ExecutionSetupException {
     super(parentStatus, inputStream, path, columnChunkMetaData);
     try {
       lastPosition = inputStream.getPos();

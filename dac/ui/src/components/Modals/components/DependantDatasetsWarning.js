@@ -13,17 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component, createRef } from 'react';
 
 import PropTypes from 'prop-types';
 
 import FontIcon from 'components/Icon/FontIcon';
-import Tooltip from 'components/Tooltip';
-import { NAVY } from 'uiTheme/radium/colors';
+import { Tooltip } from '@app/components/Tooltip';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 
-const MAX_DATASETS = 5;
-const OFFSET = 90;
+const MAX_DATASETS = 3;
 
 const Dataset = (props) => {
   const { fullPath } = props;
@@ -44,74 +42,56 @@ Dataset.propTypes = {
 export default class DependantDatasetsWarning extends Component {
   static propTypes = {
     text: PropTypes.string,
-    dependantDatasets: PropTypes.array
+    dependantDatasets: PropTypes.array,
+    getGraphLink: PropTypes.func
   };
 
-  constructor(props) {
-    super(props);
+  state = {
+    isOpenTooltip: false
+  };
 
-    this.state = {
-      isOpenTooltip: false
-    };
+  moreLinkRef = createRef();
 
-    this.handleMouseEnter = this.handleMouseEnter.bind(this);
-    this.handleMouseLeave = this.handleMouseLeave.bind(this);
-  }
+  getTooltipTarget = () => this.state.isOpenTooltip ? this.moreLinkRef.current : null;
 
-  componentDidUpdate() {
-    if (this.state.isOpenTooltip) {
-      this.updateTooltipPosition();
-    }
-  }
-
-  handleMouseEnter() {
+  handleMouseEnter = () => {
     this.setState({
       isOpenTooltip: true
     });
-  }
+  };
 
-  handleMouseLeave() {
+  handleMouseLeave = () => {
     this.setState({
       isOpenTooltip: false
     });
-  }
-
-  updateTooltipPosition() {
-    const showMore = $(this.refs.showMore);
-    const tooltip = $('#tooltip');
-    tooltip.css('top', showMore.position().top + showMore.height());
-    tooltip.css('left', showMore.position().left - OFFSET + showMore.width() / 2);
-  }
+  };
 
   renderTooltip() {
-    const { isOpenTooltip } = this.state;
     const { dependantDatasets } = this.props;
     const tooltipDatasets = dependantDatasets.slice(MAX_DATASETS);
-    return isOpenTooltip
-      ?
-        <Tooltip
+    return (
+      <Tooltip
+          target={this.getTooltipTarget}
           id='tooltip'
-          type='info'
+          type='status'
+          style={{ zIndex: 1300 }}
           placement='bottom'
-          tooltipInnerStyle={styles.tooltipInner}
-          tooltipArrowStyle={styles.tooltipArrowStyle}
-          arrowOffsetLeft={OFFSET}
-          content={
-            <div style={styles.tooltipContainer}>
-              {tooltipDatasets.map((fullPath, i) => <Dataset key={i} fullPath={fullPath} />)}
-            </div>
-        }
-      />
-      : null;
+        >
+        <div style={styles.tooltipContainer}>
+          {tooltipDatasets.map((fullPath, i) => <Dataset key={i} fullPath={fullPath} />)}
+        </div>
+      </Tooltip>
+    );
   }
   render() {
-    const { text, dependantDatasets } = this.props;
+    const { text, dependantDatasets, getGraphLink } = this.props;
     const showDatasets = dependantDatasets.slice(0, MAX_DATASETS);
     const isGreaterThanMax = dependantDatasets.length > MAX_DATASETS;
+
     return (
       <div className='dataset-warning'>
         <FontIcon type='Warning' style={styles.warningIcon}/>
-        <div>
+        <div style={styles.messageText}>
           {text}
         </div>
         <div style={styles.datasetContainer}>
@@ -128,17 +108,18 @@ export default class DependantDatasetsWarning extends Component {
           })}
           {isGreaterThanMax
             ? <div style={styles.dataset}>
-              <span
-                ref='showMore'
+              <div
+                ref={this.moreLinkRef}
                 onMouseEnter={this.handleMouseEnter}
                 onMouseLeave={this.handleMouseLeave}
                 style={styles.datasetName}
                 >
-                <a>and {dependantDatasets.length - MAX_DATASETS} more...</a>
-              </span>
+                <a>{la(`and ${dependantDatasets.length - MAX_DATASETS} more...`)}</a>
+              </div>
             </div>
             : null}
           {this.renderTooltip()}
+          {getGraphLink && <div style={styles.graphLink}>{getGraphLink()}</div>}
         </div>
       </div>
     );
@@ -152,7 +133,10 @@ const styles = {
     left: 10
   },
   datasetContainer: {
-    display: 'flex'
+    display: 'flex',
+    width: '100%',
+    marginTop: 5,
+    overflow: 'auto'
   },
   tooltipContainer: {
     display: 'flex',
@@ -166,14 +150,10 @@ const styles = {
     justifyContent: 'center',
     margin: 5
   },
-  tooltipInner: {
-    background: NAVY,
-    color: '#fff',
-    boxShadow: '2px 2px 5px 0px rgba(0,0,0,0.05)',
-    borderRadius: '2px'
+  messageText: {
+    marginTop: 6
   },
-  tooltipArrowStyle: {
-    borderTopColor: NAVY,
-    borderBottomColor: NAVY
+  graphLink: {
+    margin: '0 5px'
   }
 };

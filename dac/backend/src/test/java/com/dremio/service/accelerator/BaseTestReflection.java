@@ -29,6 +29,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -45,6 +46,7 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.datastore.KVStoreProvider;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
@@ -54,9 +56,10 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionValue;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
@@ -69,6 +72,7 @@ import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.reflection.DependencyEntry;
 import com.dremio.service.reflection.DependencyEntry.DatasetDependency;
@@ -156,9 +160,11 @@ public class BaseTestReflection extends BaseTestServer {
     return p(MaterializationDescriptorProvider.class).get();
   }
 
-  protected static void requestRefresh(NamespaceKey datasetKey) throws NamespaceException {
+  protected static long requestRefresh(NamespaceKey datasetKey) throws NamespaceException {
+    final long requestTime = System.currentTimeMillis();
     DatasetConfig dataset = getNamespaceService().getDataset(datasetKey);
     getReflectionService().requestRefresh(dataset.getId().getId());
+    return requestTime;
   }
 
   protected static ReflectionMonitor newReflectionMonitor(long delay, long maxWait) {
@@ -173,6 +179,7 @@ public class BaseTestReflection extends BaseTestServer {
 
   protected static DatasetConfig addJson(DatasetPath path) throws Exception {
     final DatasetConfig dataset = new DatasetConfig()
+      .setId(new EntityId(UUID.randomUUID().toString()))
       .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FILE)
       .setFullPathList(path.toPathList())
       .setName(path.getLeaf().getName())
@@ -189,21 +196,19 @@ public class BaseTestReflection extends BaseTestServer {
 
   protected void setSystemOption(String optionName, String optionValue) {
     final String query = String.format("ALTER SYSTEM SET \"%s\"=%s", optionName, optionValue);
-    final Job job = getJobsService().submitJob(JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
-      .setQueryType(QueryType.UI_INTERNAL_RUN)
-      .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-      .build(), NoOpJobStatusListener.INSTANCE);
-    job.getData().loadIfNecessary();
+    JobsServiceUtil.waitForJobCompletion(
+      getJobsService().submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
+          .setQueryType(QueryType.UI_INTERNAL_RUN)
+          .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+          .build(), NoOpJobStatusListener.INSTANCE)
+    );
   }
 
   protected String getQueryPlan(final String query) {
     final AtomicReference<String> plan = new AtomicReference<>("");
-    final Job job = getJobsService().submitJob(JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
-      .setQueryType(QueryType.UI_INTERNAL_RUN)
-      .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-      .build(), new NoOpJobStatusListener() {
+    final JobStatusListener capturePlanListener = new NoOpJobStatusListener() {
       @Override
       public void planRelTransform(final PlannerPhase phase, final RelNode before, final RelNode after, final long millisTaken) {
         if (!Strings.isNullOrEmpty(plan.get())) {
@@ -214,9 +219,17 @@ public class BaseTestReflection extends BaseTestServer {
           plan.set(RelOptUtil.dumpPlan("", after, SqlExplainFormat.TEXT, SqlExplainLevel.ALL_ATTRIBUTES));
         }
       }
-    });
+    };
 
-    job.getData().loadIfNecessary();
+    JobsServiceUtil.waitForJobCompletion(
+      getJobsService().submitJob(
+        JobRequest.newBuilder()
+          .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
+          .setQueryType(QueryType.UI_INTERNAL_RUN)
+          .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+          .build(), capturePlanListener)
+    );
+
     return plan.get();
   }
 
@@ -285,6 +298,11 @@ public class BaseTestReflection extends BaseTestServer {
       OptionValue.createBoolean(SYSTEM, MATERIALIZATION_CACHE_ENABLED.getOptionName(), enabled));
     l(ContextService.class).get().getOptionManager().setOption(
       OptionValue.createLong(SYSTEM, ReflectionOptions.MATERIALIZATION_CACHE_REFRESH_DELAY_MILLIS.getOptionName(), refreshDelayInSeconds*1000));
+  }
+
+  protected static void setEnableReAttempts(boolean enableReAttempts) {
+    l(ContextService.class).get().getOptionManager().setOption(
+      OptionValue.createBoolean(SYSTEM, ExecConstants.ENABLE_REATTEMPTS.getOptionName(), enableReAttempts));
   }
 
   protected static void setManagerRefreshDelay(long delayInSeconds) {

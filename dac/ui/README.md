@@ -1,7 +1,10 @@
 # Introduction
 
+## Prerequisites
+Please make sure that node v10.4 or higher is installed.
+
 ## Setup
-- Install dependencies: `npm install` 
+- Install dependencies: `npm install`
 - Install git hooks: `../../tools/git-hooks/configure.command`
 
 ## Commands for macOS & Debian

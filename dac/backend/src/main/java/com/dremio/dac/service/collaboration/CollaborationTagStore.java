@@ -30,7 +30,7 @@ import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.StringSerializer;
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.indexed.IndexKey;
-import com.dremio.service.accelerator.store.serializer.SchemaSerializer;
+import com.dremio.service.reflection.store.SchemaSerializer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;

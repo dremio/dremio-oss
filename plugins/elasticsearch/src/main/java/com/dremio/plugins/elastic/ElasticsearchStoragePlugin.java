@@ -16,22 +16,42 @@
 package com.dremio.plugins.elastic;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.connector.ConnectorException;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetHandleListing;
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.GetDatasetOption;
+import com.dremio.connector.metadata.GetMetadataOption;
+import com.dremio.connector.metadata.ListPartitionChunkOption;
+import com.dremio.connector.metadata.PartitionChunkListing;
+import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
+import com.dremio.elastic.proto.ElasticReaderProto;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CurrentSchemaOption;
+import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.catalog.conf.EncryptionValidationMode;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
+import com.dremio.options.OptionManager;
 import com.dremio.plugins.elastic.ElasticActions.Health;
 import com.dremio.plugins.elastic.ElasticActions.IndexExists;
 import com.dremio.plugins.elastic.ElasticActions.Result;
@@ -41,20 +61,19 @@ import com.dremio.plugins.elastic.mapping.ElasticMappingSet;
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.ClusterMetadata;
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.ElasticIndex;
 import com.dremio.plugins.elastic.mapping.ElasticMappingSet.ElasticMapping;
+import com.dremio.plugins.elastic.mapping.SchemaMerger;
 import com.dremio.plugins.elastic.planning.ElasticRulesFactory;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
-import com.dremio.service.namespace.SourceTableDefinition;
 import com.dremio.service.namespace.capabilities.BooleanCapability;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 import io.protostuff.ByteString;
 
@@ -77,7 +96,7 @@ import io.protostuff.ByteString;
  * - indices:admin/shards/search_shards
  *
  */
-public class ElasticsearchStoragePlugin implements StoragePlugin {
+public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListingDatasets {
 
   private static final Logger logger = LoggerFactory.getLogger(ElasticsearchStoragePlugin.class);
 
@@ -165,60 +184,217 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public SourceTableDefinition getDataset(NamespaceKey datasetPath, DatasetConfig oldConfig, DatasetRetrievalOptions ignored) throws Exception {
-    return getDatasetInternal(datasetPath, oldConfig);
+  public DatasetConfig createDatasetConfigFromSchema(DatasetConfig oldConfig, BatchSchema newSchema) {
+    Preconditions.checkNotNull(oldConfig);
+    Preconditions.checkNotNull(newSchema);
+    OptionManager optManager = context.getOptionManager();
+    NamespaceKey key = new NamespaceKey(oldConfig.getFullPathList());
+
+    // its possible that the mapping has changed. If so, we need to re-sample the data. fail the query and retry.
+    // If not, make sure we update the schema using the elastic schema merger rather than a general merge behavior.
+    int mappingHash;
+    try {
+      ElasticReaderProto.ElasticTableXattr oldXattr =
+        ElasticReaderProto.ElasticTableXattr.parseFrom(oldConfig.getReadDefinition().getExtendedProperty().toByteArray());
+      mappingHash = oldXattr.getMappingHash();
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalStateException(e);
+    }
+
+    ElasticMapping mapping = getMapping(key);
+    if(mapping == null){
+      throw UserException.dataReadError()
+          .message("Unable to find schema information for %s after observing schema change.", key)
+          .build(logger);
+    }
+
+    BatchSchema oldSchema = BatchSchema.fromDataset(oldConfig);
+    if (optManager.getOption(ExecConstants.ELASTIC_ENABLE_MAPPING_CHECKSUM)) {
+      final int latestMappingHash = mapping.hashCode();
+      if (mappingHash != latestMappingHash) {
+        final UserException.Builder builder = UserException.invalidMetadataError()
+            .setAdditionalExceptionContext(
+                new InvalidMetadataErrorContext(Collections.singletonList(key.getPathComponents())))
+            .addContext("new mapping", mapping.toString());
+
+        final List<Pair<Field, Field>> differentFields = oldSchema.findDiff(newSchema);
+        for (Pair<Field, Field> pair : differentFields) {
+          if (pair.left == null) {
+            builder.addContext("new Field", pair.right.toString());
+          } else {
+            builder.addContext("different Field", pair.toString());
+          }
+        }
+        throw builder.build(logger);
+      }
+    }
+
+    SchemaMerger merger = new SchemaMerger(new NamespaceKey(oldConfig.getFullPathList()).toString());
+
+    // Since the newlyObserved schema could be partial due to projections, we need to merge it with the original.
+    DatasetConfig newConfig = serializer.deserialize(serializer.serialize(oldConfig));
+
+    BatchSchema preMergedSchema = oldSchema.merge(newSchema);
+    SchemaMerger.MergeResult result = merger.merge(mapping, preMergedSchema);
+
+    try {
+      // update the annotations.
+      ElasticReaderProto.ElasticTableXattr xattr =
+        ElasticReaderProto.ElasticTableXattr.parseFrom(newConfig.getReadDefinition().getExtendedProperty().toByteArray());
+      newConfig.getReadDefinition().setExtendedProperty(ByteString.copyFrom(
+        xattr.toBuilder().clearAnnotation().addAllAnnotation(result.getAnnotations()).build().toByteArray()));
+      newConfig.setRecordSchema(ByteString.copyFrom(result.getSchema().serialize()));
+      return newConfig;
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
-  private SourceTableDefinition getDatasetInternal(NamespaceKey datasetPath, DatasetConfig oldConfig) throws Exception {
-    if(datasetPath.size() != 3){
-      return null;
+  @Override
+  public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
+    if (datasetPath.size() != 3) {
+      return Optional.empty();
     }
 
     final ElasticConnection connection = this.connectionPool.getRandomConnection();
     try {
-      final String schema = datasetPath.getPathComponents().get(1);
-      final String type = datasetPath.getPathComponents().get(2);
-      ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata().setIndex(datasetPath.getPathComponents().get(1)));
-      List<ElasticIndex> indices = clusterMetadata.getIndices();
-      if(indices.isEmpty()){
-        return null;
+      final String schema = datasetPath.getComponents().get(1);
+      final String type = datasetPath.getComponents().get(2);
+      final ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata()
+          .setIndex(datasetPath.getComponents().get(1)));
+      final List<ElasticIndex> indices = clusterMetadata.getIndices();
+      if (indices.isEmpty()) {
+        return Optional.empty();
       }
 
       final ElasticIndex firstIndex = indices.get(0);
-      if(firstIndex.getName().equals(schema)){
+      if (firstIndex.getName().equals(schema)) {
         // not an alias.
-        ElasticIndex filteredIndex = firstIndex.filterToType(type);
-        if(filteredIndex == null){
+        final ElasticIndex filteredIndex = firstIndex.filterToType(type);
+        if (filteredIndex == null) {
           // no type for this path.
-          return null;
+          return Optional.empty();
         }
+
         Preconditions.checkArgument(indices.size() == 1, "More than one Index returned for alias %s.", schema);
         logger.debug("Found mapping: {} for {}:{}", filteredIndex.getMergedMapping(), schema, type);
-        return new ElasticTableBuilder(connection, datasetPath, oldConfig, context.getAllocator(), context.getConfig(), config, context.getOptionManager(), filteredIndex.getMergedMapping(), ImmutableList.<String>of(), false);
+
+        return Optional.of(
+          new ElasticDatasetHandle(
+            datasetPath, connection, context, config, filteredIndex.getMergedMapping(), ImmutableList.<String>of(), false));
       } else {
 
-        ElasticMappingSet ems = new ElasticMappingSet(indices).filterToType(type);
-        if(ems.isEmpty()){
-          return null;
+        final ElasticMappingSet ems = new ElasticMappingSet(indices).filterToType(type);
+        if (ems.isEmpty()) {
+          return Optional.empty();
         }
-        ElasticMapping mapping = ems.getMergedMapping();
-        final List<String> indicesList = FluentIterable.from(indices).transform(new Function<ElasticIndex, String>(){
-          @Override
-          public String apply(ElasticIndex input) {
-            return input.getName();
-          }}).toList();
+        final ElasticMapping mapping = ems.getMergedMapping();
+        final List<String> indicesList = indices.stream().map(ElasticIndex::getName).collect(Collectors.toList());
 
         logger.debug("Found mapping: {} for {}:{}", mapping, schema, type);
-        return new ElasticTableBuilder(connection, datasetPath, oldConfig, context.getAllocator(), context.getConfig(), config, context.getOptionManager(), mapping, indicesList, true);
+        return Optional.of(new ElasticDatasetHandle(datasetPath, connection, context, config, mapping, indicesList, true));
       }
-
-
-    } catch (Exception ex){
+    } catch (Exception ex) {
       logger.info("Failure while attempting to retrieve dataset {}", datasetPath, ex);
+      return Optional.empty();
     }
 
-    // failure or not found.
-    return null;
+  }
+
+  @Override
+  public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) {
+    final ElasticConnection connection = this.connectionPool.getRandomConnection();
+    final ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata());
+    final ImmutableList.Builder<DatasetHandle> builder = ImmutableList.builder();
+    boolean failures = false;
+
+    final ArrayListMultimap<ElasticAliasMappingName, ElasticIndex> aliases = ArrayListMultimap.create();
+    final boolean includeHiddenSchemas = config.isShowHiddenIndices();
+
+    for (ElasticIndex index : clusterMetadata.getIndices()) {
+      for (ElasticMapping mapping : index.getMappings()) {
+        try {
+          if (includeHiddenSchemas || !index.getName().startsWith(".")) {
+            final EntityPath key = new EntityPath(ImmutableList.of(name, index.getName(), mapping.getName()));
+            builder.add(new ElasticDatasetHandle(key, connection, context, config, mapping, ImmutableList.<String>of(), false));
+          }
+          for (String alias : index.getAliases()) {
+            aliases.put(new ElasticAliasMappingName(alias, mapping.getName()), new ElasticIndex(index.getName(),
+                mapping));
+          }
+        } catch (Exception ex) {
+          logger.info("Failure to read information for {}.{}", index.getName(), mapping.getName(), ex);
+        }
+      }
+    }
+
+    for (ElasticAliasMappingName alias : aliases.keySet()) {
+      final List<ElasticIndex> indices = aliases.get(alias);
+      final List<String> indicesList = indices.stream().map(ElasticIndex::getName).collect(Collectors.toList());
+      final ElasticMappingSet mappingSet = new ElasticMappingSet(indices);
+
+      try {
+        final ElasticMapping mapping = mappingSet.getMergedMapping();
+        final EntityPath key = new EntityPath(ImmutableList.of(name, alias.getAlias(), mapping.getName()));
+        builder.add(new ElasticDatasetHandle(key, connection, context, config, mapping, indicesList, true));
+      } catch (Exception ex) {
+        logger.info("Failure to read schema information for alias {}", alias, ex);
+      }
+    }
+
+    final List<DatasetHandle> datasets = builder.build();
+    if (datasets.isEmpty()) {
+      logger.debug("No indices/types available. Please make sure to populate the cluster");
+      if (failures) { // TODO: never true
+        throw UserException.dataReadError().message("Could not find any accessible indices/types querying Elasticsearch metadata. "
+            + "Please make sure that the user has [indices:admin/get] privilege.").build(logger);
+      }
+    }
+    return datasets::iterator;
+  }
+
+  @Override
+  public DatasetMetadata getDatasetMetadata(
+    DatasetHandle datasetHandle,
+    PartitionChunkListing chunkListing,
+    GetMetadataOption... options) throws ConnectorException {
+    final BatchSchema oldSchema = CurrentSchemaOption.getSchema(options);
+
+    ElasticDatasetMetadata datasetMetadata =
+      new ElasticDatasetMetadata(
+        oldSchema,
+        datasetHandle.unwrap(ElasticDatasetHandle.class),
+        chunkListing.unwrap(ElasticPartitionChunkListing.class));
+
+    datasetMetadata.build();
+
+    return datasetMetadata;
+  }
+
+  @Override
+  public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
+    return new ElasticPartitionChunkListing(datasetHandle.unwrap(ElasticDatasetHandle.class));
+  }
+
+  @Override
+  public boolean containerExists(EntityPath containerPath) {
+    final NamespaceKey key = MetadataObjectsUtils.toNamespaceKey(containerPath);
+
+    if (key.size() != 2) {
+      return false;
+    }
+
+    String schema = key.getPathComponents().get(1);
+
+    try{
+      IndexExists exists = new IndexExists();
+      exists.addIndex(schema);
+      return getRandomConnection().executeAndHandleResponseCode(exists, false, "").success();
+    } catch (Exception e) {
+      logger.warn("Failure while evaluating if index or alias '{}' exists.", key, e);
+      return false;
+    }
+
   }
 
   public ElasticMapping getMapping(NamespaceKey datasetPath){
@@ -305,6 +481,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
     public String getAlias() {
       return alias;
     }
+
     public String getMapping() {
       return mapping;
     }
@@ -322,96 +499,8 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
     }
   }
 
-  @Override
-  public Iterable<SourceTableDefinition> getDatasets(String user, DatasetRetrievalOptions ignored) throws Exception {
-    final ElasticConnection connection = this.connectionPool.getRandomConnection();
-    final ClusterMetadata clusterMetadata = connection.execute(new ElasticActions.GetClusterMetadata());
-    final ImmutableList.Builder<SourceTableDefinition> builder = ImmutableList.builder();
-    boolean failures = false;
-
-    ArrayListMultimap<ElasticAliasMappingName, ElasticIndex> aliases = ArrayListMultimap.create();
-    final boolean includeHiddenSchemas = config.isShowHiddenIndices();
-        for(ElasticIndex index : clusterMetadata.getIndices()){
-      for(ElasticMapping mapping : index.getMappings()){
-        try {
-          if(includeHiddenSchemas || !index.getName().startsWith(".")){
-            NamespaceKey key = new NamespaceKey(ImmutableList.of(name, index.getName(), mapping.getName()));
-            builder.add(new ElasticTableBuilder(connection, key, null, context.getAllocator(), context.getConfig(), config, context.getOptionManager(), mapping, ImmutableList.<String>of(), false));
-          }
-          for(String alias : index.getAliases()){
-            aliases.put(new ElasticAliasMappingName(alias, mapping.getName()), new ElasticIndex(index.getName(), mapping));
-          }
-        } catch (Exception ex){
-          logger.info("Failure to read information for {}.{}", index.getName(), mapping.getName(), ex);
-        }
-      }
-    }
-
-    for(ElasticAliasMappingName alias : aliases.keySet()){
-      List<ElasticIndex> indices = aliases.get(alias);
-      final List<String> indicesList = FluentIterable.from(indices).transform(new Function<ElasticIndex, String>(){
-        @Override
-        public String apply(ElasticIndex input) {
-          return input.getName();
-        }}).toList();
 
 
-      ElasticMappingSet mappingSet = new ElasticMappingSet(indices);
-
-      try{
-
-        ElasticMapping mapping = mappingSet.getMergedMapping();
-        NamespaceKey key = new NamespaceKey(ImmutableList.of(name, alias.getAlias(), mapping.getName()));
-        builder.add(new ElasticTableBuilder(connection, key, null, context.getAllocator(), context.getConfig(), config, context.getOptionManager(), mapping, indicesList, true));
-      }catch(Exception ex){
-        logger.info("Failure to read schema information for alias {}", alias, ex);
-      }
-    }
-
-    List<SourceTableDefinition> datasets = builder.build();
-    if (datasets.isEmpty()) {
-      logger.debug("No indices/types available. Please make sure to populate the cluster");
-      if (failures) {
-        throw UserException.dataReadError().message("Could not find any accessible indices/types querying Elasticsearch metadata. "
-            + "Please make sure that the user has [indices:admin/get] privilege.").build(logger);
-      }
-    }
-    return datasets;
-  }
-
-  @Override
-  public boolean containerExists(NamespaceKey key) {
-
-    if (key.size() != 2) {
-      return false;
-    }
-
-    String schema = key.getPathComponents().get(1);
-
-    try{
-      IndexExists exists = new IndexExists();
-      exists.addIndex(schema);
-      return getRandomConnection().executeAndHandleResponseCode(exists, false, "").success();
-    } catch (Exception e) {
-      logger.warn("Failure while evaluating if index or alias '{}' exists.", key, e);
-      return false;
-    }
-
-  }
-
-  @Override
-  public boolean datasetExists(NamespaceKey key) {
-    if (key.size() != 3) {
-      return false;
-    }
-
-    try{
-      return getDataset(key, null, DatasetRetrievalOptions.IGNORE_AUTHZ_ERRORS) != null;
-    } catch (Exception e) {
-      logger.warn("Failure while evaluating if dataset '{}' exists.", key, e);
-      return false;
-    }
-  }
 
   @Override
   public boolean hasAccessPermission(String user, NamespaceKey key, DatasetConfig datasetConfig) {
@@ -429,28 +518,6 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
   }
 
   @Override
-  public CheckResult checkReadSignature(ByteString key, DatasetConfig datasetConfig, DatasetRetrievalOptions ignored) throws Exception {
-    NamespaceKey namespaceKey = new NamespaceKey(datasetConfig.getFullPathList());
-    final SourceTableDefinition definition = getDatasetInternal(namespaceKey, datasetConfig);
-
-    if(definition == null){
-      return CheckResult.DELETED;
-    }
-
-    return new CheckResult(){
-
-      @Override
-      public UpdateStatus getStatus() {
-        return UpdateStatus.CHANGED;
-      }
-
-      @Override
-      public SourceTableDefinition getDataset() {
-        return definition;
-      }};
-  }
-
-  @Override
   public void start() throws IOException {
     connectionPool.connect();
   }
@@ -460,4 +527,5 @@ public class ElasticsearchStoragePlugin implements StoragePlugin {
     logger.debug("Closing elasticsearch storage plugin");
     AutoCloseables.close(connectionPool);
   }
+
 }

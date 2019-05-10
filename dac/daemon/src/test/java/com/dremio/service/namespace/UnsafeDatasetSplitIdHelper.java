@@ -28,8 +28,8 @@ public final class UnsafeDatasetSplitIdHelper {
   }
 
 
-  public static DatasetSplitId of(DatasetConfig config, String key) {
-    return DatasetSplitId.ofUnsafe(config.getId(), config.getReadDefinition().getSplitVersion(), key);
+  public static PartitionChunkId of(DatasetConfig config, String key) {
+    return PartitionChunkId.ofUnsafe(config.getId(), config.getReadDefinition().getSplitVersion(), key);
   }
 
 }

@@ -16,26 +16,19 @@
 
 package com.dremio.exec.physical.config;
 
-import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.rex.RexWindowBound;
 
-import com.dremio.common.expression.ErrorCollector;
-import com.dremio.common.expression.ErrorCollectorImpl;
-import com.dremio.common.expression.FieldReference;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.logical.data.Order;
-import com.dremio.exec.expr.ExpressionTreeMaterializer;
-import com.dremio.exec.expr.fn.FunctionLookupContext;
+import com.dremio.common.logical.data.Order.Ordering;
 import com.dremio.exec.physical.base.AbstractSingle;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.record.SchemaBuilder;
-import com.dremio.sabot.op.windowframe.WindowFunction;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
@@ -50,14 +43,18 @@ public class WindowPOP extends AbstractSingle {
   private final Bound start;
   private final Bound end;
 
-  public WindowPOP(@JsonProperty("child") PhysicalOperator child,
-                   @JsonProperty("within") List<NamedExpression> withins,
-                   @JsonProperty("aggregations") List<NamedExpression> aggregations,
-                   @JsonProperty("orderings") List<Order.Ordering> orderings,
-                   @JsonProperty("frameUnitsRows") boolean frameUnitsRows,
-                   @JsonProperty("start") Bound start,
-                   @JsonProperty("end") Bound end) {
-    super(child);
+  @JsonCreator
+  public WindowPOP(
+      @JsonProperty("props") OpProps props,
+      @JsonProperty("child") PhysicalOperator child,
+      @JsonProperty("withins") List<NamedExpression> withins,
+      @JsonProperty("aggregations") List<NamedExpression> aggregations,
+      @JsonProperty("orderings") List<Ordering> orderings,
+      @JsonProperty("frameUnitsRows") boolean frameUnitsRows,
+      @JsonProperty("start") Bound start,
+      @JsonProperty("end") Bound end
+      ) {
+    super(props, child);
     this.withins = withins;
     this.aggregations = aggregations;
     this.orderings = orderings;
@@ -68,7 +65,7 @@ public class WindowPOP extends AbstractSingle {
 
   @Override
   protected PhysicalOperator getNewWithChild(PhysicalOperator child) {
-    return new WindowPOP(child, withins, aggregations, orderings, frameUnitsRows, start, end);
+    return new WindowPOP(props, child, withins, aggregations, orderings, frameUnitsRows, start, end);
   }
 
   @Override
@@ -105,12 +102,14 @@ public class WindowPOP extends AbstractSingle {
     return frameUnitsRows;
   }
 
-  @JsonTypeName("windowBound")
   public static class Bound {
     private final boolean unbounded;
     private final long offset;
 
-    public Bound(@JsonProperty("unbounded") boolean unbounded, @JsonProperty("offset") long offset) {
+    @JsonCreator
+    public Bound(
+        @JsonProperty("unbounded") boolean unbounded,
+        @JsonProperty("offset") long offset) {
       this.unbounded = unbounded;
       this.offset = offset;
     }
@@ -127,24 +126,6 @@ public class WindowPOP extends AbstractSingle {
     public long getOffset() {
       return offset;
     }
-  }
-
-  @Override
-  protected BatchSchema constructSchema(FunctionLookupContext context) {
-    final BatchSchema childSchema = child.getSchema(context);
-    List<NamedExpression> exprs = new ArrayList<>();
-    for(Field f : childSchema){
-      exprs.add(new NamedExpression(new FieldReference(f.getName()), new FieldReference(f.getName())));
-    }
-    SchemaBuilder schemaBuilder = ExpressionTreeMaterializer.materializeFields(exprs, childSchema, context)
-            .setSelectionVectorMode(childSchema.getSelectionVectorMode());
-    try (ErrorCollector collector = new ErrorCollectorImpl()) {
-      for (NamedExpression expr : aggregations) {
-        WindowFunction func = WindowFunction.fromExpression(expr);
-        schemaBuilder.addField(func.materialize(expr, childSchema, collector, context));
-      }
-    }
-    return schemaBuilder.build();
   }
 
   public static Bound newBound(RexWindowBound windowBound) {

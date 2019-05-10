@@ -79,10 +79,10 @@ public class SQLResource {
   public JobDataFragment query(CreateFromSQL sql) {
     SqlQuery query = new SqlQuery(sql.getSql(), sql.getContext(), securityContext);
     // Pagination is not supported in this API, so we need to truncate the results to 500 records
-    return new JobUI(jobs.submitJob(JobRequest.newBuilder()
+    return JobUI.getJobData(jobs.submitJob(JobRequest.newBuilder()
         .setSqlQuery(query)
         .setQueryType(QueryType.REST)
-        .build(), NoOpJobStatusListener.INSTANCE)).getData().truncate(500);
+        .build(), NoOpJobStatusListener.INSTANCE)).truncate(500);
   }
 
   @POST

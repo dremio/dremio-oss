@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.aggregate.hash;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -71,13 +72,14 @@ public class  TestGreedyMemoryAllocation {
       final AccumulatorSet accumulatorSet = new AccumulatorSet(JOINT_ALLOCATION_MIN, JOINT_ALLOCATION_MAX, allocator, ac1, ac2, ac3, ac4);
 
       accumulatorSet.addBatch();
-      Map<Integer, List<AccumulatorSet.AccumulatorRange>> allocationMapping = accumulatorSet.getMapping();
+      Map<Integer, List<List<Integer>>> allocationMapping = accumulatorSet.getMapping();
       assertEquals(1, allocationMapping.size());
       assertEquals(3, allocationMapping.keySet().iterator().next().intValue()); // 32KB bucket
-      List<AccumulatorSet.AccumulatorRange> ranges = allocationMapping.get(3);
+      List<List<Integer>> ranges = allocationMapping.get(3);
       assertEquals(1, ranges.size());
-      assertEquals(0, ranges.get(0).getStart());
-      assertEquals(3, ranges.get(0).getEnd());
+
+      assertArrayEquals(new Integer[] {0, 1, 2, 3}, ranges.get(0).toArray());
+
       //In each accumulator, 4 bytes for value and 1 bit for validity.
       final int allocatedMemory = (round8(8 * MAX_VALUES_PER_BATCH) + round8(getValidityBufferSizeFromCount(MAX_VALUES_PER_BATCH))) * 4;
       assertEquals(roundPower2(allocatedMemory), allocator.getAllocatedMemory());
@@ -147,25 +149,73 @@ public class  TestGreedyMemoryAllocation {
                                                                ac1, ac2, ac3, ac4, ac5, ac6, ac7, ac8, ac9, ac10);
 
       accumulatorSet.addBatch();
-      Map<Integer, List<AccumulatorSet.AccumulatorRange>> allocationMapping = accumulatorSet.getMapping();
+      Map<Integer, List<List<Integer>>> allocationMapping = accumulatorSet.getMapping();
       assertEquals(2, allocationMapping.size());
       assertTrue(allocationMapping.containsKey(4)); // ac1 ..... ac8 go to 64KB bucket
       assertTrue(allocationMapping.containsKey(2)); // ac9 .... ac10 go to 16KB bucket
 
-      List<AccumulatorSet.AccumulatorRange> ranges = allocationMapping.get(4);
+      List<List<Integer>> ranges = allocationMapping.get(4);
       assertEquals(1, ranges.size());
-      assertEquals(0, ranges.get(0).getStart());
-      assertEquals(7, ranges.get(0).getEnd());
+      assertEquals(8, ranges.get(0).size());
       // joint allocation of data buffer for first 8 vectors of size 64KB.
       final int sizeForOne = round8(8 * MAX_VALUES_PER_BATCH) + round8(getValidityBufferSizeFromCount(MAX_VALUES_PER_BATCH));
       int allocatedMemory = roundPower2(sizeForOne * 8);
 
       ranges = allocationMapping.get(2);
       assertEquals(1, ranges.size());
-      assertEquals(8, ranges.get(0).getStart());
-      assertEquals(9, ranges.get(0).getEnd());
+      assertEquals(2, ranges.get(0).size());
       // joint allocation of data buffer for last 2 vectors of size 16KB +
       allocatedMemory += roundPower2(sizeForOne * 2);
+      assertEquals(allocatedMemory, allocator.getAllocatedMemory());
+      accumulatorSet.close();
+    }
+  }
+
+  @Test
+  public void testMemoryAllocationUnsorted() throws Exception {
+    int batchSize = 3968;
+
+    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
+      final VectorContainer c = new VectorContainer()) {
+
+      BigIntVector in1 = new BigIntVector("in1", allocator);
+      c.add(in1);
+
+      DecimalVector in2 = new DecimalVector("in2", allocator, 38, 9);
+      c.add(in2);
+
+      BigIntVector in3 = new BigIntVector("in3", allocator);
+      c.add(in3);
+
+      BigIntVector out1 = new BigIntVector("in1-sum", allocator);
+      DecimalVector out2 = new DecimalVector("in2-sum", allocator, 38, 9);
+      BigIntVector out3 = new BigIntVector("in3-sum", allocator);
+
+      final SumAccumulators.BigIntSumAccumulator ac1 = new SumAccumulators.BigIntSumAccumulator(in1, out1, out1, batchSize, allocator);
+      final SumAccumulators.DecimalSumAccumulatorV2 ac2 = new SumAccumulators.DecimalSumAccumulatorV2(in2, out2, out2, batchSize, allocator);
+      final SumAccumulators.BigIntSumAccumulator ac3 = new SumAccumulators.BigIntSumAccumulator(in3, out3, out3, batchSize, allocator);
+
+      final AccumulatorSet accumulatorSet = new AccumulatorSet(JOINT_ALLOCATION_MIN, JOINT_ALLOCATION_MAX, allocator,
+        ac1, ac2, ac3);
+
+      accumulatorSet.addBatch();
+      Map<Integer, List<List<Integer>>> allocationMapping = accumulatorSet.getMapping();
+      assertEquals(1, allocationMapping.size());
+      assertTrue(allocationMapping.containsKey(4)); // all go into 64K bucket
+
+      List<List<Integer>> ranges = allocationMapping.get(4);
+      assertEquals(2, ranges.size());
+
+      // one allocation for decimal vector of size 64K
+      assertEquals(1, ranges.get(0).size());
+      final int sizeForDecimal = round8(16 * batchSize) + round8(getValidityBufferSizeFromCount(batchSize));
+      int allocatedMemory = roundPower2(sizeForDecimal);
+
+      // combined allocation of 64K for two bigint vectors, each of size 32K
+      assertEquals(2, ranges.get(1).size());
+      final int sizeForOne = round8(8 * batchSize) + round8(getValidityBufferSizeFromCount(batchSize));
+      allocatedMemory += roundPower2(sizeForOne * 2);
+
       assertEquals(allocatedMemory, allocator.getAllocatedMemory());
       accumulatorSet.close();
     }

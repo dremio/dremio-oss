@@ -106,8 +106,8 @@ public class StatsCollector extends AbstractOpWrapperVisitor<Void, RuntimeExcept
   @Override
   public Void visitOp(PhysicalOperator op, Wrapper wrapper) {
     final Stats stats = wrapper.getStats();
-    stats.addCost(op.getCost());
-    if (wrapper.getNode().getSendingExchange() != op && op.isSingle()) {
+    stats.addCost(op.getProps().getCost());
+    if (wrapper.getNode().getSendingExchange() != op && op.getProps().isSingleStream()) {
       stats.addMaxWidth(1);
     }
     for (PhysicalOperator child : op) {

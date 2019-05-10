@@ -34,17 +34,21 @@ package com.dremio.exec.store.hive.exec;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Collection;
 
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.ValueVector;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.ScanFilter;
+import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.hive.ORCScanFilter;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 
+import org.apache.hadoop.fs.FSError;
 <#if entry.hiveReader == "Orc">
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcStruct;
@@ -88,11 +92,11 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
   // Converter which converts data from partition schema to table schema.
   protected Converter partTblObjectInspectorConverter;
 
-  public Hive${entry.hiveReader}Reader(final HiveTableXattr tableAttr, final DatasetSplit split,
+  public Hive${entry.hiveReader}Reader(final HiveTableXattr tableAttr, final SplitInfo split,
       final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
       final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
-      final StructObjectInspector partitionOI, final ScanFilter filter) {
-    super(tableAttr, split, projectedColumns, context, jobConf, tableSerDe, tableOI, partitionSerDe, partitionOI, filter);
+      final StructObjectInspector partitionOI, final ScanFilter filter, final Collection<List<String>> referencedTables) {
+    super(tableAttr, split, projectedColumns, context, jobConf, tableSerDe, tableOI, partitionSerDe, partitionOI, filter, referencedTables);
   }
 
   public void internalInit(InputSplit inputSplit, JobConf jobConf, ValueVector[] vectors) throws IOException {
@@ -107,8 +111,12 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
 
     final Reader.Options options = new Reader.Options()
       .zeroCopyPoolShim(new HiveORCZeroCopyShim(context.getAllocator()));
-
-    reader = ((OrcInputFormat)jobConf.getInputFormat()).getRecordReader(inputSplit, jobConf, Reporter.NULL, options);
+    try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {
+      reader = ((OrcInputFormat)jobConf.getInputFormat()).getRecordReader(inputSplit, jobConf, Reporter.NULL, options);
+    }
+    catch(FSError e) {
+      throw FileSystemWrapper.propagateFSError(e);
+    }
 <#else>
     reader = jobConf.getInputFormat().getRecordReader(inputSplit, jobConf, Reporter.NULL);
 </#if>
@@ -145,7 +153,16 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
     final ${ValueType} value = this.value;
 
     int recordCount = 0;
-    while (recordCount < numRowsPerBatch && reader.next(key, value)) {
+    while (recordCount < numRowsPerBatch) {
+      try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {
+        boolean hasNext = reader.next(key, value);
+        if (!hasNext) {
+          break;
+        }
+      }
+      catch(FSError e) {
+        throw FileSystemWrapper.propagateFSError(e);
+      }
       Object deSerializedValue = partitionSerDe.deserialize((Writable) value);
       if (partTblObjectInspectorConverter != null) {
         deSerializedValue = partTblObjectInspectorConverter.convert(deSerializedValue);
@@ -158,6 +175,9 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
       }
       recordCount++;
     }
+    for (int i = 0; i < selectedStructFieldRefs.length; i++) {
+      vectors[i].setValueCount(recordCount);
+    }
 
     return recordCount;
   }
@@ -165,7 +185,12 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
   @Override
   public void close() throws IOException {
     if (reader != null) {
-      reader.close();
+      try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())){
+        reader.close();
+      }
+      catch(FSError e) {
+        throw FileSystemWrapper.propagateFSError(e);
+      }
       reader = null;
     }
     this.partTblObjectInspectorConverter = null;

@@ -16,6 +16,7 @@
 import { RequestError, ApiError, InternalError } from 'redux-api-middleware';
 
 import { RESET_VIEW_STATE, UPDATE_VIEW_STATE, DISMISS_VIEW_STATE_ERROR } from 'actions/resources';
+import { CLEAR_ENTITIES } from 'actions/resources/entities';
 
 import viewReducer, { getErrorMessage, getErrorDetails, NO_INTERNET_MESSAGE } from './view';
 
@@ -64,6 +65,15 @@ describe('reducers.resources.view', () => {
       });
       expect(result.get(VIEW_ID).get('viewId')).to.equal(VIEW_ID);
       expect(result.get(VIEW_ID).getIn(['error', 'dismissed'])).to.be.true;
+    });
+  });
+
+  describe('CLEAR_ENTITIES', () => {
+    it('should clear view state', () => {
+      const result = viewReducer(initialState, {
+        type: CLEAR_ENTITIES
+      });
+      expect(result).to.eql(Immutable.Map());
     });
   });
 

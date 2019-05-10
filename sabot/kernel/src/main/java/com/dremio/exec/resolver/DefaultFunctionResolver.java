@@ -31,7 +31,8 @@ public class DefaultFunctionResolver implements FunctionResolver {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DefaultFunctionResolver.class);
 
   @Override
-  public BaseFunctionHolder getBestMatch(List<BaseFunctionHolder> methods, FunctionCall call) {
+  public BaseFunctionHolder getBestMatch(List<BaseFunctionHolder> methods, FunctionCall call,
+                                         boolean isDecimalV2Enabled) {
 
     int bestcost = Integer.MAX_VALUE;
     int currcost = Integer.MAX_VALUE;
@@ -43,7 +44,7 @@ public class DefaultFunctionResolver implements FunctionResolver {
       for (LogicalExpression expression : call.args) {
         argumentTypes.add(expression.getCompleteType());
       }
-      currcost = TypeCastRules.getCost(argumentTypes, h);
+      currcost = TypeCastRules.getCost(argumentTypes, h, isDecimalV2Enabled);
 
       // if cost is lower than 0, func implementation is not matched, either w/ or w/o implicit casts
       if (currcost  < 0 ) {

@@ -123,7 +123,8 @@ public final class MoreRelOptUtil {
       RelDataType rowType1,
       RelDataType rowType2,
       boolean compareNames,
-      boolean allowSubstring) {
+      boolean allowSubstring,
+      boolean isDecimalV2Enabled) {
     if (rowType1 == rowType2) {
       return true;
     }
@@ -156,7 +157,7 @@ public final class MoreRelOptUtil {
         List<TypeProtos.MinorType> types = Lists.newArrayListWithCapacity(2);
         types.add(Types.getMinorTypeFromName(type1.getSqlTypeName().getName()));
         types.add(Types.getMinorTypeFromName(type2.getSqlTypeName().getName()));
-        if(TypeCastRules.getLeastRestrictiveType(types) != null) {
+        if(TypeCastRules.getLeastRestrictiveType(types, isDecimalV2Enabled) != null) {
           return true;
         }
 

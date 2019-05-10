@@ -32,7 +32,7 @@ import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.dataset.proto.DatasetSplit;
+import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -57,7 +57,7 @@ public abstract class HBasePushFilterIntoScan extends RelOptRule {
        * conversion of Calcite Filter's condition to HBase Filter. In such cases, we rely upon
        * this flag to not do a re-processing of the rule on the already transformed call.
        */
-      if(scan.isFilterPushed()) {
+      if(scan.hasFilter()) {
         return;
       }
 
@@ -81,7 +81,7 @@ public abstract class HBasePushFilterIntoScan extends RelOptRule {
        * conversion of Calcite Filter's condition to HBase Filter. In such cases, we rely upon
        * this flag to not do a re-processing of the rule on the already transformed call.
        */
-      if(scan.isFilterPushed()) {
+      if(scan.hasFilter()) {
         return;
       }
 
@@ -103,7 +103,7 @@ public abstract class HBasePushFilterIntoScan extends RelOptRule {
       return; //no filter pushdown ==> No transformation.
     }
 
-    Predicate<DatasetSplit> predicate = newScanSpec.getRowKeyPredicate();
+    Predicate<PartitionChunkMetadata> predicate = newScanSpec.getRowKeyPredicate();
 
     TableMetadata metadata = scan.getTableMetadata();
     if(predicate != null) {

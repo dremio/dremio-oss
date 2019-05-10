@@ -29,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Optional;
@@ -46,16 +47,20 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
-import org.apache.arrow.vector.util.DateUtility;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.rel.RelNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.util.DremioVersionInfo;
+import com.dremio.common.util.JodaDateUtility;
+import com.dremio.common.utils.ProtobufUtils;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.common.utils.SqlUtils;
+import com.dremio.config.DremioConfig;
 import com.dremio.dac.proto.model.source.ClusterIdentity;
 import com.dremio.dac.proto.model.source.ClusterInfo;
+import com.dremio.dac.proto.model.source.ClusterVersion;
 import com.dremio.dac.proto.model.source.Node;
 import com.dremio.dac.proto.model.source.SoftwareVersion;
 import com.dremio.dac.proto.model.source.Source;
@@ -63,6 +68,9 @@ import com.dremio.dac.proto.model.source.Submission;
 import com.dremio.dac.proto.model.source.SupportHeader;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.service.datasets.DatasetDownloadManager.DownloadDataResponse;
+import com.dremio.dac.service.support.SupportRPC;
+import com.dremio.dac.service.support.SupportRPC.ClusterIdentityRequest;
+import com.dremio.dac.service.support.SupportRPC.ClusterIdentityResponse;
 import com.dremio.datastore.KVStore;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.ProtostuffSerializer;
@@ -72,10 +80,10 @@ import com.dremio.datastore.StringSerializer;
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.proto.SchemaUserBitShared;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -102,10 +110,17 @@ import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.dremio.services.configuration.ConfigurationStore;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
+import com.dremio.services.fabric.api.FabricService;
+import com.dremio.services.fabric.simple.AbstractReceiveHandler;
+import com.dremio.services.fabric.simple.ProtocolBuilder;
+import com.dremio.services.fabric.simple.SendEndpointCreator;
+import com.dremio.services.fabric.simple.SentResponseMessage;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import com.google.common.net.MediaType;
+import com.google.common.util.concurrent.Futures;
 
+import io.netty.buffer.ArrowBuf;
 import io.protostuff.ByteString;
 import io.protostuff.LinkedBuffer;
 import io.protostuff.ProtostuffIOUtil;
@@ -117,6 +132,7 @@ import io.protostuff.ProtostuffIOUtil;
 @Options
 public class SupportService implements Service {
   private static final Logger logger = LoggerFactory.getLogger(SupportService.class);
+  private static final int TYPE_SUPPORT_CLUSTERID = 1;
 
   public static final int TIMEOUT_IN_SECONDS = 5 * 60;
   public static final String DREMIO_LOG_PATH_PROPERTY = "dremio.log.path";
@@ -150,10 +166,13 @@ public class SupportService implements Service {
   private final Provider<JobsService> jobsService;
   private final Provider<UserService> userService;
   private final Provider<CatalogService> catalogServiceProvider;
+  private final Provider<FabricService> fabricServiceProvider;
   private Path supportPath;
   private ConfigurationStore store;
-
   private ClusterIdentity identity;
+  private BufferAllocator allocator;
+
+  private SendEndpointCreator<ClusterIdentityRequest, ClusterIdentityResponse> getClusterIdentityEndpointCreator; // used on server and client side
 
   public SupportService(
       DACConfig config,
@@ -161,13 +180,17 @@ public class SupportService implements Service {
       Provider<JobsService> jobsService,
       Provider<UserService> userService,
       Provider<SabotContext> executionContextProvider,
-      Provider<CatalogService> catalogServiceProvider
+      Provider<CatalogService> catalogServiceProvider,
+      Provider<FabricService> fabricServiceProvider,
+      BufferAllocator allocator
       ) {
     this.kvStoreProvider = kvStoreProvider;
     this.executionContextProvider = executionContextProvider;
     this.jobsService = jobsService;
     this.userService = userService;
     this.catalogServiceProvider = catalogServiceProvider;
+    this.fabricServiceProvider = fabricServiceProvider;
+    this.allocator = allocator;
     this.config = config;
   }
 
@@ -219,6 +242,52 @@ public class SupportService implements Service {
     }
 
     return identity;
+  }
+
+  private ClusterIdentity getClusterIdentityFromRPC() throws Exception {
+    final ClusterIdentityRequest.Builder requestBuilder = ClusterIdentityRequest.newBuilder();
+    final ClusterIdentityResponse response;
+    ClusterIdentity id;
+    try {
+      Collection<NodeEndpoint> coordinators = executionContextProvider.get().getCoordinators();
+      if (coordinators.isEmpty()) {
+        throw new RpcException("Unable to fetch Cluster Identity, no endpoints are available");
+      }
+
+      NodeEndpoint ep = coordinators.iterator().next();
+      if (ep == null) {
+        throw new RpcException("Unable to fetch Cluster Identity, endpoint is down");
+      }
+
+      response = getClusterIdentityEndpointCreator
+        .getEndpoint(ep.getAddress(), ep.getFabricPort())
+        .send(requestBuilder.build())
+        .getBody();
+
+      ClusterVersion version = new ClusterVersion();
+      version.setMajor(response.getVersion().getMajor());
+      version.setMinor(response.getVersion().getMinor());
+      version.setPatch(response.getVersion().getPatch());
+      version.setBuildNumber(response.getVersion().getBuildNumber());
+      version.setQualifier(response.getVersion().getQualifier());
+
+      id = new ClusterIdentity();
+      id.setCreated(response.getCreated());
+      id.setIdentity(response.getIdentity());
+      id.setVersion(version);
+
+      if (response.hasTag()) {
+        id.setTag(response.getTag());
+      }
+
+      if (response.hasSerial()) {
+        id.setSerial(response.getSerial());
+      }
+    } catch (Exception e) {
+      throw e;
+    }
+
+    return id;
   }
 
   public static Optional<ClusterIdentity> getClusterIdentity(KVStoreProvider provider) {
@@ -326,25 +395,73 @@ public class SupportService implements Service {
     return ByteString.copyFrom(bytes);
   }
 
+  private void registerClusterIdentityEndpoint() {
+
+    final ProtocolBuilder builder = ProtocolBuilder.builder()
+      .protocolId(59) // TODO: DX-14395: consolidate protocol ids
+      .allocator(allocator)
+      .name("support-rpc")
+      .timeout(10 * 1000);
+
+    this.getClusterIdentityEndpointCreator = builder.register(TYPE_SUPPORT_CLUSTERID,
+      new AbstractReceiveHandler<ClusterIdentityRequest, ClusterIdentityResponse>(
+          ClusterIdentityRequest.getDefaultInstance(), ClusterIdentityResponse.getDefaultInstance()) {
+        @Override
+        public SentResponseMessage<ClusterIdentityResponse> handle(ClusterIdentityRequest getIdRequest, ArrowBuf dBody) {
+
+          SupportRPC.ClusterVersion version =
+            SupportRPC.ClusterVersion.newBuilder()
+              .setMajor(identity.getVersion().getMajor())
+              .setMinor(identity.getVersion().getMinor())
+              .setPatch(identity.getVersion().getPatch())
+              .setBuildNumber(identity.getVersion().getBuildNumber())
+              .setQualifier(identity.getVersion().getQualifier())
+              .build();
+
+          SupportRPC.ClusterIdentityResponse.Builder response = ClusterIdentityResponse.newBuilder();
+          response.setCreated(identity.getCreated());
+          response.setIdentity(identity.getIdentity());
+          response.setVersion(version);
+          if (identity.getTag() != null) {
+            response.setTag(identity.getTag());
+          }
+          if (identity.getSerial() != null) {
+            response.setSerial(identity.getSerial());
+          }
+
+          return new SentResponseMessage<>(response.build());
+        }
+      });
+
+    builder.register(fabricServiceProvider.get());
+  }
+
   @Override
   public void start() throws Exception {
-    store = new ConfigurationStore(kvStoreProvider.get());
+    registerClusterIdentityEndpoint();
 
-    ClusterIdentity identity;
-    Optional<ClusterIdentity> clusterIdentity = getClusterIdentityFromStore(store, kvStoreProvider.get());
+    // Only get cluster identity from Coordinator nodes
+    ClusterIdentity id;
+    if (config.getConfig().getBoolean(DremioConfig.ENABLE_COORDINATOR_BOOL)) {
+      store = new ConfigurationStore(kvStoreProvider.get());
 
-    if (!clusterIdentity.isPresent()) {
-      // this is a new cluster, generating a new cluster identifier.
-      identity = new ClusterIdentity()
+      Optional<ClusterIdentity> clusterIdentity = getClusterIdentityFromStore(store, kvStoreProvider.get());
+
+      if (!clusterIdentity.isPresent()) {
+        // this is a new cluster, generating a new cluster identifier.
+        id = new ClusterIdentity()
           .setIdentity(UUID.randomUUID().toString())
           .setVersion(toClusterVersion(VERSION))
           .setCreated(System.currentTimeMillis());
-      identity = storeIdentity(identity);
+        id = storeIdentity(id);
+      } else {
+        id = clusterIdentity.get();
+      }
     } else {
-      identity = clusterIdentity.get();
+      id = getClusterIdentityFromRPC();
     }
 
-    this.identity = identity;
+    identity = id;
     FileSystemPlugin supportPlugin = catalogServiceProvider.get().getSource(LOCAL_STORAGE_PLUGIN);
     Preconditions.checkNotNull(supportPlugin);
     final String supportPathURI = supportPlugin.getConfig().getPath().toString();
@@ -488,26 +605,28 @@ public class SupportService implements Service {
 
   private QueryProfile recordProfile(OutputStream out, JobId id, int attempt) throws IOException, JobNotFoundException {
     QueryProfile profile = jobsService.get().getProfile(id, attempt);
-    ProtostuffUtil.toJSON(out, profile, SchemaUserBitShared.QueryProfile.WRITE, false);
+    ProtobufUtils.writeAsJSONTo(out, profile);
     return profile;
   }
 
   private boolean recordLog(OutputStream output, String userId, long start, long end, JobId id, String submissionId) {
     try{
-      final String startTime = DateUtility.formatTimeStampMilli.print(start - PRE_TIME_BUFFER_MS);
-      final String endTime = DateUtility.formatTimeStampMilli.print(end + POST_TIME_BUFFER_MS);
+      final String startTime = JodaDateUtility.formatTimeStampMilli.print(start - PRE_TIME_BUFFER_MS);
+      final String endTime = JodaDateUtility.formatTimeStampMilli.print(end + POST_TIME_BUFFER_MS);
 
       final SqlQuery query = new SqlQuery(
           String.format(LOG_QUERY, SqlUtils.quoteIdentifier(submissionId), startTime, endTime, "%" + id.getId() + "%"),
           Arrays.asList(LOGS_STORAGE_PLUGIN), userId);
       final CompletionListener listener = new CompletionListener();
 
-      jobsService.get().submitJob(JobRequest.newBuilder()
+      Futures.getUnchecked(
+        jobsService.get().submitJob(JobRequest.newBuilder()
           .setSqlQuery(query)
           .setQueryType(QueryType.UI_INTERNAL_RUN)
-          .build(), listener);
+          .build(), listener)
+      );
 
-      boolean completed = false;
+      boolean completed;
       try {
         completed = listener.latch.await(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
