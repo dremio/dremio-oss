@@ -1419,6 +1419,19 @@ public class FileSystemWrapper extends FileSystem
     }
   }
 
+  public boolean isValidFS(String path) {
+    return isValidFS(new Path(path));
+  }
+
+  public boolean isValidFS(Path path) {
+    try {
+      checkPath(path);
+      return true;
+    } catch (IllegalArgumentException ie) {
+      return false;
+    }
+  }
+
   private void populateRecursiveStatus(FileStatus[] inputPaths, ImmutableList.Builder<FileStatus> outputPaths, boolean recursive, boolean includeHiddenFiles) throws FileNotFoundException, IOException {
     if(inputPaths == null || inputPaths.length == 0) {
       return;

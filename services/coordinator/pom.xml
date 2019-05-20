@@ -21,7 +21,7 @@
   <parent>
     <artifactId>dremio-services-parent</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>3.2.0-201905102005330382-0598733</version>
+    <version>3.2.1-201905191350330803-1a33f83</version>
   </parent>
   <artifactId>dremio-services-coordinator</artifactId>
   <name>Services - Coordinator</name>

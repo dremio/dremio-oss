@@ -54,6 +54,7 @@ import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.google.common.base.Function;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -103,7 +104,18 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     Pointer<ParquetMetadata> lastFooter = new Pointer<>();
 
     for (SplitInfo split : config.getSplits()) {
-      sortedSplits.add(new ParquetDatasetSplit(split));
+      ParquetDatasetSplit parquetSplit = new ParquetDatasetSplit(split);
+      if (!fs.isValidFS(parquetSplit.getSplitXAttr().getPath())) {
+        throw UserException.invalidMetadataError()
+          .addContext(String.format("%s: Invalid FS for file '%s'", fs.getScheme(), parquetSplit.getSplitXAttr().getPath()))
+          .addContext("File", parquetSplit.getSplitXAttr().getPath())
+          .setAdditionalExceptionContext(
+            new InvalidMetadataErrorContext(
+              ImmutableList.copyOf(config.getReferencedTables())))
+          .build(logger);
+      }
+
+      sortedSplits.add(parquetSplit);
     }
     Collections.sort(sortedSplits);
 

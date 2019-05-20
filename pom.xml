@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>3.2.0-201905102005330382-0598733</version>
+  <version>3.2.1-201905191350330803-1a33f83</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -67,7 +67,7 @@
     <netty.version>4.1.22.Final</netty.version>
     <!-- latest is 2.0.17.Final as of 10/28/18, but we run into this https://github.com/line/armeria/pull/1278 -->
     <netty.boringssl.version>2.0.10.Final</netty.boringssl.version>
-    <parquet.version>1.12.0-201812210311360288-a86293f</parquet.version>
+    <parquet.version>1.12.0-201905082117230809-0fe4d5d</parquet.version>
     <postgresql.version>42.2.5</postgresql.version>
     <protobuf.version>2.5.0</protobuf.version>
     <protostuff.version>1.4.4</protostuff.version>

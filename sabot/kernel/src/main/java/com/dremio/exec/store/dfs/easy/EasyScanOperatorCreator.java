@@ -123,6 +123,17 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
                   @Override
                   public RecordReader apply(SplitAndExtended input) {
                     try {
+                      // If a file source scheme has changed, then trigger a refresh to update the metadata.
+                      if (!fs.isValidFS(input.getExtended().getPath())) {
+                        throw UserException.invalidMetadataError()
+                          .addContext(String.format("%s: Invalid FS for file '%s'", fs.getScheme(), input.getExtended().getPath()))
+                          .addContext("File", input.getExtended().getPath())
+                          .setAdditionalExceptionContext(
+                            new InvalidMetadataErrorContext(
+                              ImmutableList.copyOf(config.getReferencedTables())))
+                          .build(logger);
+                      }
+
                       RecordReader inner =
                           formatPlugin.getRecordReader(
                               context, fs, input.getExtended(), innerFields);
