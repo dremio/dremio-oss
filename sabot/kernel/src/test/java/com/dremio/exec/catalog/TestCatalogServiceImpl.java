@@ -17,6 +17,8 @@ package com.dremio.exec.catalog;
 
 import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyString;
@@ -73,6 +75,7 @@ import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.MissingPluginConf;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
@@ -119,6 +122,7 @@ public class TestCatalogServiceImpl {
   private static final long RESERVATION = 0;
   private static final long MAX_ALLOCATION = Long.MAX_VALUE;
   private static final int TIMEOUT = 0;
+  private static final String MISSING_CONFIG_NAME = "MISSING_CONFIG";
 
   private static MockUpPlugin mockUpPlugin;
 
@@ -440,6 +444,36 @@ public class TestCatalogServiceImpl {
       testPassed = true;
     }
     assertTrue(testPassed);
+  }
+
+  @Test
+  public void testDeleteMissingPlugin() {
+    final MissingPluginConf missing = new MissingPluginConf();
+    missing.throwOnInvocation = false;
+    SourceConfig missingConfig = new SourceConfig()
+      .setName(MISSING_CONFIG_NAME)
+      .setConnectionConf(missing);
+
+    ((CatalogServiceImpl) catalogService).getSystemUserCatalog().createSource(missingConfig);
+    ((CatalogServiceImpl) catalogService).deleteSource(MISSING_CONFIG_NAME);
+
+    // Check nullity of the state to confirm it's been deleted.
+    assertNull(((CatalogServiceImpl) catalogService).getSourceState(MISSING_CONFIG_NAME));
+
+  }
+
+  @Test
+  public void refreshMissingPlugin() throws Exception {
+    final MissingPluginConf missing = new MissingPluginConf();
+    missing.throwOnInvocation = false;
+    SourceConfig missingConfig = new SourceConfig()
+      .setName(MISSING_CONFIG_NAME)
+      .setConnectionConf(missing);
+
+    ((CatalogServiceImpl) catalogService).getSystemUserCatalog().createSource(missingConfig);
+
+    assertFalse(catalogService.refreshSource(new NamespaceKey(MISSING_CONFIG_NAME),
+      CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL));
   }
 
   private static abstract class DatasetImpl implements DatasetTypeHandle, DatasetMetadata, PartitionChunkListing {

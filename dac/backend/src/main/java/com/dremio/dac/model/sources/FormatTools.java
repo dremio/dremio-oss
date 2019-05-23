@@ -55,6 +55,8 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.dfs.FileCountTooLargeException;
+import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
@@ -209,8 +211,15 @@ public class FormatTools {
     }
   }
 
-  private static Iterator<FileStatus> getFilesForFormatting(FileSystemWrapper fs, Path path) throws IOException{
-    return fs.listRecursive(path, false).iterator();
+  private Iterator<FileStatus> getFilesForFormatting(FileSystemWrapper fs, Path path) throws IOException, FileCountTooLargeException {
+    final List<FileStatus> files =  fs.listRecursive(path, false)
+      .stream()
+      .filter(f -> f.isFile())
+      .collect(Collectors.toList());
+
+    FileDatasetHandle.checkMaxFiles(path.getName(), files.size(), context,
+      false /* format previews are explicitly done by the user */);
+    return files.iterator();
   }
 
   private static FileFormat asFormat(NamespaceKey key, Path path, boolean isFolder) {
@@ -433,7 +442,7 @@ public class FormatTools {
     T next() throws IOException;
   }
 
-  private class PredicateNextable<T> implements Nextable<T> {
+  private static class PredicateNextable<T> implements Nextable<T> {
 
     private final Nextable<T> delegate;
     private final Predicate<T> predicate;
@@ -461,7 +470,7 @@ public class FormatTools {
 
   }
 
-  private class NextableSingleton<T> implements Nextable<T> {
+  private static class NextableSingleton<T> implements Nextable<T> {
 
     public NextableSingleton(T singleValue) {
       super();

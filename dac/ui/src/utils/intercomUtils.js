@@ -18,6 +18,18 @@ import userUtils from 'utils/userUtils';
 import localStorageUtils from './storageUtils/localStorageUtils';
 import config from './config';
 
+// DX-16408
+const testEmails = ['@dremio.com', '@dremio.test', '@test.com'];
+const testEmailRegex = new RegExp(`(${testEmails
+  // escape special characters for regular expression
+  .map(email => email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  .join('|')})`, 'i');
+
+// export for testing
+export const useTestIntercomApp = (userEmail) => !config.isReleaseBuild || testEmailRegex.test(userEmail);
+
+const testIntercomAppId = 'z8apq4co';
+
 // see https://docs.intercom.com/install-on-your-product-or-site/other-ways-to-get-started/integrate-intercom-in-a-single-page-app
 // https://developers.intercom.com/v2.0/docs/intercom-javascript
 @IntercomUtilsMixin
@@ -35,7 +47,7 @@ class IntercomUtils {
 
     const userData = localStorageUtils.getUserData();
 
-    if (!localStorage.getItem('isE2E') && Intercom && config.intercomAppId && !config.outsideCommunicationDisabled) {
+    if (!localStorage.getItem('isE2E') && Intercom && !config.outsideCommunicationDisabled) {
       if (userUtils.isAuthenticated(userData)) {
         // connect to intercom for other intercom features even if chat is disabled
         if (!forChat || this._shouldAllowChatForUser(userData)) {
@@ -50,7 +62,9 @@ class IntercomUtils {
   _sendToIntercom() {
     this._ifAllowed().then((Intercom) => {
       Intercom(...arguments);
-    }, () => {}); // make non-fatal
+    }, function() {
+      console.error('Intercom communication error', ...arguments);
+    }); // make non-fatal
   }
 
   // the following are pre-bound because it is common to pass the fcns around...
@@ -59,10 +73,14 @@ class IntercomUtils {
     this._ifAllowed().then((Intercom) => {
       const userData = localStorageUtils.getUserData();
       if (userData) {
+        const email = userData.email;
+        const appId = useTestIntercomApp(email) ? testIntercomAppId :
+          (config.intercomAppId || testIntercomAppId); // if server does not provide app id, use a test one
+
         Intercom('boot', {
-          'app_id': config.intercomAppId,
-          'email': userData.email,
-          'user_id': userData.clusterId + (userData.email || userData.userId),
+          'app_id': appId,
+          email,
+          'user_id': userData.clusterId + (email || userData.userId),
           'created_at': userData.userCreatedAt / 1000,
           'name': `${userData.firstName} ${userData.lastName}`.trim(),
           'company': {

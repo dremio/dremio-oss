@@ -15,68 +15,25 @@
  */
 package com.dremio.exec.store.dfs;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
-import java.util.Iterator;
 import java.util.stream.Stream;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RawLocalFileSystem;
-import org.apache.hadoop.fs.RemoteIterator;
 
 /**
  * A {@link RawLocalFileSystem} subclass supporting {@code org.apache.hadoop.fs.FileSystem#listStatusIterator(Path)}
  * method
  */
 public final class PDFSLocalFileSystem extends RawLocalFileSystem {
-  private static final class CloseableRemoteIterator<T> implements RemoteIterator<T>, Closeable {
-    private final Stream<T> stream;
-    private final Iterator<T> iterator;
 
-    private CloseableRemoteIterator(Stream<T> stream) {
-      this.stream = stream;
-      this.iterator = stream.iterator();
-    }
-
-    private static <E> CloseableRemoteIterator<E> of(E singleton) {
-      return new CloseableRemoteIterator<>(Stream.of(singleton));
-    }
-
-    @Override
-    public boolean hasNext() throws IOException {
-      try {
-        return iterator.hasNext();
-      } catch (UncheckedIOException e) {
-        throw e.getCause();
-      }
-    };
-
-    @Override
-    public T next() throws IOException {
-      try {
-        return iterator.next();
-      } catch (UncheckedIOException e) {
-        throw e.getCause();
-      }
-    }
-
-
-    @Override
-    public void close() throws IOException {
-      try {
-        stream.close();
-      } catch (UncheckedIOException e) {
-        throw e.getCause();
-      }
-    }
-  }
   @Override
-  public RemoteIterator<FileStatus> listStatusIterator(Path f) throws FileNotFoundException, IOException {
+  public CloseableRemoteIterator<FileStatus> listStatusIterator(Path f) throws FileNotFoundException, IOException {
     File localf = pathToFile(f);
     java.nio.file.Path localp = localf.toPath();
 
@@ -93,7 +50,7 @@ public final class PDFSLocalFileSystem extends RawLocalFileSystem {
           Path hp = new Path(f, new Path(null, null, p.toFile().getName()));
           try {
             return getFileStatus(hp);
-          } catch(IOException e) {
+          } catch (IOException e) {
             throw new UncheckedIOException(e);
           }
         });

@@ -41,15 +41,16 @@ public class TestSubPathFileSystemPlugin extends BaseTestQuery {
   @ClassRule
   public static TemporaryFolder testFolder = new TemporaryFolder();
 
-  private static File storageBase;
+  protected static File storageBase;
 
   @BeforeClass
   public static void setup() throws Exception {
+    testNoResult("alter system set \"%s\" = 1", FileDatasetHandle.DFS_MAX_FILES.getOptionName());
     generateTestData();
     addSubPathDfsPlugin();
   }
 
-  private static void generateTestData() throws Exception {
+  protected static void generateTestData() throws Exception {
     storageBase = testFolder.newFolder("base");
 
     // put some test data under the base
@@ -59,9 +60,18 @@ public class TestSubPathFileSystemPlugin extends BaseTestQuery {
 
     // generate data outside the storage base
     generateTestDataFile(new File(testFolder.getRoot(), "tblOutside.csv"));
+
+    // generate data for a dataset that has too many files
+    Files.createParentDirs(new File(storageBase, "largeDir/tbl1.csv"));
+    generateTestDataFile(new File(storageBase, "largeDir/tbl1.csv"));
+    generateTestDataFile(new File(storageBase, "largeDir/tbl2.csv"));
+
+    // generate data for a mutable dataset
+    Files.createParentDirs(new File(storageBase, "largeDir2/tbl1.csv"));
+    generateTestDataFile(new File(storageBase, "largeDir2/tbl1.csv"));
   }
 
-  private static String generateTestDataFile(File file) throws Exception {
+  protected static String generateTestDataFile(File file) throws Exception {
     PrintWriter printWriter = new PrintWriter(file);
     for (int i = 1; i <= 5; i++) {
       printWriter.println (String.format("%d,key_%d", i, i));
@@ -78,6 +88,9 @@ public class TestSubPathFileSystemPlugin extends BaseTestQuery {
     InternalFileConf nasConf = pluginId.getConnectionConf();
     nasConf.path = storageBase.getPath();
     nasConf.mutability = SchemaMutability.ALL;
+
+    // Add one configuration for testing when internal is true
+    nasConf.isInternal = true;
 
     SourceConfig config = pluginId.getConfig();
     config.setId(null);
@@ -130,9 +143,16 @@ public class TestSubPathFileSystemPlugin extends BaseTestQuery {
         "PERMISSION ERROR: Not allowed to access files outside of the source root");
   }
 
+  @Test
+  public void testTooManyFiles() throws Exception {
+    // Not an error for internal file stores.
+    test("SELECT * FROM subPathDfs.\"largeDir\"");
+  }
+
   @AfterClass
   public static void shutdown() throws Exception {
     SourceConfig config = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getSource(new NamespaceKey("subPathDfs"));
     ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().deleteSource(config);
+    testNoResult("alter system set \"%s\" = %d", FileDatasetHandle.DFS_MAX_FILES.getOptionName(),FileDatasetHandle.DFS_MAX_FILES.getDefault().getNumVal());
   }
 }

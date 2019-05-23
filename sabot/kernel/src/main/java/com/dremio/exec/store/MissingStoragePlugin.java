@@ -16,6 +16,7 @@
 package com.dremio.exec.store;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,19 +42,29 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
  */
 public class MissingStoragePlugin implements StoragePlugin, SupportsListingDatasets {
   private final String errorMessage;
+  private boolean throwOnInvocation;
 
-  public MissingStoragePlugin(String reason) {
+  public MissingStoragePlugin(String reason, boolean throwOnInvocation) {
     errorMessage = reason;
+    this.throwOnInvocation = throwOnInvocation;
   }
 
   @Override
   public boolean hasAccessPermission(String user, NamespaceKey key, DatasetConfig datasetConfig) {
-    throw new UnsupportedOperationException(errorMessage);
+    if (throwOnInvocation) {
+      throw new UnsupportedOperationException(errorMessage);
+    }
+
+    return false;
   }
 
   @Override
   public SourceState getState() {
-    return SourceState.badState(errorMessage);
+    if (throwOnInvocation) {
+      return SourceState.badState(errorMessage);
+    }
+
+    return SourceState.GOOD;
   }
 
   @Override
@@ -63,7 +74,11 @@ public class MissingStoragePlugin implements StoragePlugin, SupportsListingDatas
 
   @Override
   public ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
-    throw new UnsupportedOperationException(errorMessage);
+    if (throwOnInvocation) {
+      throw new UnsupportedOperationException(errorMessage);
+    }
+
+    return null;
   }
 
   @Override
@@ -83,12 +98,20 @@ public class MissingStoragePlugin implements StoragePlugin, SupportsListingDatas
 
   @Override
   public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) {
-    throw new UnsupportedOperationException(errorMessage);
+    if (throwOnInvocation) {
+      throw new UnsupportedOperationException(errorMessage);
+    }
+
+    return () -> Collections.emptyIterator();
   }
 
   @Override
   public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
-    throw new UnsupportedOperationException(errorMessage);
+    if (throwOnInvocation) {
+      throw new UnsupportedOperationException(errorMessage);
+    }
+
+    return Optional.empty();
   }
 
   @Override
@@ -107,6 +130,10 @@ public class MissingStoragePlugin implements StoragePlugin, SupportsListingDatas
 
   @Override
   public boolean containerExists(EntityPath containerPath) {
-    throw new UnsupportedOperationException(errorMessage);
+    if (throwOnInvocation) {
+      throw new UnsupportedOperationException(errorMessage);
+    }
+
+    return false;
   }
 }

@@ -26,12 +26,15 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>3.2.1-201905191350330803-1a33f83</version>
+    <version>3.2.2-201905231753430810-ccf9a4e</version>
   </parent>
 
   <artifactId>dremio-s3-plugin</artifactId>
   <name>Plugins - S3 Plugin</name>
   <packaging>jar</packaging>
+  <properties>
+    <surefire.extra.argLine>-Ds3mock.reserved.port=${s3mock.reserved.port}</surefire.extra.argLine>
+  </properties>
 
   <dependencies>
     <dependency>
@@ -91,6 +94,12 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>io.findify</groupId>
+      <artifactId>s3mock_2.12</artifactId>
+      <version>0.2.4</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.javassist</groupId>
       <artifactId>javassist</artifactId>
       <scope>test</scope>
@@ -118,4 +127,31 @@
       </dependencies>
     </profile>
   </profiles>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>reserve-network-port</id>
+            <goals>
+              <goal>reserve-network-port</goal>
+            </goals>
+            <phase>process-resources</phase>
+            <configuration>
+              <!-- avoid using system range for ephemeral ports as servers are not 
+                immediately started, and pre-allocated ports might have been reused by OS 
+                Some tests also use fixed port in the 20000 range -->
+              <minPortNumber>10000</minPortNumber>
+              <maxPortNumber>19999</maxPortNumber>
+              <portNames>
+                <portName>s3mock.reserved.port</portName>
+              </portNames>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

@@ -17,7 +17,7 @@ import { Component } from 'react';
 
 import PropTypes from 'prop-types';
 
-import { section, sectionTitle, formRow } from 'uiTheme/radium/forms';
+import { section, formRow } from 'uiTheme/radium/forms';
 
 import { FieldWithError, TextField } from 'components/Fields';
 import AccelerationSection from 'components/Forms/AccelerationSection';
@@ -57,7 +57,6 @@ export default class General extends Component {
     return (
       <div>
         <div className='general' style={section}>
-          <h2 style={sectionTitle}>{la('General')}</h2>
           <div style={{...formRow, display: 'flex', marginBottom: 10}}>
             <FieldWithError errorPlacement='top' label={la('Name')} {...name}
               style={fieldWithErrorStyle}>

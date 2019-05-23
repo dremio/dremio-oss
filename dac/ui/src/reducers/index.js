@@ -74,9 +74,14 @@ export default function rootReducer(state, action) {
     const { routing } = state || {};
     nextState = { routing };
 
-    localStorageUtils.clearUserData();
+
+    /*
+      must be before localStorageUtils.clearUserData, as we use user data to check if a user is authorized
+      to use intercom
+    */
     intercomUtils.shutdown();
     socket.close();
+    localStorageUtils.clearUserData();
   }
 
   if (action.type === LOGIN_USER_SUCCESS || action.type === APP_BOOT) {

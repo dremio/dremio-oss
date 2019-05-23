@@ -1,6 +1,0 @@
-{
-  "enableEslintLoader": true,
-  "sourceMaps": "eval-source-map",
-  "apiOrigin": "http://localhost:9047",
-  "intercomAppId": "z8apq4co"
-}

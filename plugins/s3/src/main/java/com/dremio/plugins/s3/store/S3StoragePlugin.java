@@ -91,6 +91,10 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     finalProperties.add(new Property(MULTIPART_SIZE, "67108864")); // 64mb
     finalProperties.add(new Property(MAX_TOTAL_TASKS, "30"));
 
+    if(config.compatibilityMode) {
+      finalProperties.add(new Property(S3FileSystem.COMPATIBILITY_MODE, "true"));
+    }
+
     switch (config.credentialType) {
       case ACCESS_KEY:
         if (("".equals(config.accessKey)) || ("".equals(config.accessSecret))) {

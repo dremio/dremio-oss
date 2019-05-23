@@ -41,9 +41,11 @@ import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.NamespaceTable;
+import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.Views;
+import com.dremio.exec.store.dfs.ImpersonationConf;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.DatasetHelper;
@@ -235,11 +237,11 @@ class DatasetManager {
   }
 
   private NamespaceTable getTableFromNamespace(NamespaceKey key, DatasetConfig datasetConfig, ManagedStoragePlugin plugin,
-                                               MetadataRequestOptions options) {
-    plugin.checkAccess(key, datasetConfig, options);
+                                               String accessUserName, MetadataRequestOptions options) {
+    plugin.checkAccess(key, datasetConfig, accessUserName, options);
     final TableMetadata tableMetadata = new TableMetadataImpl(plugin.getId(),
         datasetConfig,
-        options.getSchemaConfig().getUserName(),
+        accessUserName,
         DatasetSplitsPointer.of(userNamespaceService, datasetConfig));
     return new NamespaceTable(tableMetadata);
   }
@@ -254,10 +256,16 @@ class DatasetManager {
       MetadataRequestOptions options
   ) {
 
+    // Figure out the user we want to access the source with.  If the source supports impersonation we allow it to
+    // override the delegated username.
+    final SchemaConfig schemaConfig = options.getSchemaConfig();
+    final String accessUserName = getAccessUserName(plugin, schemaConfig);
+
     final Stopwatch stopwatch = Stopwatch.createStarted();
     if (plugin.isValid(datasetConfig, options)) {
+      plugin.checkAccess(key, datasetConfig, accessUserName, options);
       final NamespaceKey canonicalKey = new NamespaceKey(datasetConfig.getFullPathList());
-      final NamespaceTable namespaceTable = getTableFromNamespace(key, datasetConfig, plugin, options);
+      final NamespaceTable namespaceTable = getTableFromNamespace(key, datasetConfig, plugin, accessUserName, options);
       options.getStatsCollector()
           .addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.CACHED_METADATA.name(),
               stopwatch.elapsed(TimeUnit.MILLISECONDS));
@@ -287,7 +295,7 @@ class DatasetManager {
 
     final DatasetRetrievalOptions retrievalOptions = plugin.getDefaultRetrievalOptions()
         .toBuilder()
-        .setIgnoreAuthzErrors(options.getSchemaConfig().getIgnoreAuthErrors())
+        .setIgnoreAuthzErrors(schemaConfig.getIgnoreAuthErrors())
         .build();
 
     final Optional<DatasetHandle> handle;
@@ -346,7 +354,7 @@ class DatasetManager {
         logger.warn("Unable to obtain dataset {}. Likely race with dataset deletion", canonicalKey);
         return null;
       }
-      final NamespaceTable namespaceTable = getTableFromNamespace(key, datasetConfig, plugin, options);
+      final NamespaceTable namespaceTable = getTableFromNamespace(key, datasetConfig, plugin, accessUserName, options);
       options.getStatsCollector()
           .addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.CACHED_METADATA.name(),
               stopwatch.elapsed(TimeUnit.MILLISECONDS));
@@ -357,12 +365,30 @@ class DatasetManager {
         .addDatasetStat(canonicalKey.getSchemaPath(), MetadataAccessType.PARTIAL_METADATA.name(),
             stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
-    plugin.checkAccess(canonicalKey, datasetConfig, options);
+    plugin.checkAccess(canonicalKey, datasetConfig, accessUserName, options);
 
     // TODO: use MaterializedSplitsPointer if metadata is not too big!
     final TableMetadata tableMetadata = new TableMetadataImpl(plugin.getId(), datasetConfig,
-        options.getSchemaConfig().getUserName(), DatasetSplitsPointer.of(userNamespaceService, datasetConfig));
+        accessUserName, DatasetSplitsPointer.of(userNamespaceService, datasetConfig));
     return new NamespaceTable(tableMetadata);
+  }
+
+  // Figure out the user we want to access the source with.  If the source supports impersonation we allow it to
+  // override the delegated username.
+  private String getAccessUserName(ManagedStoragePlugin plugin, SchemaConfig schemaConfig) {
+    final String accessUserName;
+
+    if (plugin.getConnectionConf() instanceof ImpersonationConf) {
+      String queryUser = null;
+      if (schemaConfig.getViewExpansionContext() != null) {
+        queryUser = schemaConfig.getViewExpansionContext().getQueryUser();
+      }
+      accessUserName = ((ImpersonationConf) plugin.getConnectionConf()).getAccessUserName(schemaConfig.getUserName(), queryUser);
+    } else {
+      accessUserName = schemaConfig.getUserName();
+    }
+
+    return accessUserName;
   }
 
   private ViewTable createTableFromVirtualDataset(DatasetConfig datasetConfig, MetadataRequestOptions options) {

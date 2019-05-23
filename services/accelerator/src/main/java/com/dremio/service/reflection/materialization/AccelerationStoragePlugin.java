@@ -189,11 +189,12 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
     List<String> sortColumns = SortColumnsOption.getSortColumns(options);
     Integer fieldCount = MaxLeafFieldCount.getCount(options);
 
-    FileSelection selection = FileSelection.createFromExpanded(allStatus, selectionRoot);
+    final FileSelection selection = FileSelection.createFromExpanded(allStatus, selectionRoot);
 
     final PreviousDatasetInfo pdi = new PreviousDatasetInfo(fileConfig, currentSchema, sortColumns);
+    FileDatasetHandle.checkMaxFiles(datasetPath.getName(), selection.getStatuses().size(), getContext(), getConfig().isInternal());
     return Optional.of(new ParquetFormatDatasetAccessor(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, getSystemUserFS(), selection,
-        this, new NamespaceKey(datasetPath.getComponents()), EMPTY, formatPlugin, pdi, 800 /* TODO */));
+        this, new NamespaceKey(datasetPath.getComponents()), EMPTY, formatPlugin, pdi, fieldCount));
   }
 
   @Override

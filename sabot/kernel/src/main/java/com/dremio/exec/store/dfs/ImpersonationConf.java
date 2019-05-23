@@ -13,27 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*eslint no-sync: 0*/
+package com.dremio.exec.store.dfs;
 
-const fs = require('fs');
-const path = require('path');
-
-const read = () => {
-  const userConfig = JSON.parse(fs.readFileSync(
-    path.resolve(__dirname, '..', 'user.webpack.config.defaults.json'),
-    'utf8'
-  ));
-  try {
-    Object.assign(userConfig, JSON.parse(fs.readFileSync( // eslint-disable-line no-restricted-properties
-      path.resolve(__dirname, '..', 'user.webpack.config.json'),
-      'utf8'
-    )));
-  } catch (e) {
-    // nada
+/**
+ * Interface for ConnectionConfs that support impersonation
+ */
+public interface ImpersonationConf {
+  default String getAccessUserName(String delegatedUserName, String queryUserName) {
+    return delegatedUserName;
   }
-  return userConfig;
-};
-
-module.exports = read();
-
-module.exports.live = read;
+}

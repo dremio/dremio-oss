@@ -117,6 +117,19 @@ public class HiveMetadataUtils {
     }
   }
 
+  /**
+   * Applies Hive configuration if Orc fileIds are not supported by the table's underlying filesystem.
+   *
+   * @param storageCapabilities        The storageCapabilities.
+   * @param tableOrPartitionProperties Properties of the table or partition which may be altered.
+   */
+  public static void injectOrcIncludeFileIdInSplitsConf(final HiveStorageCapabilities storageCapabilities,
+                                                        final Properties tableOrPartitionProperties) {
+    if (!storageCapabilities.supportsOrcSplitFileIds()) {
+      tableOrPartitionProperties.put(HiveConf.ConfVars.HIVE_ORC_INCLUDE_FILE_ID_IN_SPLITS.varname, "false");
+    }
+  }
+
   public static SchemaComponents resolveSchemaComponents(final List<String> pathComponents, boolean throwIfInvalid) {
 
     // extract database and table names from dataset path
@@ -132,8 +145,8 @@ public class HiveMetadataUtils {
 
         // invalid. Guarded against at both entry points.
         throw UserException.connectionError()
-            .message("Dataset path '{}' is invalid.", pathComponents)
-            .build(logger);
+          .message("Dataset path '{}' is invalid.", pathComponents)
+          .build(logger);
     }
   }
 
@@ -180,7 +193,7 @@ public class HiveMetadataUtils {
                                                final HiveConf hiveConf) throws ConnectorException {
 
     try {
-      SchemaComponents schemaComponents = resolveSchemaComponents(datasetPath.getComponents(), true);
+      final SchemaComponents schemaComponents = resolveSchemaComponents(datasetPath.getComponents(), true);
 
       // if the dataset path is not canonized we need to get it from the source
       final Table table = client.getTable(schemaComponents.getDbName(), schemaComponents.getTableName(), ignoreAuthzErrors);
@@ -190,7 +203,7 @@ public class HiveMetadataUtils {
           MessageFormatter.format("Dataset path '{}', table not found.", datasetPath).getMessage());
       }
 
-      InputFormat<?, ?> format = getInputFormat(table, hiveConf);
+      final InputFormat<?, ?> format = getInputFormat(table, hiveConf);
 
       final Properties tableProperties = MetaStoreUtils.getSchema(table.getSd(), table.getSd(), table.getParameters(), table.getDbName(), table.getTableName(), table.getPartitionKeys());
       final List<Field> fields = new ArrayList<>();
@@ -200,13 +213,17 @@ public class HiveMetadataUtils {
       HiveMetadataUtils.checkLeafFieldCounter(fields.size(), maxMetadataLeafColumns, schemaComponents.getTableName());
       final BatchSchema batchSchema = BatchSchema.newBuilder().addFields(fields).build();
 
-      return TableMetadata.newBuilder()
+      final TableMetadata tableMetadata = TableMetadata.newBuilder()
         .table(table)
         .tableProperties(tableProperties)
         .batchSchema(batchSchema)
         .fields(fields)
         .partitionColumns(partitionColumns)
         .build();
+
+      HiveMetadataUtils.injectOrcIncludeFileIdInSplitsConf(tableMetadata.getTableStorageCapabilities(), tableProperties);
+
+      return tableMetadata;
     } catch (ConnectorException e) {
       throw e;
     } catch (Exception e) {
@@ -256,7 +273,7 @@ public class HiveMetadataUtils {
   }
 
   public static boolean allowParquetNative(boolean currentStatus, Class<? extends InputFormat> clazz) {
-    return currentStatus && MapredParquetInputFormat.class.equals(clazz);
+    return currentStatus && MapredParquetInputFormat.class.isAssignableFrom(clazz);
   }
 
   public static boolean isRecursive(Properties properties) {
@@ -476,7 +493,6 @@ public class HiveMetadataUtils {
   }
 
   public static HiveStorageCapabilities getHiveStorageCapabilities(final StorageDescriptor storageDescriptor) {
-
     final String location = storageDescriptor.getLocation();
 
     if (null != location) {
@@ -484,28 +500,40 @@ public class HiveMetadataUtils {
       try {
         uri = URI.create(location);
       } catch (IllegalArgumentException e) {
-        // unknown table source.
-        return HiveStorageCapabilities.DEFAULT;
+        // unknown table source, default to HDFS.
+        return HiveStorageCapabilities.DEFAULT_HDFS;
       }
 
-      // AWS S3 does not support impersonation or last modified times.
-      if (!Strings.isNullOrEmpty(uri.getScheme()) && uri.getScheme().regionMatches(true, 0,"s3",0,2)) {
-        return HiveStorageCapabilities
-          .newBuilder()
-          .supportsImpersonation(false)
-          .supportsLastModifiedTime(false)
-          .build();
+      final String scheme = uri.getScheme();
+      if (!Strings.isNullOrEmpty(scheme)) {
+        if (scheme.regionMatches(true, 0, "s3", 0, 2)) {
+          /* AWS S3 does not support impersonation, last modified times or orc split file ids. */
+          return HiveStorageCapabilities.newBuilder()
+            .supportsImpersonation(false)
+            .supportsLastModifiedTime(false)
+            .supportsOrcSplitFileIds(false)
+            .build();
+        } else if (!scheme.regionMatches(true, 0, "hdfs", 0, 4)) {
+          /* Most hive supported non-HDFS file systems allow for impersonation and last modified times, but
+             not orc split file ids.  */
+          return HiveStorageCapabilities.newBuilder()
+            .supportsImpersonation(true)
+            .supportsLastModifiedTime(true)
+            .supportsOrcSplitFileIds(false)
+            .build();
+        }
       }
     }
-    return HiveStorageCapabilities.DEFAULT;
+    // Default to HDFS.
+    return HiveStorageCapabilities.DEFAULT_HDFS;
   }
 
   /**
    * When impersonation is not possible and when last modified times are not available,
    * {@link HiveReaderProto.FileSystemPartitionUpdateKey} should not be generated.
    *
-   * @param hiveStorageCapabilities     The capabilities of the storage mechanism.
-   * @param format                      The file input format.
+   * @param hiveStorageCapabilities The capabilities of the storage mechanism.
+   * @param format                  The file input format.
    * @return true if FSUpdateKeys should be generated. False if not.
    */
   public static boolean shouldGenerateFileSystemUpdateKeys(final HiveStorageCapabilities hiveStorageCapabilities,
@@ -529,7 +557,7 @@ public class HiveMetadataUtils {
    * {@link HiveReaderProto.FileSystemPartitionUpdateKey} stores the last modified time for each
    * entity so that changes can be detected. When impersonation is not enabled, checking each file
    * for access permissions is not required.
-   *
+   * <p>
    * When the storage layer supports last modified times then entities should be recorded for each
    * folder which would signify if there was a change in any file in the directory.
    *
@@ -561,6 +589,9 @@ public class HiveMetadataUtils {
 
     if (null == partition) {
 
+
+      final HiveStorageCapabilities tableStorageCapabilities = tableMetadata.getTableStorageCapabilities();
+
       final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, null);
       job.setInputFormat(inputFormatClazz);
       format = job.getInputFormat();
@@ -571,9 +602,9 @@ public class HiveMetadataUtils {
         inputSplits = getInputSplits(format, job);
       }
 
-      if (shouldGenerateFileSystemUpdateKeys(tableMetadata.getTableStorageCapabilities(), format)) {
+      if (shouldGenerateFileSystemUpdateKeys(tableStorageCapabilities, format)) {
         final boolean generateFSUKeysForDirectoriesOnly =
-          shouldGenerateFSUKeysForDirectoriesOnly(tableMetadata.getTableStorageCapabilities(), storageImpersonationEnabled);
+          shouldGenerateFSUKeysForDirectoriesOnly(tableStorageCapabilities, storageImpersonationEnabled);
         final HiveReaderProto.FileSystemPartitionUpdateKey updateKey =
           getFSBasedUpdateKey(table.getSd().getLocation(), job, isRecursive(tableProperties), generateFSUKeysForDirectoriesOnly, 0);
         if (updateKey != null) {
@@ -586,7 +617,8 @@ public class HiveMetadataUtils {
       metadataAccumulator.accumulateReaderType(inputFormatClazz);
       metastoreStats = getStatsFromProps(tableProperties);
     } else {
-      final Properties partitionProperties = getPartitionMetadata(partition, table);
+      final Properties partitionProperties = buildPartitionProperties(partition, table);
+
       final HiveStorageCapabilities partitionStorageCapabilities = getHiveStorageCapabilities(partition.getSd());
 
       final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, partition);
@@ -884,7 +916,7 @@ public class HiveMetadataUtils {
    * @param table     the source of table level parameters
    * @return properties
    */
-  public static Properties getPartitionMetadata(final Partition partition, final Table table) {
+  public static Properties buildPartitionProperties(final Partition partition, final Table table) {
     final Properties properties = MetaStoreUtils.getPartitionMetadata(partition, table);
 
     // SerDe expects properties from Table, but above call doesn't add Table properties.

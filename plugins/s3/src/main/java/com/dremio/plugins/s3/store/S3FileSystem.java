@@ -70,15 +70,17 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
-import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.S3ClientBuilder;
 
 /**
  * FileSystem implementation that treats multiple s3 buckets as a unified namespace
  */
 public class S3FileSystem extends ContainerFileSystem implements AsyncByteReader.MayProvideAsyncStream  {
+
+  public static final String COMPATIBILITY_MODE = "dremio.s3.compat";
+  public static final String REGION_OVERRIDE = "dremio.s3.region";
 
   private static final Logger logger = LoggerFactory.getLogger(S3FileSystem.class);
   private static final String S3_URI_SCHEMA = "s3a://";
@@ -115,42 +117,13 @@ public class S3FileSystem extends ContainerFileSystem implements AsyncByteReader
 
   private final DremioFileSystemCache fsCache = new DremioFileSystemCache();
 
-  private Optional<String> getEndpoint() {
-    Optional<String> endPoint = Optional.ofNullable(getConf().getTrimmed(ENDPOINT));
-    if (!endPoint.isPresent()) {
-      return endPoint;
-    }
-    boolean isSecure = getConf().getBoolean(SECURE_CONNECTIONS, true);
-    String scheme = "https://";
-    if (!isSecure) {
-      scheme = "http://";
-    }
-
-    endPoint = Optional.of(scheme + endPoint.get());
-    return endPoint;
-  }
-
   private final LoadingCache<String, S3Client> syncClientCache = CacheBuilder
     .newBuilder()
     .expireAfterAccess(1, TimeUnit.HOURS)
     .build(new CacheLoader<String, S3Client>() {
       @Override
       public S3Client load(String bucket) throws Exception {
-        software.amazon.awssdk.regions.Region region = getAWSBucketRegion(bucket);
-        S3ClientBuilder builder = S3Client
-          .builder()
-          .credentialsProvider(getAsync2Provider(getConf()))
-          .region(region);
-
-        Optional<String> endPoint = getEndpoint();
-        if (endPoint.isPresent()) {
-          try {
-            builder.endpointOverride(new URI(endPoint.get()));
-          } catch (URISyntaxException use) {
-            throw UserException.sourceInBadState(use).build(logger);
-          }
-        }
-        return newSyncClientReference(builder.build(), bucket);
+        return newSyncClientReference(bucket);
       }
     });
 
@@ -160,31 +133,15 @@ public class S3FileSystem extends ContainerFileSystem implements AsyncByteReader
     .build(new CacheLoader<String, S3AsyncClient>() {
       @Override
       public S3AsyncClient load(String bucket) {
-        software.amazon.awssdk.regions.Region region = getAWSBucketRegion(bucket);
-
-        S3AsyncClientBuilder builder = S3AsyncClient
-          .builder()
-          .credentialsProvider(getAsync2Provider(getConf()))
-          .region(region);
-
-        Optional<String> endPoint = getEndpoint();
-        if (endPoint.isPresent()) {
-          try {
-            builder.endpointOverride(new URI(endPoint.get()));
-          } catch (URISyntaxException use) {
-            throw UserException.sourceInBadState(use).build(logger);
-          }
-        }
-        return newAsyncClientReference(builder.build(), bucket);
+        return newAsyncClientReference(bucket);
       }
     });
 
   private AmazonS3 s3;
   private String ownerId = null;
-  private boolean isAsyncEnabled;
 
-
-  private S3AsyncClient newAsyncClientReference(final S3AsyncClient asyncClient, final String bucket) {
+  private S3AsyncClient newAsyncClientReference(final String bucket) {
+    final S3AsyncClient asyncClient = configClientBuilder(S3AsyncClient.builder(), bucket).build();
     FinalizableReference ref = new FinalizablePhantomReference<S3AsyncClient>(asyncClient, FINALIZABLE_REFERENCE_QUEUE) {
       @Override
       public void finalizeReferent() {
@@ -199,7 +156,8 @@ public class S3FileSystem extends ContainerFileSystem implements AsyncByteReader
     return asyncClient;
   }
 
-  private S3Client newSyncClientReference(final S3Client syncClient, final String bucket) {
+  private S3Client newSyncClientReference(final String bucket) {
+    S3Client syncClient = configClientBuilder(S3Client.builder(), bucket).build();
     FinalizableReference ref = new FinalizablePhantomReference<S3Client>(syncClient, FINALIZABLE_REFERENCE_QUEUE) {
       @Override
       public void finalizeReferent() {
@@ -347,10 +305,19 @@ public class S3FileSystem extends ContainerFileSystem implements AsyncByteReader
     try {
       return syncClientCache.get(bucket);
     } catch (ExecutionException | SdkClientException e ) {
-      if (e.getCause() != null && e.getCause() instanceof IOException) {
-        throw (IOException) e.getCause();
+      Throwable toChain = e;
+      if (e.getCause() != null) {
+        Throwable cause = e.getCause();
+        if (cause instanceof UserException) {
+          throw (UserException) cause;
+        } else if (e.getCause() instanceof IOException) {
+          throw (IOException) e.getCause();
+        } else {
+          toChain = e.getCause();
+        }
       }
-      throw new IOException(String.format("Unable to create a sync S3 client for bucket %s", bucket), e);
+
+      throw new IOException(String.format("Unable to create a sync S3 client for bucket %s", bucket), toChain);
     }
   }
 
@@ -374,7 +341,8 @@ public class S3FileSystem extends ContainerFileSystem implements AsyncByteReader
     }
   }
 
-  private static AwsCredentialsProvider getAsync2Provider(Configuration config) {
+  private AwsCredentialsProvider getAsync2Provider() {
+    final Configuration config = getConf();
     switch(config.get(Constants.AWS_CREDENTIALS_PROVIDER)) {
       case ACCESS_KEY_PROVIDER:
         return StaticCredentialsProvider.create(AwsBasicCredentials.create(
@@ -409,30 +377,47 @@ public class S3FileSystem extends ContainerFileSystem implements AsyncByteReader
       return new ContainerHolder(bucketName, new FileSystemSupplier() {
         @Override
         public FileSystem create() throws IOException {
-          final String bucketRegion = s3.getBucketLocation(bucketName);
-          final String projectedBucketEndPoint = "s3." + bucketRegion + ".amazonaws.com";
-          String regionEndPoint = projectedBucketEndPoint;
-          try {
-            Region region = Region.fromValue(bucketRegion);
-            com.amazonaws.regions.Region awsRegion = region.toAWSRegion();
-            if (awsRegion != null) {
-              regionEndPoint = awsRegion.getServiceEndpoint("s3");
+          final String targetEndpoint;
+          Optional<String> endpoint = getEndpoint();
+
+          if(isCompatMode() && endpoint.isPresent()) {
+            // if this is compatibility mode and we have an endpoint, just use that.
+            targetEndpoint = endpoint.get();
+          } else {
+            final String bucketRegion = s3.getBucketLocation(bucketName);
+
+            final String fallbackEndpoint;
+            if(endpoint.isPresent()) {
+              fallbackEndpoint = endpoint.get();
+            } else {
+              fallbackEndpoint = String.format("%ss3.%s.amazonaws.com", getHttpScheme(), bucketRegion);
             }
-          } catch (IllegalArgumentException iae) {
-            // try heuristic mapping if not found
-            regionEndPoint = projectedBucketEndPoint;
-            logger.warn("Unknown or unmapped region {} for bucket {}. Will use following fs.s3a.endpoint: {}",
-              bucketRegion, bucketName, regionEndPoint);
+
+            String regionEndpoint = fallbackEndpoint;
+            try {
+              Region region = Region.fromValue(bucketRegion);
+              com.amazonaws.regions.Region awsRegion = region.toAWSRegion();
+              if (awsRegion != null) {
+                regionEndpoint = awsRegion.getServiceEndpoint("s3");
+              }
+            } catch (IllegalArgumentException iae) {
+              // try heuristic mapping if not found
+              regionEndpoint = fallbackEndpoint;
+              logger.warn("Unknown or unmapped region {} for bucket {}. Will use following endpoint: {}",
+                bucketRegion, bucketName, regionEndpoint);
+            }
+            // it could be null because no mapping from Region to aws region or there is no such region is the map of endpoints
+            // not sure if latter is possible
+            if (regionEndpoint == null) {
+              logger.error("Could not get AWSRegion for bucket {}. Will use following fs.s3a.endpoint: " + "{} ",
+                bucketName, fallbackEndpoint);
+            }
+            targetEndpoint = (regionEndpoint != null) ? regionEndpoint : fallbackEndpoint;
           }
-          // it could be null because no mapping from Region to aws region or there is no such region is the map of endpoints
-          // not sure if latter is possible
-          if (regionEndPoint == null) {
-            logger.error("Could not get AWSRegion for bucket {}. Will use following fs.s3a.endpoint: " + "{} ",
-              bucketName, projectedBucketEndPoint);
-          }
+
           String location = S3_URI_SCHEMA + bucketName + "/";
           final Configuration bucketConf = new Configuration(parentConf);
-          bucketConf.set(ENDPOINT, (regionEndPoint != null) ? regionEndPoint : projectedBucketEndPoint);
+          bucketConf.set(ENDPOINT, targetEndpoint);
           return fsCache.get(new Path(location).toUri(), bucketConf, S3ClientKey.UNIQUE_PROPS);
         }
       });
@@ -496,5 +481,48 @@ public class S3FileSystem extends ContainerFileSystem implements AsyncByteReader
       return "[ Access Key=" + s3Config.get(Constants.ACCESS_KEY) + ", Secret Key =*****, isSecure=" +
           s3Config.get(Constants.SECURE_CONNECTIONS) + " ]";
     }
+  }
+
+  private <T extends AwsClientBuilder<?,?>> T configClientBuilder(T builder, String bucket) {
+    builder.credentialsProvider(getAsync2Provider());
+    final Configuration conf = getConf();
+    Optional<String> endpoint = getEndpoint();
+    if (endpoint.isPresent()) {
+      try {
+        builder.endpointOverride(new URI(endpoint.get()));
+      } catch (URISyntaxException use) {
+        throw UserException.sourceInBadState(use).build(logger);
+      }
+    }
+
+    if(!isCompatMode()) {
+      // normal s3/govcloud mode.
+      builder.region(getAWSBucketRegion(bucket));
+    } else if (conf.get(REGION_OVERRIDE) != null) {
+      // a region override is set.
+      String regionOverride = conf.getTrimmed(REGION_OVERRIDE);
+      if(!regionOverride.isEmpty()) {
+        // set the region to what the user provided unless they provided an empty string.
+        builder.region(software.amazon.awssdk.regions.Region.of(regionOverride));
+      }
+    } else {
+      // default to the US_EAST_1 if no region is set when running compatibility mode.
+      builder.region(software.amazon.awssdk.regions.Region.US_EAST_1);
+    }
+
+    return builder;
+  }
+
+  private Optional<String> getEndpoint() {
+    return Optional.ofNullable(getConf().getTrimmed(ENDPOINT))
+        .map(s -> getHttpScheme() + s);
+  }
+
+  private String getHttpScheme() {
+    return getConf().getBoolean(SECURE_CONNECTIONS, true) ? "https://" : "http://";
+  }
+
+  private boolean isCompatMode() {
+    return getConf().getBoolean(COMPATIBILITY_MODE, false);
   }
 }

@@ -24,7 +24,7 @@ import urlParse from 'url-parse';
 import { showAppError } from 'actions/prodError';
 import { boot } from 'actions/app';
 import { DnDContextDecorator } from '@app/components/DragComponents/DnDContextDecorator';
-import { ErrorBoundary, getError } from '@app/components/ErrorBoundary';
+import { ErrorBoundary } from '@app/components/ErrorBoundary';
 
 import socket from 'utils/socket';
 import sentryUtil from 'utils/sentryUtil';
@@ -125,7 +125,7 @@ export class App extends Component {
     if (!url || urlParse(url).origin !== this._getWindowOrigin()) return;
 
     console.error('Uncaught Error', error || msg);
-    this.displayError(error || msg, sentryUtil.getEventId());
+    this.displayError(error || msg);
   };
 
   handleUnhandledRejection = (rejectionEvent) => {
@@ -135,15 +135,14 @@ export class App extends Component {
     if (error.stack && this._shouldIgnoreExternalStack(error.stack)) return;
 
     //By default, Raven.js does not capture unhandled promise rejections.
-    const eventId = sentryUtil.logException(error);
+    sentryUtil.logException(error);
 
     console.error('UnhandledRejection', error);
-    this.displayError(error, eventId);
+    this.displayError(error);
   };
 
-  displayError(error, eventId) {
-    const errorObject = getError(error);
-    this.props.dispatch(showAppError(errorObject, eventId));
+  displayError(error) {
+    this.props.dispatch(showAppError(error));
   }
 
   _getWindowOrigin() {

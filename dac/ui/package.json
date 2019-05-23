@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node server.js",
-    "startprod": "NODE_ENV=production node server.js",
+    "startprod": "NODE_ENV=production DREMIO_MINIFY=true DREMIO_RELEASE=true node server.js",
     "lint:path": "eslint --cache",
     "lint": "eslint --cache ./ ${DREMIO_UI_SRC:-src}",
     "postshrinkwrap": "shankwrap fsevents nan",

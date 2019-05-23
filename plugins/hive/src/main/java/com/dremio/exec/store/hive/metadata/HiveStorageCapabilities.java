@@ -15,22 +15,27 @@
  */
 package com.dremio.exec.store.hive.metadata;
 
+import java.util.Objects;
+
 /**
  * Helper class to hold capabilities of physical tables or partitions within the source.
  */
 public final class HiveStorageCapabilities {
 
-  public static final HiveStorageCapabilities DEFAULT = newBuilder()
+  public static final HiveStorageCapabilities DEFAULT_HDFS = newBuilder()
     .supportsImpersonation(true)
     .supportsLastModifiedTime(true)
+    .supportsOrcSplitFileIds(true)
     .build();
 
   private final boolean supportsLastModifiedTime;
   private final boolean supportsImpersonation;
+  private final boolean supportsOrcSplitFileIds;
 
-  private HiveStorageCapabilities(boolean supportsLastModifiedTime, boolean supportsImpersonation) {
+  private HiveStorageCapabilities(boolean supportsLastModifiedTime, boolean supportsImpersonation, boolean supportsOrcSplitFileIds) {
     this.supportsLastModifiedTime = supportsLastModifiedTime;
     this.supportsImpersonation = supportsImpersonation;
+    this.supportsOrcSplitFileIds = supportsOrcSplitFileIds;
   }
 
   public boolean supportsImpersonation() {
@@ -41,13 +46,18 @@ public final class HiveStorageCapabilities {
     return supportsLastModifiedTime;
   }
 
+  public boolean supportsOrcSplitFileIds() {
+    return supportsOrcSplitFileIds;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
 
   public static final class Builder {
-    private boolean supportsLastModifiedTime;
-    private boolean supportsImpersonation;
+    private Boolean supportsLastModifiedTime;
+    private Boolean supportsImpersonation;
+    private Boolean supportsOrcSplitFileIds;
 
     private Builder() {
     }
@@ -62,8 +72,18 @@ public final class HiveStorageCapabilities {
       return this;
     }
 
+    public Builder supportsOrcSplitFileIds(boolean supportsOrcSplitFileIds) {
+      this.supportsOrcSplitFileIds = supportsOrcSplitFileIds;
+      return this;
+    }
+
     public HiveStorageCapabilities build() {
-      return new HiveStorageCapabilities(supportsLastModifiedTime, supportsImpersonation);
+
+      Objects.requireNonNull(supportsLastModifiedTime, "supportsLastModifiedTime is required");
+      Objects.requireNonNull(supportsImpersonation, "supportsImpersonation is required");
+      Objects.requireNonNull(supportsOrcSplitFileIds, "supportsOrcSplitFileIds is required");
+
+      return new HiveStorageCapabilities(supportsLastModifiedTime, supportsImpersonation, supportsOrcSplitFileIds);
     }
   }
 }

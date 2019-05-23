@@ -55,6 +55,7 @@ import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.MissingPluginConf;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
@@ -353,8 +354,10 @@ public class CatalogServiceImpl implements CatalogService {
   @Override
   public boolean refreshSource(NamespaceKey source, MetadataPolicy metadataPolicy, UpdateType updateType) throws NamespaceException {
     ManagedStoragePlugin plugin = plugins.get(source.getRoot());
-    if(plugin == null){
+    if (plugin == null){
       throw UserException.validationError().message("Unknown source %s", source.getRoot()).build(logger);
+    } else if (MissingPluginConf.TYPE.equals(plugin.getConfig().getType())) {
+      return false;
     }
 
     return plugin.refresh(updateType, metadataPolicy);
@@ -735,7 +738,7 @@ public class CatalogServiceImpl implements CatalogService {
 
               // double check that plugin wasn't created while we were waiting for distributed lock.
               plugin = plugins.get(config.getName());
-              if(plugin != null) {
+              if(plugin != null && !MissingPluginConf.TYPE.equals(plugin.getConfig().getType())) {
                 break noExistDelete;
               }
 
@@ -746,6 +749,22 @@ public class CatalogServiceImpl implements CatalogService {
             communicateChange(config, RpcType.REQ_DEL_SOURCE);
             return;
           }
+        }
+
+        if (MissingPluginConf.TYPE.equals(plugin.getConfig().getType())) {
+          // Skip synchronization and verification checks for missing plugins.
+          // The attributes will always be inconsistent for these since we don't fully read all
+          // attributes when we detect the plugin is missing.
+          try(AutoCloseable l = getDistributedLock(config.getName());
+              AutoCloseable pluginMapLock = plugins.writeLock();
+              AutoCloseable pluginLock = plugin.writeLock()
+          ) {
+            plugins.deleteSource(config);
+            namespaceService.deleteSource(config.getKey(), config.getTag());
+            sourceDataStore.delete(config.getKey());
+          }
+          communicateChange(config, RpcType.REQ_DEL_SOURCE);
+          return;
         }
 
         // make sure we're at the latest

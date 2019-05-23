@@ -137,6 +137,9 @@
                 "propName": "config.allowCreateDrop"
               },
               {
+                "propName": "config.compatibilityMode"
+              },
+              {
                 "propName": "config.rootPath"
               }
             ]

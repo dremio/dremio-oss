@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import Immutable from 'immutable';
 import jobsMapper from './jobsMapper.js';
 
 describe('Test jobs mapper', () => {
@@ -68,4 +69,28 @@ describe('Test jobs mapper', () => {
     });
   });
 
+  describe('jobs mapper', () => {
+
+    it('handles empty payload', () => {
+      expect(jobsMapper.mapJobs(null)).to.be.eql([]);
+    });
+
+    it('handles empty jobs list', () => {
+      expect(jobsMapper.mapJobs({})).to.be.eql([]);
+    });
+
+    it('handles jobs list = null', () => {
+      expect(jobsMapper.mapJobs({ jobs: null })).to.be.eql([]);
+    });
+
+    it('convert jobs to immutable items', () => {
+      const job = {
+        a: 1,
+        b: 2
+      };
+      const resultJob = jobsMapper.mapJobs({ jobs: [job] })[0];
+      expect(resultJob instanceof Immutable.Map).to.be.true;
+      expect(resultJob.toJS()).to.be.eql(job);
+    });
+  });
 });

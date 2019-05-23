@@ -21,6 +21,7 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
+import com.google.common.annotations.VisibleForTesting;
 
 import io.protostuff.Tag;
 
@@ -32,8 +33,14 @@ public class MissingPluginConf extends ConnectionConf<MissingPluginConf, Missing
   @Tag(1)
   public String errorMessage;
 
+  // Mark this plugin as bad and throw exceptions from operations. This should be set to true,
+  // unless you need an active MissingPluginConf for testing purposes.
+  @Tag(2)
+  @VisibleForTesting
+  public boolean throwOnInvocation = true;
+
   @Override
   public MissingStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
-    return new MissingStoragePlugin(errorMessage);
+    return new MissingStoragePlugin(errorMessage, throwOnInvocation);
   }
 }

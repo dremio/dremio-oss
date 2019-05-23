@@ -216,7 +216,11 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
       // no files in the found directory, not a table.
       return null;
     }
-    return formatPlugin.getDatasetAccessor(DatasetType.PHYSICAL_DATASET_HOME_FILE, oldConfig, fs, fileSelectionWithoutDir, this, datasetPath, updateKey.build(), maxLeafColumns);
+
+    FileDatasetHandle.checkMaxFiles(datasetPath.getName(), fileSelectionWithoutDir.getStatuses().size(), getContext(),
+      getConfig().isInternal());
+    return formatPlugin.getDatasetAccessor(DatasetType.PHYSICAL_DATASET_HOME_FILE, oldConfig, fs,
+      fileSelectionWithoutDir, this, datasetPath, updateKey.build(), maxLeafColumns);
   }
 
   private static List<String> relativePath(List<String> tableSchemaPath, Path rootPath) {

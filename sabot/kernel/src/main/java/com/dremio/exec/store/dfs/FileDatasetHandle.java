@@ -22,9 +22,36 @@ import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.exec.catalog.DatasetTypeHandle;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 
+@Options
 public interface FileDatasetHandle extends DatasetTypeHandle {
+  TypeValidators.LongValidator DFS_MAX_FILES = new TypeValidators.RangeLongValidator("dremio.store.dfs.max_files", 1L, Integer.MAX_VALUE, 20000000L);
+
   DatasetMetadata getDatasetMetadata(GetMetadataOption... options) throws ConnectorException;
   PartitionChunkListing listPartitionChunks(ListPartitionChunkOption... options) throws ConnectorException;
   BytesOutput provideSignature(DatasetMetadata metadata) throws ConnectorException;
+
+  /**
+   * Throw an exception if the given dataset has too many files in it. Only applies to external storage plugins.
+   *
+   * @param datasetName
+   *        The name of the dataset being tested for too many files.
+   * @param numFilesInDirectory
+   *        The number of actual files in the dataset.
+   * @param context
+   *        The context the check is being run within.
+   * @param isInternal
+   *        Flag to indicate if the check is being done with an internal source such as the AccelerationStoragePlugin.
+   */
+  static void checkMaxFiles(String datasetName, int numFilesInDirectory, SabotContext context, boolean isInternal) throws FileCountTooLargeException {
+    if (!isInternal) {
+      final int maxFiles = Math.toIntExact(context.getOptionManager().getOption(FileDatasetHandle.DFS_MAX_FILES));
+      if (numFilesInDirectory > maxFiles) {
+        throw new FileCountTooLargeException(datasetName, numFilesInDirectory, maxFiles);
+      }
+    }
+  }
 }

@@ -18,6 +18,12 @@ import uuid from 'uuid';
 import { getVersionWithEdition } from 'dyn-load/utils/versionUtils';
 import config from './config';
 
+/*
+  !!! Important. You must verify that this utils send logs to sentry correctly in production
+  release mode (i.e. NODE_ENV='production' and DREMIO_RELEASE=true). I saw the cases when logs were
+  sent correctly in case DREMIO_RELEASE=false, but was not sent in case DREMIO_RELEASE=true.
+  (See ErrorBoundary for example)
+ */
 class SentryUtil {
 
   // we'd really like to have a uuid for the error, but cross-referencing sentry with the UI
@@ -33,23 +39,20 @@ class SentryUtil {
         // extra info that could be used to search an error.
         // example: sessionUUID:"1ac6a0bb-6582-4532-81c3-5b2ac479dcab"
         tags: {
-          sessionUUID: this.sessionUUID
+          sessionUUID: this.sessionUUID,
+          commitHash: config.versionInfo.commitHash
         }
       }).install();
     }
   }
 
   logException(ex, context) {
-    let eventId = null;
-
     if (config.isReleaseBuild && !config.outsideCommunicationDisabled) {
-      eventId = Raven.captureException(ex, {
+      Raven.captureException(ex, {
         extra: context
       });
       global.console && console.error && console.error(ex, context);
     }
-
-    return eventId;
   }
 
   getEventId() {

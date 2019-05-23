@@ -243,7 +243,7 @@ public class TestPluginsManager {
     final MetadataRequestOptions metadataRequestOptions = new MetadataRequestOptions(schemaConfig, 1000);
 
     // force a cache of the permissions
-    plugin.checkAccess(new NamespaceKey("test"), datasetConfig, metadataRequestOptions);
+    plugin.checkAccess(new NamespaceKey("test"), datasetConfig, "user", metadataRequestOptions);
 
     // create a replacement that will always fail permission checks
     final SourceConfig newConfig = new SourceConfig()
@@ -257,7 +257,7 @@ public class TestPluginsManager {
     // will throw if the cache has been cleared
     boolean threw = false;
     try {
-      plugin.checkAccess(new NamespaceKey("test"), datasetConfig, metadataRequestOptions);
+      plugin.checkAccess(new NamespaceKey("test"), datasetConfig, "user", metadataRequestOptions);
     } catch (UserException e) {
       threw = true;
     }

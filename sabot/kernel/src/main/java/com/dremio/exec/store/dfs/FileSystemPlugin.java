@@ -397,9 +397,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
         return null;
       }
 
+      FileDatasetHandle.checkMaxFiles(datasetPath.getName(), fileSelectionWithoutDir.getStatuses().size(), getContext(),
+        getConfig().isInternal());
       FileDatasetHandle datasetAccessor = null;
-
-
       if (formatPluginConfig != null) {
 
         FormatPlugin formatPlugin = formatCreator.getFormatPluginByConfig(formatPluginConfig);

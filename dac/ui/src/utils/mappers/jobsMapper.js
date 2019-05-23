@@ -19,9 +19,9 @@ class JobsMapper {
   }
 
   mapJobs(payload) {
-    return payload && payload.jobs.map((item) => {
+    return ((payload && payload.jobs) || []).map((item) => {
       return Immutable.fromJS(item);
-    }) || [];
+    });
   }
 
   mapDatasetsJobs(payload) {

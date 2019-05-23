@@ -140,4 +140,8 @@ public class ViewExpansionContext {
       }
     }
   }
+
+  public String getQueryUser() {
+    return queryUser;
+  }
 }

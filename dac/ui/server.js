@@ -15,6 +15,8 @@
  */
 /*eslint no-console: 0*/
 
+const fs = require('fs');
+const path = require('path');
 const webpack = require('webpack');
 const webpackDevMiddleware = require('webpack-dev-middleware');
 const proxy = require('http-proxy-middleware');
@@ -25,7 +27,6 @@ const app = express();
 
 const config = require('./webpack.config');
 const testConfig = require('./webpack.tests.config');
-const userConfig = require('./webpackUtils/userConfig');
 const isProductionBuild = process.env.NODE_ENV === 'production';
 
 const ENABLE_TESTS = false; // not quite yet ready
@@ -52,10 +53,18 @@ if (ENABLE_TESTS && !isProductionBuild) {
 
 let storedProxy;
 let prevAPIOrigin;
+const readServerSettings = () => {
+  return JSON.parse(fs.readFileSync( // eslint-disable-line no-sync
+    path.resolve(__dirname, 'server.config.json'),
+    'utf8'
+  ));
+};
 
 // Job profiles load their css/js from /static/*, so redirect those calls as well
 app.use(['/api*', '/static/*'], function() {
-  const newAPIOrigin = userConfig.live().apiOrigin;
+  // todo it would be nice to enforce server and web socket to use the same origin.
+  // See https://github.com/dremio/dremio/blob/64ada2028fb042e6b3a035b9ef64814218095e30/oss/dac/ui/src/constants/Api.js#L22
+  const newAPIOrigin = readServerSettings().apiOrigin;
   if (newAPIOrigin !== prevAPIOrigin) {
     storedProxy = proxy({
       target: newAPIOrigin,

@@ -20,7 +20,6 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
-const userConfig = require('./webpackUtils/userConfig');
 
 const dynLoader = require('./dynLoader');
 dynLoader.applyNodeModulesResolver();
@@ -30,7 +29,7 @@ const minify = process.env.DREMIO_MINIFY === 'true';
 const isBeta = process.env.DREMIO_BETA === 'true';
 const isRelease = process.env.DREMIO_RELEASE === 'true';
 
-let devtool = isProductionBuild ? 'source-map' : userConfig.sourceMaps;  // chris says: '#cheap-eval-source-map' is really great for debugging
+let devtool = isProductionBuild ? 'source-map' : 'eval-source-map';  // chris says: '#cheap-eval-source-map' is really great for debugging
 if (isRelease) {
   // for release, hide the source map
   devtool = 'hidden-source-map';
@@ -87,14 +86,14 @@ class BuildInfo {
       compilation.plugin('html-webpack-plugin-before-html-generation', function(htmlPluginData, callback) {
         // because config is relying on freemarker template variables to be interpreted by the server
         // at runtime, config has to be string (and not an object) otherwise, shouldEnableRSOD could
-        // not be a boolean for example
+        // not be a boolean for example. See oss/dac/backend/src/main/java/com/dremio/dac/server/IndexServlet.java
         const config = `{
           serverEnvironment: ${JSON.stringify(isProductionBuild ? '${dremio.environment}' : null)},
           serverStatus: ${JSON.stringify(isProductionBuild ? '${dremio.status}' : 'OK')},
           environment: ${JSON.stringify(isProductionBuild ? 'PRODUCTION' : 'DEVELOPMENT')},
           isReleaseBuild: ${isRelease},
           ts: "${new Date()}",
-          intercomAppId: ${JSON.stringify(isProductionBuild ? '${dremio.config.intercom.appid}' : userConfig.intercomAppId)},
+          intercomAppId: ${JSON.stringify(isProductionBuild ? '${dremio.config.intercom.appid}' : null)},
           shouldEnableBugFiling: ${!isProductionBuild || '${dremio.debug.bug.filing.enabled?c}'},
           shouldEnableRSOD: ${!isProductionBuild || '${dremio.debug.rsod.enabled?c}'},
           supportEmailTo: ${JSON.stringify(isProductionBuild ? '${dremio.settings.supportEmailTo}' : 'noreply@dremio.com')},

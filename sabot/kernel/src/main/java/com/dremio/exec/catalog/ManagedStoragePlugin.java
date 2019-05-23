@@ -386,10 +386,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
     SOURCE_METADATA
   }
 
-  public void checkAccess(NamespaceKey key, DatasetConfig datasetConfig, final MetadataRequestOptions options) {
+  public void checkAccess(NamespaceKey key, DatasetConfig datasetConfig, String userName, final MetadataRequestOptions options) {
     try(AutoCloseableLock l = readLock()) {
       checkState();
-      if (!permissionsCache.hasAccess(options.getSchemaConfig().getUserName(), key, datasetConfig, options.getStatsCollector())) {
+      if (!permissionsCache.hasAccess(userName, key, datasetConfig, options.getStatsCollector())) {
         throw UserException.permissionError()
           .message("Access denied reading dataset %s.", key)
           .build(logger);
@@ -403,7 +403,6 @@ public class ManagedStoragePlugin implements AutoCloseable {
       return isComplete(datasetConfig) && metadataManager.isStillValid(options, datasetConfig);
     }
   }
-
 
 
   public UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions) {

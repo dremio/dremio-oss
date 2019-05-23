@@ -62,17 +62,10 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
     Constants.PROXY_USERNAME,
     Constants.PROXY_PASSWORD,
     Constants.PROXY_WORKSTATION,
-    Constants.PATH_STYLE_ACCESS
+    Constants.PATH_STYLE_ACCESS,
+    S3FileSystem.COMPATIBILITY_MODE,
+    S3FileSystem.REGION_OVERRIDE
   );
-
-  //  optional string access_key = 1;
-  //  optional string access_secret = 2;
-  //  optional bool secure = 3;
-  //  repeated string external_bucket = 4;
-  //  repeated Property property = 5;
-  //  optional bool allow_create_drop = 6;
-  //  optional string root_path = 7;
-  //  optional AWSAuthenticationType credential_type = 8;
 
   @Tag(1)
   @DisplayMetadata(label = "AWS Access Key")
@@ -110,6 +103,10 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable asynchronous access when possible")
   public boolean enableAsync = true;
+
+  @Tag(10)
+  @DisplayMetadata(label = "Enable compatibility mode (experimental)")
+  public boolean compatibilityMode = false;
 
   @Override
   public S3StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {

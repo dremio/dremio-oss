@@ -16,7 +16,6 @@
 import { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
-import invariant from 'invariant';
 import { showAppError } from 'actions/prodError';
 import sentryUtil from '@app/utils/sentryUtil';
 
@@ -24,17 +23,6 @@ const isProd = process.env.NODE_ENV === 'production';
 const mapDispatchToProps = ({
   showAppError
 });
-
-export const getError = (e) => {
-  invariant(e, 'error must be provided');
-  if (e instanceof Error) {
-    return e;
-  }
-  if (e.message) {
-    return new Error(e.message + '\n\n' + e.stack + '\n\n(non-Error instance)');
-  }
-  return new Error(e); // error components expect objects
-};
 
 @connect(null, mapDispatchToProps)
 export class ErrorBoundary extends PureComponent {
@@ -56,9 +44,9 @@ export class ErrorBoundary extends PureComponent {
     if (!isProd) {
       debugger; // eslint-disable-line no-debugger
     }
-    const errorObject = getError(error);
-
-    this.props.showAppError(errorObject, sentryUtil.getEventId());
+    // This line must be here as in case DREMIO_RELEASE=true Raven does not not catch a error
+    sentryUtil.logException(error);
+    this.props.showAppError(error);
   }
 
   render() {
