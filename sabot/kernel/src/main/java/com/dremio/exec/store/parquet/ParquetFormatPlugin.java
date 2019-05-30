@@ -180,7 +180,9 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       this.status = status;
       this.streamProvider = new SingleStreamProvider(fs, status.getPath(), status.getLen());
       this.footer = this.streamProvider.getFooter();
-      this.dateStatus = ParquetReaderUtility.detectCorruptDates(footer, GroupScan.ALL_COLUMNS, getConfig().autoCorrectCorruptDates);
+      boolean autoCorrectCorruptDates = context.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR) &&
+        getConfig().autoCorrectCorruptDates;
+      this.dateStatus = ParquetReaderUtility.detectCorruptDates(footer, GroupScan.ALL_COLUMNS, autoCorrectCorruptDates);
       this.schemaHelper = SchemaDerivationHelper.builder()
           .readInt96AsTimeStamp(context.getOptions().getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR))
           .dateCorruptionStatus(dateStatus)

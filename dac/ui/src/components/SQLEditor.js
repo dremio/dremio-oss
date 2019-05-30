@@ -51,7 +51,7 @@ const checkHeightAndFitHeightToContentFlags = (props, propName, componentName) =
       return new Error('Height must not be provided if fitHeightToContent property set to true');
     }
   } else {
-    return PropTypes.checkPropTypes(staticPropTypes, props, propName, componentName); // reuse stnadard prop types check
+    return PropTypes.checkPropTypes(staticPropTypes, props, propName, componentName); // reuse standard prop types check
   }
 };
 
@@ -344,30 +344,35 @@ export class SQLEditor extends PureComponent {
       fitHeightToContent, // here to not pass it in monaco editor, as it does not support it
        ...monacoProps} = this.props;
 
-    return <MonacoEditor
-      {...monacoProps}
-      onChange={this.handleChange}
-      editorDidMount={this.editorDidMount}
-      ref={(ref) => this.monacoEditorComponent = ref}
-      width='100%'
-      language={this.state.language}
-      theme='vs'
-      options={{
-        wordWrap: 'on',
-        lineNumbersMinChars: 3,
-        scrollBeyondLastLine: false,
-        scrollbar: {vertical: 'visible', useShadows: false},
-        automaticLayout: true,
-        lineDecorationsWidth: 12,
-        minimap: {
-          enabled: false
-        },
-        suggestLineHeight: 25,
-        readOnly,
-        contextmenu: contextMenu // a case is important here
-      }}
-      requireConfig={{url: '/vs/loader.js', paths: {vs: '/vs'}}}
-    />;
+    return (
+      // div wrapper is required for FF and IE. Without it a editor has uncontrolled grow on jobs page.
+      <div>
+        <MonacoEditor
+          {...monacoProps}
+          onChange={this.handleChange}
+          editorDidMount={this.editorDidMount}
+          ref={(ref) => this.monacoEditorComponent = ref}
+          width='100%'
+          language={this.state.language}
+          theme='vs'
+          options={{
+            wordWrap: 'on',
+            lineNumbersMinChars: 3,
+            scrollBeyondLastLine: false,
+            scrollbar: {vertical: 'visible', useShadows: false},
+            automaticLayout: true,
+            lineDecorationsWidth: 12,
+            minimap: {
+              enabled: false
+            },
+            suggestLineHeight: 25,
+            readOnly,
+            contextmenu: contextMenu // a case is important here
+          }}
+          requireConfig={{url: '/vs/loader.js', paths: {vs: '/vs'}}}
+        />
+      </div>
+    );
   }
 }
 

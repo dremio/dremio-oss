@@ -991,7 +991,7 @@ public class HiveMetadataUtils {
 
   public static void checkLeafFieldCounter(int leafCounter, int maxMetadataLeafColumns, String tableName) {
     if (leafCounter > maxMetadataLeafColumns) {
-      throw new ColumnCountTooLargeException(tableName, maxMetadataLeafColumns);
+      throw new ColumnCountTooLargeException(maxMetadataLeafColumns);
     }
   }
 

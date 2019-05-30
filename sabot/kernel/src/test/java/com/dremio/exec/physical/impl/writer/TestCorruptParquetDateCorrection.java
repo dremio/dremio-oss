@@ -211,18 +211,19 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
   @Test
   public void testReadPartitionedOnCorruptedDates() throws Exception {
     try {
+      test(String.format("alter session set %s = false", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
       for (String selection : new String[]{"*", "date_col"}) {
         // for sanity, try reading all partitions without a filter
         TestBuilder builder = testBuilder()
             .sqlQuery("select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_4_0_PATH + "\"" +
-                "(type => 'parquet', autoCorrectCorruptDates => false))")
+                "(type => 'parquet'))")
             .unOrdered()
             .baselineColumns("date_col");
         addDateBaselineVals(builder);
         builder.go();
 
         String query = "select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_4_0_PATH + "\" " +
-            "(type => 'parquet', autoCorrectCorruptDates => false))" + " where date_col = date '1970-01-01'";
+            "(type => 'parquet'))" + " where date_col = date '1970-01-01'";
         // verify that pruning is actually taking place
         testPlanMatchingPatterns(query, new String[]{"splits=\\[1"}, null);
 
@@ -244,18 +245,19 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
   @Test
   public void testReadPartitionedOnCorruptedDates_UserDisabledCorrection() throws Exception {
     try {
+      test(String.format("alter session set %s = false", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
       for (String selection : new String[]{"*", "date_col"}) {
         // for sanity, try reading all partitions without a filter
         TestBuilder builder = testBuilder()
             .sqlQuery("select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_2_PATH + "\"" +
-                "(type => 'parquet', autoCorrectCorruptDates => false))")
+                "(type => 'parquet'))")
             .unOrdered()
             .baselineColumns("date_col");
         addCorruptedDateBaselineVals(builder);
         builder.go();
 
         String query = "select " + selection + " from table(dfs.\"" + CORRUPTED_PARTITIONED_DATES_1_2_PATH + "\" " +
-            "(type => 'parquet', autoCorrectCorruptDates => false))" + " where date_col > cast('15334-03-17' as date)";
+            "(type => 'parquet'))" + " where date_col > cast('15334-03-17' as date)";
         // verify that pruning is actually taking place
         testPlanMatchingPatterns(query, new String[]{"splits=\\[1"}, null);
 
@@ -331,10 +333,10 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
 
   @Test
   public void testUserOverrideDateCorrection() throws Exception {
-    // read once with the flat reader
-    readFilesWithUserDisabledAutoCorrection();
-
     try {
+      test(String.format("alter session set %s = false", ExecConstants.PARQUET_AUTO_CORRECT_DATES));
+      // read once with the flat reader
+      readFilesWithUserDisabledAutoCorrection();
       test(String.format("alter session set %s = true", ExecConstants.PARQUET_NEW_RECORD_READER));
       // read all of the types with the complex reader
       readFilesWithUserDisabledAutoCorrection();
@@ -417,7 +419,7 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
     for (String selection : new String[] {"*", "date_col"}) {
       TestBuilder builder = testBuilder()
           .sqlQuery("select " + selection + " from table(dfs.\"" + MIXED_CORRUPTED_AND_CORRECTED_DATES_PATH + "\"" +
-              "(type => 'parquet', autoCorrectCorruptDates => false))")
+              "(type => 'parquet'))")
           .unOrdered()
           .baselineColumns("date_col");
       addDateBaselineVals(builder);

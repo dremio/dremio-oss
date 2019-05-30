@@ -314,7 +314,7 @@ public class TestSourceMetadataManager {
 
     when(sp.validateMetadata(any(), eq(handle), any()))
         .thenReturn(SupportsReadSignature.MetadataValidity.INVALID);
-    doThrow(new ColumnCountTooLargeException("too-large", 1))
+    doThrow(new ColumnCountTooLargeException(1))
         .when(sp)
         .getDatasetMetadata(eq(handle), any(PartitionChunkListing.class), any());
 

@@ -164,6 +164,9 @@ public interface ExecConstants {
   String PARQUET_NEW_RECORD_READER = "store.parquet.use_new_reader";
   BooleanValidator PARQUET_RECORD_READER_IMPLEMENTATION_VALIDATOR = new BooleanValidator(PARQUET_NEW_RECORD_READER, false);
 
+  String PARQUET_AUTO_CORRECT_DATES = "store.parquet.auto.correct.dates";
+  BooleanValidator PARQUET_AUTO_CORRECT_DATES_VALIDATOR = new BooleanValidator(PARQUET_AUTO_CORRECT_DATES, true);
+
   BooleanValidator PARQUET_READER_VECTORIZE = new BooleanValidator("store.parquet.vectorize", true);
   BooleanValidator ENABLED_PARQUET_TRACING = new BooleanValidator("store.parquet.vectorize.tracing.enable", false);
 

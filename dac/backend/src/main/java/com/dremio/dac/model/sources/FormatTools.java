@@ -345,7 +345,7 @@ public class FormatTools {
               container.buildSchema();
               if (container.getSchema().getTotalFieldCount() >= maxLeafColumns) {
                 throw UserException.validationError()
-                    .message(ColumnCountTooLargeException.MESSAGE, format.getName(), maxLeafColumns)
+                    .message(ColumnCountTooLargeException.MESSAGE, maxLeafColumns)
                     .build(logger);
               }
 

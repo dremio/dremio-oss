@@ -25,6 +25,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
@@ -97,12 +98,17 @@ public class HttpsConnectorGenerator {
     // certificate
     // TODO(DX-12920): sslContextFactory.setValidatePeerCerts(!sslConfig.disableCertificateVerification());
 
+    // this ensures that jersey is aware that we are using https - without this it thinks that every connection is unsecured
+    final HttpConfiguration httpConfig = new HttpConfiguration();
+    httpConfig.setSecureScheme("https");
+    httpConfig.addCustomizer(new SecureRequestCustomizer());
+
     final ServerConnector sslConnector =
-        new ServerConnector(
-            embeddedJetty,
-            new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
-            new HttpConnectionFactory(new HttpConfiguration())
-        );
+      new ServerConnector(
+        embeddedJetty,
+        new SslConnectionFactory(sslContextFactory, HttpVersion.HTTP_1_1.asString()),
+        new HttpConnectionFactory(httpConfig)
+      );
 
     return Pair.of(sslConnector, trustStore);
   }

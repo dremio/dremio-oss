@@ -13,19 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package com.dremio.exec.catalog;
-
-/**
- * Thrown when dataset metadata is too wide, when column count in metadata exceeds the limit
- * defined in CatalogOptions
- */
-public class ColumnCountTooLargeException extends DatasetMetadataTooLargeException {
-  private static final long serialVersionUID = 7765148243332604247L;
-
-  public static final String MESSAGE = "Number of fields in dataset exceeded the maximum number of fields of %d.";
-
-  public ColumnCountTooLargeException(int limit) {
-    super(String.format(MESSAGE, limit));
-  }
+.content-holder {
+  composes: flex-column-container from '@app/uiTheme/less/layout.less';
+  position: relative;
+  overflow-y: auto;
 }
+
+.content-wrapper {
+  composes: overflow-hidden from '@app/uiTheme/less/layout.less';
+}
+

@@ -195,7 +195,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
       fields = arrowSchema.getFields();
     }
     if (fields.size() > maxLeafColumns) {
-      throw new ColumnCountTooLargeException(tableSchemaPath.getLeaf(), maxLeafColumns);
+      throw new ColumnCountTooLargeException(maxLeafColumns);
     }
 
     final boolean isAccelerator = fsPlugin.getId().getName().equals(ACCELERATOR_STORAGEPLUGIN_NAME);
@@ -245,8 +245,10 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
           continue;
         }
 
+        final boolean autoCorrectCorruptDates = context.getOptionManager().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR) &&
+          ((ParquetFormatPlugin) formatPlugin).getConfig().autoCorrectCorruptDates;
         final ParquetReaderUtility.DateCorruptionStatus dateStatus = ParquetReaderUtility.detectCorruptDates(footer, GroupScan.ALL_COLUMNS,
-            ((ParquetFormatPlugin) formatPlugin).getConfig().autoCorrectCorruptDates);
+            autoCorrectCorruptDates);
         final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
             .readInt96AsTimeStamp(operatorContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
             .dateCorruptionStatus(dateStatus)

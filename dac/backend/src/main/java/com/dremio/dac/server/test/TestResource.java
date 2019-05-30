@@ -23,11 +23,14 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 
 import org.glassfish.jersey.server.mvc.Viewable;
@@ -155,5 +158,16 @@ public class TestResource {
     byte[] data = Files.readAllBytes(profilePath);
     QueryProfile profile = ProfileResource.SERIALIZER.deserialize(data);
     return ProfileResource.renderProfile(profile, true);
+  }
+
+  @GET
+  @Path("isSecure")
+  public Response isSecure(@Context HttpServletRequest request) throws Exception {
+    // this is used for testing is jersey is away that SSL is enabled
+    if (request.isSecure()) {
+      return Response.ok().build();
+    }
+
+    return Response.serverError().build();
   }
 }

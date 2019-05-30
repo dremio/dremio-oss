@@ -105,13 +105,11 @@ export default function(input) {
           text={la('Settings')}/>
 
         {
-          canRemoveFormat && <MenuItem
-            onClick={this.handleRemoveFormat}>
-
-            {la('Remove Format')}
-          </MenuItem>
+          canRemoveFormat && <MenuItemLink
+            closeMenu={closeMenu}
+            href={this.getRemoveFormatLocation()}
+            text={la('Remove Format')}/>
         }
-
       </Menu>;
     }
   });

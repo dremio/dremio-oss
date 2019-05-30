@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import PureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
-import Radium from 'radium';
+import classNames from 'classnames';
+
 import Immutable from 'immutable';
 import jobsUtils from 'utils/jobsUtils';
 import timeUtils from 'utils/timeUtils';
@@ -27,6 +27,7 @@ import SettingsBtn from 'components/Buttons/SettingsBtn';
 import RealTimeTimer from 'components/RealTimeTimer';
 import CopyButton from 'components/Buttons/CopyButton';
 import { injectIntl, FormattedMessage } from 'react-intl';
+import { flexColumnContainer, flexElementAuto } from '@app/uiTheme/less/layout.less';
 
 import { BORDER_TABLE } from 'uiTheme/radium/colors';
 import SqlEditor from 'components/SQLEditor.js';
@@ -40,9 +41,7 @@ import ReflectionBlock from './ReflectionBlock';
 
 
 @injectIntl
-@Radium
-@PureRender
-class OverviewContent extends Component {
+class OverviewContent extends PureComponent {
   static checkResultOfProfile = (attemptDetails, reason = '') => {
     if (!reason) {
       return attemptDetails.find( profile => profile.get('reason') );
@@ -238,7 +237,7 @@ class OverviewContent extends Component {
             fitHeightToContent
             maxHeight={500}
             contextMenu={false}
-            />
+          />
         </div>
       );
     }
@@ -365,7 +364,7 @@ class OverviewContent extends Component {
         {this.renderCancellationLog()}
 
         {!this.isMetadataJob() &&
-          <div className='detail-row'>
+          <div className={classNames('detail-row', flexColumnContainer, flexElementAuto)}>
             {(this.isDatasetBlockToBeShown() || this.isParentsBlockToBeShown()) &&
             <h4>{intl.formatMessage({ id: 'Job.Query' })}</h4>
             }

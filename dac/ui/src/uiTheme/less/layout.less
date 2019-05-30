@@ -66,6 +66,9 @@
 
 .flex-element-auto {
   flex: 1 1 auto;
+  // the style below are needed to prevent child to overflow a parent
+  min-width: 0;
+  min-height: 0;
 }
 
 .tab-label {
@@ -91,4 +94,12 @@
 
 .clear-fix {
   .clear-fix-mixin();
+}
+
+.full-height {
+  height: 100%;
+}
+
+.overflow-hidden {
+  overflow: hidden;
 }

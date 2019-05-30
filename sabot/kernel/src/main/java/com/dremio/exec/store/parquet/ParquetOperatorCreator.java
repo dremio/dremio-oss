@@ -81,7 +81,8 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     // load global dictionaries, globalDictionaries must be closed by the last reader
     final GlobalDictionaries globalDictionaries = GlobalDictionaries.create(context, fs,  config.getGlobalDictionaryEncodedColumns());
     final boolean vectorize = context.getOptions().getOption(ExecConstants.PARQUET_READER_VECTORIZE);
-    final boolean autoCorrectCorruptDates = ((ParquetFileConfig)FileFormat.getForFile(config.getFormatSettings())).getAutoCorrectCorruptDates();
+    final boolean autoCorrectCorruptDates = context.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR) &&
+      ((ParquetFileConfig) FileFormat.getForFile(config.getFormatSettings())).getAutoCorrectCorruptDates();
     final boolean readInt96AsTimeStamp = context.getOptions().getOption(ExecConstants
       .PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal();
     final boolean enableDetailedTracing = context.getOptions().getOption(ExecConstants.ENABLED_PARQUET_TRACING);

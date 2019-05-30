@@ -17,14 +17,16 @@ import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
+import classNames from 'classnames';
 
 import Tabs from 'components/Tabs';
+import { flexElementAuto } from '@app/uiTheme/less/layout.less';
 import OverviewContent from './OverviewContent';
 import DetailsContent from './DetailsContent';
 import AccelerationContent from './AccelerationContent';
 import ProfilesContent from './ProfilesContent';
 import HelpSection from './HelpSection';
-
+import { contentHolder } from './TabsContent.less';
 @Radium
 class TabsContent extends Component {
   static propTypes = {
@@ -32,7 +34,8 @@ class TabsContent extends Component {
     activeTab: PropTypes.string,
     jobDetails: PropTypes.instanceOf(Immutable.Map),
     showJobProfile: PropTypes.func,
-    style: PropTypes.object
+    style: PropTypes.object,
+    className: PropTypes.string
   };
 
   componentWillReceiveProps(nextProps) {
@@ -77,14 +80,19 @@ class TabsContent extends Component {
   }
 
   render() {
-    const {style} = this.props;
+    const { style, className } = this.props;
     const content = this.renderTabsContent();
 
     return (
-      <div ref='holder' className='content-holder' style={[styles.base, style]}>
-        <div style={{flex: '1 0 auto'}}>
+      <div ref='holder' className={classNames(contentHolder, className)} style={style}>
+        <div className={classNames()}>
           {content}
         </div>
+        {/*
+          An empty div is needed to fill free available space on big monitors.
+          This will stick help section to the bottom if there is extra space
+        */}
+        <div className={flexElementAuto}></div>
         <HelpSection jobId={this.props.jobId} />
       </div>
     );
@@ -94,11 +102,6 @@ class TabsContent extends Component {
 export default TabsContent;
 
 const styles = {
-  base: {
-    position: 'relative',
-    display: 'flex',
-    flexDirection: 'column'
-  },
   spinner: {
     position: 'absolute',
     display: 'flex',

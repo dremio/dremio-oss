@@ -214,7 +214,7 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle {
         for (VectorWrapper<?> vw : mutator.getContainer()) {
           fieldVectorMap.put(vw.getField().getName(), vw.getValueVector());
           if (++i > maxLeafColumns) {
-            throw new ColumnCountTooLargeException(tableSchemaPath.getLeaf(), maxLeafColumns);
+            throw new ColumnCountTooLargeException(maxLeafColumns);
           }
         }
         reader.allocate(fieldVectorMap);

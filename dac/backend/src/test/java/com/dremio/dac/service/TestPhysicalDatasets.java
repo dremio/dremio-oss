@@ -294,7 +294,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
                 .buildPost(Entity.json(fileConfig)),
             UserExceptionMapper.ErrorMessageWithContext.class
         );
-    assertTrue(error.getErrorMessage().contains("Number of fields in dataset 'widetable.txt' exceeded the maximum number of fields"));
+    assertTrue(error.getErrorMessage().contains("Number of fields in dataset exceeded the maximum number of fields"));
     checkCounts(fileParentUrlPath, "widetable.txt", false /* false because we have not saved dataset yet */, 0, 0, 0);
   }
 

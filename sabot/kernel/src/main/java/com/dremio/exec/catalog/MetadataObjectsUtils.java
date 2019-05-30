@@ -98,7 +98,7 @@ public final class MetadataObjectsUtils {
     datasetConfig.setSchemaVersion(datasetConfig.getSchemaVersion());  // TODO: how to detect changes?
     final BatchSchema batchSchema = new BatchSchema(newExtended.getRecordSchema().getFields());
     if (batchSchema.getTotalFieldCount() > maxLeafFields) {
-      throw new ColumnCountTooLargeException(datasetConfig.getName(), maxLeafFields);
+      throw new ColumnCountTooLargeException(maxLeafFields);
     }
     datasetConfig.setRecordSchema(new BatchSchema(newExtended.getRecordSchema().getFields()).toByteString());
 

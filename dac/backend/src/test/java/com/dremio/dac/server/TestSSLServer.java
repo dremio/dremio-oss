@@ -106,6 +106,11 @@ public class TestSSLServer extends BaseClientUtils {
     expectSuccess(apiV2.path("server_status").request(MediaType.APPLICATION_JSON_TYPE).buildGet());
   }
 
+  @Test
+  public void ensureServerIsAwareSSLIsEnabled() throws Exception {
+    expectSuccess(apiV2.path("test").path("isSecure").request(MediaType.APPLICATION_JSON_TYPE).buildGet());
+  }
+
   @AfterClass
   public static void shutdown() throws Exception {
     AutoCloseables.close(

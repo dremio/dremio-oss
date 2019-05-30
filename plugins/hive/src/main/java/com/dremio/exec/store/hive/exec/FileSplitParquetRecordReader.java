@@ -167,9 +167,10 @@ public class FileSplitParquetRecordReader implements RecordReader {
             .setLength(Integer.MAX_VALUE)
             .build();
 
+        final boolean autoCorrectCorruptDates = oContext.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR);
         final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
             .readInt96AsTimeStamp(true)
-            .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, columnsToRead, true))
+            .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, columnsToRead, autoCorrectCorruptDates))
             .noSchemaLearning(outputSchema)
             .build();
 
