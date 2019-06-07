@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>3.2.3-201905301727340724-7419ad0</version>
+    <version>3.2.4-201906051751050278-1bcce62</version>
   </parent>
   <artifactId>dremio-services-jobs</artifactId>
   <name>Services - Jobs</name>

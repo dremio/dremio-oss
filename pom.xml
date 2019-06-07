@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>3.2.3-201905301727340724-7419ad0</version>
+  <version>3.2.4-201906051751050278-1bcce62</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -50,7 +50,7 @@
     <!-- Currently Hive storage plugin only supports Apache Hive 1.2 or vendor
       specific variants of the Apache Hive 1.2. If the version is changed, make
       sure the jars and their dependencies are updated. -->
-    <hive.version>2.1.1-dremio-201811301814460298-e73bd7f</hive.version>
+    <hive.version>2.1.1-dremio-201906031830070148-45443ea</hive.version>
     <hbase.version>1.1.3</hbase.version>
     <hadoop.version>2.8.3</hadoop.version>
     <hsqldb.version>2.3.1</hsqldb.version>
@@ -125,7 +125,7 @@
         </property>
       </activation>
       <properties>
-        <hive.version>2.1.1-mapr-1803-201811301818250596-387f43d</hive.version>
+        <hive.version>2.1.1-mapr-1803-201906031833490014-aaf93e2</hive.version>
         <hbase.version>1.1.8-mapr-1710</hbase.version>
         <hadoop.version>2.7.0-mapr-1803</hadoop.version>
         <!-- This maprfs jar is taken from MapR 6.0.1 client package directly.

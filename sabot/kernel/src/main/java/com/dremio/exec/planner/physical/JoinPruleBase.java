@@ -81,7 +81,7 @@ public abstract class JoinPruleBase extends Prule {
 
     if (targetRowCount < PrelUtil.getSettings(join.getCluster()).getBroadcastThreshold()
         && ! left.getTraitSet().getTrait(DistributionTraitDef.INSTANCE).equals(DistributionTrait.SINGLETON)
-        && (join.getJoinType() == JoinRelType.INNER || join.getJoinType() == JoinRelType.LEFT || join.getJoinType() == JoinRelType.RIGHT)) {
+        && (join.getJoinType() == JoinRelType.INNER || join.getJoinType() == JoinRelType.LEFT)) {
       // DX-3862:  For broadcast joins, the cost should not just consider the traits and join type.  If the broadcast table is small enough,
       // we shouldn't need to worry too much and allow broadcast join and see what the planner picks.
       final PlannerSettings plannerSettings = PrelUtil.getSettings(join.getCluster());

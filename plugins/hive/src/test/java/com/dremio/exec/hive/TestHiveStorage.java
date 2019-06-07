@@ -46,6 +46,7 @@ import org.joda.time.LocalDateTime;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -394,7 +395,8 @@ public class TestHiveStorage extends HiveTestBase {
     readComplexHiveDataTypes("orccomplexorc");
   }
 
-  @Test
+  // DX-16748: dropping support for map data type in ORC
+  @Ignore
   public void readMapValuesTest() throws Exception {
     readMapValues("orcmaporc");
   }
@@ -576,17 +578,15 @@ public class TestHiveStorage extends HiveTestBase {
         .baselineColumns("rownum", "list_field",
           "struct_field",
           "struct_list_field",
-          "list_struct_field",
-          "map_field",
-          "map_struct_field")
+          "list_struct_field"
+          )
         .baselineValues(new Integer(index), new ArrayList<Integer>(
           Arrays.asList(new Integer(index), new Integer(index + 1),
             new Integer(index + 2), new Integer(index + 3),
             new Integer(index + 4))),
           structrow1, structlistrow1,
-          Arrays.asList(liststruct1, liststruct2),
-          mapValue,
-          mapStructValue)
+          Arrays.asList(liststruct1, liststruct2)
+          )
         .go();
     }
   }

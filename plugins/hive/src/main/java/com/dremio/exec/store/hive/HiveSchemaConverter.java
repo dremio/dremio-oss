@@ -88,33 +88,7 @@ public class HiveSchemaConverter {
           structFields);
       }
       case MAP: {
-        if (!HiveSchemaConverter.areComplexTypesSupported(format)) {
-          return null;
-        }
-        // Treating hive map datatype as a "list of structs" datatype in arrow.
-        MapTypeInfo mti = (MapTypeInfo) typeInfo;
-
-        ArrayList<Field> mapFields = new ArrayList<Field>();
-
-        TypeInfo keyTypeInfo = mti.getMapKeyTypeInfo();
-        Field keyField = HiveSchemaConverter.getArrowFieldFromHiveType(HiveUtilities.MAP_KEY_FIELD_NAME,
-          keyTypeInfo, format);
-        if (keyField == null) {
-          return null;
-        }
-
-        TypeInfo valTypeInfo = mti.getMapValueTypeInfo();
-        Field valField = HiveSchemaConverter.getArrowFieldFromHiveType(HiveUtilities.MAP_VALUE_FIELD_NAME,
-          valTypeInfo, format);
-        if (valField == null) {
-          return null;
-        }
-        mapFields.add(keyField);
-        mapFields.add(valField);
-        Field inner = new Field("$data$", true, Types.MinorType.STRUCT.getType(),
-          mapFields);
-        return new Field(name, true, Types.MinorType.LIST.getType(),
-          Collections.singletonList(inner));
+        return null;
       }
       case UNION: {
         if (!HiveSchemaConverter.areComplexTypesSupported(format)) {
