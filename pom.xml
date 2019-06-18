@@ -39,7 +39,7 @@
         Submodules should rely on dependenciesManagement as much as possible
     -->
     <arrow.version>0.14.0-20190501072746-e32c0b3279-dremio</arrow.version>
-    <avatica.version>1.11.0</avatica.version>
+    <avatica.version>1.12.0</avatica.version>
     <calcite.version>1.16.0-201903212056540689-0081cbc</calcite.version>
     <db2jcc.version>4.23.42</db2jcc.version>
     <derby.version>10.14.2.0</derby.version>
