@@ -34,13 +34,13 @@ import com.dremio.sabot.exec.context.OperatorContext;
 public interface InputStreamProviderFactory {
 
   public InputStreamProvider create(FileSystemPlugin plugin, FileSystemWrapper fs, OperatorContext context,
-                                    Path path, long fileLength, long splitSize, List<SchemaPath> fields,
+                                    Path path, long fileLength, long splitSize, boolean readFullFile, List<SchemaPath> fields,
                                     ParquetMetadata footerIfKnown, int rowGroupIndex) throws IOException;
 
   public static final InputStreamProviderFactory DEFAULT = new InputStreamProviderFactory() {
     @Override
     public InputStreamProvider create(FileSystemPlugin plugin, FileSystemWrapper fs, OperatorContext context,
-                                      Path path, long fileLength, long splitSize, List<SchemaPath> fields,
+                                      Path path, long fileLength, long splitSize, boolean readFullFile, List<SchemaPath> fields,
                                       ParquetMetadata footerIfKnown, int rowGroupIndex) {
       OptionManager options = context.getOptions();
       boolean useSingleStream =
@@ -50,10 +50,12 @@ public interface InputStreamProviderFactory {
           fields.size() >= options.getOption(ExecConstants.PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD) ||
           // split size is below multi stream size limit and the limit is enabled
           (options.getOption(ExecConstants.PARQUET_MULTI_STREAM_SIZE_LIMIT_ENABLE) &&
-            splitSize < options.getOption(ExecConstants.PARQUET_MULTI_STREAM_SIZE_LIMIT));
+            splitSize < options.getOption(ExecConstants.PARQUET_MULTI_STREAM_SIZE_LIMIT)) ||
+                // if full file is read, it should be a single stream
+              readFullFile;
 
       return useSingleStream
-        ? new SingleStreamProvider(fs, path, fileLength)
+        ? new SingleStreamProvider(fs, path, fileLength, context.getAllocator(), readFullFile)
         : new StreamPerColumnProvider(fs, path, fileLength);
     }
   };

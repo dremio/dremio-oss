@@ -48,10 +48,14 @@ public interface FileDatasetHandle extends DatasetTypeHandle {
    */
   static void checkMaxFiles(String datasetName, int numFilesInDirectory, SabotContext context, boolean isInternal) throws FileCountTooLargeException {
     if (!isInternal) {
-      final int maxFiles = Math.toIntExact(context.getOptionManager().getOption(FileDatasetHandle.DFS_MAX_FILES));
+      final int maxFiles = getMaxFilesLimit(context);
       if (numFilesInDirectory > maxFiles) {
         throw new FileCountTooLargeException(datasetName, numFilesInDirectory, maxFiles);
       }
     }
+  }
+
+  static int getMaxFilesLimit(SabotContext context) {
+    return Math.toIntExact(context.getOptionManager().getOption(FileDatasetHandle.DFS_MAX_FILES));
   }
 }

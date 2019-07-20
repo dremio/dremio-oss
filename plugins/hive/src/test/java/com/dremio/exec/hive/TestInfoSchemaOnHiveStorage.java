@@ -154,6 +154,12 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "field_size_limit_test")
         .baselineValues("hive.default", "field_size_limit_test_orc")
         .baselineValues("hive.default", "parqschematest_table")
+        .baselineValues("hive.default", "timestamptostring")
+        .baselineValues("hive.default", "timestamptostring_orc")
+        .baselineValues("hive.default", "timestamptostring_orc_ext")
+        .baselineValues("hive.default", "doubletostring")
+        .baselineValues("hive.default", "doubletostring_orc")
+        .baselineValues("hive.default", "doubletostring_orc_ext")
         .go();
 
     testBuilder()

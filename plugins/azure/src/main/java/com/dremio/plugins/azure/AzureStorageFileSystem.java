@@ -53,7 +53,9 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements Async
   static final String MODE = "dremio.azure.mode";
   static final String SECURE = "dremio.azure.secure";
   static final String CONTAINER_LIST = "dremio.azure.container_list";
+  static final String AZURE_ENDPOINT = "fs.azure.endpoint";
 
+  private String azureEndpoint;
   private String account;
   private String key;
   private boolean secure;
@@ -76,9 +78,11 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements Async
       secure = conf.getBoolean(SECURE, true);
       type = AccountKind.valueOf(conf.get(MODE));
       proto = type.getPrototype(secure);
-      final String connection = String.format("%s://%s.%s", proto.getEndpointScheme(), account, proto.getEndpointSuffix());
+      conf.setIfUnset(AZURE_ENDPOINT, proto.getEndpointSuffix());
+      azureEndpoint = conf.get(AZURE_ENDPOINT);
+      final String connection = String.format("%s://%s.%s", proto.getEndpointScheme(), account, azureEndpoint);
 
-      this.client = new DataLakeG2Client(account, key, secure);
+      this.client = new DataLakeG2Client(account, key, secure, azureEndpoint);
       final String[] containerList = getContainerNames(conf.get(CONTAINER_LIST));
       if(containerList != null) {
         blobProvider = new ProvidedContainerList(this, containerList);
@@ -145,7 +149,7 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements Async
       public FileSystem create() throws IOException {
         try {
           final Configuration conf = new Configuration(parent.parentConf);
-          parent.proto.setImpl(conf, parent.account, containerName, parent.key);
+          parent.proto.setImpl(conf, parent.account, containerName, parent.key, parent.azureEndpoint);
           return FileSystem.get(conf);
         } catch(RuntimeException | IOException e) {
           throw e;

@@ -41,8 +41,7 @@ public class TextCountOutput extends TextOutput  {
   @Override
   public boolean endField() {
     fieldOpen = false;
-    // We just need to process one filed in each record.
-    return false;
+    return true;
   }
 
   @Override

@@ -35,16 +35,16 @@ import io.reactivex.Single;
 class DataLakeG2Client {
 
   private final GeneratedDataLakeStorageClient client;
-  public DataLakeG2Client(ICredentials credentials, String account, boolean secure) {
+  public DataLakeG2Client(ICredentials credentials, String account, boolean secure, String azureEndpoint) {
     this.client = new GeneratedDataLakeStorageClient(StorageURL.createPipeline(credentials, new PipelineOptions()))
         .withAccountName(account)
         .withScheme(secure ? "https" : "http")
-        .withDnsSuffix("dfs.core.windows.net")
+        .withDnsSuffix(azureEndpoint)
         .withXMsVersion("2018-11-09");
   }
 
-  public DataLakeG2Client(String account, String key, boolean secure) throws InvalidKeyException {
-    this(new SharedKeyCredentials(account, key), account, secure);
+  public DataLakeG2Client(String account, String key, boolean secure, String azureEndpoint) throws InvalidKeyException {
+    this(new SharedKeyCredentials(account, key), account, secure, azureEndpoint);
   }
 
   public Single<FilesystemListResponse> listFilesystems(

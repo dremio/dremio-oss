@@ -33,11 +33,13 @@ import java.util.Arrays;
 
 import org.joda.time.LocalDate;
 import org.joda.time.LocalDateTime;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.expr.InExpression;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.Project;
 import com.dremio.options.OptionValue;
@@ -114,10 +116,18 @@ public class TestNativeFunctions extends BaseTestFunction {
         ExecConstants.QUERY_EXEC_OPTION_KEY,
         execPreferenceJava
       ));
+      testContext.getOptions().setOption(OptionValue.createBoolean(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.QUERY_EXEC_SPLIT_ENABLED_KEY,
+        true));
       testFunctionsCompiledOnly(new Object[][]{
         {"months_between(c0, castDATE(c1))",new LocalDate(), new LocalDateTime(), 0.0}
       });
     } finally {
+      testContext.getOptions().setOption(OptionValue.createBoolean(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.QUERY_EXEC_SPLIT_ENABLED_KEY,
+        ExecConstants.SPLIT_ENABLED.getDefault().getBoolVal()));
       testContext.getOptions().setOption(OptionValue.createString(
         OptionValue.OptionType.SYSTEM,
         ExecConstants.QUERY_EXEC_OPTION_KEY,
@@ -500,6 +510,113 @@ public class TestNativeFunctions extends BaseTestFunction {
       tr(2)
     );
     validateMultiRow("case when c0 > 3 AND c0 < 6 then 1 else 2 end", input, output);
+  }
+
+  @Test
+  public void testInOptimization() {
+    try {
+      InExpression.COUNT.set(0);
+      testFunctions(new Object[][]{
+        {"booleanOr(c0 = 1i, c0 = 2i, c0 = 3i, c0 != 10, c0 = 4i, c0 = 5i, c0 = 6i, c0 = 7i, c0 = " +
+          "8i, c0 = 9i)", 10, false}}
+      );
+      Assert.assertEquals(1, InExpression.COUNT.get());
+    } finally {
+      InExpression.COUNT.set(0);
+    }
+  }
+
+  @Test
+  public void testInOptimizationWithCasts() {
+    try {
+      InExpression.COUNT.set(0);
+      testFunctions(new Object[][]{
+        {"booleanOr(c0 = 1i, c0 = 2i, c0 = 3i, c0 != 10, c0 = 4i, c0 = 5i, c0 = 6i, c0 = 7i, c0 =" +
+          " " +
+          "8i, c0 = 9i)", 10l, false}}
+      );
+      Assert.assertEquals(1, InExpression.COUNT.get());
+    } finally {
+      InExpression.COUNT.set(0);
+    }
+  }
+
+  @Test
+  public void testInOptimizationWithCastForField() {
+    try {
+      InExpression.COUNT.set(0);
+      testFunctions(new Object[][]{
+        {"booleanOr(c0 = 1l, c0 = 2l, c0 = 3l, c0 != 10l, c0 = 4l, c0 = 5l, c0 = 6l, c0 = 7l, c0 " +
+          "= 8l, c0 = 9l)", 10, false}}
+      );
+      Assert.assertEquals(0, InExpression.COUNT.get());
+    } finally {
+      InExpression.COUNT.set(0);
+    }
+  }
+
+  @Test
+  public void testInOptimizationWithStringCasts() {
+    try {
+        testContext.getOptions().setOption(OptionValue.createString(
+          OptionValue.OptionType.SYSTEM,
+          ExecConstants.QUERY_EXEC_OPTION_KEY,
+          execPreferenceMixed
+        ));
+      InExpression.COUNT.set(0);
+      testFunctions(new Object[][]{
+        {"booleanOr(c0 = 1l, c0 = 2l, c0 = 3l, c0 != 10l, c0 = 4l, c0 = 5l, c0 = 6l, c0 = 7l, c0 " +
+          "= 8l, c0 = 9l)", "10", false}}
+      );
+      // should switch to java and evaluate an in
+      Assert.assertEquals(1, InExpression.COUNT.get());
+    } finally {
+      InExpression.COUNT.set(0);
+      testContext.getOptions().setOption(OptionValue.createString(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.QUERY_EXEC_OPTION_KEY,
+        execPreferenceGandivaOnly
+      ));
+    }
+
+    try {
+      testContext.getOptions().setOption(OptionValue.createString(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.QUERY_EXEC_OPTION_KEY,
+        execPreferenceMixed
+      ));
+      InExpression.COUNT.set(0);
+      testFunctions(new Object[][]{
+        {"booleanOr(c0 = '1', c0 = '2', c0 = '3', c0 != '4', c0 = '5', c0 = " +
+          "'6', c0 = '7', c0 = '8', c0 = '9', c0 = " +
+          "'10')", 9l, true}}
+      );
+      // should switch to java and evaluate an in
+      Assert.assertEquals(1, InExpression.COUNT.get());
+    } finally {
+      InExpression.COUNT.set(0);
+      testContext.getOptions().setOption(OptionValue.createString(
+        OptionValue.OptionType.SYSTEM,
+        ExecConstants.QUERY_EXEC_OPTION_KEY,
+        execPreferenceGandivaOnly
+      ));
+    }
+  }
+
+
+  @Test
+  public void testUnSupportedInOptimization() {
+    try {
+      InExpression.COUNT.set(0);
+      testFunctions(new Object[][]{
+        {"booleanOr((c0 + c1) = 1i, (c0 + c1) = 2i, (c0 + c1) = 3i, (c0 + c1) != 14, (c0 + c1) = " +
+          "cast(__$INTERNAL_NULL$__ as int), (c0 + c1) = 4i, (c0 + c1) = 5i, (c0 + c1) = 6i, (c0 " +
+          "+ c1) = 7i, (c0 + c1) = 8i, (c0 + c1) = 9i)", 4, 5, true}}
+      );
+      Assert.assertEquals(0, InExpression.COUNT.get());
+    } finally {
+      InExpression.COUNT.set(0);
+    }
   }
 
 }

@@ -158,6 +158,10 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
   @Override
   public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
     final String clientRequestId = UUID.randomUUID().toString();
+    int capacityAtOffset = dst.capacity() - dstOffset;
+    if (capacityAtOffset < len) {
+      logger.debug("Buffer has {} bytes remaining. Attempted to write at offset {} with {} bytes", capacityAtOffset, dstOffset, len);
+    }
 
     final CompletableFuture<String> future = CompletableFuture.supplyAsync( () -> {
       try {
@@ -178,7 +182,7 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
       if (offset > 0) {
         builder.addQueryParam("offset", Long.toString(offset));
       }
-      if (len > 0) {
+      if (len >= 0) {
         builder.addQueryParam("length", Long.toString(len));
       }
 

@@ -1408,6 +1408,11 @@ public class FileSystemWrapper extends FileSystem
     }
   }
 
+  public RemoteIterator<FileStatus> getListRecursiveIterator(Path path,
+    boolean includeHiddenFiles) throws IOException {
+    return new FileRecursiveIterator(this, path, includeHiddenFiles);
+  }
+
   public ImmutableList<FileStatus> list(Path path, boolean includeHiddenFiles) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       final ImmutableList.Builder<FileStatus> files = ImmutableList.builder();

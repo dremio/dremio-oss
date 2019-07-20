@@ -118,14 +118,16 @@ public class IncrementalUpdateUtils {
 
       List<String> newFieldNames = ImmutableList.<String>builder().addAll(newScan.getRowType().getFieldNames()).add(UPDATE_COLUMN).build();
 
-      Iterable<RexInputRef> projects = Stream.concat(
+      Iterable<RexNode> projects = Stream.concat(
           scan.getRowType().getFieldNames().stream().map(relBuilder::field),
-          Stream.of(relBuilder.field(refreshColumn)))
+          Stream.of(refreshRex(relBuilder)))
           .collect(Collectors.toList());
       relBuilder.project(projects, newFieldNames);
 
       return relBuilder.build();
     }
+
+    protected abstract RexNode refreshRex(RelBuilder relBuilder);
 
 
     @Override
@@ -180,6 +182,12 @@ public class IncrementalUpdateUtils {
 
     public SubstitutionShuttle(String refreshColumn) {
       super(refreshColumn);
+    }
+
+    @Override
+    protected RexNode refreshRex(RelBuilder relBuilder) {
+      RelDataType type = relBuilder.field(getRefreshColumn()).getType();
+      return relBuilder.getRexBuilder().makeNullLiteral(type);
     }
 
     @Override
@@ -305,6 +313,11 @@ public class IncrementalUpdateUtils {
         null,
         aggCalls
       );
+    }
+
+    @Override
+    protected RexNode refreshRex(RelBuilder relBuilder) {
+      return relBuilder.field(getRefreshColumn());
     }
   }
 

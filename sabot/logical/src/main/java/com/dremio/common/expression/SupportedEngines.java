@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 /**
  * Class to capture the supported execution engines
  * for an expression.
+ * Supported engines are Gandiva and Java.
  */
 public class SupportedEngines {
   public enum CodeGenOption {

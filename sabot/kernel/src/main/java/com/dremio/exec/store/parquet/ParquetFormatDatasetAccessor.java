@@ -258,7 +258,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
 
         final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS, isAccelerator);
 
-        try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, firstFile.getPath(), firstFile.getLen());
+        try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, firstFile.getPath(), firstFile.getLen(), null, false);
              RecordReader reader = new AdditionalColumnsRecordReader(new ParquetRowiseReader(operatorContext, footer, 0,
                  firstFile.getPath().toString(), GroupScan.ALL_COLUMNS, fs, schemaHelper, streamProvider), finder.getImplicitFieldsForSample(selection))) {
 

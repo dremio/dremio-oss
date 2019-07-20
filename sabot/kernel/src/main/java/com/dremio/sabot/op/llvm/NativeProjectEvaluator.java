@@ -16,13 +16,14 @@
 package com.dremio.sabot.op.llvm;
 
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.sabot.exec.context.FunctionContext;
 
 public abstract class NativeProjectEvaluator implements AutoCloseable {
 
   public abstract void evaluate(int recordCount) throws Exception;
 
-  public static NativeProjectorBuilder builder(VectorAccessible input) {
-    return new NativeProjectorBuilder(input);
+  public static NativeProjectorBuilder builder(VectorAccessible input, FunctionContext functionContext) {
+    return new NativeProjectorBuilder(input, functionContext);
   }
 
 

@@ -23,14 +23,26 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Lists;
 
 /**
  * Finds collections of OR conditions that are the same expression. Will replace
  * with a special IN function that can be executed in an optimal manner.
  */
 public class OrInConverter {
+  static final List<CompleteType> supportedTypes = Lists.newArrayList(
+    CompleteType.BIGINT, CompleteType.INT, CompleteType.DATE, CompleteType.TIME,
+    CompleteType.TIMESTAMP, CompleteType.VARCHAR, CompleteType.VARBINARY
+  );
 
   public static List<LogicalExpression> optimizeMultiOrs(List<LogicalExpression> expressions, Set<LogicalExpression> constants, int minConversionSize) {
+    return optimizeMultiOrs(expressions, constants, minConversionSize, supportedTypes, null);
+  }
+
+  public static List<LogicalExpression> optimizeMultiOrs(List<LogicalExpression> expressions, Set<LogicalExpression> constants,
+                                                         int minConversionSize,
+                                                         List<CompleteType> supportedTypes,
+                                                         List<Class<? extends LogicalExpression>> supportedExpressionTypes) {
 
     // collect all subtrees that aren't possible.
     final List<LogicalExpression> notPossibles = new ArrayList<>();
@@ -39,7 +51,7 @@ public class OrInConverter {
     ArrayListMultimap<PossibleKey, Possible> possibles = ArrayListMultimap.create();
 
     for(LogicalExpression expr : expressions) {
-      Possible possible = getPossible(expr, constants);
+      Possible possible = getPossible(expr, constants, supportedTypes, supportedExpressionTypes);
       if(possible == null) {
         notPossibles.add(expr);
       } else {
@@ -79,7 +91,8 @@ public class OrInConverter {
   /**
    * Determine if the provided expression is an expression of RexInputRef == RexLiteral or RexLiteral == RexInputRef.
    */
-  private static Possible getPossible(LogicalExpression expr, Set<LogicalExpression> constants) {
+  private static Possible getPossible(LogicalExpression expr, Set<LogicalExpression> constants, List<CompleteType> supportedTypes,
+                                      List<Class<? extends LogicalExpression>> supportedExpressionTypes) {
     if( !(expr instanceof FunctionHolderExpression) ) {
       return null;
     }
@@ -109,27 +122,27 @@ public class OrInConverter {
 
     final CompleteType type = arg0.getCompleteType();
 
-    if( !(
-        CompleteType.BIGINT.equals(type) ||
-        CompleteType.INT.equals(type) ||
-        CompleteType.DATE.equals(type) ||
-        CompleteType.TIME.equals(type) ||
-        CompleteType.TIMESTAMP.equals(type) ||
-        CompleteType.VARCHAR.equals(type) ||
-        CompleteType.VARBINARY.equals(type)
-        )
-        ){
-     return null;
+    if (!supportedTypes.contains(type)) {
+      return null;
     }
 
-
     if(constants.contains(arg0)) {
+      if (!isExpressionTypeSupported(supportedExpressionTypes, arg1)) {
+        return null;
+      }
       return Possible.getPossible(arg1, arg0, func);
     }else if(constants.contains(arg1)) {
+      if (!isExpressionTypeSupported(supportedExpressionTypes, arg0)) {
+        return null;
+      }
       return Possible.getPossible(arg0, arg1, func);
     }else {
       return null;
     }
+  }
+
+  private static boolean isExpressionTypeSupported(List<Class<? extends LogicalExpression>> supportedExpressionTypes, LogicalExpression arg0) {
+    return supportedExpressionTypes == null || supportedExpressionTypes.contains(arg0.getClass());
   }
 
   private static class PossibleKey {

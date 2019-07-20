@@ -605,6 +605,9 @@ public class FragmentExecutor {
             }
           } catch(Exception e) {
             logger.warn("Failure while handling OOB message. {}", message, e);
+
+            //propagate the exception
+            throw e;
           }
 
           return null;

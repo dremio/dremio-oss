@@ -5874,8 +5874,8 @@
       "dev": true
     },
     "marked": {
-      "version": "0.4.0",
-      "integrity": "sha512-tMsdNBgOsrUophCAFQl0XPe6Zqk/uy9gnue+jIIKhykO51hxyu6uNx7zBPy0+y/WKYVZZMspV9YeXLNdKk+iYw=="
+      "version": "0.7.0",
+      "integrity": "sha512-c+yYdCZJQrsRjTPhUx7VKkApw9bwDkNbHUKo1ovgcfDjb2kc8rLuRbIFyXL5WOEUwzSSKo3IXpph2K6DqB/KZg=="
     },
     "math-expression-evaluator": {
       "version": "1.2.17",

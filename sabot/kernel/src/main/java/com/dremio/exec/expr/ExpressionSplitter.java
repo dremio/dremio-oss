@@ -166,8 +166,13 @@ public class ExpressionSplitter implements AutoCloseable {
       newExpr = new NamedExpression(e, namedExpression.getRef());
       executionEngine = e.getExecutionEngineForSubExpression();
     } else {
-      // if splits are not enabled, execute a single split (the entire expression) in Java.
-      executionEngine.add(SupportedEngines.Engine.JAVA);
+      // if splits are not enabled, execute a single split in the preferred code generator, if possible
+      if (expr.isSubExpressionExecutableInEngine(this.preferredEngine)) {
+        executionEngine.add(this.preferredEngine);
+      }
+      if (expr.isSubExpressionExecutableInEngine(this.nonPreferredEngine)) {
+        executionEngine.add(this.nonPreferredEngine);
+      }
     }
 
     SupportedEngines.Engine engineForSplit = executionEngine.contains(this

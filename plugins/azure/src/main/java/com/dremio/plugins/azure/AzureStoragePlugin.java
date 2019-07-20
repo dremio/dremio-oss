@@ -31,6 +31,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.connector.metadata.BytesOutput;
+import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetMetadata;
+import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.physical.base.WriterOptions;
@@ -78,6 +82,16 @@ class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
     } catch (Exception e) {
       return SourceState.badState(e);
     }
+  }
+
+  //DX-17365: Azure does not return correct "Last Modified" times for folders, therefore new
+  //          subfolder discovery is not possible by checking super folder's 'Last Modified" time.
+  //          A full refresh is required to guarantee that container content is up-to-date.
+  //          Always return metadata invalid in order to trigger a refresh.
+  @Override
+  public MetadataValidity validateMetadata(BytesOutput signature, DatasetHandle datasetHandle, DatasetMetadata metadata,
+                                           ValidateMetadataOption... options){
+    return MetadataValidity.INVALID;
   }
 
   private void ensureDefaultName() throws IOException {

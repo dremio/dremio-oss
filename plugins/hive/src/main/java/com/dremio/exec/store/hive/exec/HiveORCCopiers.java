@@ -1301,14 +1301,14 @@ public class HiveORCCopiers {
       } else if (inputVector.noNulls) {
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           final byte[] value = Long.toString(input[inputIdx] + (inputnanos[inputIdx] / NANO_TO_MILLIS)).getBytes();
-          outputVector.set(outputIdx, value);
+          outputVector.setSafe(outputIdx, value);
         }
       } else {
         final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
             final byte[] value = Long.toString(input[inputIdx] + (inputnanos[inputIdx] / NANO_TO_MILLIS)).getBytes();
-            outputVector.set(outputIdx, value);
+            outputVector.setSafe(outputIdx, value);
           }
         }
       }
@@ -1344,14 +1344,14 @@ public class HiveORCCopiers {
       } else if (inputVector.noNulls) {
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           final byte[] value = Double.toString(input[inputIdx]).getBytes();
-          outputVector.set(outputIdx, value);
+          outputVector.setSafe(outputIdx, value);
         }
       } else {
         final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
             final byte[] value = Double.toString(input[inputIdx]).getBytes();
-            outputVector.set(outputIdx, value);
+            outputVector.setSafe(outputIdx, value);
           }
         }
       }

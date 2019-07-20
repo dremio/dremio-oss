@@ -76,7 +76,8 @@ public interface ExecConstants {
 
   // Configuration option for enabling expression split
   // Splits are enabled when this is set to true and QUERY_EXEC_OPTION is set to Gandiva
-  BooleanValidator SPLIT_ENABLED = new BooleanValidator("exec.expression.split.enabled", true);
+  String QUERY_EXEC_SPLIT_ENABLED_KEY = "exec.expression.split.enabled";
+  BooleanValidator SPLIT_ENABLED = new BooleanValidator(QUERY_EXEC_SPLIT_ENABLED_KEY, false);
 
   PositiveLongValidator MAX_FOREMEN_PER_COORDINATOR = new PositiveLongValidator("coordinator.alive_queries.limit", Long.MAX_VALUE, 1000);
 
@@ -355,7 +356,10 @@ public interface ExecConstants {
   LongValidator PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD = new LongValidator("store.parquet.single_stream_column_threshold", 40);
   LongValidator PARQUET_MULTI_STREAM_SIZE_LIMIT = new LongValidator("store.parquet.multi_stream_limit", 1024*1024);
   BooleanValidator PARQUET_MULTI_STREAM_SIZE_LIMIT_ENABLE = new BooleanValidator("store.parquet.multi_stream_limit.enable", true);
+  LongValidator PARQUET_FULL_FILE_READ_THRESHOLD = new RangeLongValidator("store.parquet.full_file_read.threshold", 0, Integer.MAX_VALUE, 0);
+  DoubleValidator PARQUET_FULL_FILE_READ_COLUMN_RATIO = new RangeDoubleValidator("store.parquet.full_file_read.column_ratio", 0.0, 1.0, 0.25);
   BooleanValidator PARQUET_CACHED_ENTITY_SET_FILE_SIZE = new BooleanValidator("store.parquet.set_file_length",true);
+  BooleanValidator PARQUET_COLUMN_ORDERING = new BooleanValidator("store.parquet.column_ordering", false);
   LongValidator RESULTS_MAX_AGE_IN_DAYS = new LongValidator("results.max.age_in_days", 1);
   // At what hour of the day to do job results cleanup - 0-23
   RangeLongValidator JOB_RESULTS_CLEANUP_START_HOUR = new RangeLongValidator("job.results.cleanup.start_at_hour", 0, 23, 0);

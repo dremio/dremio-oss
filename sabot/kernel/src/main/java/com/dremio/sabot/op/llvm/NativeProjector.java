@@ -30,6 +30,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -41,18 +42,20 @@ public class NativeProjector implements AutoCloseable {
   private Projector projector = null;
   private VectorSchemaRoot root;
   private final Schema schema;
+  private final FunctionContext functionContext;
   private final Set<Field> referencedFields;
 
-  NativeProjector(VectorAccessible incoming, Schema schema) {
+  NativeProjector(VectorAccessible incoming, Schema schema, FunctionContext functionContext) {
     this.incoming = incoming;
     this.schema = schema;
+    this.functionContext = functionContext;
     // preserve order of insertion
     referencedFields = Sets.newLinkedHashSet();
   }
 
   public void add(LogicalExpression expr, FieldVector outputVector) {
     final ExpressionTree tree = GandivaExpressionBuilder.serializeExpr(incoming, expr,
-      outputVector, referencedFields);
+      outputVector, referencedFields, functionContext);
     columnExprList.add(tree);
   }
 

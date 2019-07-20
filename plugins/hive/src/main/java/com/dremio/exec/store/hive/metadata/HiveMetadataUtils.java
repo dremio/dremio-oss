@@ -513,6 +513,18 @@ public class HiveMetadataUtils {
             .supportsLastModifiedTime(false)
             .supportsOrcSplitFileIds(false)
             .build();
+        } else if (scheme.regionMatches(true, 0, "wasb", 0, 4) ||
+            scheme.regionMatches(true, 0, "abfs", 0, 4) ||
+            scheme.regionMatches(true, 0, "wasbs", 0, 5) ||
+            scheme.regionMatches(true, 0, "abfss", 0, 5)) {
+          /* DX-17365: Azure Storage does not support correct last modified times, Azure returns last modified times,
+          *  however, the timestamps returned are incorrect. They reference the folder's create time rather
+          *  that the folder content's last modified time. Please see Prototype.java for Azure storage fs uri schemes. */
+          return HiveStorageCapabilities.newBuilder()
+            .supportsImpersonation(true)
+            .supportsLastModifiedTime(false)
+            .supportsOrcSplitFileIds(true)
+            .build();
         } else if (!scheme.regionMatches(true, 0, "hdfs", 0, 4)) {
           /* Most hive supported non-HDFS file systems allow for impersonation and last modified times, but
              not orc split file ids.  */

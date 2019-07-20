@@ -88,15 +88,15 @@ class Prototype {
     return endpointSuffix;
   }
 
-  public void setImpl(Configuration conf, String account, String container, String key) {
+  public void setImpl(Configuration conf, String account, String container, String key, String azureEndpoint) {
     conf.set(String.format("fs.%s.impl", scheme), fsImpl.getName());
     if(legacyMode) {
-      conf.set(String.format("fs.azure.account.key.%s.blob.core.windows.net", account), key);
-      final String location = String.format("%s://%s@%s.blob.core.windows.net/", scheme, container, account);
+      conf.set(String.format("fs.azure.account.key.%s.%s", account, azureEndpoint), key);
+      final String location = String.format("%s://%s@%s.%s/", scheme, container, account, azureEndpoint);
       FileSystem.setDefaultUri(conf, new Path(location).toUri());
     } else {
       conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_KEY_PROPERTY_NAME, key);
-      final String location = String.format("%s://%s@%s.dfs.core.windows.net/", scheme, container, account);
+      final String location = String.format("%s://%s@%s.%s/", scheme, container, account, azureEndpoint);
       FileSystem.setDefaultUri(conf, new Path(location).toUri());
     }
   }

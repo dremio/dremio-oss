@@ -137,6 +137,10 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
         // We depend on the fact that caller takes care of calling current method
         // once for each segment in the selected column path. So, we should always get
         // searched field as immediate child
+        if (position.index >= childCounts.length) {
+          // input schema has more columns than what reader can read
+          return false;
+        }
         if (sf.getFieldName().equalsIgnoreCase(name)) {
           position.oI = sf.getFieldObjectInspector();
           return true;
@@ -146,12 +150,20 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
       }
     } else if (category == Category.MAP) {
       position.index++; // first child is immediately next to parent
+      if (position.index >= childCounts.length) {
+        // input schema has more columns than what reader can read
+        return false;
+      }
       if (name.equalsIgnoreCase(HiveUtilities.MAP_KEY_FIELD_NAME)) {
         ObjectInspector kOi = ((MapObjectInspector) rootOI).getMapKeyObjectInspector();
         position.oI = kOi;
         return true;
       }
       position.index += childCounts[position.index];
+      if (position.index >= childCounts.length) {
+        // input schema has more columns than what reader can read
+        return false;
+      }
       if (name.equalsIgnoreCase(HiveUtilities.MAP_VALUE_FIELD_NAME)) {
         ObjectInspector vOi = ((MapObjectInspector) rootOI).getMapValueObjectInspector();
         position.oI = vOi;

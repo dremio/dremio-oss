@@ -61,8 +61,6 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorAccessibleComplexWriter;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.op.llvm.NativeProjectEvaluator;
-import com.dremio.sabot.op.llvm.NativeProjectorBuilder;
 import com.dremio.sabot.op.project.Projector.ComplexWriterCreator;
 import com.dremio.sabot.op.project.ProjectorStats.Metric;
 import com.dremio.sabot.op.spi.SingleInputOperator;
@@ -109,7 +107,6 @@ public class ProjectOperator implements SingleInputOperator {
     this.allocationVectors = Lists.newArrayList();
     final List<NamedExpression> exprs = getExpressionList();
     final List<TransferPair> transfers = new ArrayList<>();
-    final NativeProjectorBuilder nativeProjectorBuilder = NativeProjectEvaluator.builder(incoming);
     splitter = new ExpressionSplitter(context, incoming, projectorOptions);
 
     final ClassGenerator<Projector> cg = context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();

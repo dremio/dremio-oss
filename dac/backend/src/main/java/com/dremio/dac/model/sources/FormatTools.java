@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import javax.inject.Inject;
 import javax.ws.rs.core.SecurityContext;
@@ -62,6 +63,7 @@ import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
+import com.dremio.exec.store.dfs.RemoteIteratorWrapper;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
@@ -212,14 +214,16 @@ public class FormatTools {
   }
 
   private Iterator<FileStatus> getFilesForFormatting(FileSystemWrapper fs, Path path) throws IOException, FileCountTooLargeException {
-    final List<FileStatus> files =  fs.listRecursive(path, false)
-      .stream()
-      .filter(f -> f.isFile())
-      .collect(Collectors.toList());
+    final int maxFilesLimit = FileDatasetHandle.getMaxFilesLimit(context);
 
-    FileDatasetHandle.checkMaxFiles(path.getName(), files.size(), context,
-      false /* format previews are explicitly done by the user */);
-    return files.iterator();
+    final Iterator<FileStatus> baseIterator = new RemoteIteratorWrapper<>(fs.getListRecursiveIterator(path, false));
+    if (maxFilesLimit <= 0) {
+      return baseIterator;
+    }
+    final Iterable<FileStatus> iterable = () -> baseIterator;
+    return StreamSupport.stream(iterable.spliterator(), false)
+      .limit(maxFilesLimit)
+      .iterator();
   }
 
   private static FileFormat asFormat(NamespaceKey key, Path path, boolean isFolder) {

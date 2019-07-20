@@ -49,7 +49,6 @@ import org.apache.parquet.io.MessageColumnIO;
 import org.apache.parquet.io.RecordReader;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
-import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.Type;
 
 import com.dremio.common.arrow.DremioArrowSchema;
@@ -60,6 +59,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.store.parquet.AbstractParquetReader;
 import com.dremio.exec.store.parquet.InputStreamProvider;
+import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -119,29 +119,8 @@ public class ParquetRowiseReader extends AbstractParquetReader {
     this(context, footer, rowGroupIndex, path, columns, fileSystem, schemaHelper, null, inputStreamProvider);
   }
 
-  /**
-   * Converts {@link ColumnDescriptor} to {@link SchemaPath} and converts any parquet LOGICAL LIST to something
-   * the execution engine can understand (removes the extra 'list' and 'element' fields from the name)
-   */
-  private static SchemaPath convertColumnDescriptor(final MessageType schema, final ColumnDescriptor columnDescriptor) {
-    List<String> path = Lists.newArrayList(columnDescriptor.getPath());
-
-    // go through the path and find all logical lists
-    int index = 0;
-    Type type = schema;
-    while (!type.isPrimitive()) { // don't bother checking the last element in the path as it is a primitive type
-      type = type.asGroupType().getType(path.get(index));
-      if (type.getOriginalType() == OriginalType.LIST && LogicalListL1Converter.isSupportedSchema(type.asGroupType())) {
-        // remove 'list'
-        type = type.asGroupType().getType(path.get(index+1));
-        path.remove(index+1);
-        // remove 'element'
-        type = type.asGroupType().getType(path.get(index+1));
-        path.remove(index+1);
-      }
-      index++;
-    }
-
+  public static SchemaPath convertColumnDescriptor(final MessageType schema, final ColumnDescriptor columnDescriptor) {
+    List<String> path = ParquetReaderUtility.convertColumnDescriptor(schema, columnDescriptor);
     String[] schemaColDesc = new String[path.size()];
     path.toArray(schemaColDesc);
     return SchemaPath.getCompoundPath(schemaColDesc);

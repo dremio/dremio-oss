@@ -39,7 +39,7 @@ import com.dremio.sabot.op.scan.OutputMutator;
 /**
  * First level of LOGICAL LIST conversion. Handles 'list'
  */
-class LogicalListL1Converter extends GroupConverter {
+public class LogicalListL1Converter extends GroupConverter {
   private static final Logger logger = LoggerFactory.getLogger(LogicalListL1Converter.class);
 
   private final ListWriter listWriter;
@@ -90,7 +90,7 @@ class LogicalListL1Converter extends GroupConverter {
    * @param schema parquet group type
    * @return true is supported
    */
-  static boolean isSupportedSchema(GroupType schema) {
+  public static boolean isSupportedSchema(GroupType schema) {
     if (schema.getFieldCount() == 1) {
       Type type = schema.getType(0);
       // check: repeated group

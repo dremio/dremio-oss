@@ -21,6 +21,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.BaseTestFunction;
@@ -36,6 +37,10 @@ public class TestDecimalFunctions extends BaseTestFunction {
       OptionValue.OptionType.SYSTEM,
       PlannerSettings.ENABLE_DECIMAL_V2_KEY,
       true));
+    testContext.getOptions().setOption(OptionValue.createBoolean(
+      OptionValue.OptionType.SYSTEM,
+      ExecConstants.QUERY_EXEC_SPLIT_ENABLED_KEY,
+      true));
   }
 
   @AfterClass
@@ -44,6 +49,10 @@ public class TestDecimalFunctions extends BaseTestFunction {
       OptionValue.OptionType.SYSTEM,
       PlannerSettings.ENABLE_DECIMAL_V2_KEY,
       PlannerSettings.ENABLE_DECIMAL_V2.getDefault().getBoolVal()));
+    testContext.getOptions().setOption(OptionValue.createBoolean(
+      OptionValue.OptionType.SYSTEM,
+      ExecConstants.QUERY_EXEC_SPLIT_ENABLED_KEY,
+      ExecConstants.SPLIT_ENABLED.getDefault().getBoolVal()));
   }
 
   @Test

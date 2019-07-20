@@ -144,8 +144,12 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
           } else {
             length = fs.getFileStatus(p).getLen();
           }
+
+          boolean readFullFile = length < context.getOptions().getOption(ExecConstants.PARQUET_FULL_FILE_READ_THRESHOLD) &&
+            ((float)config.getColumns().size()) / config.getFullSchema().getFieldCount() > context.getOptions().getOption(ExecConstants.PARQUET_FULL_FILE_READ_COLUMN_RATIO);
+
           final InputStreamProvider inputStreamProvider = factory
-            .create(plugin, fs, context, p, length, split.getDatasetSplit().getSize(), finder.getRealFields(),
+            .create(plugin, fs, context, p, length, split.getDatasetSplit().getSize(), readFullFile, finder.getRealFields(),
               p.equals(lastPath.value) ? lastFooter.value : null, split.getSplitXAttr().getRowGroupIndex());
           final ParquetMetadata footer = inputStreamProvider.getFooter();
           lastFooter.value = footer;

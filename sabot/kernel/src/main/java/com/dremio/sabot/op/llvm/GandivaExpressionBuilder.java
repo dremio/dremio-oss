@@ -28,6 +28,8 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.ExpressionStringBuilder;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
@@ -40,12 +42,18 @@ import com.dremio.common.expression.ValueExpressions.IntExpression;
 import com.dremio.common.expression.ValueExpressions.LongExpression;
 import com.dremio.common.expression.ValueExpressions.QuotedString;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
+import com.dremio.exec.compile.sig.ConstantExpressionIdentifier;
+import com.dremio.exec.expr.InExpression;
+import com.dremio.exec.expr.OrInConverter;
 import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.expr.fn.GandivaFunctionHolder;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 /**
  * Convert LogicalExpression to Gandiva Expressions.
@@ -53,18 +61,30 @@ import com.google.common.base.Preconditions;
 public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void, RuntimeException> {
   private final VectorAccessible incoming;
   private final Set<Field> referencedFields;
+  private final Set<LogicalExpression> constantSet;
+  private final FunctionContext functionContext;
+  private final boolean enableOrOptimization;
+  private static final List<CompleteType> supportedInTypesInGandiva = Lists.newArrayList(
+    CompleteType.BIGINT, CompleteType.INT, CompleteType.VARCHAR);
+  private static final List<Class<? extends LogicalExpression>> supportedExpressionTypes = Lists
+    .newArrayList(ValueVectorReadExpression.class);
 
-  private GandivaExpressionBuilder(VectorAccessible incoming, Set<Field> referencedFields) {
+
+
+  private GandivaExpressionBuilder(VectorAccessible incoming, Set<Field> referencedFields, Set<LogicalExpression> constantSet, FunctionContext functionContext) {
     this.incoming = incoming;
     this.referencedFields = referencedFields;
+    this.constantSet = constantSet;
+    this.functionContext = functionContext;
+    this.enableOrOptimization = functionContext.getCompilationOptions().enableOrOptimization();
   }
 
   /**
    * Take an expression tree and convert it into a Gandiva Expression.
    */
   public static ExpressionTree serializeExpr(VectorAccessible incoming, LogicalExpression ex,
-                                             FieldVector out, Set<Field> referencedFields) {
-    GandivaExpressionBuilder serializer = new GandivaExpressionBuilder(incoming, referencedFields);
+                                             FieldVector out, Set<Field> referencedFields, FunctionContext functionContext) {
+    GandivaExpressionBuilder serializer = new GandivaExpressionBuilder(incoming, referencedFields, ConstantExpressionIdentifier.getConstantExpressionSet(ex), functionContext);
     TreeNode expr = ex.accept(serializer, null);
     return TreeBuilder.makeExpression(expr, out.getField());
   }
@@ -77,8 +97,9 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
    */
   public static Condition serializeExprToCondition(VectorAccessible incoming,
                                                    LogicalExpression expr,
-                                                   Set<Field> referencedFields) {
-    GandivaExpressionBuilder serializer = new GandivaExpressionBuilder(incoming, referencedFields);
+                                                   Set<Field> referencedFields,
+                                                   FunctionContext functionContext) {
+    GandivaExpressionBuilder serializer = new GandivaExpressionBuilder(incoming, referencedFields, ConstantExpressionIdentifier.getConstantExpressionSet(expr), functionContext);
     TreeNode expression = expr.accept(serializer, null);
     return TreeBuilder.makeCondition(expression);
   }
@@ -119,7 +140,17 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
 
   @Override
   public TreeNode visitBooleanOperator(BooleanOperator operator, Void value) {
-    List<TreeNode> children = operator.args
+    List<LogicalExpression> expressions = operator.args;
+
+    if(enableOrOptimization && "booleanOr".equals(operator.getName())) {
+      expressions = OrInConverter.optimizeMultiOrs(expressions,
+        constantSet, 2, supportedInTypesInGandiva, supportedExpressionTypes);
+      if (expressions.size() == 1) {
+        return visitUnknown(expressions.get(0), null);
+      }
+    }
+
+    List<TreeNode> children = expressions
       .stream()
       .map(this::acceptExpression)
       .collect(Collectors.toList());
@@ -138,6 +169,51 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
   public TreeNode visitUnknown(LogicalExpression e, Void value) {
     if (e instanceof ValueVectorReadExpression) {
       return visitValueVectorReadExpression((ValueVectorReadExpression) e, value);
+    } else if (e instanceof InExpression) {
+      InExpression in = (InExpression) e;
+      ValueVectorReadExpression read = (ValueVectorReadExpression) in.getEval();
+      Field field = incoming.getValueAccessorById(FieldVector.class, read.getTypedFieldId().getFieldIds())
+        .getValueVector().getField();
+      referencedFields.add(field);
+      CompleteType constantType = in.getConstants().get(0).getCompleteType();
+      if (CompleteType.INT.equals(constantType)) {
+        Set<Integer> intValues = in.getConstants().stream().map(constant -> ((IntExpression)
+          constant).getInt()).collect(Collectors.toSet());
+        return TreeBuilder.makeInExpressionInt32(field, intValues);
+      }else if (CompleteType.BIGINT.equals(constantType)) {
+        Set<Long> longValues = Sets.newHashSet();
+        for (LogicalExpression constant : in.getConstants()) {
+          if (constant instanceof LongExpression) {
+            longValues.add(((LongExpression) constant).getLong());
+          } else if (constant instanceof FunctionHolderExpression) {
+            LogicalExpression logicalExpression = ((FunctionHolderExpression) constant).args.get(0);
+            if (logicalExpression instanceof IntExpression) {
+              IntExpression expr = (IntExpression) logicalExpression;
+              longValues.add(Long.valueOf(expr.getInt()));
+            } else if (!(logicalExpression instanceof TypedNullConstant)) {
+              throw new UnsupportedOperationException("Supports only int or null in IN expression" +
+                ".");
+            }
+          }
+        }
+        return TreeBuilder.makeInExpressionBigInt(field, longValues);
+      }else if (CompleteType.VARCHAR.equals(constantType)){
+        Set<String> stringValues = Sets.newHashSet();
+        for (LogicalExpression constant : in.getConstants()) {
+          if (constant instanceof QuotedString) {
+            stringValues.add(((QuotedString) constant).getString());
+          } else if (constant instanceof FunctionHolderExpression) {
+            String val = ((FunctionHolderExpression) constant)
+              .args.get(0).toString();
+            stringValues.add(val);
+          }
+        }
+        return TreeBuilder.makeInExpressionString(field, stringValues);
+      }else {
+        // Should not reach here since the or-in conversion happens only for valid types
+        throw new UnsupportedOperationException("In not supported in Gandiva. Was trying to create an in expression of " +
+          ((InExpression) e).getConstants().stream().map(expr -> ExpressionStringBuilder.toString(expr)).collect(Collectors.joining(", ")));
+      }
     } else {
       return super.visitUnknown(e, value);
     }

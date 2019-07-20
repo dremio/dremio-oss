@@ -376,6 +376,8 @@ public class HiveTestDataGenerator {
     createAllTypesTextTable(hiveDriver, "readtest");
     createAllTypesTable(hiveDriver, "parquet", "readtest");
     createAllTypesTable(hiveDriver, "orc", "readtest");
+    createTimestampToStringTable(hiveDriver, "timestamptostring");
+    createDoubleToStringTable(hiveDriver, "doubletostring");
 
     createFieldSizeLimitTables(hiveDriver, "field_size_limit_test");
 
@@ -951,6 +953,40 @@ public class HiveTestDataGenerator {
 
   }
 
+  private void createTimestampToStringTable(Driver hiveDriver, String table) throws Exception {
+    String testDataFile = generateTimestampsDataFile();
+    String datatabletxt = "CREATE TABLE IF NOT EXISTS " + table + " (col1 timestamp)";
+    String datatableorc = "CREATE TABLE IF NOT EXISTS " + table + "_orc" + " (col1 timestamp) STORED AS ORC";
+    executeQuery(hiveDriver, datatabletxt);
+    executeQuery(hiveDriver, datatableorc);
+
+    String insert_datatable = String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE default." + table, testDataFile);
+    executeQuery(hiveDriver, insert_datatable);
+    String insert_datatableorc = "INSERT OVERWRITE TABLE " + table + "_orc" + " SELECT * FROM " + table;
+    executeQuery(hiveDriver, insert_datatableorc);
+    String exttable = table + "_orc_ext";
+    String ext_table = "CREATE EXTERNAL TABLE IF NOT EXISTS " + exttable +
+      " (col1 string)" + "STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + table + "_orc" + "'";
+    executeQuery(hiveDriver, ext_table);
+  }
+
+  private void createDoubleToStringTable(Driver hiveDriver, String table) throws Exception {
+    String testDataFile = generateDoubleDataFile();
+    String datatabletxt = "CREATE TABLE IF NOT EXISTS " + table + " (col1 double)";
+    String datatableorc = "CREATE TABLE IF NOT EXISTS " + table + "_orc" + " (col1 double) STORED AS ORC";
+    executeQuery(hiveDriver, datatabletxt);
+    executeQuery(hiveDriver, datatableorc);
+
+    String insert_datatable = String.format("LOAD DATA LOCAL INPATH '%s' INTO TABLE default." + table, testDataFile);
+    executeQuery(hiveDriver, insert_datatable);
+    String insert_datatableorc = "INSERT OVERWRITE TABLE " + table + "_orc" + " SELECT * FROM " + table;
+    executeQuery(hiveDriver, insert_datatableorc);
+    String exttable = table + "_orc_ext";
+    String ext_table = "CREATE EXTERNAL TABLE IF NOT EXISTS " + exttable +
+      " (col1 string)" + "STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + table + "_orc" + "'";
+    executeQuery(hiveDriver, ext_table);
+  }
+
   private void createExtTableWithMoreColumnsThanOriginal(Driver hiveDriver, String table) throws Exception {
     String datatable = "CREATE TABLE IF NOT EXISTS " + table + " (col1 int, col2 int) STORED AS ORC";
     executeQuery(hiveDriver, datatable);
@@ -958,7 +994,7 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insert_datatable);
     String exttable = table + "_ext";
     String ext_table = "CREATE EXTERNAL TABLE IF NOT EXISTS " + exttable +
-      " (col1 int, col2 int, col3 int)" + "STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + table + "'";
+      " (col1 int, col2 int, col3 int, col4 int)" + "STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + table + "'";
     executeQuery(hiveDriver, ext_table);
   }
 
@@ -1073,6 +1109,33 @@ public class HiveTestDataGenerator {
             "  date_part='2013-07-05', " +
             "  char_part='char')"
     );
+  }
+
+  private String generateTimestampsDataFile() throws Exception {
+    File file = getTempFile();
+
+    PrintWriter printWriter = new PrintWriter(file);
+    int ROWS = 35000;
+    for (int i=0; i<ROWS; ++i) {
+      printWriter.println("2013-07-05 17:01:" + Integer.toString(i%60));
+    }
+    printWriter.close();
+
+    return file.getPath();
+  }
+
+  private String generateDoubleDataFile() throws Exception {
+    File file = getTempFile();
+
+    PrintWriter printWriter = new PrintWriter(file);
+    int ROWS = 35000;
+    printWriter.println(Double.toString(1));
+    for (int i=0; i<ROWS; ++i) {
+      printWriter.println(Double.toString(9_223_372_036_854_700_000L + i));
+    }
+    printWriter.close();
+
+    return file.getPath();
   }
 
   private String generateAllTypesDataFile() throws Exception {

@@ -36,6 +36,7 @@ import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -135,11 +136,12 @@ public class DremioRelFactories {
 
   /**
    * Implementation of {@link RelFactories.FilterFactory} that
-   * returns a vanilla {@link LogicalFilter}.
+   * returns a vanilla {@link FilterRel}.
    */
   private static class FilterFactoryImpl implements RelFactories.FilterFactory {
     @Override
-    public RelNode createFilter(RelNode child, RexNode condition) {
+    public RelNode createFilter(RelNode child, RexNode condition, Set<CorrelationId> correlVariables) {
+      Preconditions.checkArgument(correlVariables.isEmpty());
       return FilterRel.create(child, condition);
     }
   }
@@ -147,11 +149,12 @@ public class DremioRelFactories {
 
   /**
    * Implementation of {@link RelFactories.FilterFactory} that
-   * returns a vanilla {@link LogicalFilter} with child converted.
+   * returns a vanilla {@link FilterRel} with child converted.
    */
   private static class FilterPropagateFactoryImpl implements RelFactories.FilterFactory {
     @Override
-    public RelNode createFilter(RelNode child, RexNode condition) {
+    public RelNode createFilter(RelNode child, RexNode condition, Set<CorrelationId> correlVariables) {
+      Preconditions.checkArgument(correlVariables.isEmpty());
       return FilterRel.create(
           RelOptRule.convert(child, child.getTraitSet().plus(Rel.LOGICAL).simplify()),
           condition);

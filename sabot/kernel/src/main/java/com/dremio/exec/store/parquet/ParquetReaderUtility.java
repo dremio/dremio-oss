@@ -33,6 +33,9 @@ import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.io.api.Binary;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.OriginalType;
+import org.apache.parquet.schema.Type;
 import org.joda.time.Chronology;
 import org.joda.time.DateTimeConstants;
 
@@ -40,9 +43,11 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.store.parquet2.LogicalListL1Converter;
 import com.dremio.exec.util.ColumnUtils;
 import com.dremio.exec.work.ExecErrorConstants;
 import com.dremio.options.OptionManager;
+import com.google.common.collect.Lists;
 
 /**
  * Utility class where we can capture common logic between the two parquet readers
@@ -253,6 +258,31 @@ public class ParquetReaderUtility {
       }
     }
     return DateCorruptionStatus.META_SHOWS_NO_CORRUPTION;
+  }
+
+  /**
+   * Converts {@link ColumnDescriptor} to {@link SchemaPath} and converts any parquet LOGICAL LIST to something
+   * the execution engine can understand (removes the extra 'list' and 'element' fields from the name)
+   */
+  public static List<String> convertColumnDescriptor(final MessageType schema, final ColumnDescriptor columnDescriptor) {
+    List<String> path = Lists.newArrayList(columnDescriptor.getPath());
+
+    // go through the path and find all logical lists
+    int index = 0;
+    Type type = schema;
+    while (!type.isPrimitive()) { // don't bother checking the last element in the path as it is a primitive type
+      type = type.asGroupType().getType(path.get(index));
+      if (type.getOriginalType() == OriginalType.LIST && LogicalListL1Converter.isSupportedSchema(type.asGroupType())) {
+        // remove 'list'
+        type = type.asGroupType().getType(path.get(index+1));
+        path.remove(index+1);
+        // remove 'element'
+        type = type.asGroupType().getType(path.get(index+1));
+        path.remove(index+1);
+      }
+      index++;
+    }
+    return path;
   }
 
   /**

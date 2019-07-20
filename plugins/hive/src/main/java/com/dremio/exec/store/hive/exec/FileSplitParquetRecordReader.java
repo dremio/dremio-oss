@@ -107,10 +107,10 @@ public class FileSplitParquetRecordReader implements RecordReader {
     this.outputSchema = outputSchema;
   }
 
-  private InputStreamProvider getInputStreamProvider(boolean useSingleStream, String path,
-                                                     FileSystem fs) {
-    return useSingleStream ? new SingleStreamProvider(fs, new Path(path), -1)
-                           : new StreamPerColumnProvider(fs, new Path(path), -1);
+  private InputStreamProvider getInputStreamProvider(boolean useSingleStream, Path path,
+                                                     FileSystem fs, long fileLength, boolean readFullFile) {
+    return (useSingleStream || readFullFile) ? new SingleStreamProvider(fs, path, fileLength, oContext.getAllocator(), readFullFile) :
+            new StreamPerColumnProvider(fs, path, fileLength);
   }
 
   @Override
@@ -128,11 +128,26 @@ public class FileSplitParquetRecordReader implements RecordReader {
       final Path finalPath = fileSplit.getPath();
       final String pathString = Path.getPathWithoutSchemeAndAuthority(finalPath).toString();
       final FileSystem fs;
+      final long fileLength;
+      final boolean readFullFile;
       InputStreamProvider inputStreamProvider = null;
+
       try {
         // TODO: DX-16001 - make async configurable for Hive.
         fs = FileSystemWrapper.get(finalPath, jobConf, oContext.getStats());
-        inputStreamProvider = getInputStreamProvider(useSingleStream, pathString, fs);
+        fileLength = fs.getFileStatus(finalPath).getLen();
+        readFullFile = fileLength < oContext.getOptions().getOption(ExecConstants.PARQUET_FULL_FILE_READ_THRESHOLD) &&
+                ((float)columnsToRead.size()) / outputSchema.getFieldCount() > oContext.getOptions().getOption(ExecConstants.PARQUET_FULL_FILE_READ_COLUMN_RATIO);
+        logger.debug("readFullFile={},length={},threshold={},columns={},totalColumns={},ratio={},req ratio={}",
+                readFullFile,
+                fileLength,
+                oContext.getOptions().getOption(ExecConstants.PARQUET_FULL_FILE_READ_THRESHOLD),
+                columnsToRead.size(),
+                outputSchema.getFieldCount(),
+                ((float)columnsToRead.size()) / outputSchema.getFieldCount(),
+                oContext.getOptions().getOption(ExecConstants.PARQUET_FULL_FILE_READ_COLUMN_RATIO));
+
+        inputStreamProvider = getInputStreamProvider(useSingleStream, finalPath, fs, fileLength, readFullFile);
         footer = inputStreamProvider.getFooter();
       } catch(Exception e) {
         // Close input stream provider in case of errors
@@ -151,14 +166,15 @@ public class FileSplitParquetRecordReader implements RecordReader {
       }
 
       final List<Integer> rowGroupNums = getRowGroupNumbersFromFileSplit(fileSplit, footer);
+      oContext.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, rowGroupNums.size());
+      innerReaders = Lists.newArrayList();
+
       if (rowGroupNums.isEmpty()) {
         try {
           inputStreamProvider.close();
-        } catch(Exception ignore) {}
+        } catch (Exception ignore) {}
       }
 
-      oContext.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, rowGroupNums.size());
-      innerReaders = Lists.newArrayList();
       for (int rowGroupNum : rowGroupNums) {
         ParquetDatasetSplitScanXAttr split = ParquetDatasetSplitScanXAttr.newBuilder()
             .setRowGroupIndex(rowGroupNum)
@@ -176,7 +192,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
         // Reuse the stream used for reading footer to read the first row group.
         if (innerReaders.size() > 0) {
-          inputStreamProvider = getInputStreamProvider(useSingleStream, pathString, fs);
+          inputStreamProvider = getInputStreamProvider(useSingleStream, finalPath, fs, fileLength, readFullFile);
         }
 
         final UnifiedParquetReader innerReader = new UnifiedParquetReader(

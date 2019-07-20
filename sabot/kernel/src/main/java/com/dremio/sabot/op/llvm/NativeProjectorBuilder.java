@@ -25,6 +25,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.record.VectorAccessible;
+import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 
 /**
@@ -37,9 +38,11 @@ public class NativeProjectorBuilder {
   private List<ExprPairing> exprs = new ArrayList<>();
   private List<ValueVector> allocationVectors = new ArrayList<>();
   private final VectorAccessible incoming;
+  private final FunctionContext functionContext;
 
-  public NativeProjectorBuilder(VectorAccessible incoming) {
+  public NativeProjectorBuilder(VectorAccessible incoming, FunctionContext functionContext) {
     this.incoming = incoming;
+    this.functionContext = functionContext;
   }
 
   /**
@@ -58,7 +61,7 @@ public class NativeProjectorBuilder {
       return NO_OP;
     }
 
-    final NativeProjector projector = new NativeProjector(incoming, incomingSchema);
+    final NativeProjector projector = new NativeProjector(incoming, incomingSchema, functionContext);
     for (ExprPairing e : exprs) {
       projector.add(e.expr, e.outputVector);
       allocationVectors.add(e.outputVector);

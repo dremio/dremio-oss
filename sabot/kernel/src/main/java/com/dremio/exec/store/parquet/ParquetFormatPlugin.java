@@ -178,7 +178,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       this.context = context;
       this.fs = fs;
       this.status = status;
-      this.streamProvider = new SingleStreamProvider(fs, status.getPath(), status.getLen());
+      this.streamProvider = new SingleStreamProvider(fs, status.getPath(), status.getLen(), null, false);
       this.footer = this.streamProvider.getFooter();
       boolean autoCorrectCorruptDates = context.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR) &&
         getConfig().autoCorrectCorruptDates;

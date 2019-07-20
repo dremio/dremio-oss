@@ -19,6 +19,8 @@ import java.math.BigDecimal;
 
 import org.junit.Test;
 
+import com.dremio.exec.ExecConstants;
+
 /**
  * Tests functions that are present only in Gandiva.
  * Assumes that code-gen includes Gandiva generation.
@@ -65,12 +67,20 @@ public class TestGandivaOnlyQueries extends DecimalCompleteTest {
   @Test
   public void testDecimal_Json() throws Exception {
 
-    final String query = "select cast(decimal_value as decimal(3,2)) + cast(decimal_value as " +
-      "decimal(3,2)) from cp.\"decimals.json\"";
-    testBuilder().sqlQuery(query)
-      .unOrdered()
-      .baselineColumns("EXPR$0")
-      .baselineValues(BigDecimal.valueOf(4.24))
-      .go();
+    try {
+      test(String.format("alter system set \"%s\" = true",
+        ExecConstants.QUERY_EXEC_SPLIT_ENABLED_KEY));
+
+      final String query = "select cast(decimal_value as decimal(3,2)) + cast(decimal_value as " +
+        "decimal(3,2)) from cp.\"decimals.json\"";
+      testBuilder().sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("EXPR$0")
+        .baselineValues(BigDecimal.valueOf(4.24))
+        .go();
+    } finally {
+      test(String.format("alter system set \"%s\" = %s",
+        ExecConstants.QUERY_EXEC_SPLIT_ENABLED_KEY, ExecConstants.SPLIT_ENABLED.getDefault().getBoolVal()));
+    }
   }
 }

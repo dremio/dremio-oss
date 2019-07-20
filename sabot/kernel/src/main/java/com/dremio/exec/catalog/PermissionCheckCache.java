@@ -38,7 +38,6 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
  * Thread-safe cache of permission checks. Caches up to maximumSize entries.
  */
 class PermissionCheckCache {
-
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PermissionCheckCache.class);
 
   public enum PermissionCheckAccessType {
@@ -73,7 +72,6 @@ class PermissionCheckCache {
    *
    * See {@link StoragePlugin#hasAccessPermission}.
    *
-   * @param registry storage plugin to check access against
    * @param username username to check access for
    * @param namespaceKey path to check access for
    * @param config dataset properties
@@ -95,18 +93,18 @@ class PermissionCheckCache {
     final Key key = new Key(username, namespaceKey);
     final long now = System.currentTimeMillis();
 
-    final Callable<Value> loader = new Callable<Value>() {
-      @Override
-      public Value call() {
-        final boolean hasAccess = plugin.get().hasAccessPermission(username, namespaceKey, config);
-        return new Value(hasAccess, now);
+    final Callable<Value> loader = () -> {
+      final boolean hasAccess = plugin.get().hasAccessPermission(username, namespaceKey, config);
+      if (!hasAccess) {
+        throw NoAccessException.INSTANCE;
       }
+      return new Value(hasAccess, now);
     };
 
     Value value;
     try {
       PermissionCheckAccessType permissionCheckAccessType;
-      value = permissionsCache.get(key, loader);
+      value = getFromPermissionsCache(key, loader);
 
       if (now == value.createdAt) {
         permissionCheckAccessType = PermissionCheckAccessType.PERMISSION_CACHE_MISS;
@@ -117,7 +115,7 @@ class PermissionCheckCache {
       // check validity, and reload if expired
       if (now - value.createdAt > authTtlMs.get()) {
         permissionsCache.invalidate(key);
-        value = permissionsCache.get(key, loader);
+        value = getFromPermissionsCache(key, loader);
         permissionCheckAccessType = PermissionCheckAccessType.PERMISSION_CACHE_EXPIRED;
       }
 
@@ -136,6 +134,22 @@ class PermissionCheckCache {
         .message("Access denied reading dataset %s.", namespaceKey.toString())
         .build(logger);
     }
+  }
+
+  private Value getFromPermissionsCache(Key key, Callable<Value> loader) throws ExecutionException {
+    Value value;
+
+    try {
+      value = permissionsCache.get(key, loader);
+    } catch (UncheckedExecutionException e) {
+      if (e.getCause() != NoAccessException.INSTANCE) {
+        throw e;
+      }
+
+      value = new Value(false, System.currentTimeMillis());
+    }
+
+    return value;
   }
 
   /**
@@ -183,5 +197,13 @@ class PermissionCheckCache {
       this.hasAccess = hasAccess;
       this.createdAt = createdAt;
     }
+  }
+
+  /**
+   * Exception used if user has to access. This ensures that we do not cache any no-access permissions.
+   */
+  private static final class NoAccessException extends RuntimeException {
+    // we create a singleton since we always catch and don't need a stack trace
+    private static final NoAccessException INSTANCE = new NoAccessException();
   }
 }

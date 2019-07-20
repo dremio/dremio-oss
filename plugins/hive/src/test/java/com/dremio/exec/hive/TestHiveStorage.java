@@ -201,6 +201,18 @@ public class TestHiveStorage extends HiveTestBase {
       .baselineColumns("col3", "col2")
       .baselineValues(null, new Integer(2))
       .go();
+    String query3 = "SELECT * FROM hive.orc_more_columns_ext";
+    testBuilder().sqlQuery(query3)
+      .ordered()
+      .baselineColumns("col1", "col2", "col3", "col4")
+      .baselineValues(new Integer(1), new Integer(2), null, null)
+      .go();
+    String query4 = "SELECT col4 FROM hive.orc_more_columns_ext";
+    testBuilder().sqlQuery(query4)
+      .ordered()
+      .baselineColumns("col4")
+      .baselineValues(null)
+      .go();
   }
 
   @Test
@@ -390,6 +402,27 @@ public class TestHiveStorage extends HiveTestBase {
       .baselineValues("")
       .go();
   }
+
+  @Test
+  public void readTimestampToStringORC() throws Exception {
+    String query = "SELECT col1 FROM hive.timestamptostring_orc_ext order by col1 limit 1";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1")
+      .baselineValues(Long.toString(new DateTime(Timestamp.valueOf("2013-07-05 17:01:00").getTime(), UTC).getMillis()))
+      .go();
+  }
+
+  @Test
+  public void readDoubleToStringORC() throws Exception {
+    String query = "SELECT col1 FROM hive.doubletostring_orc_ext order by col1 limit 1";
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns("col1")
+      .baselineValues("1.0")
+      .go();
+  }
+
   @Test
   public void readComplexHiveDataTypesORC() throws Exception {
     readComplexHiveDataTypes("orccomplexorc");

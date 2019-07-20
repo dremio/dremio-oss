@@ -111,7 +111,7 @@ class SplitStageExecutor implements AutoCloseable {
     this.hasOriginalExpression = false;
     this.nativeFilter = null;
     this.instanceCounter = instanceCounter;
-    this.nativeProjectorBuilder = NativeProjectEvaluator.builder(incoming);
+    this.nativeProjectorBuilder = NativeProjectEvaluator.builder(incoming, context.getFunctionContext());
     this.cg = context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
     this.splitsForPreferredCodeGen = this.preferredEngine ==
       SupportedEngines.Engine.GANDIVA? gandivaSplits : javaSplits;
@@ -247,7 +247,7 @@ class SplitStageExecutor implements AutoCloseable {
       == this.preferredEngine) {
       log("Setting up filter for split in Gandiva {}", finalSplit.getNamedExpression().getExpr());
       gandivaCodeGenWatch.start();
-      nativeFilter = NativeFilter.build(finalSplit.getNamedExpression().getExpr(), incoming, outgoing.getSelectionVector2());
+      nativeFilter = NativeFilter.build(finalSplit.getNamedExpression().getExpr(), incoming, outgoing.getSelectionVector2(), context.getFunctionContext());
       gandivaCodeGenWatch.stop();
       this.filterFunction = new NativeTimedFilter(nativeFilter);
       return;
